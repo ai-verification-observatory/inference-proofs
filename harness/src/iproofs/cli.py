@@ -350,6 +350,7 @@ def reproduce_compare(args: argparse.Namespace) -> int:
     from iproofs.model import System, load  # noqa: PLC0415
     from iproofs.release import compare, write_reproduction  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.serialize import dumps  # noqa: PLC0415
     from iproofs.validate import governance, repo_root  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
@@ -370,7 +371,8 @@ def reproduce_compare(args: argparse.Namespace) -> int:
         maintainer_organisations=orgs,
     )
     path = write_reproduction(args.orig_run, record, registry)
-    print(f"{path}: {record['outcome']}")
+    sys.stdout.write(dumps(record).decode())  # CLI-3: data on stdout through the single writer
+    print(f"wrote {path}: {record['outcome']}", file=sys.stderr)
     return 0 if record["outcome"] == "within_tolerance" else 1
 
 
