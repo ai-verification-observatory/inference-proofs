@@ -1,0 +1,24 @@
+# FlashProve figures as its repository publishes them in docs/figures.tsv, grade external
+# (RFC-0004 §Mapping from upstream scopes). Values are copied at the pin, never recomputed or
+# rounded; each note copies the row's statistic, spread and run count. figures.tsv states no
+# grade per row, so upstream_grade is absent (not stated).
+schema: "external/1"
+system: "flashprove"
+upstream: {repo: "anthropics/FlashProve", commit: "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"}
+figures:
+  - id: "rate-24"
+    metric: "rate_prove.steady"
+    workload: "fp-maverick-w1024-b24"
+    quantity: {value: 111.23, unit: "token/s", scope: "prove.steady", grade: "external", tier: "reported", source: {kind: "upstream", ref: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L63"}, null_reason: null, upstream_scope: "Proving speed in steady service, 24 requests a batch", mapping: "approximate", note: "mean of 3 runs; sd 0.92; 110.20 to 111.99; public 4-bit files"}
+  - id: "rate-24-startup"
+    metric: "rate_prove.session"
+    workload: "fp-maverick-w1024-b24"
+    quantity: {value: 103.60, unit: "token/s", scope: "prove.session", grade: "external", tier: "reported", source: {kind: "upstream", ref: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L66"}, null_reason: null, upstream_scope: "Speed counted from the program's start to the last release, five batches only", mapping: "approximate", note: "mean of 3 runs; sd 0.84; 102.65 to 104.24; public 4-bit files"}
+  - id: "rate-1"
+    metric: "rate_prove.steady"
+    workload: "fp-maverick-w1024-b1"
+    quantity: {value: 17.41, unit: "token/s", scope: "prove.steady", grade: "external", tier: "reported", source: {kind: "upstream", ref: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L62"}, null_reason: null, upstream_scope: "Proving speed in steady service, 1 request a batch", mapping: "approximate", note: "mean of 3 runs; sd 0.15; 17.24 to 17.51; public 4-bit files"}
+  - id: "verify-time"
+    metric: "verify_single_thread_seconds"
+    workload: "fp-maverick-w1024-b24"
+    quantity: {value: 21.14, unit: "s", scope: "verify.single_thread", grade: "external", tier: "reported", source: {kind: "upstream", ref: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L83"}, null_reason: null, upstream_scope: "The verifier on one proof with one thread", mapping: "approximate", note: "mean of 3 runs; sd 0.03; 21.11 to 21.17"}

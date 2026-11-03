@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "figure": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$comment": "the upstream's own name for the figure",
+          "minLength": 1,
+          "type": "string"
+        },
+        "metric": {
+          "$ref": "../quantity/1.schema.json#/$defs/metricId"
+        },
+        "quantity": {
+          "allOf": [
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/quantity"
+            }
+          ],
+          "properties": {
+            "grade": {
+              "const": "external"
+            },
+            "tier": {
+              "const": "reported"
+            }
+          },
+          "required": [
+            "upstream_scope",
+            "mapping"
+          ]
+        },
+        "workload": {
+          "$comment": "the shape it was measured on, if a v0.1 workload has it",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "metric",
+        "workload",
+        "quantity"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/external/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "figures": {
+      "items": {
+        "$ref": "#/$defs/figure"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "external/1"
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "system",
+    "upstream",
+    "figures"
+  ],
+  "title": "Upstream figures of one system (RFC-0004 \u00a7Mapping from upstream scopes)",
+  "type": "object"
+}

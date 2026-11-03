@@ -1,0 +1,19 @@
+# Invalid: an external figure without its mapping (INV-QTY-5).
+schema: "external/1"
+system: "sash"
+upstream: {repo: "sg-ai-safety-hub/zk-inference-results", commit: "11decec3c0b62c707618aab5deb82750b355d202"}
+figures:
+  - id: "pos_s.headline.c4096.loop"
+    metric: "rate_prove.steady"
+    workload: "sash-l31-8b-c4096"
+    quantity:
+      value: 1.25105
+      unit: "token/s"
+      scope: "prove.steady"
+      grade: "external"
+      tier: "reported"
+      source: {kind: "upstream", ref: "https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/constants.json#L291-L299"}
+      null_reason: null
+      upstream_scope: "loop"
+      upstream_grade: "derived"
+      note: "positions/s upstream"
