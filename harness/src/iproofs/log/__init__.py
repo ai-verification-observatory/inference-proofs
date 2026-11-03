@@ -93,6 +93,7 @@ class JsonlLogger:
         redactor: Redactor = _identity,
         mono: Callable[[], int] = time.monotonic_ns,
         wall: Callable[[], str] = _utc_ms,
+        on_record: Callable[[dict[str, object]], None] | None = None,
     ) -> None:
         if level not in LEVELS:
             raise IProofsError(ErrorKind.CONFIG, f"unknown log level {level!r}")
@@ -101,6 +102,7 @@ class JsonlLogger:
         self.redactor = redactor
         self.mono = mono
         self.wall = wall
+        self.on_record = on_record  # sees only records that were written (progress output)
 
     def log(
         self,
@@ -132,3 +134,40 @@ class JsonlLogger:
         line = json.dumps(record, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
         self.stream.write(self.redactor(line) + "\n")
         self.stream.flush()
+        if self.on_record is not None:
+            self.on_record(record)
+
+
+class Progress:
+    """docs/spec/05 §Progress output: one stderr line per written state, release, verify,
+    failure and write record, built only from the record, so it says nothing harness.jsonl
+    does not."""
+
+    def __init__(
+        self, stream: TextIO, repetition: int, repetitions: int, redactor: Redactor = _identity
+    ) -> None:
+        self.stream = stream
+        self.prefix = f"[rep {repetition}/{repetitions}]"
+        self.redactor = redactor
+        self.start: int | None = None
+
+    def __call__(self, record: dict[str, object]) -> None:
+        mono = int(str(record["mono_ns"]))
+        self.start = mono if self.start is None else self.start
+        secs = (mono - self.start) // 1_000_000_000
+        hms = f"{secs // 3600:02d}:{secs // 60 % 60:02d}:{secs % 60:02d}"
+        event = record["event"]
+        line = None
+        if event == Event.JOB_STATE:
+            line = f"{record['to']!s:<8} running   {hms}"
+        elif event == Event.PROOF_RELEASED:
+            line = f"{'prove':<8} running   {hms}  proofs {record['index']}/{record['of']}"
+        elif event == Event.VERIFY_RESULT:
+            line = f"{'verify':<8} proof {record['index']}/{record['of']} {record['verdict']}"
+        elif event == Event.JOB_FAILED:
+            line = f"{record['step']!s:<8} failed    {hms}  {record['kind']}"
+        elif event == Event.JOB_WRITTEN:
+            line = f"{'written':<8} {record['outcome']}   {hms}"
+        if line is not None:
+            self.stream.write(self.redactor(f"{self.prefix} {line}") + "\n")
+            self.stream.flush()
