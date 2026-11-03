@@ -3,6 +3,7 @@
 INV-ARCH-5: every function here is pure: no clock, no file writes, no network.
 """
 
+import statistics
 from collections.abc import Callable, Mapping, Sequence
 
 from iproofs.errors import ErrorKind, IProofsError
@@ -231,3 +232,78 @@ def derive_repetition(
         lambda x: x[0] / nonzero(x[1]),
     )  # fmt: skip
     return out
+
+
+# ---------------------------------------------------------------- configuration statistics
+
+MIN_REPETITIONS = 3
+
+# Formula registry: every id a derived quantity may name in `source.ref` (INV-QTY-6).
+FORMULAS = {
+    "D-RATE-S": "T(S) / sec(S)",
+    "D-SPT-S": "sec(S) / T(S)",
+    "D-COST-1K-S": "D-SPT-S * 1000 * gpus * price / 3600",
+    "D-COMMIT-AMORT-H1": "commit_seconds / (tokens_covered_total / requests_count * 1)",
+    "D-COMMIT-AMORT-H1000": "commit_seconds / (tokens_covered_total / requests_count * 1000)",
+    "D-APT-S": "D-RATE-S * active_parameters_per_token",
+    "D-BPT": "proof_bytes_total / tokens_covered_total",
+    "D-VSPT": "verify_seconds_total / tokens_covered_total",
+    "D-VSPT-1T": "first-proof single-thread verify seconds / first-proof tokens",
+    "D-STAT": "over successful repetitions in repetition order: statistics.mean, "
+    "statistics.stdev (n - 1, null when n < 2), min, max",
+}
+
+
+def insufficient_repetitions(n: int) -> bool:
+    """Fewer than three successful repetitions: published with the label, never hidden."""
+    return n < MIN_REPETITIONS
+
+
+def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> QuantityTree:
+    """D-STAT over one metric's per-repetition values, ordered by repetition (INV-DERIVE-1).
+
+    `inputs` holds one (pointer, quantity) per successful repetition and `failed` one pointer
+    per failed repetition (its run.json failure record). Null values are left out of n. With
+    no value at all the result is null: `step_failed` when every repetition failed
+    (INV-QTY-8), otherwise the inputs' own null reason as a plain quantity.
+    """
+    present = [q for _, q in inputs if q is not None]
+    units = {str(q["unit"]) for q in present}
+    scopes = {q["scope"] for q in present}
+    if len(units) > 1 or len(scopes) > 1:
+        raise IProofsError(
+            ErrorKind.INTERNAL, f"D-STAT over mixed units {units} or scopes {scopes}"
+        )
+    unit = Unit(units.pop()) if units else Unit.COUNT
+    scope_value = scopes.pop() if scopes else None
+    scope = None if scope_value is None else Scope(str(scope_value))
+    values = [float(v) for q in present if isinstance(v := q["value"], int | float)]
+    if not values and present:
+        reason = NullReason(str(present[0]["null_reason"]))
+        return derived("D-STAT", version, unit, scope, inputs, lambda _: _raise(reason))
+    n = len(values)
+    if n == 0:
+        if not failed:
+            raise IProofsError(ErrorKind.INTERNAL, "D-STAT over no repetition at all")
+        out = derived("D-STAT", version, unit, scope, [(r, None) for r in failed], lambda _: 0.0)
+        out["null_reason"] = str(NullReason.STEP_FAILED)
+        out["stats"] = {"n": 0, "n_failed": len(failed), "mean": None, "stdev": None,
+                        "min": None, "max": None}  # fmt: skip
+        return out
+    mean = statistics.mean(values)
+    stats = {
+        "n": n,
+        "n_failed": len(failed),
+        "mean": mean,
+        "stdev": statistics.stdev(values) if n >= 2 else None,
+        "min": min(values),
+        "max": max(values),
+    }
+    valued = [(ref, q) for ref, q in inputs if q is not None and q["value"] is not None]
+    out = derived("D-STAT", version, unit, scope, valued, lambda _: mean)
+    out["stats"] = stats
+    return out
+
+
+def _raise(reason: NullReason) -> float:
+    raise _Null(reason)
