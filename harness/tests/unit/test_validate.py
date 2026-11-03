@@ -125,5 +125,5 @@ def test_fmt_is_hidden(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_repository_validates() -> None:
-    """The repository itself passes every tree gate."""
-    assert [f.line() for f in validate_tree(ROOT)] == []
+    """The repository itself passes every tree gate (warnings do not fail a gate)."""
+    assert [f.line() for f in validate_tree(ROOT) if not f.warning] == []

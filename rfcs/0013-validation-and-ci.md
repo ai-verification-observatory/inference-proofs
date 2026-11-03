@@ -88,6 +88,7 @@ Cross-document checks (also G2, rule ids `XREF-n`):
 - `XREF-3` every review and reproduction record names an existing run directory.
 - `XREF-4` every `releases/<r>/release.yaml` lists only existing run directories, and the reference file it names exists.
 - `XREF-5` every target names a metric id that exists in the RFC-0004 formula registry or the raw metric list.
+- `GOV-1` to `GOV-3` (governance, [RFC-0001 §Roles](0001-process-and-governance.md#roles)): every `MAINTAINERS.md` row has a handle, role, organisation and declared interests (`GOV-1`; the placeholder `undeclared` is a warning); INV-GOV-1 (`GOV-2`, a warning until release approval); INV-GOV-2 (`GOV-3`). Warnings go to stderr and never fail the gate.
 
 Repository-shape checks (also G2):
 
