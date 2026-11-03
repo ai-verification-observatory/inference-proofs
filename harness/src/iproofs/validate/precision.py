@@ -69,8 +69,7 @@ def _systems(root: Path, files: list[str], registry: SchemaRegistry) -> list[Fin
         if not isinstance(doc, System) or doc.kind != "reference":
             continue
         for i, entry in enumerate(doc.workloads):
-            if not isinstance(entry, ReferenceWorkload):
-                continue
+            assert isinstance(entry, ReferenceWorkload)  # the schema gives references objects
             wl_path = root / "workloads" / f"{entry.id}.yaml"
             if not wl_path.is_file():
                 continue  # cross-references are G2 XREF's job

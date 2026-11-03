@@ -1,6 +1,12 @@
 """RFC-0013 §G12: relative links and anchors (LNK-1), RFC references (LNK-2)."""
 
+import email.message
+import subprocess
+import urllib.error
+import urllib.request
 from pathlib import Path
+
+import pytest
 
 from iproofs.validate import links
 from iproofs.validate.tree import validate_tree
@@ -58,3 +64,48 @@ def test_external_links_listed_not_fetched_in_validate(tmp_path: Path) -> None:
     assert links.external_links(tmp_path, ["README.md"]) == [
         ("README.md:1", "https://example.org/a")
     ]
+
+
+class _Response:
+    def __enter__(self) -> "_Response":
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+
+def _urlopen(request: urllib.request.Request, timeout: float) -> _Response:
+    """Offline stand-in: the last path segment of the url picks the outcome."""
+    url = request.full_url
+    last = url.rsplit("/", 1)[-1]
+    if last.isdigit():
+        raise urllib.error.HTTPError(url, int(last), "status", email.message.Message(), None)
+    if last == "down":
+        raise urllib.error.URLError("refused")
+    return _Response()
+
+
+def test_fetch_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(urllib.request, "urlopen", _urlopen)
+    urls = ["https://example.org/ok", "https://example.org/404", "https://example.org/403",
+            "https://example.org/429", "https://example.org/down"]  # fmt: skip
+    assert links.fetch_failures([("a.md:1", u) for u in urls]) == [
+        "a.md:1 https://example.org/404: HTTP 404",
+        "a.md:1 https://example.org/down: <urlopen error refused>",
+    ]
+
+
+def test_external_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (tmp_path / "schema/quantity").mkdir(parents=True)
+    (tmp_path / "schema/quantity/1.schema.json").write_text("{}\n")
+    (tmp_path / "README.md").write_text("[a](https://example.org/404) [b](docs/x.md)\n")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    monkeypatch.setattr(urllib.request, "urlopen", _urlopen)
+    monkeypatch.chdir(tmp_path)
+    assert links.main([]) == 2
+    assert links.main(["--external"]) == 1
+    out = capsys.readouterr()
+    assert out.out == "README.md:1 https://example.org/404: HTTP 404\n"
+    assert out.err.endswith("links: 1 external links failed\n")

@@ -148,3 +148,5 @@ def test_summary_recomputed(tmp_path: Path, workload: Workload) -> None:
     path.write_text(json.dumps(doc))
     rules = {f.rule for f in check_controls_summary(path, ROOT)}
     assert rules == {"INV-CTRL-5"}
+    path.write_text("{}")  # no controls list: nothing to recompute
+    assert check_controls_summary(path, ROOT) == []

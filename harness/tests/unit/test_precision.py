@@ -11,7 +11,7 @@ import yaml
 from iproofs.adapter import InProcessRunner
 from iproofs.runner import JobSpec, Runner
 from iproofs.schema import SchemaRegistry
-from iproofs.validate.precision import bit_widths, check, substitution_problem
+from iproofs.validate.precision import bit_widths, check, substituted, substitution_problem
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
@@ -31,6 +31,8 @@ def test_bit_widths_and_order() -> None:
     assert "lower bit width" in str(substitution_problem("int8", "W4A16"))
     assert "lower bit width" in str(substitution_problem("W8A16", "W8A8"))
     assert "unknown scheme" in str(substitution_problem("int8", "mxfp4-custom"))
+    assert "no substitution to declare" in str(substitution_problem("int8", "W8A8"))
+    assert substituted(ROOT, "no-such-system", "fake-tiny-ci", REGISTRY) is False
 
 
 def repo(tmp_path: Path, used: str, substitution: dict[str, str] | None) -> Path:
@@ -114,3 +116,10 @@ def test_matching_precision_passes(tmp_path: Path, used: str) -> None:
         ("PM-1", "fake-tiny-ci: uses W8A8, the workload serves int8, and no substitution is "
          "declared")
     ])  # fmt: skip
+
+
+def test_unknown_workload_left_to_xref(tmp_path: Path) -> None:
+    r = repo(tmp_path, "W8A16", None)
+    path = r / "systems/fake-ref/system.yaml"
+    path.write_text(path.read_text().replace("id: fake-tiny-ci", "id: no-such-workload"))
+    assert rules(r, "systems/fake-ref/system.yaml") == []

@@ -123,5 +123,27 @@ def test_run_card_resolution(tree: Path, registry: SchemaRegistry) -> None:
     assert check_run_claim(ok, tree, registry, "results/x/manifest.json") == []
     newer = ClaimRef(system="fake", configuration="default", card_version=3)
     assert "newer than the card's 2" in check_run_claim(newer, tree, registry, "m")[0].message
+    other = ClaimRef(system="fake", configuration="other", card_version=1)  # the single claim.yaml
+    assert check_run_claim(other, tree, registry, "m")[0].message == (
+        "card configuration is 'default'"
+    )
     missing = ClaimRef(system="other", configuration="default", card_version=1)
     assert check_run_claim(missing, tree, registry, "m")[0].rule == "CLAIM-REF"
+
+
+def test_not_a_claim_card(tree: Path, registry: SchemaRegistry) -> None:
+    found = check_claim(tree / "systems/fake/system.yaml", tree, registry)
+    assert [(f.rule, f.message) for f in found] == [("SCHEMA", "not a claim card")]
+
+
+def test_binding_edges_and_formal_relation_pinned(tree: Path, registry: SchemaRegistry) -> None:
+    other = DOC.replace(COMMIT, "f" * 40)
+    edge = f'{{edge: "weights to commitment", state: "bound", switch: null, source: "{other}"}}'
+    findings(tree, registry, 'binding: "not stated"\n',
+             f'binding: {{edges: [{edge}]}}\nrelation_formal: "{other}"\n')  # fmt: skip
+    lines = findings(tree, registry, "sources:\n",
+                     f'sources:\n  binding: "{DOC}"\n  relation_formal: "{DOC}"\n')  # fmt: skip
+    assert [line.split()[1] for line in lines] == [
+        "systems/fake/claim.yaml#/binding/edges/0/source",
+        "systems/fake/claim.yaml#/relation_formal",
+    ]

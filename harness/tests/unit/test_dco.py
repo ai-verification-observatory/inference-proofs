@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from iproofs.errors import ErrorKind, IProofsError
 from iproofs.validate.dco import check_range, main
 
 AUTHOR = ["-c", "user.name=Ann Author", "-c", "user.email=ann@example.invalid"]
@@ -56,3 +57,14 @@ def test_cli_exit_codes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
     assert main(["HEAD~1..HEAD"]) == 1
     assert main(["HEAD~1"]) == 0  # the signed base commit alone
     assert main([]) == 2
+
+
+def test_git_failure_is_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    with pytest.raises(IProofsError) as e:
+        check_range(tmp_path, "HEAD~1..HEAD")  # not a repository
+    assert e.value.kind == ErrorKind.CONFIG
+    monkeypatch.chdir(tmp_path)
+    assert main(["HEAD~1..HEAD"]) == 1
+    assert capsys.readouterr().err.startswith("dco: git log HEAD~1..HEAD failed")
