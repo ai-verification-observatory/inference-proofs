@@ -69,11 +69,19 @@ def base(sub: str) -> dict[str, object]:
             "phases": [], "warnings": []}
 
 
+INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+
+
 def info(job: dict) -> dict:
-    return {**base("info"), "system": os.environ.get("IPROOFS_FAKE_NAME", "fake"),
-            "upstream_commit": UPSTREAM_COMMIT, "image_inputs": [],
-            "workloads": ["fake-tiny-ci"], "profile": "ci-cpu",
-            "contract_versions": ["adapter/1"]}
+    inputs = json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else []
+    out = {**base("info"), "system": os.environ.get("IPROOFS_FAKE_NAME", "fake"),
+           "upstream_commit": UPSTREAM_COMMIT, "image_inputs": inputs,
+           "workloads": ["fake-tiny-ci"], "profile": "ci-cpu",
+           "contract_versions": ["adapter/1"]}
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
 
 
 def setup(job: dict) -> dict:

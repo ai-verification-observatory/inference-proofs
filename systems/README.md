@@ -59,6 +59,8 @@ Map the upstream verifier's own signals onto `accept`, `reject`, `no_verdict` an
 
 Follow rules B1 to B7 of [RFC-0014 §Adapter image build](../rfcs/0014-provenance-and-integrity.md#adapter-image-build): base images by digest; one `fetch` stage that downloads every input, verified against `systems/<name>/inputs.lock`; `RUN --network=none` after it; no patch or `sed` over upstream source; `/opt/iproofs/inputs.json` returned by `info`; a clean-tree build with the adapter commit baked in; release images pushed and referenced by manifest digest. A run is eligible for a release only from a clean build of a pushed image ([RFC-0014 §Eligibility](../rfcs/0014-provenance-and-integrity.md#eligibility)); local builds are recorded with `digest_kind: config` and never are.
 
+`systems/<name>/inputs.lock` lists every downloaded input, one per line, `<name>\t<url>\tsha256:<hex>`; the fetch stage uses `ADD --checksum=sha256:<hex> <url>` for each. Pass the adapter commit and dirty flag as build arguments and return them from `info` (`adapter_commit`, `adapter_dirty`), with `image_inputs` read from `/opt/iproofs/inputs.json`. `systems/fake/Dockerfile`, `systems/fake/inputs.lock` and `systems/fake/write_inputs.py` are the reference. Each adapter's `tests/test_dockerfile_rules.py` calls `iproofs.provenance.dockerfile_problems(dockerfile, inputs_lock)`, which checks B1 to B3.
+
 Gate G7 checks pins in every Dockerfile ([RFC-0013 §G7](../rfcs/0013-validation-and-ci.md#g7-pin-check)).
 
 ## 10. Fixture tests

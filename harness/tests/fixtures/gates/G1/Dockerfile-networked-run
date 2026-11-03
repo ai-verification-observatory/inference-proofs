@@ -1,0 +1,5 @@
+# Known-bad: a build step with network outside the fetch stage (RFC-0014 B3).
+FROM docker.io/library/python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30 AS fetch
+ADD --checksum=sha256:0000000000000000000000000000000000000000000000000000000000000000 https://example.org/src.tar.gz /fetch/
+FROM docker.io/library/python:3.12-slim@sha256:b18b261e1b4974b4f321451ad5251ded85abb22c2b8b262da527dda1d031ab30
+RUN pip install --no-cache-dir example
