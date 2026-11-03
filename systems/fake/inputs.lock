@@ -1,0 +1,4 @@
+# RFC-0014 B2: every external input the fetch stage downloads, one per line:
+# <name>	<url>	sha256:<hex>
+# The fake system downloads nothing; its only inputs are the base image (pinned by digest in
+# the Dockerfile) and files from this repository.

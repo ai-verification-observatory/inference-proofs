@@ -528,3 +528,62 @@ def check_profile(  # noqa: PLR0912 (one branch per RFC-0006 check)
             f" below {runtime.nvidia_container_toolkit_min}",
         )
     return found
+
+
+# ---------------------------------------------------------------- Dockerfile rules (RFC-0014)
+
+
+def _instructions(text: str) -> list[tuple[int, str, str]]:
+    """(first line number, instruction, arguments), with continuation lines joined."""
+    out, buf, start = [], "", 0
+    for n, raw in enumerate(text.splitlines(), start=1):
+        line = raw.strip()
+        if not buf and (not line or line.startswith("#")):
+            continue
+        start = start or n
+        if line.endswith("\\"):
+            buf += line[:-1] + " "
+            continue
+        word, _, rest = (buf + line).partition(" ")
+        out.append((start, word.upper(), rest.strip()))
+        buf, start = "", 0
+    return out
+
+
+def dockerfile_problems(dockerfile: str, inputs_lock: str = "") -> list[str]:
+    """RFC-0014 B1 to B3 for an adapter Dockerfile, each problem as `<line>: B<n> <what>`.
+
+    B1 every FROM names a digest (or an earlier stage); B2 a downloaded input (`ADD` of a URL)
+    sits in the stage named `fetch`, carries `--checksum`, and is listed in inputs.lock with
+    that digest; B3 every RUN outside `fetch` uses `--network=none`."""
+    locked = {
+        parts[1]: parts[2]
+        for line in inputs_lock.splitlines()
+        if line.strip() and not line.startswith("#") and len(parts := line.split("\t")) == 3
+    }
+    problems, stages, stage = [], set(), ""
+    for n, word, args in _instructions(dockerfile):
+        tokens = args.split()
+        if word == "FROM":
+            image = next(t for t in tokens if not t.startswith("--"))
+            if "@sha256:" not in image and image not in stages:
+                problems.append(f"{n}: B1 FROM {image} has no digest")
+            stage = tokens[-1] if len(tokens) >= 3 and tokens[-2].upper() == "AS" else ""
+            stages.add(stage)
+        elif word == "RUN" and stage != "fetch" and "--network=none" not in tokens:
+            problems.append(f"{n}: B3 RUN outside the fetch stage without --network=none")
+        elif word == "ADD":
+            sources = [t for t in tokens if not t.startswith("--")][:-1]
+            checksum = next(
+                (t.split("=", 1)[1] for t in tokens if t.startswith("--checksum=")), None
+            )
+            for src in sources:
+                if not src.startswith(("http://", "https://", "git@")):
+                    continue
+                if stage != "fetch":
+                    problems.append(f"{n}: B2 {src} downloaded outside the fetch stage")
+                elif locked.get(src) is None:
+                    problems.append(f"{n}: B2 {src} is not in inputs.lock")
+                elif checksum != locked[src] and "#" not in src:
+                    problems.append(f"{n}: B2 {src} checksum differs from inputs.lock")
+    return problems

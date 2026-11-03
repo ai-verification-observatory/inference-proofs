@@ -775,6 +775,8 @@ class AdapterOut(Document):
     raw_exit_code: int | None = None
     raw_last_line: str | None = None
     seconds: float | None = None
+    adapter_commit: str | None = None  # info, RFC-0014 B6
+    adapter_dirty: bool | None = None
 
 
 # RFC-0005 §system.yaml default wall limits per step, in seconds (targets, not measurements).

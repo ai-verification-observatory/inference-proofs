@@ -1,7 +1,7 @@
 {
   "$defs": {
     "commandLine": {
-      "$comment": "one line of /io/commands.jsonl (RFC-0005 §Command log)",
+      "$comment": "one line of /io/commands.jsonl (RFC-0005 \u00a7Command log)",
       "additionalProperties": false,
       "properties": {
         "argv": {
@@ -247,6 +247,21 @@
     }
   ],
   "properties": {
+    "adapter_commit": {
+      "$comment": "info: this repository's commit the image was built from (RFC-0014 B6); unknown when not baked in",
+      "anyOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        {
+          "const": "unknown"
+        }
+      ]
+    },
+    "adapter_dirty": {
+      "$comment": "info: the image was built from a dirty tree (RFC-0014 B6)",
+      "type": "boolean"
+    },
     "binding_report": {
       "pattern": "^/io/[^\\x00]+$",
       "type": "string"
@@ -424,6 +439,6 @@
     "phases",
     "warnings"
   ],
-  "title": "Adapter output file /io/out.json (RFC-0005 §Subcommands and file shapes)",
+  "title": "Adapter output file /io/out.json (RFC-0005 \u00a7Subcommands and file shapes)",
   "type": "object"
 }

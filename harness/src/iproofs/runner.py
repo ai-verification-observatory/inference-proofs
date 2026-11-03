@@ -8,6 +8,7 @@ reaches `written`; a failed job is written with its failure record, never droppe
 import errno
 import json
 import os
+import re
 import shutil
 import statistics
 import time
@@ -216,6 +217,7 @@ class Job:
     commands: list[dict[str, object]] = field(default_factory=list)
     prompt_set_digest: str = ""
     image_inputs: list[dict[str, object]] = field(default_factory=list)
+    adapter_build: tuple[str | None, bool | None] = (None, None)  # (commit, dirty) from info
     commitment_record: dict[str, object] | None = None
     logs: dict[str, Capture] = field(default_factory=dict)  # "<step>.stdout" -> bounded capture
     log_prefix: str = ""  # "controls-" when `iproofs controls` adds calls to a written run
@@ -655,6 +657,7 @@ class Runner:
         job.image_inputs = [
             {"name": i.name, "url": i.url, "digest": i.digest} for i in out.image_inputs or ()
         ]
+        job.adapter_build = (out.adapter_commit, out.adapter_dirty)  # baked in at build (B6)
         pinned = job.system.upstream.commit if job.system.upstream else None
         if pinned is not None and out.upstream_commit != pinned:
             raise IProofsError(
@@ -1198,8 +1201,13 @@ class Runner:
                     if system.upstream
                     else None
                 ),
-                "adapter_commit": harness_commit,
-                "adapter_dirty": adapter_dirty,
+                # the image's own record when it bakes one in (B6), else this checkout's
+                "adapter_commit": job.adapter_build[0]
+                if re.fullmatch(r"[0-9a-f]{40}", job.adapter_build[0] or "")
+                else harness_commit,
+                "adapter_dirty": adapter_dirty
+                if job.adapter_build[1] is None
+                else job.adapter_build[1],
                 "image": {
                     "ref": job.image,
                     "digest_kind": "config" if job.image.startswith("local/") else "manifest",
