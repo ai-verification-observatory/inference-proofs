@@ -12,7 +12,7 @@ import statistics
 import time
 import traceback
 from collections.abc import Callable
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Protocol
@@ -226,7 +226,14 @@ class Runner:
         if below_minimum:
             job.warnings.append("repetitions_below_minimum")
         (staging / "logs").mkdir()
-        (staging / "job.lock").write_text(json.dumps({"pid": os.getpid(), "boot_id": _boot_id()}))
+        lock = {
+            "pid": os.getpid(),
+            "boot_id": _boot_id(),
+            "run_id": run_id,
+            "spec": asdict(spec),
+            "seed": f"0x{job.seed:016x}",
+        }
+        (staging / "job.lock").write_text(json.dumps(lock))
         with (staging / "logs/harness.jsonl").open("w") as stream:
             log = JsonlLogger(stream, redactor=self.redact, mono=self.clock)
             log.log(Event.RUNNER_START, job=run_id, harness_version=__version__)
@@ -278,6 +285,57 @@ class Runner:
             )
         final.parent.joinpath(f".staging-{run_id}").rename(final)
         _fsync_dir(final.parent)  # the run directory exists only complete (INV-RUN-2)
+        return final
+
+    def recover(self, results_root: Path) -> list[Path]:
+        """Crash recovery (RFC-0010): an abandoned staging directory becomes a failed run.
+
+        A staging directory whose runner is still alive on this boot means another runner is
+        active on the tree: exit 3. A recovered job is never continued (INV-RUN-3).
+        """
+        recovered = []
+        for staging in sorted(results_root.glob("*/*/.staging-*")):
+            lock_file = staging / "job.lock"
+            lock = json.loads(lock_file.read_text()) if lock_file.is_file() else {}
+            if lock.get("boot_id") == _boot_id() and _alive(int(lock.get("pid", 0))):
+                raise IProofsError(
+                    ErrorKind.ENVIRONMENT,
+                    f"another runner is active on {results_root} (pid {lock['pid']})",
+                )
+            if "spec" not in lock:
+                raise IProofsError(
+                    ErrorKind.INTERNAL, f"{staging.name}: no job.lock to recover from"
+                )
+            recovered.append(self._recover_one(staging, lock))
+        return recovered
+
+    def _recover_one(self, staging: Path, lock: dict[str, object]) -> Path:
+        spec = JobSpec(**lock["spec"])  # type: ignore[arg-type]
+        run_id = str(lock["run_id"])
+        job = Job(spec, run_id, staging, seed=int(str(lock["seed"]), 16))
+        log_path = staging / "logs/harness.jsonl"
+        states = (
+            [json.loads(line).get("to") for line in log_path.open()] if log_path.exists() else []
+        )
+        last = next((st for st in reversed(states) if st), "pending")
+        try:  # inputs for the manifest; nothing is run again
+            self._resolve_inputs(job)
+            self._image(job)
+            prompts = staging / "io/prompts.jsonl"
+            job.prompt_set_digest = file_digest(prompts) if prompts.is_file() else ""
+        except IProofsError:
+            job.workload = None
+        job.failure = Failure.build(ErrorKind.INTERNAL, last, "runner terminated before completion")
+        if not job.prompt_set_digest:
+            job.workload = None  # never resolved: no manifest can be written
+        (staging / "logs").mkdir(exist_ok=True)
+        with log_path.open("a") as stream:
+            JsonlLogger(stream, redactor=self.redact, mono=self.clock).log(
+                Event.RUNNER_RECOVERED, job=run_id, run_id=run_id, last_state=last
+            )
+        final = self._write(job)
+        staging.rename(final)
+        _fsync_dir(final.parent)
         return final
 
     # ---------------------------------------------------------------- states
@@ -986,3 +1044,15 @@ def _fsync_dir(path: Path) -> None:
         os.fsync(fd)
     finally:
         os.close(fd)
+
+
+def _alive(pid: int) -> bool:
+    if pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True  # exists, owned by another user
+    return True
