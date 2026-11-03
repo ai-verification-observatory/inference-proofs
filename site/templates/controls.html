@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Controls, release {{ release }}{% endblock %}
+{% block nav %} / <a href="index.html">{{ release }}</a> / Controls{% endblock %}
+{% block main %}
+<h1>Negative controls, release {{ release }}</h1>
+<p>Counts of control outcomes per configuration (RFC-0008). Every outcome outside its control's expected set is printed in full below its configuration.</p>
+{% for c, unexpected in controls %}
+<h2><a href="systems/{{ c.system }}.html">{{ c.system }}</a>, {{ c.workload.id }} v{{ c.workload.version }}, profile {{ c.profile }}</h2>
+<table>
+<thead><tr>{% for outcome, count in c.counts | dictsort %}<th scope="col">{{ outcome }}</th>{% endfor %}</tr></thead>
+<tbody><tr>{% for outcome, count in c.counts | dictsort %}<td>{{ count }} controls</td>{% endfor %}</tr></tbody>
+</table>
+{% if unexpected %}
+<h3>Outcomes outside the expected set</h3>
+{% for o, record in unexpected %}
+<p>{{ o.control_id }} in run {{ o.run_id }}: {{ o.outcome }}.</p>
+<pre>{{ record }}</pre>
+{% endfor %}
+{% else %}
+<p>Every control outcome is in its expected set or neutral.</p>
+{% endif %}
+{% endfor %}
+{% endblock %}

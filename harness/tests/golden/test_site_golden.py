@@ -37,5 +37,7 @@ def test_site_matches_golden(site: Path, update_golden: bool) -> None:
     for rel in built:
         assert built[rel] == golden[rel], rel
     kinds = {"index.html", "v0.1/index.html", "v0.1/methodology.html",
-             "v0.1/systems/fake.html", "v0.1/workloads/fake-tiny-ci.html"}  # fmt: skip
-    assert kinds <= set(built)  # Home, Release, Methodology, System, Workload
+             "v0.1/systems/fake.html", "v0.1/workloads/fake-tiny-ci.html",
+             "v0.1/divisions/open.html", "v0.1/controls.html", "v0.1/targets.html",
+             "sponsors.html"}  # fmt: skip
+    assert kinds <= set(built)  # every RFC-0009 page type

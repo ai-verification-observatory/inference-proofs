@@ -24,7 +24,20 @@ import yaml
 from markupsafe import Markup
 
 REPOSITORY = "https://github.com/ai-verification-observatory/inference-proofs"
-PAGES = ("Home", "Release", "System", "Workload", "Methodology")
+PAGES = (
+    "Home",
+    "Release",
+    "System",
+    "Workload",
+    "Methodology",
+    "Division table",
+    "Controls",
+    "Targets",
+    "Sponsors and conflicts",
+)
+DIVISIONS = ("native", "closed", "open")
+NATIVE_NOTE = "Native workloads differ: rows are not a head-to-head comparison"
+CARD_SUMMARY = ("relation", "security.notion", "coverage", "residual")  # S1 on division tables
 
 
 def number(value: object) -> str:
@@ -114,8 +127,13 @@ def build(root: Path, out: Path) -> list[Path]:
     releases = sorted(p.parent.name for p in root.glob("releases/*/index.json"))
     kinds = {p.parent.name: _yaml(p) for p in sorted(root.glob("systems/*/system.yaml"))}
     page("index.html", "home.html", releases=releases)
+    sponsors = [(r, _yaml(root / "releases" / r / "release.yaml").get("sponsors") or [])
+                for r in releases]  # fmt: skip
+    page("sponsors.html", "sponsors.html", sponsors=sponsors,
+         maintainers=maintainer_rows(root / "MAINTAINERS.md"))  # fmt: skip
     for release in releases:
         _release(root, out, release, kinds, page)
+        _tables(root, release, kinds, page)
     return sorted(written)
 
 
@@ -131,8 +149,10 @@ def _release(root: Path, out: Path, release: str, systems: Mapping[str, Mapping[
     workloads = sorted({str(c["workload"]["id"]) for c in rows})  # type: ignore[index]
     reproductions = _reproductions(root, rows)
     common = {"release": release, "record": record, "index": index}
+    divisions = [d for d in DIVISIONS if d in {
+        _yaml(root / "workloads" / f"{w}.yaml").get("division") for w in workloads}]  # fmt: skip
     page(f"{release}/index.html", "release.html", **common, systems=names, workloads=workloads,
-         reference=reference, reproductions=reproductions)  # fmt: skip
+         reference=reference, reproductions=reproductions, divisions=divisions)  # fmt: skip
     rfcs = sorted(p.name for p in root.glob("rfcs/[0-9][0-9][0-9][0-9]-*.md"))
     page(f"{release}/methodology.html", "methodology.html", **common, rfcs=rfcs)
     cards = {(str(c["system"]), str(c["configuration"])): c for c in index["claim_cards"]}
@@ -177,3 +197,97 @@ def _reproductions(root: Path, rows: Sequence[Mapping[str, object]]) -> list[dic
             out.append({"system": c["system"], "workload": c["workload"], "profile": c["profile"],
                         "path": rel, "outcome": doc.get("outcome")})  # fmt: skip
     return out
+
+
+# ---------------------------------------------------------------- tables (RFC-0009 §Site)
+
+
+def summary(value: object) -> str:
+    """A claim card field on one line: mappings as `key value`, lists joined by `; `."""
+    if isinstance(value, Mapping):
+        return ", ".join(f"{k} {summary(v)}" for k, v in value.items())
+    if isinstance(value, list):
+        return "; ".join(summary(v) for v in value)
+    return str(value)
+
+
+def _dig(doc: object, dotted: str) -> object:
+    for key in dotted.split("."):
+        doc = doc.get(key) if isinstance(doc, Mapping) else None
+    return doc
+
+
+def maintainer_rows(path: Path) -> list[dict[str, str]]:
+    """The MAINTAINERS.md tables (RFC-0001 §Roles) as rows; the site may not import the
+    validator (docs/spec/01 layers), so it reads the six columns itself."""
+    columns = ("handle", "role", "organisation", "systems", "interests", "since")
+    rows, inside = [], False
+    for line in path.read_text("utf-8").splitlines() if path.is_file() else []:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if line.lstrip().startswith("|") and cells[0] == "Handle":
+            inside = True
+        elif inside and line.lstrip().startswith("|") and not set(cells[0]) <= {"-"}:
+            rows.append(dict(zip(columns, cells + [""] * 6, strict=False)))
+        elif not line.lstrip().startswith("|"):
+            inside = False
+    return rows
+
+
+def _sorted_rows(rows: Sequence[dict[str, object]], key: str) -> list[dict[str, object]]:
+    """S5: alphabetical by default; a metric column sorts by value, nulls last, only on the
+    page a reader asked for by following that column's link."""
+    default = sorted(rows, key=lambda c: (str(c["system"]), str(c["workload"]["id"]),  # type: ignore[index]
+                                          str(c["profile"])))  # fmt: skip
+    if key == "system":
+        return default
+    if key in ("workload", "profile"):
+        return sorted(default, key=lambda c: str(c["workload"]["id"] if key == "workload"  # type: ignore[index]
+                                                  else c["profile"]))  # fmt: skip
+
+    def value(c: Mapping[str, object]) -> tuple[bool, float]:
+        q = c["statistics"].get(key)  # type: ignore[attr-defined]
+        v = q.get("value") if isinstance(q, Mapping) else None
+        return (v is None, float(v) if isinstance(v, int | float) else 0.0)
+
+    return sorted(default, key=value)
+
+
+def _tables(root: Path, release: str, systems: Mapping[str, Mapping[str, object]],
+            page: Callable[..., None]) -> None:  # fmt: skip
+    """Division tables with their re-sorted pages, the controls page and the targets page."""
+    index = json.loads((root / "releases" / release / "index.json").read_text("utf-8"))
+    rows = [c for c in _rows(index) if systems.get(str(c["system"]), {}).get("kind") != "reference"]
+    ids = sorted({str(c["workload"]["id"]) for c in rows})  # type: ignore[index]
+    division = {w: str(_yaml(root / "workloads" / f"{w}.yaml").get("division")) for w in ids}
+    cards = {(str(c["system"]), str(c["configuration"])): _yaml(root / str(c["path"]))
+             for c in index["claim_cards"]}  # fmt: skip
+    present = [d for d in DIVISIONS if d in division.values()]
+    for d in present:
+        mine = [c for c in rows if division[str(c["workload"]["id"])] == d]  # type: ignore[index]
+        metrics = sorted({m for c in mine for m in c["statistics"]})  # type: ignore[attr-defined]
+        summaries = {(str(c["system"]), str(c["configuration"])): [
+            (f, summary(_dig(cards.get((str(c["system"]), str(c["configuration"]))), f)))
+            for f in CARD_SUMMARY] for c in mine}  # fmt: skip
+        for key in ("system", "workload", "profile", *metrics):
+            name = d if key == "system" else f"{d}-by-{key}"
+            page(f"{release}/divisions/{name}.html", "division.html", release=release,
+                 division=d, rows=_sorted_rows(mine, key), metrics=metrics, sort=key,
+                 summaries=summaries, note=NATIVE_NOTE if d == "native" else None)  # fmt: skip
+    controls = []
+    for c in _controls(index):
+        full_records = []
+        for o in c["outside_expected"]:  # type: ignore[attr-defined]
+            stored = (
+                root / "results" / release / str(c["system"]) / str(o["run_id"]) / "controls.json"
+            )
+            doc = json.loads(stored.read_text("utf-8")) if stored.is_file() else {}
+            record = next((r for r in doc.get("controls", []) if r.get("id") == o["control_id"]), o)
+            full_records.append((o, json.dumps(record, indent=2, sort_keys=True)))
+        controls.append((c, full_records))
+    page(f"{release}/controls.html", "controls.html", release=release, controls=controls)
+    targets = []
+    for path in sorted(root.glob("targets/*/*.yaml")):
+        rel = path.relative_to(root).as_posix()
+        evaluations = [(i, t) for i, t in enumerate(index["targets"]) if t["target"] == rel]
+        targets.append((rel, _yaml(path), evaluations))
+    page(f"{release}/targets.html", "targets.html", release=release, targets=targets)

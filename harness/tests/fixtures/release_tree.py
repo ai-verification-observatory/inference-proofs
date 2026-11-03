@@ -102,6 +102,13 @@ claim_class: "next-token/exact-match/committed-weights"
 coverage: {phase: "prefill"}
 relation: "not stated"
 """
+MAINTAINERS = """# Maintainers
+
+| Handle | Role | Organisation | Systems maintained | Declared interests | Since |
+|---|---|---|---|---|---|
+| example-a | maintainer | Example Lab A | none | none | 2027-01-01 |
+| example-b | system maintainer | Example Lab B | fake-broken | builds fake-broken | 2027-01-01 |
+"""
 TARGET = """schema: "target/1"
 id: "session-under-2s"
 author: {name: "Example Lab", affiliation: "Example Lab"}
@@ -190,5 +197,6 @@ def build_rich(root: Path) -> Path:
                                    "card_version": 1, "path": card.relative_to(root).as_posix(),
                                    "digest": file_digest(card)})  # fmt: skip
     path.write_text(yaml.safe_dump(release, sort_keys=False))
+    (root / "MAINTAINERS.md").write_text(MAINTAINERS)
     commit(root, "rich release")
     return path
