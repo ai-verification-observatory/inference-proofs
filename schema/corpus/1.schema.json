@@ -1,0 +1,74 @@
+{
+  "$id": "https://inference-proofs.org/schema/corpus/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "normalisation": {
+      "additionalProperties": false,
+      "properties": {
+        "newlines": {
+          "const": "LF"
+        },
+        "strip_bom": {
+          "const": true
+        },
+        "unicode": {
+          "const": "NFC"
+        }
+      },
+      "required": [
+        "unicode",
+        "newlines",
+        "strip_bom"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "corpus/1"
+    },
+    "texts": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "id": {
+            "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+            "type": "string"
+          },
+          "licence": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "source_url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source_url",
+          "licence",
+          "sha256",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "normalisation",
+    "texts"
+  ],
+  "title": "Prompt corpus: workloads/prompts/corpus.yaml (RFC-0003 §Prompt corpus)",
+  "type": "object"
+}

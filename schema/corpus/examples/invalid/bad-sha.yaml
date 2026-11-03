@@ -1,0 +1,9 @@
+# Schema example; the real corpus is chosen in #47. Hashes are illustrative.
+schema: "corpus/1"
+normalisation: {unicode: "NFC", newlines: "LF", strip_bom: true}
+texts:
+  - id: "gutenberg-1342"
+    source_url: "https://www.gutenberg.org/cache/epub/1342/pg1342.txt"
+    licence: "public domain in the United States"
+    sha256: "ABC"
+    bytes: 772000

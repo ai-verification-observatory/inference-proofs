@@ -1,0 +1,27 @@
+# Schema example: the shape of the SASH headline workload. Revision, hashes, sizes and
+# parameter counts are illustrative; the pinned file is workloads/sash-l31-8b-c4096.yaml (#49).
+schema: "workload/1"
+id: "sash-l31-8b-c4096"
+version: 1
+division: "native"
+model:
+  source: {hub: "huggingface", repo: "example-org/llama-3.1-8b-w8a8"}
+  revision: "main"
+  files:
+    - {path: "model.safetensors", sha256: "1111111111111111111111111111111111111111111111111111111111111111", bytes: 9000000000}
+    - {path: "tokenizer.json", sha256: "2222222222222222222222222222222222222222222222222222222222222222", bytes: 9000000}
+  digest: "sha256:3333333333333333333333333333333333333333333333333333333333333333"
+  licence: {name: "Llama 3.1 Community License", url: "https://example.org/licence", gated: true}
+  parameters: {total: 8000000000, active_per_token: 8000000000, source: "https://example.org/model-card"}
+  tokenizer_file: "tokenizer.json"
+  vocab_size: 128256
+precision: {served: "W8A8", proved: "W8A8"}
+prompts:
+  generator: "corpus-window/1"
+  corpus_digest: "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  count: 1
+  length_rule: {prompt_tokens: 4096}
+shape: {prompt_tokens: 4096, output_tokens: 512, batch_size: 1, batches_per_session: 1, context_window: 4607}
+decoding: {rule: "greedy"}
+phase: "both"
+systems: ["sash", "ref-serve", "ref-recompute"]
