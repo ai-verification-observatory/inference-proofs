@@ -236,7 +236,9 @@ def test_needs_a_fresh_seed_and_three_replays(tmp_path: Path) -> None:
 # ---------------------------------------------------------------- the fake system end to end
 
 
-def test_fake_runs_by_two_organisations(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_fake_runs_by_two_organisations(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     env = {"IPROOFS_FAKE_UPSTREAM": "64168df9fd0706dfd955b6795fa6f535872dff78"}
     spec = JobSpec("fake", "fake-tiny-ci", 1, "ci-cpu", 1, False, str(tmp_path), "v0.1")
 
@@ -263,5 +265,6 @@ def test_fake_runs_by_two_organisations(tmp_path: Path, monkeypatch: pytest.Monk
     assert cli.main(["reproduce", "compare", str(orig), str(repro)]) == 1
     written = orig / "reproductions" / f"{repro.name}.json"
     assert REGISTRY.errors("reproduction/1", json.loads(written.read_text())) == []
+    assert capsys.readouterr().out == written.read_text()  # CLI-3: the record on stdout
     with pytest.raises(Exception, match="append-only"):
         write_reproduction(orig, rec, REGISTRY)
