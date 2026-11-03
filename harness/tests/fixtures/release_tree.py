@@ -44,7 +44,12 @@ def commit(root: Path, message: str, *paths: str) -> str:
     return git(root, "rev-parse", "HEAD")
 
 
-def build(root: Path, runs: int = 5, card_text: str | None = None) -> Path:
+def build(
+    root: Path,
+    runs: int = 5,
+    card_text: str | None = None,
+    systems: dict[str, dict[str, Any]] | None = None,
+) -> Path:
     for rel in COPY:
         src, dst = ROOT / rel, root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -53,8 +58,12 @@ def build(root: Path, runs: int = 5, card_text: str | None = None) -> Path:
     repository, _, digest = IMAGE.partition("@")
     system["image"] = {"repository": repository, "digest": digest}
     (root / "systems/fake/system.yaml").write_text(yaml.safe_dump(system, sort_keys=False))
+    for name, doc in (systems or {}).items():
+        (root / f"systems/{name}").mkdir(parents=True, exist_ok=True)
+        (root / f"systems/{name}/system.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
     git(root, "init", "-q", "-b", "main")
-    adapter = commit(root, "adapter", "systems/fake/system.yaml")  # only it: a stable hash
+    pinned = ["systems/fake/system.yaml", *(f"systems/{n}/system.yaml" for n in systems or {})]
+    adapter = commit(root, "adapter", *pinned)  # a root commit of these files only: stable
     card = root / "systems/fake/claims/default.yaml"
     card.parent.mkdir(parents=True)
     card.write_text(card_text or "# fixture claim card, read only for its digest\n")
@@ -131,23 +140,18 @@ def clone(src: Path, system: str, run_id: str, edit: Callable[[dict[str, Any]], 
 def build_rich(root: Path) -> Path:
     """The site fixture: `build` plus a second fake system, a ref-serve reference row, a
     failed repetition, a target and claim cards with a claim class."""
-    path = build(root, card_text=CARD)
-    for name, image in (("fake-broken", IMAGE.replace("ab" * 32, "cd" * 32)),
-                        ("ref-serve", IMAGE.replace("ab" * 32, "ef" * 32))):  # fmt: skip
-        doc = yaml.safe_load((ROOT / f"systems/{name}/system.yaml").read_text()) if name != (
-            "ref-serve") else yaml.safe_load(
-            (ROOT / "schema/system/examples/valid/ref-serve-shape.yaml").read_text())  # fmt: skip
-        if name == "ref-serve":
-            doc["engine"]["image"] = image
-            doc["workloads"] = [{"id": "fake-tiny-ci", "precision_used": "int8",
-                                 "precision_substitution": None, "engine_args": []}]  # fmt: skip
-        else:
-            repository, _, digest = image.partition("@")
-            doc["image"] = {"repository": repository, "digest": digest}
-        (root / f"systems/{name}").mkdir(parents=True, exist_ok=True)
-        (root / f"systems/{name}/system.yaml").write_text(yaml.safe_dump(doc, sort_keys=False))
-    adapter = commit(root, "more systems", "systems/fake-broken/system.yaml",
-                     "systems/ref-serve/system.yaml")  # fmt: skip
+    broken_image, ref_image = (IMAGE.replace("ab" * 32, x * 32) for x in ("cd", "ef"))
+    broken_system = yaml.safe_load((ROOT / "systems/fake-broken/system.yaml").read_text())
+    repository, _, digest = broken_image.partition("@")
+    broken_system["image"] = {"repository": repository, "digest": digest}
+    ref_system = yaml.safe_load(
+        (ROOT / "schema/system/examples/valid/ref-serve-shape.yaml").read_text())  # fmt: skip
+    ref_system["engine"]["image"] = ref_image
+    ref_system["workloads"] = [{"id": "fake-tiny-ci", "precision_used": "int8",
+                                "precision_substitution": None, "engine_args": []}]  # fmt: skip
+    path = build(root, card_text=CARD,
+                 systems={"fake-broken": broken_system, "ref-serve": ref_system})  # fmt: skip
+    adapter = git(root, "rev-list", "--max-parents=0", "HEAD")
     card = root / "systems/fake-broken/claims/default.yaml"
     card.parent.mkdir(parents=True)
     card.write_text(CARD.replace("fixture claim card", "fixture claim card of fake-broken"))
@@ -155,12 +159,12 @@ def build_rich(root: Path) -> Path:
 
     def broken(m: dict[str, Any]) -> None:
         m["system"] |= {"adapter_commit": adapter, "claim_digest": file_digest(card), "image": {
-            "ref": IMAGE.replace("ab" * 32, "cd" * 32), "digest_kind": "manifest"}}  # fmt: skip
+            "ref": broken_image, "digest_kind": "manifest"}}  # fmt: skip
         m["claim"]["system"] = "fake-broken"
 
     def ref(m: dict[str, Any]) -> None:
         m["system"] |= {"adapter_commit": adapter, "claim_digest": None, "image": {
-            "ref": IMAGE.replace("ab" * 32, "ef" * 32), "digest_kind": "manifest"}}  # fmt: skip
+            "ref": ref_image, "digest_kind": "manifest"}}  # fmt: skip
         m["claim"] = None
 
     added = [clone(src, "fake-broken", src.name.replace("fake-fake", "fake-broken-fake"), broken)
