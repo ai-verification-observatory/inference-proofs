@@ -414,6 +414,17 @@
       ],
       "type": "object"
     },
+    "prompts_from": {
+      "$comment": "the run whose prompt seeds this job replayed (--prompts-from, RFC-0015 RC-1); null for a fresh seed",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/runId"
+        }
+      ]
+    },
     "proofs": {
       "items": {
         "additionalProperties": false,

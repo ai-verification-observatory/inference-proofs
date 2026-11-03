@@ -294,6 +294,7 @@ def run(args: argparse.Namespace) -> int:
         progress=None if args.quiet else sys.stderr,
         log_level=args.log_level,
         allow_nonconforming=args.allow_nonconforming,
+        prompts_from=args.prompts_from.resolve().name if args.prompts_from else None,
         replay_seed=seed,
         keep_io=args.keep_io,
     )
