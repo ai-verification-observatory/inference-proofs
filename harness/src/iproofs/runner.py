@@ -152,7 +152,10 @@ class CpuOnlyEnvironment:
         return None
 
     def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]:
-        return "0", "0"
+        """Prover on CPU 0, verifier on CPU 1 (RFC-0006: the two never overlap); a one-CPU
+        host has nowhere else to put the verifier and is refused by the overlap check."""
+        verifier = "1" if (os.cpu_count() or 1) > 1 else "0"
+        return ("0" if role == "prover" else verifier), "0"
 
 
 def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, Path]:
@@ -482,6 +485,13 @@ class Runner:
             )
 
     def _machine(self, job: Job) -> None:
+        prover = set(_cpu_list(self.env.cpus("prover")[0]))
+        verifier = set(_cpu_list(self.env.cpus("verifier")[0]))
+        if prover & verifier:  # RFC-0006: verification is never disturbed by the prover
+            raise IProofsError(
+                ErrorKind.ENVIRONMENT,
+                f"verifier CPUs {sorted(verifier)} overlap prover CPUs {sorted(prover)}",
+            )
         job.machine = self._record(job)
         assert job.reference is not None
         profile = job.reference.profiles[job.spec.profile]
