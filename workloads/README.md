@@ -13,3 +13,7 @@ One file per workload, `workloads/<id>.yaml`, valid against `schema/workload/1.s
 The schema itself enforces the closed-division rule (`claim_class` present exactly when `division` is `closed`), greedy decoding and full 40-hex model revisions.
 
 The prompt corpus is `prompts/corpus.yaml` ([RFC-0003 §Prompt corpus](../rfcs/0003-workloads.md#prompt-corpus)).
+
+## Checking a prompt set
+
+`iproofs prompts build WORKLOAD --seed SEED [--out prompts.jsonl]` rebuilds the prompt set a job with that seed used, without running a prover: it fetches and verifies the corpus, loads the workload's tokenizer file (from the verified model cache, or fetched alone and checked against its listed sha256), runs `corpus-window/1`, writes `prompts.jsonl` and prints `{workload, seed, count, digest, tokenizers_version}` as JSON. The digest equals the manifest's `workload.prompt_set_digest` for a run that recorded that seed. Real tokenizer files need the `[prompts]` extra (`uv sync --extra prompts`); a different `tokenizers` version can tokenize differently, which shows as a different digest (RFC-0003 §Failure modes).

@@ -376,3 +376,48 @@ def listed_digest(corpus: Corpus) -> str:
     equals `corpus_digest` of the verified files."""
     lines = sorted((f"{t.id}\t{t.sha256}\n" for t in corpus.texts), key=str.encode)
     return "sha256:" + hashlib.sha256("".join(lines).encode()).hexdigest()
+
+
+def tokenizer_file(
+    root: Path, wl: Workload, cache: Path, *, download: Download | None = None
+) -> Path:
+    """The workload's tokenizer file, verified: from the toy model in this repository, from a
+    verified model cache entry, or fetched alone and checked against its listed sha256 (so
+    checking a prompt set needs no weights)."""
+    name = wl.model.tokenizer_file
+    if wl.model.source.hub == "repository":
+        return model_dir(root, wl) / name
+    model = cache / "models" / wl.model.digest.removeprefix("sha256:") / name
+    if model.is_file():
+        return model
+    listed = next((f for f in wl.model.files if f.path == name), None)
+    if listed is None:
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: {name} is not in model.files")
+    path = cache / "tokenizers" / listed.sha256.removeprefix("sha256:") / name
+    if not path.is_file():
+        tmp = path.parent.with_name(f".tmp-{path.parent.name}-{os.getpid()}")
+        tmp.mkdir(parents=True, exist_ok=True)
+        try:
+            (download or hub_download)(wl.model.source.repo, wl.model.revision, [name], tmp, None)
+            got = tmp / name
+            if file_digest(got).removeprefix("sha256:") != listed.sha256.removeprefix("sha256:"):
+                raise IProofsError(
+                    ErrorKind.INTEGRITY, f"{wl.id}: {name} does not match its sha256"
+                )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            got.rename(path)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+    elif file_digest(path).removeprefix("sha256:") != listed.sha256.removeprefix("sha256:"):
+        raise IProofsError(ErrorKind.INTEGRITY, f"{wl.id}: cached {name} changed")
+    return path
+
+
+def tokenizers_version() -> str | None:
+    """The `tokenizers` library version: a different version can tokenize differently, which
+    shows as a different prompt-set digest (RFC-0003 §Failure modes)."""
+    try:
+        import tokenizers  # noqa: PLC0415 (optional extra, INV-ARCH-6)
+    except ImportError:
+        return None
+    return str(tokenizers.__version__)
