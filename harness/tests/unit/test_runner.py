@@ -59,6 +59,7 @@ def test_state_machine_happy_path(tmp_path: Path) -> None:
     events = [e["event"] for e in stored]
     assert events.count("proof.released") == 6
     assert sorted(p.name for p in run_dir.iterdir()) == [
+        "digests.txt",
         "logs",
         "manifest.json",
         "run.json",
