@@ -1,18 +1,23 @@
 """Workload resolution, model fetch and prompt materialisation (RFC-0003)."""
 
+import functools
+import hashlib
 import json
 import math
 import os
 import random
 import shutil
 import stat
+import unicodedata
+import urllib.error
+import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import Workload, load
+from iproofs.model import Corpus, Workload, load
 from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_jsonl
@@ -194,7 +199,9 @@ def model_dir(root: Path, wl: Workload) -> Path:
 
 def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> list[list[int]]:
     """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer."""
-    texts = local_corpus(root, wl.prompts.corpus_digest)
+    texts = local_corpus(root, wl.prompts.corpus_digest) or pinned_corpus(
+        root, wl.prompts.corpus_digest
+    )
     if texts is None:
         raise IProofsError(
             ErrorKind.CONFIG, f"{wl.id}: corpus {wl.prompts.corpus_digest} is not available locally"
@@ -296,3 +303,76 @@ def ensure_model(
 def _writable(directory: Path) -> None:
     for p in [directory, *directory.rglob("*")]:
         p.chmod(p.stat().st_mode | stat.S_IWUSR)
+
+
+# ---------------------------------------------------------------- corpus fetch (RFC-0014)
+
+CORPUS_FILE = "workloads/prompts/corpus.yaml"
+
+
+def http_get(url: str, timeout_s: float = 60.0) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": "iproofs-corpus-fetch"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_s) as response:
+            data: bytes = response.read()
+            return data
+    except (urllib.error.URLError, TimeoutError, OSError) as e:
+        raise IProofsError(ErrorKind.FETCH, f"download of {url} failed: {e}") from e
+
+
+def ensure_corpus(
+    corpus: Corpus,
+    cache: Path,
+    *,
+    get: Callable[[str], bytes] | None = None,
+    retry: Callable[[Callable[[], bytes]], bytes] = lambda op: op(),
+) -> dict[str, Path]:
+    """RFC-0014 §Corpus fetch: each text in `$IPROOFS_CACHE/corpus/<sha256 hex>`, downloaded
+    once and checked every time; a mismatch is `integrity`. Returns id -> verified file."""
+    fetch = get or http_get
+    out: dict[str, Path] = {}
+    for text in corpus.texts:
+        path = cache / "corpus" / text.sha256
+        if not path.is_file():
+            data = retry(functools.partial(fetch, text.source_url))
+            if hashlib.sha256(data).hexdigest() != text.sha256:
+                raise IProofsError(
+                    ErrorKind.INTEGRITY, f"{text.id}: {text.source_url} does not match its sha256"
+                )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_name(f".tmp-{path.name}-{os.getpid()}")
+            tmp.write_bytes(data)
+            tmp.rename(path)
+        elif file_digest(path) != f"sha256:{text.sha256}":
+            raise IProofsError(ErrorKind.INTEGRITY, f"{text.id}: cached corpus file changed")
+        out[text.id] = path
+    return out
+
+
+def normalised(data: bytes) -> str:
+    """RFC-0003 normalisation: strip a BOM, LF newlines, Unicode NFC."""
+    text = data.decode("utf-8").removeprefix("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+    return unicodedata.normalize("NFC", text)
+
+
+def pinned_corpus(
+    root: Path, digest: str, *, cache: Path | None = None, get: Callable[[str], bytes] | None = None
+) -> list[str] | None:
+    """The texts of `workloads/prompts/corpus.yaml` when its digest is `digest`, read only
+    from the verified cache, in id order (RFC-0003)."""
+    path = root / CORPUS_FILE
+    if not path.is_file():
+        return None
+    corpus = load(path, SchemaRegistry.from_tree(root / "schema"))
+    assert isinstance(corpus, Corpus)
+    if listed_digest(corpus) != digest:
+        return None  # another corpus: nothing to fetch
+    files = ensure_corpus(corpus, cache or default_cache(), get=get)
+    return [normalised(files[k].read_bytes()) for k in sorted(files, key=str.encode)]
+
+
+def listed_digest(corpus: Corpus) -> str:
+    """RFC-0003: sha256 over `<id>\t<sha256>\n` sorted by id bytes, from the listing alone; it
+    equals `corpus_digest` of the verified files."""
+    lines = sorted((f"{t.id}\t{t.sha256}\n" for t in corpus.texts), key=str.encode)
+    return "sha256:" + hashlib.sha256("".join(lines).encode()).hexdigest()
