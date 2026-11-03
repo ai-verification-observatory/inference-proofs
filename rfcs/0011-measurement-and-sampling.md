@@ -243,7 +243,7 @@ CPU-only (hosted CI):
 - TC-WATCH-DECLARED: `incremental_proofs: false` gives `observable` false regardless of timing.
 - TC-WATCH-NONATOMIC: direct mkdir; release accepted, event `release.nonatomic` logged.
 - TC-WATCH-MUTATED: a part grows after release; job fails `adapter`.
-- TC-SAMPLER-GAPS: sampler with a fake NVML backend that stalls 400 ms twice in 5 s; `gaps_over_150ms` 2, `degraded` false; stall 400 ms 10 times; `degraded` true.
+- TC-SAMPLER-GAPS: sampler with a fake NVML backend that stalls 400 ms twice in a 20 s call (gaps cover 4 % of it); `gaps_over_150ms` 2, `degraded` false; stall 400 ms 10 times; `degraded` true. (Two 400 ms stalls in 5 s would cover 16 %, above the S-5 threshold.)
 - TC-SAMPLER-P95: fake utilisation series 1..100; p95 equals 95 by nearest rank.
 - TC-SAMPLER-ENERGY-UNSUPPORTED: fake backend raises not supported; energy null `not_applicable`.
 - TC-CGROUP-PARSE: `memory.stat`, `cpu.stat`, `memory.events` fixtures parsed to exact integers.

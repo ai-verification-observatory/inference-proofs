@@ -62,6 +62,7 @@ Rules:
 | `integrity.mismatch` | error | `what`, `expected`, `actual` | a hash check fails |
 | `env.probe` | info | `kernel`, `cgroup`, `docker`, `toolkit` | environment checked |
 | `env.gpu_busy` | error | `process_count` | another compute process found on the GPU |
+| `gpu.foreign_process` | warning | `process_count` | a compute process appeared on the bound GPU during a GPU step; that step's GPU metrics are `degraded: true` (RFC-0011 S-7) |
 | `cpuset.selected` | info | `cpus`, `mems`, `smt` | cpuset chosen for a step |
 | `step.start` | info | `subcommand`, `image`, `timeout_s` | before `docker run` |
 | `step.end` | info | `exit_code`, `seconds` | after the container exits |

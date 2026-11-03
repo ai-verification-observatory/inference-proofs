@@ -6,6 +6,8 @@ INV-ARCH-4: durations are read here, from the monotonic clock only (C-1).
 import ctypes
 import ctypes.util
 import hashlib
+import itertools
+import math
 import os
 import select
 import stat
@@ -32,12 +34,18 @@ __all__ = [
     "CgroupReader",
     "CgroupSlice",
     "EventLog",
+    "GpuBackend",
+    "GpuSample",
     "NullCgroupReader",
+    "NvmlBackend",
     "Release",
     "ReleaseWatcher",
+    "Sampler",
+    "SamplerSummary",
     "SliceCgroupReader",
     "StepResources",
     "cap_text",
+    "check_gpu_free",
     "drain",
     "job_hash",
     "nvml_available",
@@ -45,6 +53,7 @@ __all__ = [
     "select_readers",
     "span_seconds",
     "stop_stale_holds",
+    "summarize",
     "timed_call",
 ]
 
@@ -233,6 +242,200 @@ def stop_stale_holds(run: Callable[[list[str]], str] | None = None) -> list[str]
 def _systemctl(argv: list[str]) -> str:
     done = subprocess.run(argv, capture_output=True, text=True, check=False)
     return done.stdout
+
+
+# ---------------------------------------------------------------- GPU sampler (RFC-0011)
+
+GAP_NS = 150_000_000  # S-5: a gap is an interval between samples above 150 ms
+DEGRADED_FRACTION = 0.05  # S-5: degraded when gaps cover more than 5 % of the call
+
+
+class GpuBackend(Protocol):
+    """What the sampler reads from the bound GPU (NVML on a host, a fake in tests)."""
+
+    def memory_used_mib(self) -> float: ...
+    def util_pct(self) -> int: ...
+    def energy_mj(self) -> int | None: ...  # None where the device does not support it (S-6)
+    def compute_processes(self) -> int: ...
+
+
+class NvmlBackend:
+    """`nvidia-ml-py` (the `[gpu]` extra), imported lazily (INV-ARCH-6), bound to one GPU."""
+
+    def __init__(self, index: int) -> None:
+        import pynvml  # noqa: PLC0415
+
+        pynvml.nvmlInit()
+        self.nvml = pynvml
+        self.handle = pynvml.nvmlDeviceGetHandleByIndex(index)
+
+    def memory_used_mib(self) -> float:
+        return float(self.nvml.nvmlDeviceGetMemoryInfo(self.handle).used) / (1024 * 1024)
+
+    def util_pct(self) -> int:
+        return int(self.nvml.nvmlDeviceGetUtilizationRates(self.handle).gpu)
+
+    def energy_mj(self) -> int | None:
+        try:
+            return int(self.nvml.nvmlDeviceGetTotalEnergyConsumption(self.handle))
+        except self.nvml.NVMLError_NotSupported:
+            return None
+
+    def compute_processes(self) -> int:
+        return len(self.nvml.nvmlDeviceGetComputeRunningProcesses(self.handle))
+
+
+@dataclass(frozen=True, slots=True)
+class GpuSample:
+    mono_ns: int
+    memory_used_mib: float
+    util_gpu_pct: int
+    energy_mj: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SamplerSummary:
+    """RFC-0011 §GPU sampler; GPU fields are None when the call has no GPU (S-8)."""
+
+    samples: int
+    target_hz: float
+    achieved_hz: float
+    gaps_over_150ms: int
+    gap_fraction: float
+    max_gap_ms: float
+    degraded: bool
+    memory_peak_mib: float | None
+    memory_baseline_mib: float | None
+    util_mean_pct: float | None
+    util_p95_pct: float | None
+    energy_j: float | None
+    anon_peak_bytes: int | None
+
+
+def summarize(
+    samples: Sequence[GpuSample],
+    start_ns: int,
+    end_ns: int,
+    *,
+    target_hz: float,
+    baseline_mib: float | None,
+    energy: tuple[int | None, int | None] = (None, None),
+    anon: Sequence[int] = (),
+) -> SamplerSummary:
+    """S-1 window, S-4 peak, baseline and time-weighted mean, p95 by nearest rank, S-5 gaps."""
+    inside = sorted(
+        (s for s in samples if start_ns <= s.mono_ns <= end_ns), key=lambda s: s.mono_ns
+    )
+    duration = max(end_ns - start_ns, 1)
+    stamps = [start_ns, *(s.mono_ns for s in inside), end_ns]
+    gaps = [b - a for a, b in itertools.pairwise(stamps) if b - a > GAP_NS]
+    fraction = sum(gaps) / duration
+    peak = max((s.memory_used_mib for s in inside), default=None)
+    utils = [s.util_gpu_pct for s in inside]
+    mean = p95 = None
+    if inside:
+        weights = [b - a for a, b in itertools.pairwise(stamps[1:])]  # each sample to the next
+        mean = sum(u * w for u, w in zip(utils, weights, strict=True)) / max(sum(weights), 1)
+        ranked = sorted(utils)
+        p95 = float(ranked[math.ceil(0.95 * len(ranked)) - 1])
+    e0, e1 = energy
+    return SamplerSummary(
+        samples=len(inside),
+        target_hz=target_hz,
+        achieved_hz=len(inside) / (duration / 1e9),
+        gaps_over_150ms=len(gaps),
+        gap_fraction=fraction,
+        max_gap_ms=max(gaps, default=0) / 1e6,
+        degraded=fraction > DEGRADED_FRACTION,
+        memory_peak_mib=peak,
+        memory_baseline_mib=baseline_mib,
+        util_mean_pct=mean,
+        util_p95_pct=p95,
+        energy_j=(e1 - e0) / 1000 if e0 is not None and e1 is not None else None,
+        anon_peak_bytes=max(anon, default=None),
+    )
+
+
+class Sampler:
+    """S-1 to S-3: one thread per call on absolute deadlines `t0 + i * period`; a missed
+    deadline is skipped, not caught up, so a stall shows as a gap (S-2). The cgroup `anon`
+    is read every second sample (10 Hz at 20 Hz)."""
+
+    def __init__(
+        self,
+        gpu_index: int | None,
+        cgroup: CgroupReader,
+        target_hz: float = 20.0,
+        *,
+        backend: GpuBackend | None = None,
+        clock: Callable[[], int] = time.monotonic_ns,
+    ) -> None:
+        self.gpu = backend if backend is not None or gpu_index is None else NvmlBackend(gpu_index)
+        self.cgroup = cgroup
+        self.target_hz = target_hz
+        self.clock = clock
+        self.samples: list[GpuSample] = []
+        self.anon: list[int] = []
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+        self._baseline: float | None = None
+        self._energy_start: int | None = None
+
+    def start(self) -> None:
+        if self.gpu is not None:
+            self._baseline = self.gpu.memory_used_mib()
+            self._energy_start = self.gpu.energy_mj()
+        self._thread = threading.Thread(target=self._loop, daemon=True)
+        self._thread.start()
+
+    def _loop(self) -> None:
+        period = int(1e9 / self.target_hz)
+        t0, i = self.clock(), 0
+        while not self._stop.is_set():
+            now = self.clock()
+            deadline = t0 + i * period
+            if now < deadline:
+                self._stop.wait((deadline - now) / 1e9)
+                continue
+            i = (now - t0) // period + 1  # S-2: skip missed deadlines
+            if self.gpu is not None:
+                self.samples.append(GpuSample(now, self.gpu.memory_used_mib(), self.gpu.util_pct()))
+            if i % 2 == 0 and (anon := self.cgroup.memory_anon()) is not None:
+                self.anon.append(anon)
+
+    def stop(self, start_ns: int, end_ns: int) -> SamplerSummary:
+        """The summary over the call window [start_ns, end_ns] (S-1)."""
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join()
+        end_energy = self.gpu.energy_mj() if self.gpu is not None else None
+        return summarize(
+            self.samples, start_ns, end_ns, target_hz=self.target_hz,
+            baseline_mib=self._baseline, energy=(self._energy_start, end_energy), anon=self.anon,
+        )  # fmt: skip
+
+    def write_trace(self, path: Path) -> None:
+        """1 Hz trace, the maximum per second, as CSV (RFC-0011)."""
+        if not self.samples:
+            return
+        t0 = self.samples[0].mono_ns
+        rows: dict[int, tuple[float, int]] = {}
+        for s in self.samples:
+            sec = (s.mono_ns - t0) // 1_000_000_000
+            mem, util = rows.get(sec, (0.0, 0))
+            rows[sec] = (max(mem, s.memory_used_mib), max(util, s.util_gpu_pct))
+        lines = ["second,memory_used_mib_max,util_gpu_pct_max\n"]
+        lines += [f"{sec},{mem:.1f},{util}\n" for sec, (mem, util) in sorted(rows.items())]
+        path.write_text("".join(lines))
+
+
+def check_gpu_free(backend: GpuBackend) -> None:
+    """S-7 and RFC-0006 PC-GPU-BUSY: no foreign compute process on the bound GPU before
+    `info` and before each GPU step; otherwise the job fails with `environment`."""
+    if (n := backend.compute_processes()) > 0:
+        raise IProofsError(
+            ErrorKind.ENVIRONMENT, f"{n} compute process(es) already on the bound GPU (PC-GPU-BUSY)"
+        )
 
 
 # ---------------------------------------------------------------- bounded output capture

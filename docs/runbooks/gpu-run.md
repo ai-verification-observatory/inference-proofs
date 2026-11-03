@@ -4,6 +4,11 @@ How a prover-h100 host runs measured jobs. This page grows with the GPU work (#1
 
 ## Host prerequisites
 
+### NVML (RFC-0011 §GPU sampler)
+
+- The NVIDIA driver, and the harness installed with its `[gpu]` extra, which brings `nvidia-ml-py`: `uv sync --frozen --extra gpu`. Without it, a GPU profile fails with kind `environment`; null readers are only for profiles without a GPU.
+- No other compute process on the bound GPU: one found before `info` or a GPU step fails the job (PC-GPU-BUSY); one found after a GPU step marks that step's GPU metrics `degraded: true` and logs `gpu.foreign_process`.
+
 ### systemd and cgroup v2 (RFC-0011 §Cgroup accounting)
 
 - cgroup v2 only (the unified hierarchy at `/sys/fs/cgroup`), with Docker's `cgroup_driver: systemd` (`docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'` prints `systemd 2`).
