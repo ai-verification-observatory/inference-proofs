@@ -18,6 +18,7 @@ from iproofs.errors import ErrorKind, IProofsError, Phase, exit_code
 
 if TYPE_CHECKING:
     from iproofs.adapter import ContainerRunner
+    from iproofs.runner import RunnerIdentity
     from iproofs.schema import SchemaRegistry
 
 Handler = Callable[[argparse.Namespace], int]
@@ -117,6 +118,15 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         "--in-process",
         action="store_true",
         help="run a test system's entrypoint as a local process instead of a container",
+    )
+    p.add_argument("--runner", metavar="HANDLE", help="the runner's declared handle (RFC-0007)")
+    p.add_argument("--runner-org", metavar="ORG", help="the runner's declared organisation")
+    p.add_argument(
+        "--affiliated",
+        metavar="SYSTEM",
+        action="append",
+        default=None,
+        help="a system the runner is affiliated with (repeat for each)",
     )
     p.add_argument(
         "--image",
@@ -273,6 +283,7 @@ def run(args: argparse.Namespace) -> int:
         root=root,
         registry=registry,
         image=image,
+        operator=_operator(root, args),
         provider=args.provider or "undeclared",
         replay_seed=seed,
         keep_io=args.keep_io,
@@ -294,6 +305,25 @@ def run(args: argparse.Namespace) -> int:
         print(d)
     statuses = [json.loads((d / "run.json").read_text())["status"] for d in dirs]
     return 4 if "failed" in statuses else 0
+
+
+def _operator(root: Path, args: argparse.Namespace) -> "RunnerIdentity":
+    """Who runs the job, self-declared (RFC-0007 §Tiers, Q3): options, else IPROOFS_RUNNER,
+    IPROOFS_RUNNER_ORG and IPROOFS_RUNNER_SYSTEMS. Only the handle, the organisation and
+    system ids are recorded (AGENTS.md rule 7)."""
+    from iproofs.runner import RunnerIdentity  # noqa: PLC0415
+
+    env = RunnerIdentity.from_env()
+    systems = tuple(args.affiliated) if args.affiliated is not None else env.affiliated_systems
+    known = {p.parent.name for p in (root / "systems").glob("*/system.yaml")}
+    unknown = sorted(set(systems) - known)
+    if unknown:
+        raise IProofsError(ErrorKind.CONFIG, f"affiliated systems {unknown} do not exist")
+    return RunnerIdentity(
+        args.runner or env.handle,
+        args.runner_org or env.organisation,
+        tuple(dict.fromkeys(systems)),
+    )
 
 
 def _containers(

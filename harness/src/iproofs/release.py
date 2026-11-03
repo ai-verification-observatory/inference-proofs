@@ -9,7 +9,7 @@ import json
 import math
 import statistics
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -127,10 +127,29 @@ def group(run: RunView) -> list[RunView]:
     ]
 
 
-def _organisation(runner: object) -> str:
-    assert isinstance(runner, dict)
+def _organisation(runner: Mapping[str, object]) -> str:
     org = str(runner.get("organisation", "")).strip().lower()
     return f"individual:{runner.get('handle')}" if org in UNAFFILIATED | {"", "undeclared"} else org
+
+
+def is_unaffiliated(
+    runner: Mapping[str, object],
+    system: str,
+    original_runner: Mapping[str, object] | None,
+    maintainers: Iterable[str],
+) -> bool:
+    """RFC-0007 §Tiers: the runner's organisation is not a system maintainer's of `system`,
+    nor the original runner's, and `affiliated_systems` does not list the system.
+    `maintainers` are the organisations of the system's maintainers in MAINTAINERS.md."""
+    if str(runner.get("organisation", "")).strip().lower() in {"", "undeclared"}:
+        return False  # an affiliation nobody declared is not an absence of one
+    org = _organisation(runner)
+    systems = runner.get("affiliated_systems")
+    return (
+        org not in {o.strip().lower() for o in maintainers}
+        and (original_runner is None or org != _organisation(original_runner))
+        and system not in (systems if isinstance(systems, list) else [])
+    )
 
 
 def _stats(values: Sequence[float]) -> dict[str, object]:
@@ -234,12 +253,8 @@ def compare(
         ),
         "repetitions": len(replays),
     }
-    orgs = {o.strip().lower() for o in maintainer_organisations}
-    unaffiliated = (
-        _organisation(r_runner) != _organisation(o_runner)
-        and _organisation(r_runner) not in orgs
-        and system not in (r_runner.get("affiliated_systems") or [])
-    )
+    assert isinstance(o_runner, dict)
+    unaffiliated = is_unaffiliated(r_runner, str(system), o_runner, maintainer_organisations)
     eligible = (
         all(v is True for k, v in eligibility.items() if k != "repetitions")
         and len(replays) >= MIN_REPLAYED
