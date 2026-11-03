@@ -25,7 +25,6 @@ Handler = Callable[[argparse.Namespace], int]
 
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
-    "fetch-model": 132,
     "prompts build": 48,
     "release freeze": 93,
     "release plan": 141,
@@ -154,6 +153,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
 
     p = command("fetch-model", "fetch a workload's weights and check every hash (RFC-0014)")
     p.add_argument("workload")
+    p.set_defaults(handler=fetch_model)
 
     prompts = sub.add_parser("prompts", help="prompt sets (RFC-0003)")
     prompts_sub = prompts.add_subparsers(dest="prompts_command", required=True, metavar="ACTION")
@@ -380,6 +380,30 @@ def controls(args: argparse.Namespace) -> int:
         root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
     )
     print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    return 0
+
+
+def fetch_model(args: argparse.Namespace) -> int:
+    """`iproofs fetch-model WORKLOAD`: download and verify the weights into the cache
+    (RFC-0014 §Model fetch and verification); prints the read-only directory."""
+    import os  # noqa: PLC0415
+
+    from iproofs.runner import retry_fetch  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.workloads import default_cache, ensure_model, load_workload  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    wl = load_workload(args.workload, root=root, registry=SchemaRegistry.from_tree(root / "schema"))
+    if wl.model.source.hub == "repository":
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id} uses toy data in this repository")
+    path = ensure_model(
+        wl,
+        default_cache(),
+        retry=lambda op: retry_fetch(op, f"model {wl.id}"),
+        token=os.environ.get("HF_TOKEN"),
+    )
+    print(path)
     return 0
 
 
