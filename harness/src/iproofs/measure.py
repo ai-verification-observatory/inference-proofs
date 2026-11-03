@@ -17,7 +17,7 @@ import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import IO, Literal
 
 from iproofs.derive import span_seconds
 from iproofs.errors import ErrorKind, IProofsError
@@ -25,10 +25,15 @@ from iproofs.errors import ErrorKind, IProofsError
 KILL_WAIT_S = 30  # RFC-0010 §Timeouts: wait for the killed container to exit
 
 __all__ = [
+    "LOG_HEAD_BYTES",
+    "LOG_TAIL_BYTES",
     "CallTiming",
+    "Capture",
     "EventLog",
     "Release",
     "ReleaseWatcher",
+    "cap_text",
+    "drain",
     "pin_harness_cpu",
     "span_seconds",
     "timed_call",
@@ -45,13 +50,93 @@ class CallTiming:
     stderr: str
 
 
+# ---------------------------------------------------------------- bounded output capture
+
+LOG_HEAD_BYTES = 256 * 1024  # RFC-0009 §Storage: per log file, first 256 KiB ...
+LOG_TAIL_BYTES = 768 * 1024  # ... and last 768 KiB
+CHUNK = 64 * 1024
+
+
+def omitted_marker(k: int) -> bytes:
+    return f"[iproofs: {k} bytes omitted, full digest in digests.txt]\n".encode()
+
+
+class Capture:
+    """One output stream kept as its first and last bytes, with the sha256 and length of all
+    of it, so a runaway adapter cannot fill memory or disk (docs/spec/06-security.md)."""
+
+    def __init__(self, head: int = LOG_HEAD_BYTES, tail: int = LOG_TAIL_BYTES) -> None:
+        self.head_limit, self.tail_limit = head, tail
+        self.head, self.tail = bytearray(), bytearray()
+        self.total = 0
+        self._sha = hashlib.sha256()
+        self._lock = threading.Lock()
+
+    def feed(self, chunk: bytes) -> None:
+        with self._lock:
+            self.total += len(chunk)
+            self._sha.update(chunk)
+            room = self.head_limit - len(self.head)
+            if room > 0:
+                self.head += chunk[:room]
+                chunk = chunk[room:]
+            self.tail += chunk
+            if len(self.tail) > self.tail_limit:
+                del self.tail[: len(self.tail) - self.tail_limit]
+
+    @property
+    def digest(self) -> str:
+        return "sha256:" + self._sha.hexdigest()
+
+    @property
+    def elided(self) -> int:
+        return self.total - len(self.head) - len(self.tail)
+
+    def kept(self) -> bytes:
+        middle = omitted_marker(self.elided) if self.elided else b""
+        return bytes(self.head) + middle + bytes(self.tail)
+
+    def text(self) -> str:
+        return self.kept().decode("utf-8", errors="replace")
+
+
+def _pump(stream: IO[bytes], sinks: Sequence[Capture]) -> None:
+    while chunk := stream.read1(CHUNK) if hasattr(stream, "read1") else stream.read(CHUNK):
+        for sink in sinks:
+            sink.feed(chunk)
+
+
+def drain(
+    proc: "subprocess.Popen[bytes]", out: Sequence[Capture], err: Sequence[Capture]
+) -> list[threading.Thread]:
+    """Read both pipes on threads into bounded captures; join the threads after the wait."""
+    threads = [
+        threading.Thread(target=_pump, args=(pipe, sinks), daemon=True)
+        for pipe, sinks in ((proc.stdout, out), (proc.stderr, err))
+        if pipe is not None
+    ]
+    for t in threads:
+        t.start()
+    return threads
+
+
+def cap_text(data: bytes, head: int, tail: int) -> tuple[bytes, int]:
+    """The first `head` and last `tail` bytes joined by the omitted marker, and the count."""
+    elided = len(data) - head - tail
+    if elided <= 0:
+        return data, 0
+    return data[:head] + omitted_marker(elided) + data[len(data) - tail :], elided
+
+
 def timed_call(
     argv_create: Sequence[str],
     timeout_s: float,
     on_started: Callable[[str], None] = lambda cid: None,
     clock: Callable[[], int] = time.monotonic_ns,
+    sinks: Sequence[Capture] = (),
 ) -> CallTiming:
-    """Time one adapter call: `docker create` untimed, `docker start --attach` timed (T-1)."""
+    """Time one adapter call: `docker create` untimed, `docker start --attach` timed (T-1).
+    `sinks` (stdout, stderr) also receive the output: the run's per-file log captures."""
     created = subprocess.run(list(argv_create), capture_output=True, text=True, check=False)
     if created.returncode != 0:
         raise IProofsError(
@@ -60,32 +145,36 @@ def timed_call(
             exit_code=created.returncode,
         )
     cid = created.stdout.strip()
+    out, err = Capture(), Capture()
     start = clock()
     proc = subprocess.Popen(
-        ["docker", "start", "--attach", cid],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
+        ["docker", "start", "--attach", cid], stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
+    threads = drain(proc, [out, *sinks[:1]], [err, *sinks[1:2]])
     try:
         on_started(cid)  # samplers attach to the container's cgroup here (RFC-0011)
-        stdout, stderr = proc.communicate(timeout=timeout_s)
+        proc.wait(timeout=timeout_s)
     except subprocess.TimeoutExpired as e:
         subprocess.run(
             ["docker", "kill", "--signal", "KILL", cid], capture_output=True, check=False
         )
         try:
-            stdout, stderr = proc.communicate(timeout=KILL_WAIT_S)
+            proc.wait(timeout=KILL_WAIT_S)
         except subprocess.TimeoutExpired:
             proc.kill()
-            stdout, stderr = proc.communicate()
+            proc.wait()
+        for t in threads:
+            t.join()
         _remove(cid)
         raise IProofsError(
             ErrorKind.TIMEOUT,
             f"step exceeded {timeout_s} s",
-            last_lines=tuple(stderr.splitlines()[-50:]),
+            last_lines=tuple(err.text().splitlines()[-50:]),
         ) from e
     end = clock()
+    for t in threads:
+        t.join()
+    stdout, stderr = out.text(), err.text()
     oom = proc.returncode != 0 and _oom_killed(cid)
     _remove(cid)
     if oom:

@@ -16,7 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.measure import timed_call
+from iproofs.measure import Capture, drain, timed_call
 from iproofs.model import AdapterOut, System, load
 from iproofs.schema import SchemaRegistry
 
@@ -163,6 +163,7 @@ class ContainerRunner(Protocol):
         memory: str | None,
         timeout_s: float,
         ro_mounts: Sequence[tuple[Path, str]] = (),
+        log_sinks: Sequence[Capture] = (),
     ) -> StepResult: ...
 
 
@@ -269,6 +270,7 @@ class DockerRunner:
         memory: str | None,
         timeout_s: float,
         ro_mounts: Sequence[tuple[Path, str]] = (),
+        log_sinks: Sequence[Capture] = (),
     ) -> StepResult:
         argv = docker_create_argv(
             image,
@@ -283,7 +285,7 @@ class DockerRunner:
         )
         give_io_to_adapter(io_dir)
         try:
-            call = timed_call(argv, timeout_s, clock=self.clock)
+            call = timed_call(argv, timeout_s, clock=self.clock, sinks=log_sinks)
         except IProofsError as e:
             e.step = subcommand
             raise
@@ -328,6 +330,7 @@ class InProcessRunner:
         memory: str | None,
         timeout_s: float,
         ro_mounts: Sequence[tuple[Path, str]] = (),
+        log_sinks: Sequence[Capture] = (),
     ) -> StepResult:
         """`ro_mounts` cannot be enforced without a container; the harness has already placed
         the recorded copies at those paths."""
@@ -335,28 +338,29 @@ class InProcessRunner:
         env = {**os.environ, **self.env, "IPROOFS_IO": str(io_dir)}
         if models_dir is not None and subcommand != "verify":
             env["IPROOFS_MODELS"] = str(models_dir)
+        err = Capture()
         start = self.clock()
+        proc = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        threads = drain(proc, [Capture(), *log_sinks[:1]], [err, *log_sinks[1:2]])
         try:
-            done = subprocess.run(
-                [sys.executable, str(self.entrypoint), subcommand, "/io/job.json", "/io/out.json"],
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=timeout_s,
-                check=False,
-            )
+            proc.wait(timeout=timeout_s)
         except subprocess.TimeoutExpired as e:
+            proc.kill()
+            proc.wait()
             raise IProofsError(
                 ErrorKind.TIMEOUT, f"{subcommand} exceeded {timeout_s} s", step=subcommand
             ) from e
+        finally:
+            for t in threads:
+                t.join()
         end = self.clock()
-        out = read_out(IoDirs(io_dir), self.registry, subcommand) if done.returncode == 0 else None
+        out = read_out(IoDirs(io_dir), self.registry, subcommand) if proc.returncode == 0 else None
         return StepResult(
             subcommand,
             start,
             end,
-            done.returncode,
+            proc.returncode,
             out,
-            _tail(done.stderr),
+            _tail(err.text()),
             ("in-process", *argv[1:]),
         )

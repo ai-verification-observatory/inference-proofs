@@ -40,7 +40,17 @@ from iproofs.derive import (
 from iproofs.errors import ErrorKind, Failure, IProofsError
 from iproofs.log import Event, JsonlLogger
 from iproofs.log.redact import Redactor
-from iproofs.measure import EventLog, ReleaseWatcher, files_bytes, proof_size, span_seconds
+from iproofs.measure import (
+    LOG_HEAD_BYTES,
+    LOG_TAIL_BYTES,
+    Capture,
+    EventLog,
+    ReleaseWatcher,
+    cap_text,
+    files_bytes,
+    proof_size,
+    span_seconds,
+)
 from iproofs.model import (
     AdapterOut,
     ClaimCard,
@@ -62,6 +72,9 @@ from iproofs.workloads import load_workload, materialise_prompts, model_dir, wor
 # RFC-0014 §The commitment record: <job tmp>/commitment/{verifier,prover}/, never mounted
 # read-write (kept with io/ under --keep-io); prover-ro/ holds the rechecked copies mounted
 # read-only for prove.
+RUN_DIR_CAP_BYTES = 10 * 1024 * 1024  # RFC-0009 §Storage, a limit
+SECOND_CUT_HEAD_BYTES = 64 * 1024
+SECOND_CUT_TAIL_BYTES = 192 * 1024
 COMMITMENT_STORE = "commitment"
 STORE_SIDES = {"verifier_files": "verifier", "prover_files": "prover"}
 SCRATCH = (COMMITMENT_STORE, "prover-ro")
@@ -182,6 +195,8 @@ class Job:
     prompt_set_digest: str = ""
     image_inputs: list[dict[str, object]] = field(default_factory=list)
     commitment_record: dict[str, object] | None = None
+    logs: dict[str, Capture] = field(default_factory=dict)  # "<step>.stdout" -> bounded capture
+    log_prefix: str = ""  # "controls-" when `iproofs controls` adds calls to a written run
     proof_records: list[dict[str, object]] = field(default_factory=list)
     proof_bytes: dict[str, int] = field(default_factory=dict)
 
@@ -293,7 +308,7 @@ class Runner:
                         exit_code=job.failure.exit_code,
                     )
                     break
-            final = self._write(job)
+            final = self._write(job, log)
             log.log(
                 Event.JOB_WRITTEN,
                 job=run_id,
@@ -301,6 +316,7 @@ class Runner:
                 run_dir=final.name,
                 outcome="failed" if job.failure else "completed",
             )
+        self._cap_run_dir(job)
         final.parent.joinpath(f".staging-{run_id}").rename(final)
         _fsync_dir(final.parent)  # the run directory exists only complete (INV-RUN-2)
         return final
@@ -352,6 +368,7 @@ class Runner:
                 Event.RUNNER_RECOVERED, job=run_id, run_id=run_id, last_state=last
             )
         final = self._write(job)
+        self._cap_run_dir(job)
         staging.rename(final)
         _fsync_dir(final.parent)
         return final
@@ -461,6 +478,10 @@ class Runner:
             memory=None,
             timeout_s=job.system.timeout(sub),
             ro_mounts=ro_mounts,
+            log_sinks=[
+                job.logs.setdefault(f"{job.log_prefix}{sub}.{s}", Capture())
+                for s in ("stdout", "stderr")
+            ],
         )
         gpu = self.env.gpu() if sub != "verify" else None
         job.commands.append(
@@ -479,9 +500,10 @@ class Runner:
             job.steps[sub] = result
             job.events.record(f"{sub}.start", result.started_mono_ns)
             job.events.record(f"{sub}.end", result.ended_mono_ns)
-        (job.staging / "logs" / f"{sub}.stderr").open("a").write(
-            self.redact("\n".join(result.stderr_tail)) + "\n"
-        )
+        for stream in ("stdout", "stderr"):  # at most 1 MiB each, so a crash keeps them
+            name = f"{job.log_prefix}{sub}.{stream}"
+            if job.logs[name].total:
+                (job.staging / "logs" / name).write_text(self.redact(job.logs[name].text()))
         if sub in {"commit", "prove"} and result.exit_code == 0:
             shutil.copyfile(io / "out.json", io / f"{sub}.out.json")
         if result.exit_code != 0 or result.out is None:
@@ -799,7 +821,7 @@ class Runner:
 
     # ---------------------------------------------------------------- written
 
-    def _write(self, job: Job) -> Path:
+    def _write(self, job: Job, log: JsonlLogger | None = None) -> Path:
         """Assemble, validate and write the run's documents (RFC-0010 §Writing the run directory).
 
         A document that fails its schema is a harness bug: it is kept under `logs/invalid/`
@@ -832,8 +854,18 @@ class Runner:
         write_json(job.staging / "run.json", doc)
         if manifest is not None:
             write_json(job.staging / "manifest.json", manifest)
-        lines = sorted(f"proofs/{p['proof_id']}\t{p['digest']}\n" for p in job.proof_records)
-        write_text(job.staging / "digests.txt", "".join(lines))
+        lines = [f"proofs/{p['proof_id']}\t{p['digest']}\n" for p in job.proof_records]
+        for name, capture in sorted(job.logs.items()):
+            if capture.total:  # the digest of the whole stream, before redaction and cuts
+                lines.append(f"logs/{name}\t{capture.digest}\n")
+            if capture.elided and log is not None:
+                log.log(
+                    Event.LOG_TRUNCATED,
+                    job=job.run_id,
+                    file=f"logs/{name}",
+                    elided_bytes=capture.elided,
+                )
+        write_text(job.staging / "digests.txt", "".join(sorted(lines)))
         # proof bytes never stay in a run directory (RFC-0009) unless --keep-io (RFC-0010)
         for scratch in (
             ("prover-ro", "verify", "controls-io")
@@ -843,6 +875,52 @@ class Runner:
             shutil.rmtree(job.staging / scratch, ignore_errors=True)
         (job.staging / "job.lock").unlink()
         return final
+
+    def _cap_run_dir(self, job: Job) -> None:
+        """RFC-0009 §Storage, after the harness log is closed: each log file at most the first
+        256 KiB and last 768 KiB; then the run directory at most 10 MiB, cutting adapter logs
+        to 64 KiB and 192 KiB, largest first, and harness.jsonl last. Every log's digest before
+        truncation is in digests.txt, and every cut is a `log.truncated` event."""
+        logs = job.staging / "logs"
+        digests_file = job.staging / "digests.txt"
+        digests = (
+            dict(line.split("\t", 1) for line in digests_file.read_text().splitlines() if line)
+            if digests_file.is_file()
+            else {}
+        )
+        cuts: list[tuple[str, int]] = []
+
+        def cut(path: Path, head: int, tail: int) -> None:
+            data = path.read_bytes()
+            kept, elided = cap_text(data, head, tail)
+            if elided:
+                name = path.relative_to(job.staging).as_posix()
+                digests.setdefault(name, file_digest(path))
+                path.write_bytes(kept)
+                cuts.append((name, elided))
+
+        files = sorted(p for p in logs.rglob("*") if p.is_file()) if logs.is_dir() else []
+        for path in files:
+            name = path.relative_to(job.staging).as_posix()
+            digests.setdefault(name, file_digest(path))
+            capture = job.logs.get(path.name)
+            if not (capture and capture.elided and path.parent == logs):  # cut once at capture
+                cut(path, LOG_HEAD_BYTES, LOG_TAIL_BYTES)
+
+        def size() -> int:
+            return sum(p.stat().st_size for p in job.staging.rglob("*") if p.is_file())
+
+        adapter = [p for p in files if p.suffix in (".stdout", ".stderr")]
+        for path in [*sorted(adapter, key=lambda p: -p.stat().st_size), logs / "harness.jsonl"]:
+            if size() <= RUN_DIR_CAP_BYTES or not path.is_file():
+                break
+            cut(path, SECOND_CUT_HEAD_BYTES, SECOND_CUT_TAIL_BYTES)
+        write_text(digests_file, "".join(f"{k}\t{v}\n" for k, v in sorted(digests.items())))
+        if cuts:
+            with (logs / "harness.jsonl").open("a") as stream:
+                log = JsonlLogger(stream, redactor=self.redact, mono=self.clock)
+                for name, elided in cuts:
+                    log.log(Event.LOG_TRUNCATED, job=job.run_id, file=name, elided_bytes=elided)
 
     def _run_doc(self, job: Job, metrics: dict[str, QuantityTree]) -> dict[str, object]:
         spec = job.spec
@@ -1127,7 +1205,7 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         str(run_dir.parent.parent.parent),
         doc["release"],
     )
-    job = Job(spec, doc["run_id"], run_dir)
+    job = Job(spec, doc["run_id"], run_dir, log_prefix="controls-")
     runner._resolve_inputs(job)
     manifest = json.loads((run_dir / "manifest.json").read_text())
     job.image = manifest["system"]["image"]["ref"]
