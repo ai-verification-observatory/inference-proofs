@@ -9,7 +9,7 @@ An open, neutral benchmark for provable inference: the same models, the same ref
 ## Sources of truth, in order
 
 1. Accepted and Final RFCs in `rfcs/`.
-2. `docs/SPEC.md`.
+2. `docs/SPEC.md` and the sections under `docs/spec/`.
 3. `docs/PRD.md`.
 4. Draft RFCs: proposals, not rules.
 
@@ -38,16 +38,18 @@ If code and an Accepted RFC disagree, the RFC wins: fix the code or write an RFC
 
 ## Writing style
 
-Plain, dense, active voice, short sentences. Define a term once (`docs/SPEC.md` holds the vocabulary). Numbers carry units and conditions. Use commas, colons or parentheses rather than dashes in prose.
+Plain, dense, active voice, short sentences. Define a term once (`docs/spec/10-glossary.md` holds the vocabulary). Numbers carry units and conditions. Use commas, colons or parentheses rather than dashes in prose.
 
 ## Layout
 
 | Path | What |
 |---|---|
 | `docs/PRD.md` | why, for whom, scope, roadmap |
-| `docs/SPEC.md` | architecture and the overview of every normative part |
+| `docs/SPEC.md` | index and executive summary of the specification corpus |
+| `docs/spec/` | specification sections 00 to 10 (overview to glossary) |
+| `docs/roadmap/IMPLEMENTATION.md` | the implementation issue set, by milestone |
 | `rfcs/` | normative decisions; `0000-template.md` for new ones |
-| `schema/` | JSON Schemas (to come, from RFC-0002 to RFC-0009) |
-| `harness/` | the runner (to come) |
+| `schema/` | JSON Schemas (to come, RFC-0012 catalogue) |
+| `harness/` | the `iproofs` package and its tests (to come, RFC-0010) |
 | `systems/<name>/` | one adapter per system (to come: `sash`, `flashprove`) |
 | `workloads/`, `reference/`, `results/`, `site/`, `reports/` | as SPEC Section 2 |

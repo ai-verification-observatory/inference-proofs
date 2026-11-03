@@ -27,7 +27,8 @@ Both run on one NVIDIA H100 80 GB. More systems and common workloads follow (see
 ## Read
 
 - [docs/PRD.md](docs/PRD.md): problem, users, scope, requirements, roadmap.
-- [docs/SPEC.md](docs/SPEC.md): architecture, measurement, adapter contract, results.
+- [docs/SPEC.md](docs/SPEC.md): index of the specification corpus (`docs/spec/`), with an executive summary.
+- [docs/roadmap/IMPLEMENTATION.md](docs/roadmap/IMPLEMENTATION.md): the implementation issue set by milestone.
 - [rfcs/](rfcs/README.md): the normative decisions, open for comment.
 - [AGENTS.md](AGENTS.md): rules for contributors and coding agents.
 
