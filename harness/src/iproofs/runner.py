@@ -243,6 +243,7 @@ class Runner:
         progress: TextIO | None = None,
         log_level: str = "info",
         allow_nonconforming: bool = False,
+        prompts_from: str | None = None,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -254,6 +255,7 @@ class Runner:
         self.provider = provider
         # RFC-0003 §Seed policy: a fresh seed per job, or a recorded one replayed (--prompts-from)
         self.replay_seed = replay_seed
+        self.prompts_from = prompts_from  # the source run id, recorded in the manifest
         self.keep_io = keep_io
         self.progress = progress  # stderr for progress lines; None with --quiet
         self.log_level = log_level
@@ -320,8 +322,8 @@ class Runner:
                 "controls": lambda j: self._controls(j, log),
             }
             for state in STATES[1:-1]:  # resolved .. controls
-                if state == "controls" and not (spec.control_suite and not self.controls_done):
-                    continue  # once per configuration, on the first successful repetition
+                if self._skip(job, state, log):
+                    continue
                 previous, job.state = job.state, state
                 log.log(Event.JOB_STATE, job=run_id, step=state, **{"from": previous, "to": state})
                 try:
@@ -513,6 +515,17 @@ class Runner:
                 + "; ".join(f.line() for f in failures),
             )
         self.nonconforming = failures
+
+    def _skip(self, job: Job, state: str, log: JsonlLogger) -> bool:
+        """Controls run once per configuration, on the first successful repetition (RFC-0008);
+        a reference system skips commit, verify and controls (RFC-0015 §Steps per job)."""
+        if state == "controls" and not (job.spec.control_suite and not self.controls_done):
+            return True
+        if _reference(job) and state in ("commit", "verify", "controls"):
+            log.log(Event.JOB_STATE, job=job.run_id, step=state, skipped=True,
+                    **{"from": job.state, "to": state})  # fmt: skip
+            return True
+        return False
 
     def _record(self, job: Job) -> dict[str, object]:
         return self._record_for(job.spec)
@@ -739,10 +752,12 @@ class Runner:
     def _prove(self, job: Job, log: JsonlLogger | None = None) -> None:
         assert job.system is not None
         assert job.workload is not None
-        assert job.commit is not None
-        # the recorded prover files, read-only over the paths the commit step wrote
-        recorded = self._recorded(job, "prover_files", job.staging / "prover-ro", "prove")
-        ro = list(zip(recorded, job.commit.prover_files or (), strict=True))
+        reference = _reference(job)  # RFC-0015: no commitment, outputs instead of proofs
+        assert reference or job.commit is not None
+        ro: list[tuple[Path, str]] = []
+        if job.commit is not None:  # the recorded prover files, read-only (RFC-0014)
+            recorded = self._recorded(job, "prover_files", job.staging / "prover-ro", "prove")
+            ro = list(zip(recorded, job.commit.prover_files or (), strict=True))
         watcher = ReleaseWatcher(
             job.staging / "io/proofs",
             clock=self.clock,
@@ -754,8 +769,8 @@ class Runner:
                 job,
                 "prove",
                 {
-                    "commitment_id": job.commit.commitment_id,
-                    "prover_files": list(job.commit.prover_files or ()),
+                    "commitment_id": job.commit.commitment_id if job.commit else "not_applicable",
+                    "prover_files": list(job.commit.prover_files or ()) if job.commit else [],
                     "model_dir": "/models",
                     "prompts_file": "/io/prompts.jsonl",
                     "batch_size": job.workload.shape.batch_size,
@@ -780,7 +795,8 @@ class Runner:
                     "archive": None,
                 }
             )
-            job.proof_bytes[entry.proof_id] = size.bytes
+            if not reference:  # REF-2: outputs, not proofs; no proof bytes
+                job.proof_bytes[entry.proof_id] = size.bytes
         job.releases = [(r.proof_id, r.mono_ns) for r in releases]
         for i, r in enumerate(releases, start=1):
             job.events.record("proof.released", r.mono_ns)
@@ -794,7 +810,7 @@ class Runner:
                     index=i,
                     of=len(releases),
                 )
-        for warning in self._commitment_echo(job):
+        for warning in [] if reference else self._commitment_echo(job):
             job.warnings.append(warning)
             if log is not None:
                 log.log(Event.POLICY_WARNING, job=job.run_id, step="prove", detail=warning)
@@ -1236,6 +1252,7 @@ class Runner:
             },
             "machine": job.machine,
             # the host's last self-test from this harness version (RFC-0011); none: ineligible
+            "prompts_from": self.prompts_from,
             "self_test": selftest.saved(Path(job.spec.results_root))
             or {"passed": False, "checks": []},
             "commands": job.commands,
@@ -1252,14 +1269,28 @@ class Runner:
     def _tokens(self, job: Job) -> list[tuple[int, int]]:
         assert job.system is not None
         assert job.workload is not None
-        if job.proofs is None or job.system.proofs is None:
+        kind = self._coverage(job)
+        if job.proofs is None or kind is None:
             return []
         entries = {p.proof_id: p for p in job.proofs.proofs or ()}
-        kind = job.system.proofs.tokens_covered
         return [
             tokens_per_proof(kind, job.workload.shape, entries[pid].tokens_covered, pid)
             for pid, _ in job.releases
         ]
+
+    def _coverage(self, job: Job) -> str | None:
+        """The token rule: the system's own, or for a reference row the rule of the system it
+        serves, the first proving system the workload lists (RFC-0015 REF-3)."""
+        assert job.system is not None
+        assert job.workload is not None
+        if job.system.proofs is not None:
+            return job.system.proofs.tokens_covered
+        for name in job.workload.systems:
+            path = self.root / "systems" / name / "system.yaml"
+            served = load(path, self.registry) if path.is_file() else None
+            if isinstance(served, System) and served.kind != "reference" and served.proofs:
+                return served.proofs.tokens_covered
+        return None
 
     def _metrics(self, job: Job, run_json: str) -> dict[str, QuantityTree]:
         assert job.workload is not None
@@ -1280,11 +1311,17 @@ class Runner:
         m["requests_count"] = count(shape.batch_size * shape.batches_per_session)
         m["proofs_count"] = count(len(job.releases))
         m["verdicts_accept_count"] = count(sum(v == "accept" for v in job.verdicts.values()))
-        sizes = [float(job.proof_bytes[pid]) for pid, _ in job.releases]
         bref = f"{run_json}#/proofs"
-        if sizes:
-            m["proof_bytes"] = _statistic(sizes, Unit.B, None, bref)
-        m["proof_bytes_total"] = measured(sum(sizes), Unit.B, None, bref, None)
+        if _reference(job):  # RFC-0015: no commit step, so no commit time and no whole wall
+            eref = f"{run_json}#/events"
+            na = NullReason.NOT_APPLICABLE
+            m["commit_seconds"] = measured(None, Unit.S, Scope.COMMIT, eref, na)
+            m["whole_wall_seconds"] = measured(None, Unit.S, Scope.WHOLE_WALL, eref, na)
+        else:
+            sizes = [float(job.proof_bytes[pid]) for pid, _ in job.releases]
+            if sizes:
+                m["proof_bytes"] = _statistic(sizes, Unit.B, None, bref)
+            m["proof_bytes_total"] = measured(sum(sizes), Unit.B, None, bref, None)
         if job.commit is not None:
             io_root = job.staging / "io"
             for metric, files in (
@@ -1299,10 +1336,11 @@ class Runner:
                     None,
                 )
         m |= self._resource_metrics(job, run_json)
-        walls = [job.verify_seconds[pid] for pid, _ in job.releases]
+        walls = [job.verify_seconds[pid] for pid, _ in job.releases if pid in job.verify_seconds]
         vref = f"{run_json}#/verifier"
-        m["verify_seconds"] = _statistic(walls, Unit.S, Scope.VERIFY, vref)
-        m["verify_seconds_total"] = measured(sum(walls), Unit.S, Scope.VERIFY, vref, None)
+        if walls:
+            m["verify_seconds"] = _statistic(walls, Unit.S, Scope.VERIFY, vref)
+            m["verify_seconds_total"] = measured(sum(walls), Unit.S, Scope.VERIFY, vref, None)
         if job.single_thread_seconds is not None:
             m["verify_single_thread_seconds"] = _statistic(
                 [job.single_thread_seconds], Unit.S, Scope.VERIFY_SINGLE_THREAD, vref
@@ -1375,6 +1413,9 @@ def recorded_seed(run_dir: Path, workload: str, version: int) -> int:
     manifest = run_dir / "manifest.json"
     if not manifest.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir} has no manifest.json to replay")
+    run = run_dir / "run.json"
+    if not run.is_file() or json.loads(run.read_text()).get("status") != "completed":
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} did not complete; nothing to replay")
     recorded = json.loads(manifest.read_text())["workload"]
     if (recorded["id"], recorded["version"]) != (workload, version):
         raise IProofsError(
@@ -1425,6 +1466,10 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
     shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
     return run_dir / "controls.json"
+
+
+def _reference(job: Job) -> bool:
+    return job.system is not None and job.system.kind == "reference"
 
 
 def _cpu_list(spec: str) -> list[int]:

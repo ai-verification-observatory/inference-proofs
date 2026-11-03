@@ -328,6 +328,7 @@ class Manifest(Document):
     proofs: tuple[ProofRecord, ...]
     warnings: tuple[str, ...]
     machine_verifier: Mapping[str, object] | None = None  # verifier_host: separate
+    prompts_from: str | None = None  # RFC-0015 RC-1
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

@@ -22,6 +22,10 @@ iproofs validate [PATH ...]
 iproofs derive RUN_DIR [--check]
 iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR] [--control-suite]
             [--provider NAME] [--prompts-from RUN_DIR] [--allow-nonconforming]
+                                            # --prompts-from: replay a completed run's prompt
+                                            # seeds; its run id is recorded as prompts_from
+                                            # (RFC-0015 RC-1); a kind: reference system skips
+                                            # commit, verify and controls (§Steps per job)
             [--keep-io]                     # keep io/ with proofs, for `iproofs controls RUN_DIR`
             [--in-process]                  # test systems only: run the entrypoint as a local process
             [--image IMAGE_ID]              # a local image by ID, digest_kind config (RFC-0014)
