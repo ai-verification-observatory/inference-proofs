@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.model import ProverProfile
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _CHUNK = 1 << 20
@@ -416,3 +417,114 @@ def select_cpus(
         )
     verifier = others[:n_verifier]
     return CpuBinding(tuple(prover), tuple(verifier), tuple(verifier[:1]), (gpu_numa_node,))
+
+
+# ---------------------------------------------------------------- profile conformance (RFC-0006)
+
+
+@dataclass(frozen=True, slots=True)
+class ConformanceFailure:
+    check: str  # RFC-0006 check id, PC-*
+    message: str
+
+    def line(self) -> str:
+        return f"{self.check}: {self.message}"
+
+
+def _version(text: object) -> tuple[int, ...]:
+    """Leading dotted numbers: "6.8.0-45-generic" -> (6, 8, 0); "" -> ()."""
+    m = re.match(r"\d+(?:\.\d+)*", str(text or ""))
+    return tuple(int(p) for p in m.group(0).split(".")) if m else ()
+
+
+def check_profile(  # noqa: PLR0912 (one branch per RFC-0006 check)
+    record: Mapping[str, Any],
+    profile: ProverProfile,
+    *,
+    numa_node_cpus: int | None = None,
+    gpu_processes: int | None = None,
+) -> list[ConformanceFailure]:
+    """RFC-0006 §Profile conformance check. `numa_node_cpus` (logical CPUs on the GPU's NUMA
+    node, from the topology) and `gpu_processes` (NVML) are probes the record does not hold."""
+    found: list[ConformanceFailure] = []
+
+    def fail(check: str, message: str) -> None:
+        found.append(ConformanceFailure(check, message))
+
+    gpu, cpu, mem = record.get("gpu", {}), record.get("cpu", {}), record.get("memory", {})
+    disk, osr, box = record.get("disk", {}), record.get("os", {}), record.get("container", {})
+    if profile.gpu is not None:
+        spec = profile.gpu
+        if gpu.get("model") != spec.model:
+            fail(
+                "PC-GPU-MODEL",
+                f"bound GPU is {gpu.get('model')!r}, the profile needs {spec.model!r}",
+            )
+        if gpu.get("memory_total_mib", 0) < spec.memory_mib_min:
+            fail("PC-GPU-MEM", f"{gpu.get('memory_total_mib')} MiB < {spec.memory_mib_min} MiB")
+        if gpu.get("count_visible", 0) < spec.count:
+            fail("PC-GPU-COUNT", f"{gpu.get('count_visible')} visible GPUs < {spec.count}")
+        if gpu_processes:
+            fail("PC-GPU-BUSY", f"{gpu_processes} compute process(es) hold the bound GPU")
+        if gpu.get("driver_version") != profile.driver:
+            fail(
+                "PC-DRIVER",
+                f"driver {gpu.get('driver_version')!r}, the profile pins {profile.driver!r}",
+            )
+        need = profile.cpu.logical_cpus_on_gpu_numa_node
+        if numa_node_cpus is None or numa_node_cpus < need:
+            fail("PC-CPU-NUMA", f"{numa_node_cpus} logical CPUs on the GPU's NUMA node < {need}")
+    if cpu.get("logical_cpus", 0) < profile.cpu.logical_cpus_total_min:
+        fail(
+            "PC-CPU-TOTAL",
+            f"{cpu.get('logical_cpus')} logical CPUs < {profile.cpu.logical_cpus_total_min}",
+        )
+    if mem.get("available_bytes_at_start", 0) < profile.host_memory_gib_min * 1024**3:
+        fail(
+            "PC-MEM",
+            f"{mem.get('available_bytes_at_start')} B available"
+            f" < {profile.host_memory_gib_min} GiB",
+        )
+    free_gib = disk.get("free_bytes_at_start", 0) / 1024**3
+    if free_gib < profile.disk.free_gib_min or (
+        "nvme" in profile.disk.type.lower() and disk.get("type") != "nvme"
+    ):
+        fail(
+            "PC-DISK",
+            f"{free_gib:.1f} GiB free on a {disk.get('type')!r} disk; the profile needs"
+            f" {profile.disk.free_gib_min} GiB on {profile.disk.type}",
+        )
+    if (osr.get("id"), osr.get("version_id")) != (profile.os.id, profile.os.version_id):
+        fail(
+            "PC-OS",
+            f"{osr.get('id')} {osr.get('version_id')}, the profile needs"
+            f" {profile.os.id} {profile.os.version_id}",
+        )
+    kernel = _version(record.get("kernel", {}).get("release"))
+    if not kernel or kernel < _version(profile.kernel_min):
+        fail(
+            "PC-KERNEL",
+            f"kernel {record.get('kernel', {}).get('release')!r} older than {profile.kernel_min}",
+        )
+    runtime = profile.container_runtime
+    if box.get("cgroup_version") != "2" or box.get("cgroup_driver") != runtime.cgroup_driver:
+        fail(
+            "PC-CGROUP",
+            f"cgroup v{box.get('cgroup_version')} with {box.get('cgroup_driver')!r};"
+            f" the profile needs v2 with {runtime.cgroup_driver!r}",
+        )
+    if _version(box.get("docker_engine")) < _version(runtime.docker_engine_min) or not box.get(
+        "docker_engine"
+    ):
+        fail(
+            "PC-RUNTIME",
+            f"Docker Engine {box.get('docker_engine')!r} below {runtime.docker_engine_min}",
+        )
+    toolkit_min = _version(runtime.nvidia_container_toolkit_min)
+    if any(toolkit_min) and _version(box.get("nvidia_container_toolkit")) < toolkit_min:
+        fail(
+            "PC-RUNTIME",
+            f"NVIDIA Container Toolkit {box.get('nvidia_container_toolkit')!r}"
+            f" below {runtime.nvidia_container_toolkit_min}",
+        )
+    return found

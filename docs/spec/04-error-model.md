@@ -15,7 +15,7 @@ Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](..
 | Kind | Meaning | Typical step | CLI exit |
 |---|---|---|---|
 | `config` | an input file or argument is invalid | before jobs, `resolved` | 1 or 2 |
-| `environment` | the host does not meet the profile or a prerequisite | before jobs, `machine_recorded` | 3 |
+| `environment` | the host does not meet the profile or a prerequisite: the RFC-0006 conformance checks PC-GPU-MODEL, PC-GPU-MEM, PC-GPU-COUNT, PC-GPU-BUSY, PC-DRIVER, PC-CPU-NUMA, PC-CPU-TOTAL, PC-MEM, PC-DISK, PC-OS, PC-KERNEL, PC-CGROUP, PC-RUNTIME (`iproofs.provenance.check_profile`) | before jobs, `machine_recorded` | 3 |
 | `integrity` | a hash, digest or pin does not match | `resolved`, `image_ready`, `info` | 4 (in a job), 1 (validate) |
 | `fetch` | a network fetch failed after 3 attempts | `resolved`, `image_ready` | 4 |
 | `adapter` | the adapter exited non-zero or broke the contract | any adapter step | 4 |

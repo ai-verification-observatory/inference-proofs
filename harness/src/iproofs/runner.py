@@ -66,12 +66,15 @@ from iproofs.model import (
     load_reference,
 )
 from iproofs.provenance import (
+    ConformanceFailure,
     Host,
+    check_profile,
     file_digest,
     file_records,
     git_state,
     machine_drift,
     machine_record,
+    read_topology,
 )
 from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
@@ -230,6 +233,7 @@ class Runner:
         keep_io: bool = False,
         progress: TextIO | None = None,
         log_level: str = "info",
+        allow_nonconforming: bool = False,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -245,6 +249,8 @@ class Runner:
         self.progress = progress  # stderr for progress lines; None with --quiet
         self.log_level = log_level
         self.repetitions = 1
+        self.allow_nonconforming = allow_nonconforming  # development only (RFC-0006)
+        self.nonconforming: list[ConformanceFailure] = []
         self.controls_done = False
         self.redact = Redactor.from_host()
 
@@ -253,6 +259,7 @@ class Runner:
     def run_many(self, base: JobSpec, repetitions: int) -> list[Path]:
         below = repetitions < MIN_REPETITIONS  # allowed for tests, always marked
         self.repetitions = repetitions
+        self._conform(base)
         return [
             self.run(replace(base, repetition=r), below_minimum=below)
             for r in range(1, repetitions + 1)
@@ -268,6 +275,7 @@ class Runner:
         job.seed = int.from_bytes(os.urandom(8), "big") if seed is None else seed
         if below_minimum:
             job.warnings.append("repetitions_below_minimum")
+        job.warnings += [f"conformance: {f.line()}" for f in self.nonconforming]
         (staging / "logs").mkdir()
         lock = {
             "pid": os.getpid(),
@@ -454,12 +462,38 @@ class Runner:
         else:
             raise IProofsError(ErrorKind.CONFIG, f"{job.spec.system} has no pinned image")
 
+    def _conform(self, spec: JobSpec) -> None:
+        """RFC-0006 §Profile conformance check, once per invocation and before any staging
+        directory exists, so a refused host writes nothing to results/ (exit 3). A test system
+        (fake, fake-broken) runs anywhere, RFC-0011 §Portability; its failures are warnings."""
+        system = load(self.root / "systems" / spec.system / "system.yaml", self.registry)
+        assert isinstance(system, System)
+        profile = self._reference(spec)[0].profiles[spec.profile]
+        if not isinstance(profile, ProverProfile):
+            return
+        record = self._record_for(spec)
+        gpu = record.get("gpu")
+        node = gpu.get("numa_node") if isinstance(gpu, dict) else None
+        cpus = read_topology(self.env.host().root).cpus
+        on_node = sum(c.node == node for c in cpus) if node is not None else None
+        failures = check_profile(record, profile, numa_node_cpus=on_node)
+        if failures and not self.allow_nonconforming and system.kind != "test":
+            raise IProofsError(
+                ErrorKind.ENVIRONMENT,
+                f"this host does not meet profile {spec.profile}: "
+                + "; ".join(f.line() for f in failures),
+            )
+        self.nonconforming = failures
+
     def _record(self, job: Job) -> dict[str, object]:
+        return self._record_for(job.spec)
+
+    def _record_for(self, spec: JobSpec) -> dict[str, object]:
         """RFC-0006 §Machine record from the environment's allowlisted probes."""
         roles = ("prover", "verifier", "verifier_1")
         return machine_record(
             self.env.host(),
-            results=Path(job.spec.results_root),
+            results=Path(spec.results_root),
             gpu_index=self.env.gpu(),
             cpus={role: _cpu_list(self.env.cpus(role)[0]) for role in roles},  # type: ignore[arg-type]
             mems=_cpu_list(self.env.cpus("prover")[1]),
@@ -1117,7 +1151,7 @@ class Runner:
                 "git_commit": harness_commit,
                 "git_dirty": harness_dirty,
                 "lock_digest": file_digest(self.root / "uv.lock"),
-                "nonconforming": False,
+                "nonconforming": bool(self.nonconforming) and self.allow_nonconforming,
             },
             "runner": {
                 "handle": self.operator.handle,
