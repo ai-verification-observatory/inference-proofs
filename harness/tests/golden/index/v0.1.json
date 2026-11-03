@@ -209,7 +209,7 @@
       }
     }
   ],
-  "inputs_digest": "sha256:20a07644117f2bec0834e0373280781d8df754e9d7315d66d0f7459d3620fc61",
+  "inputs_digest": "sha256:a6894e6f7ebe63be431fb7e75ff703bb92d184a93edbf2d2b5bf1717d45ab562",
   "reference": {
     "digest": "sha256:0c4af6e86a2e063e8852d9c06047929be8b747686033e8c50e3f97a38568f88c",
     "file": "reference/v0.1.yaml"

@@ -36,8 +36,8 @@ def git(root: Path, *args: str) -> str:
     return done.stdout.strip()
 
 
-def commit(root: Path, message: str) -> str:
-    git(root, "add", "-A")
+def commit(root: Path, message: str, *paths: str) -> str:
+    git(root, "add", *(paths or ("-A",)))
     git(root, "commit", "-qm", message, "--no-gpg-sign")
     return git(root, "rev-parse", "HEAD")
 
@@ -52,7 +52,7 @@ def build(root: Path, runs: int = 5) -> Path:
     system["image"] = {"repository": repository, "digest": digest}
     (root / "systems/fake/system.yaml").write_text(yaml.safe_dump(system, sort_keys=False))
     git(root, "init", "-q", "-b", "main")
-    adapter = commit(root, "adapter")
+    adapter = commit(root, "adapter", "systems/fake/system.yaml")  # only it: a stable hash
     card = root / "systems/fake/claims/default.yaml"
     card.parent.mkdir(parents=True)
     card.write_text("# fixture claim card, read only for its digest\n")
