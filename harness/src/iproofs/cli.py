@@ -272,8 +272,6 @@ def run(args: argparse.Namespace) -> int:
     from iproofs.validate import repo_root  # noqa: PLC0415
     from iproofs.workloads import load_workload  # noqa: PLC0415
 
-    if args.allow_nonconforming:
-        raise IProofsError(ErrorKind.CONFIG, "--allow-nonconforming is not implemented yet (#75)")
     root = repo_root(Path.cwd())
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
@@ -290,6 +288,7 @@ def run(args: argparse.Namespace) -> int:
         provider=args.provider or "undeclared",
         progress=None if args.quiet else sys.stderr,
         log_level=args.log_level,
+        allow_nonconforming=args.allow_nonconforming,
         replay_seed=seed,
         keep_io=args.keep_io,
     )
