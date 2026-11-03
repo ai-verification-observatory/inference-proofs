@@ -42,6 +42,7 @@ __all__ = [
     "ReleaseWatcher",
     "Sampler",
     "SamplerSummary",
+    "SelfTestCheck",
     "SliceCgroupReader",
     "StepResources",
     "cap_text",
@@ -52,6 +53,13 @@ __all__ = [
     "pin_harness_cpu",
     "select_readers",
     "span_seconds",
+    "st_cgroup",
+    "st_clock",
+    "st_jitter",
+    "st_nvml",
+    "st_oom",
+    "st_sampler",
+    "st_watch",
     "stop_stale_holds",
     "summarize",
     "timed_call",
@@ -376,6 +384,7 @@ class Sampler:
         self.clock = clock
         self.samples: list[GpuSample] = []
         self.anon: list[int] = []
+        self.lateness_ns: list[int] = []  # sample time minus its deadline (ST-JITTER)
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._baseline: float | None = None
@@ -397,6 +406,7 @@ class Sampler:
             if now < deadline:
                 self._stop.wait((deadline - now) / 1e9)
                 continue
+            self.lateness_ns.append(now - deadline)
             i = (now - t0) // period + 1  # S-2: skip missed deadlines
             if self.gpu is not None:
                 self.samples.append(GpuSample(now, self.gpu.memory_used_mib(), self.gpu.util_pct()))
@@ -427,6 +437,87 @@ class Sampler:
         lines = ["second,memory_used_mib_max,util_gpu_pct_max\n"]
         lines += [f"{sec},{mem:.1f},{util}\n" for sec, (mem, util) in sorted(rows.items())]
         path.write_text("".join(lines))
+
+
+# ---------------------------------------------------------------- self-test checks (RFC-0011)
+
+MIB = 1024 * 1024
+
+
+@dataclass(frozen=True, slots=True)
+class SelfTestCheck:
+    name: str  # ST-*
+    passed: bool
+    detail: str
+
+
+def st_clock(reads: Sequence[int]) -> SelfTestCheck:
+    """100,000 consecutive monotonic reads: never decreasing, median step at most 1 us."""
+    steps = [b - a for a, b in itertools.pairwise(reads)]
+    median = sorted(steps)[len(steps) // 2] if steps else 0
+    ok = bool(steps) and min(steps) >= 0 and median <= 1_000
+    return SelfTestCheck(
+        "ST-CLOCK",
+        ok,
+        f"{len(reads)} reads, min step {min(steps, default=0)} ns, median {median} ns",
+    )
+
+
+def st_sampler(summary: SamplerSummary) -> SelfTestCheck:
+    """5 s at 20 Hz on the bound GPU: at least 10 Hz achieved, no gap above 150 ms."""
+    ok = summary.achieved_hz >= 10 and summary.gaps_over_150ms == 0
+    return SelfTestCheck(
+        "ST-SAMPLER",
+        ok,
+        f"{summary.achieved_hz:.1f} Hz, {summary.gaps_over_150ms} gaps over 150 ms",
+    )
+
+
+def st_jitter(lateness_ns: Sequence[int]) -> SelfTestCheck:
+    """The same run: p99 lateness at most 10 ms."""
+    ranked = sorted(lateness_ns)
+    p99 = ranked[math.ceil(0.99 * len(ranked)) - 1] if ranked else None
+    ok = p99 is not None and p99 <= 10_000_000
+    return SelfTestCheck("ST-JITTER", ok, f"p99 lateness {None if p99 is None else p99 / 1e6} ms")
+
+
+def st_cgroup(kernel_peak: int, anon_peak: int | None, cpu_seconds: float) -> SelfTestCheck:
+    """A probe touching 256 MiB under a harness slice: both peaks at least 256 MiB, CPU up."""
+    ok = kernel_peak >= 256 * MIB and (anon_peak or 0) >= 256 * MIB and cpu_seconds > 0
+    return SelfTestCheck(
+        "ST-CGROUP",
+        ok,
+        f"memory.peak {kernel_peak} B, anon peak {anon_peak} B, cpu {cpu_seconds} s",
+    )
+
+
+def st_watch(release_ns: Sequence[int], mechanism: str) -> SelfTestCheck:
+    """3 renames 200 ms apart: 3 releases, steps 200 ms +- 20 ms, seen by inotify."""
+    steps = [b - a for a, b in itertools.pairwise(sorted(release_ns))]
+    ok = (
+        len(release_ns) == 3
+        and mechanism == "inotify"
+        and all(abs(d - 200_000_000) <= 20_000_000 for d in steps)
+    )
+    return SelfTestCheck(
+        "ST-WATCH",
+        ok,
+        f"{len(release_ns)} releases by {mechanism}, steps {[d / 1e6 for d in steps]} ms",
+    )
+
+
+def st_nvml(backend: GpuBackend) -> SelfTestCheck:
+    """NVML init and the bound GPU's handle (done by the caller), then the busy check."""
+    busy = backend.compute_processes()
+    energy = backend.energy_mj() is not None
+    return SelfTestCheck(
+        "ST-NVML", busy == 0, f"{busy} foreign process(es); energy supported: {energy}"
+    )
+
+
+def st_oom(oom_kills: int) -> SelfTestCheck:
+    """A probe over a 64 MiB limit: the slice's `oom_kill` delta is seen."""
+    return SelfTestCheck("ST-OOM", oom_kills > 0, f"oom_kill delta {oom_kills}")
 
 
 def check_gpu_free(backend: GpuBackend) -> None:

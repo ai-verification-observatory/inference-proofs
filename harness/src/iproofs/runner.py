@@ -18,7 +18,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal, Protocol, TextIO
 
-from iproofs import __version__
+from iproofs import __version__, selftest
 from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
 from iproofs.controls import (
     HonestProof,
@@ -477,6 +477,9 @@ class Runner:
         cpus = read_topology(self.env.host().root).cpus
         on_node = sum(c.node == node for c in cpus) if node is not None else None
         failures = check_profile(record, profile, numa_node_cpus=on_node)
+        saved = selftest.saved(Path(spec.results_root))
+        if saved is not None and not saved.get("passed"):  # RFC-0014: a failed self-test stops
+            failures.append(ConformanceFailure("ST", "the host's last self-test failed"))
         if failures and not self.allow_nonconforming and system.kind != "test":
             raise IProofsError(
                 ErrorKind.ENVIRONMENT,
@@ -1200,7 +1203,9 @@ class Runner:
                 "reference_digest": file_digest(self.root / job.reference_file),
             },
             "machine": job.machine,
-            "self_test": {"passed": False, "checks": []},  # not run until #116; ineligible
+            # the host's last self-test from this harness version (RFC-0011); none: ineligible
+            "self_test": selftest.saved(Path(job.spec.results_root))
+            or {"passed": False, "checks": []},
             "commands": job.commands,
             "commitment": job.commitment_record if system.kind != "reference" else None,
             "proofs": job.proof_records,

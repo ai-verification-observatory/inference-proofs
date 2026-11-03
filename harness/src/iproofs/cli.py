@@ -145,6 +145,11 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
     p.add_argument("--gpu", type=int, metavar="INDEX", help="the bound GPU (NVML index)")
     p.add_argument("--results", type=Path, default=Path("results"), help="for disk type and space")
+    p.add_argument(
+        "--probe-image",
+        metavar="IMAGE_ID",
+        help="the locally built systems/fake image (sha256:<hex>) whose probe the self-test runs",
+    )
     p.set_defaults(handler=machine_record_command)
 
     p = command("fetch-model", "fetch a workload's weights and check every hash (RFC-0014)")
@@ -384,8 +389,6 @@ def machine_record_command(args: argparse.Namespace) -> int:
     from iproofs.provenance import Host, machine_record  # noqa: PLC0415
     from iproofs.serialize import dumps  # noqa: PLC0415
 
-    if args.selftest:
-        raise IProofsError(ErrorKind.INTERNAL, "`--selftest` is not implemented yet (issue #116)")
     record = machine_record(
         Host(),
         results=args.results if args.results.exists() else Path.cwd(),
@@ -395,7 +398,23 @@ def machine_record_command(args: argparse.Namespace) -> int:
         provider=args.provider or "undeclared",
         redact=Redactor.from_host(),
     )
-    sys.stdout.write(dumps(record).decode())
+    if not args.selftest:
+        sys.stdout.write(dumps(record).decode())
+        return 0
+    import tempfile  # noqa: PLC0415
+
+    from iproofs import selftest  # noqa: PLC0415
+
+    image = f"local/fake@{args.probe_image}" if args.probe_image else None
+    with tempfile.TemporaryDirectory() as work:
+        checks = selftest.run_selftest(gpu_index=args.gpu, probe_image=image, work=Path(work))
+    selftest.report(checks)
+    result = selftest.as_record(checks)
+    sys.stdout.write(dumps({"machine": record, "self_test": result}).decode())
+    print(f"saved {selftest.save(args.results, result)}", file=sys.stderr)
+    if not result["passed"]:
+        failed = [c.name for c in checks if not c.passed]
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"self-test failed: {', '.join(failed)}")
     return 0
 
 
