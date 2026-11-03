@@ -1,8 +1,11 @@
-"""RFC-0009 §Site rules S1, S2, S4, S7 and no required scripts, on the fixture release."""
+"""RFC-0009 §Site rules S1, S2, S4 to S8 and no required scripts, on the fixture release."""
 
+import json
 import re
+from pathlib import Path
 
 import pytest
+from markupsafe import escape
 
 from fixtures.release_tree import build_rich
 from iproofs import cli
@@ -75,3 +78,53 @@ def test_reply_escaped() -> None:
     assert "<em>disagree</em>" in out
     assert 'href="javascript' not in out  # only http(s) links become links
     assert "<ul><li>one</li>" in out
+
+
+ROW_SYSTEM = re.compile(r'<th scope="row"><a href="\.\./systems/([^"]+)\.html">')
+HEADERS = re.compile(r'<th scope="col">(?:<a [^>]*>)?([^<]+)')
+
+
+def test_default_order_alphabetical(site: dict[str, str]) -> None:
+    """S5: the default division table is alphabetical; other orders only behind links."""
+    default = ROW_SYSTEM.findall(site["v0.1/divisions/open.html"])
+    assert default == sorted(default) == ["fake", "fake-broken"]
+    assert 'href="open-by-prove_session_seconds.html"' in site["v0.1/divisions/open.html"]
+    assert "v0.1/divisions/open-by-prove_session_seconds.html" in site
+    assert "Native workloads differ" not in site["v0.1/divisions/open.html"]  # S6: native only
+
+
+def test_no_aggregate_score_column(site: dict[str, str]) -> None:
+    for rel in (r for r in site if "/divisions/" in r):
+        headers = HEADERS.findall(site[rel])
+        assert headers[:4] == ["System", "Claim card summary", "Workload", "Profile"], rel
+        assert not [h for h in headers if re.search(r"score|rank|total|overall|best", h, re.I)]
+        assert "<strong>" not in site[rel].split("<table>")[1]  # no highlighted cell
+
+
+def test_generated_html_passes_g8(site: dict[str, str], tmp_path: Path) -> None:
+    """S8: the site text passes the RFC-0013 G8 word list (replies are excluded at source)."""
+    from iproofs.validate.tree import g8_language  # noqa: PLC0415
+
+    for rel, text in site.items():
+        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tmp_path / rel).write_text(text)
+    assert g8_language(tmp_path, [], named=sorted(site)) == []
+
+
+def test_unexpected_control_printed_in_full(tmp_path: Path) -> None:
+    build_rich(tmp_path)
+    with pytest.MonkeyPatch.context() as mp:
+        mp.chdir(tmp_path)
+        assert cli.main(["release", "freeze", "v0.1"]) == 0
+        index_path = tmp_path / "releases/v0.1/index.json"
+        index = json.loads(index_path.read_text())
+        stored = next((tmp_path / "results/v0.1/fake").glob("*/controls.json"))
+        record = json.loads(stored.read_text())["controls"][0]
+        index["controls"][0]["outside_expected"] = [
+            {"run_id": stored.parent.name, "control_id": record["id"], "outcome": "accepted"}
+        ]
+        index_path.write_text(json.dumps(index))
+        assert cli.main(["site", "build", "--out", str(tmp_path / "out")]) == 0
+    page = (tmp_path / "out/v0.1/controls.html").read_text()
+    assert f"{record['id']} in run {stored.parent.name}: accepted." in page
+    assert str(escape(json.dumps(record, indent=2, sort_keys=True))) in page

@@ -10,6 +10,12 @@
 <li><a href="systems/{{ s }}.html">{{ s }}</a>{% if s in reference %} (reference row){% endif %}</li>
 {% endfor %}
 </ul>
+<h2>Tables</h2>
+<ul>
+{% for d in divisions %}<li><a href="divisions/{{ d }}.html">{{ d | capitalize }} division</a></li>
+{% endfor %}<li><a href="controls.html">Controls</a></li>
+<li><a href="targets.html">Targets</a></li>
+</ul>
 <h2>Workloads</h2>
 <ul>
 {% for w in workloads %}

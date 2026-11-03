@@ -67,3 +67,13 @@ def test_release_names_missing_reply(repo: Path) -> None:
     assert ("XREF-4", "reply file systems/fake/replies/v0.1.md does not exist") in found
     add(repo, "systems/fake/replies/v0.1.md", "A short reply.\n")
     assert not [f for f in validate_tree(repo, only=[rel]) if "reply" in f.message]
+
+
+def test_html_escaped() -> None:
+    """RFC-0009 §Right of reply: printed unedited with HTML escaped; emphasis, lists and links
+    only."""
+    from iproofs.site import reply_html  # noqa: PLC0415
+
+    out = str(reply_html('<img src=x onerror="a()"> **bold** & [docs](https://example.org/d)'))
+    assert out == ('<p>&lt;img src=x onerror=&quot;a()&quot;&gt; <strong>bold</strong> &amp; '
+                   '<a href="https://example.org/d">docs</a></p>')  # fmt: skip
