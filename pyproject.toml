@@ -49,6 +49,8 @@ target-version = "py312"
 src = ["harness/src", "harness/tests"]
 # Python only: Python blocks inside the Markdown specs are illustrations, not code.
 include = ["*.py", "*.pyi"]
+# Known-bad gate fixtures are linted only by the tests that point at them.
+extend-exclude = ["harness/tests/fixtures/gates"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PL", "PT"]
