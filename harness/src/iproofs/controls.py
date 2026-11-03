@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import Workload
+from iproofs.model import SystemControl, Workload
 
 CONTROL_SEED_RE = re.compile(r"^0x[0-9a-f]{16}$")
 
@@ -330,9 +330,10 @@ def control_record(
     *,
     side: str = "verifier",
     source: str = "shared",
+    expected: Sequence[str] | None = None,
 ) -> dict[str, object]:
     """Run one control: applicability, honest twins first, then the trials (RFC-0008)."""
-    expected = list(EXPECTED[control_id])
+    expected = list(EXPECTED[control_id] if expected is None else expected)
     record: dict[str, object] = {
         "id": control_id,
         "side": side,
@@ -494,3 +495,55 @@ def run_shared_controls(
         "C8": (lambda: [c8(target, commit, t_dir, work / "C8", seed)], twin(target)),
     }
     return [control_record(cid, build, twins, verify) for cid, (build, twins) in builders.items()]
+
+
+# ---------------------------------------------------------------- system-specific controls
+
+
+def edge_unbound(report: object, edge: str) -> bool:
+    """RFC-0008: the binding report marks `edge` unbound. A report is a JSON object with
+    `edges`, either a mapping edge -> state or a list of {edge, state}."""
+    edges = report.get("edges") if isinstance(report, dict) else None
+    if isinstance(edges, dict):
+        return edges.get(edge) == "unbound"
+    if isinstance(edges, list):
+        return any(e.get("edge") == edge and e.get("state") == "unbound" for e in edges
+                   if isinstance(e, dict))  # fmt: skip
+    return False
+
+
+def system_control_record(
+    control: SystemControl,
+    run: Callable[[], tuple[list[VerifyCall], object]],
+    twins: Callable[[], list[VerifyCall]],
+    verify: Verifier,
+) -> dict[str, object]:
+    """One `controls.yaml` control (RFC-0008 §System-specific controls), recorded with
+    `source: system` under the shared outcome and pass rules. `run` returns the verify calls
+    and the binding report of a weakened prove; a `fixture_proof` control is not applicable
+    until the delivery of upstream fixture proofs is specified."""
+    expected = list(control.expected)
+    record: dict[str, object] = {
+        "id": control.id,
+        "side": "prover" if control.kind == "weakened_prover" else "verifier",
+        "source": "system",
+        "expected": expected,
+        "twin": None,
+        "trials": [],
+        "outcome": "not_applicable",
+        "passed": None,
+        "note": None,
+    }
+    if control.kind == "fixture_proof":
+        record["note"] = f"fixture proof delivery is not specified yet; upstream: {control.source}"
+        return record
+    try:
+        calls, report = run()
+    except IProofsError as e:
+        return {**record, "outcome": "prover_failed", "note": f"{e.kind}: {e.message}"[:4096]}
+    done = control_record(control.id, lambda: calls, twins, verify, side=str(record["side"]),
+                          source="system", expected=expected)  # fmt: skip
+    edge = control.requires_unbound_edge
+    if done["passed"] is True and edge and not edge_unbound(report, edge):
+        done |= {"passed": False, "note": f"binding report does not mark {edge!r} unbound"}
+    return done

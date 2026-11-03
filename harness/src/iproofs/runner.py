@@ -28,6 +28,7 @@ from iproofs.controls import (
     controls_document,
     new_control_seed,
     run_shared_controls,
+    system_control_record,
 )
 from iproofs.derive import (
     QuantityTree,
@@ -61,6 +62,8 @@ from iproofs.model import (
     ProverProfile,
     ReferenceFile,
     System,
+    SystemControl,
+    SystemControls,
     Workload,
     card_path,
     load,
@@ -644,7 +647,7 @@ class Runner:
                 "exit_code": result.exit_code,
             }
         )
-        if sub != "verify":
+        if sub != "verify" and not control:  # a control call never moves the run's timing
             job.steps[sub] = result
             job.events.record(f"{sub}.start", result.started_mono_ns)
             job.events.record(f"{sub}.end", result.ended_mono_ns)
@@ -884,6 +887,64 @@ class Runner:
 
     # ---------------------------------------------------------------- controls
 
+    def _system_controls(
+        self, job: Job, verify: Callable[[VerifyCall], VerifyResult], work: Path
+    ) -> list[dict[str, object]]:
+        """`systems/<name>/controls.yaml` (RFC-0008 §System-specific controls). A weakened prove
+        runs in its own io dir with `control: true` and its flags passed explicitly; every verify
+        uses the run's recorded commitment (INV-CTRL-6); the run's honest proof is the twin."""
+        path = self.root / "systems" / job.spec.system / "controls.yaml"
+        if not path.is_file():
+            return []
+        doc = load(path, self.registry)
+        assert isinstance(doc, SystemControls)
+        assert job.commit is not None
+        assert job.workload is not None
+        commitment = str(job.commit.commitment_id)
+        honest = self.honest_proofs(job)[0]
+        honest_dir = job.staging / "io/proofs" / honest.proof_id
+        parts = tuple(p.name for p in sorted(honest_dir.iterdir()))
+        twin = VerifyCall("twin", 0, commitment, honest.request, honest.claimed_output,
+                          honest_dir, parts, {})  # fmt: skip
+        shape = job.workload.shape
+
+        def weakened(control: SystemControl) -> tuple[list[VerifyCall], object]:
+            io = work / f"system-{control.id}"
+            io.mkdir(parents=True)
+            shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
+            if (job.staging / "io/state").is_dir():
+                shutil.copytree(job.staging / "io/state", io / "state")
+            out, _ = self._call(
+                job,
+                "prove",
+                {
+                    "commitment_id": commitment,
+                    "prover_files": list(job.commit.prover_files or ()),  # type: ignore[union-attr]
+                    "model_dir": "/models",
+                    "prompts_file": "/io/prompts.jsonl",
+                    "batch_size": shape.batch_size,
+                    "batches": shape.batches_per_session,
+                    "control_flags": list(control.control_flags or ()),
+                },
+                io=io,
+                control=True,
+            )
+            check_proofs(IoDirs(io), out, job.system)  # type: ignore[arg-type]
+            report = None
+            if out.binding_report:
+                report = json.loads(IoDirs(io).host(out.binding_report, "prove").read_text())
+            calls = [
+                VerifyCall(control.id, i, commitment, tuple(job.prompts[e.request_index]),
+                           tuple(e.claimed_output), io / "proofs" / e.proof_id, tuple(e.parts), {})
+                for i, e in enumerate(out.proofs or ())
+            ]  # fmt: skip
+            return calls, report
+
+        return [
+            system_control_record(c, lambda c=c: weakened(c), lambda: [twin], verify)  # type: ignore[misc]
+            for c in doc.controls
+        ]
+
     def honest_proofs(self, job: Job) -> list[HonestProof]:
         assert job.proofs is not None
         assert job.workload is not None
@@ -967,6 +1028,7 @@ class Runner:
                     control=r["id"],
                     twin_verdict=twin["verdict"],
                 )
+        records += self._system_controls(job, verify, work)
         doc = controls_document(
             job.run_id, seed, job.image, self._verifier_profile(job), None, records
         )
