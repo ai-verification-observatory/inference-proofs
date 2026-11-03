@@ -54,6 +54,10 @@ include = ["*.py", "*.pyi"]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF", "PL", "PT"]
 ignore = ["PLR2004"]
 
+[tool.ruff.lint.pylint]
+# RFC signatures pass several keyword-only fields (RFC-0010 IProofsError, Failure).
+max-args = 8
+
 [tool.mypy]
 strict = true
 python_version = "3.12"
