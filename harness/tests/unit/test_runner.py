@@ -59,7 +59,12 @@ def test_state_machine_happy_path(tmp_path: Path) -> None:
     assert isinstance(stored, list)
     events = [e["event"] for e in stored]
     assert events.count("proof.released") == 6
-    assert sorted(p.name for p in run_dir.iterdir()) == ["logs", "run.json", "verifier"]
+    assert sorted(p.name for p in run_dir.iterdir()) == [
+        "logs",
+        "manifest.json",
+        "run.json",
+        "verifier",
+    ]
     assert check_derived(run_dir / "run.json", ROOT) == []  # derived values recompute exactly
 
 

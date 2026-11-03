@@ -1179,3 +1179,10 @@ def load_reference(release: str, root: Path, registry: SchemaRegistry) -> Refere
     if not isinstance(ref, ReferenceFile) or ref.release != release:
         raise IProofsError(ErrorKind.CONFIG, f"{path}: not the reference file of {release!r}")
     return ref
+
+
+def card_path(root: Path, system: str, configuration: str) -> Path | None:
+    """The card for a configuration: `claims/<configuration>.yaml`, else a single `claim.yaml`."""
+    multi = root / "systems" / system / "claims" / f"{configuration}.yaml"
+    single = root / "systems" / system / "claim.yaml"
+    return multi if multi.is_file() else single if single.is_file() else None

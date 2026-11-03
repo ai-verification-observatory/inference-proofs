@@ -34,18 +34,21 @@ from iproofs.log.redact import Redactor
 from iproofs.measure import EventLog, ReleaseWatcher, span_seconds
 from iproofs.model import (
     AdapterOut,
+    ClaimCard,
     ProofEntry,
     ProverProfile,
     ReferenceFile,
     System,
     Workload,
+    card_path,
     load,
     load_reference,
 )
+from iproofs.provenance import file_digest, file_records, git_state, proof_digest
 from iproofs.quantity import Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl
-from iproofs.workloads import load_workload, materialise_prompts, model_dir
+from iproofs.workloads import load_workload, materialise_prompts, model_dir, workload_digest
 
 STATES = (
     "pending",
@@ -81,6 +84,24 @@ class Environment(Protocol):
     def machine_record(self) -> dict[str, object]: ...
     def gpu(self) -> int | None: ...
     def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]: ...
+
+
+@dataclass(frozen=True, slots=True)
+class RunnerIdentity:
+    """Who ran the job (RFC-0007 tiers read it). Self-declared; #83 adds the CLI flags."""
+
+    handle: str
+    organisation: str
+    affiliated_systems: tuple[str, ...] = ()
+
+    @classmethod
+    def from_env(cls) -> "RunnerIdentity":
+        systems = os.environ.get("IPROOFS_RUNNER_SYSTEMS", "")
+        return cls(
+            os.environ.get("IPROOFS_RUNNER", "undeclared"),
+            os.environ.get("IPROOFS_RUNNER_ORG", "undeclared"),
+            tuple(s for s in systems.split(",") if s),
+        )
 
 
 class CpuOnlyEnvironment:
@@ -141,6 +162,11 @@ class Job:
     verdicts: dict[str, str] = field(default_factory=dict)
     single_thread_seconds: float | None = None
     warnings: list[str] = field(default_factory=list)
+    commands: list[dict[str, object]] = field(default_factory=list)
+    prompt_set_digest: str = ""
+    image_inputs: list[dict[str, object]] = field(default_factory=list)
+    commitment_record: dict[str, object] | None = None
+    proof_records: list[dict[str, object]] = field(default_factory=list)
 
 
 class Runner:
@@ -153,6 +179,8 @@ class Runner:
         env: Environment | None = None,
         clock: Callable[[], int] = time.monotonic_ns,
         image: str | None = None,
+        operator: RunnerIdentity | None = None,
+        provider: str = "undeclared",
     ) -> None:
         self.containers = containers
         self.root = root
@@ -160,6 +188,8 @@ class Runner:
         self.env = env or CpuOnlyEnvironment()
         self.clock = clock
         self.image = image
+        self.operator = operator or RunnerIdentity.from_env()
+        self.provider = provider
         self.redact = Redactor.from_host()
 
     # ---------------------------------------------------------------- public
@@ -255,7 +285,7 @@ class Runner:
         job.prompts = materialise_prompts(self.root, wl, job.models, job.seed)
         io = job.staging / "io"
         io.mkdir()
-        write_jsonl(io / "prompts.jsonl", job.prompts)
+        job.prompt_set_digest = write_jsonl(io / "prompts.jsonl", job.prompts)
 
     def _reference(self, spec: JobSpec) -> tuple[ReferenceFile, str]:
         """The release's reference file, or the CI file for CI-only profiles (`ci-cpu`)."""
@@ -312,6 +342,7 @@ class Runner:
         job_json.pop("_single", None)
         write_json(io / "job.json", job_json)
         cpuset, mems = self.env.cpus(role)
+        started_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
         result = self.containers.run(
             job.image,
             sub,
@@ -322,6 +353,19 @@ class Runner:
             mems=mems,
             memory=None,
             timeout_s=job.system.timeout(sub),
+        )
+        gpu = self.env.gpu() if sub != "verify" else None
+        job.commands.append(
+            {
+                "step": sub,
+                "argv": [self.redact(a) for a in result.argv] or [sub],
+                "cpuset": cpuset,
+                "mems": mems,
+                "gpus": None if gpu is None else f"device={gpu}",
+                "network": "none",
+                "started_at": started_at,
+                "exit_code": result.exit_code,
+            }
         )
         if sub != "verify":
             job.steps[sub] = result
@@ -343,6 +387,9 @@ class Runner:
     def _info(self, job: Job) -> None:
         assert job.system is not None
         out, _ = self._call(job, "info", {})
+        job.image_inputs = [
+            {"name": i.name, "url": i.url, "digest": i.digest} for i in out.image_inputs or ()
+        ]
         pinned = job.system.upstream.commit if job.system.upstream else None
         if pinned is not None and out.upstream_commit != pinned:
             raise IProofsError(
@@ -355,6 +402,12 @@ class Runner:
 
     def _commit(self, job: Job) -> None:
         job.commit, _ = self._call(job, "commit", {"model_dir": "/models"})
+        io = IoDirs(job.staging / "io")
+        files = {
+            k: file_records([io.host(p, "commit") for p in getattr(job.commit, k) or ()])
+            for k in ("verifier_files", "prover_files")
+        }
+        job.commitment_record = {"commitment_id": job.commit.commitment_id, **files}
 
     def _prove(self, job: Job) -> None:
         assert job.system is not None
@@ -385,6 +438,17 @@ class Runner:
         job.warnings += check_proofs(IoDirs(job.staging / "io"), out, job.system)
         watcher.check_unchanged()
         job.proofs, job.observable = out, watcher.observable
+        for entry in out.proofs or ():
+            d = job.staging / "io/proofs" / entry.proof_id
+            parts = [d / name for name in entry.parts]
+            job.proof_records.append(
+                {
+                    "proof_id": entry.proof_id,
+                    "digest": proof_digest(d),
+                    "parts": file_records(parts),
+                    "archive": None,
+                }
+            )
         job.releases = [(r.proof_id, r.mono_ns) for r in releases]
         for r in releases:
             job.events.record("proof.released", r.mono_ns)
@@ -491,10 +555,110 @@ class Runner:
         if errors:
             raise IProofsError(ErrorKind.INTERNAL, "run.json fails run/1: " + "; ".join(errors))
         write_json(job.staging / "run.json", doc)
+        if job.workload is not None and job.system is not None:
+            manifest = self._manifest(job)
+            errors = self.registry.errors("manifest/1", manifest)
+            if errors:
+                raise IProofsError(
+                    ErrorKind.INTERNAL, "manifest fails manifest/1: " + "; ".join(errors)
+                )
+            write_json(job.staging / "manifest.json", manifest)
         for scratch in ("io", "verify"):  # proof bytes never stay in a run directory (RFC-0009)
             shutil.rmtree(job.staging / scratch, ignore_errors=True)
         (job.staging / "job.lock").unlink()
         return final
+
+    def _manifest(self, job: Job) -> dict[str, object]:
+        """manifest.json: everything needed to rerun the job (RFC-0014 §manifest.json)."""
+        assert job.system is not None
+        assert job.workload is not None
+        spec, system, wl = job.spec, job.system, job.workload
+        harness_commit, harness_dirty = git_state(
+            self.root, ["harness", "pyproject.toml", "uv.lock"]
+        )
+        _, adapter_dirty = git_state(self.root, [f"systems/{system.name}"])
+        card = card_path(self.root, system.name, "default")
+        card_doc = load(card, self.registry) if card else None
+        claim = (
+            {
+                "system": system.name,
+                "configuration": card_doc.configuration,
+                "card_version": card_doc.card_version,
+            }
+            if isinstance(card_doc, ClaimCard)
+            else None
+        )
+        source = wl.model.source
+        verifier = (
+            "verifier-cpu"
+            if "verifier-cpu" in (job.reference.profiles if job.reference else {})
+            else spec.profile
+        )
+        return {
+            "schema": "manifest/1",
+            "run_id": job.run_id,
+            "release": spec.release,
+            "control": False,
+            "harness": {
+                "version": __version__,
+                "git_commit": harness_commit,
+                "git_dirty": harness_dirty,
+                "lock_digest": file_digest(self.root / "uv.lock"),
+                "nonconforming": False,
+            },
+            "runner": {
+                "handle": self.operator.handle,
+                "organisation": self.operator.organisation,
+                "affiliated_systems": list(self.operator.affiliated_systems),
+            },
+            "claim": claim,
+            "provider": self.provider,
+            "system": {
+                "name": system.name,
+                "system_manifest_digest": file_digest(
+                    self.root / "systems" / system.name / "system.yaml"
+                ),
+                "claim_digest": file_digest(card) if card else None,
+                "upstream": (
+                    {"repo": system.upstream.repo, "commit": system.upstream.commit}
+                    if system.upstream
+                    else None
+                ),
+                "adapter_commit": harness_commit,
+                "adapter_dirty": adapter_dirty,
+                "image": {
+                    "ref": job.image,
+                    "digest_kind": "config" if job.image.startswith("local/") else "manifest",
+                },
+                "image_inputs": job.image_inputs,
+            },
+            "workload": {
+                "id": wl.id,
+                "version": wl.version,
+                "file_digest": workload_digest(self.root, wl.id),
+                "model": {
+                    "source": f"{source.hub}:{source.path or source.repo}",
+                    "revision": wl.model.revision,
+                    "digest": wl.model.digest,
+                },
+                "corpus_digest": wl.prompts.corpus_digest,
+                "prompt_seed": f"0x{job.seed:016x}",
+                "prompt_set_digest": job.prompt_set_digest,
+            },
+            "profile": {
+                "prover": spec.profile,
+                "verifier": verifier,
+                "verifier_host": "same_as_prover",
+                "reference_file": job.reference_file,
+                "reference_digest": file_digest(self.root / job.reference_file),
+            },
+            "machine": job.machine,
+            "self_test": {"passed": False, "checks": []},  # not run until #116; ineligible
+            "commands": job.commands,
+            "commitment": job.commitment_record if system.kind != "reference" else None,
+            "proofs": job.proof_records,
+            "warnings": job.warnings,
+        }
 
     def _pointer(self, path: Path) -> str:
         full = path.resolve() if path.exists() else path.absolute()

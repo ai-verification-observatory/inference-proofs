@@ -145,6 +145,7 @@ class StepResult:
     exit_code: int
     out: AdapterOut | None  # validated adapter-out document; None when the call failed
     stderr_tail: tuple[str, ...]
+    argv: tuple[str, ...] = ()  # what was invoked, recorded in the manifest after redaction
 
 
 class ContainerRunner(Protocol):
@@ -260,7 +261,13 @@ class DockerRunner:
             raise
         out = read_out(IoDirs(io_dir), self.registry, subcommand) if call.exit_code == 0 else None
         return StepResult(
-            subcommand, call.start_ns, call.end_ns, call.exit_code, out, _tail(call.stderr)
+            subcommand,
+            call.start_ns,
+            call.end_ns,
+            call.exit_code,
+            out,
+            _tail(call.stderr),
+            tuple(argv),
         )
 
 
@@ -293,6 +300,7 @@ class InProcessRunner:
         memory: str | None,
         timeout_s: float,
     ) -> StepResult:
+        argv = [sys.executable, str(self.entrypoint), subcommand, "/io/job.json", "/io/out.json"]
         env = {**os.environ, **self.env, "IPROOFS_IO": str(io_dir)}
         if models_dir is not None and subcommand != "verify":
             env["IPROOFS_MODELS"] = str(models_dir)
@@ -312,4 +320,12 @@ class InProcessRunner:
             ) from e
         end = self.clock()
         out = read_out(IoDirs(io_dir), self.registry, subcommand) if done.returncode == 0 else None
-        return StepResult(subcommand, start, end, done.returncode, out, _tail(done.stderr))
+        return StepResult(
+            subcommand,
+            start,
+            end,
+            done.returncode,
+            out,
+            _tail(done.stderr),
+            ("in-process", *argv[1:]),
+        )
