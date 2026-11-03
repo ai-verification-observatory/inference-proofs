@@ -7,6 +7,7 @@ import statistics
 from collections.abc import Callable, Mapping, Sequence
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.model import Shape
 from iproofs.quantity import Grade, NullReason, Scope, SourceKind, Tier, Unit
 
 QuantityTree = dict[str, object]
@@ -307,3 +308,64 @@ def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> Q
 
 def _raise(reason: NullReason) -> float:
     raise _Null(reason)
+
+
+# ---------------------------------------------------------------- tokens covered
+
+
+def tokens_per_proof(
+    kind: str, shape: Shape, declared: int | None, proof_id: str
+) -> tuple[int, int]:
+    """(prompt, output) positions one proof binds (RFC-0004 §Tokens covered, INV-TOK-1).
+
+    `kind` is `system.yaml` `proofs.tokens_covered`; `declared` is the adapter's per-proof
+    count from out.json, if it sent one. A count that disagrees with the harness count, or
+    that the shape cannot hold, is an `adapter` error at step `prove` (INV-ADAPTER-7).
+    """
+    if kind == "window":
+        counted = (shape.prompt_tokens, 0)
+    elif kind == "prompt_plus_output":
+        counted = (shape.prompt_tokens, shape.output_tokens)
+    elif kind == "declared_per_proof":
+        limit = shape.prompt_tokens + shape.output_tokens
+        if declared is None or not 1 <= declared <= limit:
+            raise IProofsError(
+                ErrorKind.ADAPTER,
+                f"proof {proof_id}: declared tokens_covered {declared} outside 1..{limit}",
+                step="prove",
+            )
+        prompt = min(declared, shape.prompt_tokens)
+        return prompt, declared - prompt
+    else:
+        raise IProofsError(ErrorKind.CONFIG, f"unknown proofs.tokens_covered {kind!r}")
+    if declared is not None and declared != sum(counted):
+        raise IProofsError(
+            ErrorKind.ADAPTER,
+            f"proof {proof_id}: adapter tokens_covered {declared} != harness count {sum(counted)}",
+            step="prove",
+        )
+    return counted
+
+
+def tokens_metrics(per_proof: Sequence[tuple[int, int]], run_json: str) -> dict[str, QuantityTree]:
+    """tokens_covered_total, _prompt, _output and _steady (proofs 2..k), in release order."""
+    ref = f"{run_json}#/proofs"
+    total = sum(p + o for p, o in per_proof)
+    steady = sum(p + o for p, o in per_proof[1:])
+    values = {
+        "tokens_covered_total": total,
+        "tokens_covered_prompt": sum(p for p, _ in per_proof),
+        "tokens_covered_output": sum(o for _, o in per_proof),
+        "tokens_covered_steady": steady,
+    }
+    return {name: measured(v, Unit.TOKEN, None, ref, None) for name, v in values.items()}
+
+
+def honest_verdict_failure(verdicts: Mapping[str, str]) -> IProofsError | None:
+    """INV-TOK-2: a repetition with any honest proof not accepted fails at `verify`."""
+    bad = {pid: v for pid, v in sorted(verdicts.items()) if v != "accept"}
+    if not bad:
+        return None
+    return IProofsError(
+        ErrorKind.ADAPTER, f"INV-TOK-2: honest proofs not accepted: {bad}", step="verify"
+    )
