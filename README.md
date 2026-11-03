@@ -32,6 +32,17 @@ Both run on one NVIDIA H100 80 GB. More systems and common workloads follow (see
 - [rfcs/](rfcs/README.md): the normative decisions, open for comment.
 - [AGENTS.md](AGENTS.md): rules for contributors and coding agents.
 
+## Install
+
+The harness is one Python package (`iproofs`, Python 3.12 or 3.13), managed with [uv](https://docs.astral.sh/uv/):
+
+```
+uv sync
+uv run iproofs --version
+```
+
+Optional extras are installed only where they are needed: `--extra gpu` (NVML sampling on a GPU host), `--extra fetch` (model download) and `--extra prompts` (tokenizers).
+
 ## Contributing
 
 Open an issue or a pull request; methodology changes go through an RFC ([RFC-0001](rfcs/0001-process-and-governance.md)). Sign off your commits (DCO). Prover teams who want their system included: open an issue with your repository and the workloads you support.
