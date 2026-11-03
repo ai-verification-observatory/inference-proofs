@@ -1,0 +1,416 @@
+{
+  "$defs": {
+    "card": {
+      "additionalProperties": false,
+      "properties": {
+        "card_version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "configuration": {
+          "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+        },
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "path": {
+          "pattern": "^systems/[a-z][a-z0-9-]{1,31}/(claim|claims/[a-z0-9][a-z0-9-]{0,47})\\.yaml$",
+          "type": "string"
+        },
+        "system": {
+          "$ref": "../quantity/1.schema.json#/$defs/systemId"
+        }
+      },
+      "required": [
+        "system",
+        "configuration",
+        "card_version",
+        "path",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "value": {
+      "oneOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/quantity"
+        },
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/statistic"
+        }
+      ]
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/release-index/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "claim_cards": {
+      "items": {
+        "$ref": "#/$defs/card"
+      },
+      "type": "array"
+    },
+    "configurations": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "configuration": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+              }
+            ]
+          },
+          "effective_tier": {
+            "enum": [
+              "reported",
+              "peer-reviewed",
+              "reproduced"
+            ]
+          },
+          "evidence": {
+            "additionalProperties": false,
+            "properties": {
+              "reproductions": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "reviews": {
+                "items": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "reviews",
+              "reproductions"
+            ],
+            "type": "object"
+          },
+          "ineligible": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "reasons": {
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "run_id": {
+                  "$ref": "../quantity/1.schema.json#/$defs/runId"
+                }
+              },
+              "required": [
+                "run_id",
+                "reasons"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "insufficient_repetitions": {
+            "type": "boolean"
+          },
+          "profile": {
+            "$ref": "../quantity/1.schema.json#/$defs/profileId"
+          },
+          "runs": {
+            "items": {
+              "$ref": "../quantity/1.schema.json#/$defs/runId"
+            },
+            "type": "array"
+          },
+          "statistics": {
+            "additionalProperties": {
+              "$ref": "#/$defs/value"
+            },
+            "propertyNames": {
+              "$ref": "../quantity/1.schema.json#/$defs/metricId"
+            },
+            "type": "object"
+          },
+          "system": {
+            "$ref": "../quantity/1.schema.json#/$defs/systemId"
+          },
+          "workload": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+              },
+              "version": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "system",
+          "workload",
+          "profile",
+          "configuration",
+          "runs",
+          "ineligible",
+          "insufficient_repetitions",
+          "statistics",
+          "effective_tier",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "controls": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "counts": {
+            "$comment": "structural counts of control records, plain integers (RFC-0012 §Labelled quantity)",
+            "additionalProperties": false,
+            "properties": {
+              "accepted": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "error": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "invalid_call": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "no_verdict": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "not_applicable": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "prover_failed": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "rejected": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "void": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "rejected",
+              "accepted",
+              "no_verdict",
+              "invalid_call",
+              "void",
+              "not_applicable",
+              "error",
+              "prover_failed"
+            ],
+            "type": "object"
+          },
+          "outside_expected": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "control_id": {
+                  "$ref": "../quantity/1.schema.json#/$defs/controlId"
+                },
+                "outcome": {
+                  "enum": [
+                    "rejected",
+                    "accepted",
+                    "no_verdict",
+                    "invalid_call",
+                    "void",
+                    "not_applicable",
+                    "error",
+                    "prover_failed"
+                  ]
+                },
+                "run_id": {
+                  "$ref": "../quantity/1.schema.json#/$defs/runId"
+                }
+              },
+              "required": [
+                "control_id",
+                "run_id",
+                "outcome"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "profile": {
+            "$ref": "../quantity/1.schema.json#/$defs/profileId"
+          },
+          "system": {
+            "$ref": "../quantity/1.schema.json#/$defs/systemId"
+          },
+          "workload": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+              },
+              "version": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "system",
+          "workload",
+          "profile",
+          "counts",
+          "outside_expected"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "inputs_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "reference": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "file": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "schema": {
+      "const": "release-index/1"
+    },
+    "targets": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "least_favourable": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/value"
+              }
+            ]
+          },
+          "mean": {
+            "anyOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/$defs/value"
+              }
+            ]
+          },
+          "profile": {
+            "$ref": "../quantity/1.schema.json#/$defs/profileId"
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "enum": [
+              "meets",
+              "does_not_meet",
+              "not_evaluable"
+            ]
+          },
+          "system": {
+            "$ref": "../quantity/1.schema.json#/$defs/systemId"
+          },
+          "target": {
+            "pattern": "^targets/[a-z0-9][a-z0-9-]*/[a-z0-9][a-z0-9-]*\\.yaml$",
+            "type": "string"
+          },
+          "workload": {
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+              },
+              "version": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+              }
+            },
+            "required": [
+              "id",
+              "version"
+            ],
+            "type": "object"
+          }
+        },
+        "required": [
+          "target",
+          "system",
+          "workload",
+          "profile",
+          "result",
+          "reason",
+          "mean",
+          "least_favourable"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "release",
+    "configurations",
+    "controls",
+    "targets",
+    "claim_cards",
+    "reference",
+    "inputs_digest"
+  ],
+  "title": "Frozen release index: releases/<release>/index.json (RFC-0009 §Release record, §Freeze algorithm)",
+  "type": "object"
+}

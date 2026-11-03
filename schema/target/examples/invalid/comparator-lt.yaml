@@ -1,0 +1,19 @@
+schema: "target/1"
+id: "verify-under-60s"
+author: {name: "Example Policy Lab", affiliation: "Example Policy Lab"}
+date: "2027-01-10"
+metric: "verify_seconds"
+comparator: "<"
+threshold:
+  value: 60
+  unit: "s"
+  scope: "verify"
+  grade: "asserted"
+  tier: "reported"
+  source: {kind: "reference_file", ref: "targets/example-policy-lab/verify-under-60s.yaml#/threshold"}
+  null_reason: null
+claim_class: "*/exact-match/*"
+applies_to:
+  coverage.phase: "prefill"
+profile: "verifier-cpu"
+rationale: "A verifier that finishes within a minute on a laptop-class machine can run in an audit workflow."

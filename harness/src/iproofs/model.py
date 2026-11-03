@@ -327,6 +327,155 @@ class Manifest(Document):
     warnings: tuple[str, ...]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReleaseCard(Document):
+    system: str
+    configuration: str
+    card_version: int
+    path: str
+    digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SupersededRun(Document):
+    run_id: str
+    reason: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReviewWindow(Document):
+    opens: str
+    closes: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Sponsor(Document):
+    name: str
+    provided: str
+    period: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Release(Document):
+    schema: str
+    release: str
+    reference_file: str
+    rfc_commit: str
+    harness_version: str
+    runs: tuple[str, ...]
+    superseded_runs: tuple[SupersededRun, ...]
+    claim_cards: tuple[ReleaseCard, ...]
+    review_window: ReviewWindow
+    freeze_date: str
+    replies: Mapping[str, str]
+    sponsors: tuple[Sponsor, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Ineligible(Document):
+    run_id: str
+    reasons: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Evidence(Document):
+    reviews: tuple[str, ...]
+    reproductions: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class IndexConfiguration(Document):
+    system: str
+    workload: WorkloadRef
+    profile: str
+    configuration: str | None
+    runs: tuple[str, ...]
+    ineligible: tuple[Ineligible, ...]
+    insufficient_repetitions: bool
+    statistics: Mapping[str, Quantity | Statistic]
+    effective_tier: Tier
+    evidence: Evidence
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class OutcomeCounts(Document):
+    rejected: int
+    accepted: int
+    no_verdict: int
+    invalid_call: int
+    void: int
+    not_applicable: int
+    error: int
+    prover_failed: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class OutsideExpected(Document):
+    control_id: str
+    run_id: str
+    outcome: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlSummary(Document):
+    system: str
+    workload: WorkloadRef
+    profile: str
+    counts: OutcomeCounts
+    outside_expected: tuple[OutsideExpected, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class TargetResult(Document):
+    target: str
+    system: str
+    workload: WorkloadRef
+    profile: str
+    result: str
+    reason: str | None
+    mean: Quantity | Statistic | None
+    least_favourable: Quantity | Statistic | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReferenceRecord(Document):
+    file: str
+    digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReleaseIndex(Document):
+    schema: str
+    release: str
+    configurations: tuple[IndexConfiguration, ...]
+    controls: tuple[ControlSummary, ...]
+    targets: tuple[TargetResult, ...]
+    claim_cards: tuple[ReleaseCard, ...]
+    reference: ReferenceRecord
+    inputs_digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Author(Document):
+    name: str
+    affiliation: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Target(Document):
+    schema: str
+    id: str
+    author: Author
+    date: str
+    metric: str
+    comparator: str
+    threshold: Quantity
+    claim_class: str
+    rationale: str
+    applies_to: Mapping[str, object] | None = None
+    profile: str | None = None
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -360,6 +509,29 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("manifest/1", "#/$defs/file"): FileRecord,
     ("manifest/1", "#/properties/commitment/anyOf/1"): Commitment,
     ("manifest/1", "#/properties/proofs/items"): ProofRecord,
+    ("release/1", "#"): Release,
+    ("release/1", "#/$defs/card"): ReleaseCard,
+    ("release/1", "#/properties/superseded_runs/items"): SupersededRun,
+    ("release/1", "#/properties/review_window"): ReviewWindow,
+    ("release/1", "#/properties/sponsors/items"): Sponsor,
+    ("release-index/1", "#"): ReleaseIndex,
+    ("release-index/1", "#/$defs/card"): ReleaseCard,
+    ("release-index/1", "#/properties/configurations/items"): IndexConfiguration,
+    ("release-index/1", "#/properties/configurations/items/properties/workload"): WorkloadRef,
+    (
+        "release-index/1",
+        "#/properties/configurations/items/properties/ineligible/items",
+    ): Ineligible,
+    ("release-index/1", "#/properties/configurations/items/properties/evidence"): Evidence,
+    ("release-index/1", "#/properties/controls/items"): ControlSummary,
+    ("release-index/1", "#/properties/controls/items/properties/counts"): OutcomeCounts,
+    ("release-index/1", "#/properties/controls/items/properties/outside_expected/items"): (
+        OutsideExpected
+    ),
+    ("release-index/1", "#/properties/targets/items"): TargetResult,
+    ("release-index/1", "#/properties/reference"): ReferenceRecord,
+    ("target/1", "#"): Target,
+    ("target/1", "#/properties/author"): Author,
 }
 
 

@@ -25,6 +25,9 @@ Schemas in the RFC-0012 catalogue that have landed, with their Python model in `
 | `quantity/1` | shared `$defs` | `Quantity`, `Statistic`, `Stats`, `Source`, `Quality` |
 | `run/1` | `results/<release>/<system>/<run-id>/run.json` | `Run` |
 | `manifest/1` | `results/<release>/<system>/<run-id>/manifest.json` | `Manifest` |
+| `release/1` | `releases/<release>/release.yaml` | `Release` |
+| `release-index/1` | `releases/<release>/index.json` | `ReleaseIndex` |
+| `target/1` | `targets/<author>/<id>.yaml` | `Target` |
 
 ## Examples rule
 
