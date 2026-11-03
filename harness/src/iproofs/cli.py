@@ -180,7 +180,7 @@ def derive(args: argparse.Namespace) -> int:
 
 def run(args: argparse.Namespace) -> int:
     """`iproofs run`: N repetitions; exit 4 when any job was recorded as failed."""
-    from iproofs.adapter import DockerRunner, InProcessRunner  # noqa: PLC0415
+    from iproofs.adapter import ContainerRunner, DockerRunner, InProcessRunner  # noqa: PLC0415
     from iproofs.model import System, load  # noqa: PLC0415
     from iproofs.runner import JobSpec, Runner  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
@@ -212,7 +212,7 @@ def run(args: argparse.Namespace) -> int:
             raise IProofsError(ErrorKind.CONFIG, "--in-process is for test systems only")
         # a test system cannot contain its own commit; the harness passes the pinned one
         upstream = {"IPROOFS_FAKE_UPSTREAM": system.upstream.commit} if system.upstream else {}
-        containers: object = InProcessRunner(
+        containers: ContainerRunner = InProcessRunner(
             system_file.parent / "entrypoint", registry, env=upstream
         )
         image = "local/in-process@sha256:" + "0" * 64  # never started; recorded as such
@@ -225,7 +225,7 @@ def run(args: argparse.Namespace) -> int:
         containers,
         root=root,
         registry=registry,
-        image=image,  # type: ignore[arg-type]
+        image=image,
         provider=args.provider or "undeclared",
     )
     spec = JobSpec(
