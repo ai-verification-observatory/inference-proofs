@@ -21,6 +21,10 @@ Thank you for helping. This project measures provers; it does not build, rank or
 
 A change that would alter a published number, a label, or which rows appear needs an RFC: copy [rfcs/0000-template.md](rfcs/0000-template.md) to the next free number and follow [RFC-0001](rfcs/0001-process-and-governance.md). Implementation pull requests may open against an RFC in Last call; they merge once it is Accepted. Code that implements an Accepted RFC needs no RFC of its own.
 
+## Running jobs
+
+A run records who ran it, as declared by the runner ([RFC-0007 §Tiers](rfcs/0007-evidence-tiers-and-reproduction.md#tiers)): `iproofs run ... --runner HANDLE --runner-org ORG --affiliated SYSTEM`, or the environment variables `IPROOFS_RUNNER`, `IPROOFS_RUNNER_ORG` and `IPROOFS_RUNNER_SYSTEMS` (comma-separated). Name every system you build, fund, advise or compete with under `--affiliated`. A reproduction counts only when its runner is unaffiliated: an organisation other than the original runner's and the system maintainers', and the system not in the list. An organisation left `undeclared` never counts as unaffiliated. Only the handle, the organisation and system ids are recorded; never put an account name or host identifier there (AGENTS.md rule 7).
+
 ## Editing claim cards
 
 A claim card copies what the system's documentation states at the pinned commit ([RFC-0002 §Rules](rfcs/0002-claim-card.md#rules)). On a pull request, `uv run iproofs validate --changed-since origin/main` checks every edited card:

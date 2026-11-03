@@ -24,6 +24,8 @@ iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR
             [--provider NAME] [--prompts-from RUN_DIR] [--allow-nonconforming]
             [--keep-io]                     # keep io/ with proofs, for `iproofs controls RUN_DIR`
             [--in-process]                  # test systems only: run the entrypoint as a local process
+            [--image IMAGE_ID]              # a local image by ID, digest_kind config (RFC-0014)
+            [--runner HANDLE] [--runner-org ORG] [--affiliated SYSTEM ...]   # declared runner (RFC-0007)
 iproofs controls RUN_DIR [--prepare-perturbed WORKLOAD]
 iproofs machine-record [--selftest]
 iproofs fetch-model WORKLOAD
