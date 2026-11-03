@@ -1,8 +1,21 @@
 # GPU run
 
-How a prover-h100 host runs measured jobs. This page grows with the GPU work (#117); today it holds the host prerequisites the measurement code relies on.
+How a person runs measured jobs on a `prover-h100` host: what the host needs, the GPU-host tests to pass before every campaign, and the campaign itself. GPU jobs are not CI gates ([RFC-0013 §What runs on GPU hosts instead](../../rfcs/0013-validation-and-ci.md#what-runs-on-gpu-hosts-instead)); their records enter the repository by pull request, where the gates check them. Per-adapter steps live in each adapter's README ([`systems/README.md`](../../systems/README.md)).
 
 ## Host prerequisites
+
+The minimum versions come from the release's reference file, for example [`reference/v0.1.yaml`](../../reference/v0.1.yaml) (`kernel_min`, `container_runtime`, `driver`):
+
+| Item | Requirement | Check |
+|---|---|---|
+| Linux kernel | at least 5.19 | `uname -r` |
+| cgroup | v2, unified hierarchy at `/sys/fs/cgroup` | `stat -fc %T /sys/fs/cgroup` prints `cgroup2fs` |
+| Docker Engine | at least 25.0, `cgroup_driver: systemd` | `docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'` prints `systemd 2` |
+| NVIDIA Container Toolkit | at least 1.17 | `nvidia-ctk --version` |
+| NVIDIA driver | the `driver` field of `reference/<release>.yaml` (unpinned until issue #77) | `nvidia-smi --query-gpu=driver_version --format=csv,noheader` |
+| Harness | a checkout at the release's harness commit, `uv sync --frozen --extra gpu --extra fetch` | `uv run iproofs --version` |
+
+`iproofs run` checks the same items (conformance, exit 3) before any timed step; the table is for setting a host up, not a substitute for that check. Gated model licences are accepted with the runner's own account, and `HF_TOKEN` comes from the environment only (see below).
 
 ### NVML (RFC-0011 §GPU sampler)
 
@@ -38,3 +51,54 @@ It runs ST-CLOCK, ST-NVML, ST-SAMPLER and ST-JITTER (5 s on the bound GPU), and 
 ## Prompt corpus cache (RFC-0014 §Corpus fetch)
 
 The first job, or `iproofs prompts build`, downloads each text of `workloads/prompts/corpus.yaml` into `$IPROOFS_CACHE/corpus/<sha256>`. A download whose sha256 differs from the listing, or a cached file that changed, fails with `integrity`; nothing unverified is kept. Prompts are built only from the verified cache, after NFC, LF and BOM normalisation. Fetches retry three times, outside every timed scope.
+
+## GPU-host tests
+
+Run every test below on the host before each campaign, in this order, and record each outcome in the campaign log (next section). A test that fails stops the campaign until it passes; a failure is recorded with its exit code and last lines (AGENTS.md rule 5), never retried away. The tests in [`harness/tests/gpu/`](../../harness/tests/gpu/) skip without NVML, so CI and laptops report skips only.
+
+Set once per shell, after building the fake image (see the self-test above):
+
+```sh
+export IPROOFS_GPU=0                                 # the bound GPU index
+export IPROOFS_PROBE_IMAGE=<image ID of systems/fake>  # sha256:...
+export IPROOFS_CUDA_PROBE_IMAGE=<image>@sha256:<digest>  # any pinned image with python3 and torch
+```
+
+| Test | Procedure | Pass criterion |
+|---|---|---|
+| GH-SELFTEST ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md#testing-strategy)) | `sudo .venv/bin/iproofs machine-record --selftest --gpu $IPROOFS_GPU --probe-image $IPROOFS_PROBE_IMAGE > selftest.json` | exit 0; every check `pass` on stderr; `results/.selftest.json` written |
+| GH-MR-H100 ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md#testing-strategy)) | GH-SELFTEST, then `sudo -E .venv/bin/python -m pytest harness/tests/gpu/test_numa_binding.py` | GH-SELFTEST passes; both tests pass (the record validates against `manifest/1` `$defs/machine` and names an H100) |
+| NUMA binding (docs/spec/07) | part of GH-MR-H100's `test_numa_binding.py` | the prover cpuset lies on the GPU's NUMA node, on distinct physical cores, apart from the verifier sets |
+| Sampler rate (docs/spec/07) | `uv run pytest harness/tests/gpu/test_nvml_sampler.py -k rate` | at least 10 Hz over 60 s; gaps above 150 ms on at most 5 % of the call; ST-JITTER passes |
+| GH-NVML-PEAK | `uv run pytest harness/tests/gpu/test_nvml_sampler.py -k peak` | `memory_peak_mib` at least 40,960 while a CUDA probe holds 40 GiB for 2 s |
+| Cgroup reader (docs/spec/07) | `sudo -E .venv/bin/python -m pytest harness/tests/gpu/test_cgroup_reader.py -k known` | ST-CGROUP passes: `memory.peak` and the sampled `anon` both at least 256 MiB |
+| GH-CGROUP-EXACT | `sudo -E .venv/bin/python -m pytest harness/tests/gpu/test_cgroup_reader.py -k exact` | the slice's `memory.peak` at least 1 GiB after a probe that touches 1 GiB and exits at once |
+| GH-OVERHEAD ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md#measurement-overhead-budget), docs/spec/08 B-OVH-*) | `IPROOFS_GH_OVERHEAD=1 uv run pytest harness/tests/gpu/test_nvml_sampler.py -k overhead` (30 minutes) | sampler and release watcher CPU at most 1 % of one CPU; p99 lateness at most 10 ms; resident memory at most 256 MiB |
+| Fake run | `sudo -E .venv/bin/iproofs run --system fake --workload fake-tiny-ci --profile prover-h100 --image $IPROOFS_PROBE_IMAGE --control-suite` | exit 0; the run directory passes `uv run iproofs validate <run dir>` |
+| Adapter smoke job | per adapter, its README's shortest job on the smallest workload, with `--control-suite` | exit 0 and a valid run directory; every control's outcome matches its expected verdict |
+| GH-REF-SERVE-L31 ([RFC-0015](../../rfcs/0015-reference-rows.md#testing-strategy)) | `sudo -E .venv/bin/iproofs run --system ref-serve --workload sash-l31-8b-c1024 --profile prover-h100 --repetitions 3` | three repetitions, schema-valid, `rate_prove.steady` non-null |
+| GH-REF-RECOMPUTE-L31 | `sudo -E .venv/bin/iproofs run --system ref-recompute --workload sash-l31-8b-c1024 --profile prover-h100 --prompts-from <a completed SASH run dir>` | completed; the agreement block is present |
+| GH-REF-MAVERICK-ATTEMPT | `sudo -E .venv/bin/iproofs run --system ref-serve --workload fp-maverick-w1024-b1 --profile prover-h100` | either a valid row, or a recorded failure (`resource` or `adapter`) that leads to NM-1 |
+
+GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test process for 30 minutes and measures that process; the container's own work is outside the harness process, so the figure bounds the harness's share of one call. The reference-row tests need the reference systems and the adapter tests need the adapters (issues #65, #69, #138, #139); until those exist, the campaign log records them as not run, with the reason.
+
+## Campaign procedure
+
+1. Check the host prerequisites and fetch the models (`iproofs fetch-model WORKLOAD`) for every workload of the campaign.
+2. Run the GPU-host tests above, in order. Start the campaign log.
+3. Project the GPU time with `uv run iproofs release plan RELEASE` ([docs/spec/08](../spec/08-performance-budget.md#run-campaign-compute-budget)) and check it fits the sponsored budget.
+4. Run the matrix: per configuration, `sudo -E .venv/bin/iproofs run --system S --workload W --profile prover-h100 --repetitions N --control-suite` with N at least 3 (RFC-0004). A failed job (exit 4) is kept as recorded; rerun only as new repetitions, never by deleting the failed one.
+5. Validate the whole tree: `uv run iproofs validate results/`.
+6. Open the results pull request: one pull request per campaign, holding the new run directories under `results/` and nothing else. Its description is the campaign log.
+
+The campaign log is a checklist in the results pull request description:
+
+```
+Release: v0.1   Harness commit: <full hash>   Host: prover-h100 (provider <name>)
+| Test | Date (UTC) | Outcome | Evidence |
+| GH-SELFTEST | 2026-11-20 | pass | results/.selftest.json copied into every manifest |
+| GH-OVERHEAD | 2026-11-20 | fail, exit 1 | <last lines of the pytest output> |
+| GH-REF-MAVERICK-ATTEMPT | | not run | needs issue #139 |
+```
+
+It holds no host name, IP address, account name or token (AGENTS.md rule 7); the machine record in each manifest is the host's only description.

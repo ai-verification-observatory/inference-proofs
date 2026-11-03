@@ -163,15 +163,16 @@ def verify(job: dict) -> dict:
 
 def probe(job: dict) -> None:
     """The self-test probe (RFC-0011 §Calibration self-test), never part of a measured run.
-    `alloc` touches 256 MiB of anonymous memory, `watch` releases 3 directories 200 ms apart,
-    `oom` allocates past the container's memory limit."""
+    `alloc` touches `mib` (default 256) MiB of anonymous memory and holds it `hold_s` (default
+    1) seconds, `watch` releases 3 directories 200 ms apart, `oom` allocates past the
+    container's memory limit."""
     mode = job["probe"]
     if mode in ("alloc", "oom"):
-        size = (256 if mode == "alloc" else 1024) * 1024 * 1024
+        size = int(job.get("mib", 256) if mode == "alloc" else 1024) * 1024 * 1024
         block = bytearray(size)
         for i in range(0, size, 4096):
             block[i] = 1  # touch every page so it is resident
-        time.sleep(1.0)  # long enough for the 10 Hz anon sampler
+        time.sleep(float(job.get("hold_s", 1.0)))  # 1 s is long enough for the 10 Hz sampler
     elif mode == "watch":
         proofs = host("/io/proofs")
         proofs.mkdir(parents=True, exist_ok=True)

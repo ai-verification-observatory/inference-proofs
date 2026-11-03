@@ -97,6 +97,8 @@ Every adapter ships CPU-only tests in `systems/<name>/tests/` that run the entry
 - [ ] 7. Known deviations from upstream's own measuring setup
 ```
 
+Run instructions in the README follow the host prerequisites, GPU-host tests and campaign procedure of [`docs/runbooks/gpu-run.md`](../docs/runbooks/gpu-run.md) and add only what is specific to the adapter (its smallest workload, setup time, known resource needs).
+
 The claim card copies what the upstream documentation states at the pin and writes "not stated" where it is silent ([RFC-0002 §Rules](../rfcs/0002-claim-card.md#rules), AGENTS.md rule 9).
 
 ## Walkthrough: `systems/fake`
