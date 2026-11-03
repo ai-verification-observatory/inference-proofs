@@ -10,7 +10,7 @@ Settings that live on the hosting platform rather than in files. A maintainer ap
   - `tests (3.12)`
   - `tests (3.13)`
   - `validate`
-  - `fake-e2e` (once gate G10 lands, #124)
+  - `fake-e2e`
   - `dco` (once gate G11 lands, #125)
 - Do not allow force pushes or deletion of `main`.
 

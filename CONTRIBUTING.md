@@ -13,6 +13,7 @@ Thank you for helping. This project measures provers; it does not build, rank or
 - One pull request per change, small, with a description that says what changed and why.
 - Sign off every commit (`git commit -s`) under the [Developer Certificate of Origin 1.1](https://developercertificate.org/). CI rejects unsigned commits.
 - If an AI agent wrote a substantial part of the change, say so in the pull request description.
+- A change to the public API, a schema or the methodology adds an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) (`Methodology` entries name their RFC). Releases follow [docs/runbooks/harness-release.md](docs/runbooks/harness-release.md) and [docs/runbooks/benchmark-release.md](docs/runbooks/benchmark-release.md).
 - A change that touches a system's files (`systems/<name>/`, its results, targets or replies) declares any interest in that system in the description. A maintainer with a declared interest does not merge it ([MAINTAINERS.md](MAINTAINERS.md)).
 
 ## RFCs
