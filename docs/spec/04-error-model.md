@@ -1,6 +1,6 @@
 # 04. Error model
 
-Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). The error taxonomy is normative in [RFC-0010 §Error taxonomy](../../rfcs/0010-harness-runner.md#error-taxonomy); this section summarises it and catalogues failure modes across the whole system.
+Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). The error taxonomy is normative in [RFC-0010 §Error taxonomy](../../rfcs/0010-harness-runner.md#error-taxonomy); this section summarises it and catalogues failure modes across the whole system. The implementation is `harness/src/iproofs/errors.py`.
 
 ## Principles
 
