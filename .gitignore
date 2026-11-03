@@ -1,0 +1,50 @@
+# Local agent harness files
+.agents/harness/
+
+# OS and editors
+**/.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Python (harness/, managed with uv; uv.lock is committed)
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# Node
+**/node_modules
+
+# Generated site output (RFC-0009: built in CI, never committed)
+site/_build/
+
+# Runner scratch inside a results tree (RFC-0010): staging dirs and the lock
+results/**/.staging-*/
+results/.runner.lock
+
+# Secrets (AGENTS.md rule 7)
+.env
+.env.*
+*.pem
+*.key
+
+# Model weights never enter the repository (AGENTS.md rule 8; RFC-0003).
+# Toy weights for CPU fixtures are allowed under tests/fixtures/.
+*.safetensors
+*.gguf
+*.pt
+*.pth
+*.ckpt
+*.onnx
+!harness/tests/fixtures/**
+!systems/*/tests/fixtures/**
