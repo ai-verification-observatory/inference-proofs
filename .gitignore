@@ -51,3 +51,7 @@ results/**/io/
 *.onnx
 !harness/tests/fixtures/**
 !systems/*/tests/fixtures/**
+
+# coverage reports (make ci, the tests job)
+coverage.json
+.coverage
