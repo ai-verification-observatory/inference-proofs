@@ -25,4 +25,4 @@ prompts:
 shape: {prompt_tokens: 8, output_tokens: 1, batch_size: 2, batches_per_session: 3, context_window: 8}
 decoding: {rule: "greedy"}
 phase: "prefill"
-systems: ["fake"]
+systems: ["fake", "fake-broken"]

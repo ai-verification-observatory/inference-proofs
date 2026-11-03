@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""fake-broken: the fake prover with a verifier that accepts every proof (RFC-0005).
+
+It reuses systems/fake/entrypoint unchanged and only switches its accept-all mode on, so the
+two systems cannot drift apart. In the image the fake entrypoint sits beside this file.
+"""
+
+import os
+import runpy
+import sys
+from pathlib import Path
+
+here = Path(__file__).resolve().parent
+fake = next(p for p in (here / "fake-entrypoint", here.parent / "fake" / "entrypoint") if p.is_file())
+os.environ["IPROOFS_FAKE_ACCEPT_ALL"] = "1"
+os.environ.setdefault("IPROOFS_FAKE_NAME", "fake-broken")
+sys.argv[0] = str(fake)
+runpy.run_path(str(fake), run_name="__main__")
