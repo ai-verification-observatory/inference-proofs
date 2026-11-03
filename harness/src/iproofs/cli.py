@@ -25,7 +25,6 @@ Handler = Callable[[argparse.Namespace], int]
 
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
-    "prompts build": 48,
     "release freeze": 93,
     "release plan": 141,
     "site build": 96,
@@ -161,7 +160,9 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         "build", "materialise a prompt set and print its digest", prompts_sub, "prompts build"
     )
     p.add_argument("workload")
-    p.add_argument("--seed", required=True)
+    p.add_argument("--seed", required=True, help="the 64-bit seed, decimal or 0x hex")
+    p.add_argument("--out", type=Path, default=Path("prompts.jsonl"), help="where to write")
+    p.set_defaults(handler=prompts_build)
 
     reproduce = sub.add_parser("reproduce", help="reproduction records (RFC-0007)")
     reproduce_sub = reproduce.add_subparsers(
@@ -381,6 +382,43 @@ def controls(args: argparse.Namespace) -> int:
         root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
     )
     print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    return 0
+
+
+def prompts_build(args: argparse.Namespace) -> int:
+    """`iproofs prompts build WORKLOAD --seed SEED`: the prompt set a job with that seed uses,
+    written as prompts.jsonl; prints {digest, count, seed} as JSON (RFC-0003, CLI-3)."""
+    from iproofs.provenance import prompt_set_digest  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.serialize import dumps, write_jsonl  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.workloads import (  # noqa: PLC0415
+        default_cache,
+        load_workload,
+        materialise_prompts,
+        tokenizer_file,
+        tokenizers_version,
+    )
+
+    try:
+        seed = int(args.seed, 0)
+    except ValueError as e:
+        raise IProofsError(ErrorKind.CONFIG, f"--seed {args.seed!r} is not a number") from e
+    if not 0 <= seed < 2**64:
+        raise IProofsError(ErrorKind.CONFIG, "--seed must fit in 64 bits")
+    root = repo_root(Path.cwd())
+    wl = load_workload(args.workload, root=root, registry=SchemaRegistry.from_tree(root / "schema"))
+    tokenizer = tokenizer_file(root, wl, default_cache())
+    prompts = materialise_prompts(root, wl, tokenizer.parent, seed)
+    write_jsonl(args.out, prompts)
+    result = {
+        "workload": {"id": wl.id, "version": wl.version},
+        "seed": f"0x{seed:016x}",
+        "count": len(prompts),
+        "digest": prompt_set_digest(args.out),
+        "tokenizers_version": tokenizers_version(),
+    }
+    sys.stdout.write(dumps(result).decode())
     return 0
 
 

@@ -33,7 +33,7 @@ iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR
 iproofs controls RUN_DIR [--prepare-perturbed WORKLOAD]
 iproofs machine-record [--selftest]
 iproofs fetch-model WORKLOAD
-iproofs prompts build WORKLOAD --seed SEED
+iproofs prompts build WORKLOAD --seed SEED [--out FILE]
 iproofs reproduce compare ORIG_RUN REPRO_RUN
 iproofs release freeze RELEASE
 iproofs release plan RELEASE
