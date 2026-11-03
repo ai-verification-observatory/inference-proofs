@@ -150,6 +150,8 @@ def g2_xref(root: Path, files: list[str]) -> list[Finding]:
                         "G2", rel, "XREF-3", "names no existing run directory", ErrorKind.CONFIG
                     )
                 )
+            elif "/reviews/" in rel:
+                found += _own_review(root, rel, doc, run_dir)
         elif schema == "release/1":
             runs = doc.get("runs")
             for i, run in enumerate(runs if isinstance(runs, list) else []):
@@ -293,6 +295,20 @@ def card_edit_problems(
 def _upstream_commit(card: dict[str, object]) -> object:
     upstream = card.get("upstream")
     return upstream.get("commit") if isinstance(upstream, dict) else None
+
+
+def _own_review(root: Path, rel: str, doc: Mapping[str, object], run_dir: Path) -> list[Finding]:
+    """INV-TIER-3: a reviewer from the run's own organisation does not review it."""
+    reviewer = doc.get("reviewer")
+    manifest = run_dir / "manifest.json"
+    if not isinstance(reviewer, Mapping) or not manifest.is_file():
+        return []
+    runner = json.loads(manifest.read_text()).get("runner") or {}
+    mine = str(runner.get("organisation", "")).strip().lower()
+    if str(reviewer.get("organisation", "")).strip().lower() != mine:
+        return []
+    return [Finding("G2", rel, "TIER-3", "the reviewer's organisation is the run's runner's",
+                    ErrorKind.CONFIG, "/reviewer/organisation")]  # fmt: skip
 
 
 def g2_size(root: Path, files: list[str]) -> list[Finding]:

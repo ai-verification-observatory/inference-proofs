@@ -86,6 +86,7 @@ Cross-document checks (also G2, rule ids `XREF-n`):
 - `XREF-1` every `run.json` names a workload id and version that exist in `workloads/`, a system that exists in `systems/`, and a profile that exists in the release's reference file.
 - `XREF-2` every `manifest.json` image digest equals the digest recorded in `run.json`.
 - `XREF-3` every review and reproduction record names an existing run directory.
+- `TIER-3` ([RFC-0007](0007-evidence-tiers-and-reproduction.md) INV-TIER-3): a review record's `reviewer.organisation` differs from the reviewed run's `runner.organisation`.
 - `XREF-4` every `releases/<r>/release.yaml` lists only existing run directories, and the reference file it names exists.
 - `XREF-5` every target names a metric id that exists in the RFC-0004 formula registry or the raw metric list.
 - `PM-1` and `PM-2` ([RFC-0015 §Precision matching](0015-reference-rows.md#precision-matching)): a reference system that does not use the workload's served precision declares a substitution (`PM-1`); a substitution never goes to a lower bit width, and every quantity of a substituted reference row carries `quality.precision_substituted: true` (`PM-2`).

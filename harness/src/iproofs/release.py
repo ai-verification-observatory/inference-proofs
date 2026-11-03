@@ -23,6 +23,7 @@ from iproofs.derive import statistic
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Release, load
 from iproofs.provenance import file_digest
+from iproofs.quantity import Tier, lowest_tier
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -445,11 +446,13 @@ def freeze(
     root: Path,
     registry: SchemaRegistry,
     gates: Callable[[list[str]], list[str]],
+    maintainers: Mapping[str, Sequence[str]] | None = None,
 ) -> dict[str, object]:
-    """RFC-0009 §Freeze algorithm, steps 1 to 5, 7 and 9 (effective tiers stay `reported` and
-    targets empty until steps 6 and 8 land). `gates` runs G2 to G7 over repository paths and
-    returns the failing lines. Returns the `release-index/1` document; nothing is written and
-    no clock is read, so the same inputs give the same bytes."""
+    """RFC-0009 §Freeze algorithm, steps 1 to 7 and 9 (targets stay empty until step 8
+    lands). `gates` runs G2 to G7 over repository paths and returns the failing lines;
+    `maintainers` maps a system to its maintainers' organisations (MAINTAINERS.md). Returns
+    the `release-index/1` document; nothing is written and no clock is read, so the same
+    inputs give the same bytes."""
     read: list[Path] = []
     path = root / "releases" / release_id / "release.yaml"
     if not path.is_file():
@@ -472,6 +475,9 @@ def freeze(
             for n in ("run", "manifest", "controls")
             if (p := root / listed / f"{n}.json").is_file()
         ]
+        read += sorted(
+            [*(root / listed).glob("reviews/*.json"), *(root / listed).glob("reproductions/*.json")]
+        )
     for card in release.claim_cards:
         if not (root / card.path).is_file() or file_digest(root / card.path) != card.digest:
             raise _fail(f"claim card {card.path} does not match its listed digest")
@@ -488,7 +494,7 @@ def freeze(
     if dt.date.fromisoformat(release.freeze_date) <= closes:
         raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
     excluded = _excluded(release, runs, root, registry)  # step 4
-    configurations, controls = _configurations(runs, excluded)  # steps 5 and 7
+    configurations, controls = _configurations(runs, excluded, maintainers or {})  # steps 5 to 7
     digests = sorted(file_digest(p) for p in read)
     return {
         "schema": "release-index/1",
@@ -543,7 +549,9 @@ def _repetition_order(run: RunView) -> tuple[str, int]:
 
 
 def _configurations(
-    runs: Mapping[str, RunView], excluded: Mapping[str, list[str]]
+    runs: Mapping[str, RunView],
+    excluded: Mapping[str, list[str]],
+    maintainers: Mapping[str, Sequence[str]],
 ) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
     groups: dict[tuple[object, ...], list[RunView]] = {}
     for run in runs.values():
@@ -556,6 +564,14 @@ def _configurations(
         system, configuration, workload, version, profile = group_key
         members = sorted(groups[group_key], key=_repetition_order)
         kept = [r for r in members if r.run_id not in excluded]
+        reviews = {r.run_id: run_records(r, "reviews") for r in kept}
+        repros = {r.run_id: run_records(r, "reproductions") for r in kept}
+        every_repro = [doc for found in repros.values() for _, doc in found]
+        tiers = {  # step 6: only records present at freeze count
+            r.run_id: effective_tier(r, [d for _, d in reviews[r.run_id]], every_repro,
+                                     maintainers.get(str(system), ()))
+            for r in kept
+        }  # fmt: skip
         where = {
             "system": system,
             "workload": {"id": workload, "version": version},
@@ -568,27 +584,34 @@ def _configurations(
             "ineligible": [{"run_id": r.run_id, "reasons": excluded[r.run_id]}
                            for r in members if r.run_id in excluded],
             "insufficient_repetitions": sum(r.ok for r in kept) < MIN_REPLAYED,
-            "statistics": _statistics(kept),
-            "effective_tier": "reported",  # step 6, issue #82
-            "evidence": {"reviews": [], "reproductions": []},
+            "statistics": _statistics(kept, tiers),
+            "effective_tier": str(lowest_tier(list(tiers.values()))) if tiers else "reported",
+            "evidence": {  # INV-TIER-7: outside_tolerance records are listed too
+                "reviews": [path for r in kept for path, _ in reviews[r.run_id]],
+                "reproductions": [path for r in kept for path, _ in repros[r.run_id]],
+            },
         })  # fmt: skip
         controls.append({**where, **_control_summary(kept)})
     return configurations, controls
 
 
-def _statistics(kept: Sequence[RunView]) -> dict[str, object]:
+def _statistics(kept: Sequence[RunView], tiers: Mapping[str, Tier]) -> dict[str, object]:
     """D-STAT per metric over completed repetitions, in repetition order (INV-DERIVE-1);
-    failed repetitions count in n_failed."""
+    failed repetitions count in n_failed. Each input carries its effective tier, so the
+    statistic's tier is the lowest of them (INV-TIER-6)."""
     done = [r for r in kept if r.ok]
     failed = [f"{_rel(r)}/run.json#/failure" for r in kept if not r.ok]
     metrics = sorted({m for r in done for m in r.run["metrics"]})  # type: ignore[attr-defined]
     out: dict[str, object] = {}
     for metric in metrics:
-        inputs = [
-            (f"{_rel(r)}/run.json#/metrics/{metric}", r.run["metrics"][metric])  # type: ignore[index]
-            for r in done
-            if metric in r.run["metrics"]  # type: ignore[operator]
-        ]
+        inputs: list[tuple[str, Mapping[str, object] | None]] = []
+        for r in done:
+            stored: dict[str, dict[str, object]] = r.run["metrics"]  # type: ignore[assignment]
+            if metric in stored:
+                tier = str(quantity_tier(r, metric, tiers[r.run_id]))
+                inputs.append(
+                    (f"{_rel(r)}/run.json#/metrics/{metric}", {**stored[metric], "tier": tier})
+                )
         out[metric] = statistic(inputs, failed, __version__)
     return out
 
@@ -609,3 +632,77 @@ def _control_summary(kept: Sequence[RunView]) -> dict[str, object]:
                     {"run_id": run.run_id, "control_id": c["id"], "outcome": c["outcome"]}
                 )
     return {"counts": counts, "outside_expected": outside}
+
+
+# ---------------------------------------------------------------- effective tiers (RFC-0007)
+
+
+def clean_build(run: RunView) -> bool:
+    """INV-TIER-4: harness and adapter trees recorded clean."""
+    return (
+        run.get("manifest", "harness", "git_dirty") is False
+        and run.get("manifest", "system", "adapter_dirty") is False
+    )
+
+
+def effective_tier(
+    run: RunView,
+    reviews: Sequence[Mapping[str, object]],
+    repros: Sequence[Mapping[str, object]],
+    maintainers: Iterable[str],
+) -> Tier:
+    """RFC-0007 §Effective tier at release freeze, with RFC-0009 step 6's added condition
+    (the reproducer's organisation differs from the original runner's, inside
+    `is_unaffiliated`). `maintainers` are the organisations of the system's maintainers."""
+    metrics = run.run.get("metrics")
+    grades = [q.get("grade") for q in metrics.values()] if isinstance(metrics, dict) else []
+    if grades and all(g == "external" for g in grades):  # imported upstream figures
+        return Tier.REPORTED
+    if not clean_build(run):
+        return Tier.REPORTED
+    runner = run.get("manifest", "runner")
+    original = runner if isinstance(runner, dict) else {}
+    system, maintainers = str(run.run.get("system")), list(maintainers)
+    if any(
+        r.get("outcome") == "within_tolerance"
+        and run.run_id in (r.get("original_run_ids") or [])  # type: ignore[operator]
+        and is_unaffiliated(r.get("runner") or {}, system, original, maintainers)  # type: ignore[arg-type]
+        for r in repros
+    ):
+        return Tier.REPRODUCED
+    if any(
+        v.get("outcome") == "approved"
+        and v.get("run_id") == run.run_id
+        and _organisation(v.get("reviewer") or {}) != _organisation(original)  # type: ignore[arg-type]
+        for v in reviews
+    ):
+        return Tier.PEER_REVIEWED
+    return Tier.REPORTED
+
+
+def quantity_tier(
+    run: RunView, metric: str, run_tier: Tier, seen: frozenset[str] = frozenset()
+) -> Tier:
+    """RFC-0007 rules 1 and 2: a measured quantity takes its run's tier; a derived one the
+    lowest tier of its inputs (INV-TIER-6), where an input outside this run's measured or
+    derived quantities (an asserted price, a projected or external figure) is `reported`."""
+    q = run.run["metrics"][metric]  # type: ignore[index]
+    grade = q.get("grade")
+    if grade == "measured":
+        return run_tier
+    if grade != "derived" or metric in seen:
+        return Tier(q.get("tier", "reported")) if grade == "external" else Tier.REPORTED
+    tiers = []
+    for ref in (q.get("source") or {}).get("inputs") or []:
+        file, _, pointer = str(ref).partition("#")
+        name = pointer.removeprefix("/metrics/")
+        mine = file.endswith(f"{run.run_id}/run.json") and pointer.startswith("/metrics/")
+        tiers.append(quantity_tier(run, name, run_tier, seen | {metric}) if mine
+                     and name in run.run["metrics"] else Tier.REPORTED)  # type: ignore[operator]  # fmt: skip
+    return lowest_tier(tiers) if tiers else Tier.REPORTED
+
+
+def run_records(run: RunView, kind: str) -> list[tuple[str, dict[str, object]]]:
+    """(repository path, document) of a run's reviews/ or reproductions/ records."""
+    return [(f"{_rel(run)}/{kind}/{p.name}", json.loads(p.read_text()))
+            for p in sorted((run.path / kind).glob("*.json"))]  # fmt: skip
