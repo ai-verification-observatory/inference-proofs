@@ -1,0 +1,23 @@
+{
+  "contract": "adapter/1",
+  "contract_versions": [
+    "adapter/1"
+  ],
+  "image_inputs": [
+    {
+      "digest": "sha256:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "name": "base-image",
+      "url": "https://example.org/base"
+    }
+  ],
+  "phases": [],
+  "profile": "ci-cpu",
+  "schema": "adapter-out/1",
+  "subcommand": "info",
+  "system": "fake",
+  "upstream_commit": "0123456789abcdef0123456789abcdef01234567",
+  "warnings": [],
+  "workloads": [
+    "fake-tiny-ci"
+  ]
+}

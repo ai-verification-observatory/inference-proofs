@@ -11,7 +11,7 @@ import typing
 from collections.abc import Mapping
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Self, Union, get_args, get_origin, get_type_hints
+from typing import Any, Literal, Self, Union, get_args, get_origin, get_type_hints
 
 from iproofs.errors import ErrorKind, Failure, IProofsError
 from iproofs.quantity import Grade, NullReason, Scope, ScopeMapping, SourceKind, Tier, Unit
@@ -687,6 +687,94 @@ class Corpus(Document):
     texts: tuple[CorpusText, ...]
 
 
+Verdict = Literal["accept", "reject", "no_verdict", "invalid_call"]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class AdapterJob(Document):
+    """/io/job.json (RFC-0005); fields beyond the common ones depend on `subcommand`."""
+
+    schema: str
+    contract: str
+    subcommand: str
+    run_id: str
+    workload: WorkloadRef
+    shape: Shape
+    control: bool
+    model_dir: str | None = None
+    commitment_id: str | None = None
+    prover_files: tuple[str, ...] | None = None
+    prompts_file: str | None = None
+    batch_size: int | None = None
+    batches: int | None = None
+    control_flags: tuple[str, ...] | None = None
+    verifier_files: tuple[str, ...] | None = None
+    request: tuple[int, ...] | None = None
+    claimed_output: tuple[int, ...] | None = None
+    proof_dir: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Phase(Document):
+    name: str
+    seconds: float
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Sizes(Document):
+    verifier_bytes: int
+    prover_bytes: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProofEntry(Document):
+    proof_id: str
+    request_index: int
+    parts: tuple[str, ...]
+    claimed_output: tuple[int, ...]
+    tokens_covered: int | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CommandLine(Document):
+    """One line of /io/commands.jsonl (RFC-0005 §Command log)."""
+
+    argv: tuple[str, ...]
+    cwd: str
+    started_mono_ns: int
+    exit_code: int | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class AdapterOut(Document):
+    """/io/out.json (RFC-0005); fields beyond the common ones depend on `subcommand`."""
+
+    schema: str
+    contract: str
+    subcommand: str
+    phases: tuple[Phase, ...]
+    warnings: tuple[str, ...]
+    system: str | None = None
+    upstream_commit: str | None = None
+    image_inputs: tuple[ImageInput, ...] | None = None
+    workloads: tuple[str, ...] | None = None
+    profile: str | None = None
+    contract_versions: tuple[str, ...] | None = None
+    ready: bool | None = None
+    log_files: tuple[str, ...] | None = None
+    commitment_id: str | None = None
+    verifier_files: tuple[str, ...] | None = None
+    prover_files: tuple[str, ...] | None = None
+    sizes: Sizes | None = None
+    proofs: tuple[ProofEntry, ...] | None = None
+    binding_report: str | None = None
+    verdict: Verdict | None = None
+    policy: str | None = None
+    raw_exit_code: int | None = None
+    raw_last_line: str | None = None
+    seconds: float | None = None
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -767,6 +855,15 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("corpus/1", "#"): Corpus,
     ("corpus/1", "#/properties/normalisation"): Normalisation,
     ("corpus/1", "#/properties/texts/items"): CorpusText,
+    ("adapter-job/1", "#"): AdapterJob,
+    ("adapter-job/1", "#/properties/workload"): WorkloadRef,
+    ("adapter-job/1", "#/properties/shape"): Shape,
+    ("adapter-out/1", "#"): AdapterOut,
+    ("adapter-out/1", "#/properties/phases/items"): Phase,
+    ("adapter-out/1", "#/properties/image_inputs/items"): ImageInput,
+    ("adapter-out/1", "#/properties/sizes"): Sizes,
+    ("adapter-out/1", "#/$defs/proof"): ProofEntry,
+    ("adapter-out/1", "#/$defs/commandLine"): CommandLine,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
 }

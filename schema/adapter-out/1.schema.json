@@ -1,0 +1,429 @@
+{
+  "$defs": {
+    "commandLine": {
+      "$comment": "one line of /io/commands.jsonl (RFC-0005 §Command log)",
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "cwd": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "started_mono_ns": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "argv",
+        "cwd",
+        "started_mono_ns",
+        "exit_code"
+      ],
+      "type": "object"
+    },
+    "proof": {
+      "additionalProperties": false,
+      "properties": {
+        "claimed_output": {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "parts": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "proof_id": {
+          "$ref": "../quantity/1.schema.json#/$defs/proofId"
+        },
+        "request_index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tokens_covered": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "proof_id",
+        "request_index",
+        "parts",
+        "claimed_output"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/adapter-out/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "info"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "binding_report": false,
+          "commitment_id": false,
+          "log_files": false,
+          "policy": false,
+          "proofs": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "sizes": false,
+          "verdict": false,
+          "verifier_files": false
+        },
+        "required": [
+          "system",
+          "upstream_commit",
+          "image_inputs",
+          "workloads",
+          "profile",
+          "contract_versions"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "setup"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "binding_report": false,
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "policy": false,
+          "profile": false,
+          "proofs": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "seconds": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "ready",
+          "log_files"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "commit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "binding_report": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "policy": false,
+          "profile": false,
+          "proofs": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "workloads": false
+        },
+        "required": [
+          "commitment_id",
+          "verifier_files",
+          "prover_files",
+          "sizes"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "prove"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "policy": false,
+          "profile": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "proofs"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "verify"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "binding_report": false,
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "profile": false,
+          "proofs": false,
+          "prover_files": false,
+          "ready": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "verdict",
+          "raw_exit_code",
+          "raw_last_line",
+          "seconds"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "binding_report": {
+      "pattern": "^/io/[^\\x00]+$",
+      "type": "string"
+    },
+    "commitment_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "contract": {
+      "const": "adapter/1"
+    },
+    "contract_versions": {
+      "items": {
+        "pattern": "^adapter/[1-9][0-9]*$",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "image_inputs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "$ref": "../quantity/1.schema.json#/$defs/digest"
+          },
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "url",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "log_files": {
+      "items": {
+        "pattern": "^/io/[^\\x00]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "phases": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "pattern": "^[a-z][a-z0-9_]{0,31}$",
+            "type": "string"
+          },
+          "seconds": {
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "seconds"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "policy": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "profile": {
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    },
+    "proofs": {
+      "items": {
+        "$ref": "#/$defs/proof"
+      },
+      "type": "array"
+    },
+    "prover_files": {
+      "items": {
+        "pattern": "^/io/state/[^\\x00]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "raw_exit_code": {
+      "type": "integer"
+    },
+    "raw_last_line": {
+      "maxLength": 4096,
+      "type": "string"
+    },
+    "ready": {
+      "const": true
+    },
+    "schema": {
+      "const": "adapter-out/1"
+    },
+    "seconds": {
+      "minimum": 0,
+      "type": "number"
+    },
+    "sizes": {
+      "additionalProperties": false,
+      "properties": {
+        "prover_bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verifier_bytes": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "verifier_bytes",
+        "prover_bytes"
+      ],
+      "type": "object"
+    },
+    "subcommand": {
+      "enum": [
+        "info",
+        "setup",
+        "commit",
+        "prove",
+        "verify"
+      ]
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "upstream_commit": {
+      "$ref": "../quantity/1.schema.json#/$defs/commit"
+    },
+    "verdict": {
+      "enum": [
+        "accept",
+        "reject",
+        "no_verdict",
+        "invalid_call"
+      ]
+    },
+    "verifier_files": {
+      "items": {
+        "pattern": "^/io/state/[^\\x00]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "workloads": {
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "contract",
+    "subcommand",
+    "phases",
+    "warnings"
+  ],
+  "title": "Adapter output file /io/out.json (RFC-0005 §Subcommands and file shapes)",
+  "type": "object"
+}

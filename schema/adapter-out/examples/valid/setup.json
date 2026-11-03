@@ -1,0 +1,9 @@
+{
+  "contract": "adapter/1",
+  "log_files": [],
+  "phases": [],
+  "ready": true,
+  "schema": "adapter-out/1",
+  "subcommand": "setup",
+  "warnings": []
+}

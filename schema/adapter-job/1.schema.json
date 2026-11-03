@@ -1,0 +1,291 @@
+{
+  "$id": "https://inference-proofs.org/schema/adapter-job/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "info"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "claimed_output": false,
+          "commitment_id": false,
+          "control_flags": false,
+          "model_dir": false,
+          "prompts_file": false,
+          "proof_dir": false,
+          "prover_files": false,
+          "request": false,
+          "verifier_files": false
+        },
+        "required": []
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "setup"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "claimed_output": false,
+          "commitment_id": false,
+          "control_flags": false,
+          "model_dir": false,
+          "prompts_file": false,
+          "proof_dir": false,
+          "prover_files": false,
+          "request": false,
+          "verifier_files": false
+        },
+        "required": []
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "commit"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "claimed_output": false,
+          "commitment_id": false,
+          "control_flags": false,
+          "prompts_file": false,
+          "proof_dir": false,
+          "prover_files": false,
+          "request": false,
+          "verifier_files": false
+        },
+        "required": [
+          "model_dir"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "prove"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "claimed_output": false,
+          "proof_dir": false,
+          "request": false,
+          "verifier_files": false
+        },
+        "required": [
+          "commitment_id",
+          "prover_files",
+          "model_dir",
+          "prompts_file",
+          "batch_size",
+          "batches"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "verify"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "control_flags": false,
+          "model_dir": false,
+          "prompts_file": false,
+          "prover_files": false
+        },
+        "required": [
+          "commitment_id",
+          "verifier_files",
+          "request",
+          "claimed_output",
+          "proof_dir"
+        ]
+      }
+    },
+    {
+      "$comment": "weakening flags only in control jobs (RFC-0005 rule 4, AGENTS.md rule 4)",
+      "if": {
+        "required": [
+          "control_flags"
+        ]
+      },
+      "then": {
+        "properties": {
+          "control": {
+            "const": true
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "batch_size": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "batches": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "claimed_output": {
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "commitment_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "contract": {
+      "const": "adapter/1"
+    },
+    "control": {
+      "type": "boolean"
+    },
+    "control_flags": {
+      "items": {
+        "pattern": "^-",
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "model_dir": {
+      "const": "/models"
+    },
+    "prompts_file": {
+      "pattern": "^/io/[^\\x00]+$",
+      "type": "string"
+    },
+    "proof_dir": {
+      "pattern": "^/io/[^\\x00]+$",
+      "type": "string"
+    },
+    "prover_files": {
+      "items": {
+        "pattern": "^/io/state/[^\\x00]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "request": {
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "schema": {
+      "const": "adapter-job/1"
+    },
+    "shape": {
+      "additionalProperties": false,
+      "properties": {
+        "batch_size": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "batches_per_session": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "context_window": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "output_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prompt_tokens",
+        "output_tokens",
+        "batch_size",
+        "batches_per_session",
+        "context_window"
+      ],
+      "type": "object"
+    },
+    "subcommand": {
+      "enum": [
+        "info",
+        "setup",
+        "commit",
+        "prove",
+        "verify"
+      ]
+    },
+    "verifier_files": {
+      "items": {
+        "pattern": "^/io/[^\\x00]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "workload": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "version": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "contract",
+    "subcommand",
+    "run_id",
+    "workload",
+    "shape",
+    "control"
+  ],
+  "title": "Adapter job file /io/job.json written by the harness (RFC-0005 §Subcommands and file shapes)",
+  "type": "object"
+}

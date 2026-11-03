@@ -1,0 +1,27 @@
+{
+  "batch_size": 1,
+  "batches": 1,
+  "commitment_id": "c1",
+  "contract": "adapter/1",
+  "control": false,
+  "control_flags": [
+    "--unsound-skip-example"
+  ],
+  "model_dir": "/models",
+  "prompts_file": "/io/prompts.jsonl",
+  "prover_files": [],
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "adapter-job/1",
+  "shape": {
+    "batch_size": 2,
+    "batches_per_session": 3,
+    "context_window": 8,
+    "output_tokens": 1,
+    "prompt_tokens": 8
+  },
+  "subcommand": "prove",
+  "workload": {
+    "id": "fake-tiny-ci",
+    "version": 1
+  }
+}

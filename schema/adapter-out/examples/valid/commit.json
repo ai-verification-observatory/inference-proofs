@@ -1,0 +1,18 @@
+{
+  "commitment_id": "c1",
+  "contract": "adapter/1",
+  "phases": [],
+  "prover_files": [
+    "/io/state/pk.bin"
+  ],
+  "schema": "adapter-out/1",
+  "sizes": {
+    "prover_bytes": 64,
+    "verifier_bytes": 32
+  },
+  "subcommand": "commit",
+  "verifier_files": [
+    "/io/state/vk.bin"
+  ],
+  "warnings": []
+}
