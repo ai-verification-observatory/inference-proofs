@@ -1,0 +1,37 @@
+# Reference profiles and cost basis for benchmark release v0.1 (RFC-0006 §Reference file).
+# The price (value 0.0, no providers yet) is a placeholder until RFC-0006 Q1 is resolved by
+# issue #78; CI rejects a release whose price is 0. The driver is unpinned until issue #77,
+# so every host fails the conformance check until then.
+schema: "reference/1"
+release: "v0.1"
+profiles:
+  prover-h100:
+    kind: "prover"
+    gpu: {model: "NVIDIA H100 80GB HBM3", form_factor: "SXM", count: 1, memory_mib_min: 80000}
+    cpu: {logical_cpus_on_gpu_numa_node: 24, logical_cpus_total_min: 32}
+    host_memory_gib_min: 330
+    disk: {type: "local NVMe", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: ">=560"
+    container_runtime: {docker_engine_min: "25.0", nvidia_container_toolkit_min: "1.17", cgroup_driver: "systemd"}
+  verifier-cpu:
+    kind: "verifier"
+    gpu: null
+    cpu: {logical_cpus: 8}
+    host_memory_gib: 32
+    emulation: {allowed_on: ["prover-h100"]}
+cost:
+  price_per_gpu_hour_usd:
+    value: 0.0
+    unit: "USD/gpu_hour"
+    scope: null
+    grade: "asserted"
+    tier: "reported"
+    source: {kind: "reference_file", ref: "reference/v0.1.yaml#/cost"}
+    null_reason: null
+  basis: "median on-demand list price of the named providers on the named date"
+  providers: []
+  date: "2026-11-03"
+  priced: ["gpu"]
+  not_priced: ["cpu", "host_memory", "disk", "network"]

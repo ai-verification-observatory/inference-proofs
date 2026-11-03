@@ -378,7 +378,7 @@ def validate_tree(
     if base_ref:
         found += g2_append_only(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
-    found += g6_policy(root, files)
+    found += g6_policy(root, files) + g7_pins(root, files)
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
 
@@ -480,4 +480,132 @@ def _entrypoint_policy(root: Path, rel: str) -> list[Finding]:
                     hint="list the line and its control guard",
                 )
             )
+    return found
+
+
+# ---------------------------------------------------------------- G7
+
+_HEX40 = re.compile(r"^[0-9a-f]{40}$")
+_DIGEST_REF = re.compile(r"^\S+@sha256:[0-9a-f]{64}$")
+_RANGE = re.compile(r"[<>^~*]|\bx\b|latest")
+
+
+def g7_pins(root: Path, files: list[str]) -> list[Finding]:
+    """PIN-1 to PIN-5 (RFC-0013 §G7); schema-level pins already fail in G2."""
+    found = []
+    for rel in files:
+        name = rel.rsplit("/", 1)[-1]
+        if name.startswith("Dockerfile") and rel.startswith("systems/"):
+            found += _dockerfile_pins(root, rel)
+        elif re.fullmatch(r"reference/[^/]+\.yaml", rel):
+            found += _reference_pins(root, rel)
+    return found
+
+
+def _dockerfile_pins(root: Path, rel: str) -> list[Finding]:
+    found = []
+    stages: set[str] = set()
+    for n, raw in enumerate((root / rel).read_text().splitlines(), start=1):
+        line = raw.strip()
+        where = f"{rel}:{n}"
+        if m := re.match(r"(?i)^FROM\s+(\S+)(?:\s+AS\s+(\S+))?", line):
+            image, stage = m.group(1), m.group(2)
+            if image != "scratch" and image not in stages and not _DIGEST_REF.match(image):
+                found.append(
+                    Finding(
+                        "G7",
+                        where,
+                        "PIN-2",
+                        f"FROM {image} is not pinned by digest",
+                        ErrorKind.INTEGRITY,
+                        hint="use <repo>@sha256:<64 hex>",
+                    )
+                )
+            if stage:
+                stages.add(stage)
+        m = re.match(r"^ARG\s+UPSTREAM_COMMIT=(\S+)", line)
+        if m and not _HEX40.match(m.group(1)):
+            found.append(
+                Finding(
+                    "G7",
+                    where,
+                    "PIN-1",
+                    f"UPSTREAM_COMMIT {m.group(1)} is not a full 40-hex hash",
+                    ErrorKind.INTEGRITY,
+                )
+            )
+        if m := re.search(r"git\s+checkout\s+(\S+)", line):
+            ref = m.group(1)
+            if not ref.startswith("$") and not _HEX40.match(ref):
+                found.append(
+                    Finding(
+                        "G7",
+                        where,
+                        "PIN-1",
+                        f"git checkout {ref} is not a full 40-hex hash",
+                        ErrorKind.INTEGRITY,
+                    )
+                )
+        found += _toolchain_pins(line, where)
+    return found
+
+
+def _toolchain_pins(line: str, where: str) -> list[Finding]:
+    """PIN-5: exact toolchain versions in pip and apt installs, never `latest`."""
+    found = []
+    if ":latest" in line:
+        found.append(
+            Finding("G7", where, "PIN-5", "`latest` is not a version", ErrorKind.INTEGRITY)
+        )
+    if m := re.search(r"pip3?\s+install\s+(.*)", line):
+        for pkg in m.group(1).split():
+            if not pkg.startswith("-") and "==" not in pkg and "@" not in pkg:
+                found.append(
+                    Finding(
+                        "G7",
+                        where,
+                        "PIN-5",
+                        f"pip package {pkg} has no ==version",
+                        ErrorKind.INTEGRITY,
+                    )
+                )
+    if m := re.search(r"apt-get\s+install\s+(.*)", line):
+        for pkg in m.group(1).split():
+            if not pkg.startswith("-") and "=" not in pkg and pkg not in {"&&", "\\"}:
+                found.append(
+                    Finding(
+                        "G7",
+                        where,
+                        "PIN-5",
+                        f"apt package {pkg} has no =version",
+                        ErrorKind.INTEGRITY,
+                    )
+                )
+    return found
+
+
+def _reference_pins(root: Path, rel: str) -> list[Finding]:
+    """PIN-4: driver, CUDA and container runtime versions are exact strings, never ranges."""
+    found = []
+    profiles = parse_tree(root / rel).get("profiles")
+    for pid, profile in profiles.items() if isinstance(profiles, Mapping) else []:
+        if not isinstance(profile, Mapping) or profile.get("kind") != "prover":
+            continue
+        runtime = profile.get("container_runtime", {})
+        values = {
+            "driver": profile.get("driver"),
+            **(runtime if isinstance(runtime, Mapping) else {}),
+        }
+        for field, value in values.items():
+            if isinstance(value, str) and _RANGE.search(value):
+                found.append(
+                    Finding(
+                        "G7",
+                        rel,
+                        "PIN-4",
+                        f"{field} {value!r} is a range, not an exact version",
+                        ErrorKind.INTEGRITY,
+                        f"/profiles/{pid}/{field}",
+                    )
+                )
     return found
