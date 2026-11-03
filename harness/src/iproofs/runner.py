@@ -46,9 +46,11 @@ from iproofs.measure import (
     Capture,
     EventLog,
     ReleaseWatcher,
+    StepResources,
     cap_text,
     files_bytes,
     proof_size,
+    select_readers,
     span_seconds,
 )
 from iproofs.model import (
@@ -64,7 +66,7 @@ from iproofs.model import (
     load_reference,
 )
 from iproofs.provenance import file_digest, file_records, git_state
-from iproofs.quantity import Scope, Unit
+from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.workloads import load_workload, materialise_prompts, model_dir, workload_digest
@@ -197,6 +199,7 @@ class Job:
     commitment_record: dict[str, object] | None = None
     logs: dict[str, Capture] = field(default_factory=dict)  # "<step>.stdout" -> bounded capture
     log_prefix: str = ""  # "controls-" when `iproofs controls` adds calls to a written run
+    resources: dict[str, StepResources] = field(default_factory=dict)  # step -> readings
     proof_records: list[dict[str, object]] = field(default_factory=list)
     proof_bytes: dict[str, int] = field(default_factory=dict)
 
@@ -425,6 +428,10 @@ class Runner:
 
     def _machine(self, job: Job) -> None:
         job.machine = self.env.machine_record()
+        assert job.reference is not None
+        profile = job.reference.profiles[job.spec.profile]
+        gpu = isinstance(profile, ProverProfile) and profile.gpu is not None
+        select_readers(gpu_profile=gpu)  # null readers only without a GPU; never a fallback
 
     def _call(
         self,
@@ -876,6 +883,41 @@ class Runner:
         (job.staging / "job.lock").unlink()
         return final
 
+    def _resource_metrics(self, job: Job, run_json: str) -> dict[str, QuantityTree]:
+        """RFC-0004 resource metrics for the steps that ran; a field nothing read is null with
+        `not_applicable` (RFC-0011 §Portability, null readers)."""
+        m: dict[str, QuantityTree] = {}
+        for step, scope in (("commit", Scope.COMMIT), ("prove", Scope.PROVE_SESSION)):
+            if step not in job.steps:
+                continue
+            r = job.resources.get(step, StepResources())
+            for metric, value, unit in (
+                ("gpu_memory_peak", r.gpu_memory_peak_mib, Unit.MIB),
+                ("gpu_util_mean", r.gpu_util_mean_pct, Unit.PERCENT),
+                ("gpu_util_p95", r.gpu_util_p95_pct, Unit.PERCENT),
+                ("gpu_energy", r.gpu_energy_j, Unit.J),
+                ("host_memory_peak_kernel", r.host_memory_peak_kernel, Unit.B),
+                ("host_memory_peak_anon", r.host_memory_peak_anon, Unit.B),
+                ("cpu_seconds", r.cpu_seconds, Unit.S),
+            ):
+                m[f"{step}_{metric}"] = measured(
+                    value,
+                    unit,
+                    scope if unit is Unit.S else None,
+                    f"{run_json}#/raw/{step}",
+                    None if value is not None else NullReason.NOT_APPLICABLE,
+                )
+        if job.verify_seconds:
+            anon = job.resources.get("verify", StepResources()).host_memory_peak_anon
+            m["verify_host_memory_peak_anon"] = measured(
+                anon,
+                Unit.B,
+                None,
+                f"{run_json}#/raw/verify",
+                None if anon is not None else NullReason.NOT_APPLICABLE,
+            )
+        return m
+
     def _cap_run_dir(self, job: Job) -> None:
         """RFC-0009 §Storage, after the harness log is closed: each log file at most the first
         256 KiB and last 768 KiB; then the run directory at most 10 MiB, cutting adapter logs
@@ -1097,6 +1139,7 @@ class Runner:
                     f"{run_json}#/proofs",
                     None,
                 )
+        m |= self._resource_metrics(job, run_json)
         walls = [job.verify_seconds[pid] for pid, _ in job.releases]
         vref = f"{run_json}#/verifier"
         m["verify_seconds"] = _statistic(walls, Unit.S, Scope.VERIFY, vref)
