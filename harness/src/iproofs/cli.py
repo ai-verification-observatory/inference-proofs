@@ -463,7 +463,7 @@ def release_freeze(args: argparse.Namespace) -> int:
     from iproofs.release import freeze  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.serialize import write_json  # noqa: PLC0415
-    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.validate import governance, repo_root  # noqa: PLC0415
     from iproofs.validate.tree import validate_tree  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
@@ -473,7 +473,12 @@ def release_freeze(args: argparse.Namespace) -> int:
         found = validate_tree(root, only=paths)
         return [f.line() for f in found if f.gate in GATES_G2_G7 and not f.warning]
 
-    index = freeze(args.release, root, registry, gates)
+    maintainers: dict[str, list[str]] = {}
+    if (root / governance.PATH).is_file():
+        for row in governance.parse((root / governance.PATH).read_text("utf-8")):
+            for name in filter(None, (s.strip() for s in row.systems.split(","))):
+                maintainers.setdefault(name, []).append(row.organisation)
+    index = freeze(args.release, root, registry, gates, maintainers)
     errors = registry.errors("release-index/1", index)
     if errors:
         raise IProofsError(ErrorKind.INTERNAL, f"index.json fails release-index/1: {errors[0]}")
