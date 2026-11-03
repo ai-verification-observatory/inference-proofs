@@ -55,6 +55,7 @@ def test_watch_burst(tmp_path: Path) -> None:
     """TC-WATCH-BURST: every release in one observation is not observable (W-4)."""
     w = ReleaseWatcher(tmp_path, poll_interval_s=5.0, force_poll=True)
     w.start()  # the first scan sees an empty directory, then the poller sleeps
+    time.sleep(0.2)  # under load the first scan can start late and catch a release mid-burst
     for i in range(3):
         release(tmp_path, f"req-{i}")
     releases = w.stop()  # the final scan sees all three at once
