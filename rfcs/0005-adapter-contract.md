@@ -340,6 +340,7 @@ GPU tests (manual runbook on a GPU host, not CI): one `prove` and `verify` of ea
 - OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-01-31): Does SASH release segment proofs incrementally in a way the release protocol can observe? Default until resolved: `granularity: segment_grid`, `steady_boundary: not_observable`, `prove.steady` null for SASH rows.
 - OPEN QUESTION Q2: merged into [RFC-0014](0014-provenance-and-integrity.md#open-questions) Q2 (image registry), which owns it.
 - OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): A standard phase name set for adapter-reported timings (for example `witness`, `commit`, `prove`, `aggregate`). Default: free names matching `^[a-z][a-z0-9_]{0,31}$`, documented per adapter README.
+- OPEN QUESTION Q4 (owner: AbdelStark, resolve by: 2027-01-31): which FlashProve verifier the `verify` subcommand calls, the C++ verifier or the Lean verifier. The PRD reports about 21 s per proof on one CPU thread for the C++ verifier and about 24 minutes for the Lean verifier (grade external, tier reported, source FlashProve at 9e2bdd8f), and the claim card states soundness for the Lean verifier. Default until resolved: `verify` calls the C++ verifier and the claim card configuration names it; the Lean verifier is a second configuration with its own card if the system maintainers ask for it.
 
 ## References
 
