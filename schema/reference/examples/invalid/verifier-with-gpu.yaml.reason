@@ -1,0 +1,1 @@
+/profiles/verifier-cpu/gpu: {'model': 'x', 'form_factor': 'PCIe', 'count': 1, 'memory_mib_min': 1} is not of type 'null'

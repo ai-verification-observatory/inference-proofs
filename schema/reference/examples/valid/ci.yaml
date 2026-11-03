@@ -1,0 +1,29 @@
+# CPU-only profile for the fake-system end-to-end run in CI (RFC-0013 §G10). Never part of a
+# release; the price is zero because nothing in CI is costed.
+schema: "reference/1"
+release: "ci"
+profiles:
+  ci-cpu:
+    kind: "prover"
+    gpu: null
+    cpu: {logical_cpus_on_gpu_numa_node: 1, logical_cpus_total_min: 2}
+    host_memory_gib_min: 4
+    disk: {type: "any", free_gib_min: 1}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "none"
+    container_runtime: {docker_engine_min: "25.0", nvidia_container_toolkit_min: "0", cgroup_driver: "systemd"}
+cost:
+  price_per_gpu_hour_usd:
+    value: 0.0
+    unit: "USD/gpu_hour"
+    scope: null
+    grade: "asserted"
+    tier: "reported"
+    source: {kind: "reference_file", ref: "reference/ci.yaml#/cost"}
+    null_reason: null
+  basis: "not priced: CI runs are never costed"
+  providers: []
+  date: "2026-11-03"
+  priced: []
+  not_priced: ["gpu", "cpu", "host_memory", "disk", "network"]

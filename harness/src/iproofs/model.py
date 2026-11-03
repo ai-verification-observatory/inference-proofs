@@ -886,6 +886,89 @@ class SystemControls(Document):
     controls: tuple[SystemControl, ...]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class GpuSpec(Document):
+    model: str
+    form_factor: str
+    count: int
+    memory_mib_min: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProverCpu(Document):
+    logical_cpus_on_gpu_numa_node: int
+    logical_cpus_total_min: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Disk(Document):
+    type: str
+    free_gib_min: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class OsSpec(Document):
+    id: str
+    version_id: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ContainerRuntime(Document):
+    docker_engine_min: str
+    nvidia_container_toolkit_min: str
+    cgroup_driver: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProverProfile(Document):
+    kind: str
+    gpu: GpuSpec | None
+    cpu: ProverCpu
+    host_memory_gib_min: int
+    disk: Disk
+    os: OsSpec
+    kernel_min: str
+    driver: str
+    container_runtime: ContainerRuntime
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class VerifierCpu(Document):
+    logical_cpus: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Emulation(Document):
+    allowed_on: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class VerifierProfile(Document):
+    kind: str
+    gpu: None
+    cpu: VerifierCpu
+    host_memory_gib: int
+    emulation: Emulation
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Cost(Document):
+    price_per_gpu_hour_usd: Quantity
+    basis: str
+    providers: tuple[str, ...]
+    date: str
+    priced: tuple[str, ...]
+    not_priced: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReferenceFile(Document):
+    schema: str
+    release: str
+    profiles: Mapping[str, ProverProfile | VerifierProfile]
+    cost: Cost
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -989,6 +1072,17 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("system/1", "#/properties/timeouts_s"): Timeouts,
     ("system-controls/1", "#"): SystemControls,
     ("system-controls/1", "#/$defs/control"): SystemControl,
+    ("reference/1", "#"): ReferenceFile,
+    ("reference/1", "#/$defs/prover"): ProverProfile,
+    ("reference/1", "#/$defs/prover/properties/gpu/anyOf/1"): GpuSpec,
+    ("reference/1", "#/$defs/prover/properties/cpu"): ProverCpu,
+    ("reference/1", "#/$defs/prover/properties/disk"): Disk,
+    ("reference/1", "#/$defs/prover/properties/os"): OsSpec,
+    ("reference/1", "#/$defs/prover/properties/container_runtime"): ContainerRuntime,
+    ("reference/1", "#/$defs/verifier"): VerifierProfile,
+    ("reference/1", "#/$defs/verifier/properties/cpu"): VerifierCpu,
+    ("reference/1", "#/$defs/verifier/properties/emulation"): Emulation,
+    ("reference/1", "#/properties/cost"): Cost,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
 }
@@ -1005,3 +1099,14 @@ def load(path: Path, registry: SchemaRegistry) -> Document:
     """Parse, validate against the document's own schema, then construct its model."""
     schema_id, tree = load_document(path, registry)
     return model_for(schema_id).from_tree(tree)
+
+
+def load_reference(release: str, root: Path, registry: SchemaRegistry) -> ReferenceFile:
+    """Load `reference/<release>.yaml` (RFC-0006 §Reference file)."""
+    path = root / "reference" / f"{release}.yaml"
+    if not path.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"no reference file {path} for release {release!r}")
+    ref = load(path, registry)
+    if not isinstance(ref, ReferenceFile) or ref.release != release:
+        raise IProofsError(ErrorKind.CONFIG, f"{path}: not the reference file of {release!r}")
+    return ref
