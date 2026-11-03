@@ -74,7 +74,7 @@ Rules:
 | `sampler.cgroup_unavailable` | warning | `path` | cgroup files unreadable |
 | `verify.result` | info | `proof_id`, `verdict`, `raw_exit_code`, `cpus` | after each verify call |
 | `control.trial` | info | `control`, `trial`, `outcome` | after each control trial |
-| `control.twin_mismatch` | warning | `control`, `twin_verdict` | honest twin not accepted |
+| `control.twin_mismatch` | warning | `control`, `twin_verdict` | honest twin not accepted (the control is `void`, `iproofs.controls.control_record`) |
 | `control.disclosure_pending` | warning | `control` | accepted where rejection was expected |
 | `log.truncated` | info | `file`, `elided_bytes` | a log file hit its cap |
 | `validate.fail` | error | `check`, `path`, `message` | a CI check fails (validate command) |

@@ -289,3 +289,39 @@ def check_derived(path: Path, root: Path) -> list[Finding]:
                 )
             )
     return found
+
+
+def check_controls_summary(path: Path, root: Path) -> list[Finding]:
+    """INV-CTRL-5: `summary` and `disclosure_pending` equal what `controls` implies."""
+    from iproofs.controls import disclosure_pending, summary  # noqa: PLC0415 (layer 5)
+
+    full = path.resolve()
+    rel = full.relative_to(root).as_posix() if full.is_relative_to(root) else str(path)
+    doc = parse_tree(path)
+    records = doc.get("controls")
+    if not isinstance(records, list):
+        return []
+    found = []
+    if doc.get("summary") != (want := summary(records)):
+        found.append(
+            Finding(
+                "G4",
+                rel,
+                "INV-CTRL-5",
+                f"summary {doc.get('summary')} != recomputed {want}",
+                ErrorKind.INTEGRITY,
+                "/summary",
+            )
+        )
+    if doc.get("disclosure_pending") != (pending := disclosure_pending(records)):
+        found.append(
+            Finding(
+                "G4",
+                rel,
+                "INV-CTRL-5",
+                f"disclosure_pending must be {pending}",
+                ErrorKind.INTEGRITY,
+                "/disclosure_pending",
+            )
+        )
+    return found

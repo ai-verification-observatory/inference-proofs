@@ -10,11 +10,12 @@ import os
 import random
 import re
 import shutil
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.model import Workload
 
 CONTROL_SEED_RE = re.compile(r"^0x[0-9a-f]{16}$")
 
@@ -269,3 +270,227 @@ def c8(target: HonestProof, commit: str, src: Path, dst: Path, seed: str) -> Ver
 
 def _names(proof_dir: Path) -> tuple[str, ...]:
     return tuple(p.name for p in _parts(proof_dir))
+
+
+# ---------------------------------------------------------------- twins and classification
+
+OUTCOME_OF_VERDICT = {
+    "reject": "rejected",
+    "accept": "accepted",
+    "no_verdict": "no_verdict",
+    "invalid_call": "invalid_call",
+}
+EXPECTED = {
+    "C1": ("rejected",),
+    "C2": ("rejected",),
+    "C3": ("rejected",),
+    "C4": ("rejected",),
+    "C5": ("rejected", "invalid_call"),
+    "C6": ("rejected", "invalid_call"),
+    "C7": ("rejected",),
+    "C8": ("rejected", "invalid_call"),
+    "P1": ("prover_failed", "rejected"),
+    "P2": ("prover_failed", "rejected"),
+}
+OUTCOMES = (
+    "rejected",
+    "accepted",
+    "no_verdict",
+    "invalid_call",
+    "void",
+    "not_applicable",
+    "error",
+    "prover_failed",
+)
+NEUTRAL = {"void", "not_applicable", "error"}  # neither pass nor fail
+
+
+@dataclass(frozen=True, slots=True)
+class VerifyResult:
+    verdict: str
+    raw_exit_code: int
+    raw_last_line: str
+    seconds: float
+
+
+Verifier = Callable[[VerifyCall], VerifyResult]
+
+
+def honest_call(p: HonestProof, commit: str, proof_dir: Path) -> VerifyCall:
+    return VerifyCall(
+        "twin", 0, commit, p.request, p.claimed_output, proof_dir, _names(proof_dir), {}
+    )
+
+
+def control_record(
+    control_id: str,
+    build: Callable[[], list[VerifyCall]],
+    twins: Callable[[], list[VerifyCall]],
+    verify: Verifier,
+    *,
+    side: str = "verifier",
+    source: str = "shared",
+) -> dict[str, object]:
+    """Run one control: applicability, honest twins first, then the trials (RFC-0008)."""
+    expected = list(EXPECTED[control_id])
+    record: dict[str, object] = {
+        "id": control_id,
+        "side": side,
+        "source": source,
+        "expected": expected,
+        "twin": None,
+        "trials": [],
+        "outcome": "not_applicable",
+        "passed": None,
+        "note": None,
+    }
+    try:
+        calls = build()  # applicability is decided before any twin runs
+    except NotApplicable as e:
+        record["note"] = str(e)
+        return record
+    try:
+        twin_results = [verify(c) for c in twins()]
+    except IProofsError as e:
+        return {**record, "outcome": "error", "note": f"twin: {e.kind}: {e.message}"}
+    first = twin_results[0]
+    record["twin"] = {"verdict": first.verdict, "raw_exit_code": first.raw_exit_code}
+    if any(r.verdict != "accept" for r in twin_results):  # INV-CTRL-2
+        return {**record, "outcome": "void", "note": "honest twin not accepted"}
+    trials = []
+    for call in calls:
+        try:
+            result = verify(call)
+        except IProofsError as e:
+            trials.append(
+                {
+                    "seed_index": call.trial,
+                    "mutation": dict(call.mutation),
+                    "verdict": None,
+                    "outcome": "error",
+                    "raw_exit_code": e.exit_code,
+                    "raw_last_line": e.message[:4096],
+                    "seconds": None,
+                }
+            )
+            continue
+        trials.append(
+            {
+                "seed_index": call.trial,
+                "mutation": dict(call.mutation),
+                "verdict": result.verdict,
+                "outcome": OUTCOME_OF_VERDICT[result.verdict],
+                "raw_exit_code": result.raw_exit_code,
+                "raw_last_line": result.raw_last_line[:4096],
+                "seconds": result.seconds,
+            }
+        )
+    outcomes = [str(t["outcome"]) for t in trials]
+    misses = [o for o in outcomes if o not in expected]
+    outcome = misses[0] if misses else outcomes[0]  # C6: every trial must be expected
+    record.update(trials=trials, outcome=outcome, passed=None if outcome in NEUTRAL else not misses)
+    return record
+
+
+def summary(records: Sequence[Mapping[str, object]]) -> dict[str, int]:
+    """Counts per outcome plus run and passed; recomputed by `derive --check` (INV-CTRL-5)."""
+    counts = {"run": len(records), "passed": sum(1 for r in records if r["passed"] is True)}
+    counts |= {o: sum(1 for r in records if r["outcome"] == o) for o in OUTCOMES}
+    return counts
+
+
+def disclosure_pending(records: Sequence[Mapping[str, object]]) -> bool:
+    """An accepted control whose expected set excludes acceptance (RFC-0008 §Disclosure)."""
+    return any(
+        r["outcome"] == "accepted" and "accepted" not in r["expected"]  # type: ignore[operator]
+        for r in records
+    )
+
+
+def controls_document(
+    run_id: str,
+    control_seed: str,
+    image: str,
+    verifier_profile: str,
+    perturbed: Mapping[str, str] | None,
+    records: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    """The `controls.json` document (schema controls/1)."""
+    return {
+        "schema": "controls/1",
+        "run_id": run_id,
+        "control_seed": control_seed,
+        "image": image,
+        "verifier_profile": verifier_profile,
+        "perturbed_commitment": dict(perturbed) if perturbed else None,
+        "controls": list(records),
+        "summary": summary(records),
+        "disclosure_pending": disclosure_pending(records),
+    }
+
+
+def run_shared_controls(
+    proofs: Sequence[HonestProof],
+    proof_dirs: Mapping[str, Path],
+    commit: str,
+    perturbed: str | None,
+    *,
+    workload: Workload,
+    seed: str,
+    verify: Verifier,
+    work: Path,
+) -> list[dict[str, object]]:
+    """C1 to C8 over a run's honest proofs, each after its honest twins (RFC-0008).
+
+    `vocab_size` and `batch_size` come from the workload record (RFC-0003).
+    """
+    vocab_size, batch_size = workload.model.vocab_size, workload.shape.batch_size
+    chosen = select(proofs)
+    target, other = chosen.target, chosen.other
+    if target is None:
+        return [
+            {
+                "id": cid,
+                "side": "verifier",
+                "source": "shared",
+                "expected": list(EXPECTED[cid]),
+                "twin": None,
+                "trials": [],
+                "outcome": "void",
+                "passed": None,
+                "note": "no accepted proof in the run",
+            }
+            for cid in SHARED_VERIFIER_CONTROLS
+        ]
+    t_dir = proof_dirs[target.proof_id]
+
+    def twin(*ps: HonestProof) -> Callable[[], list[VerifyCall]]:
+        return lambda: [honest_call(p, commit, proof_dirs[p.proof_id]) for p in ps]
+
+    def other_twin() -> list[VerifyCall]:
+        return twin(target, *([other] if other else []))()
+
+    def c7_calls() -> list[VerifyCall]:
+        a, b = c7_pair(proofs, batch_size)
+        return [c7(a, b, commit, proof_dirs[b.proof_id])]
+
+    def c7_twins() -> list[VerifyCall]:
+        a, b = c7_pair(proofs, batch_size)
+        return twin(a, b)()
+
+    builders: dict[str, tuple[Callable[[], list[VerifyCall]], Callable[[], list[VerifyCall]]]] = {
+        "C1": (lambda: [c1(target, commit, t_dir, vocab_size)], twin(target)),
+        "C2": (lambda: [c2(target, commit, t_dir, vocab_size, seed)], twin(target)),
+        "C3": (lambda: [c3(target, commit, perturbed, t_dir)], twin(target)),
+        "C4": (lambda: [c4(target, other, commit, t_dir)], other_twin),
+        "C5": (lambda: [c5(target, commit, t_dir, work / "C5")], twin(target)),
+        "C6": (
+            lambda: [
+                c6(target, commit, t_dir, work / f"C6-{s}", seed, s) for s in range(C6_TRIALS)
+            ],
+            twin(target),
+        ),
+        "C7": (c7_calls, c7_twins),
+        "C8": (lambda: [c8(target, commit, t_dir, work / "C8", seed)], twin(target)),
+    }
+    return [control_record(cid, build, twins, verify) for cid, (build, twins) in builders.items()]
