@@ -1,11 +1,16 @@
 """Workload resolution, model fetch and prompt materialisation (RFC-0003)."""
 
+import math
+import random
+from collections.abc import Sequence
 from pathlib import Path
+from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Workload, load
-from iproofs.provenance import file_digest
+from iproofs.provenance import file_digest, prompt_set_digest
 from iproofs.schema import SchemaRegistry
+from iproofs.serialize import write_jsonl
 
 
 def workload_file(root: Path, workload_id: str) -> Path:
@@ -68,3 +73,56 @@ def load_workload(
     if problems:
         raise IProofsError(ErrorKind.CONFIG, "\n".join(f"{path}: {p}" for p in problems))
     return wl
+
+
+class Encoding(Protocol):
+    @property
+    def ids(self) -> Sequence[int]: ...
+
+
+class Tokenizer(Protocol):
+    """The part of a `tokenizers.Tokenizer` the generator uses."""
+
+    def encode(self, sequence: str, *, add_special_tokens: bool) -> Encoding: ...
+
+
+def load_tokenizer(path: Path) -> Tokenizer:
+    """Load a model's tokenizer file; the optional `tokenizers` package is imported lazily."""
+    try:
+        import tokenizers  # noqa: PLC0415 (optional extra, INV-ARCH-6)
+    except ImportError as e:
+        raise IProofsError(
+            ErrorKind.ENVIRONMENT, "tokenizers is not installed; install the [prompts] extra"
+        ) from e
+    tokenizer: Tokenizer = tokenizers.Tokenizer.from_file(str(path))
+    return tokenizer
+
+
+def corpus_window_v1(
+    texts: list[str],
+    tokenizer: Tokenizer,
+    count: int,
+    L: int,
+    seed: int,
+) -> list[list[int]]:
+    """Prompt generator `corpus-window/1` (RFC-0003). Any change is `corpus-window/2`.
+
+    Only `random.Random(seed).random()` is called: CPython guarantees that sequence
+    across versions, not `randrange`, `choice` or `shuffle` (INV-WL-2).
+    """
+    ids = list(tokenizer.encode("\n".join(texts), add_special_tokens=False).ids)
+    n = len(ids)
+    if n < L:
+        raise IProofsError(ErrorKind.CONFIG, f"corpus shorter than prompt length: {n} tokens < {L}")
+    rng = random.Random(seed)
+    prompts = []
+    for _ in range(count):
+        offset = math.floor(rng.random() * (n - L + 1))
+        prompts.append(ids[offset : offset + L])
+    return prompts
+
+
+def write_prompt_set(path: Path, prompts: list[list[int]]) -> str:
+    """Write `prompts.jsonl`, one JSON array of token ids per line; return its digest."""
+    write_jsonl(path, prompts)
+    return prompt_set_digest(path)
