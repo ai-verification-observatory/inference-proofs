@@ -26,6 +26,7 @@ class Event(StrEnum):
     FETCH_FAILED = "fetch.failed"
     INTEGRITY_OK = "integrity.ok"
     INTEGRITY_MISMATCH = "integrity.mismatch"
+    INTEGRITY_MODEL_REHASH = "integrity.model_rehash"
     ENV_PROBE = "env.probe"
     ENV_GPU_BUSY = "env.gpu_busy"
     GPU_FOREIGN_PROCESS = "gpu.foreign_process"
@@ -70,6 +71,7 @@ DEFAULT_LEVEL = {
     Event.SAMPLER_CGROUP_UNAVAILABLE: "warning",
     Event.CGROUP_STALE_CLEANUP: "warning",
     Event.GPU_FOREIGN_PROCESS: "warning",
+    Event.INTEGRITY_MODEL_REHASH: "info",
     Event.CONTROL_TWIN_MISMATCH: "warning",
     Event.CONTROL_DISCLOSURE_PENDING: "warning",
     Event.VALIDATE_FAIL: "error",

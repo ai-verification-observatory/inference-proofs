@@ -2,8 +2,11 @@
 
 import json
 import math
+import os
 import random
-from collections.abc import Sequence
+import shutil
+import stat
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -200,3 +203,96 @@ def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> li
     return corpus_window_v1(
         texts, tokenizer, wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
     )
+
+
+# ---------------------------------------------------------------- model fetch (RFC-0014)
+
+Download = Callable[[str, str, list[str], Path, str | None], None]
+
+
+def default_cache() -> Path:
+    return Path(os.environ.get("IPROOFS_CACHE", Path.home() / ".cache/iproofs"))
+
+
+def hub_download(repo: str, revision: str, files: list[str], into: Path, token: str | None) -> None:
+    """`huggingface_hub.snapshot_download` of exactly `files` (the `[fetch]` extra, lazy)."""
+    try:
+        from huggingface_hub import snapshot_download  # noqa: PLC0415 (INV-ARCH-6)
+    except ImportError as e:
+        raise IProofsError(
+            ErrorKind.CONFIG, "fetching weights needs the [fetch] extra (huggingface_hub)"
+        ) from e
+    try:
+        snapshot_download(
+            repo_id=repo, revision=revision, allow_patterns=files, local_dir=into, token=token
+        )
+    except Exception as e:
+        raise IProofsError(ErrorKind.FETCH, f"download of {repo}@{revision} failed: {e}") from e
+
+
+def _check_files(wl: Workload, directory: Path) -> None:
+    """RFC-0014 step 3 and 4: the exact file set, every digest, then the model digest."""
+    want = {f.path: f.sha256 for f in wl.model.files}
+    have = {
+        p.relative_to(directory).as_posix(): p
+        for p in directory.rglob("*")
+        if p.is_file() and ".cache" not in p.relative_to(directory).parts
+    }
+    missing, extra = sorted(set(want) - set(have)), sorted(set(have) - set(want))
+    if missing or extra:
+        raise IProofsError(
+            ErrorKind.INTEGRITY, f"{wl.id}: model files missing {missing}, unexpected {extra}"
+        )
+    for name, digest in want.items():
+        if file_digest(have[name]).removeprefix("sha256:") != digest.removeprefix("sha256:"):
+            raise IProofsError(ErrorKind.INTEGRITY, f"{wl.id}: {name} does not match its digest")
+    if model_digest(directory) != wl.model.digest:
+        raise IProofsError(ErrorKind.INTEGRITY, f"{wl.id}: model digest does not match")
+
+
+def ensure_model(
+    wl: Workload,
+    cache: Path,
+    *,
+    download: Download | None = None,
+    retry: Callable[[Callable[[], None]], None] = lambda op: op(),
+    token: str | None = None,
+) -> Path:
+    """Return a read-only directory whose file set and digests equal `wl.model`.
+
+    Absent: download the exact file list into a temporary sibling (`retry` wraps the call,
+    RFC-0010), check it, rename it into place and drop write permission. Present: rehash it;
+    a mismatch moves the entry to `quarantine/` and fails with `integrity`, never refetching.
+    `token` is `HF_TOKEN`, passed to `download` and nowhere else."""
+    target = cache / "models" / wl.model.digest.removeprefix("sha256:")
+    if target.is_dir():
+        try:
+            _check_files(wl, target)
+        except IProofsError:
+            quarantine = cache / "quarantine" / f"{target.name}-{os.getpid()}"
+            quarantine.parent.mkdir(parents=True, exist_ok=True)
+            _writable(target)
+            target.rename(quarantine)
+            raise
+        return target
+    tmp = target.with_name(f".tmp-{target.name}-{os.getpid()}")
+    shutil.rmtree(tmp, ignore_errors=True)
+    tmp.mkdir(parents=True)
+    try:
+        files = [f.path for f in wl.model.files]
+        fetch = download or hub_download
+        retry(lambda: fetch(wl.model.source.repo, wl.model.revision, files, tmp, token))
+        shutil.rmtree(tmp / ".cache", ignore_errors=True)  # the hub client's bookkeeping
+        _check_files(wl, tmp)
+    except BaseException:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+    tmp.rename(target)
+    for p in [*target.rglob("*"), target]:
+        p.chmod(p.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+    return target
+
+
+def _writable(directory: Path) -> None:
+    for p in [directory, *directory.rglob("*")]:
+        p.chmod(p.stat().st_mode | stat.S_IWUSR)

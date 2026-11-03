@@ -79,7 +79,14 @@ from iproofs.provenance import (
 from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
-from iproofs.workloads import load_workload, materialise_prompts, model_dir, workload_digest
+from iproofs.workloads import (
+    default_cache,
+    ensure_model,
+    load_workload,
+    materialise_prompts,
+    model_dir,
+    workload_digest,
+)
 
 # RFC-0014 §The commitment record: <job tmp>/commitment/{verifier,prover}/, never mounted
 # read-write (kept with io/ under --keep-io); prover-ro/ holds the rechecked copies mounted
@@ -300,7 +307,7 @@ class Runner:
             )
             log.log(Event.RUNNER_START, job=run_id, harness_version=__version__)
             actions: dict[str, Callable[[Job], None]] = {
-                "resolved": self._resolve,
+                "resolved": lambda j: self._resolve(j, log),
                 "image_ready": self._image,
                 "machine_recorded": self._machine,
                 "info": self._info,
@@ -414,9 +421,9 @@ class Runner:
 
     # ---------------------------------------------------------------- states
 
-    def _resolve(self, job: Job) -> None:
+    def _resolve(self, job: Job, log: JsonlLogger | None = None) -> None:
         assert job.workload is None
-        self._resolve_inputs(job)
+        self._resolve_inputs(job, log)
         assert job.workload is not None
         assert job.models is not None
         job.prompts = materialise_prompts(self.root, job.workload, job.models, job.seed)
@@ -424,7 +431,7 @@ class Runner:
         io.mkdir()
         job.prompt_set_digest = write_jsonl(io / "prompts.jsonl", job.prompts)
 
-    def _resolve_inputs(self, job: Job) -> None:
+    def _resolve_inputs(self, job: Job, log: JsonlLogger | None = None) -> None:
         """System, workload, reference file and the hash-checked model directory."""
         spec = job.spec
         system = load(self.root / "systems" / spec.system / "system.yaml", self.registry)
@@ -441,7 +448,24 @@ class Runner:
         )
         job.reference, job.reference_file = self._reference(spec)
         job.system, job.workload = system, wl
-        job.models = model_dir(self.root, wl)
+        job.models = self._models(wl, log)
+
+    def _models(self, wl: Workload, log: JsonlLogger | None) -> Path:
+        """Repository toy data (the fake systems) or the verified cache entry (RFC-0014): fetched
+        once, rehashed at every job start outside every timed scope."""
+        if wl.model.source.hub == "repository":
+            return model_dir(self.root, wl)
+        start = self.clock()
+        path = ensure_model(
+            wl,
+            default_cache(),
+            retry=lambda op: retry_fetch(op, f"model {wl.id}", log=log),
+            token=os.environ.get("HF_TOKEN"),  # to the fetch call only (docs/spec/06)
+        )
+        if log is not None:
+            seconds = span_seconds(start, self.clock())
+            log.log(Event.INTEGRITY_MODEL_REHASH, what=wl.id, seconds=seconds)
+        return path
 
     def _reference(self, spec: JobSpec) -> tuple[ReferenceFile, str]:
         """The release's reference file, or the CI file for CI-only profiles (`ci-cpu`)."""

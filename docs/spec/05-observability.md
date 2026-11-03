@@ -59,6 +59,7 @@ Rules:
 | `fetch.attempt` | info | `what`, `attempt`, `backoff_s` | each fetch attempt |
 | `fetch.failed` | error | `what`, `attempts` | fetch gives up |
 | `integrity.ok` | debug | `what`, `digest` | a hash check passes |
+| `integrity.model_rehash` | info | `what`, `seconds` | the cached weights were rehashed at job start, outside every timed scope; a diagnostic, never a published number (RFC-0014) |
 | `integrity.mismatch` | error | `what`, `expected`, `actual` | a hash check fails |
 | `env.probe` | info | `kernel`, `cgroup`, `docker`, `toolkit` | environment checked |
 | `env.gpu_busy` | error | `process_count` | another compute process found on the GPU |

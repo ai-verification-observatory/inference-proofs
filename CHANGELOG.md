@@ -17,6 +17,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 - The `fake` and `fake-broken` test systems, the `fake-tiny-ci` workload and the `ci-cpu` profile.
 - Tree gates G2 to G7 and G9, and the G10 fake-system end-to-end job (RFC-0013).
 - `review/1` and `reproduction/1` schemas with their models (RFC-0007).
+- `iproofs fetch-model WORKLOAD`: weights fetched at the pinned revision into a read-only cache, every file and the model digest checked, rehashed at every job start (RFC-0014).
 - `iproofs machine-record --selftest [--gpu INDEX] [--probe-image IMAGE_ID]`: the RFC-0011 calibration checks ST-CLOCK to ST-OOM, saved for the runner's manifests.
 - `iproofs machine-record`: the RFC-0006 machine record from allowlisted probes; every run records it before `info` and checks it again after the last step (INV-MR-2).
 - `iproofs run --runner HANDLE --runner-org ORG --affiliated SYSTEM`: the declared runner recorded in every manifest; `iproofs.release.is_unaffiliated` (RFC-0007 §Tiers).
