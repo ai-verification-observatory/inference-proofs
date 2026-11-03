@@ -59,7 +59,7 @@ These come from [AGENTS.md](AGENTS.md) and are enforced in review and, where pos
 
 ## Licences
 
-Code is Apache-2.0; specifications, data, results and reports are CC BY 4.0. See the licence section of [README.md](README.md). By contributing you agree that your contribution is licensed accordingly.
+Code is Apache-2.0; specifications, data, results and reports are CC BY 4.0. See the licence section of [README.md](README.md). By contributing you agree that your contribution is licensed accordingly. The exact boundary is INV-GOV-6 ([RFC-0001 §Governance files](rfcs/0001-process-and-governance.md#governance-files)); `uv run python -m iproofs.validate.licence --format json` prints the licence of every tracked file, and `test_licence.py` fails on a file under `systems/<name>/` that is neither an adapter part nor a claim card, external figures or a reply (rule `LIC-1`).
 
 ## Conduct
 
