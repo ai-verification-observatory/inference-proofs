@@ -5,7 +5,8 @@ Thank you for helping. This project measures provers; it does not build, rank or
 ## Issues
 
 - Open an issue for a bug, a question or a proposal. Say what you observed, what you expected, and the commit, image digest or run id involved.
-- A prover team that wants its system included opens a system inclusion issue with the upstream repository, the full commit hash, the supported workloads and at least one system maintainer ([RFC-0001 §Adding and removing a system](rfcs/0001-process-and-governance.md#adding-and-removing-a-system)).
+- A prover team that wants its system included opens a system inclusion issue ([form](.github/ISSUE_TEMPLATE/system-inclusion.yml)) with the upstream repository, the full commit hash, the supported workloads and at least one system maintainer ([RFC-0001 §Adding and removing a system](rfcs/0001-process-and-governance.md#adding-and-removing-a-system)). A team opts out with the [opt-out form](.github/ISSUE_TEMPLATE/system-opt-out.yml).
+- A peer reviewer files each objection with the [review objection form](.github/ISSUE_TEMPLATE/review-objection.yml) and links it from the review record ([RFC-0007 §Peer review before release](rfcs/0007-evidence-tiers-and-reproduction.md#peer-review-before-release)).
 - Do not report a vulnerability, or a verifier that accepts a tampered proof, in a public issue. Follow [SECURITY.md](SECURITY.md).
 
 ## Pull requests
