@@ -11,7 +11,7 @@ from iproofs.errors import ErrorKind, IProofsError
 from iproofs.log.patterns import IPV4_ALLOWED, PATTERNS, is_ipv6
 from iproofs.schema import SchemaRegistry, check_examples, load_document, parse_tree
 from iproofs.serialize import check_format
-from iproofs.validate import Finding, check_claim, check_controls_summary, check_derived
+from iproofs.validate import Finding, check_claim, check_controls_summary, check_derived, governance
 
 # RFC-0013 §G2 inputs: documents that name a schema
 G2_GLOBS = (
@@ -380,6 +380,8 @@ def validate_tree(
         found += g2_append_only(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
     found += g6_policy(root, files) + g7_pins(root, files) + g9_secrets(root, files, only or ())
+    if governance.PATH in files:
+        found += governance.check((root / governance.PATH).read_text("utf-8"))
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
 

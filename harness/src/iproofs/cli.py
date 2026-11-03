@@ -207,6 +207,10 @@ def validate(args: argparse.Namespace) -> int:
     root = repo_root(Path.cwd())
     only = None if args.all or not args.paths else [_repo_path(root, p) for p in args.paths]
     findings = validate_tree(root, only=only, base_ref=args.changed_since)
+    failures = [f for f in findings if not f.warning]
+    for f in findings:
+        if f.warning:  # stdout stays the RFC-0013 failure list; warnings never fail
+            print(f.line(), file=sys.stderr)
     if args.format == "json":
         print(
             json.dumps(
@@ -220,17 +224,17 @@ def validate(args: argparse.Namespace) -> int:
                         "message": f.message,
                         "hint": f.hint or None,
                     }
-                    for f in findings
+                    for f in failures
                 ],
                 indent=2,
             )
         )
     else:
-        for f in findings:
+        for f in failures:
             print(f.line())
-    files = len({f.path for f in findings})
-    print(f"validate: {len(findings)} failures in {files} files", file=sys.stderr)
-    return 1 if findings else 0
+    files = len({f.path for f in failures})
+    print(f"validate: {len(failures)} failures in {files} files", file=sys.stderr)
+    return 1 if failures else 0
 
 
 def _repo_path(root: Path, path: Path) -> str:

@@ -24,11 +24,13 @@ class Finding:
     kind: ErrorKind
     pointer: str = ""
     hint: str = ""
+    warning: bool = False  # printed, but does not fail the gate
 
     def line(self) -> str:
         where = f"{self.path}#{self.pointer}" if self.pointer else self.path
         fix = f" (fix: {self.hint})" if self.hint else ""
-        return f"{self.gate} {where} {self.rule}: {self.message}{fix}"
+        level = "warning: " if self.warning else ""
+        return f"{level}{self.gate} {where} {self.rule}: {self.message}{fix}"
 
 
 # Card fields that state a fact about the system and so need a source (RFC-0002 §Fields).
