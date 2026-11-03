@@ -206,13 +206,13 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
         "--tmpfs",
         f"/tmp:rw,size={tmpfs},mode=1777",
         "-v",
-        f"{io_dir}:/io:rw",
+        f"{io_dir.resolve()}:/io:rw",  # docker reads a relative path as a volume name
     ]
     if subcommand == "verify":
         argv += ["--memory", VERIFY_MEMORY]  # never a GPU, never the weights
     else:
         if models_dir is not None:
-            argv += ["-v", f"{models_dir}:/models:ro"]
+            argv += ["-v", f"{models_dir.resolve()}:/models:ro"]
         if gpu is not None and subcommand in GPU_STEPS:
             argv += ["--gpus", f"device={gpu}"]
         if memory is not None:
