@@ -53,6 +53,9 @@ results/**/io/
 *.onnx
 !harness/tests/fixtures/**
 !systems/*/tests/fixtures/**
+# the negations above must not bring back bytecode caches
+harness/tests/fixtures/**/__pycache__/
+systems/*/tests/fixtures/**/__pycache__/
 
 # coverage reports (make ci, the tests job)
 coverage.json

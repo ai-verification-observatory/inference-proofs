@@ -89,7 +89,7 @@ A deprecation is announced in the CHANGELOG and in the release report of the ben
 6. Archived proofs uploaded, one per configuration, with `uri` and digest.
 7. Candidate site and draft `index.json` built; review window opened with at least 14 days; system maintainers notified.
 8. Replies merged (optional for each team); report drafted and reviewed by every listed team.
-9. Window closed; `iproofs release freeze` run; `index.json` merged; tag `v<release>` on that commit.
+9. Window closed; [`iproofs release freeze RELEASE`](../../harness/src/iproofs/release.py) run (it stops at the first failing step with exit 1; effective tiers and target evaluation land with issues #82 and #94); `index.json` merged; tag `v<release>` on that commit.
 10. Site published from the tagged commit; sponsors and conflicts pages checked against `release.yaml` and `MAINTAINERS.md`.
 
 ## Licence split
