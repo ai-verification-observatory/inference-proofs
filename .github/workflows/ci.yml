@@ -47,3 +47,19 @@ jobs:
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --frozen --python ${{ matrix.python }}
       - run: uv run pytest harness/tests systems -q
+
+  fake-image:
+    # Builds the fake system's image; gate G10 (#124) extends this job into the end-to-end run.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: docker build --pull=false --tag iproofs-fake:ci systems/fake
+      - name: run info in the hardened container
+        run: |
+          mkdir -p io && chmod 777 io
+          printf '%s' '{"schema":"adapter-job/1","contract":"adapter/1","subcommand":"info","run_id":"2026-11-20-fake-fake-tiny-ci-ci-cpu-1","workload":{"id":"fake-tiny-ci","version":1},"shape":{"prompt_tokens":8,"output_tokens":1,"batch_size":2,"batches_per_session":3,"context_window":8},"control":false}' > io/job.json
+          docker run --rm --network none --read-only --cap-drop ALL \
+            --security-opt no-new-privileges -v "$PWD/io:/io:rw" \
+            iproofs-fake:ci info /io/job.json /io/out.json
+          grep -q '"system": "fake"' io/out.json
