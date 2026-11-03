@@ -27,6 +27,7 @@ dev = [
     "mypy>=1.13",
     "types-PyYAML>=6.0",
     "types-jsonschema>=4.23",
+    "pytest-cov>=7.1.0",
 ]
 
 [build-system]
@@ -74,3 +75,11 @@ mypy_path = "harness/src"
 # Optional extras (INV-ARCH-6) are absent from the base install that CI type-checks.
 module = ["tokenizers", "pynvml", "huggingface_hub", "huggingface_hub.*"]
 ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["iproofs"]
+branch = true
+
+[tool.coverage.report]
+# GPU-host-only code paths (NVML, systemd slices) are measured on the GPU host, not here
+exclude_also = ["if __name__ == .__main__.:"]

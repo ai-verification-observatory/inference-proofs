@@ -329,9 +329,8 @@ def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> Q
     scope_value = scopes.pop() if scopes else None
     scope = None if scope_value is None else Scope(str(scope_value))
     values = [float(v) for q in present if isinstance(v := q["value"], int | float)]
-    if not values and present:
-        reason = NullReason(str(present[0]["null_reason"]))
-        return derived("D-STAT", version, unit, scope, inputs, lambda _: _raise(reason))
+    if not values and present:  # every input is null: derived() returns their null reason
+        return derived("D-STAT", version, unit, scope, inputs, lambda _: 0.0)
     n = len(values)
     if n == 0:
         if not failed:
@@ -360,10 +359,6 @@ def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> Q
     out = derived("D-STAT", version, unit, scope, valued, lambda _: mean)
     out["stats"] = stats
     return out
-
-
-def _raise(reason: NullReason) -> float:
-    raise _Null(reason)
 
 
 # ---------------------------------------------------------------- tokens covered
