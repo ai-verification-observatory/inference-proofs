@@ -27,7 +27,6 @@ PENDING = {
     "machine-record": 73,
     "fetch-model": 132,
     "prompts build": 48,
-    "reproduce compare": 81,
     "release freeze": 93,
     "release plan": 141,
     "site build": 96,
@@ -155,6 +154,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.add_argument("orig_run", type=Path)
     p.add_argument("repro_run", type=Path)
+    p.set_defaults(handler=reproduce_compare)
 
     release = sub.add_parser("release", help="benchmark releases (RFC-0009)")
     release_sub = release.add_subparsers(dest="release_command", required=True, metavar="ACTION")
@@ -342,6 +342,36 @@ def controls(args: argparse.Namespace) -> int:
     )
     print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
     return 0
+
+
+def reproduce_compare(args: argparse.Namespace) -> int:
+    """`iproofs reproduce compare ORIG_RUN REPRO_RUN`: the RFC-0007 record; exit 1 unless the
+    outcome is within_tolerance."""
+    from iproofs.model import System, load  # noqa: PLC0415
+    from iproofs.release import compare, write_reproduction  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.validate import governance, repo_root  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    registry = SchemaRegistry.from_tree(root / "schema")
+    name = json.loads((args.orig_run / "run.json").read_text())["system"]
+    system = load(root / "systems" / name / "system.yaml", registry)
+    assert isinstance(system, System)
+    maintainers = (root / governance.PATH).read_text("utf-8")
+    orgs = [
+        r.organisation
+        for r in governance.parse(maintainers)
+        if name in {s.strip() for s in r.systems.split(",")}
+    ]
+    record = compare(
+        args.orig_run,
+        args.repro_run,
+        deterministic_proofs=bool(system.deterministic_proofs),
+        maintainer_organisations=orgs,
+    )
+    path = write_reproduction(args.orig_run, record, registry)
+    print(f"{path}: {record['outcome']}")
+    return 0 if record["outcome"] == "within_tolerance" else 1
 
 
 def _release(root: Path) -> str:
