@@ -17,6 +17,7 @@ Thank you for helping. This project measures provers; it does not build, rank or
 - A change to the public API, a schema or the methodology adds an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) (`Methodology` entries name their RFC). Releases follow [docs/runbooks/harness-release.md](docs/runbooks/harness-release.md) and [docs/runbooks/benchmark-release.md](docs/runbooks/benchmark-release.md).
 - `uv run iproofs validate` also checks `MAINTAINERS.md`: every row needs a handle, role, organisation and declared interests (`none` is valid), and the seat rules INV-GOV-1 and INV-GOV-2 apply (rule ids `GOV-1` to `GOV-3`, [RFC-0001 §Roles](rfcs/0001-process-and-governance.md#roles)).
 - A change that touches a system's files (`systems/<name>/`, its results, targets or replies) declares any interest in that system in the description. A maintainer with a declared interest does not merge it ([MAINTAINERS.md](MAINTAINERS.md)).
+- The `merge-guard` check enforces this (INV-GOV-4, rule `GOV-5`): when a pull request touches `systems/<name>/` or `results/<release>/<name>/` and every approving maintainer declared an interest in `<name>` (in "Declared interests" or "Systems maintained"), the check fails until a maintainer without that interest approves; that maintainer merges. The check reads approvals, because the platform names the merger only after the merge. Where the check cannot run (a fork without Actions, an outage), reviewers make the same comparison by hand against [MAINTAINERS.md](MAINTAINERS.md) before merging.
 
 ## RFCs
 
