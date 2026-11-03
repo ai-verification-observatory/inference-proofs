@@ -1,0 +1,336 @@
+{
+  "$defs": {
+    "prover": {
+      "additionalProperties": false,
+      "properties": {
+        "container_runtime": {
+          "additionalProperties": false,
+          "properties": {
+            "cgroup_driver": {
+              "enum": [
+                "systemd",
+                "cgroupfs"
+              ]
+            },
+            "docker_engine_min": {
+              "pattern": "^[0-9]+(\\.[0-9]+)*$",
+              "type": "string"
+            },
+            "nvidia_container_toolkit_min": {
+              "pattern": "^[0-9]+(\\.[0-9]+)*$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "docker_engine_min",
+            "nvidia_container_toolkit_min",
+            "cgroup_driver"
+          ],
+          "type": "object"
+        },
+        "cpu": {
+          "additionalProperties": false,
+          "properties": {
+            "logical_cpus_on_gpu_numa_node": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "logical_cpus_total_min": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "logical_cpus_on_gpu_numa_node",
+            "logical_cpus_total_min"
+          ],
+          "type": "object"
+        },
+        "disk": {
+          "additionalProperties": false,
+          "properties": {
+            "free_gib_min": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "free_gib_min"
+          ],
+          "type": "object"
+        },
+        "driver": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "gpu": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "count": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "form_factor": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "memory_mib_min": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "model": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "model",
+                "form_factor",
+                "count",
+                "memory_mib_min"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "host_memory_gib_min": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kernel_min": {
+          "pattern": "^[0-9]+(\\.[0-9]+)*$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "prover"
+        },
+        "os": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version_id": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version_id"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "kind",
+        "gpu",
+        "cpu",
+        "host_memory_gib_min",
+        "disk",
+        "os",
+        "kernel_min",
+        "driver",
+        "container_runtime"
+      ],
+      "type": "object"
+    },
+    "verifier": {
+      "additionalProperties": false,
+      "properties": {
+        "cpu": {
+          "additionalProperties": false,
+          "properties": {
+            "logical_cpus": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "logical_cpus"
+          ],
+          "type": "object"
+        },
+        "emulation": {
+          "additionalProperties": false,
+          "properties": {
+            "allowed_on": {
+              "items": {
+                "$ref": "../quantity/1.schema.json#/$defs/profileId"
+              },
+              "type": "array",
+              "uniqueItems": true
+            }
+          },
+          "required": [
+            "allowed_on"
+          ],
+          "type": "object"
+        },
+        "gpu": {
+          "type": "null"
+        },
+        "host_memory_gib": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kind": {
+          "const": "verifier"
+        }
+      },
+      "required": [
+        "kind",
+        "gpu",
+        "cpu",
+        "host_memory_gib",
+        "emulation"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/reference/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cost": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "date": {
+          "format": "date",
+          "type": "string"
+        },
+        "not_priced": {
+          "items": {
+            "enum": [
+              "gpu",
+              "cpu",
+              "host_memory",
+              "disk",
+              "network"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "price_per_gpu_hour_usd": {
+          "allOf": [
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/quantity"
+            }
+          ],
+          "properties": {
+            "grade": {
+              "const": "asserted"
+            },
+            "scope": {
+              "type": "null"
+            },
+            "unit": {
+              "const": "USD/gpu_hour"
+            }
+          }
+        },
+        "priced": {
+          "items": {
+            "enum": [
+              "gpu",
+              "cpu",
+              "host_memory",
+              "disk",
+              "network"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "providers": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "price_per_gpu_hour_usd",
+        "basis",
+        "providers",
+        "date",
+        "priced",
+        "not_priced"
+      ],
+      "type": "object"
+    },
+    "profiles": {
+      "additionalProperties": {
+        "else": {
+          "$ref": "#/$defs/verifier"
+        },
+        "if": {
+          "properties": {
+            "kind": {
+              "const": "prover"
+            }
+          }
+        },
+        "properties": {
+          "kind": {
+            "enum": [
+              "prover",
+              "verifier"
+            ]
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "then": {
+          "$ref": "#/$defs/prover"
+        },
+        "type": "object"
+      },
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "../quantity/1.schema.json#/$defs/profileId"
+      },
+      "type": "object"
+    },
+    "release": {
+      "anyOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+        },
+        {
+          "const": "ci"
+        }
+      ]
+    },
+    "schema": {
+      "const": "reference/1"
+    }
+  },
+  "required": [
+    "schema",
+    "release",
+    "profiles",
+    "cost"
+  ],
+  "title": "Reference profiles and cost basis: reference/<release>.yaml (RFC-0006 §Reference file)",
+  "type": "object"
+}

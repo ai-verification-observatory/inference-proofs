@@ -52,6 +52,7 @@ Specified in [RFC-0012](../../rfcs/0012-schemas-and-serialization.md). Every doc
 | Workload | `workloads/<id>.yaml` | authored | `workload/1` |
 | Prompt corpus | `workloads/prompts/corpus.yaml` | authored | `corpus/1` |
 | Reference hardware and cost | `reference/<release>.yaml` | authored | `reference/1` |
+| CI profile (never released) | `reference/ci.yaml` | authored | `reference/1` |
 | Target | `targets/<author>/<id>.yaml` | authored | `target/1` |
 | Release record | `releases/<release>/release.yaml` | authored | `release/1` |
 | Run result | `results/.../run.json` | generated | `run/1` |
