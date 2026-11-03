@@ -1,0 +1,92 @@
+import shutil
+from pathlib import Path
+
+import pytest
+
+from iproofs.errors import ErrorKind, IProofsError
+from iproofs.provenance import file_digest
+from iproofs.schema import SchemaRegistry
+from iproofs.workloads import load_workload, workload_digest
+
+ROOT = Path(__file__).resolve().parents[3]
+EXAMPLE = ROOT / "schema/workload/examples/valid/fake-tiny-ci.yaml"
+
+
+@pytest.fixture(scope="module")
+def registry() -> SchemaRegistry:
+    return SchemaRegistry.from_tree(ROOT / "schema")
+
+
+@pytest.fixture
+def tree(tmp_path: Path) -> Path:
+    (tmp_path / "workloads").mkdir()
+    shutil.copy(EXAMPLE, tmp_path / "workloads/fake-tiny-ci.yaml")
+    for system in ("fake", "fake-broken"):
+        (tmp_path / "systems" / system).mkdir(parents=True)
+        (tmp_path / "systems" / system / "system.yaml").write_text("schema: system/1\n")
+    return tmp_path
+
+
+def edit(tree: Path, old: str, new: str) -> None:
+    p = tree / "workloads/fake-tiny-ci.yaml"
+    text = p.read_text()
+    assert old in text
+    p.write_text(text.replace(old, new))
+
+
+def config_error(tree: Path, registry: SchemaRegistry, **kw: int) -> str:
+    with pytest.raises(IProofsError) as e:
+        load_workload("fake-tiny-ci", root=tree, registry=registry, **kw)
+    assert e.value.kind is ErrorKind.CONFIG
+    return e.value.message
+
+
+def test_valid_workload_loads(tree: Path, registry: SchemaRegistry) -> None:
+    wl = load_workload("fake-tiny-ci", 1, root=tree, registry=registry)
+    assert wl.shape.batch_size == 2
+    assert workload_digest(tree, "fake-tiny-ci") == file_digest(
+        tree / "workloads/fake-tiny-ci.yaml"
+    )
+
+
+def test_inv_wl4(tree: Path, registry: SchemaRegistry) -> None:
+    edit(tree, "count: 6", "count: 5")
+    assert "INV-WL-4: prompts.count 5 != shape.batch_size 2" in config_error(tree, registry)
+
+
+def test_inv_wl4_length_rule(tree: Path, registry: SchemaRegistry) -> None:
+    edit(tree, "length_rule: {prompt_tokens: 8}", "length_rule: {prompt_tokens: 9}")
+    assert "prompts.length_rule.prompt_tokens 9 != shape.prompt_tokens 8" in config_error(
+        tree, registry
+    )
+
+
+def test_context_window_check(tree: Path, registry: SchemaRegistry) -> None:
+    edit(tree, "context_window: 8", "context_window: 7")
+    assert "shape.context_window 7 < prompt_tokens + output_tokens - 1 = 8" in config_error(
+        tree, registry
+    )
+
+
+def test_tokenizer_file_listed(tree: Path, registry: SchemaRegistry) -> None:
+    edit(tree, 'tokenizer_file: "tokenizer.json"', 'tokenizer_file: "vocab.txt"')
+    assert "model.tokenizer_file 'vocab.txt' is not in model.files" in config_error(tree, registry)
+
+
+def test_unknown_system_in_workload(tree: Path, registry: SchemaRegistry) -> None:
+    shutil.rmtree(tree / "systems/fake-broken")
+    assert "'fake-broken' has no systems/fake-broken/system.yaml" in config_error(tree, registry)
+
+
+def test_version_mismatch(tree: Path, registry: SchemaRegistry) -> None:
+    assert "version 1 != requested version 2" in config_error(tree, registry, version=2)
+
+
+def test_unknown_workload(tree: Path, registry: SchemaRegistry) -> None:
+    with pytest.raises(IProofsError, match="unknown workload 'nope'"):
+        load_workload("nope", root=tree, registry=registry)
+
+
+def test_schema_violation_is_config_error(tree: Path, registry: SchemaRegistry) -> None:
+    edit(tree, 'rule: "greedy"', 'rule: "sampled"')
+    assert "/decoding/rule" in config_error(tree, registry)
