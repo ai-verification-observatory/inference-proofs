@@ -18,6 +18,7 @@ import yaml
 
 from iproofs import cli
 from iproofs.adapter import DockerRunner, StepResult
+from iproofs.provenance import file_records
 from iproofs.validate import check_derived
 from iproofs.validate.tree import validate_tree
 
@@ -191,11 +192,13 @@ def test_path_traversal_rejected(repo: Path, image: Image) -> None:
 def test_commitment_from_record(repo: Path, image: Image, monkeypatch: pytest.MonkeyPatch) -> None:
     """AGENTS.md rule 6: every verify call gets the commitment the harness recorded."""
     sent: list[dict[str, object]] = []
+    used: list[list[dict[str, object]]] = []
     inner = DockerRunner.run
 
     def spy(self: DockerRunner, image: str, sub: str, io_dir: Path, **kw: Any) -> StepResult:
         if sub == "verify":
             sent.append(json.loads((io_dir / "job.json").read_text()))
+            used.append(file_records(sorted((io_dir / "verifier").glob("*"))))
         return inner(self, image, sub, io_dir, **kw)
 
     monkeypatch.setattr(DockerRunner, "run", spy)
@@ -205,6 +208,7 @@ def test_commitment_from_record(repo: Path, image: Image, monkeypatch: pytest.Mo
     assert isinstance(recorded, dict)
     assert sent
     assert {job["commitment_id"] for job in sent} == {recorded["commitment_id"]}
+    assert all(files == recorded["verifier_files"] for files in used)  # digests as recorded
 
 
 @pytest.mark.skipif(not REAL, reason="needs real containers (IPROOFS_REAL_DOCKER=1)")

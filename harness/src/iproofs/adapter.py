@@ -10,7 +10,7 @@ import stat
 import subprocess
 import sys
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Protocol
@@ -162,6 +162,7 @@ class ContainerRunner(Protocol):
         mems: str,
         memory: str | None,
         timeout_s: float,
+        ro_mounts: Sequence[tuple[Path, str]] = (),
     ) -> StepResult: ...
 
 
@@ -183,6 +184,7 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
     mems: str,
     memory: str | None,
     tmpfs: str = "1g",
+    ro_mounts: Sequence[tuple[Path, str]] = (),
 ) -> list[str]:
     """`docker create` arguments for one adapter call (RFC-0005 §Container invocation)."""
     argv = [
@@ -208,6 +210,8 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
         "-v",
         f"{io_dir.resolve()}:/io:rw",  # docker reads a relative path as a volume name
     ]
+    for host, target in ro_mounts:  # recorded commitment files over their /io paths (RFC-0014)
+        argv += ["-v", f"{host.resolve()}:{target}:ro"]
     if subcommand == "verify":
         argv += ["--memory", VERIFY_MEMORY]  # never a GPU, never the weights
     else:
@@ -264,6 +268,7 @@ class DockerRunner:
         mems: str,
         memory: str | None,
         timeout_s: float,
+        ro_mounts: Sequence[tuple[Path, str]] = (),
     ) -> StepResult:
         argv = docker_create_argv(
             image,
@@ -274,6 +279,7 @@ class DockerRunner:
             cpuset=cpuset,
             mems=mems,
             memory=memory,
+            ro_mounts=ro_mounts,
         )
         give_io_to_adapter(io_dir)
         try:
@@ -321,7 +327,10 @@ class InProcessRunner:
         mems: str,
         memory: str | None,
         timeout_s: float,
+        ro_mounts: Sequence[tuple[Path, str]] = (),
     ) -> StepResult:
+        """`ro_mounts` cannot be enforced without a container; the harness has already placed
+        the recorded copies at those paths."""
         argv = [sys.executable, str(self.entrypoint), subcommand, "/io/job.json", "/io/out.json"]
         env = {**os.environ, **self.env, "IPROOFS_IO": str(io_dir)}
         if models_dir is not None and subcommand != "verify":
