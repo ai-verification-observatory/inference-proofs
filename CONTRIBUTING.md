@@ -38,6 +38,7 @@ A claim card copies what the system's documentation states at the pinned commit 
 - Run the checks locally before you push: `make ci` runs the same commands, in the same order, as `.github/workflows/ci.yml`. The full gate list is [RFC-0013](rfcs/0013-validation-and-ci.md).
 - `uv run iproofs validate` runs the tree gates (schemas, cross-references, append-only results, file sizes, canonical JSON, derived recompute, labels) and prints one line per failure; `--format json` gives the same list for tools, and `--changed-since origin/main` adds the append-only check against a base branch.
 - A test that fails intermittently is a bug: fix it or quarantine it with an issue number ([docs/spec/07-testing-strategy.md §Flaky-test policy](docs/spec/07-testing-strategy.md#flaky-test-policy)).
+- Gate G8 checks neutral language (AGENTS.md rule 10, [RFC-0013 §G8](rfcs/0013-validation-and-ci.md#g8-neutral-language-lint)) in `docs/`, `rfcs/`, `reports/`, `site/`, system READMEs and claim cards: no ranking or overstating word from the RFC list (`LANG-1`) and no emoji (`LANG-2`). Quote a word to mention it; a reviewed `<!-- lang-allow: <word> <reason> -->` on the line above allows one use and prints a notice.
 - GPU work runs on a GPU host, never in hosted CI.
 
 ## Hard rules

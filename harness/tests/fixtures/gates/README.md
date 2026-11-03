@@ -15,3 +15,5 @@ Each file here must fail one CI gate with one rule id (RFC-0013 §Failure modes 
 | `G6/entrypoint-unlisted` | G6 | POL-3 |
 | `G7/Dockerfile-unpinned` | G7 | PIN-1, PIN-2, PIN-5 |
 | `G7/reference-range.yaml` | G7 | PIN-4 |
+| `G8/listed-word.md` | G8 | LANG-1 |
+| `G8/emoji.md` | G8 | LANG-2 |
