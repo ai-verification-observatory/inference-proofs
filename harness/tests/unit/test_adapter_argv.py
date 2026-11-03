@@ -135,10 +135,11 @@ def test_nonzero_exit_has_no_out(tmp_path: Path) -> None:
     assert result.stderr_tail == ("upstream crashed",)
 
 
-def test_only_the_adapter_module_starts_containers() -> None:
+def test_only_adapter_and_measure_touch_docker() -> None:
+    # INV-ARCH-3: adapter builds the argv, measure.timed_call runs it
     offenders = [
         p.name
         for p in (ROOT / "harness/src/iproofs").rglob("*.py")
-        if '"docker"' in p.read_text() and p.name != "adapter.py"
+        if '"docker"' in p.read_text() and p.name not in {"adapter.py", "measure.py"}
     ]
     assert offenders == []
