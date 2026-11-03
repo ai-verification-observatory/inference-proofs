@@ -16,6 +16,8 @@ Every pull request that changes the public API, a schema or the methodology adds
 - JSON Schemas under `schema/`, each with valid and invalid examples.
 - The `fake` and `fake-broken` test systems, the `fake-tiny-ci` workload and the `ci-cpu` profile.
 - Tree gates G2 to G7 and G9, and the G10 fake-system end-to-end job (RFC-0013).
+- `review/1` and `reproduction/1` schemas with their models (RFC-0007).
+- `iproofs reproduce compare ORIG_RUN REPRO_RUN`: eligibility, the tolerance rule, verdict and digest matching, and the `reproduction/1` record (RFC-0007).
 
 ### Changed
 
