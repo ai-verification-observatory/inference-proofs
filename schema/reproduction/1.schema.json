@@ -1,0 +1,218 @@
+{
+  "$defs": {
+    "stats": {
+      "additionalProperties": false,
+      "properties": {
+        "mean": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "n": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stdev": {
+          "minimum": 0,
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "mean",
+        "n",
+        "stdev"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/reproduction/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "comparisons": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bound": {
+            "minimum": 0,
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "difference": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "metric": {
+            "$ref": "../quantity/1.schema.json#/$defs/metricId"
+          },
+          "original": {
+            "$ref": "#/$defs/stats"
+          },
+          "reproduction": {
+            "$ref": "#/$defs/stats"
+          },
+          "scope": {
+            "$ref": "../quantity/1.schema.json#/$defs/quantityCore/properties/scope"
+          },
+          "unit": {
+            "$ref": "../quantity/1.schema.json#/$defs/quantityCore/properties/unit"
+          },
+          "within": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "bound",
+          "difference",
+          "metric",
+          "original",
+          "reproduction",
+          "scope",
+          "unit",
+          "within"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "digests": {
+      "additionalProperties": false,
+      "properties": {
+        "matched": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "matched",
+        "required"
+      ],
+      "type": "object"
+    },
+    "eligibility": {
+      "additionalProperties": false,
+      "properties": {
+        "clean_build": {
+          "type": "boolean"
+        },
+        "different_machine": {
+          "type": "boolean"
+        },
+        "repetitions": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "same_image_digest": {
+          "type": "boolean"
+        },
+        "same_profile": {
+          "type": "boolean"
+        },
+        "same_release": {
+          "type": "boolean"
+        },
+        "same_workload_digests": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "clean_build",
+        "different_machine",
+        "repetitions",
+        "same_image_digest",
+        "same_profile",
+        "same_release",
+        "same_workload_digests"
+      ],
+      "type": "object"
+    },
+    "fresh_seed_runs": {
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/runId"
+      },
+      "type": "array"
+    },
+    "original_run_ids": {
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/runId"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "outcome": {
+      "enum": [
+        "within_tolerance",
+        "outside_tolerance",
+        "ineligible"
+      ]
+    },
+    "reproduction_run_ids": {
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/runId"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "runner": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliated_systems": {
+          "items": {
+            "$ref": "../quantity/1.schema.json#/$defs/systemId"
+          },
+          "type": "array"
+        },
+        "handle": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "organisation": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "affiliated_systems",
+        "handle",
+        "organisation"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "reproduction/1"
+    },
+    "verdicts_match": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "comparisons",
+    "digests",
+    "eligibility",
+    "fresh_seed_runs",
+    "original_run_ids",
+    "outcome",
+    "reproduction_run_ids",
+    "runner",
+    "schema",
+    "verdicts_match"
+  ],
+  "title": "Reproduction record (RFC-0007 \u00a7Reproduction record)",
+  "type": "object"
+}

@@ -1,0 +1,18 @@
+{
+  "checks": {
+    "configuration": "pass",
+    "controls": "pass",
+    "derived_numbers": "pass",
+    "logs": "fail",
+    "pins": "pass"
+  },
+  "date": "2027-01-20",
+  "objections": [],
+  "outcome": "approved",
+  "reviewer": {
+    "handle": "example",
+    "organisation": "Example Org"
+  },
+  "run_id": "2027-01-10-flashprove-fp-maverick-w1024-b24-prover-h100-1",
+  "schema": "review/1"
+}
