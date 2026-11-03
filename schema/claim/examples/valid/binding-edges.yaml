@@ -1,0 +1,31 @@
+schema: "claim/1"
+system: "fake"
+configuration: "default"
+card_version: 1
+upstream: {repo: "ai-verification-observatory/inference-proofs", commit: "0123456789abcdef0123456789abcdef01234567"}
+claim_class: "other/other/other"
+relation: "not stated"
+security:
+  notion: {kind: "not_stated", verifier: "not stated"}
+  level: "not stated"
+  model: {assumption: "not stated", adversary: "not_stated"}
+  setup: "not_stated"
+zero_knowledge: {claimed: "not stated", hidden: "not stated", not_hidden: "not stated", status: "not_stated"}
+assumptions: []
+assumptions_not_stated: true
+coverage:
+  phase: "not_stated"
+  unit: "other"
+  tokens_covered: "not stated"
+  operations: "not stated"
+  policy: {kind: "not_stated", detail: "not stated"}
+binding:
+  edges:
+    - {edge: "layer output to next layer input", state: "bound", switch: "--unsound-skip-example", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md"}
+    - {edge: "weights to commitment", state: "not_stated", switch: null, source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md"}
+residual: ["not stated"]
+availability: "available"
+sources: {}
+reviewed_by:
+  - {handle: "example-maintainer", organisation: "Example Org", date: "2027-02-20", card_version: 1}
+forbidden_flags: ["--unsound-skip-"]

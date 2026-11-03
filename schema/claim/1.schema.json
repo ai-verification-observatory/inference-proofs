@@ -1,0 +1,439 @@
+{
+  "$defs": {
+    "edge": {
+      "additionalProperties": false,
+      "properties": {
+        "edge": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/sourceRef"
+        },
+        "state": {
+          "enum": [
+            "bound",
+            "unbound",
+            "absent",
+            "not_stated"
+          ]
+        },
+        "switch": {
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "edge",
+        "state",
+        "switch",
+        "source"
+      ],
+      "type": "object"
+    },
+    "sourceRef": {
+      "$comment": "a URL that contains the full 40-hex upstream commit, or a repository path at a full commit",
+      "pattern": "^(https://\\S*[0-9a-f]{40}\\S*|[A-Za-z0-9_./-]+@[0-9a-f]{40})$",
+      "type": "string"
+    },
+    "text": {
+      "minLength": 1,
+      "type": "string"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/claim/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "assumptions may be empty only with assumptions_not_stated: true",
+      "if": {
+        "properties": {
+          "assumptions": {
+            "maxItems": 0
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "assumptions_not_stated": {
+            "const": true
+          }
+        },
+        "required": [
+          "assumptions_not_stated"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "assumptions": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "assumptions_not_stated": {
+      "type": "boolean"
+    },
+    "availability": {
+      "enum": [
+        "available",
+        "preview",
+        "research"
+      ]
+    },
+    "binding": {
+      "anyOf": [
+        {
+          "const": "not stated"
+        },
+        {
+          "additionalProperties": false,
+          "oneOf": [
+            {
+              "required": [
+                "edges"
+              ]
+            },
+            {
+              "required": [
+                "statement"
+              ]
+            }
+          ],
+          "properties": {
+            "edges": {
+              "items": {
+                "$ref": "#/$defs/edge"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "statement": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      ]
+    },
+    "card_version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "claim_class": {
+      "pattern": "^(next-token|greedy-continuation|segment-grid|other)/(exact-match|tolerance|other)/(committed-weights|public-weights|other)$",
+      "type": "string"
+    },
+    "configuration": {
+      "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+    },
+    "coverage": {
+      "additionalProperties": false,
+      "properties": {
+        "operations": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "phase": {
+          "enum": [
+            "prefill",
+            "decode",
+            "both",
+            "not_stated"
+          ]
+        },
+        "policy": {
+          "additionalProperties": false,
+          "properties": {
+            "detail": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "kind": {
+              "enum": [
+                "exact_match",
+                "tolerance",
+                "other",
+                "not_stated"
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "detail"
+          ],
+          "type": "object"
+        },
+        "tokens_covered": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "unit": {
+          "enum": [
+            "request",
+            "sequence",
+            "segment_grid",
+            "other"
+          ]
+        }
+      },
+      "required": [
+        "phase",
+        "unit",
+        "tokens_covered",
+        "operations",
+        "policy"
+      ],
+      "type": "object"
+    },
+    "forbidden_flags": {
+      "items": {
+        "pattern": "^-",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "quality_gap": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "metric": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "source": {
+            "$ref": "#/$defs/sourceRef"
+          },
+          "value": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "metric",
+          "value",
+          "source"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "relation": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "relation_formal": {
+      "anyOf": [
+        {
+          "const": "not stated"
+        },
+        {
+          "$ref": "#/$defs/sourceRef"
+        }
+      ]
+    },
+    "residual": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "reviewed_by": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "card_version": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "date": {
+            "format": "date",
+            "type": "string"
+          },
+          "handle": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "organisation": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "organisation",
+          "date",
+          "card_version"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "claim/1"
+    },
+    "security": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "$comment": "exact declared form, never a rounded headline number",
+          "minLength": 1,
+          "type": "string"
+        },
+        "model": {
+          "additionalProperties": false,
+          "properties": {
+            "adversary": {
+              "enum": [
+                "classical",
+                "quantum",
+                "not_stated"
+              ]
+            },
+            "assumption": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "assumption",
+            "adversary"
+          ],
+          "type": "object"
+        },
+        "notion": {
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "soundness",
+                "knowledge_soundness",
+                "other",
+                "not_stated"
+              ]
+            },
+            "verifier": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "verifier"
+          ],
+          "type": "object"
+        },
+        "setup": {
+          "enum": [
+            "transparent",
+            "trusted",
+            "not_applicable",
+            "not_stated"
+          ]
+        }
+      },
+      "required": [
+        "notion",
+        "level",
+        "model",
+        "setup"
+      ],
+      "type": "object"
+    },
+    "sources": {
+      "additionalProperties": {
+        "$ref": "#/$defs/sourceRef"
+      },
+      "type": "object"
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "type": "object"
+    },
+    "zero_knowledge": {
+      "additionalProperties": false,
+      "properties": {
+        "claimed": {
+          "anyOf": [
+            {
+              "const": "not stated"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "hidden": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "not_hidden": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "proved",
+            "tested",
+            "proved_and_tested",
+            "neither",
+            "not_stated"
+          ]
+        }
+      },
+      "required": [
+        "claimed",
+        "hidden",
+        "not_hidden",
+        "status"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "system",
+    "configuration",
+    "card_version",
+    "upstream",
+    "claim_class",
+    "relation",
+    "security",
+    "zero_knowledge",
+    "assumptions",
+    "coverage",
+    "binding",
+    "residual",
+    "availability",
+    "sources",
+    "reviewed_by"
+  ],
+  "title": "Claim card: systems/<name>/claim.yaml or systems/<name>/claims/<configuration>.yaml (RFC-0002 §Fields)",
+  "type": "object"
+}
