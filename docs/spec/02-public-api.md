@@ -22,6 +22,7 @@ iproofs validate [PATH ...]
 iproofs derive RUN_DIR [--check]
 iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR] [--control-suite]
             [--provider NAME] [--prompts-from RUN_DIR] [--allow-nonconforming]
+            [--keep-io]                     # keep io/ with proofs, for `iproofs controls RUN_DIR`
             [--in-process]                  # test systems only: run the entrypoint as a local process
 iproofs controls RUN_DIR [--prepare-perturbed WORKLOAD]
 iproofs machine-record [--selftest]

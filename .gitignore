@@ -31,6 +31,8 @@ site/_build/
 # Runner scratch inside a results tree (RFC-0010): staging dirs and the lock
 results/**/.staging-*/
 results/.runner.lock
+# job io directories kept with --keep-io hold proof bytes (RFC-0009: never committed)
+results/**/io/
 
 # Secrets (AGENTS.md rule 7)
 .env

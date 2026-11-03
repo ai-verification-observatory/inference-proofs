@@ -11,16 +11,20 @@ import sys
 import traceback
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from iproofs import __version__
 from iproofs.errors import ErrorKind, IProofsError, Phase, exit_code
+
+if TYPE_CHECKING:
+    from iproofs.adapter import ContainerRunner
+    from iproofs.schema import SchemaRegistry
 
 Handler = Callable[[argparse.Namespace], int]
 
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
     "validate": 119,
-    "controls": 89,
     "machine-record": 73,
     "fetch-model": 132,
     "prompts build": 48,
@@ -106,6 +110,11 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--prompts-from", type=Path, metavar="RUN_DIR")
     p.add_argument("--allow-nonconforming", action="store_true")
     p.add_argument(
+        "--keep-io",
+        action="store_true",
+        help="keep the job io directory, with proofs, in the run directory",
+    )
+    p.add_argument(
         "--in-process",
         action="store_true",
         help="run a test system's entrypoint as a local process instead of a container",
@@ -113,6 +122,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.set_defaults(handler=run)
 
     p = command("controls", "run the negative-control suite against a run (RFC-0008)")
+    p.set_defaults(handler=controls)
     p.add_argument("run_dir", type=Path, nargs="?")
     p.add_argument("--prepare-perturbed", metavar="WORKLOAD")
 
@@ -180,48 +190,18 @@ def derive(args: argparse.Namespace) -> int:
 
 def run(args: argparse.Namespace) -> int:
     """`iproofs run`: N repetitions; exit 4 when any job was recorded as failed."""
-    from iproofs.adapter import ContainerRunner, DockerRunner, InProcessRunner  # noqa: PLC0415
-    from iproofs.model import System, load  # noqa: PLC0415
-    from iproofs.runner import JobSpec, Runner  # noqa: PLC0415
-    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.runner import JobSpec, Runner, recorded_seed  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.workloads import load_workload  # noqa: PLC0415
 
-    unsupported = [
-        flag
-        for flag, on in (
-            ("--control-suite", args.control_suite),
-            ("--provider", args.provider),
-            ("--allow-nonconforming", args.allow_nonconforming),
-        )
-        if on
-    ]
-    if unsupported:
-        raise IProofsError(
-            ErrorKind.CONFIG, f"not implemented yet: {unsupported} (issues #89, #75)"
-        )
+    if args.allow_nonconforming:
+        raise IProofsError(ErrorKind.CONFIG, "--allow-nonconforming is not implemented yet (#75)")
     root = repo_root(Path.cwd())
-    registry = SchemaRegistry.from_tree(root / "schema")
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
-    system = load(system_file, registry)
-    assert isinstance(system, System)
-    if args.in_process:
-        if system.kind != "test":
-            raise IProofsError(ErrorKind.CONFIG, "--in-process is for test systems only")
-        # a test system cannot contain its own commit; the harness passes the pinned one
-        upstream = {"IPROOFS_FAKE_UPSTREAM": system.upstream.commit} if system.upstream else {}
-        containers: ContainerRunner = InProcessRunner(
-            system_file.parent / "entrypoint", registry, env=upstream
-        )
-        image = "local/in-process@sha256:" + "0" * 64  # never started; recorded as such
-    else:
-        containers, image = DockerRunner(registry), None
-    from iproofs.workloads import load_workload  # noqa: PLC0415
-
+    containers, image, registry = _containers(system_file, args.in_process)
     wl = load_workload(args.workload, root=root, registry=registry)
-    from iproofs.runner import recorded_seed  # noqa: PLC0415
-
     seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
     runner = Runner(
         containers,
@@ -230,6 +210,7 @@ def run(args: argparse.Namespace) -> int:
         image=image,
         provider=args.provider or "undeclared",
         replay_seed=seed,
+        keep_io=args.keep_io,
     )
     spec = JobSpec(
         args.system,
@@ -242,12 +223,50 @@ def run(args: argparse.Namespace) -> int:
         _release(root),
     )
     dirs = runner.run_many(spec, args.repetitions)
-    failed = [
-        d.name for d in dirs if json.loads((d / "run.json").read_text())["status"] == "failed"
-    ]
     for d in dirs:
         print(d)
-    return 4 if failed else 0
+    statuses = [json.loads((d / "run.json").read_text())["status"] for d in dirs]
+    return 4 if "failed" in statuses else 0
+
+
+def _containers(
+    system_file: Path, in_process: bool
+) -> tuple["ContainerRunner", str | None, "SchemaRegistry"]:
+    """The container runner for a system; in process only for test systems."""
+    from iproofs.adapter import DockerRunner, InProcessRunner  # noqa: PLC0415
+    from iproofs.model import System, load  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+
+    registry = SchemaRegistry.from_tree(system_file.parents[2] / "schema")
+    system = load(system_file, registry)
+    assert isinstance(system, System)
+    if not in_process:
+        return DockerRunner(registry), None, registry
+    if system.kind != "test":
+        raise IProofsError(ErrorKind.CONFIG, "--in-process is for test systems only")
+    # a test system cannot contain its own commit; the harness passes the pinned one
+    upstream = {"IPROOFS_FAKE_UPSTREAM": system.upstream.commit} if system.upstream else {}
+    runner = InProcessRunner(system_file.parent / "entrypoint", registry, env=upstream)
+    return runner, "local/in-process@sha256:" + "0" * 64, registry
+
+
+def controls(args: argparse.Namespace) -> int:
+    """`iproofs controls RUN_DIR`: add controls.json to a completed run kept with --keep-io."""
+    from iproofs.runner import Runner, controls_for_run  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    if args.prepare_perturbed:
+        raise IProofsError(ErrorKind.INTERNAL, "--prepare-perturbed is not implemented yet (#90)")
+    if args.run_dir is None:
+        raise IProofsError(ErrorKind.CONFIG, "give a RUN_DIR")
+    root = repo_root(Path.cwd())
+    system = json.loads((args.run_dir / "run.json").read_text())["system"]
+    image_ref = json.loads((args.run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
+    containers, _, registry = _containers(
+        root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
+    )
+    print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    return 0
 
 
 def _release(root: Path) -> str:
