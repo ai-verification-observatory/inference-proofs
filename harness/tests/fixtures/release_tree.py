@@ -42,7 +42,7 @@ def commit(root: Path, message: str, *paths: str) -> str:
     return git(root, "rev-parse", "HEAD")
 
 
-def build(root: Path, runs: int = 5) -> Path:
+def build(root: Path, runs: int = 5, card_text: str | None = None) -> Path:
     for rel in COPY:
         src, dst = ROOT / rel, root / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -55,7 +55,7 @@ def build(root: Path, runs: int = 5) -> Path:
     adapter = commit(root, "adapter", "systems/fake/system.yaml")  # only it: a stable hash
     card = root / "systems/fake/claims/default.yaml"
     card.parent.mkdir(parents=True)
-    card.write_text("# fixture claim card, read only for its digest\n")
+    card.write_text(card_text or "# fixture claim card, read only for its digest\n")
     dirs = generate(root, runs)
     for i, d in enumerate(dirs):
         m = json.loads((d / "manifest.json").read_text())

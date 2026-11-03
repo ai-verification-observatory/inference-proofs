@@ -23,7 +23,7 @@ from iproofs.derive import statistic
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Release, load
 from iproofs.provenance import file_digest
-from iproofs.quantity import Tier, lowest_tier
+from iproofs.quantity import Tier, claim_class_matches, lowest_tier
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -448,11 +448,10 @@ def freeze(
     gates: Callable[[list[str]], list[str]],
     maintainers: Mapping[str, Sequence[str]] | None = None,
 ) -> dict[str, object]:
-    """RFC-0009 §Freeze algorithm, steps 1 to 7 and 9 (targets stay empty until step 8
-    lands). `gates` runs G2 to G7 over repository paths and returns the failing lines;
-    `maintainers` maps a system to its maintainers' organisations (MAINTAINERS.md). Returns
-    the `release-index/1` document; nothing is written and no clock is read, so the same
-    inputs give the same bytes."""
+    """RFC-0009 §Freeze algorithm, steps 1 to 9. `gates` runs G2 to G7 over repository paths
+    and returns the failing lines; `maintainers` maps a system to its maintainers'
+    organisations (MAINTAINERS.md). Returns the `release-index/1` document; nothing is
+    written and no clock is read, so the same inputs give the same bytes."""
     read: list[Path] = []
     path = root / "releases" / release_id / "release.yaml"
     if not path.is_file():
@@ -494,7 +493,8 @@ def freeze(
     if dt.date.fromisoformat(release.freeze_date) <= closes:
         raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
     excluded = _excluded(release, runs, root, registry)  # step 4
-    configurations, controls = _configurations(runs, excluded, maintainers or {})  # steps 5 to 7
+    configurations, controls, contexts = _configurations(runs, excluded, maintainers or {})
+    targets = _targets(root, registry, release, contexts, read)  # step 8
     digests = sorted(file_digest(p) for p in read)
     return {
         "schema": "release-index/1",
@@ -515,7 +515,7 @@ def freeze(
         ],
         "configurations": configurations,
         "controls": controls,
-        "targets": [],
+        "targets": targets,
         "inputs_digest": "sha256:"
         + hashlib.sha256("".join(f"{d}\n" for d in digests).encode()).hexdigest(),
     }
@@ -552,14 +552,14 @@ def _configurations(
     runs: Mapping[str, RunView],
     excluded: Mapping[str, list[str]],
     maintainers: Mapping[str, Sequence[str]],
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+) -> tuple[list[dict[str, object]], list[dict[str, object]], list["_Context"]]:
     groups: dict[tuple[object, ...], list[RunView]] = {}
     for run in runs.values():
         key = (run.run.get("system"), run.get("manifest", "claim", "configuration"),
                run.get("manifest", "workload", "id"), run.get("manifest", "workload", "version"),
                run.get("manifest", "profile", "prover"))  # fmt: skip
         groups.setdefault(key, []).append(run)
-    configurations, controls = [], []
+    configurations, controls, contexts = [], [], []
     for group_key in sorted(groups, key=lambda k: tuple(str(x) for x in k)):
         system, configuration, workload, version, profile = group_key
         members = sorted(groups[group_key], key=_repetition_order)
@@ -584,7 +584,7 @@ def _configurations(
             "ineligible": [{"run_id": r.run_id, "reasons": excluded[r.run_id]}
                            for r in members if r.run_id in excluded],
             "insufficient_repetitions": sum(r.ok for r in kept) < MIN_REPLAYED,
-            "statistics": _statistics(kept, tiers),
+            "statistics": (stats := _statistics(kept, tiers)),
             "effective_tier": str(lowest_tier(list(tiers.values()))) if tiers else "reported",
             "evidence": {  # INV-TIER-7: outside_tolerance records are listed too
                 "reviews": [path for r in kept for path, _ in reviews[r.run_id]],
@@ -592,7 +592,8 @@ def _configurations(
             },
         })  # fmt: skip
         controls.append({**where, **_control_summary(kept)})
-    return configurations, controls
+        contexts.append(_Context(where, configuration, kept, tiers, stats))
+    return configurations, controls, contexts
 
 
 def _statistics(kept: Sequence[RunView], tiers: Mapping[str, Tier]) -> dict[str, object]:
@@ -604,16 +605,24 @@ def _statistics(kept: Sequence[RunView], tiers: Mapping[str, Tier]) -> dict[str,
     metrics = sorted({m for r in done for m in r.run["metrics"]})  # type: ignore[attr-defined]
     out: dict[str, object] = {}
     for metric in metrics:
-        inputs: list[tuple[str, Mapping[str, object] | None]] = []
-        for r in done:
-            stored: dict[str, dict[str, object]] = r.run["metrics"]  # type: ignore[assignment]
-            if metric in stored:
-                tier = str(quantity_tier(r, metric, tiers[r.run_id]))
-                inputs.append(
-                    (f"{_rel(r)}/run.json#/metrics/{metric}", {**stored[metric], "tier": tier})
-                )
+        inputs = _metric_inputs(done, metric, tiers)
         out[metric] = statistic(inputs, failed, __version__)
     return out
+
+
+def _metric_inputs(
+    done: Sequence[RunView], metric: str, tiers: Mapping[str, Tier]
+) -> list[tuple[str, Mapping[str, object] | None]]:
+    """(pointer, quantity with its effective tier) per completed repetition that has `metric`."""
+    inputs: list[tuple[str, Mapping[str, object] | None]] = []
+    for r in done:
+        stored: dict[str, dict[str, object]] = r.run["metrics"]  # type: ignore[assignment]
+        if metric in stored:
+            tier = str(quantity_tier(r, metric, tiers[r.run_id]))
+            inputs.append(
+                (f"{_rel(r)}/run.json#/metrics/{metric}", {**stored[metric], "tier": tier})
+            )
+    return inputs
 
 
 def _rel(run: RunView) -> str:
@@ -706,3 +715,96 @@ def run_records(run: RunView, kind: str) -> list[tuple[str, dict[str, object]]]:
     """(repository path, document) of a run's reviews/ or reproductions/ records."""
     return [(f"{_rel(run)}/{kind}/{p.name}", json.loads(p.read_text()))
             for p in sorted((run.path / kind).glob("*.json"))]  # fmt: skip
+
+
+# ---------------------------------------------------------------- targets (RFC-0009)
+
+
+@dataclass(frozen=True)
+class _Context:
+    """What target evaluation needs of one configuration."""
+
+    where: dict[str, object]
+    configuration: object
+    kept: list[RunView]
+    tiers: dict[str, Tier]
+    statistics: dict[str, object]
+
+
+def evaluate_target(
+    target: Mapping[str, object], inputs: Sequence[tuple[str, Mapping[str, object] | None]]
+) -> tuple[str, str | None, Mapping[str, object] | None]:
+    """RFC-0009 §Targets rules 1 and 2 over one configuration's completed repetitions:
+    (result, reason, least favourable quantity). `<=` compares the maximum, `>=` the minimum,
+    `==` every repetition; a missing, null or differently labelled metric is not evaluable."""
+    threshold = target["threshold"]
+    assert isinstance(threshold, Mapping)
+    if not inputs:
+        return "not_evaluable", "metric missing", None
+    for ref, q in inputs:
+        if q is None or q.get("value") is None:
+            return "not_evaluable", f"metric null in {ref}", None
+        for label in ("unit", "scope"):
+            if q.get(label) != threshold.get(label):
+                return ("not_evaluable", f"{label} {q.get(label)} differs from the threshold's "
+                        f"{threshold.get(label)}", None)  # fmt: skip
+    limit = float(threshold["value"])
+    values = [(float(q["value"]), q) for _, q in inputs if q is not None]  # type: ignore[arg-type]
+    if target["comparator"] == "<=":
+        worst, ok = max(values, key=lambda v: v[0]), all(v <= limit for v, _ in values)
+    elif target["comparator"] == ">=":
+        worst, ok = min(values, key=lambda v: v[0]), all(v >= limit for v, _ in values)
+    else:
+        worst, ok = max(values, key=lambda v: abs(v[0] - limit)), all(v == limit for v, _ in values)
+    return ("meets" if ok else "does_not_meet"), None, worst[1]
+
+
+def _dig(doc: object, dotted: str) -> object:
+    for key in dotted.split("."):
+        doc = doc.get(key) if isinstance(doc, Mapping) else None
+    return doc
+
+
+def _targets(
+    root: Path, registry: SchemaRegistry, release: Release, contexts: Sequence[_Context],
+    read: list[Path],
+) -> list[dict[str, object]]:  # fmt: skip
+    """Step 8: every applicable target per configuration, in target path order. A target
+    applies when its claim-class pattern matches the configuration's claim card, every
+    `applies_to` key matches the card, and its `profile`, if set, is the row's prover or
+    verifier profile (RFC-0009 rule 3: otherwise it is not shown)."""
+    import yaml  # noqa: PLC0415
+
+    cards = {(c.system, c.configuration): root / c.path for c in release.claim_cards}
+    out = []
+    for path in sorted(root.glob("targets/*/*.yaml")):
+        errors = registry.errors("target/1", yaml.safe_load(path.read_text()))
+        if errors:
+            raise _fail(f"{path.relative_to(root)}: {errors[0]}")
+        target = yaml.safe_load(path.read_text())
+        read.append(path)
+        for ctx in contexts:
+            card_path = cards.get((str(ctx.where["system"]), str(ctx.configuration)))
+            card = yaml.safe_load(card_path.read_text()) if card_path else None
+            profiles = {
+                ctx.where["profile"],
+                *(r.get("manifest", "profile", "verifier") for r in ctx.kept),
+            }
+            applies = (
+                isinstance(card, dict)
+                and isinstance(card.get("claim_class"), str)
+                and claim_class_matches(target["claim_class"], card["claim_class"])
+                and all(_dig(card, k) == v for k, v in (target.get("applies_to") or {}).items())
+                and target.get("profile") in (None, *profiles)
+            )
+            if not applies:
+                continue
+            done = [r for r in ctx.kept if r.ok]
+            result, reason, worst = evaluate_target(
+                target, _metric_inputs(done, target["metric"], ctx.tiers)
+            )
+            mean = ctx.statistics.get(target["metric"]) if worst else None
+            out.append({**ctx.where, "target": path.relative_to(root).as_posix(),
+                        "result": result, "reason": reason, "mean": mean,
+                        "least_favourable": dict(worst) if worst else None})  # fmt: skip
+    return out
