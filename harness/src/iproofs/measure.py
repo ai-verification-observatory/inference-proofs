@@ -17,7 +17,7 @@ import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import IO, Literal
+from typing import IO, Literal, Protocol
 
 from iproofs.derive import span_seconds
 from iproofs.errors import ErrorKind, IProofsError
@@ -29,12 +29,17 @@ __all__ = [
     "LOG_TAIL_BYTES",
     "CallTiming",
     "Capture",
+    "CgroupReader",
     "EventLog",
+    "NullCgroupReader",
     "Release",
     "ReleaseWatcher",
+    "StepResources",
     "cap_text",
     "drain",
+    "nvml_available",
     "pin_harness_cpu",
+    "select_readers",
     "span_seconds",
     "timed_call",
 ]
@@ -48,6 +53,75 @@ class CallTiming:
     container_id: str  # T-3: kept in memory only; never logged or written
     stdout: str
     stderr: str
+
+
+# ---------------------------------------------------------------- resource readers (RFC-0011)
+
+
+class CgroupReader(Protocol):
+    """RFC-0011 §Cgroup accounting; a reading is None where the host cannot take it."""
+
+    def memory_peak(self) -> int | None: ...
+    def memory_anon(self) -> int | None: ...
+    def cpu_usage_usec(self) -> int | None: ...
+    def oom_kills(self) -> int | None: ...
+
+
+class NullCgroupReader:
+    """RFC-0011 §Portability: no cgroup v2 slice (non-Linux hosts, hosted CI, fake system
+    only). Every reading is None, so host-memory and CPU metrics are null, `not_applicable`."""
+
+    def memory_peak(self) -> int | None:
+        return None
+
+    def memory_anon(self) -> int | None:
+        return None
+
+    def cpu_usage_usec(self) -> int | None:
+        return None
+
+    def oom_kills(self) -> int | None:
+        return None
+
+
+@dataclass(frozen=True, slots=True)
+class StepResources:
+    """What the GPU sampler and the cgroup reader saw over one call; None where nothing was
+    read. The runner turns each field into its RFC-0004 metric."""
+
+    gpu_memory_peak_mib: float | None = None
+    gpu_util_mean_pct: float | None = None
+    gpu_util_p95_pct: float | None = None
+    gpu_energy_j: float | None = None
+    host_memory_peak_kernel: int | None = None
+    host_memory_peak_anon: int | None = None
+    cpu_seconds: float | None = None
+
+
+def nvml_available() -> bool:
+    try:
+        import pynvml  # noqa: PLC0415 (optional extra, INV-ARCH-6)
+
+        pynvml.nvmlInit()
+    except Exception:
+        return False
+    return True
+
+
+def select_readers(*, gpu_profile: bool, nvml: Callable[[], bool] = nvml_available) -> CgroupReader:
+    """Null readers only for a profile without a GPU (`ci-cpu`). A GPU profile never falls
+    back to them: without NVML it is an `environment` failure before any timed step."""
+    if not gpu_profile:
+        return NullCgroupReader()
+    if not nvml():
+        raise IProofsError(
+            ErrorKind.ENVIRONMENT,
+            "the profile needs a GPU but NVML is unavailable on this host (RFC-0011 §Portability)",
+        )
+    raise IProofsError(
+        ErrorKind.ENVIRONMENT,
+        "GPU and cgroup sampling are not implemented yet (issues #114, #115)",
+    )
 
 
 # ---------------------------------------------------------------- bounded output capture
