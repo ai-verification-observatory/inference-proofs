@@ -11,7 +11,7 @@ Thank you for helping. This project measures provers; it does not build, rank or
 ## Pull requests
 
 - One pull request per change, small, with a description that says what changed and why.
-- Sign off every commit (`git commit -s`) under the [Developer Certificate of Origin 1.1](https://developercertificate.org/). CI rejects unsigned commits.
+- Sign off every commit (`git commit -s`) under the [Developer Certificate of Origin 1.1](https://developercertificate.org/). The trailer `Signed-off-by: Your Name <you@example.org>` must match the commit's author name and email. CI rejects any other commit (gate G11, rule `DCO-1`); check before pushing with `uv run python -m iproofs.validate.dco origin/main..HEAD`, and fix a branch with `git rebase --signoff origin/main`.
 - If an AI agent wrote a substantial part of the change, say so in the pull request description.
 - A change to the public API, a schema or the methodology adds an entry under `Unreleased` in [CHANGELOG.md](CHANGELOG.md) (`Methodology` entries name their RFC). Releases follow [docs/runbooks/harness-release.md](docs/runbooks/harness-release.md) and [docs/runbooks/benchmark-release.md](docs/runbooks/benchmark-release.md).
 - `uv run iproofs validate` also checks `MAINTAINERS.md`: every row needs a handle, role, organisation and declared interests (`none` is valid), and the seat rules INV-GOV-1 and INV-GOV-2 apply (rule ids `GOV-1` to `GOV-3`, [RFC-0001 §Roles](rfcs/0001-process-and-governance.md#roles)).
