@@ -1034,6 +1034,94 @@ class Controls(Document):
 
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Reviewer(Document):
+    handle: str
+    organisation: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReviewChecks(Document):
+    pins: str
+    configuration: str
+    logs: str
+    derived_numbers: str
+    controls: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Objection(Document):
+    check: str
+    text: str
+    issue: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReviewRecord(Document):
+    """`review/1`, a peer review of one run (RFC-0007 §Review record). `Review` is the claim
+    card's reviewed_by entry."""
+
+    schema: str
+    run_id: str
+    reviewer: Reviewer
+    date: str
+    checks: ReviewChecks
+    objections: tuple[Objection, ...]
+    outcome: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReproductionEligibility(Document):
+    same_release: bool
+    same_image_digest: bool
+    same_workload_digests: bool
+    same_profile: bool
+    different_machine: bool
+    clean_build: bool
+    repetitions: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ComparedStats(Document):
+    mean: float | None
+    stdev: float | None
+    n: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Comparison(Document):
+    metric: str
+    unit: str
+    scope: str | None
+    original: ComparedStats
+    reproduction: ComparedStats
+    bound: float | None
+    difference: float | None
+    within: bool | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class DigestMatch(Document):
+    required: bool
+    matched: bool | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReproductionRecord(Document):
+    """`reproduction/1`, one configuration's reproduction (RFC-0007 §Reproduction record)."""
+
+    schema: str
+    original_run_ids: tuple[str, ...]
+    reproduction_run_ids: tuple[str, ...]
+    runner: RunnerRecord
+    eligibility: ReproductionEligibility
+    comparisons: tuple[Comparison, ...]
+    verdicts_match: bool
+    digests: DigestMatch
+    fresh_seed_runs: tuple[str, ...]
+    outcome: str
+
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
@@ -1154,6 +1242,16 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("controls/1", "#/properties/summary"): ControlSummaryCounts,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
+    ("review/1", "#"): ReviewRecord,
+    ("review/1", "#/properties/reviewer"): Reviewer,
+    ("review/1", "#/properties/checks"): ReviewChecks,
+    ("review/1", "#/properties/objections/items"): Objection,
+    ("reproduction/1", "#"): ReproductionRecord,
+    ("reproduction/1", "#/properties/runner"): RunnerRecord,
+    ("reproduction/1", "#/properties/eligibility"): ReproductionEligibility,
+    ("reproduction/1", "#/properties/comparisons/items"): Comparison,
+    ("reproduction/1", "#/$defs/stats"): ComparedStats,
+    ("reproduction/1", "#/properties/digests"): DigestMatch,
 }
 
 
