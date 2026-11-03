@@ -1,0 +1,117 @@
+{
+  "$defs": {
+    "control": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "fixture_proof"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "control_flags": false,
+              "requires_unbound_edge": false
+            },
+            "required": [
+              "source"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "weakened_prover"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "control_flags"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "control_flags": {
+          "items": {
+            "pattern": "^-",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "description": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "expected": {
+          "items": {
+            "enum": [
+              "rejected",
+              "accepted",
+              "no_verdict",
+              "invalid_call",
+              "void",
+              "not_applicable",
+              "prover_failed",
+              "error"
+            ]
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "id": {
+          "pattern": "^[a-z0-9-]{3,64}$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "fixture_proof",
+            "weakened_prover"
+          ]
+        },
+        "requires_unbound_edge": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "expected"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/system-controls/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "controls": {
+      "items": {
+        "$ref": "#/$defs/control"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "system-controls/1"
+    }
+  },
+  "required": [
+    "schema",
+    "controls"
+  ],
+  "title": "System-specific controls: systems/<name>/controls.yaml (RFC-0008 §System-specific controls)",
+  "type": "object"
+}
