@@ -1,0 +1,15 @@
+# Shape only (RFC-0015 §Reference systems). The engine pin is #136.
+schema: "system/1"
+name: "ref-serve"
+kind: "reference"
+contract: "adapter/1"
+reference_role: "serve"
+engine: {name: "vllm", version: "0.0.0", image: "docker.io/vllm/vllm-openai@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+workloads:
+  - id: "sash-l31-8b-c4096"
+    precision_used: "W8A8"
+    precision_substitution: null
+    engine_args: ["--max-num-seqs", "1"]
+deterministic_proofs: false
+incremental_proofs: true
+forbidden_flags: []

@@ -1,0 +1,361 @@
+{
+  "$id": "https://inference-proofs.org/schema/system/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "INV-ADAPTER-10: no incremental release means steady is not observable",
+      "if": {
+        "properties": {
+          "incremental_proofs": {
+            "const": false
+          }
+        },
+        "required": [
+          "proofs"
+        ]
+      },
+      "then": {
+        "properties": {
+          "proofs": {
+            "properties": {
+              "steady_boundary": {
+                "const": "not_observable"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "$comment": "reference systems (RFC-0015) carry an engine and object workloads; others an upstream, an image and workload ids",
+      "else": {
+        "properties": {
+          "engine": false,
+          "reference_role": false,
+          "workloads": {
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "upstream",
+          "image",
+          "profile",
+          "proofs"
+        ]
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "reference"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "image": false,
+          "upstream": false,
+          "workloads": {
+            "items": {
+              "type": "object"
+            }
+          }
+        },
+        "required": [
+          "reference_role",
+          "engine"
+        ]
+      }
+    },
+    {
+      "$comment": "a prover names its system maintainers (RFC-0001)",
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "prover"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "maintainers"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "contract": {
+      "const": "adapter/1"
+    },
+    "deterministic_proofs": {
+      "type": "boolean"
+    },
+    "engine": {
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "image"
+      ],
+      "type": "object"
+    },
+    "forbidden_flags": {
+      "items": {
+        "pattern": "^-",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "image": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "repository": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "repository",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "incremental_proofs": {
+      "type": "boolean"
+    },
+    "kind": {
+      "enum": [
+        "prover",
+        "reference",
+        "test"
+      ]
+    },
+    "maintainers": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "handle": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "organisation": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "handle",
+          "organisation"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "max_proof_bytes": {
+      "maximum": 68719476736,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "max_proof_parts": {
+      "maximum": 10000,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "name": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "profile": {
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    },
+    "proofs": {
+      "additionalProperties": false,
+      "properties": {
+        "granularity": {
+          "enum": [
+            "request",
+            "sequence",
+            "segment_grid"
+          ]
+        },
+        "steady_approximate": {
+          "type": "boolean"
+        },
+        "steady_boundary": {
+          "enum": [
+            "first_proof",
+            "first_complete_sequence",
+            "not_observable"
+          ]
+        },
+        "tokens_covered": {
+          "enum": [
+            "window",
+            "prompt_plus_output",
+            "declared_per_proof"
+          ]
+        }
+      },
+      "required": [
+        "granularity",
+        "tokens_covered",
+        "steady_boundary",
+        "steady_approximate"
+      ],
+      "type": "object"
+    },
+    "reference_role": {
+      "enum": [
+        "serve",
+        "recompute"
+      ]
+    },
+    "schema": {
+      "const": "system/1"
+    },
+    "timeouts_s": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "info": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "prove": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "setup": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "verify": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      },
+      "type": "object"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        },
+        "tag": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "url",
+        "commit"
+      ],
+      "type": "object"
+    },
+    "workloads": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+          },
+          {
+            "additionalProperties": false,
+            "properties": {
+              "engine_args": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "id": {
+                "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+              },
+              "precision_substitution": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "reason": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "source": {
+                        "format": "uri",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "reason",
+                      "source"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "precision_used": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "precision_used",
+              "precision_substitution",
+              "engine_args"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "kind",
+    "contract",
+    "workloads",
+    "deterministic_proofs",
+    "incremental_proofs",
+    "forbidden_flags"
+  ],
+  "title": "System manifest: systems/<name>/system.yaml (RFC-0005 §system.yaml, RFC-0015 §Reference systems)",
+  "type": "object"
+}

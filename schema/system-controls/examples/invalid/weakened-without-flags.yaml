@@ -1,0 +1,13 @@
+# Shape only (RFC-0008 §System-specific controls). Real registrations are #66 and #70.
+schema: "system-controls/1"
+controls:
+  - id: "flashprove-rejected-proofs"
+    kind: "fixture_proof"
+    description: "upstream examples/rejected-proofs at the pin"
+    source: "https://github.com/anthropics/FlashProve/tree/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/examples/rejected-proofs"
+    expected: ["rejected"]
+  - id: "example-unsound-skip-edge"
+    kind: "weakened_prover"
+
+    expected: ["accepted"]
+    requires_unbound_edge: "example edge"

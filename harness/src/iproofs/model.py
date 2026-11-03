@@ -775,6 +775,116 @@ class AdapterOut(Document):
     seconds: float | None = None
 
 
+# RFC-0005 §system.yaml default wall limits per step, in seconds (targets, not measurements).
+DEFAULT_TIMEOUTS_S = {"info": 60.0, "setup": 3600.0, "commit": 14400.0, "prove": 43200.0,
+                      "verify": 3600.0}  # fmt: skip
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class UpstreamSpec(Document):
+    repo: str
+    url: str
+    commit: str
+    tag: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ImageSpec(Document):
+    repository: str
+    digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Engine(Document):
+    name: str
+    version: str
+    image: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Maintainer(Document):
+    handle: str
+    organisation: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PrecisionSubstitution(Document):
+    reason: str
+    source: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReferenceWorkload(Document):
+    id: str
+    precision_used: str
+    precision_substitution: PrecisionSubstitution | None
+    engine_args: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProofsSpec(Document):
+    granularity: str
+    tokens_covered: str
+    steady_boundary: str
+    steady_approximate: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Timeouts(Document):
+    info: float | None = None
+    setup: float | None = None
+    commit: float | None = None
+    prove: float | None = None
+    verify: float | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class System(Document):
+    schema: str
+    name: str
+    kind: str
+    contract: str
+    workloads: tuple[str | ReferenceWorkload, ...]
+    deterministic_proofs: bool
+    incremental_proofs: bool
+    forbidden_flags: tuple[str, ...]
+    upstream: UpstreamSpec | None = None
+    image: ImageSpec | None = None
+    reference_role: str | None = None
+    engine: Engine | None = None
+    maintainers: tuple[Maintainer, ...] | None = None
+    profile: str | None = None
+    max_proof_parts: int | None = None
+    max_proof_bytes: int | None = None
+    proofs: ProofsSpec | None = None
+    timeouts_s: Timeouts | None = None
+
+    def timeout(self, step: str) -> float:
+        """Wall limit for a step: the declared value, else the RFC-0005 default."""
+        declared = getattr(self.timeouts_s, step, None) if self.timeouts_s else None
+        return float(declared) if declared is not None else DEFAULT_TIMEOUTS_S[step]
+
+    def workload_ids(self) -> tuple[str, ...]:
+        return tuple(w if isinstance(w, str) else w.id for w in self.workloads)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SystemControl(Document):
+    id: str
+    kind: str
+    expected: tuple[str, ...]
+    description: str | None = None
+    source: str | None = None
+    control_flags: tuple[str, ...] | None = None
+    requires_unbound_edge: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SystemControls(Document):
+    schema: str
+    controls: tuple[SystemControl, ...]
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -864,6 +974,20 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("adapter-out/1", "#/properties/sizes"): Sizes,
     ("adapter-out/1", "#/$defs/proof"): ProofEntry,
     ("adapter-out/1", "#/$defs/commandLine"): CommandLine,
+    ("system/1", "#"): System,
+    ("system/1", "#/properties/upstream"): UpstreamSpec,
+    ("system/1", "#/properties/image"): ImageSpec,
+    ("system/1", "#/properties/engine"): Engine,
+    ("system/1", "#/properties/maintainers/items"): Maintainer,
+    ("system/1", "#/properties/workloads/items/anyOf/1"): ReferenceWorkload,
+    (
+        "system/1",
+        "#/properties/workloads/items/anyOf/1/properties/precision_substitution/anyOf/1",
+    ): (PrecisionSubstitution),
+    ("system/1", "#/properties/proofs"): ProofsSpec,
+    ("system/1", "#/properties/timeouts_s"): Timeouts,
+    ("system-controls/1", "#"): SystemControls,
+    ("system-controls/1", "#/$defs/control"): SystemControl,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
 }

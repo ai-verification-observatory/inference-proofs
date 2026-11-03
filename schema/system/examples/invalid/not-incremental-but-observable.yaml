@@ -1,0 +1,16 @@
+schema: "system/1"
+name: "fake"
+kind: "test"
+contract: "adapter/1"
+upstream:
+  repo: "ai-verification-observatory/inference-proofs"
+  url: "https://github.com/ai-verification-observatory/inference-proofs"
+  commit: "0123456789abcdef0123456789abcdef01234567"
+image: {repository: "ghcr.io/ai-verification-observatory/iproofs-fake", digest: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}
+workloads: ["fake-tiny-ci"]
+profile: "ci-cpu"
+deterministic_proofs: true
+incremental_proofs: false
+proofs: {granularity: "request", tokens_covered: "window", steady_boundary: "first_proof", steady_approximate: false}
+forbidden_flags: []
+timeouts_s: {prove: 60}
