@@ -16,7 +16,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, Protocol
+from typing import Literal, Protocol, TextIO
 
 from iproofs import __version__
 from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
@@ -38,7 +38,7 @@ from iproofs.derive import (
     tokens_per_proof,
 )
 from iproofs.errors import ErrorKind, Failure, IProofsError
-from iproofs.log import Event, JsonlLogger
+from iproofs.log import Event, JsonlLogger, Progress
 from iproofs.log.redact import Redactor
 from iproofs.measure import (
     LOG_HEAD_BYTES,
@@ -218,6 +218,8 @@ class Runner:
         provider: str = "undeclared",
         replay_seed: int | None = None,
         keep_io: bool = False,
+        progress: TextIO | None = None,
+        log_level: str = "info",
     ) -> None:
         self.containers = containers
         self.root = root
@@ -230,6 +232,9 @@ class Runner:
         # RFC-0003 §Seed policy: a fresh seed per job, or a recorded one replayed (--prompts-from)
         self.replay_seed = replay_seed
         self.keep_io = keep_io
+        self.progress = progress  # stderr for progress lines; None with --quiet
+        self.log_level = log_level
+        self.repetitions = 1
         self.controls_done = False
         self.redact = Redactor.from_host()
 
@@ -237,6 +242,7 @@ class Runner:
 
     def run_many(self, base: JobSpec, repetitions: int) -> list[Path]:
         below = repetitions < MIN_REPETITIONS  # allowed for tests, always marked
+        self.repetitions = repetitions
         return [
             self.run(replace(base, repetition=r), below_minimum=below)
             for r in range(1, repetitions + 1)
@@ -262,7 +268,18 @@ class Runner:
         }
         (staging / "job.lock").write_text(json.dumps(lock))
         with (staging / "logs/harness.jsonl").open("w") as stream:
-            log = JsonlLogger(stream, redactor=self.redact, mono=self.clock)
+            progress = (
+                Progress(self.progress, spec.repetition, self.repetitions, self.redact)
+                if self.progress is not None
+                else None
+            )
+            log = JsonlLogger(
+                stream,
+                level=self.log_level,
+                redactor=self.redact,
+                mono=self.clock,
+                on_record=progress,
+            )
             log.log(Event.RUNNER_START, job=run_id, harness_version=__version__)
             actions: dict[str, Callable[[Job], None]] = {
                 "resolved": self._resolve,
@@ -272,7 +289,7 @@ class Runner:
                 "setup": self._setup,
                 "commit": self._commit,
                 "prove": lambda j: self._prove(j, log),
-                "verify": self._verify,
+                "verify": lambda j: self._verify(j, log),
                 "controls": lambda j: self._controls(j, log),
             }
             for state in STATES[1:-1]:  # resolved .. controls
@@ -653,14 +670,24 @@ class Runner:
             )
             job.proof_bytes[entry.proof_id] = size.bytes
         job.releases = [(r.proof_id, r.mono_ns) for r in releases]
-        for r in releases:
+        for i, r in enumerate(releases, start=1):
             job.events.record("proof.released", r.mono_ns)
+            if log is not None:
+                log.log(
+                    Event.PROOF_RELEASED,
+                    job=job.run_id,
+                    step="prove",
+                    proof_id=r.proof_id,
+                    release_mono_ns=r.mono_ns,
+                    index=i,
+                    of=len(releases),
+                )
         for warning in self._commitment_echo(job):
             job.warnings.append(warning)
             if log is not None:
                 log.log(Event.POLICY_WARNING, job=job.run_id, step="prove", detail=warning)
 
-    def _verify(self, job: Job) -> None:
+    def _verify(self, job: Job, log: JsonlLogger | None = None) -> None:
         """Every proof on the verifier profile, then the first on one CPU (RFC-0010)."""
         assert job.proofs is not None
         assert job.commit is not None
@@ -669,6 +696,19 @@ class Runner:
         for i, (proof_id, _) in enumerate(job.releases):
             seconds, verdict = self._verify_one(job, proof_id, entries[proof_id], single=False)
             job.verify_seconds[proof_id], job.verdicts[proof_id] = seconds, verdict
+            if log is not None:
+                record = json.loads((job.staging / "verifier" / f"{proof_id}.json").read_text())
+                log.log(
+                    Event.VERIFY_RESULT,
+                    job=job.run_id,
+                    step="verify",
+                    proof_id=proof_id,
+                    verdict=verdict,
+                    raw_exit_code=record["raw_exit_code"],
+                    cpus=self.env.cpus("verifier")[0],
+                    index=i + 1,
+                    of=len(job.releases),
+                )
             if i == 0:
                 job.single_thread_seconds, _ = self._verify_one(
                     job, proof_id, entries[proof_id], single=True

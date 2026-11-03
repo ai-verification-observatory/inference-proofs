@@ -285,6 +285,8 @@ def run(args: argparse.Namespace) -> int:
         image=image,
         operator=_operator(root, args),
         provider=args.provider or "undeclared",
+        progress=None if args.quiet else sys.stderr,
+        log_level=args.log_level,
         replay_seed=seed,
         keep_io=args.keep_io,
     )
