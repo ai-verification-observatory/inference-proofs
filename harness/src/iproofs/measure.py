@@ -5,8 +5,10 @@ INV-ARCH-4: durations are read here, from the monotonic clock only (C-1).
 
 import ctypes
 import ctypes.util
+import hashlib
 import os
 import select
+import stat
 import struct
 import subprocess
 import sys
@@ -319,3 +321,58 @@ def _libc() -> ctypes.CDLL | None:
     except OSError:
         return None
     return libc if hasattr(libc, "inotify_init1") else None
+
+
+# ---------------------------------------------------------------- proof sizes (RFC-0011 Z-1 to Z-3)
+
+
+@dataclass(frozen=True, slots=True)
+class ProofSize:
+    bytes: int
+    digest: str  # the RFC-0012 proof digest, computed in the same pass
+    parts: tuple[tuple[str, int, str], ...]  # (name, bytes, sha256 digest) per part
+
+
+def _regular_inside(path: Path, io_root: Path, what: str) -> None:
+    mode = path.lstat().st_mode
+    if stat.S_ISLNK(mode) or not stat.S_ISREG(mode):
+        raise IProofsError(ErrorKind.ADAPTER, f"Z-1: {what} is not a regular file", step="prove")
+    if not path.resolve().is_relative_to(io_root.resolve()):
+        raise IProofsError(ErrorKind.ADAPTER, f"Z-1: {what} resolves outside /io", step="prove")
+
+
+def proof_size(proof_dir: Path, io_root: Path) -> ProofSize:
+    """Bytes as stored of every part of one proof, with per-part sha256 and the proof digest."""
+    parts = []
+    lines = []
+    for part in sorted(proof_dir.iterdir(), key=lambda p: p.name.encode()):
+        _regular_inside(part, io_root, f"/io/proofs/{proof_dir.name}/{part.name}")
+        h = hashlib.sha256()
+        size = 0
+        with part.open("rb") as f:
+            while chunk := f.read(1 << 20):
+                h.update(chunk)
+                size += len(chunk)
+        parts.append((part.name, size, "sha256:" + h.hexdigest()))
+        lines.append(f"{part.name}\t{h.hexdigest()}\n")
+    digest = "sha256:" + hashlib.sha256("".join(lines).encode()).hexdigest()
+    return ProofSize(sum(size for _, size, _ in parts), digest, tuple(parts))
+
+
+def proof_bytes(proof_dir: Path, io_root: Path) -> int:
+    return proof_size(proof_dir, io_root).bytes
+
+
+def files_bytes(paths: Sequence[str], io_root: Path) -> int:
+    """Total bytes of adapter files named by container path (verifier or prover files, Z-2)."""
+    total = 0
+    for container_path in paths:
+        rel = container_path.removeprefix("/io/")
+        if rel == container_path or ".." in Path(rel).parts:
+            raise IProofsError(
+                ErrorKind.ADAPTER, f"Z-1: {container_path} is outside /io", step="commit"
+            )
+        host = io_root / rel
+        _regular_inside(host, io_root, container_path)
+        total += host.stat().st_size
+    return total

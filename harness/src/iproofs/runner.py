@@ -40,7 +40,7 @@ from iproofs.derive import (
 from iproofs.errors import ErrorKind, Failure, IProofsError
 from iproofs.log import Event, JsonlLogger
 from iproofs.log.redact import Redactor
-from iproofs.measure import EventLog, ReleaseWatcher, span_seconds
+from iproofs.measure import EventLog, ReleaseWatcher, files_bytes, proof_size, span_seconds
 from iproofs.model import (
     AdapterOut,
     ClaimCard,
@@ -53,7 +53,7 @@ from iproofs.model import (
     load,
     load_reference,
 )
-from iproofs.provenance import file_digest, file_records, git_state, proof_digest
+from iproofs.provenance import file_digest, file_records, git_state
 from iproofs.quantity import Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
@@ -176,6 +176,7 @@ class Job:
     image_inputs: list[dict[str, object]] = field(default_factory=list)
     commitment_record: dict[str, object] | None = None
     proof_records: list[dict[str, object]] = field(default_factory=list)
+    proof_bytes: dict[str, int] = field(default_factory=dict)
 
 
 class Runner:
@@ -538,17 +539,18 @@ class Runner:
         job.warnings += check_proofs(IoDirs(job.staging / "io"), out, job.system)
         watcher.check_unchanged()
         job.proofs, job.observable = out, watcher.observable
+        io_root = job.staging / "io"
         for entry in out.proofs or ():
-            d = job.staging / "io/proofs" / entry.proof_id
-            parts = [d / name for name in entry.parts]
+            size = proof_size(io_root / "proofs" / entry.proof_id, io_root)  # Z-1 to Z-3
             job.proof_records.append(
                 {
                     "proof_id": entry.proof_id,
-                    "digest": proof_digest(d),
-                    "parts": file_records(parts),
+                    "digest": size.digest,
+                    "parts": [{"name": n, "digest": d, "bytes": b} for n, b, d in size.parts],
                     "archive": None,
                 }
             )
+            job.proof_bytes[entry.proof_id] = size.bytes
         job.releases = [(r.proof_id, r.mono_ns) for r in releases]
         for r in releases:
             job.events.record("proof.released", r.mono_ns)
@@ -924,6 +926,24 @@ class Runner:
         m["requests_count"] = count(shape.batch_size * shape.batches_per_session)
         m["proofs_count"] = count(len(job.releases))
         m["verdicts_accept_count"] = count(sum(v == "accept" for v in job.verdicts.values()))
+        sizes = [float(job.proof_bytes[pid]) for pid, _ in job.releases]
+        bref = f"{run_json}#/proofs"
+        if sizes:
+            m["proof_bytes"] = _statistic(sizes, Unit.B, None, bref)
+        m["proof_bytes_total"] = measured(sum(sizes), Unit.B, None, bref, None)
+        if job.commit is not None:
+            io_root = job.staging / "io"
+            for metric, files in (
+                ("verifier_download_bytes", job.commit.verifier_files),
+                ("prover_keep_bytes", job.commit.prover_files),
+            ):
+                m[metric] = measured(
+                    files_bytes(list(files or ()), io_root),
+                    Unit.B,
+                    None,
+                    f"{run_json}#/proofs",
+                    None,
+                )
         walls = [job.verify_seconds[pid] for pid, _ in job.releases]
         vref = f"{run_json}#/verifier"
         m["verify_seconds"] = _statistic(walls, Unit.S, Scope.VERIFY, vref)
@@ -963,7 +983,7 @@ class Runner:
         return m
 
 
-def _statistic(values: list[float], unit: Unit, scope: Scope, ref: str) -> QuantityTree:
+def _statistic(values: list[float], unit: Unit, scope: Scope | None, ref: str) -> QuantityTree:
     """A measured statistic over proofs of one repetition (RFC-0004 §Recorded metrics)."""
     mean = statistics.mean(values)
     q = measured(mean, unit, scope, ref, None)
