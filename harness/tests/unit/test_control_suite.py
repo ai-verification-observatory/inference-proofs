@@ -55,7 +55,7 @@ def test_control_suite_fake_passes_once_per_configuration(tmp_path: Path) -> Non
     summary = docs[0]["summary"]
     assert isinstance(summary, dict)
     assert summary["accepted"] == 0
-    assert summary["passed"] == 7  # C3 waits for the perturbed commitment (#90)
+    assert summary["passed"] == 7  # C3 and P1 need --prepare-perturbed first
     assert docs[0]["disclosure_pending"] is False
     assert REGISTRY.errors("controls/1", docs[0]) == []
     run = json.loads(next((tmp_path / "v0.1/fake").glob("*-1/run.json")).read_text())

@@ -25,6 +25,7 @@ This section lists every object the benchmark stores, its key, what it reference
 | Verifier record | part of `run/1` defs | `.../<run-id>/verifier/<proof_id>.json` | (run-id, proof id) | proof digest | harness | append-only | RFC-0009 |
 | Review record | `review/1` | `.../<run-id>/reviews/<reviewer>-<date>.json` | (run-id, reviewer, date) | run | peer reviewer | add-only | [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md) |
 | Reproduction record | `reproduction/1` | `.../<run-id>/reproductions/<repro-run-id>.json` | (original run-ids, reproduction run-ids) | both sets of runs | `iproofs reproduce compare` | add-only | RFC-0007 |
+| Perturbed commitment | `perturbed-commitment/1` | `results/<release>/<system>/_controls/<workload>/perturbed.json` | (release, system, workload) | workload | `iproofs controls --prepare-perturbed` | write-once per release | [RFC-0008](../../rfcs/0008-negative-controls.md#shared-controls-verifier-side) |
 | Release record | `release/1` | `releases/<release>/release.yaml` | release | runs, reference file, claim card digests, RFC commit | maintainers | frozen after freeze | RFC-0009 |
 | Release index | `release-index/1` | `releases/<release>/index.json` | release | everything in the release record | `iproofs release freeze` | generated once per release | RFC-0009 |
 | Target | `target/1` | `targets/<author>/<id>.yaml` | (author, id) | metric id, claim card fields | relying party | PR; history in git | RFC-0009 |

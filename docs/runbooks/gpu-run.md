@@ -85,6 +85,7 @@ GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test proces
 ## Campaign procedure
 
 1. Check the host prerequisites and fetch the models (`iproofs fetch-model WORKLOAD`) for every workload of the campaign.
+   Then, once per workload per release and system, prepare the C3 and P1 perturbed commitment: `sudo -E .venv/bin/iproofs controls --prepare-perturbed WORKLOAD --system S --profile prover-h100`. It writes `results/<release>/<system>/_controls/<workload>/` (commit to the results pull request) and keeps the perturbed weights in `$IPROOFS_CACHE/perturbed/` on this host only.
 2. Run the GPU-host tests above, in order. Start the campaign log.
 3. Project the GPU time with `uv run iproofs release plan RELEASE` ([docs/spec/08](../spec/08-performance-budget.md#run-campaign-compute-budget)) and check it fits the sponsored budget.
 4. Run the matrix: per configuration, `sudo -E .venv/bin/iproofs run --system S --workload W --profile prover-h100 --repetitions N --control-suite` with N at least 3 (RFC-0004). A failed job (exit 4) is kept as recorded; rerun only as new repetitions, never by deleting the failed one.

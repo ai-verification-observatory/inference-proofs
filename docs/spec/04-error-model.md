@@ -80,6 +80,7 @@ Each row names a failure, how it is detected, what the system does, and how it i
 | 46 | Verdict sets of original and reproduction differ | `iproofs reproduce compare` | failed reproduction | reproduction record |
 | 47 | Proof digests differ when `deterministic_proofs: true` and same seed | `iproofs reproduce compare` | failed reproduction | reproduction record |
 | 48 | Reference row cannot run on the profile (model does not fit) | adapter failure or declared infeasibility | row recorded failed, overhead null | `null_reason: "not_measurable_on_profile"` |
+| 49 | No perturbed commitment for the workload (no tensor of at least 1,024 elements, the adapter cannot commit the copy, or the weights are not on this host) | `iproofs controls --prepare-perturbed`; `_perturbed` lookup at control time | C3 and P1 `not_applicable` with the reason | `config` exit 2 from `--prepare-perturbed`; control note |
 
 ## Recovery rules
 

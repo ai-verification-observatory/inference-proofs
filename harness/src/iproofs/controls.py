@@ -5,6 +5,7 @@ INV-CTRL-3: every mutation is a deterministic function of `control_seed`, the co
 the honest inputs.
 """
 
+import json
 import math
 import os
 import random
@@ -497,6 +498,85 @@ def run_shared_controls(
     return [control_record(cid, build, twins, verify) for cid, (build, twins) in builders.items()]
 
 
+# ---------------------------------------------------------------- perturbed weights (C3, P1)
+
+MIN_PERTURB_ELEMENTS = 1024
+# safetensors float dtypes: (bytes, exponent mask); one ulp up is one step of the bit pattern
+FLOAT_DTYPES = {"F64": (8, 0x7FF0_0000_0000_0000), "F32": (4, 0x7F80_0000),
+                "F16": (2, 0x7C00), "BF16": (2, 0x7F80)}  # fmt: skip
+INT_DTYPES = {"I8": (1, True), "U8": (1, False), "I16": (2, True), "U16": (2, False),
+              "I32": (4, True), "U32": (4, False), "I64": (8, True), "U64": (8, False)}  # fmt: skip
+
+
+@dataclass(frozen=True, slots=True)
+class Perturbation:
+    """Element 0 of one tensor, before and after, as little-endian hex."""
+
+    file: str
+    tensor: str
+    dtype: str
+    before: str
+    after: str
+
+
+def safetensors_header(path: Path) -> tuple[int, dict[str, object]]:
+    """(data start offset, header) of a safetensors file: an 8-byte little-endian length,
+    then that many bytes of JSON."""
+    with path.open("rb") as f:
+        size = int.from_bytes(f.read(8), "little")
+        header = json.loads(f.read(size))
+    return 8 + size, header
+
+
+def ulp_up(raw: bytes, dtype: str) -> bytes:
+    """`raw` plus one unit in the last place at its stored precision (toward +infinity)."""
+    if dtype in INT_DTYPES:
+        width, signed = INT_DTYPES[dtype]
+        value = int.from_bytes(raw, "little", signed=signed) + 1
+        try:
+            return value.to_bytes(width, "little", signed=signed)
+        except OverflowError:
+            raise NotApplicable(f"element 0 is the largest {dtype}") from None
+    if dtype not in FLOAT_DTYPES:
+        raise NotApplicable(f"dtype {dtype} has no defined unit in the last place here")
+    width, exponent = FLOAT_DTYPES[dtype]
+    sign = 1 << (8 * width - 1)
+    bits = int.from_bytes(raw, "little")
+    if bits & exponent == exponent:
+        raise NotApplicable("element 0 is not finite")
+    up = 1 if bits == sign else bits - 1 if bits & sign else bits + 1  # -0 goes to +min
+    if up & exponent == exponent:
+        raise NotApplicable(f"element 0 is the largest finite {dtype}")
+    return up.to_bytes(width, "little")
+
+
+def perturb_model(src: Path, dst: Path) -> Perturbation:
+    """RFC-0008 C3: copy the model directory, take the tensor with the lexicographically first
+    name among tensors of at least 1,024 elements (over every *.safetensors file), and add one
+    unit in the last place to its element 0. Raises NotApplicable when no tensor qualifies."""
+    found = []
+    for path in sorted(src.rglob("*.safetensors")):
+        start, header = safetensors_header(path)
+        for name, info in header.items():
+            if isinstance(info, dict) and math.prod(info.get("shape", [])) >= MIN_PERTURB_ELEMENTS:
+                found.append((name, path, start + int(info["data_offsets"][0]), info["dtype"]))
+    if not found:
+        raise NotApplicable(f"no safetensors tensor of at least {MIN_PERTURB_ELEMENTS} elements")
+    name, path, offset, dtype = min(found)
+    width = INT_DTYPES[dtype][0] if dtype in INT_DTYPES else FLOAT_DTYPES.get(dtype, (1, 0))[0]
+    with path.open("rb") as f:
+        f.seek(offset)
+        before = f.read(width)
+    after = ulp_up(before, dtype)
+    shutil.copytree(src, dst, symlinks=False)
+    for p in [dst, *dst.rglob("*")]:  # the source cache is read-only; the copy must not be
+        p.chmod(0o755 if p.is_dir() else 0o644)
+    with (dst / path.relative_to(src)).open("r+b") as f:
+        f.seek(offset)
+        f.write(after)
+    return Perturbation(path.relative_to(src).as_posix(), name, dtype, before.hex(), after.hex())
+
+
 # ---------------------------------------------------------------- system-specific controls
 
 
@@ -510,6 +590,34 @@ def edge_unbound(report: object, edge: str) -> bool:
         return any(e.get("edge") == edge and e.get("state") == "unbound" for e in edges
                    if isinstance(e, dict))  # fmt: skip
     return False
+
+
+def prover_side_record(
+    control_id: str,
+    expected: Sequence[str],
+    source: str,
+    prove: Callable[[], list[VerifyCall]],
+    twins: Callable[[], list[VerifyCall]],
+    verify: Verifier,
+    *,
+    side: str = "prover",
+) -> dict[str, object]:
+    """A control whose trials come from a control prove (P1, P2, weakened provers). `prove`
+    returns the verify calls of the proofs it made; a prove that fails is `prover_failed`,
+    which passes when expected (RFC-0008 §Outcomes)."""
+    base: dict[str, object] = {
+        "id": control_id, "side": side, "source": source, "expected": list(expected),
+        "twin": None, "trials": [], "outcome": "not_applicable", "passed": None, "note": None,
+    }  # fmt: skip
+    try:
+        calls = prove()
+    except NotApplicable as e:
+        return {**base, "note": str(e)}
+    except IProofsError as e:
+        return {**base, "outcome": "prover_failed", "passed": "prover_failed" in expected,
+                "note": f"{e.kind}: {e.message}"[:4096]}  # fmt: skip
+    return control_record(control_id, lambda: calls, twins, verify, side=side, source=source,
+                          expected=expected)  # fmt: skip
 
 
 def system_control_record(
@@ -537,12 +645,15 @@ def system_control_record(
     if control.kind == "fixture_proof":
         record["note"] = f"fixture proof delivery is not specified yet; upstream: {control.source}"
         return record
-    try:
+    report: object = None
+
+    def prove() -> list[VerifyCall]:
+        nonlocal report
         calls, report = run()
-    except IProofsError as e:
-        return {**record, "outcome": "prover_failed", "note": f"{e.kind}: {e.message}"[:4096]}
-    done = control_record(control.id, lambda: calls, twins, verify, side=str(record["side"]),
-                          source="system", expected=expected)  # fmt: skip
+        return calls
+
+    done = prover_side_record(control.id, expected, "system", prove, twins, verify,
+                              side=str(record["side"]))  # fmt: skip
     edge = control.requires_unbound_edge
     if done["passed"] is True and edge and not edge_unbound(report, edge):
         done |= {"passed": False, "note": f"binding report does not mark {edge!r} unbound"}

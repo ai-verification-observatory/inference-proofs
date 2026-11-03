@@ -84,4 +84,4 @@ def test_twin_error_and_prover_failure() -> None:
         requires_unbound_edge="x",
     )
     record = system_control_record(control, no_prover, lambda: [call], broken)
-    assert record["outcome"] == "prover_failed"
+    assert (record["outcome"], record["passed"]) == ("prover_failed", False)

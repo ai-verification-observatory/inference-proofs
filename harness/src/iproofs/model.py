@@ -1144,6 +1144,22 @@ class External(Document):
     figures: tuple[ExternalFigure, ...]
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PerturbedCommitmentRecord(Document):
+    """`perturbed-commitment/1`, the C3 and P1 commitment of one workload (RFC-0008)."""
+
+    schema: str
+    release: str
+    system: str
+    workload: Mapping[str, object]
+    source_model_digest: str
+    model_digest: str
+    perturbation: Mapping[str, object]
+    commitment: Mapping[str, object]
+    image: str
+    harness_version: str
+
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
@@ -1277,6 +1293,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reproduction/1", "#/properties/comparisons/items"): Comparison,
     ("reproduction/1", "#/$defs/stats"): ComparedStats,
     ("reproduction/1", "#/properties/digests"): DigestMatch,
+    ("perturbed-commitment/1", "#"): PerturbedCommitmentRecord,
 }
 
 

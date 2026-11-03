@@ -38,6 +38,7 @@ G2_GLOBS = (
     "results/**/run.json",
     "results/**/manifest.json",
     "results/**/controls.json",
+    "results/**/_controls/*/perturbed.json",
     "results/**/reviews/*.json",
     "results/**/reproductions/*.json",
 )
