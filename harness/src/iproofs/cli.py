@@ -19,7 +19,6 @@ Handler = Callable[[argparse.Namespace], int]
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
     "validate": 119,
-    "derive": 54,
     "run": 105,
     "controls": 89,
     "machine-record": 73,
@@ -92,6 +91,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--format", choices=["text", "json"], default="text")
 
     p = command("derive", "compute derived metrics of a run directory (RFC-0004)")
+    p.set_defaults(handler=derive)
     p.add_argument("run_dir", type=Path)
     p.add_argument("--check", action="store_true", help="recompute and compare bit for bit")
 
@@ -146,6 +146,27 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p = command("build", "generate the static site", site_sub, "site build")
     p.add_argument("--out", type=Path, default=Path("site/_build"))
     return parser
+
+
+def derive(args: argparse.Namespace) -> int:
+    """`iproofs derive RUN_DIR [--check]`; without --check it prints, it never rewrites a run."""
+    import json  # noqa: PLC0415
+
+    from iproofs.validate import check_derived, repo_root  # noqa: PLC0415
+
+    run_json = args.run_dir / "run.json"
+    if not run_json.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_json} does not exist")
+    findings = check_derived(run_json, repo_root(args.run_dir))
+    if args.check:
+        for f in findings:
+            print(f.line())
+        print(f"derive: {len(findings)} failures", file=sys.stderr)
+        return 1 if findings else 0
+    doc = json.loads(run_json.read_text())
+    derived = {k: v for k, v in doc.get("metrics", {}).items() if v.get("grade") == "derived"}
+    print(json.dumps(derived, indent=2, sort_keys=True))
+    return 1 if findings else 0
 
 
 def phase_of(command: str) -> Phase:
