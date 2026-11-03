@@ -6,7 +6,6 @@ IPROOFS_IO and IPROOFS_MODELS. FAKE_DOCKER_CREATE_DELAY_S makes `create` slow.""
 import json
 import os
 import signal
-import subprocess
 import sys
 import time
 import uuid
@@ -35,9 +34,9 @@ elif cmd == "start":
     env = {**os.environ, "IPROOFS_IO": state["mounts"]["/io"]}
     if "/models" in state["mounts"]:
         env["IPROOFS_MODELS"] = state["mounts"]["/models"]
-    done = subprocess.run([sys.executable, os.environ["FAKE_DOCKER_ENTRYPOINT"], *state["argv"]],
-                          env=env, check=False)
-    sys.exit(done.returncode)
+    # exec, so `kill` on a timeout reaches the adapter process itself
+    os.execve(sys.executable, [sys.executable, os.environ["FAKE_DOCKER_ENTRYPOINT"], *state["argv"]],
+              env)
 elif cmd == "inspect":
     print("true" if (STATE / f"{args[-1]}.oom").exists() else "false")
 elif cmd == "kill":

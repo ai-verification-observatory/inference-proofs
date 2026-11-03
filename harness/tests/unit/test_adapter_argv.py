@@ -65,6 +65,41 @@ def test_docker_argv_isolation_flags() -> None:
     assert "--memory 32g" in verify
 
 
+def test_mounts_are_absolute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A relative path after -v is a named volume to docker, not a host directory."""
+    monkeypatch.chdir(tmp_path)
+    a = docker_create_argv(
+        IMAGE,
+        "prove",
+        Path("results/io"),
+        models_dir=Path("m"),
+        gpu=None,
+        cpuset="0",
+        mems="0",
+        memory=None,
+    )
+    mounts = [a[i + 1] for i, x in enumerate(a) if x == "-v"]
+    assert mounts == [
+        f"{tmp_path.resolve()}/results/io:/io:rw",
+        f"{tmp_path.resolve()}/m:/models:ro",
+    ]
+
+
+def test_local_image_goes_to_docker_by_id() -> None:
+    image_id = "sha256:" + "b" * 64
+    a = docker_create_argv(
+        f"local/fake@{image_id}",
+        "info",
+        Path("/srv/io"),
+        models_dir=None,
+        gpu=None,
+        cpuset="0",
+        mems="0",
+        memory=None,
+    )
+    assert a[-4:] == [image_id, "info", "/io/job.json", "/io/out.json"]
+
+
 def test_no_gpu_without_index() -> None:
     assert "--gpus" not in argv("commit", gpu=None)
 

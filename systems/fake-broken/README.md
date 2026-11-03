@@ -4,4 +4,4 @@ This system exists only to be flagged. It is `systems/fake` with one change: `ve
 
 CI runs it through the control suite and asserts that every applicable verifier-side control comes back `accepted`. If the suite ever reports a rejection for this system, the controls or the harness are broken, not the verifier (RFC-0013 §G10). A verifier that accepts everything is a result, so its run records are valid documents; they are never part of a release (`kind: test`).
 
-The entrypoint runs `systems/fake/entrypoint` unchanged with its accept-all switch on, so the prover is the same code as the fake system's. The image is built with `systems/` as its context (`docker build -f systems/fake-broken/Dockerfile systems`).
+The entrypoint runs `systems/fake/entrypoint` unchanged with its accept-all switch on, so the prover is the same code as the fake system's. The image is built with `systems/` as its context (`docker build --build-arg IPROOFS_FAKE_UPSTREAM=<commit> -f systems/fake-broken/Dockerfile systems`, with the commit `system.yaml` pins).

@@ -129,6 +129,7 @@ def check_proofs(dirs: IoDirs, out: AdapterOut, system: System) -> list[str]:
 # ---------------------------------------------------------------- container invocation
 
 IMAGE_RE = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
+LOCAL_IMAGE_PREFIX = "local/"  # repository of an image built here and never pushed
 ADAPTER_UID = "10001"
 VERIFY_MEMORY = "32g"
 GPU_STEPS = frozenset({"info", "setup", "commit", "prove"})
@@ -205,18 +206,38 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
         "--tmpfs",
         f"/tmp:rw,size={tmpfs},mode=1777",
         "-v",
-        f"{io_dir}:/io:rw",
+        f"{io_dir.resolve()}:/io:rw",  # docker reads a relative path as a volume name
     ]
     if subcommand == "verify":
         argv += ["--memory", VERIFY_MEMORY]  # never a GPU, never the weights
     else:
         if models_dir is not None:
-            argv += ["-v", f"{models_dir}:/models:ro"]
+            argv += ["-v", f"{models_dir.resolve()}:/models:ro"]
         if gpu is not None and subcommand in GPU_STEPS:
             argv += ["--gpus", f"device={gpu}"]
         if memory is not None:
             argv += ["--memory", memory]
-    return [*argv, check_image(image), subcommand, "/io/job.json", "/io/out.json"]
+    return [*argv, docker_ref(image), subcommand, "/io/job.json", "/io/out.json"]
+
+
+def docker_ref(image: str) -> str:
+    """The reference docker resolves: a `local/` image is not pushed, so docker knows it only
+    by image ID (RFC-0014 digest_kind config); a pushed image goes by manifest digest."""
+    check_image(image)
+    return image.split("@", 1)[1] if image.startswith(LOCAL_IMAGE_PREFIX) else image
+
+
+def give_io_to_adapter(io_dir: Path) -> None:
+    """RFC-0005: the io dir belongs to the adapter's uid. Only root can chown; otherwise the
+    directories are opened to all so the container can write (development hosts)."""
+    paths = [io_dir, *io_dir.rglob("*")]
+    for path in paths:
+        if path.is_symlink():
+            continue
+        if os.geteuid() == 0:
+            os.chown(path, int(ADAPTER_UID), int(ADAPTER_UID))
+        elif path.is_dir() and path.stat().st_uid == os.geteuid():
+            path.chmod(0o777)
 
 
 def _tail(text: str) -> tuple[str, ...]:
@@ -254,6 +275,7 @@ class DockerRunner:
             mems=mems,
             memory=memory,
         )
+        give_io_to_adapter(io_dir)
         try:
             call = timed_call(argv, timeout_s, clock=self.clock)
         except IProofsError as e:

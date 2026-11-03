@@ -72,13 +72,13 @@ Each adapter directory `systems/<name>/tests/` holds stored upstream outputs cap
 
 ### Fake-system integration
 
-The G10 job of [RFC-0013 §G10](../../rfcs/0013-validation-and-ci.md#g10-fake-system-end-to-end), plus:
+The G10 job of [RFC-0013 §G10](../../rfcs/0013-validation-and-ci.md#g10-fake-system-end-to-end), implemented in `harness/tests/integration/test_fake_e2e.py` and run by the `fake-e2e` job of [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). With `IPROOFS_REAL_DOCKER=1` (`make e2e`, and the `fake-e2e` job) the module builds the fake images and runs real containers; without it, `docker` is the stand-in CLI in `harness/tests/fixtures/fake-docker`, so the same tests run anywhere in the ordinary test job. Faults are injected through `IPROOFS_FAKE_FAULT` in the fake image (`exit`, `sleep`, `escape`, `network`). The module holds `test_e2e_fake_and_fake_broken` (rule `E2E-1`), plus:
 
 - `test_failed_step_recorded`: an environment variable in the fake image makes `prove` exit 3; the run is `failed` with step `prove`, exit code 3 and last lines, and the directory validates.
 - `test_timeout_recorded`: a fake `prove` that sleeps past its limit yields `ErrorKind.timeout`, the container is killed, the record is written.
 - `test_path_traversal_rejected`: a fake `out.json` naming `../../etc/passwd` as a proof part yields `ErrorKind.adapter`.
 - `test_commitment_from_record`: see RFC-0014.
-- `test_network_none`: the fake adapter tries to open a socket during `prove` and records the failure; the test asserts the attempt failed.
+- `test_network_none`: the fake adapter tries to open a socket during `prove` and records the failure; the test asserts the attempt failed. Real containers only.
 
 ### GPU runbook tests
 

@@ -1,5 +1,9 @@
 # Same commands, same order as .github/workflows/ci.yml (checked by harness/tests/unit/test_ci_config.py).
-.PHONY: ci
+.PHONY: ci e2e
+# Gate G10 with real containers (needs Docker); CI runs it as root in the fake-e2e job.
+e2e:
+	IPROOFS_REAL_DOCKER=1 uv run pytest harness/tests/integration -q -rs
+
 ci:
 	uv sync --frozen
 	uv run ruff check .

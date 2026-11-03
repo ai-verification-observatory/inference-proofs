@@ -119,6 +119,12 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         action="store_true",
         help="run a test system's entrypoint as a local process instead of a container",
     )
+    p.add_argument(
+        "--image",
+        metavar="IMAGE_ID",
+        help="a locally built image by ID (sha256:<hex>), recorded as local/<system> with "
+        "digest_kind config and never eligible for a release (RFC-0014)",
+    )
     p.set_defaults(handler=run)
 
     p = command("controls", "run the negative-control suite against a run (RFC-0008)")
@@ -255,7 +261,7 @@ def run(args: argparse.Namespace) -> int:
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
-    containers, image, registry = _containers(system_file, args.in_process)
+    containers, image, registry = _containers(system_file, args.in_process, args.image)
     wl = load_workload(args.workload, root=root, registry=registry)
     seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
     runner = Runner(
@@ -287,10 +293,15 @@ def run(args: argparse.Namespace) -> int:
 
 
 def _containers(
-    system_file: Path, in_process: bool
+    system_file: Path, in_process: bool, image_id: str | None = None
 ) -> tuple["ContainerRunner", str | None, "SchemaRegistry"]:
     """The container runner for a system; in process only for test systems."""
-    from iproofs.adapter import DockerRunner, InProcessRunner  # noqa: PLC0415
+    from iproofs.adapter import (  # noqa: PLC0415
+        LOCAL_IMAGE_PREFIX,
+        DockerRunner,
+        InProcessRunner,
+        check_image,
+    )
     from iproofs.model import System, load  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
 
@@ -298,7 +309,10 @@ def _containers(
     system = load(system_file, registry)
     assert isinstance(system, System)
     if not in_process:
-        return DockerRunner(registry), None, registry
+        local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
+        return DockerRunner(registry), local and check_image(local), registry
+    if image_id:
+        raise IProofsError(ErrorKind.CONFIG, "--image names a container image; drop --in-process")
     if system.kind != "test":
         raise IProofsError(ErrorKind.CONFIG, "--in-process is for test systems only")
     # a test system cannot contain its own commit; the harness passes the pinned one
