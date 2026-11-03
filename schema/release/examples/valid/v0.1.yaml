@@ -1,0 +1,16 @@
+schema: "release/1"
+release: "v0.1"
+reference_file: "reference/v0.1.yaml"
+rfc_commit: "0123456789abcdef0123456789abcdef01234567"
+harness_version: "0.1.0"
+runs:
+  - "results/v0.1/sash/2026-12-02-sash-sash-l31-8b-c4096-prover-h100-1"
+superseded_runs: []
+claim_cards:
+  - {system: "sash", configuration: "default", card_version: 1, path: "systems/sash/claims/default.yaml", digest: "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"}
+review_window: {opens: "2027-02-15", closes: "2027-03-01"}
+freeze_date: "2027-03-02"
+replies:
+  sash: "systems/sash/replies/v0.1.md"
+sponsors:
+  - {name: "Example Foundation", provided: "GPU hours", period: "2027-01 to 2027-02"}

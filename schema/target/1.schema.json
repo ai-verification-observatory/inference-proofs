@@ -1,0 +1,93 @@
+{
+  "$id": "https://inference-proofs.org/schema/target/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "applies_to": {
+      "additionalProperties": {
+        "type": [
+          "string",
+          "boolean",
+          "number"
+        ]
+      },
+      "minProperties": 1,
+      "type": "object"
+    },
+    "author": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "affiliation"
+      ],
+      "type": "object"
+    },
+    "claim_class": {
+      "pattern": "^(next-token|greedy-continuation|segment-grid|other|\\*)/(exact-match|tolerance|other|\\*)/(committed-weights|public-weights|other|\\*)$",
+      "type": "string"
+    },
+    "comparator": {
+      "enum": [
+        "<=",
+        ">=",
+        "=="
+      ]
+    },
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "id": {
+      "pattern": "^[a-z0-9][a-z0-9-]{2,63}$",
+      "type": "string"
+    },
+    "metric": {
+      "$ref": "../quantity/1.schema.json#/$defs/metricId"
+    },
+    "profile": {
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    },
+    "rationale": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "schema": {
+      "const": "target/1"
+    },
+    "threshold": {
+      "allOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/quantity"
+        }
+      ],
+      "properties": {
+        "grade": {
+          "const": "asserted"
+        }
+      }
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "author",
+    "date",
+    "metric",
+    "comparator",
+    "threshold",
+    "claim_class",
+    "rationale"
+  ],
+  "title": "Relying-party target: targets/<author>/<id>.yaml (RFC-0009 §Targets)",
+  "type": "object"
+}

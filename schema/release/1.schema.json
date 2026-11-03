@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "card": {
+      "additionalProperties": false,
+      "properties": {
+        "card_version": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "configuration": {
+          "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+        },
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "path": {
+          "pattern": "^systems/[a-z][a-z0-9-]{1,31}/(claim|claims/[a-z0-9][a-z0-9-]{0,47})\\.yaml$",
+          "type": "string"
+        },
+        "system": {
+          "$ref": "../quantity/1.schema.json#/$defs/systemId"
+        }
+      },
+      "required": [
+        "system",
+        "configuration",
+        "card_version",
+        "path",
+        "digest"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/release/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "claim_cards": {
+      "items": {
+        "$ref": "#/$defs/card"
+      },
+      "type": "array"
+    },
+    "freeze_date": {
+      "format": "date",
+      "type": "string"
+    },
+    "harness_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "reference_file": {
+      "pattern": "^reference/[a-z0-9.-]+\\.yaml$",
+      "type": "string"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "replies": {
+      "additionalProperties": {
+        "pattern": "^systems/[a-z][a-z0-9-]{1,31}/replies/v\\d+\\.\\d+\\.md$",
+        "type": "string"
+      },
+      "propertyNames": {
+        "$ref": "../quantity/1.schema.json#/$defs/systemId"
+      },
+      "type": "object"
+    },
+    "review_window": {
+      "additionalProperties": false,
+      "properties": {
+        "closes": {
+          "format": "date",
+          "type": "string"
+        },
+        "opens": {
+          "format": "date",
+          "type": "string"
+        }
+      },
+      "required": [
+        "opens",
+        "closes"
+      ],
+      "type": "object"
+    },
+    "rfc_commit": {
+      "$ref": "../quantity/1.schema.json#/$defs/commit"
+    },
+    "runs": {
+      "items": {
+        "pattern": "^results/v\\d+\\.\\d+/[a-z][a-z0-9-]{1,31}/\\d{4}-\\d{2}-\\d{2}-[a-z0-9][a-z0-9-]*-[1-9][0-9]*$",
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema": {
+      "const": "release/1"
+    },
+    "sponsors": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "period": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "provided": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "provided",
+          "period"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "superseded_runs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 500,
+            "minLength": 1,
+            "type": "string"
+          },
+          "run_id": {
+            "$ref": "../quantity/1.schema.json#/$defs/runId"
+          }
+        },
+        "required": [
+          "run_id",
+          "reason"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema",
+    "release",
+    "reference_file",
+    "rfc_commit",
+    "harness_version",
+    "runs",
+    "superseded_runs",
+    "claim_cards",
+    "review_window",
+    "freeze_date",
+    "replies",
+    "sponsors"
+  ],
+  "title": "Release record: releases/<release>/release.yaml (RFC-0009 §Release record)",
+  "type": "object"
+}
