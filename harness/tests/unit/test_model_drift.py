@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from iproofs.model import MODELS, Document
+from iproofs.model import MODELS
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -23,7 +23,8 @@ def resolve(schemas: dict[str, dict[str, Any]], sid: str, pointer: str) -> dict[
     node: Any = schemas[sid]
     for part in pointer.removeprefix("#").strip("/").split("/"):
         if part:
-            node = node[part.replace("~1", "/").replace("~0", "~")]
+            key = part.replace("~1", "/").replace("~0", "~")
+            node = node[int(key)] if isinstance(node, list) else node[key]
     return dict(node)
 
 
@@ -42,13 +43,11 @@ def properties(
     return props, required
 
 
-def drift(
-    schemas: dict[str, dict[str, Any]], table: dict[tuple[str, str], type[Document]]
-) -> list[str]:
+def drift(schemas: dict[str, dict[str, Any]], table: dict[tuple[str, str], type[Any]]) -> list[str]:
     problems = []
     for (sid, pointer), cls in table.items():
         props, required = properties(schemas, sid, resolve(schemas, sid, pointer))
-        fields = {f.name: f for f in dataclasses.fields(cls)}  # type: ignore[arg-type]
+        fields = {f.name: f for f in dataclasses.fields(cls)}
         if props != set(fields):
             problems.append(f"{sid}{pointer} vs {cls.__name__}: {sorted(props ^ set(fields))}")
         for name in required & set(fields):
@@ -78,11 +77,12 @@ def test_unmodelled_document_schema_is_detected() -> None:
     assert drift(schemas, MODELS) == ["document schema toy/1 has no model"]
 
 
-MODEL_CLASSES: list[type[Document]] = sorted(set(MODELS.values()), key=lambda c: c.__name__)
+MODEL_CLASSES: list[type[Any]] = sorted(set(MODELS.values()), key=lambda c: c.__name__)
 
 
 @pytest.mark.parametrize("cls", MODEL_CLASSES)
-def test_models_are_frozen_and_slotted(cls: type[Document]) -> None:
-    params = cls.__dataclass_params__  # type: ignore[attr-defined]
+def test_models_are_frozen_and_slotted(cls: type[Any]) -> None:
+    params = cls.__dataclass_params__
     assert params.frozen
     assert "__slots__" in cls.__dict__
+    assert not hasattr(cls(**{f.name: None for f in dataclasses.fields(cls)}), "__dict__")

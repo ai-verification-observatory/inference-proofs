@@ -1,0 +1,383 @@
+{
+  "$defs": {
+    "adapterPhase": {
+      "$comment": "INV-GRADE-2: adapter-reported, scope primitive",
+      "allOf": [
+        {
+          "$ref": "#/$defs/reported"
+        }
+      ],
+      "properties": {
+        "grade": {
+          "const": "measured"
+        },
+        "scope": {
+          "const": "primitive"
+        },
+        "source": {
+          "properties": {
+            "kind": {
+              "const": "adapter"
+            }
+          }
+        }
+      }
+    },
+    "failure": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "kind": {
+          "enum": [
+            "config",
+            "environment",
+            "integrity",
+            "fetch",
+            "adapter",
+            "timeout",
+            "resource",
+            "policy",
+            "internal"
+          ]
+        },
+        "last_lines": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 50,
+          "type": "array"
+        },
+        "message": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "step": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "step",
+        "message",
+        "exit_code",
+        "last_lines",
+        "at"
+      ],
+      "type": "object"
+    },
+    "quantities": {
+      "additionalProperties": {
+        "$ref": "#/$defs/reported"
+      },
+      "type": "object"
+    },
+    "reported": {
+      "$comment": "INV-QTY-4: every quantity in run.json has tier reported",
+      "allOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/quantity"
+        }
+      ],
+      "properties": {
+        "tier": {
+          "const": "reported"
+        }
+      }
+    },
+    "reportedValue": {
+      "$comment": "INV-QTY-4",
+      "oneOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/quantity"
+        },
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/statistic"
+        }
+      ],
+      "properties": {
+        "tier": {
+          "const": "reported"
+        }
+      }
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/run/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "failure is set exactly when status is failed",
+      "else": {
+        "properties": {
+          "failure": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failure": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "adapter_phases": {
+      "additionalProperties": {
+        "$ref": "#/$defs/adapterPhase"
+      },
+      "type": "object"
+    },
+    "claim": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "card_version": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "configuration": {
+              "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+            },
+            "system": {
+              "$ref": "../quantity/1.schema.json#/$defs/systemId"
+            }
+          },
+          "required": [
+            "system",
+            "configuration",
+            "card_version"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "control": {
+      "type": "boolean"
+    },
+    "events": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "event": {
+            "pattern": "^[a-z][a-z0-9_.]*$",
+            "type": "string"
+          },
+          "mono_ns": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "event",
+          "mono_ns"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "#/$defs/failure"
+        }
+      ]
+    },
+    "metrics": {
+      "additionalProperties": {
+        "$ref": "#/$defs/reportedValue"
+      },
+      "propertyNames": {
+        "pattern": "^(info_seconds|setup_seconds|commit_seconds|prove_session_seconds|prove_steady_seconds|whole_wall_seconds|prove_call_seconds|proofs_count|requests_count|tokens_covered_total|tokens_covered_prompt|tokens_covered_output|tokens_covered_steady|proof_bytes|proof_bytes_total|verifier_download_bytes|prover_keep_bytes|verify_seconds|verify_seconds_total|verify_single_thread_seconds|verify_host_memory_peak_anon|verdicts_accept_count|commit_seconds_per_token_h1|commit_seconds_per_token_h1000|proof_bytes_per_token|verify_seconds_per_token|verify_single_thread_seconds_per_token|(commit|prove)_(gpu_memory_peak|gpu_util_mean|gpu_util_p95|gpu_energy|host_memory_peak_kernel|host_memory_peak_anon|cpu_seconds)|(rate|seconds_per_token|cost_per_1k_tokens|active_param_tokens_per_second)_(setup|commit|prove\\.steady|prove\\.session|whole_wall|verify|verify\\.single_thread|primitive))$"
+      },
+      "type": "object"
+    },
+    "profile": {
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    },
+    "proofs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "proof_id": {
+            "$ref": "../quantity/1.schema.json#/$defs/proofId"
+          },
+          "release_mono_ns": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tokens_covered": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "verdict": {
+            "enum": [
+              null,
+              "accept",
+              "reject",
+              "no_verdict",
+              "invalid_call"
+            ]
+          }
+        },
+        "required": [
+          "proof_id",
+          "release_mono_ns",
+          "tokens_covered",
+          "verdict"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "raw": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/quantities"
+        },
+        "info": {
+          "$ref": "#/$defs/quantities"
+        },
+        "prove": {
+          "$ref": "#/$defs/quantities"
+        },
+        "setup": {
+          "$ref": "#/$defs/quantities"
+        },
+        "verify": {
+          "$ref": "#/$defs/quantities"
+        }
+      },
+      "type": "object"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "repetition": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "replaces": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "reason": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "run_id": {
+              "$ref": "../quantity/1.schema.json#/$defs/runId"
+            }
+          },
+          "required": [
+            "run_id",
+            "reason"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "schema": {
+      "const": "run/1"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed"
+      ]
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "system_kind": {
+      "enum": [
+        "prover",
+        "reference",
+        "test"
+      ]
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "workload": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "version": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "run_id",
+    "release",
+    "system",
+    "workload",
+    "profile",
+    "repetition",
+    "control",
+    "system_kind",
+    "claim",
+    "status",
+    "failure",
+    "replaces",
+    "raw",
+    "adapter_phases",
+    "metrics",
+    "events",
+    "proofs",
+    "warnings"
+  ],
+  "title": "One job's record: results/<release>/<system>/<run-id>/run.json (RFC-0009 §Storage, RFC-0004)",
+  "type": "object"
+}

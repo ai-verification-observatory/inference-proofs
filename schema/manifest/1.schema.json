@@ -1,0 +1,523 @@
+{
+  "$defs": {
+    "file": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "machine": {
+      "$comment": "RFC-0006 machine record; fields are fixed by issue #73 (machine-record)",
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/manifest/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "claim": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "card_version": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "configuration": {
+              "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+            },
+            "system": {
+              "$ref": "../quantity/1.schema.json#/$defs/systemId"
+            }
+          },
+          "required": [
+            "system",
+            "configuration",
+            "card_version"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "commands": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "argv": {
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "cpuset": {
+            "pattern": "^[0-9,-]+$",
+            "type": "string"
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "gpus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mems": {
+            "pattern": "^[0-9,-]+$",
+            "type": "string"
+          },
+          "network": {
+            "const": "none"
+          },
+          "started_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "step": {
+            "enum": [
+              "info",
+              "setup",
+              "commit",
+              "prove",
+              "verify",
+              "control"
+            ]
+          }
+        },
+        "required": [
+          "step",
+          "argv",
+          "cpuset",
+          "mems",
+          "gpus",
+          "network",
+          "started_at",
+          "exit_code"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "commitment": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commitment_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "prover_files": {
+              "items": {
+                "$ref": "#/$defs/file"
+              },
+              "type": "array"
+            },
+            "verifier_files": {
+              "items": {
+                "$ref": "#/$defs/file"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "commitment_id",
+            "verifier_files",
+            "prover_files"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "control": {
+      "type": "boolean"
+    },
+    "harness": {
+      "additionalProperties": false,
+      "properties": {
+        "git_commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "git_dirty": {
+          "type": "boolean"
+        },
+        "lock_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "nonconforming": {
+          "type": "boolean"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "git_commit",
+        "git_dirty",
+        "lock_digest",
+        "nonconforming"
+      ],
+      "type": "object"
+    },
+    "machine": {
+      "$ref": "#/$defs/machine"
+    },
+    "profile": {
+      "additionalProperties": false,
+      "properties": {
+        "prover": {
+          "$ref": "../quantity/1.schema.json#/$defs/profileId"
+        },
+        "reference_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "reference_file": {
+          "pattern": "^reference/[a-z0-9.-]+\\.yaml$",
+          "type": "string"
+        },
+        "verifier": {
+          "$ref": "../quantity/1.schema.json#/$defs/profileId"
+        },
+        "verifier_host": {
+          "enum": [
+            "same_as_prover",
+            "separate"
+          ]
+        }
+      },
+      "required": [
+        "prover",
+        "verifier",
+        "verifier_host",
+        "reference_file",
+        "reference_digest"
+      ],
+      "type": "object"
+    },
+    "proofs": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "archive": {
+            "minLength": 1,
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "digest": {
+            "$ref": "../quantity/1.schema.json#/$defs/digest"
+          },
+          "parts": {
+            "items": {
+              "$ref": "#/$defs/file"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "proof_id": {
+            "$ref": "../quantity/1.schema.json#/$defs/proofId"
+          }
+        },
+        "required": [
+          "proof_id",
+          "digest",
+          "parts",
+          "archive"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "provider": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "runner": {
+      "additionalProperties": false,
+      "properties": {
+        "affiliated_systems": {
+          "items": {
+            "$ref": "../quantity/1.schema.json#/$defs/systemId"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "handle": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "organisation": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "handle",
+        "organisation",
+        "affiliated_systems"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "manifest/1"
+    },
+    "self_test": {
+      "additionalProperties": false,
+      "properties": {
+        "checks": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "name": {
+                "pattern": "^ST-[A-Z0-9-]+$",
+                "type": "string"
+              },
+              "passed": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "passed"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "passed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "passed",
+        "checks"
+      ],
+      "type": "object"
+    },
+    "system": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "adapter_dirty": {
+          "type": "boolean"
+        },
+        "claim_digest": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            }
+          ]
+        },
+        "image": {
+          "additionalProperties": false,
+          "properties": {
+            "digest_kind": {
+              "enum": [
+                "manifest",
+                "config"
+              ]
+            },
+            "ref": {
+              "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "ref",
+            "digest_kind"
+          ],
+          "type": "object"
+        },
+        "image_inputs": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "digest": {
+                "$ref": "../quantity/1.schema.json#/$defs/digest"
+              },
+              "name": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name",
+              "url",
+              "digest"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "name": {
+          "$ref": "../quantity/1.schema.json#/$defs/systemId"
+        },
+        "system_manifest_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "upstream": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "commit": {
+                  "$ref": "../quantity/1.schema.json#/$defs/commit"
+                },
+                "repo": {
+                  "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "repo",
+                "commit"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "system_manifest_digest",
+        "claim_digest",
+        "upstream",
+        "adapter_commit",
+        "adapter_dirty",
+        "image",
+        "image_inputs"
+      ],
+      "type": "object"
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "workload": {
+      "additionalProperties": false,
+      "properties": {
+        "corpus_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "file_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "id": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "model": {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            },
+            "revision": {
+              "$ref": "../quantity/1.schema.json#/$defs/commit"
+            },
+            "source": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "source",
+            "revision",
+            "digest"
+          ],
+          "type": "object"
+        },
+        "prompt_seed": {
+          "pattern": "^0x[0-9a-f]{16}$",
+          "type": "string"
+        },
+        "prompt_set_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "version": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "file_digest",
+        "model",
+        "corpus_digest",
+        "prompt_seed",
+        "prompt_set_digest"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "run_id",
+    "release",
+    "control",
+    "harness",
+    "runner",
+    "claim",
+    "provider",
+    "system",
+    "workload",
+    "profile",
+    "machine",
+    "self_test",
+    "commands",
+    "commitment",
+    "proofs",
+    "warnings"
+  ],
+  "title": "Everything needed to rerun a job: results/.../<run-id>/manifest.json (RFC-0014 §manifest.json)",
+  "type": "object"
+}
