@@ -2,7 +2,7 @@
 
 Usage: python harness/tests/coverage_gate.py coverage.json. Fails when a module group is under
 its floor; writes the line coverage of the whole package, a target and not a gate, to the CI
-job summary. The floors only rise: `validate` rises to 100 % as its tests land (#128).
+job summary. The floors only rise.
 """
 
 import json
@@ -14,7 +14,7 @@ from pathlib import Path
 FLOORS = {
     "iproofs.derive": ("derive.py", 100.0),
     "iproofs.controls": ("controls.py", 100.0),
-    "iproofs.validate": ("validate/", 89.0),
+    "iproofs.validate": ("validate/", 100.0),
 }
 LINE_TARGET = 90.0
 

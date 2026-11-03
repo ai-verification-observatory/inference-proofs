@@ -49,10 +49,6 @@ MAX_RUN_BYTES = 10 * 1024 * 1024
 STRUCTURAL = Path(__file__).with_name("structural_paths.txt")
 
 
-def _rel(path: Path, root: Path) -> str:
-    return path.relative_to(root).as_posix()
-
-
 def _git(root: Path, *args: str) -> list[str]:
     try:
         out = subprocess.run(

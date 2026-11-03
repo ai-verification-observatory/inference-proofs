@@ -37,6 +37,14 @@ def test_fake_dockerfile_is_pinned(repo: Path) -> None:
     assert [f for f in validate_tree(repo) if f.gate == "G7"] == []
 
 
+def test_checkout_of_full_hash_or_variable_passes(repo: Path) -> None:
+    dockerfile = repo / "systems/fake/Dockerfile"
+    extra = f"RUN git checkout ${{UPSTREAM_COMMIT}}\nRUN git checkout {'0' * 40}\n"
+    dockerfile.write_text(dockerfile.read_text() + extra)
+    subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
+    assert [f for f in validate_tree(repo) if f.gate == "G7"] == []
+
+
 def test_unpinned_dockerfile(repo: Path) -> None:
     found = place(repo, "Dockerfile-unpinned", "systems/fake/Dockerfile")
     d = "systems/fake/Dockerfile"
