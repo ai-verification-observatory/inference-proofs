@@ -38,4 +38,10 @@ Open an issue or a pull request; methodology changes go through an RFC ([RFC-000
 
 ## Licence
 
-Code: Apache-2.0 ([LICENSE](LICENSE)). Specifications, data and reports: CC BY 4.0.
+Code is licensed under Apache-2.0 ([LICENSE](LICENSE)). Specifications, data, results and reports are licensed under CC BY 4.0 ([LICENSES/CC-BY-4.0.txt](LICENSES/CC-BY-4.0.txt)).
+
+The boundary is fixed by [RFC-0001](rfcs/0001-process-and-governance.md#governance-files) (INV-GOV-6):
+
+- Code (Apache-2.0): `harness/`, `systems/*/` (except `claim.yaml`, `claims/`, `external.yaml` and `replies/`), `site/` templates, `schema/` and CI configuration.
+- Documents and data (CC BY 4.0): `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, and claim cards, external figures and replies.
+- A file that fits neither list is code.
