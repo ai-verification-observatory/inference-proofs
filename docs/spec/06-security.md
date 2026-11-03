@@ -47,6 +47,7 @@ The harness treats everything an adapter writes as hostile input:
 - Every path in `out.json` (proof parts, verifier files, prover files, logs) is resolved relative to the step's `/io` on the host and rejected (`ErrorKind.adapter`) if, after `os.path.realpath`, it leaves that directory, is a symlink, is a device or FIFO, or is not a regular file.
 - Proof ids must match the RFC-0012 pattern (one path component).
 - File counts and sizes are capped by `system.yaml` (`max_proof_parts`, `max_proof_bytes`); exceeding a cap is `ErrorKind.adapter`, recorded, not truncated.
+- Tests: `harness/tests/unit/test_path_safety.py` (`test_path_escape_rejected`, `test_unlisted_proof_is_adapter_failure`, `test_listed_but_unreleased_is_adapter_failure`, the part, size and out.json caps, symlink and non-regular parts). Messages name container paths (`/io/...`) only, never host paths.
 - Adapter stdout and stderr are read through a bounded pipe and capped per RFC-0009 before they reach disk; they are redacted before writing.
 - Strings from adapter output that reach the site are HTML-escaped by the template engine (autoescape on).
 
