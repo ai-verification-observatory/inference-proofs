@@ -1,6 +1,6 @@
 # RFCs
 
-Every methodology decision (what is measured, how, and how it is published) and every load-bearing technical decision (interfaces, schemas, measurement, integrity) is made through an RFC. Code that implements an Accepted RFC needs no RFC of its own. The lifecycle and the review rules are in [RFC-0001](0001-process-and-governance.md).
+Every methodology decision (what is measured, how, and how it is published) and every load-bearing technical decision (interfaces, schemas, measurement, integrity) is made through an RFC. Code that implements an Accepted RFC needs no RFC of its own. The lifecycle and the review rules are in [RFC-0001](0001-process-and-governance.md). `iproofs validate` checks that each RFC's status line matches its row below (rule `GOV-4`): a status change edits both in the same pull request.
 
 | # | Title | Status | Target milestone |
 |---|---|---|---|
