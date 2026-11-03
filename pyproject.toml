@@ -43,7 +43,10 @@ include = ["harness/src/iproofs", "README.md", "LICENSE"]
 testpaths = ["harness/tests", "systems"]
 # shared test helpers such as toy_tokenizer.py
 pythonpath = ["harness/tests"]
-addopts = "-ra --strict-markers"
+addopts = "-ra --strict-markers -p quarantine_plugin"
+markers = [
+  "quarantine(issue): a test that fails intermittently, run but not blocking; needs an issue number (docs/spec/07)",
+]
 
 [tool.ruff]
 line-length = 100

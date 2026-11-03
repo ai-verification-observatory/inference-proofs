@@ -72,7 +72,7 @@ A deprecation is announced in the CHANGELOG and in the release report of the ben
 
 ### Harness version
 
-1. All required checks green on `main`; no quarantined test older than 30 days ([07-testing-strategy.md §Flaky-test policy](07-testing-strategy.md#flaky-test-policy)).
+1. All required checks green on `main`; no quarantined test older than 30 days ([07-testing-strategy.md §Flaky-test policy](07-testing-strategy.md#flaky-test-policy); `harness/tests/repo/test_quarantine.py` fails on one).
 2. Version bumped in `pyproject.toml`; CHANGELOG `Unreleased` moved under the new version with the date.
 3. `uv build` produces a wheel and sdist; `uv run --isolated --with dist/*.whl iproofs --version` succeeds in a clean environment.
 4. Tag `harness-v<version>` signed by a maintainer, on the release commit.
