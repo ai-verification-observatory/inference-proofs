@@ -21,6 +21,8 @@ Size caps (INV-OBS-1): each log file is capped at 1 MiB, keeping the first 256 K
 
 ## Event format
 
+The logger is `harness/src/iproofs/log.py` (`JsonlLogger`, `Event`); a test keeps its event constants equal to the catalogue below.
+
 Each line of `logs/harness.jsonl` is a JSON object written by the single writer ([RFC-0012](../../rfcs/0012-schemas-and-serialization.md)) but on one line (no indent):
 
 ```json
