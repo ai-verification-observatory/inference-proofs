@@ -88,10 +88,10 @@ def iproofs_run(system: str, image_id: str, repetitions: int, *extra: str) -> in
     return cli.main([*argv, *extra])
 
 
-def why(repo: Path) -> list[object]:
-    """Failure records of every run so far, for assertion messages."""
-    runs = sorted((repo / "results").glob("*/*/*/run.json"))
-    return [json.loads(p.read_text()).get("failure") for p in runs]
+def why(repo: Path) -> list[str]:
+    """Failure messages of every run so far, for assertion messages."""
+    runs = [json.loads(p.read_text()) for p in sorted((repo / "results").glob("*/*/*/run.json"))]
+    return [f"{r['failure']['step']}: {r['failure']['message']}" for r in runs if r["failure"]]
 
 
 def run_dirs(repo: Path, system: str) -> list[Path]:
@@ -168,7 +168,9 @@ def failure(repo: Path) -> dict[str, object]:
 def test_failed_step_recorded(repo: Path, image: Image) -> None:
     assert iproofs_run("fake", image("fake", "exit"), 1) == 4
     found = failure(repo)
-    assert (found["kind"], found["step"], found["exit_code"]) == ("adapter", "prove", 3), found
+    assert (found["kind"], found["step"], found["exit_code"]) == ("adapter", "prove", 3), found[
+        "message"
+    ]
     assert "fake: injected prove failure" in found["last_lines"]  # type: ignore[operator]
 
 
@@ -177,13 +179,13 @@ def test_timeout_recorded(repo: Path, image: Image) -> None:
     system.write_text(system.read_text().replace("prove: 60", "prove: 2"))
     assert iproofs_run("fake", image("fake", "sleep"), 1) == 4
     found = failure(repo)
-    assert (found["kind"], found["step"]) == ("timeout", "prove"), found
+    assert (found["kind"], found["step"]) == ("timeout", "prove"), found["message"]
 
 
 def test_path_traversal_rejected(repo: Path, image: Image) -> None:
     assert iproofs_run("fake", image("fake", "escape"), 1) == 4
     found = failure(repo)
-    assert (found["kind"], found["step"]) == ("adapter", "prove"), found
+    assert (found["kind"], found["step"]) == ("adapter", "prove"), found["message"]
 
 
 def test_commitment_from_record(repo: Path, image: Image, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -209,5 +211,7 @@ def test_commitment_from_record(repo: Path, image: Image, monkeypatch: pytest.Mo
 def test_network_none(repo: Path, image: Image) -> None:
     assert iproofs_run("fake", image("fake", "network"), 1) == 4
     found = failure(repo)
-    assert (found["kind"], found["step"], found["exit_code"]) == ("adapter", "prove", 3), found
+    assert (found["kind"], found["step"], found["exit_code"]) == ("adapter", "prove", 3), found[
+        "message"
+    ]
     assert any("network unreachable" in line for line in found["last_lines"])  # type: ignore[attr-defined]
