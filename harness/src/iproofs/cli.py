@@ -242,7 +242,7 @@ def validate(args: argparse.Namespace) -> int:
     else:
         for f in failures:
             print(f.line())
-    files = len({f.path for f in failures})
+    files = len({f.path.split(":")[0] for f in failures})  # G9 and G12 paths carry :line
     print(f"validate: {len(failures)} failures in {files} files", file=sys.stderr)
     return 1 if failures else 0
 

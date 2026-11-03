@@ -17,3 +17,4 @@ Each file here must fail one CI gate with one rule id (RFC-0013 §Failure modes 
 | `G7/reference-range.yaml` | G7 | PIN-4 |
 | `G8/listed-word.md` | G8 | LANG-1 |
 | `G8/emoji.md` | G8 | LANG-2 |
+| `G12/broken.md` | G12 | LNK-1 (missing file, missing anchor), LNK-2 |
