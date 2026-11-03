@@ -1,0 +1,97 @@
+{
+  "$id": "https://inference-proofs.org/schema/perturbed-commitment/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The commitment of a workload's weights with one tensor element perturbed, made once per workload per release by `iproofs controls --prepare-perturbed` for controls C3 and P1 (RFC-0008). Stored as results/<release>/<system>/_controls/<workload>/perturbed.json; the perturbed weights never leave the runner's host.",
+  "properties": {
+    "commitment": {
+      "$ref": "../manifest/1.schema.json#/properties/commitment/anyOf/1"
+    },
+    "harness_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "image": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "model_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "perturbation": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "pattern": "^([0-9a-f]{2})+$",
+          "type": "string"
+        },
+        "before": {
+          "pattern": "^([0-9a-f]{2})+$",
+          "type": "string"
+        },
+        "dtype": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "file": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "tensor": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "after",
+        "before",
+        "dtype",
+        "file",
+        "tensor"
+      ],
+      "type": "object"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "schema": {
+      "const": "perturbed-commitment/1"
+    },
+    "source_model_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "workload": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "version": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+        }
+      },
+      "required": [
+        "id",
+        "version"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "commitment",
+    "harness_version",
+    "image",
+    "model_digest",
+    "perturbation",
+    "release",
+    "schema",
+    "source_model_digest",
+    "system",
+    "workload"
+  ],
+  "title": "Perturbed commitment",
+  "type": "object"
+}

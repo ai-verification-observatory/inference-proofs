@@ -1,0 +1,25 @@
+{
+  "schema": "perturbed-commitment/1",
+  "release": "v0.1",
+  "system": "fake",
+  "workload": {
+    "id": "fake-tiny-ci",
+    "version": 1
+  },
+  "source_model_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "model_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "perturbation": {
+    "file": "model.safetensors",
+    "tensor": "a.weight",
+    "dtype": "F32",
+    "before": "0000003f",
+    "after": "0x0100003f"
+  },
+  "commitment": {
+    "commitment_id": "c0ffee",
+    "verifier_files": [],
+    "prover_files": []
+  },
+  "image": "ghcr.io/example/iproofs-fake@sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "harness_version": "0.1.0"
+}

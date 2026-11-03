@@ -22,11 +22,15 @@ from typing import Literal, Protocol, TextIO
 from iproofs import __version__, selftest
 from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
 from iproofs.controls import (
+    EXPECTED,
     HonestProof,
+    NotApplicable,
     VerifyCall,
     VerifyResult,
     controls_document,
     new_control_seed,
+    perturb_model,
+    prover_side_record,
     run_shared_controls,
     system_control_record,
 )
@@ -58,6 +62,7 @@ from iproofs.measure import (
 from iproofs.model import (
     AdapterOut,
     ClaimCard,
+    PerturbedCommitmentRecord,
     ProofEntry,
     ProverProfile,
     ReferenceFile,
@@ -79,6 +84,7 @@ from iproofs.provenance import (
     git_state,
     machine_drift,
     machine_record,
+    model_digest,
     read_topology,
 )
 from iproofs.quantity import NullReason, Scope, Unit
@@ -709,18 +715,28 @@ class Runner:
             records[kind] = file_records(copies)
         job.commitment_record = records
 
-    def _recorded(self, job: Job, kind: str, into: Path, step: str) -> list[Path]:
+    def _recorded(
+        self,
+        job: Job,
+        kind: str,
+        into: Path,
+        step: str,
+        record: dict[str, object] | None = None,
+        store: Path | None = None,
+    ) -> list[Path]:
         """Copies of the recorded files of one side in `into`, each digest rechecked against
         the manifest record immediately before the call that uses them (RFC-0014)."""
-        assert job.commitment_record is not None
-        entries = job.commitment_record[kind]
+        record = record or job.commitment_record
+        store = store or job.staging / COMMITMENT_STORE
+        assert record is not None
+        entries = record[kind]
         assert isinstance(entries, list)
         copies = []
         for entry in entries:
             name, digest = str(entry["name"]), str(entry["digest"])
             dst = into / name
             dst.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(job.staging / COMMITMENT_STORE / STORE_SIDES[kind] / name, dst)
+            shutil.copyfile(store / STORE_SIDES[kind] / name, dst)
             dst.chmod(0o444)
             if file_digest(dst) != digest:
                 raise IProofsError(
@@ -901,49 +917,121 @@ class Runner:
         assert isinstance(doc, SystemControls)
         assert job.commit is not None
         assert job.workload is not None
-        commitment = str(job.commit.commitment_id)
+        twin = self._honest_twin(job)
+
+        def weakened(control: SystemControl) -> tuple[list[VerifyCall], object]:
+            return self._control_prove(job, control.id, work, flags=control.control_flags or ())
+
+        return [
+            system_control_record(c, lambda c=c: weakened(c), lambda: [twin], verify)  # type: ignore[misc]
+            for c in doc.controls
+        ]
+
+    def _honest_twin(self, job: Job) -> VerifyCall:
+        """The run's first honest proof against its own commitment: the twin of every
+        prover-side control (RFC-0008 §Honest twins)."""
+        assert job.commit is not None
         honest = self.honest_proofs(job)[0]
         honest_dir = job.staging / "io/proofs" / honest.proof_id
         parts = tuple(p.name for p in sorted(honest_dir.iterdir()))
-        twin = VerifyCall("twin", 0, commitment, honest.request, honest.claimed_output,
-                          honest_dir, parts, {})  # fmt: skip
-        shape = job.workload.shape
+        return VerifyCall("twin", 0, str(job.commit.commitment_id), honest.request,
+                          honest.claimed_output, honest_dir, parts, {})  # fmt: skip
 
-        def weakened(control: SystemControl) -> tuple[list[VerifyCall], object]:
-            io = work / f"system-{control.id}"
-            io.mkdir(parents=True)
-            shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
-            if (job.staging / "io/state").is_dir():
-                shutil.copytree(job.staging / "io/state", io / "state")
+    def _control_prove(
+        self,
+        job: Job,
+        control_id: str,
+        work: Path,
+        *,
+        flags: Sequence[str] = (),
+        models: Path | None = None,
+        batches: int | None = None,
+    ) -> tuple[list[VerifyCall], object]:
+        """A `prove` with `control: true` in its own io dir: the run's commitment and prover
+        files, optionally other weights (P1) or explicit flags (weakened provers). Returns the
+        verify calls of its proofs, each against the run's commitment (INV-CTRL-6), and the
+        binding report."""
+        assert job.commit is not None
+        assert job.workload is not None
+        commitment = str(job.commit.commitment_id)
+        shape = job.workload.shape
+        io = work / f"prove-{control_id}"
+        io.mkdir(parents=True)
+        shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
+        if (job.staging / "io/state").is_dir():
+            shutil.copytree(job.staging / "io/state", io / "state")
+        honest_models = job.models
+        job.models = models or honest_models
+        try:
             out, _ = self._call(
                 job,
                 "prove",
                 {
                     "commitment_id": commitment,
-                    "prover_files": list(job.commit.prover_files or ()),  # type: ignore[union-attr]
+                    "prover_files": list(job.commit.prover_files or ()),
                     "model_dir": "/models",
                     "prompts_file": "/io/prompts.jsonl",
                     "batch_size": shape.batch_size,
-                    "batches": shape.batches_per_session,
-                    "control_flags": list(control.control_flags or ()),
+                    "batches": batches or shape.batches_per_session,
+                    "control_flags": list(flags),
                 },
                 io=io,
                 control=True,
             )
-            check_proofs(IoDirs(io), out, job.system)  # type: ignore[arg-type]
-            report = None
-            if out.binding_report:
-                report = json.loads(IoDirs(io).host(out.binding_report, "prove").read_text())
-            calls = [
-                VerifyCall(control.id, i, commitment, tuple(job.prompts[e.request_index]),
-                           tuple(e.claimed_output), io / "proofs" / e.proof_id, tuple(e.parts), {})
-                for i, e in enumerate(out.proofs or ())
-            ]  # fmt: skip
-            return calls, report
+        finally:
+            job.models = honest_models
+        check_proofs(IoDirs(io), out, job.system)  # type: ignore[arg-type]
+        report = None
+        if out.binding_report:
+            report = json.loads(IoDirs(io).host(out.binding_report, "prove").read_text())
+        calls = [
+            VerifyCall(control_id, i, commitment, tuple(job.prompts[e.request_index]),
+                       tuple(e.claimed_output), io / "proofs" / e.proof_id, tuple(e.parts), {})
+            for i, e in enumerate(out.proofs or ())
+        ]  # fmt: skip
+        return calls, report
+
+    def _perturbed(self, job: Job) -> PerturbedCommitmentRecord | str:
+        """The workload's perturbed commitment for this release and system, or why there is
+        none (RFC-0008 C3 and P1 are then `not_applicable` with that reason)."""
+        assert job.workload is not None
+        spec = job.spec
+        path = perturbed_dir(Path(spec.results_root), spec.release, spec.system, spec.workload)
+        if not (path / "perturbed.json").is_file():
+            return (
+                "no perturbed commitment; run iproofs controls --prepare-perturbed " + spec.workload
+            )
+        record = load(path / "perturbed.json", self.registry)
+        assert isinstance(record, PerturbedCommitmentRecord)
+        made_for = (record.source_model_digest, record.workload["version"])
+        if made_for != (job.workload.model.digest, job.workload.version):
+            return "the perturbed commitment was made from other weights or workload version"
+        return record
+
+    def _prover_controls(
+        self,
+        job: Job,
+        perturbed: PerturbedCommitmentRecord | str,
+        verify: Callable[[VerifyCall], VerifyResult],
+        work: Path,
+    ) -> list[dict[str, object]]:
+        """P1 and P2 (RFC-0008 §Shared controls, prover side), one batch each."""
+        twin = self._honest_twin(job)
+
+        def p1() -> list[VerifyCall]:
+            if isinstance(perturbed, str):
+                raise NotApplicable(perturbed)
+            weights = default_cache() / "perturbed" / perturbed.source_model_digest[7:]
+            if not weights.is_dir() or model_digest(weights) != perturbed.model_digest:
+                raise NotApplicable("the perturbed weights are not on this host")
+            return self._control_prove(job, "P1", work, models=weights, batches=1)[0]
+
+        def p2() -> list[VerifyCall]:
+            raise NotApplicable("the workload declares one precision")
 
         return [
-            system_control_record(c, lambda c=c: weakened(c), lambda: [twin], verify)  # type: ignore[misc]
-            for c in doc.controls
+            prover_side_record(cid, EXPECTED[cid], "shared", build, lambda: [twin], verify)
+            for cid, build in (("P1", p1), ("P2", p2))
         ]
 
     def honest_proofs(self, job: Job) -> list[HonestProof]:
@@ -971,12 +1059,22 @@ class Runner:
         work = job.staging / "controls-io"
         trials = 0
 
+        perturbed = self._perturbed(job)
+        store = perturbed_dir(Path(job.spec.results_root), job.spec.release, job.spec.system,
+                              job.spec.workload) / "commitment"  # fmt: skip
+
         def verify(call: VerifyCall) -> VerifyResult:
             nonlocal trials
             trials += 1
             io = work / f"call-{trials}"
             shutil.copytree(call.proof_dir, io / "proof")
-            files = self._verifier_files(job, io)
+            if call.mutation.get("commitment") == "perturbed":  # C3: its own verifier files
+                assert not isinstance(perturbed, str)
+                record = dict(perturbed.commitment)
+                files = [f"/io/verifier/{p.name}" for p in self._recorded(
+                    job, "verifier_files", io / "verifier", "verify", record, store)]  # fmt: skip
+            else:
+                files = self._verifier_files(job, io)
             out, result = self._call(
                 job,
                 "verify",
@@ -1004,7 +1102,7 @@ class Runner:
             proofs,
             dirs,
             str(job.commit.commitment_id),
-            None,
+            None if isinstance(perturbed, str) else perturbed.commitment["commitment_id"],  # type: ignore[arg-type]
             workload=job.workload,
             seed=seed,
             verify=verify,
@@ -1029,9 +1127,14 @@ class Runner:
                     control=r["id"],
                     twin_verdict=twin["verdict"],
                 )
+        records += self._prover_controls(job, perturbed, verify, work)
         records += self._system_controls(job, verify, work)
+        made = None if isinstance(perturbed, str) else {
+            "commitment_id": str(perturbed.commitment["commitment_id"]),
+            "model_digest": perturbed.model_digest,
+        }  # fmt: skip
         doc = controls_document(
-            job.run_id, seed, job.image, self._verifier_profile(job), None, records
+            job.run_id, seed, job.image, self._verifier_profile(job), made, records
         )
         if doc["disclosure_pending"]:
             log.log(
@@ -1540,6 +1643,61 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
     shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
     return run_dir / "controls.json"
+
+
+def perturbed_dir(results_root: Path, release: str, system: str, workload: str) -> Path:
+    """Where a workload's perturbed commitment lives (RFC-0008 §Shared controls)."""
+    return results_root / release / system / "_controls" / workload
+
+
+def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
+    """`iproofs controls --prepare-perturbed WORKLOAD` (RFC-0008 C3 and P1): perturb one
+    element of the workload's weights into `<cache>/perturbed/<model digest>/`, commit that
+    copy through the adapter, and store the commit record and its files under
+    `results/<release>/<system>/_controls/<workload>/`. Once per workload per release; the
+    perturbed weights stay in the cache on this host."""
+    import tempfile  # noqa: PLC0415
+
+    out = perturbed_dir(Path(spec.results_root), spec.release, spec.system, spec.workload)
+    if (out / "perturbed.json").exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{out} already holds a perturbed commitment")
+    with tempfile.TemporaryDirectory() as tmp:
+        job = Job(spec, f"perturbed-{spec.workload}", Path(tmp))
+        (job.staging / "logs").mkdir()
+        (job.staging / "io").mkdir()
+        runner._resolve_inputs(job)
+        runner._image(job)
+        runner._info(job)
+        assert job.models is not None
+        assert job.workload is not None
+        source = model_digest(job.models)
+        weights = cache / "perturbed" / source.removeprefix("sha256:")
+        shutil.rmtree(weights, ignore_errors=True)
+        try:
+            change = perturb_model(job.models, weights)
+        except NotApplicable as e:
+            raise IProofsError(ErrorKind.CONFIG, f"cannot perturb {spec.workload}: {e}") from e
+        job.models = weights
+        runner._commit(job)
+        record: dict[str, object] = {
+            "schema": "perturbed-commitment/1",
+            "release": spec.release,
+            "system": spec.system,
+            "workload": {"id": job.workload.id, "version": job.workload.version},
+            "source_model_digest": source,
+            "model_digest": model_digest(weights),
+            "perturbation": asdict(change),
+            "commitment": job.commitment_record,
+            "image": job.image,
+            "harness_version": __version__,
+        }
+        errors = runner.registry.errors("perturbed-commitment/1", record)
+        if errors:
+            raise IProofsError(ErrorKind.INTERNAL, "perturbed.json: " + "; ".join(errors))
+        out.mkdir(parents=True)
+        shutil.copytree(job.staging / COMMITMENT_STORE, out / "commitment")
+        write_json(out / "perturbed.json", record)
+    return out / "perturbed.json"
 
 
 def _reference(job: Job) -> bool:

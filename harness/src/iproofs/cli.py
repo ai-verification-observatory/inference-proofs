@@ -135,7 +135,17 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p = command("controls", "run the negative-control suite against a run (RFC-0008)")
     p.set_defaults(handler=controls)
     p.add_argument("run_dir", type=Path, nargs="?")
-    p.add_argument("--prepare-perturbed", metavar="WORKLOAD")
+    p.add_argument(
+        "--prepare-perturbed",
+        metavar="WORKLOAD",
+        help="commit the C3 and P1 perturbed weights once per workload and release (with "
+        "--system and --profile)",
+    )
+    p.add_argument("--system", help="with --prepare-perturbed")
+    p.add_argument("--profile", help="with --prepare-perturbed")
+    p.add_argument("--results", type=Path, default=Path("results"))
+    p.add_argument("--image", metavar="IMAGE_ID", help="a locally built image by ID")
+    p.add_argument("--in-process", action="store_true", help="test systems only")
 
     p = command("machine-record", "print the machine record as JSON (RFC-0006)")
     p.add_argument("--selftest", action="store_true", help="run the RFC-0011 calibration checks")
@@ -373,7 +383,7 @@ def controls(args: argparse.Namespace) -> int:
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     if args.prepare_perturbed:
-        raise IProofsError(ErrorKind.INTERNAL, "--prepare-perturbed is not implemented yet (#90)")
+        return _prepare_perturbed(args)
     if args.run_dir is None:
         raise IProofsError(ErrorKind.CONFIG, "give a RUN_DIR")
     root = repo_root(Path.cwd())
@@ -383,6 +393,30 @@ def controls(args: argparse.Namespace) -> int:
         root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
     )
     print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    return 0
+
+
+def _prepare_perturbed(args: argparse.Namespace) -> int:
+    """`iproofs controls --prepare-perturbed WORKLOAD --system S --profile P`: prints the path
+    of the stored perturbed commitment record (RFC-0008 C3 and P1)."""
+    from iproofs.runner import JobSpec, Runner, prepare_perturbed  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.workloads import default_cache, load_workload  # noqa: PLC0415
+
+    if not (args.system and args.profile) or args.run_dir is not None:
+        raise IProofsError(
+            ErrorKind.CONFIG, "--prepare-perturbed takes --system and --profile, not a RUN_DIR"
+        )
+    root = repo_root(Path.cwd())
+    system_file = root / "systems" / args.system / "system.yaml"
+    if not system_file.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
+    containers, image, registry = _containers(system_file, args.in_process, args.image)
+    wl = load_workload(args.prepare_perturbed, root=root, registry=registry)
+    runner = Runner(containers, root=root, registry=registry, image=image)
+    spec = JobSpec(args.system, wl.id, wl.version, args.profile, 1, False, str(args.results),
+                   _release(root))  # fmt: skip
+    print(prepare_perturbed(runner, spec, default_cache()))
     return 0
 
 
