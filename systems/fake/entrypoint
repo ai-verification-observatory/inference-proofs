@@ -13,12 +13,16 @@ IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the h
 this file in process instead of in a container. IPROOFS_FAKE_DELAY_S sets the pause between
 proof releases (default 0.05 s) so prove.steady is observable. IPROOFS_FAKE_ACCEPT_ALL=1
 turns the verifier into one that accepts everything (systems/fake-broken).
+IPROOFS_FAKE_FAULT makes `prove` misbehave for the integration tests (docs/spec/07): `exit`
+exits 3, `sleep` outlasts any timeout, `escape` lists a part outside its proof directory, and
+`network` tries to reach the network and exits 3 when it cannot.
 """
 
 import hashlib
 import hmac
 import json
 import os
+import socket
 import sys
 import time
 from pathlib import Path
@@ -89,6 +93,19 @@ def prove(job: dict) -> dict:
     weakening = [f for f in flags if any(f.startswith(p) for p in FORBIDDEN_FLAGS)]
     if weakening and not job["control"]:  # RFC-0005 rule 4
         raise SystemExit(f"fake: refusing {weakening} outside a control job")
+    fault = os.environ.get("IPROOFS_FAKE_FAULT", "")
+    if fault == "exit":
+        print("fake: injected prove failure", file=sys.stderr)
+        raise SystemExit(3)
+    if fault == "sleep":
+        time.sleep(3600)
+    if fault == "network":
+        try:
+            socket.create_connection(("example.com", 443), timeout=5).close()
+        except OSError as e:
+            print(f"fake: network unreachable: {e}", file=sys.stderr)
+            raise SystemExit(3) from e
+        print("fake: network reachable", file=sys.stderr)
     started = time.monotonic_ns()
     key = model_commitment(host(job["model_dir"]))  # the weights actually loaded
     prompts = [json.loads(line) for line in host(job["prompts_file"]).read_text().splitlines()]
@@ -106,8 +123,9 @@ def prove(job: dict) -> dict:
         (tmp / "body.bin").write_bytes(body)
         (tmp / "tag.bin").write_bytes(tag(key, request, output, body))
         os.rename(tmp, proofs_dir / proof_id)  # atomic release (RFC-0005 §Proof release protocol)
+        parts = ["body.bin", "../../etc/passwd" if fault == "escape" else "tag.bin"]
         proofs.append({"proof_id": proof_id, "request_index": i,
-                       "parts": ["body.bin", "tag.bin"], "claimed_output": output})
+                       "parts": parts, "claimed_output": output})
         time.sleep(delay)
     log_command(["fake-prover", "prove", *flags], started, 0)
     return {**base("prove"), "proofs": proofs}

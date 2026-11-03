@@ -33,4 +33,4 @@ The prover keys the HMAC with the commitment of the weights it actually loads, n
 
 ## Running in process
 
-`IPROOFS_IO` and `IPROOFS_MODELS` map `/io` and `/models` to host directories, so the harness can run this file without a container. The image (`Dockerfile`) pins its base by digest.
+`IPROOFS_IO` and `IPROOFS_MODELS` map `/io` and `/models` to host directories, so the harness can run this file without a container. The image (`Dockerfile`) pins its base by digest. Build it with `systems/` as context and the commit `system.yaml` pins: `docker build --build-arg IPROOFS_FAKE_UPSTREAM=<commit> -f systems/fake/Dockerfile systems`. `IPROOFS_FAKE_FAULT` (`exit`, `sleep`, `escape`, `network`, as an environment variable or a build argument) makes `prove` misbehave for the integration tests in `harness/tests/integration/`; a measured run never sets it.

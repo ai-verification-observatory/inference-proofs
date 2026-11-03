@@ -76,19 +76,22 @@ jobs:
             uv run iproofs validate --all --changed-since "origin/${{ github.base_ref }}"
           fi
 
-  fake-image:
-    # Builds the fake system's image; gate G10 (#124) extends this job into the end-to-end run.
+  fake-e2e:
+    # Gate G10 (RFC-0013): the fake systems end to end in real containers, CPU only. The
+    # harness runs as root so it can give each job io dir to the adapter uid (RFC-0005).
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - run: docker build --pull=false --tag iproofs-fake:ci systems/fake
-      - run: docker build --pull=false --tag iproofs-fake-broken:ci -f systems/fake-broken/Dockerfile systems
-      - name: run info in the hardened container
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+      - run: uv sync --frozen
+      - name: fake and fake-broken end to end (E2E-1, budget B-CI-E2E 120 s target)
+        env:
+          IPROOFS_REAL_DOCKER: "1"
         run: |
-          mkdir -p io && chmod 777 io
-          printf '%s' '{"schema":"adapter-job/1","contract":"adapter/1","subcommand":"info","run_id":"2026-11-20-fake-fake-tiny-ci-ci-cpu-1","workload":{"id":"fake-tiny-ci","version":1},"shape":{"prompt_tokens":8,"output_tokens":1,"batch_size":2,"batches_per_session":3,"context_window":8},"control":false}' > io/job.json
-          docker run --rm --network none --read-only --cap-drop ALL \
-            --security-opt no-new-privileges -v "$PWD/io:/io:rw" \
-            iproofs-fake:ci info /io/job.json /io/out.json
-          grep -q '"system": "fake"' io/out.json
+          start=$SECONDS
+          sudo -E env "PATH=$PATH" .venv/bin/pytest harness/tests/integration -q -p no:cacheprovider -rs
+          echo "fake-e2e on ubuntu-24.04: $((SECONDS - start)) s wall time, image builds included (budget B-CI-E2E: 120 s, a target)" >> "$GITHUB_STEP_SUMMARY"
