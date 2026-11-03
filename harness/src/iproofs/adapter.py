@@ -186,6 +186,7 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
     memory: str | None,
     tmpfs: str = "1g",
     ro_mounts: Sequence[tuple[Path, str]] = (),
+    cgroup_parent: str | None = None,
 ) -> list[str]:
     """`docker create` arguments for one adapter call (RFC-0005 §Container invocation)."""
     argv = [
@@ -211,6 +212,8 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
         "-v",
         f"{io_dir.resolve()}:/io:rw",  # docker reads a relative path as a volume name
     ]
+    if cgroup_parent is not None:  # RFC-0011 G-2: counters outlive the container
+        argv += ["--cgroup-parent", cgroup_parent]
     for host, target in ro_mounts:  # recorded commitment files over their /io paths (RFC-0014)
         argv += ["-v", f"{host.resolve()}:{target}:ro"]
     if subcommand == "verify":
