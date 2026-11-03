@@ -378,4 +378,106 @@ def validate_tree(
     if base_ref:
         found += g2_append_only(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
+    found += g6_policy(root, files)
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
+
+
+# ---------------------------------------------------------------- G6
+
+
+def forbidden_match(token: str, pattern: str) -> bool:
+    """A glob (RFC-0013); an entry without a wildcard is a prefix (RFC-0005)."""
+    glob = pattern if any(c in pattern for c in "*?[") else pattern + "*"
+    return fnmatch.fnmatchcase(token, glob)
+
+
+def _forbidden(root: Path, system: str) -> list[str]:
+    path = root / "systems" / system / "system.yaml"
+    flags = parse_tree(path).get("forbidden_flags") if path.is_file() else None
+    return [str(f) for f in flags] if isinstance(flags, list) else []
+
+
+def g6_policy(root: Path, files: list[str]) -> list[Finding]:
+    """POL-1 to POL-4: no measured run used a weakening configuration (RFC-0013 §G6)."""
+    found = []
+    for rel in files:
+        if rel.startswith("results/") and rel.endswith("/manifest.json"):
+            found += _manifest_policy(root, rel)
+        elif rel.startswith("results/") and rel.endswith("/run.json"):
+            doc = json.loads((root / rel).read_text())
+            extra = sorted(set(doc.get("metrics", {})) - {"verdicts_accept_count"})
+            if doc.get("control") is True and extra:
+                found.append(
+                    Finding(
+                        "G6",
+                        rel,
+                        "POL-2",
+                        f"a control job records measured quantities {extra}",
+                        ErrorKind.POLICY,
+                        "/metrics",
+                    )
+                )
+        elif re.fullmatch(r"systems/[^/]+/entrypoint[^/]*", rel):
+            found += _entrypoint_policy(root, rel)
+    return found
+
+
+def _manifest_policy(root: Path, rel: str) -> list[Finding]:
+    doc = json.loads((root / rel).read_text())
+    found = []
+    if doc.get("harness", {}).get("nonconforming") is True:
+        found.append(
+            Finding(
+                "G6",
+                rel,
+                "POL-4",
+                "produced with --allow-nonconforming",
+                ErrorKind.POLICY,
+                "/harness/nonconforming",
+            )
+        )
+    if doc.get("control") is False:
+        system = str(doc.get("system", {}).get("name", ""))
+        patterns = _forbidden(root, system)
+        for i, command in enumerate(doc.get("commands", [])):
+            for token in command.get("argv", []):
+                if any(forbidden_match(str(token), p) for p in patterns):
+                    found.append(
+                        Finding(
+                            "G6",
+                            rel,
+                            "POL-1",
+                            f"measured run used forbidden flag {token!r}",
+                            ErrorKind.POLICY,
+                            f"/commands/{i}/argv",
+                        )
+                    )
+    return found
+
+
+def _entrypoint_policy(root: Path, rel: str) -> list[Finding]:
+    """POL-3: a forbidden flag literal in adapter source must be listed with its guard."""
+    system = rel.split("/")[1]
+    literals = [p.rstrip("*") for p in _forbidden(root, system)]
+    allow_file = root / "systems" / system / "policy-allow.txt"
+    allowed = set()
+    if allow_file.is_file():
+        for line in allow_file.read_text().splitlines():
+            if line.strip() and not line.startswith("#"):
+                file, _, content = line.partition("\t")
+                allowed.add((file, content.strip()))
+    found = []
+    name = rel.rsplit("/", 1)[-1]
+    for n, line in enumerate((root / rel).read_text(errors="replace").splitlines(), start=1):
+        if any(lit and lit in line for lit in literals) and (name, line.strip()) not in allowed:
+            found.append(
+                Finding(
+                    "G6",
+                    f"{rel}:{n}",
+                    "POL-3",
+                    "forbidden flag literal outside policy-allow.txt",
+                    ErrorKind.POLICY,
+                    hint="list the line and its control guard",
+                )
+            )
+    return found

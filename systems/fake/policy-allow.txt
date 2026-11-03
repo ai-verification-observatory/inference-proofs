@@ -1,0 +1,4 @@
+# RFC-0013 POL-3: lines of adapter source that name a forbidden flag, with their guard.
+# Format: <file name><TAB><line content, stripped>. Reviewers check the guard.
+# The list itself; the guard is `if weakening and not job["control"]` in prove().
+entrypoint	FORBIDDEN_FLAGS = ["--unsound-skip-"]
