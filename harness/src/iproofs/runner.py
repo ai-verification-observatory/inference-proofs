@@ -78,6 +78,7 @@ from iproofs.model import (
 from iproofs.provenance import (
     ConformanceFailure,
     Host,
+    archive_proof,
     check_profile,
     file_digest,
     file_records,
@@ -85,6 +86,7 @@ from iproofs.provenance import (
     machine_drift,
     machine_record,
     model_digest,
+    proof_digest,
     read_topology,
 )
 from iproofs.quantity import NullReason, Scope, Unit
@@ -234,6 +236,7 @@ class Job:
     resources: dict[str, StepResources] = field(default_factory=dict)  # step -> readings
     proof_records: list[dict[str, object]] = field(default_factory=list)
     proof_bytes: dict[str, int] = field(default_factory=dict)
+    archive: tuple[str, str, int] | None = None  # (proof id, tar digest, bytes), RFC-0014
 
 
 class Runner:
@@ -864,6 +867,29 @@ class Runner:
         failure = honest_verdict_failure(job.verdicts)
         if failure is not None:
             raise failure
+        self._archive(job)
+
+    def _check_proof(self, job: Job, proof_id: str, step: str) -> None:
+        """RFC-0014: the proof's digest, rechecked immediately before a verify or a control
+        mutation, still equals the one taken at its release."""
+        recorded = next(p["digest"] for p in job.proof_records if p["proof_id"] == proof_id)
+        if proof_digest(job.staging / "io/proofs" / proof_id) != recorded:
+            raise IProofsError(
+                ErrorKind.INTEGRITY, f"proof {proof_id} changed on disk after release", step=step
+            )
+
+    def _archive(self, job: Job) -> None:
+        """RFC-0014: one proof per configuration in full, the first proof of repetition 1 that
+        verified `accept`, as a deterministic tar under `<results>/.archive/` (never committed;
+        uploaded per docs/runbooks/gpu-run.md). Its digest goes into digests.txt."""
+        spec = job.spec
+        where = Path(spec.results_root) / ".archive" / spec.release / spec.system
+        where = where / spec.workload / spec.profile
+        first = next((pid for pid, _ in job.releases if job.verdicts.get(pid) == "accept"), None)
+        if spec.repetition != 1 or first is None or _reference(job) or any(where.glob("*.tar")):
+            return
+        job.archive = (first, *archive_proof(job.staging / "io/proofs" / first,
+                                             where / f"{job.run_id}-{first}.tar"))  # fmt: skip
 
     def _verify_one(
         self, job: Job, proof_id: str, entry: ProofEntry, *, single: bool
@@ -872,6 +898,7 @@ class Runner:
         commitment from the harness record, never from the proof (AGENTS.md rule 6)."""
         assert job.commit is not None
         io = job.staging / "verify" / (proof_id + ("-1cpu" if single else ""))
+        self._check_proof(job, proof_id, "verify")
         shutil.copytree(job.staging / "io/proofs" / proof_id, io / "proof")
         files = self._verifier_files(job, io)
         request_index = entry.request_index
@@ -1067,6 +1094,8 @@ class Runner:
             nonlocal trials
             trials += 1
             io = work / f"call-{trials}"
+            if call.proof_dir.parent == job.staging / "io/proofs":  # an honest proof, unmutated
+                self._check_proof(job, call.proof_dir.name, "controls")
             shutil.copytree(call.proof_dir, io / "proof")
             if call.mutation.get("commitment") == "perturbed":  # C3: its own verifier files
                 assert not isinstance(perturbed, str)
@@ -1107,6 +1136,7 @@ class Runner:
             seed=seed,
             verify=verify,
             work=work / "mutations",
+            check=lambda proof_id: self._check_proof(job, proof_id, "controls"),
         )
         for r in records:
             for t in r["trials"]:  # type: ignore[attr-defined]
@@ -1196,6 +1226,8 @@ class Runner:
         if manifest is not None:
             write_json(job.staging / "manifest.json", manifest)
         lines = [f"proofs/{p['proof_id']}\t{p['digest']}\n" for p in job.proof_records]
+        if job.archive:
+            lines.append(f"archive/{job.archive[0]}.tar\t{job.archive[1]}\n")
         for name, capture in sorted(job.logs.items()):
             if capture.total:  # the digest of the whole stream, before redaction and cuts
                 lines.append(f"logs/{name}\t{capture.digest}\n")
@@ -1630,6 +1662,7 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
     manifest = json.loads((run_dir / "manifest.json").read_text())
     job.image = manifest["system"]["image"]["ref"]
     job.commitment_record = manifest["commitment"]  # digests rechecked before every verify
+    job.proof_records = manifest["proofs"]  # proof digests rechecked before every control
     if not (run_dir / COMMITMENT_STORE).is_dir():
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no commitment store")
     job.prompts = [json.loads(line) for line in (io / "prompts.jsonl").read_text().splitlines()]

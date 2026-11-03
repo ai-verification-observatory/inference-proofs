@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import subprocess
+import tarfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -78,6 +79,23 @@ def proof_digest(proof_dir: Path) -> str:
     if nested:
         raise IProofsError(ErrorKind.INTEGRITY, f"{proof_dir}: nested part files {nested}")
     return _listing_digest(files)
+
+
+def archive_proof(proof_dir: Path, out: Path) -> tuple[str, int]:
+    """RFC-0014 §Proof digests and archive: the proof directory as a POSIX ustar tar, entries
+    sorted by name, mtime 0, uid and gid 0, mode 0644, no compression, so the same parts give
+    the same bytes. Returns (sha256 digest, bytes) of the archive."""
+    files = _files(proof_dir)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    with tarfile.open(out, "w", format=tarfile.USTAR_FORMAT) as tar:
+        for name in sorted(files, key=lambda n: n.encode("utf-8")):
+            info = tarfile.TarInfo(name)
+            info.size, info.mtime, info.mode = files[name].stat().st_size, 0, 0o644
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            with files[name].open("rb") as f:
+                tar.addfile(info, f)
+    return file_digest(out), out.stat().st_size
 
 
 def corpus_digest(entries: Mapping[str, Path]) -> str:
