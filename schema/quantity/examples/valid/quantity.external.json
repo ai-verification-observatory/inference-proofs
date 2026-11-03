@@ -1,0 +1,15 @@
+{
+  "grade": "external",
+  "mapping": "approximate",
+  "null_reason": null,
+  "scope": "prove.steady",
+  "source": {
+    "kind": "upstream",
+    "ref": "https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/constants.json"
+  },
+  "tier": "reported",
+  "unit": "token/s",
+  "upstream_grade": "measured",
+  "upstream_scope": "loop",
+  "value": 1.251
+}

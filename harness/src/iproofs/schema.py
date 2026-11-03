@@ -111,10 +111,24 @@ class SchemaRegistry:
             self._schemas[schema_id], registry=self._registry, format_checker=FORMATS
         )
 
-    def errors(self, schema_id: str, tree: dict[str, object]) -> list[str]:
-        """Every validation error as `<pointer>: <message>`, sorted by JSON Pointer."""
+    def is_defs_only(self, schema_id: str) -> bool:
+        """A shared-definitions schema such as quantity/1 describes no document."""
+        return "properties" not in self._schemas[schema_id]
+
+    def errors(
+        self, schema_id: str, tree: dict[str, object], *, def_name: str | None = None
+    ) -> list[str]:
+        """Every validation error as `<pointer>: <message>`, sorted by JSON Pointer.
+
+        With `def_name`, validate against `$defs/<def_name>` of the schema instead.
+        """
+        validator = self.validator(schema_id)
+        if def_name is not None:
+            validator = validator.evolve(
+                schema={"$ref": f"{schema_id_url(schema_id)}#/$defs/{def_name}"}
+            )
         found = []
-        for err in self.validator(schema_id).iter_errors(tree):  # type: ignore[arg-type]
+        for err in validator.iter_errors(tree):  # type: ignore[arg-type]
             pointer = "".join(
                 "/" + str(p).replace("~", "~0").replace("/", "~1") for p in err.absolute_path
             )
@@ -167,8 +181,16 @@ def check_examples(root: Path, registry: SchemaRegistry) -> list[str]:
             continue
         kind = example.parent.name
         try:
-            load_document(example, registry)
-            error = ""
+            schema_id = f"{example.parents[2].name}/1"
+            if schema_id in registry.ids() and registry.is_defs_only(schema_id):
+                # `<def>.<name>.json` exercises `$defs/<def>` of a definitions-only schema
+                tree = _parse(example)
+                error = "\n".join(
+                    registry.errors(schema_id, tree, def_name=example.name.split(".", 1)[0])
+                )
+            else:
+                load_document(example, registry)
+                error = ""
         except IProofsError as e:
             error = e.message
         if kind == "valid" and error:

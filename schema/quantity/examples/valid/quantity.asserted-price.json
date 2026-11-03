@@ -1,0 +1,12 @@
+{
+  "grade": "asserted",
+  "null_reason": null,
+  "scope": null,
+  "source": {
+    "kind": "reference_file",
+    "ref": "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+  },
+  "tier": "reported",
+  "unit": "USD/gpu_hour",
+  "value": 2.5
+}
