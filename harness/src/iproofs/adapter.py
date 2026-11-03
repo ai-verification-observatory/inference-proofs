@@ -4,9 +4,16 @@ Everything an adapter writes is untrusted input (docs/spec/06-security.md). Mess
 container-side paths (`/io/...`) only, so no host path reaches a record.
 """
 
+import os
+import re
 import stat
+import subprocess
+import sys
+import time
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import AdapterOut, System, load
@@ -116,3 +123,214 @@ def check_proofs(dirs: IoDirs, out: AdapterOut, system: System) -> list[str]:
                 step,
             )
     return warnings
+
+
+# ---------------------------------------------------------------- container invocation
+
+IMAGE_RE = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
+ADAPTER_UID = "10001"
+VERIFY_MEMORY = "32g"
+GPU_STEPS = frozenset({"info", "setup", "commit", "prove"})
+STDERR_TAIL = 50
+
+
+@dataclass(frozen=True, slots=True)
+class StepResult:
+    """One adapter call (RFC-0010 §Internal API). Samples and release times join in RFC-0011."""
+
+    step: str
+    started_mono_ns: int
+    ended_mono_ns: int
+    exit_code: int
+    out: AdapterOut | None  # validated adapter-out document; None when the call failed
+    stderr_tail: tuple[str, ...]
+
+
+class ContainerRunner(Protocol):
+    def run(  # noqa: PLR0913 (RFC-0010 §Internal API signature)
+        self,
+        image: str,
+        subcommand: str,
+        io_dir: Path,
+        *,
+        models_dir: Path | None,
+        gpu: int | None,
+        cpuset: str,
+        mems: str,
+        memory: str | None,
+        timeout_s: float,
+    ) -> StepResult: ...
+
+
+def check_image(image: str) -> str:
+    """INV-ADAPTER-3: images are referenced by digest, never by tag alone."""
+    if not IMAGE_RE.fullmatch(image):
+        raise IProofsError(ErrorKind.CONFIG, f"image {image!r} is not <repository>@sha256:<digest>")
+    return image
+
+
+def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
+    image: str,
+    subcommand: str,
+    io_dir: Path,
+    *,
+    models_dir: Path | None,
+    gpu: int | None,
+    cpuset: str,
+    mems: str,
+    memory: str | None,
+    tmpfs: str = "1g",
+) -> list[str]:
+    """`docker create` arguments for one adapter call (RFC-0005 §Container invocation)."""
+    argv = [
+        "docker",
+        "create",
+        "--network",
+        "none",
+        "--read-only",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges",
+        "--pids-limit",
+        "4096",
+        "--user",
+        f"{ADAPTER_UID}:{ADAPTER_UID}",
+        "--cpuset-cpus",
+        cpuset,
+        "--cpuset-mems",
+        mems,
+        "--tmpfs",
+        f"/tmp:rw,size={tmpfs},mode=1777",
+        "-v",
+        f"{io_dir}:/io:rw",
+    ]
+    if subcommand == "verify":
+        argv += ["--memory", VERIFY_MEMORY]  # never a GPU, never the weights
+    else:
+        if models_dir is not None:
+            argv += ["-v", f"{models_dir}:/models:ro"]
+        if gpu is not None and subcommand in GPU_STEPS:
+            argv += ["--gpus", f"device={gpu}"]
+        if memory is not None:
+            argv += ["--memory", memory]
+    return [*argv, check_image(image), subcommand, "/io/job.json", "/io/out.json"]
+
+
+def _tail(text: str) -> tuple[str, ...]:
+    return tuple(text.splitlines()[-STDERR_TAIL:])
+
+
+class DockerRunner:
+    """Runs adapter calls with the docker CLI; the only place a container is started."""
+
+    def __init__(self, registry: SchemaRegistry, clock: Callable[[], int] = time.monotonic_ns):
+        self.registry = registry
+        self.clock = clock
+
+    def run(  # noqa: PLR0913 (RFC-0010 §Internal API signature)
+        self,
+        image: str,
+        subcommand: str,
+        io_dir: Path,
+        *,
+        models_dir: Path | None,
+        gpu: int | None,
+        cpuset: str,
+        mems: str,
+        memory: str | None,
+        timeout_s: float,
+    ) -> StepResult:
+        argv = docker_create_argv(
+            image,
+            subcommand,
+            io_dir,
+            models_dir=models_dir,
+            gpu=gpu,
+            cpuset=cpuset,
+            mems=mems,
+            memory=memory,
+        )
+        created = subprocess.run(argv, capture_output=True, text=True, check=False)
+        if created.returncode != 0:
+            raise IProofsError(
+                ErrorKind.ENVIRONMENT,
+                f"docker create failed: {created.stderr}",
+                step=subcommand,
+                exit_code=created.returncode,
+            )
+        cid = created.stdout.strip()  # host-local id: used here only, never recorded
+        start = self.clock()
+        try:
+            done = subprocess.run(
+                ["docker", "start", "--attach", cid],
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as e:
+            subprocess.run(["docker", "kill", cid], capture_output=True, check=False)
+            stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
+            raise IProofsError(
+                ErrorKind.TIMEOUT,
+                f"{subcommand} exceeded {timeout_s} s",
+                step=subcommand,
+                last_lines=_tail(stderr),
+            ) from e
+        finally:
+            end = self.clock()
+            subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
+        out = read_out(IoDirs(io_dir), self.registry, subcommand) if done.returncode == 0 else None
+        return StepResult(subcommand, start, end, done.returncode, out, _tail(done.stderr))
+
+
+class InProcessRunner:
+    """Runs an adapter entrypoint as a local process with the same job.json and out.json
+    contract, mapping /io and /models through IPROOFS_IO and IPROOFS_MODELS (tests, CI)."""
+
+    def __init__(
+        self,
+        entrypoint: Path,
+        registry: SchemaRegistry,
+        env: Mapping[str, str] | None = None,
+        clock: Callable[[], int] = time.monotonic_ns,
+    ) -> None:
+        self.entrypoint = entrypoint
+        self.registry = registry
+        self.env = dict(env or {})
+        self.clock = clock
+
+    def run(  # noqa: PLR0913 (RFC-0010 §Internal API signature)
+        self,
+        image: str,
+        subcommand: str,
+        io_dir: Path,
+        *,
+        models_dir: Path | None,
+        gpu: int | None,
+        cpuset: str,
+        mems: str,
+        memory: str | None,
+        timeout_s: float,
+    ) -> StepResult:
+        env = {**os.environ, **self.env, "IPROOFS_IO": str(io_dir)}
+        if models_dir is not None and subcommand != "verify":
+            env["IPROOFS_MODELS"] = str(models_dir)
+        start = self.clock()
+        try:
+            done = subprocess.run(
+                [sys.executable, str(self.entrypoint), subcommand, "/io/job.json", "/io/out.json"],
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=timeout_s,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as e:
+            raise IProofsError(
+                ErrorKind.TIMEOUT, f"{subcommand} exceeded {timeout_s} s", step=subcommand
+            ) from e
+        end = self.clock()
+        out = read_out(IoDirs(io_dir), self.registry, subcommand) if done.returncode == 0 else None
+        return StepResult(subcommand, start, end, done.returncode, out, _tail(done.stderr))
