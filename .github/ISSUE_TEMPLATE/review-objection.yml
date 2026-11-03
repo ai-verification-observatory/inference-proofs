@@ -1,0 +1,43 @@
+name: Review objection
+description: Object to a run during peer review (RFC-0007 §Peer review before release).
+title: "Review objection: <run id>"
+labels: ["review-objection"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Link this issue from the `objections` of your review record (`review/1`). A maintainer labels it with your organisation. Release approval requires every objection closed.
+  - type: input
+    id: run_id
+    attributes:
+      label: Run id
+      placeholder: 2027-01-10-flashprove-fp-maverick-w1024-b24-prover-h100-1
+    validations:
+      required: true
+  - type: dropdown
+    id: check
+    attributes:
+      label: Check
+      description: The review check that failed.
+      options:
+        - pins
+        - configuration
+        - logs
+        - derived_numbers
+        - controls
+    validations:
+      required: true
+  - type: textarea
+    id: text
+    attributes:
+      label: Objection
+      description: What you checked, what you found, and the file or record it is in.
+    validations:
+      required: true
+  - type: input
+    id: organisation
+    attributes:
+      label: Reviewer organisation
+      description: Your organisation, as in your review record. It must differ from the runner's (INV-TIER-3).
+    validations:
+      required: true

@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security report or accepted negative control
+    url: https://github.com/ai-verification-observatory/inference-proofs/blob/main/SECURITY.md
+    about: Report vulnerabilities, and verifiers that accept a tampered proof, privately as SECURITY.md describes, never in a public issue.
