@@ -170,7 +170,7 @@ class Job:
 
 
 class Runner:
-    def __init__(
+    def __init__(  # noqa: PLR0913 (keyword-only configuration)
         self,
         containers: ContainerRunner,
         *,
@@ -181,6 +181,7 @@ class Runner:
         image: str | None = None,
         operator: RunnerIdentity | None = None,
         provider: str = "undeclared",
+        replay_seed: int | None = None,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -190,6 +191,8 @@ class Runner:
         self.image = image
         self.operator = operator or RunnerIdentity.from_env()
         self.provider = provider
+        # RFC-0003 §Seed policy: a fresh seed per job, or a recorded one replayed (--prompts-from)
+        self.replay_seed = replay_seed
         self.redact = Redactor.from_host()
 
     # ---------------------------------------------------------------- public
@@ -201,7 +204,7 @@ class Runner:
             for r in range(1, repetitions + 1)
         ]
 
-    def run(self, spec: JobSpec, *, below_minimum: bool = False) -> Path:
+    def run(self, spec: JobSpec, *, below_minimum: bool = False, seed: int | None = None) -> Path:
         """Drive one job from `pending` to `written`; returns the run directory."""
         if spec.control_suite:
             raise IProofsError(ErrorKind.CONFIG, "the control suite is wired in issue #89")
@@ -209,6 +212,8 @@ class Runner:
         results = Path(spec.results_root)
         run_id, staging = allocate_run_id(results, spec, date)
         job = Job(spec, run_id, staging, events=EventLog(clock=self.clock))
+        seed = self.replay_seed if seed is None else seed
+        job.seed = int.from_bytes(os.urandom(8), "big") if seed is None else seed
         if below_minimum:
             job.warnings.append("repetitions_below_minimum")
         (staging / "logs").mkdir()
@@ -281,7 +286,6 @@ class Runner:
         job.reference, job.reference_file = self._reference(spec)
         job.system, job.workload = system, wl
         job.models = model_dir(self.root, wl)
-        job.seed = int.from_bytes(os.urandom(8), "big")  # fresh per job (RFC-0003 §Seed policy)
         job.prompts = materialise_prompts(self.root, wl, job.models, job.seed)
         io = job.staging / "io"
         io.mkdir()
@@ -765,3 +769,17 @@ def _boot_id() -> str:
         return Path("/proc/sys/kernel/random/boot_id").read_text().strip()
     except OSError:
         return "unknown"
+
+
+def recorded_seed(run_dir: Path, workload: str, version: int) -> int:
+    """The prompt seed a run recorded, for replay; its workload must be the same one."""
+    manifest = run_dir / "manifest.json"
+    if not manifest.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} has no manifest.json to replay")
+    recorded = json.loads(manifest.read_text())["workload"]
+    if (recorded["id"], recorded["version"]) != (workload, version):
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"{run_dir} ran {recorded['id']} v{recorded['version']}, not {workload} v{version}",
+        )
+    return int(recorded["prompt_seed"], 16)

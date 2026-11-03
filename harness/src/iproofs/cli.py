@@ -190,7 +190,6 @@ def run(args: argparse.Namespace) -> int:
         flag
         for flag, on in (
             ("--control-suite", args.control_suite),
-            ("--prompts-from", args.prompts_from),
             ("--provider", args.provider),
             ("--allow-nonconforming", args.allow_nonconforming),
         )
@@ -198,7 +197,7 @@ def run(args: argparse.Namespace) -> int:
     ]
     if unsupported:
         raise IProofsError(
-            ErrorKind.CONFIG, f"not implemented yet: {unsupported} (issues #89, #137, #73, #75)"
+            ErrorKind.CONFIG, f"not implemented yet: {unsupported} (issues #89, #75)"
         )
     root = repo_root(Path.cwd())
     registry = SchemaRegistry.from_tree(root / "schema")
@@ -221,12 +220,16 @@ def run(args: argparse.Namespace) -> int:
     from iproofs.workloads import load_workload  # noqa: PLC0415
 
     wl = load_workload(args.workload, root=root, registry=registry)
+    from iproofs.runner import recorded_seed  # noqa: PLC0415
+
+    seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
     runner = Runner(
         containers,
         root=root,
         registry=registry,
         image=image,
         provider=args.provider or "undeclared",
+        replay_seed=seed,
     )
     spec = JobSpec(
         args.system,
