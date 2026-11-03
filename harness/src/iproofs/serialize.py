@@ -40,6 +40,11 @@ def write_json(path: Path, obj: Mapping[str, object]) -> str:
     return _write_atomic(path, dumps(obj))
 
 
+def write_text(path: Path, text: str) -> str:
+    """Write a UTF-8 text record (for example digests.txt) atomically; return its digest."""
+    return _write_atomic(path, text.encode("utf-8"))
+
+
 def write_jsonl(path: Path, rows: Iterable[object]) -> str:
     """One compact JSON value per line, keys sorted, LF after every line (prompts.jsonl)."""
     lines = [

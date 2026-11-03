@@ -55,7 +55,7 @@ from iproofs.model import (
 from iproofs.provenance import file_digest, file_records, git_state, proof_digest
 from iproofs.quantity import Scope, Unit
 from iproofs.schema import SchemaRegistry
-from iproofs.serialize import write_json, write_jsonl
+from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.workloads import load_workload, materialise_prompts, model_dir, workload_digest
 
 STATES = (
@@ -277,6 +277,7 @@ class Runner:
                 outcome="failed" if job.failure else "completed",
             )
         final.parent.joinpath(f".staging-{run_id}").rename(final)
+        _fsync_dir(final.parent)  # the run directory exists only complete (INV-RUN-2)
         return final
 
     # ---------------------------------------------------------------- states
@@ -656,23 +657,52 @@ class Runner:
     # ---------------------------------------------------------------- written
 
     def _write(self, job: Job) -> Path:
+        """Assemble, validate and write the run's documents (RFC-0010 §Writing the run directory).
+
+        A document that fails its schema is a harness bug: it is kept under `logs/invalid/`
+        and the job is recorded as failed `internal` with documents that do validate.
+        """
         spec = job.spec
         final = Path(spec.results_root) / spec.release / spec.system / job.run_id
         run_json = self._pointer(final / "run.json")
         metrics: dict[str, QuantityTree] = {}
         if job.failure is None:
-            metrics = self._metrics(job, run_json)
-        proofs = [
-            {
-                "proof_id": pid,
-                "release_mono_ns": ns,
-                "tokens_covered": sum(self._tokens(job)[i]),
-                "verdict": job.verdicts.get(pid),
-            }
-            for i, (pid, ns) in enumerate(job.releases)
-        ]
-        warnings = list(job.warnings)
-        doc = {
+            try:
+                metrics = self._metrics(job, run_json)
+            except IProofsError as e:
+                job.failure = self.redact.failure(Failure.from_error(e, step="written"))
+        doc = self._run_doc(job, metrics)
+        manifest = self._manifest(job) if job.workload and job.system else None
+        invalid = {"run.json": (doc, self.registry.errors("run/1", doc))}
+        if manifest is not None:
+            invalid["manifest.json"] = (manifest, self.registry.errors("manifest/1", manifest))
+        bad = {name: errors for name, (_, errors) in invalid.items() if errors}
+        if bad:
+            kept = job.staging / "logs/invalid"
+            kept.mkdir(parents=True, exist_ok=True)
+            for name in bad:
+                (kept / name).write_text(json.dumps(invalid[name][0], indent=2, default=str))
+            message = "; ".join(f"{n} fails its schema: {e[0]}" for n, e in sorted(bad.items()))
+            job.failure = Failure.build(ErrorKind.INTERNAL, "written", message)
+            doc = self._run_doc(job, {})
+            manifest = None if "manifest.json" in bad else manifest
+        write_json(job.staging / "run.json", doc)
+        if manifest is not None:
+            write_json(job.staging / "manifest.json", manifest)
+        lines = sorted(f"proofs/{p['proof_id']}\t{p['digest']}\n" for p in job.proof_records)
+        write_text(job.staging / "digests.txt", "".join(lines))
+        # proof bytes never stay in a run directory (RFC-0009) unless --keep-io (RFC-0010)
+        for scratch in (
+            ("verify", "controls-io") if self.keep_io else ("io", "verify", "controls-io")
+        ):
+            shutil.rmtree(job.staging / scratch, ignore_errors=True)
+        (job.staging / "job.lock").unlink()
+        return final
+
+    def _run_doc(self, job: Job, metrics: dict[str, QuantityTree]) -> dict[str, object]:
+        spec = job.spec
+        tokens = self._tokens(job) if metrics else [(0, 0)] * len(job.releases)
+        return {
             "schema": "run/1",
             "run_id": job.run_id,
             "release": spec.release,
@@ -690,28 +720,17 @@ class Runner:
             "adapter_phases": {},
             "metrics": metrics,
             "events": job.events.events,
-            "proofs": proofs,
-            "warnings": warnings,
+            "proofs": [
+                {
+                    "proof_id": pid,
+                    "release_mono_ns": ns,
+                    "tokens_covered": sum(tokens[i]),
+                    "verdict": job.verdicts.get(pid),
+                }
+                for i, (pid, ns) in enumerate(job.releases)
+            ],
+            "warnings": list(job.warnings),
         }
-        errors = self.registry.errors("run/1", doc)
-        if errors:
-            raise IProofsError(ErrorKind.INTERNAL, "run.json fails run/1: " + "; ".join(errors))
-        write_json(job.staging / "run.json", doc)
-        if job.workload is not None and job.system is not None:
-            manifest = self._manifest(job)
-            errors = self.registry.errors("manifest/1", manifest)
-            if errors:
-                raise IProofsError(
-                    ErrorKind.INTERNAL, "manifest fails manifest/1: " + "; ".join(errors)
-                )
-            write_json(job.staging / "manifest.json", manifest)
-        # proof bytes never stay in a run directory (RFC-0009) unless --keep-io (RFC-0010)
-        for scratch in (
-            ("verify", "controls-io") if self.keep_io else ("io", "verify", "controls-io")
-        ):
-            shutil.rmtree(job.staging / scratch, ignore_errors=True)
-        (job.staging / "job.lock").unlink()
-        return final
 
     def _manifest(self, job: Job) -> dict[str, object]:
         """manifest.json: everything needed to rerun the job (RFC-0014 §manifest.json)."""
@@ -959,3 +978,11 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
     shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
     return run_dir / "controls.json"
+
+
+def _fsync_dir(path: Path) -> None:
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
