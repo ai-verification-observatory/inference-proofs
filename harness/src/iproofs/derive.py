@@ -139,6 +139,11 @@ def derived(
             raise IProofsError(
                 ErrorKind.INTERNAL, f"{formula}: adapter-reported input cannot feed a formula"
             )
+        if q.get("grade") == Grade.EXTERNAL and formula != "P-CAMPAIGN":  # INV-MAP-1
+            raise IProofsError(
+                ErrorKind.INTERNAL,
+                f"{formula}: an external figure cannot feed a formula over measured inputs",
+            )
     try:
         value: float | None = compute([_value(q) for _, q in inputs])
         reason: NullReason | None = None

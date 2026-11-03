@@ -24,6 +24,10 @@ Adapter for [`sg-ai-safety-hub/zk-inference-prover`](https://github.com/sg-ai-sa
 - The segments are verified only after the loop: "**Nothing is proved until everything is.** `rows` holds every chunk's `Composed` *and* its serialized bytes until the loop is over, because the verifier runs afterwards on purpose" ([chunks.rs](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/chunks.rs#L73-L79)).
 - `boundary-grid --verify --prompt` reads the serialized files of every segment, verifies each proof, derives each shape root from the published calibration, and checks every layer and token link and every position's id ([boundary.rs](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1489-L1531), [#L1445-L1477](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1445-L1477)). It exits 0 only when all of that holds, and 1 otherwise ([boundary.rs](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1120-L1124)).
 
+## Upstream figures
+
+The figures SASH publishes for the 4,096 + 512 shape (rates and times in its `loop` and `whole wall` scopes) are in [`external.yaml`](external.yaml), copied from `constants.json` in the results repository at `11decec3c0b62c707618aab5deb82750b355d202`, grade `external`, with the mapping to this benchmark's scopes (RFC-0004 §Mapping from upstream scopes). They are context, never inputs to a measured number (INV-MAP-1).
+
 ## Values for `system.yaml`
 
 `system.yaml` lands with the image (#64): `system/1` requires a prover's image digest and its system maintainers, and neither exists yet. These are the values it declares, from the facts above:

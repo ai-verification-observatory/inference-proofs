@@ -1126,6 +1126,24 @@ class ReproductionRecord(Document):
     outcome: str
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ExternalFigure(Document):
+    id: str  # the upstream's own name for the figure
+    metric: str
+    workload: str | None
+    quantity: Quantity  # grade external, tier reported (RFC-0004 §Mapping from upstream scopes)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class External(Document):
+    """`external/1`: upstream figures of one system, never mixed with measured inputs."""
+
+    schema: str
+    system: str
+    upstream: Upstream
+    figures: tuple[ExternalFigure, ...]
+
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
@@ -1250,6 +1268,9 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("review/1", "#/properties/reviewer"): Reviewer,
     ("review/1", "#/properties/checks"): ReviewChecks,
     ("review/1", "#/properties/objections/items"): Objection,
+    ("external/1", "#"): External,
+    ("external/1", "#/properties/upstream"): Upstream,
+    ("external/1", "#/$defs/figure"): ExternalFigure,
     ("reproduction/1", "#"): ReproductionRecord,
     ("reproduction/1", "#/properties/runner"): RunnerRecord,
     ("reproduction/1", "#/properties/eligibility"): ReproductionEligibility,
