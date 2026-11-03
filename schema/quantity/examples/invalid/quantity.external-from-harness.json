@@ -1,0 +1,14 @@
+{
+  "grade": "external",
+  "mapping": "exact",
+  "null_reason": null,
+  "scope": "prove.session",
+  "source": {
+    "kind": "harness",
+    "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/raw/prove/wall_ns"
+  },
+  "tier": "reported",
+  "unit": "s",
+  "upstream_scope": "loop",
+  "value": 12.5
+}

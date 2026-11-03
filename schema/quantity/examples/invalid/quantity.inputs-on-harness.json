@@ -1,0 +1,15 @@
+{
+  "grade": "measured",
+  "null_reason": null,
+  "scope": "prove.session",
+  "source": {
+    "inputs": [
+      "x"
+    ],
+    "kind": "harness",
+    "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/raw/prove/wall_ns"
+  },
+  "tier": "reported",
+  "unit": "s",
+  "value": 12.5
+}

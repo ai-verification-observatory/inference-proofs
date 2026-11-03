@@ -1,0 +1,18 @@
+{
+  "grade": "derived",
+  "null_reason": null,
+  "quality": {
+    "degraded": true
+  },
+  "scope": "prove.session",
+  "source": {
+    "inputs": [
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/prove_session_seconds"
+    ],
+    "kind": "derivation",
+    "ref": "derive:D-RATE-S@0.1.0"
+  },
+  "tier": "reported",
+  "unit": "token/s",
+  "value": 0.5
+}

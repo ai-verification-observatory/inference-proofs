@@ -1,0 +1,524 @@
+{
+  "$defs": {
+    "commit": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
+    },
+    "configurationId": {
+      "pattern": "^[a-z0-9][a-z0-9-]{0,47}$",
+      "type": "string"
+    },
+    "controlId": {
+      "pattern": "^(C[1-8]|P[1-2]|[a-z0-9-]{3,64})$",
+      "type": "string"
+    },
+    "digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "profileId": {
+      "pattern": "^[a-z0-9][a-z0-9-]{2,31}$",
+      "type": "string"
+    },
+    "proofId": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$",
+      "type": "string"
+    },
+    "quantity": {
+      "$ref": "#/$defs/quantityCore",
+      "unevaluatedProperties": false
+    },
+    "quantityCore": {
+      "allOf": [
+        {
+          "$comment": "INV-QTY-2: value is null iff null_reason is non-null",
+          "else": {
+            "properties": {
+              "null_reason": {
+                "const": null
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "value": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "null_reason": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "$comment": "INV-QTY-3: time-based units name a scope",
+          "if": {
+            "properties": {
+              "unit": {
+                "enum": [
+                  "s",
+                  "ns",
+                  "token/s",
+                  "s/token",
+                  "USD",
+                  "USD/1k_token",
+                  "param_token/s"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "scope": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "$comment": "INV-QTY-5: external figures keep their upstream scope and mapping",
+          "if": {
+            "properties": {
+              "grade": {
+                "const": "external"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "upstream_scope",
+              "mapping"
+            ]
+          }
+        },
+        {
+          "$comment": "INV-QTY-5, INV-QTY-6, INV-QTY-7, RFC-0004 grades: allowed source.kind per grade",
+          "allOf": [
+            {
+              "if": {
+                "properties": {
+                  "grade": {
+                    "const": "measured"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "source": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "harness",
+                          "adapter"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "grade": {
+                    "const": "derived"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "source": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "derivation"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "grade": {
+                    "const": "projected"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "source": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "derivation"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "grade": {
+                    "const": "external"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "source": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "upstream"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "grade": {
+                    "const": "asserted"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "source": {
+                    "properties": {
+                      "kind": {
+                        "enum": [
+                          "reference_file"
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "$comment": "INV-QTY-9: quality only on measured and derived quantities",
+          "if": {
+            "required": [
+              "quality"
+            ]
+          },
+          "then": {
+            "properties": {
+              "grade": {
+                "enum": [
+                  "measured",
+                  "derived"
+                ]
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "grade": {
+          "enum": [
+            "measured",
+            "derived",
+            "projected",
+            "external",
+            "asserted"
+          ]
+        },
+        "mapping": {
+          "enum": [
+            "exact",
+            "approximate",
+            "none"
+          ]
+        },
+        "note": {
+          "maxLength": 500,
+          "type": "string"
+        },
+        "null_reason": {
+          "enum": [
+            null,
+            "not_externally_observable",
+            "fewer_than_two_proofs",
+            "not_applicable",
+            "step_failed",
+            "not_measurable_on_profile",
+            "missing_input"
+          ]
+        },
+        "quality": {
+          "additionalProperties": false,
+          "properties": {
+            "degraded": {
+              "type": "boolean"
+            },
+            "precision_substituted": {
+              "type": "boolean"
+            }
+          },
+          "type": "object"
+        },
+        "scope": {
+          "enum": [
+            null,
+            "setup",
+            "commit",
+            "prove.steady",
+            "prove.session",
+            "whole_wall",
+            "verify",
+            "verify.single_thread",
+            "primitive"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "tier": {
+          "enum": [
+            "reported",
+            "peer-reviewed",
+            "reproduced"
+          ]
+        },
+        "unit": {
+          "enum": [
+            "s",
+            "ns",
+            "B",
+            "MiB",
+            "J",
+            "count",
+            "token",
+            "token/s",
+            "s/token",
+            "B/token",
+            "USD",
+            "USD/1k_token",
+            "USD/gpu_hour",
+            "%",
+            "param_token/s",
+            "ratio"
+          ]
+        },
+        "upstream_grade": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "upstream_scope": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "unit",
+        "scope",
+        "grade",
+        "tier",
+        "source",
+        "null_reason"
+      ],
+      "type": "object"
+    },
+    "releaseId": {
+      "pattern": "^v\\d+\\.\\d+$",
+      "type": "string"
+    },
+    "runId": {
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9][a-z0-9-]*-[1-9][0-9]*$",
+      "type": "string"
+    },
+    "source": {
+      "additionalProperties": false,
+      "else": {
+        "not": {
+          "required": [
+            "inputs"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "derivation"
+          }
+        }
+      },
+      "properties": {
+        "inputs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "kind": {
+          "enum": [
+            "harness",
+            "adapter",
+            "derivation",
+            "upstream",
+            "reference_file"
+          ]
+        },
+        "ref": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "ref"
+      ],
+      "then": {
+        "required": [
+          "inputs"
+        ]
+      },
+      "type": "object"
+    },
+    "statistic": {
+      "$ref": "#/$defs/quantityCore",
+      "allOf": [
+        {
+          "$comment": "INV-QTY-8: no successful repetition means a null value with step_failed",
+          "if": {
+            "properties": {
+              "stats": {
+                "properties": {
+                  "n": {
+                    "const": 0
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "null_reason": {
+                "const": "step_failed"
+              },
+              "value": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "stats": {
+          "$ref": "#/$defs/stats"
+        }
+      },
+      "required": [
+        "stats"
+      ],
+      "unevaluatedProperties": false
+    },
+    "stats": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "INV-QTY-8: stdev is null when n < 2",
+          "if": {
+            "properties": {
+              "n": {
+                "maximum": 1
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "stdev": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "max": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mean": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "min": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "n": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "n_failed": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "stdev": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "n",
+        "n_failed",
+        "mean",
+        "stdev",
+        "min",
+        "max"
+      ],
+      "type": "object"
+    },
+    "systemId": {
+      "pattern": "^[a-z][a-z0-9-]{1,31}$",
+      "type": "string"
+    },
+    "workloadId": {
+      "pattern": "^[a-z0-9][a-z0-9-]{2,63}$",
+      "type": "string"
+    },
+    "workloadVersion": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/quantity/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Shared $defs only; no document has schema quantity/1.",
+  "title": "Labelled quantity and shared definitions (RFC-0012 §Labelled quantity)"
+}

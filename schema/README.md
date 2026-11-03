@@ -20,6 +20,10 @@ schema/<name>/examples/invalid/*.reason   text the validation error must contain
 
 Every schema ships valid and invalid examples (AGENTS.md, working practice). Each invalid example has a sibling `<file>.reason` whose text must appear in the validation error, so an example cannot fail for an unrelated reason. Gate G2 runs the rule ([RFC-0013 §G2](../rfcs/0013-validation-and-ci.md#g2-schema-validation)); locally, `iproofs.schema.check_examples` runs it.
 
+## Quantity
+
+`quantity/1` holds shared `$defs` only: `quantity`, `statistic`, `stats`, `source` and the identifier patterns. No document names it in its `schema` field. Its examples are single values named `<def>.<case>.json` and are validated against `$defs/<def>`. Rules that need more than one value (the derivation graph, INV-QTY-3 second half, INV-QTY-6a, INV-QTY-9 OR rule) belong to gate G5; INV-QTY-8 `value == stats.mean` is checked by `iproofs.quantity.statistic_problems`.
+
 ## Changing a schema
 
 Additive changes (a new optional property, a wider enum, a new `$defs` entry) edit the current file and add a CHANGELOG entry. Anything else is a new major file and needs an RFC ([RFC-0012 §Schema versioning](../rfcs/0012-schemas-and-serialization.md#schema-versioning)).

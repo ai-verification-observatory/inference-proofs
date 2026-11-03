@@ -1,0 +1,15 @@
+{
+  "grade": "asserted",
+  "null_reason": null,
+  "quality": {
+    "degraded": false
+  },
+  "scope": "prove.session",
+  "source": {
+    "kind": "reference_file",
+    "ref": "reference/v0.1.yaml#/x"
+  },
+  "tier": "reported",
+  "unit": "s",
+  "value": 12.5
+}

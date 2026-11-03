@@ -1,0 +1,12 @@
+{
+  "grade": "derived",
+  "null_reason": null,
+  "scope": "prove.session",
+  "source": {
+    "kind": "derivation",
+    "ref": "derive:D-RATE-S@0.1.0"
+  },
+  "tier": "reported",
+  "unit": "s",
+  "value": 12.5
+}
