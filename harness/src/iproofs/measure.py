@@ -30,17 +30,21 @@ __all__ = [
     "CallTiming",
     "Capture",
     "CgroupReader",
+    "CgroupSlice",
     "EventLog",
     "NullCgroupReader",
     "Release",
     "ReleaseWatcher",
+    "SliceCgroupReader",
     "StepResources",
     "cap_text",
     "drain",
+    "job_hash",
     "nvml_available",
     "pin_harness_cpu",
     "select_readers",
     "span_seconds",
+    "stop_stale_holds",
     "timed_call",
 ]
 
@@ -122,6 +126,113 @@ def select_readers(*, gpu_profile: bool, nvml: Callable[[], bool] = nvml_availab
         ErrorKind.ENVIRONMENT,
         "GPU and cgroup sampling are not implemented yet (issues #114, #115)",
     )
+
+
+class SliceCgroupReader:
+    """RFC-0011 §Cgroup accounting: counters of a harness-owned parent slice (cgroup v2),
+    which outlive the container's own cgroup."""
+
+    def __init__(self, slice_path: Path) -> None:
+        self.path = slice_path
+
+    def _int(self, name: str) -> int:
+        return int((self.path / name).read_text().strip())
+
+    def _field(self, name: str, key: str) -> int:
+        for line in (self.path / name).read_text().splitlines():
+            k, _, v = line.partition(" ")
+            if k == key:
+                return int(v)
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"{name} of {self.path.name} has no {key}")
+
+    def memory_peak(self) -> int:
+        return self._int("memory.peak")
+
+    def memory_anon(self) -> int:
+        return self._field("memory.stat", "anon")
+
+    def cpu_usage_usec(self) -> int:
+        return self._field("cpu.stat", "usage_usec")
+
+    def oom_kills(self) -> int:
+        return self._field("memory.events", "oom_kill")
+
+
+def job_hash(run_id: str) -> str:
+    """G-1: the first 12 hex digits of sha256 of the run id."""
+    return hashlib.sha256(run_id.encode()).hexdigest()[:12]
+
+
+class CgroupSlice:
+    """G-1 to G-4 for one step: a placeholder scope keeps `iproofs-<hash>-<step>.slice` alive,
+    the container is created with `--cgroup-parent` set to it, and the slice's counters are
+    read before and after the call. `run` and `popen` are replaced in tests."""
+
+    def __init__(
+        self,
+        run_id: str,
+        step: str,
+        *,
+        cgroup_root: Path = Path("/sys/fs/cgroup"),
+        run: Callable[[list[str]], str] | None = None,
+        popen: Callable[[list[str]], object] | None = None,
+    ) -> None:
+        self.name = f"iproofs-{job_hash(run_id)}-{step}.slice"
+        self.unit = f"iproofs-{job_hash(run_id)}-{step}-hold"
+        self.root = cgroup_root
+        self.run = run or _systemctl
+        self.popen = popen or (lambda argv: subprocess.Popen(argv, stdout=subprocess.DEVNULL))
+        self.reader: SliceCgroupReader | None = None
+        self.baseline_bytes = 0
+        self.cpu_baseline_usec = 0
+        self.oom_baseline = 0
+
+    def start(self) -> SliceCgroupReader:
+        """G-1 and G-3: create the slice, then read its baseline. G-7: no slice or no
+        `memory.peak` is an environment failure, before any timed step."""
+        self.popen(["systemd-run", "--scope", f"--slice={self.name}", f"--unit={self.unit}",
+                    "sleep", "infinity"])  # fmt: skip
+        group = self.run(["systemctl", "show", "-p", "ControlGroup", "--value", self.name])
+        path = self.root / group.strip().lstrip("/")
+        if not group.strip() or not (path / "memory.peak").is_file():
+            raise IProofsError(
+                ErrorKind.ENVIRONMENT,
+                f"cgroup slice {self.name} or its memory.peak is missing (PC-CGROUP, G-7)",
+            )
+        self.reader = SliceCgroupReader(path)
+        self.baseline_bytes = self.reader.memory_peak()
+        self.cpu_baseline_usec = self.reader.cpu_usage_usec()
+        self.oom_baseline = self.reader.oom_kills()
+        return self.reader
+
+    def finish(self) -> tuple[int, float]:
+        """G-4 and G-6: (`host_memory_peak_kernel` bytes, `cpu_seconds`) after the call; an OOM
+        kill in the slice during the call is a `resource` failure whatever the exit code."""
+        assert self.reader is not None
+        try:
+            peak = self.reader.memory_peak()
+            cpu = (self.reader.cpu_usage_usec() - self.cpu_baseline_usec) / 1e6
+            oom = self.reader.oom_kills() - self.oom_baseline
+        finally:
+            self.run(["systemctl", "stop", f"{self.unit}.scope"])
+        if oom > 0:
+            raise IProofsError(ErrorKind.RESOURCE, f"{oom} OOM kill(s) in {self.name} (G-6)")
+        return peak, cpu
+
+
+def stop_stale_holds(run: Callable[[list[str]], str] | None = None) -> list[str]:
+    """Placeholder scopes a crashed runner left behind; stopped before conformance."""
+    run = run or _systemctl
+    listing = run(["systemctl", "list-units", "--plain", "--no-legend", "iproofs-*-hold.scope"])
+    units = [line.split()[0] for line in listing.splitlines() if line.strip()]
+    for unit in units:
+        run(["systemctl", "stop", unit])
+    return units
+
+
+def _systemctl(argv: list[str]) -> str:
+    done = subprocess.run(argv, capture_output=True, text=True, check=False)
+    return done.stdout
 
 
 # ---------------------------------------------------------------- bounded output capture
