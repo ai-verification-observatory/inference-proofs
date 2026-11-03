@@ -140,7 +140,7 @@ def _reject_constant(name: str) -> object:
     raise ValueError(f"non-finite number {name}")
 
 
-def _parse(path: Path) -> dict[str, object]:
+def parse_tree(path: Path) -> dict[str, object]:
     if path.suffix in {".yaml", ".yml"}:
         return load_yaml(path)
     if path.suffix != ".json":
@@ -159,7 +159,7 @@ def load_document(path: Path, registry: SchemaRegistry) -> tuple[str, dict[str, 
 
     Raises IProofsError(kind=config) with every validation error, sorted by JSON Pointer.
     """
-    tree = _parse(path)
+    tree = parse_tree(path)
     value = tree.get("schema")
     if (
         not isinstance(value, str)
@@ -184,7 +184,7 @@ def check_examples(root: Path, registry: SchemaRegistry) -> list[str]:
             schema_id = f"{example.parents[2].name}/1"
             if schema_id in registry.ids() and registry.is_defs_only(schema_id):
                 # `<def>.<name>.json` exercises `$defs/<def>` of a definitions-only schema
-                tree = _parse(example)
+                tree = parse_tree(example)
                 error = "\n".join(
                     registry.errors(schema_id, tree, def_name=example.name.split(".", 1)[0])
                 )
