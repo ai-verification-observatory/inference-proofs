@@ -6,7 +6,7 @@ Thank you for helping. This project measures provers; it does not build, rank or
 
 - Open an issue for a bug, a question or a proposal. Say what you observed, what you expected, and the commit, image digest or run id involved.
 - A prover team that wants its system included opens a system inclusion issue with the upstream repository, the full commit hash, the supported workloads and at least one system maintainer ([RFC-0001 §Adding and removing a system](rfcs/0001-process-and-governance.md#adding-and-removing-a-system)).
-- Do not report a vulnerability, or a verifier that accepts a tampered proof, in a public issue. Follow `SECURITY.md`.
+- Do not report a vulnerability, or a verifier that accepts a tampered proof, in a public issue. Follow [SECURITY.md](SECURITY.md).
 
 ## Pull requests
 
