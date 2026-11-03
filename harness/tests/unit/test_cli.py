@@ -62,9 +62,13 @@ def test_exit_codes(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_pending_command_names_its_issue(capsys: pytest.CaptureFixture[str]) -> None:
-    assert cli.main(["site", "build"]) == 5
-    assert "not implemented yet (issue #96)" in capsys.readouterr().err
+def test_every_command_has_a_handler() -> None:
+    parser = cli.build_parser()
+    leaves = [["validate"], ["derive", "x"], ["controls"], ["machine-record"], ["fetch-model", "w"],
+              ["prompts", "build", "w", "--seed", "0"], ["reproduce", "compare", "a", "b"],
+              ["release", "freeze", "v"], ["release", "plan", "v"], ["site", "build"]]  # fmt: skip
+    for argv in leaves:
+        assert callable(parser.parse_args(argv).handler), argv
 
 
 def test_help_lists_all_subcommands(capsys: pytest.CaptureFixture[str]) -> None:

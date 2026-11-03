@@ -91,3 +91,14 @@ def test_budget_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert cli_main(["release", "freeze", "v0.1"]) == 0
     report("B-FREEZE", "iproofs release freeze over 1,000 run directories",
            time.monotonic() - start, 60.0)  # fmt: skip
+
+
+def test_budget_site(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B-SITE: `iproofs site build` over a frozen fixture release of 1,000 runs."""
+    build_release(tmp_path, runs=1000)
+    monkeypatch.chdir(tmp_path)
+    assert cli_main(["release", "freeze", "v0.1"]) == 0
+    start = time.monotonic()
+    assert cli_main(["site", "build", "--out", str(tmp_path / "out")]) == 0
+    report("B-SITE", "iproofs site build over 1,000 run directories",
+           time.monotonic() - start, 60.0)  # fmt: skip

@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>fake-tiny-ci, release v0.1</title>
+<style>
+body { font-family: system-ui, sans-serif; max-width: 72rem; margin: 0 auto; padding: 1rem; line-height: 1.45; }
+table { border-collapse: collapse; margin: 0.5rem 0 1.5rem; }
+th, td { border: 1px solid #999; padding: 0.3rem 0.5rem; text-align: left; vertical-align: top; }
+td.q span.label { font-size: 0.85em; }
+pre { background: #f4f4f4; padding: 0.75rem; overflow-x: auto; }
+del { color: #555; }
+</style>
+</head>
+<body>
+<nav><a href="../../index.html">Home</a> / <a href="../index.html">v0.1</a> / fake-tiny-ci</nav>
+<main>
+<h1>Workload fake-tiny-ci</h1>
+<table>
+<tbody>
+<tr><th scope="row">Version</th><td>1</td></tr>
+<tr><th scope="row">Division</th><td>open</td></tr>
+<tr><th scope="row">Phase</th><td>prefill</td></tr>
+<tr><th scope="row">Shape</th><td>batch_size 2, batches_per_session 3, context_window 8, output_tokens 1, prompt_tokens 8</td></tr>
+<tr><th scope="row">Precision</th><td>served int8, proved int8</td></tr>
+<tr><th scope="row">Model digest</th><td><code>sha256:08dc5d4095f1a2479a8247c6e7a2b9ada23a0c4697ac65d8503d67f80b19faf8</code></td></tr>
+<tr><th scope="row">Prompt corpus digest</th><td><code>sha256:9ce23fc0c7b65899c302b4903729f1ff3a57d656afa8e9d178e9fbd1ec2f63bf</code></td></tr>
+</tbody>
+</table>
+<h2>Configurations</h2>
+<h4>fake, fake-tiny-ci v1, profile ci-cpu, configuration default</h4>
+<p>Effective tier: reported. Runs: 2026-11-03-fake-fake-tiny-ci-ci-cpu-1, 2026-11-05-fake-fake-tiny-ci-ci-cpu-2, 2026-11-06-fake-fake-tiny-ci-ci-cpu-3, 2026-11-08-fake-fake-tiny-ci-ci-cpu-6.</p>
+<ul class="excluded">
+<li><del>2026-11-06-fake-fake-tiny-ci-ci-cpu-4</del>: harness_dirty</li>
+<li><del>2026-11-07-fake-fake-tiny-ci-ci-cpu-5</del>: superseded: wrong CPU binding</li>
+</ul>
+<table>
+<thead><tr><th scope="col">Metric</th><th scope="col">Value and labels</th></tr></thead>
+<tbody>
+<tr><th scope="row">overhead_vs_serving_prove.steady</th><td class="q">
+<span class="num" title="1.0">1.000</span>
+<span class="label unit">ratio</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/0/statistics/overhead_vs_serving_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">proof_bytes</th><td class="q">
+<span class="num" title="64.0">64.00</span>
+<span class="label unit">B</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="64.0">64.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="64.0">64.00</span>,
+max <span title="64.0">64.00</span>,
+n 3, n_failed 1</span>
+<a class="src" href="../index.json#/configurations/0/statistics/proof_bytes">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_gpu_memory_peak</th><td class="q">
+<span class="num-null">null</span> <span class="label null-reason">(not_applicable)</span>
+<span class="label unit">MiB</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/0/statistics/prove_gpu_memory_peak">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_session_seconds</th><td class="q">
+<span class="num" title="1.5">1.500</span>
+<span class="label unit">s</span>
+<span class="label scope">scope prove.session</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="1.5">1.500</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="1.5">1.500</span>,
+max <span title="1.5">1.500</span>,
+n 3, n_failed 1</span>
+<a class="src" href="../index.json#/configurations/0/statistics/prove_session_seconds">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_steady_seconds</th><td class="q">
+<span class="num" title="1.0">1.000</span>
+<span class="label unit">s</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="1.0">1.000</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="1.0">1.000</span>,
+max <span title="1.0">1.000</span>,
+n 3, n_failed 1</span>
+<a class="src" href="../index.json#/configurations/0/statistics/prove_steady_seconds">source</a>
+</td>
+</tr>
+<tr><th scope="row">provider_spread_prove.steady</th><td class="q">
+<span class="num-null">null</span> <span class="label null-reason">(not_applicable)</span>
+<span class="label unit">ratio</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/0/statistics/provider_spread_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">rate_prove.steady</th><td class="q">
+<span class="num" title="36.0">36.00</span>
+<span class="label unit">token/s</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="36.0">36.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="36.0">36.00</span>,
+max <span title="36.0">36.00</span>,
+n 3, n_failed 1</span>
+<a class="src" href="../index.json#/configurations/0/statistics/rate_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">tokens_covered_steady</th><td class="q">
+<span class="num" title="36.0">36.00</span>
+<span class="label unit">token</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="36.0">36.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="36.0">36.00</span>,
+max <span title="36.0">36.00</span>,
+n 3, n_failed 1</span>
+<a class="src" href="../index.json#/configurations/0/statistics/tokens_covered_steady">source</a>
+</td>
+</tr>
+</tbody>
+</table>
+<h4>fake-broken, fake-tiny-ci v1, profile ci-cpu, configuration default</h4>
+<p>Effective tier: reported. Runs: 2026-11-03-fake-broken-fake-tiny-ci-ci-cpu-1, 2026-11-05-fake-broken-fake-tiny-ci-ci-cpu-2, 2026-11-06-fake-broken-fake-tiny-ci-ci-cpu-3.</p>
+<table>
+<thead><tr><th scope="col">Metric</th><th scope="col">Value and labels</th></tr></thead>
+<tbody>
+<tr><th scope="row">overhead_vs_serving_prove.steady</th><td class="q">
+<span class="num" title="1.0">1.000</span>
+<span class="label unit">ratio</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/1/statistics/overhead_vs_serving_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">proof_bytes</th><td class="q">
+<span class="num" title="64.0">64.00</span>
+<span class="label unit">B</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="64.0">64.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="64.0">64.00</span>,
+max <span title="64.0">64.00</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/1/statistics/proof_bytes">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_gpu_memory_peak</th><td class="q">
+<span class="num-null">null</span> <span class="label null-reason">(not_applicable)</span>
+<span class="label unit">MiB</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/1/statistics/prove_gpu_memory_peak">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_session_seconds</th><td class="q">
+<span class="num" title="1.5">1.500</span>
+<span class="label unit">s</span>
+<span class="label scope">scope prove.session</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="1.5">1.500</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="1.5">1.500</span>,
+max <span title="1.5">1.500</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/1/statistics/prove_session_seconds">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_steady_seconds</th><td class="q">
+<span class="num" title="1.0">1.000</span>
+<span class="label unit">s</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="1.0">1.000</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="1.0">1.000</span>,
+max <span title="1.0">1.000</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/1/statistics/prove_steady_seconds">source</a>
+</td>
+</tr>
+<tr><th scope="row">provider_spread_prove.steady</th><td class="q">
+<span class="num-null">null</span> <span class="label null-reason">(not_applicable)</span>
+<span class="label unit">ratio</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/1/statistics/provider_spread_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">rate_prove.steady</th><td class="q">
+<span class="num" title="36.0">36.00</span>
+<span class="label unit">token/s</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="36.0">36.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="36.0">36.00</span>,
+max <span title="36.0">36.00</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/1/statistics/rate_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">tokens_covered_steady</th><td class="q">
+<span class="num" title="36.0">36.00</span>
+<span class="label unit">token</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="36.0">36.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="36.0">36.00</span>,
+max <span title="36.0">36.00</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/1/statistics/tokens_covered_steady">source</a>
+</td>
+</tr>
+</tbody>
+</table>
+<h2>Reference rows</h2>
+<h4>ref-serve, fake-tiny-ci v1, profile ci-cpu</h4>
+<p>Effective tier: reported. Runs: 2026-11-03-ref-serve-fake-tiny-ci-ci-cpu-1, 2026-11-05-ref-serve-fake-tiny-ci-ci-cpu-2, 2026-11-06-ref-serve-fake-tiny-ci-ci-cpu-3.</p>
+<table>
+<thead><tr><th scope="col">Metric</th><th scope="col">Value and labels</th></tr></thead>
+<tbody>
+<tr><th scope="row">proof_bytes</th><td class="q">
+<span class="num" title="64.0">64.00</span>
+<span class="label unit">B</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="64.0">64.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="64.0">64.00</span>,
+max <span title="64.0">64.00</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/2/statistics/proof_bytes">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_gpu_memory_peak</th><td class="q">
+<span class="num-null">null</span> <span class="label null-reason">(not_applicable)</span>
+<span class="label unit">MiB</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/2/statistics/prove_gpu_memory_peak">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_session_seconds</th><td class="q">
+<span class="num" title="1.5">1.500</span>
+<span class="label unit">s</span>
+<span class="label scope">scope prove.session</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="1.5">1.500</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="1.5">1.500</span>,
+max <span title="1.5">1.500</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/2/statistics/prove_session_seconds">source</a>
+</td>
+</tr>
+<tr><th scope="row">prove_steady_seconds</th><td class="q">
+<span class="num" title="1.0">1.000</span>
+<span class="label unit">s</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="1.0">1.000</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="1.0">1.000</span>,
+max <span title="1.0">1.000</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/2/statistics/prove_steady_seconds">source</a>
+</td>
+</tr>
+<tr><th scope="row">provider_spread_prove.steady</th><td class="q">
+<span class="num-null">null</span> <span class="label null-reason">(not_applicable)</span>
+<span class="label unit">ratio</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<a class="src" href="../index.json#/configurations/2/statistics/provider_spread_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">rate_prove.steady</th><td class="q">
+<span class="num" title="36.0">36.00</span>
+<span class="label unit">token/s</span>
+<span class="label scope">scope prove.steady</span> <span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="36.0">36.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="36.0">36.00</span>,
+max <span title="36.0">36.00</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/2/statistics/rate_prove.steady">source</a>
+</td>
+</tr>
+<tr><th scope="row">tokens_covered_steady</th><td class="q">
+<span class="num" title="36.0">36.00</span>
+<span class="label unit">token</span>
+<span class="label grade">grade derived</span>
+<span class="label tier">tier reported</span>
+<span class="label stats">mean <span title="36.0">36.00</span>,
+sd <span title="0.0">0.000</span>,
+min <span title="36.0">36.00</span>,
+max <span title="36.0">36.00</span>,
+n 3, n_failed 0</span>
+<a class="src" href="../index.json#/configurations/2/statistics/tokens_covered_steady">source</a>
+</td>
+</tr>
+</tbody>
+</table>
+</main>
+</body>
+</html>

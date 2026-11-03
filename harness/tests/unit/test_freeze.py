@@ -1,7 +1,6 @@
 """RFC-0009 §Freeze algorithm: `iproofs release freeze` over the fixture release."""
 
 import json
-import os
 from pathlib import Path
 from typing import Any
 
@@ -44,7 +43,10 @@ def configuration(root: Path) -> dict[str, object]:
 
 
 def test_deterministic_index(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    update_golden: bool,
 ) -> None:
     for name in ("a", "b"):
         (tmp_path / name).mkdir()
@@ -54,7 +56,7 @@ def test_deterministic_index(
     assert a == b
     registry = SchemaRegistry.from_tree(ROOT / "schema")
     assert registry.errors("release-index/1", index(tmp_path / "a")) == []
-    if os.environ.get("IPROOFS_UPDATE_GOLDEN") == "1":
+    if update_golden:
         GOLDEN.write_bytes(a)
     assert a == GOLDEN.read_bytes()
 
