@@ -7,6 +7,7 @@ Each file here must fail one CI gate with one rule id (RFC-0013 §Failure modes 
 | `G1/ruff_violation.py` | G1 | F401 |
 | `G2/run-unknown-workload.json` | G2 | XREF-1 |
 | `G2/run-rate-without-scope.json` | G2 | SCHEMA (INV-QTY-3) |
+| `G2/reply-301-words.md` | G2 | RPL-1 |
 | `G3/not-canonical.json` | G3 | FMT-1 |
 | `G4/run.json` | G4 | DER-1 |
 | `G5/manifest-bare-float.json` | G5 | LBL-4 |

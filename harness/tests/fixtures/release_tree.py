@@ -76,6 +76,9 @@ def build(root: Path, runs: int = 5, card_text: str | None = None) -> Path:
                          "digest": file_digest(card)}],
         "replies": {"fake": "systems/fake/replies/v0.1.md"},
     }  # fmt: skip
+    reply = root / "systems/fake/replies/v0.1.md"
+    reply.parent.mkdir(parents=True)
+    reply.write_text("The fake system is test data; its numbers mean nothing.\n")
     path = root / "releases/v0.1/release.yaml"
     path.parent.mkdir(parents=True)
     path.write_text(yaml.safe_dump(release, sort_keys=False))

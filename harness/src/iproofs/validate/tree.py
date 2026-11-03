@@ -153,30 +153,7 @@ def g2_xref(root: Path, files: list[str]) -> list[Finding]:
             elif "/reviews/" in rel:
                 found += _own_review(root, rel, doc, run_dir)
         elif schema == "release/1":
-            runs = doc.get("runs")
-            for i, run in enumerate(runs if isinstance(runs, list) else []):
-                if not (root / str(run) / "run.json").is_file():
-                    found.append(
-                        Finding(
-                            "G2",
-                            rel,
-                            "XREF-4",
-                            f"run {run} does not exist",
-                            ErrorKind.CONFIG,
-                            f"/runs/{i}",
-                        )
-                    )
-            if not (root / str(doc.get("reference_file"))).is_file():
-                found.append(
-                    Finding(
-                        "G2",
-                        rel,
-                        "XREF-4",
-                        "reference file does not exist",
-                        ErrorKind.CONFIG,
-                        "/reference_file",
-                    )
-                )
+            found += _release_xref(root, rel, doc)
     return found
 
 
@@ -297,6 +274,41 @@ def _upstream_commit(card: dict[str, object]) -> object:
     return upstream.get("commit") if isinstance(upstream, dict) else None
 
 
+def _release_xref(root: Path, rel: str, doc: Mapping[str, object]) -> list[Finding]:
+    """XREF-4: the listed runs, reply files and reference file exist."""
+    found: list[Finding] = []
+    runs = doc.get("runs")
+    for i, run in enumerate(runs if isinstance(runs, list) else []):
+        if not (root / str(run) / "run.json").is_file():
+            found.append(
+                Finding(
+                    "G2",
+                    rel,
+                    "XREF-4",
+                    f"run {run} does not exist",
+                    ErrorKind.CONFIG,
+                    f"/runs/{i}",
+                )
+            )
+    replies = doc.get("replies")
+    for system, reply in replies.items() if isinstance(replies, dict) else []:
+        if not (root / str(reply)).is_file():
+            found.append(Finding("G2", rel, "XREF-4", f"reply file {reply} does not exist",
+                                 ErrorKind.CONFIG, f"/replies/{system}"))  # fmt: skip
+    if not (root / str(doc.get("reference_file"))).is_file():
+        found.append(
+            Finding(
+                "G2",
+                rel,
+                "XREF-4",
+                "reference file does not exist",
+                ErrorKind.CONFIG,
+                "/reference_file",
+            )
+        )
+    return found
+
+
 def _own_review(root: Path, rel: str, doc: Mapping[str, object], run_dir: Path) -> list[Finding]:
     """INV-TIER-3: a reviewer from the run's own organisation does not review it."""
     reviewer = doc.get("reviewer")
@@ -309,6 +321,28 @@ def _own_review(root: Path, rel: str, doc: Mapping[str, object], run_dir: Path) 
         return []
     return [Finding("G2", rel, "TIER-3", "the reviewer's organisation is the run's runner's",
                     ErrorKind.CONFIG, "/reviewer/organisation")]  # fmt: skip
+
+
+REPLY_WORDS = 300
+LINK_TARGET = re.compile(r"(?<=\])\([^)\s]*(?:\s+\"[^\"]*\")?\)|^\s*\[[^\]]+\]:\s*\S+.*$", re.M)
+
+
+def reply_words(text: str) -> int:
+    """RFC-0009 §Right of reply: whitespace-separated tokens of the Markdown source after
+    removing link targets (`[text](target)` keeps `[text]`; reference definitions go)."""
+    return len(LINK_TARGET.sub("", text).split())
+
+
+def g2_replies(root: Path, files: list[str]) -> list[Finding]:
+    """RPL-1: a reply is at most 300 words (RFC-0013 §G2)."""
+    found = []
+    for rel in files:
+        if fnmatch.fnmatch(rel, "systems/*/replies/*.md"):
+            n = reply_words((root / rel).read_text("utf-8"))
+            if n > REPLY_WORDS:
+                found.append(Finding("G2", rel, "RPL-1", f"{n} words; a reply has at most "
+                                     f"{REPLY_WORDS}", ErrorKind.CONFIG))  # fmt: skip
+    return found
 
 
 def g2_size(root: Path, files: list[str]) -> list[Finding]:
@@ -488,6 +522,7 @@ def validate_tree(
         files = [f for f in files if any(f == w or f.startswith(w + "/") for w in wanted)]
     named = [f for f in files if f.startswith(EXCLUDED)]
     found = g2_schema(root, files, registry) + g2_xref(root, files) + g2_size(root, files)
+    found += g2_replies(root, files)
     if base_ref:
         found += g2_append_only(root, base_ref) + g2_card_edits(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
