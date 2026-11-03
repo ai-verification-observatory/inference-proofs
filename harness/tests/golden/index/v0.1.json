@@ -130,6 +130,23 @@
           "unit": "s",
           "value": 1.0
         },
+        "provider_spread_prove.steady": {
+          "grade": "derived",
+          "null_reason": "not_applicable",
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/rate_prove.steady",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/rate_prove.steady",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/rate_prove.steady"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-PROVIDER-SPREAD@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "ratio",
+          "value": null
+        },
         "rate_prove.steady": {
           "grade": "derived",
           "null_reason": null,

@@ -518,3 +518,54 @@ def _reference_for(figures: Mapping[tuple[str, str, str], Input], workload: str)
     """The reference system with figures for this workload (ref-serve first), or ref-serve."""
     systems = sorted({s for (s, w, _) in figures if w == workload and s.startswith("ref-")})
     return "ref-serve" if "ref-serve" in systems or not systems else systems[0]
+
+
+# ---------------------------------------------------------------- release rows (RFC-0004, RFC-0015)
+
+
+def _nulled(out: QuantityTree, reason: NullReason) -> QuantityTree:
+    return {**out, "value": None, "null_reason": str(reason)}
+
+
+def overhead(
+    ref: Input, system: Input, scope: Scope, *, joined: bool, measurable: bool, version: str
+) -> QuantityTree:
+    """D-OVERHEAD-S: mean ref-serve `rate_<S>` over mean system `rate_<S>`. Null with
+    `not_measurable_on_profile` when the ref-serve configuration could not run (NM-1), and
+    with `not_applicable` when the rows do not join (INV-DERIVE-2)."""
+    out = derived("D-OVERHEAD-S", version, Unit.RATIO, scope, [ref, system],
+                  lambda x: x[0] / nonzero(x[1]))  # fmt: skip
+    if not measurable:
+        return _nulled(out, NullReason.NOT_MEASURABLE_ON_PROFILE)
+    return out if joined else _nulled(out, NullReason.NOT_APPLICABLE)
+
+
+def agreement_rate(
+    agree: Sequence[Input], disagree: Sequence[Input], *, measurable: bool, version: str
+) -> QuantityTree:
+    """D-AGREE (RFC-0015 RC-5): agreement positions over compared positions, summed over the
+    paired ref-recompute runs; null with `not_measurable_on_profile` under NM-1."""
+    n = len(agree)
+    out = derived("D-AGREE", version, Unit.RATIO, None, [*agree, *disagree],
+                  lambda x: sum(x[:n]) / nonzero(sum(x)))  # fmt: skip
+    return out if measurable else _nulled(out, NullReason.NOT_MEASURABLE_ON_PROFILE)
+
+
+def provider_spread(
+    by_provider: Mapping[str, Sequence[Input]], scope: Scope, version: str
+) -> QuantityTree:
+    """D-PROVIDER-SPREAD (RFC-0006 R4): the largest provider's mean `rate_<S>` over the
+    smallest, inputs grouped by provider in name order; `not_applicable` under two providers."""
+    names = sorted(by_provider)
+    sizes = [len(by_provider[p]) for p in names]
+
+    def spread(x: list[float]) -> float:
+        means, start = [], 0
+        for size in sizes:
+            means.append(statistics.mean(x[start : start + size]))
+            start += size
+        return max(means) / nonzero(min(means))
+
+    inputs = [i for p in names for i in by_provider[p]]
+    out = derived("D-PROVIDER-SPREAD", version, Unit.RATIO, scope, inputs, spread)
+    return out if len(names) >= 2 else _nulled(out, NullReason.NOT_APPLICABLE)
