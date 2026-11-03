@@ -222,6 +222,8 @@ def run(args: argparse.Namespace) -> int:
         str(args.results),
         _release(root),
     )
+    for recovered in runner.recover(Path(args.results)):
+        print(f"recovered as failed: {recovered}", file=sys.stderr)
     dirs = runner.run_many(spec, args.repetitions)
     for d in dirs:
         print(d)

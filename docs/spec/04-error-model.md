@@ -85,7 +85,7 @@ Each row names a failure, how it is detected, what the system does, and how it i
 
 - **Before measurement:** `fetch` retries; every other failure stops the job or the invocation.
 - **During measurement:** nothing retries. The runner records the failure and moves to the next repetition ([RFC-0010 §Retry policy](../../rfcs/0010-harness-runner.md#retry-policy)).
-- **After a crash:** the stale job is written as failed `internal` and never resumed ([RFC-0010 §Crash recovery](../../rfcs/0010-harness-runner.md#crash-recovery)).
+- **After a crash:** the stale job is written as failed `internal` and never resumed ([RFC-0010 §Crash recovery](../../rfcs/0010-harness-runner.md#crash-recovery)). `iproofs run` does this on start (`Runner.recover`): failure step is the last state the job reached, message `runner terminated before completion`, event `runner.recovered`; a staging directory whose runner is still alive on this boot makes it exit 3.
 - **In CI:** every check failure blocks the merge; there is no override flag. A maintainer who believes a check is wrong changes the check by pull request.
 
 ## Error messages
