@@ -53,7 +53,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --frozen --python ${{ matrix.python }}
-      - run: uv run pytest harness/tests systems -q -n auto --cov=iproofs --cov-report=json:coverage.json
+      - run: uv run pytest harness/tests systems -q -n auto --durations=20 --cov=iproofs --cov-report=json:coverage.json
       - run: uv run python harness/tests/coverage_gate.py coverage.json
       - name: CLI cold start (budget B-CLI-START, 500 ms target)
         run: |
