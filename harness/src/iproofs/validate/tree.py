@@ -477,6 +477,9 @@ def validate_tree(
     found += g9_secrets(root, files, only or ()) + links.check(root, files, named)
     if governance.PATH in files:
         found += governance.check((root / governance.PATH).read_text("utf-8"))
+    if any(f.startswith("rfcs/") for f in files):
+        rfcs = [f for f in tracked_files(root) if f.startswith("rfcs/") and f.endswith(".md")]
+        found += governance.check_rfc_index({f: (root / f).read_text("utf-8") for f in rfcs})
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
 
