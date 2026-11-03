@@ -1,6 +1,7 @@
 """JSON Lines logger, redaction hook and event catalogue (docs/spec/05-observability.md).
 
-Layer 0: standard library only. INV-OBS-4: every line passes the redactor before it is written.
+Layer 0: standard library only. INV-OBS-4: every line passes the redactor before it is written;
+the redactor is `iproofs.log.redact.Redactor`, with patterns in `iproofs.log.patterns`.
 """
 
 import json

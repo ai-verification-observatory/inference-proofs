@@ -81,6 +81,8 @@ Required CI gates without bypass (RFC-0013), methodology changes only by RFC (RF
 
 ## Secrets handling (A4)
 
+The redactor (`iproofs.log.redact`) and the CI secrets scan (gate G9) share one compiled pattern set, `iproofs.log.patterns`.
+
 - The only secret the harness reads is `HF_TOKEN`, from the environment, for gated model downloads. It is passed to the fetch call in the harness process and to nothing else. It is never placed in argv, never passed into a container, never written to any record.
 - Registry credentials for pushing release images are used by maintainers' build tooling, not by the harness.
 - CI has no secrets available to pull request jobs (`contents: read`).
