@@ -47,6 +47,12 @@ jobs:
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --frozen --python ${{ matrix.python }}
       - run: uv run pytest harness/tests systems -q
+      - name: CLI cold start (budget B-CLI-START, 500 ms target)
+        run: |
+          start=$(date +%s%N)
+          .venv/bin/iproofs --help > /dev/null
+          ms=$(( ($(date +%s%N) - start) / 1000000 ))
+          echo "iproofs --help cold start on Python ${{ matrix.python }}: ${ms} ms (budget B-CLI-START: 500 ms, a target)" >> "$GITHUB_STEP_SUMMARY"
 
   fake-image:
     # Builds the fake system's image; gate G10 (#124) extends this job into the end-to-end run.
