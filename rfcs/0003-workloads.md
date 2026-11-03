@@ -233,7 +233,7 @@ The author's affiliations and any interest in a measured system are declared in 
 - OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-01-31): which public-domain texts form the corpus. Default: Project Gutenberg plain-text eBooks that are public domain in the United States, with ids, URLs and hashes recorded in `corpus.yaml`.
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: RFC for v0.2): which mid-size model has the widest prover support at the first v0.2 call. Default: none chosen; v0.1 is native only.
 - OPEN QUESTION Q3 (owner: AbdelStark, resolve by: RFC for v0.2): whether decode-heavy shapes (long outputs) get their own workload family. Default: no.
-- OPEN QUESTION Q4 (owner: AbdelStark, resolve by: 2027-01-31): the exact SASH grid geometry for `tokens_covered`, from the upstream documentation at the pin. Default: `prompt_tokens + output_tokens` per sequence, marked approximate until confirmed.
+- Resolved Q4: one SASH grid proves every prompt and continuation position of its sequence (the recorded 4,096 + 512 run is 9 blocks of 512 positions over 32 layers plus 2 head segments, 290 segments), so `tokens_covered` is `prompt_tokens + output_tokens` per sequence, exact, for both shapes. Upstream states no geometry for the 1,024 + 64 shape; the count does not depend on it. Sources, at the pinned commits: [`systems/sash/README.md`](../systems/sash/README.md#grid-geometry-and-proof-release).
 
 ## References
 
