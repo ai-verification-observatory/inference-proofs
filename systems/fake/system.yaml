@@ -1,0 +1,15 @@
+schema: "system/1"
+name: "fake"
+kind: "test"
+contract: "adapter/1"
+upstream:
+  repo: "ai-verification-observatory/inference-proofs"
+  url: "https://github.com/ai-verification-observatory/inference-proofs"
+  commit: "64168df9fd0706dfd955b6795fa6f535872dff78"
+workloads: ["fake-tiny-ci"]
+profile: "ci-cpu"
+deterministic_proofs: true
+incremental_proofs: true
+proofs: {granularity: "request", tokens_covered: "window", steady_boundary: "first_proof", steady_approximate: false}
+forbidden_flags: ["--unsound-skip-"]
+timeouts_s: {info: 30, setup: 30, commit: 30, prove: 60, verify: 30}
