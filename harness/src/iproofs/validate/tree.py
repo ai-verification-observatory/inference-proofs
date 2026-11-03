@@ -20,6 +20,7 @@ from iproofs.validate import (
     check_derived,
     governance,
     links,
+    precision,
 )
 
 # RFC-0013 §G2 inputs: documents that name a schema
@@ -475,6 +476,7 @@ def validate_tree(
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
     found += g6_policy(root, files) + g7_pins(root, files) + g8_language(root, files, named)
     found += g9_secrets(root, files, only or ()) + links.check(root, files, named)
+    found += precision.check(root, files, registry)
     if governance.PATH in files:
         found += governance.check((root / governance.PATH).read_text("utf-8"))
     if any(f.startswith("rfcs/") for f in files):

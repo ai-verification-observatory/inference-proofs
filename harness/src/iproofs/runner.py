@@ -61,6 +61,7 @@ from iproofs.model import (
     ProofEntry,
     ProverProfile,
     ReferenceFile,
+    ReferenceWorkload,
     System,
     SystemControl,
     SystemControls,
@@ -1340,6 +1341,14 @@ class Runner:
             for pid, _ in job.releases
         ]
 
+    def _substituted(self, job: Job) -> bool:
+        assert job.system is not None
+        return any(
+            isinstance(w, ReferenceWorkload) and w.id == job.spec.workload
+            and w.precision_substitution is not None
+            for w in job.system.workloads
+        )  # fmt: skip
+
     def _coverage(self, job: Job) -> str | None:
         """The token rule: the system's own, or for a reference row the rule of the system it
         serves, the first proving system the workload lists (RFC-0015 REF-3)."""
@@ -1435,6 +1444,9 @@ class Runner:
             active_parameters=(params_ptr, params_q),
             first_proof_tokens=(f"{run_json}#/proofs/0/tokens_covered", first),
         )
+        if self._substituted(job):  # RFC-0015 PM-2: every quantity of the row is flagged
+            for q in m.values():
+                q["quality"] = {**(q.get("quality") or {}), "precision_substituted": True}  # type: ignore[dict-item]
         return m
 
 
