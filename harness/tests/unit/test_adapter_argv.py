@@ -85,6 +85,12 @@ def test_mounts_are_absolute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     ]
 
 
+def test_recorded_commitment_mounted_read_only() -> None:
+    a = argv("prove", ro_mounts=[(Path("/srv/store/pk.bin"), "/io/state/pk.bin")])
+    i = a.index("/srv/io:/io:rw")
+    assert a[i + 1 : i + 3] == ["-v", "/srv/store/pk.bin:/io/state/pk.bin:ro"]  # after /io
+
+
 def test_local_image_goes_to_docker_by_id() -> None:
     image_id = "sha256:" + "b" * 64
     a = docker_create_argv(

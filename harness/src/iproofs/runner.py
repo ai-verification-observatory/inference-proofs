@@ -12,7 +12,7 @@ import shutil
 import statistics
 import time
 import traceback
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -58,6 +58,13 @@ from iproofs.quantity import Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.workloads import load_workload, materialise_prompts, model_dir, workload_digest
+
+# RFC-0014 §The commitment record: <job tmp>/commitment/{verifier,prover}/, never mounted
+# read-write (kept with io/ under --keep-io); prover-ro/ holds the rechecked copies mounted
+# read-only for prove.
+COMMITMENT_STORE = "commitment"
+STORE_SIDES = {"verifier_files": "verifier", "prover_files": "prover"}
+SCRATCH = (COMMITMENT_STORE, "prover-ro")
 
 STATES = (
     "pending",
@@ -246,7 +253,7 @@ class Runner:
                 "info": self._info,
                 "setup": self._setup,
                 "commit": self._commit,
-                "prove": self._prove,
+                "prove": lambda j: self._prove(j, log),
                 "verify": self._verify,
                 "controls": lambda j: self._controls(j, log),
             }
@@ -410,6 +417,7 @@ class Runner:
         io: Path | None = None,
         *,
         control: bool = False,
+        ro_mounts: Sequence[tuple[Path, str]] = (),
     ) -> tuple[AdapterOut, StepResult]:
         assert job.system is not None
         assert job.workload is not None
@@ -452,6 +460,7 @@ class Runner:
             mems=mems,
             memory=None,
             timeout_s=job.system.timeout(sub),
+            ro_mounts=ro_mounts,
         )
         gpu = self.env.gpu() if sub != "verify" else None
         job.commands.append(
@@ -502,18 +511,80 @@ class Runner:
         self._call(job, "setup", {})
 
     def _commit(self, job: Job) -> None:
+        """RFC-0014 §The commitment record: copy the commit step's files into a store no
+        later container mounts read-write, and record their digests."""
         job.commit, _ = self._call(job, "commit", {"model_dir": "/models"})
         io = IoDirs(job.staging / "io")
-        files = {
-            k: file_records([io.host(p, "commit") for p in getattr(job.commit, k) or ()])
-            for k in ("verifier_files", "prover_files")
-        }
-        job.commitment_record = {"commitment_id": job.commit.commitment_id, **files}
+        records: dict[str, object] = {"commitment_id": job.commit.commitment_id}
+        for kind, side in STORE_SIDES.items():
+            store = job.staging / COMMITMENT_STORE / side
+            store.mkdir(parents=True)
+            copies = []
+            for container_path in getattr(job.commit, kind) or ():
+                src = io.host(container_path, "commit")
+                dst = store / src.name
+                if src.is_symlink() or not src.is_file() or dst.exists():
+                    raise IProofsError(
+                        ErrorKind.ADAPTER,
+                        f"{container_path}: not a regular file, or a second file of that name",
+                        step="commit",
+                    )
+                shutil.copyfile(src, dst)
+                copies.append(dst)
+            records[kind] = file_records(copies)
+        job.commitment_record = records
 
-    def _prove(self, job: Job) -> None:
+    def _recorded(self, job: Job, kind: str, into: Path, step: str) -> list[Path]:
+        """Copies of the recorded files of one side in `into`, each digest rechecked against
+        the manifest record immediately before the call that uses them (RFC-0014)."""
+        assert job.commitment_record is not None
+        entries = job.commitment_record[kind]
+        assert isinstance(entries, list)
+        copies = []
+        for entry in entries:
+            name, digest = str(entry["name"]), str(entry["digest"])
+            dst = into / name
+            dst.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(job.staging / COMMITMENT_STORE / STORE_SIDES[kind] / name, dst)
+            dst.chmod(0o444)
+            if file_digest(dst) != digest:
+                raise IProofsError(
+                    ErrorKind.INTEGRITY,
+                    f"{STORE_SIDES[kind]} file {name} does not match the commit record",
+                    step=step,
+                )
+            copies.append(dst)
+        return copies
+
+    def _commitment_echo(self, job: Job) -> list[str]:
+        """RFC-0014 rule 5: prove output that echoes the commitment is noted, never used."""
+        assert job.commitment_record is not None
+        found = []
+        raw = json.loads((job.staging / "io/prove.out.json").read_text())
+        if _has_key(raw, "commitment_id"):
+            found.append("policy: prove out.json names commitment_id; verify uses the record")
+        entries = job.commitment_record["verifier_files"]
+        assert isinstance(entries, list)
+        recorded = {str(e["digest"]): str(e["name"]) for e in entries}
+        report = job.proofs.binding_report if job.proofs else None
+        if report and file_digest(IoDirs(job.staging / "io").host(report, "prove")) in recorded:
+            found.append(f"policy: binding report {report} equals a recorded verifier file")
+        for proof in job.proof_records:
+            for part in proof["parts"]:  # type: ignore[attr-defined]
+                if part["digest"] in recorded:
+                    found.append(
+                        f"policy: proof {proof['proof_id']} part {part['name']} equals the "
+                        f"recorded verifier file {recorded[part['digest']]}"
+                    )
+        return found
+
+    def _prove(self, job: Job, log: JsonlLogger | None = None) -> None:
         assert job.system is not None
         assert job.workload is not None
         assert job.commit is not None
+        # the recorded prover files, read-only over the paths the commit step wrote
+        recorded = self._recorded(job, "prover_files", job.staging / "prover-ro", "prove")
+        ro = list(zip(recorded, job.commit.prover_files or (), strict=True))
         watcher = ReleaseWatcher(
             job.staging / "io/proofs",
             clock=self.clock,
@@ -532,6 +603,7 @@ class Runner:
                     "batch_size": job.workload.shape.batch_size,
                     "batches": job.workload.shape.batches_per_session,
                 },
+                ro_mounts=ro,
             )
         finally:
             end = job.steps["prove"].ended_mono_ns if "prove" in job.steps else None
@@ -554,6 +626,10 @@ class Runner:
         job.releases = [(r.proof_id, r.mono_ns) for r in releases]
         for r in releases:
             job.events.record("proof.released", r.mono_ns)
+        for warning in self._commitment_echo(job):
+            job.warnings.append(warning)
+            if log is not None:
+                log.log(Event.POLICY_WARNING, job=job.run_id, step="prove", detail=warning)
 
     def _verify(self, job: Job) -> None:
         """Every proof on the verifier profile, then the first on one CPU (RFC-0010)."""
@@ -594,6 +670,7 @@ class Runner:
                 "_single": single,
             },
             io=io,
+            ro_mounts=[(io / "verifier", "/io/verifier")] if files else [],
         )
         result_path = job.staging / "verifier" / f"{proof_id}{'-1cpu' if single else ''}.json"
         write_json(
@@ -653,6 +730,7 @@ class Runner:
                 },
                 io=io,
                 control=True,
+                ro_mounts=[(io / "verifier", "/io/verifier")] if files else [],
             )
             return VerifyResult(
                 str(out.verdict),
@@ -711,14 +789,9 @@ class Runner:
         self.controls_done = True
 
     def _verifier_files(self, job: Job, io: Path) -> list[str]:
-        assert job.commit is not None
-        files = []
-        for container_path in job.commit.verifier_files or ():
-            host = IoDirs(job.staging / "io").host(container_path, "verify")
-            (io / "verifier").mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(host, io / "verifier" / host.name)
-            files.append(f"/io/verifier/{host.name}")
-        return files
+        """The recorded verifier files in a fresh verify io dir, never the prover's copies."""
+        copies = self._recorded(job, "verifier_files", io / "verifier", "verify")
+        return [f"/io/verifier/{p.name}" for p in copies]
 
     def _verifier_profile(self, job: Job) -> str:
         profiles = job.reference.profiles if job.reference else {}
@@ -763,7 +836,9 @@ class Runner:
         write_text(job.staging / "digests.txt", "".join(lines))
         # proof bytes never stay in a run directory (RFC-0009) unless --keep-io (RFC-0010)
         for scratch in (
-            ("verify", "controls-io") if self.keep_io else ("io", "verify", "controls-io")
+            ("prover-ro", "verify", "controls-io")
+            if self.keep_io
+            else (*SCRATCH, "io", "verify", "controls-io")
         ):
             shutil.rmtree(job.staging / scratch, ignore_errors=True)
         (job.staging / "job.lock").unlink()
@@ -1054,7 +1129,11 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
     )
     job = Job(spec, doc["run_id"], run_dir)
     runner._resolve_inputs(job)
-    job.image = json.loads((run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    job.image = manifest["system"]["image"]["ref"]
+    job.commitment_record = manifest["commitment"]  # digests rechecked before every verify
+    if not (run_dir / COMMITMENT_STORE).is_dir():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no commitment store")
     job.prompts = [json.loads(line) for line in (io / "prompts.jsonl").read_text().splitlines()]
     for name, attr in (("commit", "commit"), ("prove", "proofs")):
         out = load(io / f"{name}.out.json", runner.registry)
@@ -1066,6 +1145,12 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
     shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
     return run_dir / "controls.json"
+
+
+def _has_key(doc: object, key: str) -> bool:
+    if isinstance(doc, dict):
+        return key in doc or any(_has_key(v, key) for v in doc.values())
+    return isinstance(doc, list) and any(_has_key(v, key) for v in doc)
 
 
 def _fsync_dir(path: Path) -> None:

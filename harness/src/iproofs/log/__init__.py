@@ -38,6 +38,7 @@ class Event(StrEnum):
     SAMPLER_START = "sampler.start"
     SAMPLER_GAP = "sampler.gap"
     SAMPLER_CGROUP_UNAVAILABLE = "sampler.cgroup_unavailable"
+    POLICY_WARNING = "policy.warning"
     VERIFY_RESULT = "verify.result"
     CONTROL_TRIAL = "control.trial"
     CONTROL_TWIN_MISMATCH = "control.twin_mismatch"
@@ -61,6 +62,7 @@ DEFAULT_LEVEL = {
     Event.STEP_OOM: "error",
     Event.PROOF_RELEASED: "debug",
     Event.PROOF_TMP_LEFT: "warning",
+    Event.POLICY_WARNING: "warning",
     Event.SAMPLER_START: "debug",
     Event.SAMPLER_GAP: "warning",
     Event.SAMPLER_CGROUP_UNAVAILABLE: "warning",

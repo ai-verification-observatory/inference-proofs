@@ -72,6 +72,7 @@ Rules:
 | `sampler.start` | debug | `kind`, `hz` | a sampler thread starts |
 | `sampler.gap` | warning | `kind`, `gap_ms` | a gap above 150 ms between samples |
 | `sampler.cgroup_unavailable` | warning | `path` | cgroup files unreadable |
+| `policy.warning` | warning | `detail` | `prove` output echoes the commitment ([RFC-0014 §The commitment record](../../rfcs/0014-provenance-and-integrity.md#the-commitment-record) rule 5); the run continues |
 | `verify.result` | info | `proof_id`, `verdict`, `raw_exit_code`, `cpus` | after each verify call |
 | `control.trial` | info | `control`, `trial`, `outcome` | after each control trial |
 | `control.twin_mismatch` | warning | `control`, `twin_verdict` | honest twin not accepted (the control is `void`, `iproofs.controls.control_record`) |

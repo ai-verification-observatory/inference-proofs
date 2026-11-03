@@ -53,7 +53,7 @@ The harness treats everything an adapter writes as hostile input:
 
 ### Commitment provenance (A3)
 
-The harness copies verifier and prover files out of the commit step into a harness-owned store, records their digests, and builds every verify `/io` from that store only ([RFC-0014 §The commitment record](../../rfcs/0014-provenance-and-integrity.md#the-commitment-record)). A prover's own commitment files never reach a verifier.
+The harness copies verifier and prover files out of the commit step into a harness-owned store, records their digests, and builds every verify `/io` from that store only ([RFC-0014 §The commitment record](../../rfcs/0014-provenance-and-integrity.md#the-commitment-record)). A prover's own commitment files never reach a verifier. Implementation: `Runner._commit`, `Runner._recorded` and `Runner._commitment_echo` in [`harness/src/iproofs/runner.py`](../../harness/src/iproofs/runner.py) keep the store at `<job tmp>/commitment/` and recheck each digest before the call that uses it. `prove` gets the recorded prover files mounted read-only over their `/io/state/` paths, and every `verify` gets them mounted read-only at `/io/verifier`. A `prove` output that names `commitment_id`, or that ships a file equal to a recorded verifier file, logs `policy.warning` and adds a `run.json` warning. Tests: `harness/tests/unit/test_commitment.py`, plus `test_commitment_from_record` in the G10 module.
 
 ### Gaming resistance (T1)
 
