@@ -26,7 +26,6 @@ Handler = Callable[[argparse.Namespace], int]
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
     "release freeze": 93,
-    "release plan": 141,
     "site build": 96,
 }
 # Commands that check stored files report config, integrity and policy findings with exit 1.
@@ -181,6 +180,8 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("release")
     p = command("plan", "project the run-campaign compute budget", release_sub, "release plan")
     p.add_argument("release")
+    p.add_argument("--repetitions", type=int, default=3, help="repetitions per configuration")
+    p.set_defaults(handler=release_plan)
 
     p = sub.add_parser("fmt")  # hidden maintenance command (RFC-0013 §G3)
     p.add_argument("paths", nargs="+", type=Path)
@@ -419,6 +420,20 @@ def prompts_build(args: argparse.Namespace) -> int:
         "tokenizers_version": tokenizers_version(),
     }
     sys.stdout.write(dumps(result).decode())
+    return 0
+
+
+def release_plan(args: argparse.Namespace) -> int:
+    """`iproofs release plan RELEASE`: the P-CAMPAIGN projection as JSON on stdout, from the
+    systems' external figures; never written to results/ or releases/ (docs/spec/08)."""
+    from iproofs.derive import project_campaign  # noqa: PLC0415
+    from iproofs.serialize import dumps  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    if args.repetitions < 3:
+        raise IProofsError(ErrorKind.CONFIG, "a release needs at least 3 repetitions (RFC-0004)")
+    projection = project_campaign(args.release, repo_root(Path.cwd()), args.repetitions)
+    sys.stdout.write(dumps(projection).decode())
     return 0
 
 

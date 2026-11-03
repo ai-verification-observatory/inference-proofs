@@ -57,6 +57,8 @@ Method (AGENTS.md rule 3: derived numbers are computed, not typed):
 3. Every output quantity has grade `projected`, names the formula id P-CAMPAIGN and lists its external inputs in `source.inputs`. Where an input is missing (for example `whole_wall` is not published upstream), the projection for that configuration is null with `null_reason: missing_input` and the gap is listed; nobody fills it by hand.
 4. The projection is printed by `iproofs release plan RELEASE` and attached to the release's sponsorship request; it is never published as a result.
 
+The command is [`iproofs release plan RELEASE [--repetitions N]`](../../harness/src/iproofs/cli.py) (default and minimum 3) and the code is `project_campaign` in [`derive.py`](../../harness/src/iproofs/derive.py). It reads the `external.yaml` metrics `whole_wall_seconds`, `commit_seconds` and `prove_session_seconds` of each system, and `prove_session_seconds` of the reference system `ref-serve` for the same workload. Each configuration also lists `missing` (the absent inputs) and `verify_seconds_per_proof_external` (the upstream `verify_single_thread_seconds` figure, or null).
+
 Verifier-side controls C1 to C8 run on the CPU verifier profile (RFC-0008) and cost no GPU time; the projection reports their verify-seconds separately, from `external` verify figures.
 
 ## Profiling plan
