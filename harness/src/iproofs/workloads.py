@@ -1,14 +1,16 @@
 """Workload resolution, model fetch and prompt materialisation (RFC-0003)."""
 
+import json
 import math
 import random
 from collections.abc import Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Workload, load
-from iproofs.provenance import file_digest, prompt_set_digest
+from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_jsonl
 
@@ -126,3 +128,75 @@ def write_prompt_set(path: Path, prompts: list[list[int]]) -> str:
     """Write `prompts.jsonl`, one JSON array of token ids per line; return its digest."""
     write_jsonl(path, prompts)
     return prompt_set_digest(path)
+
+
+# ---------------------------------------------------------------- resolution for a job
+
+# Local corpora known by digest. The CI corpus is the fixture corpus; the real corpus is
+# fetched into the cache by `iproofs prompts build` (issue #133).
+LOCAL_CORPORA = ("harness/tests/fixtures/prompts",)
+
+
+@dataclass(frozen=True, slots=True)
+class _Encoding:
+    ids: Sequence[int]
+
+
+class VocabTokenizer:
+    """The toy character vocabulary format `{"vocab": {char: id}}` used by the fake system."""
+
+    def __init__(self, path: Path) -> None:
+        self.vocab: dict[str, int] = json.loads(path.read_text())["vocab"]
+
+    def encode(self, sequence: str, *, add_special_tokens: bool) -> Encoding:
+        missing = sorted({c for c in sequence if c not in self.vocab})
+        if missing:
+            raise IProofsError(
+                ErrorKind.CONFIG, f"characters outside the toy vocabulary: {missing}"
+            )
+        return _Encoding([self.vocab[c] for c in sequence])
+
+
+def tokenizer_for(path: Path) -> Tokenizer:
+    """A model's tokenizer file: the toy vocabulary format, else a `tokenizers` file."""
+    head = json.loads(path.read_text())
+    if isinstance(head, dict) and "vocab" in head and "model" not in head:
+        return VocabTokenizer(path)
+    return load_tokenizer(path)
+
+
+def local_corpus(root: Path, digest: str) -> list[str] | None:
+    """Corpus texts in id order for a corpus digest, if a local copy has that digest."""
+    for rel in LOCAL_CORPORA:
+        files = {p.stem: p for p in sorted((root / rel).glob("*.txt"))}
+        if files and corpus_digest(files) == digest:
+            return [files[k].read_text("utf-8") for k in sorted(files, key=str.encode)]
+    return None
+
+
+def model_dir(root: Path, wl: Workload) -> Path:
+    """The weights directory of a workload, hash-checked before any container sees it."""
+    if wl.model.source.hub != "repository" or wl.model.source.path is None:
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"{wl.id}: weights not fetched; run `iproofs fetch-model {wl.id}` (issue #132)",
+        )
+    path = root / wl.model.source.path
+    if model_digest(path) != wl.model.digest:
+        raise IProofsError(
+            ErrorKind.INTEGRITY, f"{wl.id}: model digest of {path.name} does not match the workload"
+        )
+    return path
+
+
+def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> list[list[int]]:
+    """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer."""
+    texts = local_corpus(root, wl.prompts.corpus_digest)
+    if texts is None:
+        raise IProofsError(
+            ErrorKind.CONFIG, f"{wl.id}: corpus {wl.prompts.corpus_digest} is not available locally"
+        )
+    tokenizer = tokenizer_for(models / wl.model.tokenizer_file)
+    return corpus_window_v1(
+        texts, tokenizer, wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
+    )

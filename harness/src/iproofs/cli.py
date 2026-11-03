@@ -5,6 +5,7 @@ Handlers import their modules lazily, so `iproofs --help` loads no optional extr
 """
 
 import argparse
+import json
 import subprocess
 import sys
 import traceback
@@ -19,7 +20,6 @@ Handler = Callable[[argparse.Namespace], int]
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
     "validate": 119,
-    "run": 105,
     "controls": 89,
     "machine-record": 73,
     "fetch-model": 132,
@@ -105,6 +105,12 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--provider", metavar="NAME")
     p.add_argument("--prompts-from", type=Path, metavar="RUN_DIR")
     p.add_argument("--allow-nonconforming", action="store_true")
+    p.add_argument(
+        "--in-process",
+        action="store_true",
+        help="run a test system's entrypoint as a local process instead of a container",
+    )
+    p.set_defaults(handler=run)
 
     p = command("controls", "run the negative-control suite against a run (RFC-0008)")
     p.add_argument("run_dir", type=Path, nargs="?")
@@ -157,7 +163,7 @@ def derive(args: argparse.Namespace) -> int:
     run_json = args.run_dir / "run.json"
     if not run_json.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"{run_json} does not exist")
-    root = repo_root(args.run_dir)
+    root = repo_root(Path.cwd())  # runs may live outside the repository (CI temp dirs)
     findings = check_derived(run_json, root)
     if (args.run_dir / "controls.json").is_file():
         findings += check_controls_summary(args.run_dir / "controls.json", root)
@@ -170,6 +176,80 @@ def derive(args: argparse.Namespace) -> int:
     derived = {k: v for k, v in doc.get("metrics", {}).items() if v.get("grade") == "derived"}
     print(json.dumps(derived, indent=2, sort_keys=True))
     return 1 if findings else 0
+
+
+def run(args: argparse.Namespace) -> int:
+    """`iproofs run`: N repetitions; exit 4 when any job was recorded as failed."""
+    from iproofs.adapter import DockerRunner, InProcessRunner  # noqa: PLC0415
+    from iproofs.model import System, load  # noqa: PLC0415
+    from iproofs.runner import JobSpec, Runner  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    unsupported = [
+        flag
+        for flag, on in (
+            ("--control-suite", args.control_suite),
+            ("--prompts-from", args.prompts_from),
+            ("--provider", args.provider),
+            ("--allow-nonconforming", args.allow_nonconforming),
+        )
+        if on
+    ]
+    if unsupported:
+        raise IProofsError(
+            ErrorKind.CONFIG, f"not implemented yet: {unsupported} (issues #89, #137, #73, #75)"
+        )
+    root = repo_root(Path.cwd())
+    registry = SchemaRegistry.from_tree(root / "schema")
+    system_file = root / "systems" / args.system / "system.yaml"
+    if not system_file.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
+    system = load(system_file, registry)
+    assert isinstance(system, System)
+    if args.in_process:
+        if system.kind != "test":
+            raise IProofsError(ErrorKind.CONFIG, "--in-process is for test systems only")
+        # a test system cannot contain its own commit; the harness passes the pinned one
+        upstream = {"IPROOFS_FAKE_UPSTREAM": system.upstream.commit} if system.upstream else {}
+        containers: object = InProcessRunner(
+            system_file.parent / "entrypoint", registry, env=upstream
+        )
+        image = "local/in-process@sha256:" + "0" * 64  # never started; recorded as such
+    else:
+        containers, image = DockerRunner(registry), None
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    wl = load_workload(args.workload, root=root, registry=registry)
+    runner = Runner(containers, root=root, registry=registry, image=image)  # type: ignore[arg-type]
+    spec = JobSpec(
+        args.system,
+        args.workload,
+        wl.version,
+        args.profile,
+        1,
+        args.control_suite,
+        str(args.results),
+        _release(root),
+    )
+    dirs = runner.run_many(spec, args.repetitions)
+    failed = [
+        d.name for d in dirs if json.loads((d / "run.json").read_text())["status"] == "failed"
+    ]
+    for d in dirs:
+        print(d)
+    return 4 if failed else 0
+
+
+def _release(root: Path) -> str:
+    """The release in force: the newest `reference/vX.Y.yaml`."""
+    versions = sorted(
+        (p.stem for p in (root / "reference").glob("v*.yaml")),
+        key=lambda v: tuple(int(x) for x in v[1:].split(".")),
+    )
+    if not versions:
+        raise IProofsError(ErrorKind.CONFIG, "no reference/<release>.yaml")
+    return versions[-1]
 
 
 def phase_of(command: str) -> Phase:
