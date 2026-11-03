@@ -24,7 +24,6 @@ Handler = Callable[[argparse.Namespace], int]
 
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
-    "validate": 119,
     "machine-record": 73,
     "fetch-model": 132,
     "prompts build": 48,
@@ -89,6 +88,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         return p
 
     p = command("validate", "run every CI check (RFC-0013) on the given paths")
+    p.set_defaults(handler=validate)
     p.add_argument("paths", nargs="*", type=Path)
     p.add_argument("--all", action="store_true", help="every file, not only changed ones")
     p.add_argument("--changed-since", metavar="REF")
@@ -157,6 +157,11 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p = command("plan", "project the run-campaign compute budget", release_sub, "release plan")
     p.add_argument("release")
 
+    p = sub.add_parser("fmt")  # hidden maintenance command (RFC-0013 §G3)
+    p.add_argument("paths", nargs="+", type=Path)
+    p.set_defaults(handler=fmt, command_name="fmt")
+    sub._choices_actions = [a for a in sub._choices_actions if a.dest != "fmt"]
+
     site = sub.add_parser("site", help="static site (RFC-0009)")
     site_sub = site.add_subparsers(dest="site_command", required=True, metavar="ACTION")
     p = command("build", "generate the static site", site_sub, "site build")
@@ -186,6 +191,56 @@ def derive(args: argparse.Namespace) -> int:
     derived = {k: v for k, v in doc.get("metrics", {}).items() if v.get("grade") == "derived"}
     print(json.dumps(derived, indent=2, sort_keys=True))
     return 1 if findings else 0
+
+
+def validate(args: argparse.Namespace) -> int:
+    """`iproofs validate`: the tree gates; one line per failure, exit 1 on any."""
+    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.validate.tree import validate_tree  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    only = None if args.all or not args.paths else [_repo_path(root, p) for p in args.paths]
+    findings = validate_tree(root, only=only, base_ref=args.changed_since)
+    if args.format == "json":
+        print(
+            json.dumps(
+                [
+                    {
+                        "gate": f.gate,
+                        "path": f.path,
+                        "pointer": f.pointer or None,
+                        "line": None,
+                        "rule": f.rule,
+                        "message": f.message,
+                        "hint": f.hint or None,
+                    }
+                    for f in findings
+                ],
+                indent=2,
+            )
+        )
+    else:
+        for f in findings:
+            print(f.line())
+    files = len({f.path for f in findings})
+    print(f"validate: {len(findings)} failures in {files} files", file=sys.stderr)
+    return 1 if findings else 0
+
+
+def _repo_path(root: Path, path: Path) -> str:
+    full = path.resolve()
+    if not full.is_relative_to(root):
+        raise IProofsError(ErrorKind.CONFIG, f"{path} is outside the repository")
+    return full.relative_to(root).as_posix() if full != root else ""
+
+
+def fmt(args: argparse.Namespace) -> int:
+    """Rewrite JSON files with the canonical writer (hidden; fixes FMT-1)."""
+    from iproofs.serialize import write_json  # noqa: PLC0415
+
+    for path in args.paths:
+        write_json(path, json.loads(path.read_text()))
+    return 0
 
 
 def run(args: argparse.Namespace) -> int:

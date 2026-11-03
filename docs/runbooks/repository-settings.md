@@ -9,7 +9,7 @@ Settings that live on the hosting platform rather than in files. A maintainer ap
   - `lint-and-types`
   - `tests (3.12)`
   - `tests (3.13)`
-  - `validate` (once gate G2 lands, #119)
+  - `validate`
   - `fake-e2e` (once gate G10 lands, #124)
   - `dco` (once gate G11 lands, #125)
 - Do not allow force pushes or deletion of `main`.

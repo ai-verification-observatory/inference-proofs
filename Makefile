@@ -6,3 +6,4 @@ ci:
 	uv run ruff format --check .
 	uv run mypy --strict harness/src/iproofs harness/tests
 	HYPOTHESIS_PROFILE=ci uv run pytest harness/tests systems -q
+	uv run iproofs validate --all

@@ -23,6 +23,7 @@ A change that would alter a published number, a label, or which rows appear need
 
 - Every adapter ships a CPU-only test against stored fixtures; every schema ships valid and invalid examples; every derived metric ships a test against a hand-computed case ([docs/spec/07-testing-strategy.md](docs/spec/07-testing-strategy.md)).
 - Run the checks locally before you push: `make ci` runs the same commands, in the same order, as `.github/workflows/ci.yml`. The full gate list is [RFC-0013](rfcs/0013-validation-and-ci.md).
+- `uv run iproofs validate` runs the tree gates (schemas, cross-references, append-only results, file sizes, canonical JSON, derived recompute, labels) and prints one line per failure; `--format json` gives the same list for tools, and `--changed-since origin/main` adds the append-only check against a base branch.
 - A test that fails intermittently is a bug: fix it or quarantine it with an issue number ([docs/spec/07-testing-strategy.md §Flaky-test policy](docs/spec/07-testing-strategy.md#flaky-test-policy)).
 - GPU work runs on a GPU host, never in hosted CI.
 
