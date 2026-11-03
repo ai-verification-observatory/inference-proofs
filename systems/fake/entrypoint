@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Fake prover for CI (RFC-0005 §Reference implementations). Standard library only.
 
-Usage: entrypoint <info|setup|commit|prove|verify> /io/job.json /io/out.json
+Usage: entrypoint <info|setup|commit|prove|verify|probe> /io/job.json /io/out.json
 
 The proof for one request is two parts: body.bin = sha256(key || request), and
 tag.bin = HMAC-SHA256(key, request || claimed_output || body). The prover keys with the
@@ -150,9 +150,33 @@ def verify(job: dict) -> dict:
             "raw_last_line": line, "seconds": seconds}
 
 
+def probe(job: dict) -> None:
+    """The self-test probe (RFC-0011 §Calibration self-test), never part of a measured run.
+    `alloc` touches 256 MiB of anonymous memory, `watch` releases 3 directories 200 ms apart,
+    `oom` allocates past the container's memory limit."""
+    mode = job["probe"]
+    if mode in ("alloc", "oom"):
+        size = (256 if mode == "alloc" else 1024) * 1024 * 1024
+        block = bytearray(size)
+        for i in range(0, size, 4096):
+            block[i] = 1  # touch every page so it is resident
+        time.sleep(1.0)  # long enough for the 10 Hz anon sampler
+    elif mode == "watch":
+        proofs = host("/io/proofs")
+        proofs.mkdir(parents=True, exist_ok=True)
+        for i in range(3):
+            if i:
+                time.sleep(0.2)
+            (proofs / f".tmp-p{i}").mkdir()
+            os.rename(proofs / f".tmp-p{i}", proofs / f"p{i}")
+
+
 def main() -> int:
     sub, job_path, out_path = sys.argv[1:4]
     job = json.loads(host(job_path).read_text())
+    if sub == "probe":
+        probe(job)
+        return 0
     if job.get("subcommand") != sub:
         raise SystemExit(f"fake: job.json is for {job.get('subcommand')!r}, not {sub!r}")
     out = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}[sub](job)

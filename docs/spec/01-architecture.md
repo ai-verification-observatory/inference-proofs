@@ -73,6 +73,7 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 4 | `iproofs.measure` | monotonic clock, NVML sampler, cgroup sampler, release watcher, proof sizes ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md)) | layers 0 to 3 |
 | 4 | `iproofs.reference` | pairing reference rows with prover rows for overhead ([RFC-0015](../../rfcs/0015-reference-rows.md)) | layers 0 to 3 |
 | 5 | `iproofs.controls` | mutations, honest twins, classification, `controls.json` ([RFC-0008](../../rfcs/0008-negative-controls.md)) | layers 0 to 4 |
+| 5 | `iproofs.selftest` | the RFC-0011 calibration self-test (`machine-record --selftest`) | layers 0 to 4 |
 | 6 | `iproofs.runner` | job state machine, timeouts, retries, crash recovery ([RFC-0010](../../rfcs/0010-harness-runner.md)) | layers 0 to 5 |
 | 7 | `iproofs.validate` | every CI check ([RFC-0013](../../rfcs/0013-validation-and-ci.md)) | layers 0 to 5 |
 | 7 | `iproofs.release` | freeze, effective tiers, review and reproduction records, target evaluation | layers 0 to 5 |
