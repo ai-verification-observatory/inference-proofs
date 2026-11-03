@@ -12,11 +12,12 @@ Settings that live on the hosting platform rather than in files. A maintainer ap
   - `validate`
   - `fake-e2e`
   - `dco`
+  - `merge-guard` (from `.github/workflows/merge-guard.yml`, INV-GOV-4; it re-runs on each review)
 - Do not allow force pushes or deletion of `main`.
 
 ## Actions
 
-- Workflow permissions: read repository contents only.
+- Workflow permissions: read repository contents only. The `merge-guard` job also reads pull request reviews (`pull-requests: read`), and the nightly link check may open one issue (`issues: write`).
 - Pull requests from forks get no secrets. No workflow uses a secret today.
 - Every action is referenced by a full commit hash; `harness/tests/unit/test_ci_config.py` checks it.
 
