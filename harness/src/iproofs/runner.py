@@ -19,6 +19,14 @@ from typing import Literal, Protocol
 
 from iproofs import __version__
 from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
+from iproofs.controls import (
+    HonestProof,
+    VerifyCall,
+    VerifyResult,
+    controls_document,
+    new_control_seed,
+    run_shared_controls,
+)
 from iproofs.derive import (
     QuantityTree,
     derive_repetition,
@@ -182,6 +190,7 @@ class Runner:
         operator: RunnerIdentity | None = None,
         provider: str = "undeclared",
         replay_seed: int | None = None,
+        keep_io: bool = False,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -193,6 +202,8 @@ class Runner:
         self.provider = provider
         # RFC-0003 §Seed policy: a fresh seed per job, or a recorded one replayed (--prompts-from)
         self.replay_seed = replay_seed
+        self.keep_io = keep_io
+        self.controls_done = False
         self.redact = Redactor.from_host()
 
     # ---------------------------------------------------------------- public
@@ -206,8 +217,6 @@ class Runner:
 
     def run(self, spec: JobSpec, *, below_minimum: bool = False, seed: int | None = None) -> Path:
         """Drive one job from `pending` to `written`; returns the run directory."""
-        if spec.control_suite:
-            raise IProofsError(ErrorKind.CONFIG, "the control suite is wired in issue #89")
         date = datetime.now(UTC).date().isoformat()
         results = Path(spec.results_root)
         run_id, staging = allocate_run_id(results, spec, date)
@@ -221,7 +230,7 @@ class Runner:
         with (staging / "logs/harness.jsonl").open("w") as stream:
             log = JsonlLogger(stream, redactor=self.redact, mono=self.clock)
             log.log(Event.RUNNER_START, job=run_id, harness_version=__version__)
-            actions = {
+            actions: dict[str, Callable[[Job], None]] = {
                 "resolved": self._resolve,
                 "image_ready": self._image,
                 "machine_recorded": self._machine,
@@ -230,8 +239,11 @@ class Runner:
                 "commit": self._commit,
                 "prove": self._prove,
                 "verify": self._verify,
+                "controls": lambda j: self._controls(j, log),
             }
-            for state in STATES[1:-2]:  # resolved .. verify; controls need #89
+            for state in STATES[1:-1]:  # resolved .. controls
+                if state == "controls" and not (spec.control_suite and not self.controls_done):
+                    continue  # once per configuration, on the first successful repetition
                 previous, job.state = job.state, state
                 log.log(Event.JOB_STATE, job=run_id, step=state, **{"from": previous, "to": state})
                 try:
@@ -270,6 +282,17 @@ class Runner:
     # ---------------------------------------------------------------- states
 
     def _resolve(self, job: Job) -> None:
+        assert job.workload is None
+        self._resolve_inputs(job)
+        assert job.workload is not None
+        assert job.models is not None
+        job.prompts = materialise_prompts(self.root, job.workload, job.models, job.seed)
+        io = job.staging / "io"
+        io.mkdir()
+        job.prompt_set_digest = write_jsonl(io / "prompts.jsonl", job.prompts)
+
+    def _resolve_inputs(self, job: Job) -> None:
+        """System, workload, reference file and the hash-checked model directory."""
         spec = job.spec
         system = load(self.root / "systems" / spec.system / "system.yaml", self.registry)
         if not isinstance(system, System):
@@ -286,10 +309,6 @@ class Runner:
         job.reference, job.reference_file = self._reference(spec)
         job.system, job.workload = system, wl
         job.models = model_dir(self.root, wl)
-        job.prompts = materialise_prompts(self.root, wl, job.models, job.seed)
-        io = job.staging / "io"
-        io.mkdir()
-        job.prompt_set_digest = write_jsonl(io / "prompts.jsonl", job.prompts)
 
     def _reference(self, spec: JobSpec) -> tuple[ReferenceFile, str]:
         """The release's reference file, or the CI file for CI-only profiles (`ci-cpu`)."""
@@ -314,7 +333,13 @@ class Runner:
         job.machine = self.env.machine_record()
 
     def _call(
-        self, job: Job, sub: str, extra: dict[str, object], io: Path | None = None
+        self,
+        job: Job,
+        sub: str,
+        extra: dict[str, object],
+        io: Path | None = None,
+        *,
+        control: bool = False,
     ) -> tuple[AdapterOut, StepResult]:
         assert job.system is not None
         assert job.workload is not None
@@ -335,7 +360,7 @@ class Runner:
                     "batches_per_session": shape.batches_per_session,
                     "context_window": shape.context_window,
                 },
-                "control": False,
+                "control": control,
                 **extra,
             },
         )
@@ -378,6 +403,8 @@ class Runner:
         (job.staging / "logs" / f"{sub}.stderr").open("a").write(
             self.redact("\n".join(result.stderr_tail)) + "\n"
         )
+        if sub in {"commit", "prove"} and result.exit_code == 0:
+            shutil.copyfile(io / "out.json", io / f"{sub}.out.json")
         if result.exit_code != 0 or result.out is None:
             raise IProofsError(
                 ErrorKind.ADAPTER,
@@ -482,12 +509,7 @@ class Runner:
         assert job.commit is not None
         io = job.staging / "verify" / (proof_id + ("-1cpu" if single else ""))
         shutil.copytree(job.staging / "io/proofs" / proof_id, io / "proof")
-        files = []
-        for container_path in job.commit.verifier_files or ():
-            host = IoDirs(job.staging / "io").host(container_path, "verify")
-            (io / "verifier").mkdir(exist_ok=True)
-            shutil.copyfile(host, io / "verifier" / host.name)
-            files.append(f"/io/verifier/{host.name}")
+        files = self._verifier_files(job, io)
         request_index = entry.request_index
         out, result = self._call(
             job,
@@ -514,6 +536,122 @@ class Runner:
         )
         # the harness wall time of the call, not the adapter-reported seconds (INV-GRADE-2)
         return span_seconds(result.started_mono_ns, result.ended_mono_ns), str(out.verdict)
+
+    # ---------------------------------------------------------------- controls
+
+    def honest_proofs(self, job: Job) -> list[HonestProof]:
+        assert job.proofs is not None
+        assert job.workload is not None
+        entries = {p.proof_id: p for p in job.proofs.proofs or ()}
+        batch = job.workload.shape.batch_size
+        return [
+            HonestProof(
+                pid,
+                tuple(job.prompts[entries[pid].request_index]),
+                tuple(entries[pid].claimed_output),
+                job.verdicts.get(pid, ""),
+                ns,
+                entries[pid].request_index // batch,
+            )
+            for pid, ns in job.releases
+        ]
+
+    def _controls(self, job: Job, log: JsonlLogger) -> None:
+        """The shared control suite against the honest proofs (RFC-0008 §Where controls run)."""
+        assert job.commit is not None
+        assert job.workload is not None
+        seed = new_control_seed()
+        work = job.staging / "controls-io"
+        trials = 0
+
+        def verify(call: VerifyCall) -> VerifyResult:
+            nonlocal trials
+            trials += 1
+            io = work / f"call-{trials}"
+            shutil.copytree(call.proof_dir, io / "proof")
+            files = self._verifier_files(job, io)
+            out, result = self._call(
+                job,
+                "verify",
+                {
+                    "commitment_id": call.commitment_id,
+                    "verifier_files": files,
+                    "request": list(call.request),
+                    "claimed_output": list(call.claimed_output),
+                    "proof_dir": "/io/proof",
+                },
+                io=io,
+                control=True,
+            )
+            return VerifyResult(
+                str(out.verdict),
+                int(out.raw_exit_code or 0),
+                str(out.raw_last_line or ""),
+                span_seconds(result.started_mono_ns, result.ended_mono_ns),
+            )
+
+        proofs = self.honest_proofs(job)
+        dirs = {p.proof_id: job.staging / "io/proofs" / p.proof_id for p in proofs}
+        records = run_shared_controls(
+            proofs,
+            dirs,
+            str(job.commit.commitment_id),
+            None,
+            workload=job.workload,
+            seed=seed,
+            verify=verify,
+            work=work / "mutations",
+        )
+        for r in records:
+            for t in r["trials"]:  # type: ignore[attr-defined]
+                log.log(
+                    Event.CONTROL_TRIAL,
+                    job=job.run_id,
+                    step="controls",
+                    control=r["id"],
+                    trial=t["seed_index"],
+                    outcome=t["outcome"],
+                )
+            twin = r["twin"]
+            if r["outcome"] == "void" and isinstance(twin, dict):
+                log.log(
+                    Event.CONTROL_TWIN_MISMATCH,
+                    job=job.run_id,
+                    step="controls",
+                    control=r["id"],
+                    twin_verdict=twin["verdict"],
+                )
+        doc = controls_document(
+            job.run_id, seed, job.image, self._verifier_profile(job), None, records
+        )
+        if doc["disclosure_pending"]:
+            log.log(
+                Event.CONTROL_DISCLOSURE_PENDING,
+                job=job.run_id,
+                step="controls",
+                control=[r["id"] for r in records if r["outcome"] == "accepted"],
+            )
+        errors = self.registry.errors("controls/1", doc)
+        if errors:
+            raise IProofsError(
+                ErrorKind.INTERNAL, "controls.json fails controls/1: " + "; ".join(errors)
+            )
+        write_json(job.staging / "controls.json", doc)
+        self.controls_done = True
+
+    def _verifier_files(self, job: Job, io: Path) -> list[str]:
+        assert job.commit is not None
+        files = []
+        for container_path in job.commit.verifier_files or ():
+            host = IoDirs(job.staging / "io").host(container_path, "verify")
+            (io / "verifier").mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(host, io / "verifier" / host.name)
+            files.append(f"/io/verifier/{host.name}")
+        return files
+
+    def _verifier_profile(self, job: Job) -> str:
+        profiles = job.reference.profiles if job.reference else {}
+        return "verifier-cpu" if "verifier-cpu" in profiles else job.spec.profile
 
     # ---------------------------------------------------------------- written
 
@@ -567,7 +705,10 @@ class Runner:
                     ErrorKind.INTERNAL, "manifest fails manifest/1: " + "; ".join(errors)
                 )
             write_json(job.staging / "manifest.json", manifest)
-        for scratch in ("io", "verify"):  # proof bytes never stay in a run directory (RFC-0009)
+        # proof bytes never stay in a run directory (RFC-0009) unless --keep-io (RFC-0010)
+        for scratch in (
+            ("verify", "controls-io") if self.keep_io else ("io", "verify", "controls-io")
+        ):
             shutil.rmtree(job.staging / scratch, ignore_errors=True)
         (job.staging / "job.lock").unlink()
         return final
@@ -593,11 +734,7 @@ class Runner:
             else None
         )
         source = wl.model.source
-        verifier = (
-            "verifier-cpu"
-            if "verifier-cpu" in (job.reference.profiles if job.reference else {})
-            else spec.profile
-        )
+        verifier = self._verifier_profile(job)
         return {
             "schema": "manifest/1",
             "run_id": job.run_id,
@@ -783,3 +920,42 @@ def recorded_seed(run_dir: Path, workload: str, version: int) -> int:
             f"{run_dir} ran {recorded['id']} v{recorded['version']}, not {workload} v{version}",
         )
     return int(recorded["prompt_seed"], 16)
+
+
+def controls_for_run(runner: Runner, run_dir: Path) -> Path:
+    """`iproofs controls RUN_DIR`: the control suite against a completed run whose proof bytes
+    were kept (`--keep-io`); adds `controls.json` to the run directory (append-only)."""
+    if (run_dir / "controls.json").exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} already has controls.json")
+    io = run_dir / "io"
+    if not (io / "proofs").is_dir() or not (io / "prove.out.json").is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no proofs; rerun with --keep-io")
+    doc = json.loads((run_dir / "run.json").read_text())
+    if doc["status"] != "completed":
+        raise IProofsError(
+            ErrorKind.CONFIG, f"{run_dir} did not complete; controls need accepted proofs"
+        )
+    spec = JobSpec(
+        doc["system"],
+        doc["workload"]["id"],
+        doc["workload"]["version"],
+        doc["profile"],
+        doc["repetition"],
+        True,
+        str(run_dir.parent.parent.parent),
+        doc["release"],
+    )
+    job = Job(spec, doc["run_id"], run_dir)
+    runner._resolve_inputs(job)
+    job.image = json.loads((run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
+    job.prompts = [json.loads(line) for line in (io / "prompts.jsonl").read_text().splitlines()]
+    for name, attr in (("commit", "commit"), ("prove", "proofs")):
+        out = load(io / f"{name}.out.json", runner.registry)
+        assert isinstance(out, AdapterOut)
+        setattr(job, attr, out)
+    job.releases = [(p["proof_id"], p["release_mono_ns"]) for p in doc["proofs"]]
+    job.verdicts = {p["proof_id"]: p["verdict"] for p in doc["proofs"]}
+    with (run_dir / "logs/harness.jsonl").open("a") as stream:
+        runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
+    shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
+    return run_dir / "controls.json"

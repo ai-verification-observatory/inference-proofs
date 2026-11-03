@@ -5,7 +5,6 @@ import pytest
 
 from iproofs import cli
 from iproofs.adapter import ContainerRunner, InProcessRunner, StepResult
-from iproofs.errors import IProofsError
 from iproofs.runner import JobSpec, Runner, allocate_run_id
 from iproofs.schema import SchemaRegistry
 from iproofs.validate import check_derived
@@ -74,11 +73,6 @@ def test_controls_skipped_without_flag(tmp_path: Path) -> None:
     states = [json.loads(line).get("to") for line in (run_dir / "logs/harness.jsonl").open()]
     assert "controls" not in states
     assert states[-1] is None  # job.written carries no transition
-
-
-def test_control_suite_not_yet_wired(tmp_path: Path) -> None:
-    with pytest.raises(IProofsError, match="#89"):
-        runner().run(spec(tmp_path, control_suite=True))
 
 
 class FailAt:
