@@ -8,6 +8,7 @@ from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.log.patterns import IPV4_ALLOWED, PATTERNS, is_ipv6
 from iproofs.schema import SchemaRegistry, check_examples, load_document, parse_tree
 from iproofs.serialize import check_format
 from iproofs.validate import Finding, check_claim, check_controls_summary, check_derived
@@ -378,7 +379,7 @@ def validate_tree(
     if base_ref:
         found += g2_append_only(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
-    found += g6_policy(root, files) + g7_pins(root, files)
+    found += g6_policy(root, files) + g7_pins(root, files) + g9_secrets(root, files, only or ())
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
 
@@ -608,4 +609,60 @@ def _reference_pins(root: Path, rel: str) -> list[Finding]:
                         f"/profiles/{pid}/{field}",
                     )
                 )
+    return found
+
+
+# ---------------------------------------------------------------- G9
+
+SECRET_ALLOWLIST = ("harness/tests/fixtures/secrets/",)  # RFC-0013 §G9, plus invalid examples
+_VERSION_FIELD = re.compile(r"""(?i)["']?\w*version\w*["']?\s*[:=]""")
+
+
+def scan_text(text: str, rel: str) -> list[Finding]:
+    """SEC-1 to SEC-11 over one file, with the same compiled patterns the redactor uses."""
+    found = []
+    for n, line in enumerate(text.splitlines(), start=1):
+        spans: list[tuple[int, int]] = []
+        for p in PATTERNS:
+            for m in p.regex.finditer(line):
+                hit = m.group(0)
+                if any(a <= m.start() and m.end() <= b for a, b in spans):
+                    continue  # inside an earlier hit: a MAC address is not also an IPv6 one
+                if p.rule == "SEC-5" and (hit in IPV4_ALLOWED or _VERSION_FIELD.search(line)):
+                    continue
+                if p.rule == "SEC-6" and not is_ipv6(hit):
+                    continue
+                spans.append(m.span())
+                found.append(
+                    Finding(
+                        "G9",
+                        f"{rel}:{n}",
+                        p.rule,
+                        f"matches the {p.kind} pattern",
+                        ErrorKind.POLICY,
+                        hint="remove it; never commit secrets "
+                        "or host identifiers (AGENTS.md rule 7)",
+                    )
+                )
+    return found
+
+
+def _allowlisted(rel: str) -> bool:
+    return rel.startswith(SECRET_ALLOWLIST) or bool(
+        re.match(r"schema/[^/]+/examples/invalid/", rel)
+    )
+
+
+def g9_secrets(root: Path, files: list[str], only: Iterable[str] = ()) -> list[Finding]:
+    """Allowlisted files are skipped unless a requested path lies inside the allowlist."""
+    named = tuple(w + "/" for w in (o.rstrip("/") for o in only) if _allowlisted(w + "/"))
+    found = []
+    for rel in files:
+        if _allowlisted(rel) and not (rel.startswith(named) or rel + "/" in named):
+            continue
+        try:
+            text = (root / rel).read_text("utf-8")
+        except UnicodeDecodeError:
+            continue  # binary files hold no text secrets this gate can see
+        found += scan_text(text, rel)
     return found

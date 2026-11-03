@@ -8,6 +8,7 @@ from iproofs.adapter import ContainerRunner, InProcessRunner, StepResult
 from iproofs.runner import JobSpec, Runner, allocate_run_id
 from iproofs.schema import SchemaRegistry
 from iproofs.validate import check_derived
+from secret_samples import sample
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
@@ -92,7 +93,7 @@ class FailAt:
                 result.ended_mono_ns,
                 7,
                 None,
-                ("upstream failed at 10.0.0.9",),
+                ("upstream failed at " + sample("SEC-5"),),
             )
         return result
 
@@ -105,7 +106,7 @@ def test_failure_at_each_step(tmp_path: Path, step: str) -> None:
     failure = doc["failure"]
     assert isinstance(failure, dict)
     assert (failure["kind"], failure["step"], failure["exit_code"]) == ("adapter", step, 7)
-    assert "10.0.0.9" not in json.dumps(failure)  # redacted before writing
+    assert sample("SEC-5") not in json.dumps(failure)  # redacted before writing
     assert REGISTRY.errors("run/1", doc) == []
 
 

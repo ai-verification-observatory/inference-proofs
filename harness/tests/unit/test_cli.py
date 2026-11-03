@@ -6,6 +6,7 @@ import pytest
 
 from iproofs import cli
 from iproofs.errors import ErrorKind, IProofsError
+from secret_samples import sample
 
 COMMANDS = [
     "validate",
@@ -108,7 +109,7 @@ def test_error_message_is_redacted(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def leak(args: argparse.Namespace) -> int:
-        raise IProofsError(ErrorKind.FETCH, "could not reach 10.1.2.3")
+        raise IProofsError(ErrorKind.FETCH, "could not reach " + sample("SEC-5"))
 
     run_with(leak, ["fetch-model", "w"], monkeypatch)
-    assert "10.1.2.3" not in capsys.readouterr().err
+    assert sample("SEC-5") not in capsys.readouterr().err

@@ -43,7 +43,8 @@ PATTERNS: tuple[Pattern, ...] = (
     Pattern("SEC-7", "mac", re.compile(r"(?i)\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b")),
     Pattern("SEC-5", "ip", re.compile(_IPV4)),
     Pattern("SEC-6", "ip", re.compile(_IPV6)),
-    Pattern("SEC-10", "home", re.compile(r"/home/[a-z_][a-z0-9_-]*/|/Users/[^/\s]+/")),
+    # [/] is a plain slash; it keeps this source line from matching its own pattern
+    Pattern("SEC-10", "home", re.compile(r"/home/[a-z_][a-z0-9_-]*/|[/]Users/[^/\s]+/")),
 )
 
 IPV4_ALLOWED = frozenset({"127.0.0.1", "0.0.0.0"})
@@ -51,4 +52,10 @@ IPV6_ALLOWED = frozenset({"::1"})
 
 
 def is_ipv6(candidate: str) -> bool:
-    return candidate not in IPV6_ALLOWED and ("::" in candidate or candidate.count(":") >= 3)
+    """Two hex groups or more, and "::" or three colons: not pytest node ids, not clock times."""
+    groups = [g for g in candidate.split(":") if g]
+    return (
+        candidate not in IPV6_ALLOWED
+        and len(groups) >= 2
+        and ("::" in candidate or candidate.count(":") >= 3)
+    )

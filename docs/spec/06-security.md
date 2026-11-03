@@ -87,6 +87,8 @@ The redactor (`iproofs.log.redact`) and the CI secrets scan (gate G9) share one 
 - Registry credentials for pushing release images are used by maintainers' build tooling, not by the harness.
 - CI has no secrets available to pull request jobs (`contents: read`).
 - The log redactor removes values of environment variables whose names match `(?i)(token|key|secret|password|credential)` wherever they appear in a log line, plus the patterns of RFC-0013 G9. G9 then scans every committed file for the same patterns, so a redaction miss fails CI before publication.
+- The rule ids, each a pattern in `iproofs.log.patterns` (RFC-0013 §G9): `SEC-1` Hugging Face tokens, `SEC-2` GitHub tokens, `SEC-3` AWS access key ids, `SEC-4` private key headers, `SEC-5` IPv4 and `SEC-6` IPv6 literals (loopback excepted), `SEC-7` MAC addresses, `SEC-8` GPU UUIDs, `SEC-9` SSH config fragments, `SEC-10` absolute home paths, `SEC-11` secret-like assignments. A G9 failure names the file, the line and the rule id.
+- G9 skips `harness/tests/fixtures/secrets/` (one known-bad sample per rule) and `schema/*/examples/invalid/` in a repository scan, and scans them when they are named (`uv run iproofs validate harness/tests/fixtures/secrets`). Tests read secret-shaped samples from those fixtures, so no other file needs an exception.
 
 ## Privacy and identifier exclusion (A5, T6)
 
