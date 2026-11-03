@@ -28,6 +28,7 @@ class Event(StrEnum):
     INTEGRITY_MISMATCH = "integrity.mismatch"
     ENV_PROBE = "env.probe"
     ENV_GPU_BUSY = "env.gpu_busy"
+    GPU_FOREIGN_PROCESS = "gpu.foreign_process"
     CPUSET_SELECTED = "cpuset.selected"
     STEP_START = "step.start"
     STEP_END = "step.end"
@@ -68,6 +69,7 @@ DEFAULT_LEVEL = {
     Event.SAMPLER_GAP: "warning",
     Event.SAMPLER_CGROUP_UNAVAILABLE: "warning",
     Event.CGROUP_STALE_CLEANUP: "warning",
+    Event.GPU_FOREIGN_PROCESS: "warning",
     Event.CONTROL_TWIN_MISMATCH: "warning",
     Event.CONTROL_DISCLOSURE_PENDING: "warning",
     Event.VALIDATE_FAIL: "error",
