@@ -969,6 +969,69 @@ class ReferenceFile(Document):
     cost: Cost
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Twin(Document):
+    verdict: str
+    raw_exit_code: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Trial(Document):
+    seed_index: int
+    mutation: Mapping[str, object]
+    verdict: str | None
+    outcome: str
+    raw_exit_code: int | None
+    raw_last_line: str
+    seconds: float | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlResult(Document):
+    id: str
+    side: str
+    source: str
+    expected: tuple[str, ...]
+    twin: Twin | None
+    trials: tuple[Trial, ...]
+    outcome: str
+    passed: bool | None
+    note: str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PerturbedCommitment(Document):
+    commitment_id: str
+    model_digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlSummaryCounts(Document):
+    run: int
+    passed: int
+    rejected: int
+    accepted: int
+    no_verdict: int
+    invalid_call: int
+    void: int
+    not_applicable: int
+    error: int
+    prover_failed: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Controls(Document):
+    schema: str
+    run_id: str
+    control_seed: str
+    image: str
+    verifier_profile: str
+    perturbed_commitment: PerturbedCommitment | None
+    controls: tuple[ControlResult, ...]
+    summary: ControlSummaryCounts
+    disclosure_pending: bool
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -1083,6 +1146,12 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reference/1", "#/$defs/verifier/properties/cpu"): VerifierCpu,
     ("reference/1", "#/$defs/verifier/properties/emulation"): Emulation,
     ("reference/1", "#/properties/cost"): Cost,
+    ("controls/1", "#"): Controls,
+    ("controls/1", "#/$defs/control"): ControlResult,
+    ("controls/1", "#/$defs/trial"): Trial,
+    ("controls/1", "#/$defs/control/properties/twin/anyOf/1"): Twin,
+    ("controls/1", "#/properties/perturbed_commitment/anyOf/1"): PerturbedCommitment,
+    ("controls/1", "#/properties/summary"): ControlSummaryCounts,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
 }

@@ -1,0 +1,387 @@
+{
+  "$defs": {
+    "control": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "void, not_applicable and error neither pass nor fail (RFC-0008 §Outcomes)",
+          "else": {
+            "properties": {
+              "passed": {
+                "type": "boolean"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "outcome": {
+                "enum": [
+                  "void",
+                  "not_applicable",
+                  "error"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "passed": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "expected": {
+          "items": {
+            "enum": [
+              "rejected",
+              "accepted",
+              "no_verdict",
+              "invalid_call",
+              "void",
+              "not_applicable",
+              "error",
+              "prover_failed"
+            ]
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "id": {
+          "$ref": "../quantity/1.schema.json#/$defs/controlId"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "rejected",
+            "accepted",
+            "no_verdict",
+            "invalid_call",
+            "void",
+            "not_applicable",
+            "error",
+            "prover_failed"
+          ]
+        },
+        "passed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "side": {
+          "enum": [
+            "verifier",
+            "prover"
+          ]
+        },
+        "source": {
+          "enum": [
+            "shared",
+            "system"
+          ]
+        },
+        "trials": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "mutation": {
+                "$comment": "open map: control-specific mutation details",
+                "type": "object"
+              },
+              "outcome": {
+                "enum": [
+                  "rejected",
+                  "accepted",
+                  "no_verdict",
+                  "invalid_call",
+                  "void",
+                  "not_applicable",
+                  "error",
+                  "prover_failed"
+                ]
+              },
+              "raw_exit_code": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "raw_last_line": {
+                "maxLength": 4096,
+                "type": "string"
+              },
+              "seconds": {
+                "minimum": 0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "seed_index": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "verdict": {
+                "enum": [
+                  null,
+                  "accept",
+                  "reject",
+                  "no_verdict",
+                  "invalid_call"
+                ]
+              }
+            },
+            "required": [
+              "seed_index",
+              "mutation",
+              "verdict",
+              "outcome",
+              "raw_exit_code",
+              "raw_last_line",
+              "seconds"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "twin": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "raw_exit_code": {
+                  "type": "integer"
+                },
+                "verdict": {
+                  "enum": [
+                    "accept",
+                    "reject",
+                    "no_verdict",
+                    "invalid_call"
+                  ]
+                }
+              },
+              "required": [
+                "verdict",
+                "raw_exit_code"
+              ],
+              "type": "object"
+            }
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "side",
+        "source",
+        "expected",
+        "twin",
+        "trials",
+        "outcome",
+        "passed",
+        "note"
+      ],
+      "type": "object"
+    },
+    "trial": {
+      "additionalProperties": false,
+      "properties": {
+        "mutation": {
+          "$comment": "open map: control-specific mutation details",
+          "type": "object"
+        },
+        "outcome": {
+          "enum": [
+            "rejected",
+            "accepted",
+            "no_verdict",
+            "invalid_call",
+            "void",
+            "not_applicable",
+            "error",
+            "prover_failed"
+          ]
+        },
+        "raw_exit_code": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "raw_last_line": {
+          "maxLength": 4096,
+          "type": "string"
+        },
+        "seconds": {
+          "minimum": 0,
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "seed_index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "verdict": {
+          "enum": [
+            null,
+            "accept",
+            "reject",
+            "no_verdict",
+            "invalid_call"
+          ]
+        }
+      },
+      "required": [
+        "seed_index",
+        "mutation",
+        "verdict",
+        "outcome",
+        "raw_exit_code",
+        "raw_last_line",
+        "seconds"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/controls/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "control_seed": {
+      "pattern": "^0x[0-9a-f]{16}$",
+      "type": "string"
+    },
+    "controls": {
+      "items": {
+        "$ref": "#/$defs/control"
+      },
+      "type": "array"
+    },
+    "disclosure_pending": {
+      "type": "boolean"
+    },
+    "image": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "perturbed_commitment": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commitment_id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "model_digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            }
+          },
+          "required": [
+            "commitment_id",
+            "model_digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "schema": {
+      "const": "controls/1"
+    },
+    "summary": {
+      "$comment": "structural counts recomputed from controls by derive --check (INV-CTRL-5)",
+      "additionalProperties": false,
+      "properties": {
+        "accepted": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "error": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "invalid_call": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "no_verdict": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "not_applicable": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "passed": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "prover_failed": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rejected": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "run": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "void": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "run",
+        "passed",
+        "rejected",
+        "accepted",
+        "no_verdict",
+        "invalid_call",
+        "void",
+        "not_applicable",
+        "error",
+        "prover_failed"
+      ],
+      "type": "object"
+    },
+    "verifier_profile": {
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    }
+  },
+  "required": [
+    "schema",
+    "run_id",
+    "control_seed",
+    "image",
+    "verifier_profile",
+    "perturbed_commitment",
+    "controls",
+    "summary",
+    "disclosure_pending"
+  ],
+  "title": "Negative-control results: results/.../<run-id>/controls.json (RFC-0008 §controls.json)",
+  "type": "object"
+}

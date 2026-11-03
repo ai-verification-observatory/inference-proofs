@@ -152,12 +152,15 @@ def derive(args: argparse.Namespace) -> int:
     """`iproofs derive RUN_DIR [--check]`; without --check it prints, it never rewrites a run."""
     import json  # noqa: PLC0415
 
-    from iproofs.validate import check_derived, repo_root  # noqa: PLC0415
+    from iproofs.validate import check_controls_summary, check_derived, repo_root  # noqa: PLC0415
 
     run_json = args.run_dir / "run.json"
     if not run_json.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"{run_json} does not exist")
-    findings = check_derived(run_json, repo_root(args.run_dir))
+    root = repo_root(args.run_dir)
+    findings = check_derived(run_json, root)
+    if (args.run_dir / "controls.json").is_file():
+        findings += check_controls_summary(args.run_dir / "controls.json", root)
     if args.check:
         for f in findings:
             print(f.line())
