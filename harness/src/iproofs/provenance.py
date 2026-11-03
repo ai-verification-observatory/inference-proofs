@@ -4,10 +4,13 @@ Digest byte definitions are normative in RFC-0012 §Digests.
 """
 
 import hashlib
+import os
 import re
+import shutil
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
+from typing import Any
 
 from iproofs.errors import ErrorKind, IProofsError
 
@@ -110,3 +113,215 @@ def git_state(root: Path, paths: Sequence[str] = ()) -> tuple[str, bool]:
 def file_records(paths: Sequence[Path]) -> list[dict[str, object]]:
     """`{name, digest, bytes}` per file, as manifest.json lists commitment and proof files."""
     return [{"name": p.name, "digest": file_digest(p), "bytes": p.stat().st_size} for p in paths]
+
+
+# ---------------------------------------------------------------- machine record (RFC-0006)
+
+
+class Host:
+    """The allowlisted probes of RFC-0006 §Machine record, and nothing else: `/proc`, `/sys`,
+    `/etc/os-release`, `uname -r`, `docker version`, `docker info`, `nvidia-ctk --version`
+    and NVML. `root` is `/` on a host and a fixture tree in tests; `run` and `nvml` are
+    replaced in tests. A probe that fails leaves its field out (CPU-only hosts, macOS)."""
+
+    def __init__(
+        self,
+        root: Path = Path("/"),
+        run: Callable[[list[str]], str | None] | None = None,
+        nvml: Callable[[int], dict[str, object] | None] | None = None,
+        dev_of: Callable[[Path], tuple[int, int]] | None = None,
+    ) -> None:
+        self.root = root
+        self.run = run or _run
+        self.nvml = nvml or _nvml
+        self.dev_of = dev_of or _dev_of
+
+    def read(self, rel: str) -> str | None:
+        try:
+            return (self.root / rel).read_text().strip()
+        except OSError:
+            return None
+
+    def cpu(self) -> dict[str, object]:
+        out: dict[str, object] = {}
+        info = self.read("proc/cpuinfo") or ""
+        if m := re.search(r"^model name\s*:\s*(.+)$", info, re.M):
+            out["model"] = m.group(1).strip()
+        cpus = self.root / "sys/devices/system/cpu"
+        topo = sorted(cpus.glob("cpu[0-9]*/topology")) if cpus.is_dir() else []
+        if topo:
+            packages = [(p / "physical_package_id").read_text().strip() for p in topo]
+            cores = {
+                (pkg, (p / "core_id").read_text().strip())
+                for pkg, p in zip(packages, topo, strict=True)
+            }
+            out |= {
+                "sockets": len(set(packages)),
+                "physical_cores": len(cores),
+                "logical_cpus": len(topo),
+            }
+        if (smt := self.read("sys/devices/system/cpu/smt/active")) is not None:
+            out["smt_active"] = smt == "1"
+        return out
+
+    def memory(self) -> dict[str, object]:
+        info = self.read("proc/meminfo") or ""
+        out: dict[str, object] = {}
+        for key, field_name in (
+            ("MemTotal", "total_bytes"),
+            ("MemAvailable", "available_bytes_at_start"),
+        ):
+            if m := re.search(rf"^{key}:\s*(\d+) kB$", info, re.M):
+                out[field_name] = int(m.group(1)) * 1024
+        return out
+
+    def disk(self, path: Path) -> dict[str, object]:
+        out: dict[str, object] = {}
+        try:
+            out["free_bytes_at_start"] = shutil.disk_usage(path).free
+            major, minor = self.dev_of(path)
+        except OSError:
+            return out
+        device = (self.root / f"sys/dev/block/{major}:{minor}").resolve()
+        if (device / "partition").exists():
+            device = device.parent
+        rotational = self.read(str((device / "queue/rotational").relative_to(self.root.resolve())))
+        if device.name.startswith("nvme"):
+            out["type"] = "nvme"
+        elif rotational is not None:
+            out["type"] = "hdd" if rotational == "1" else "ssd"
+        return out
+
+    def os_release(self) -> dict[str, object]:
+        text = self.read("etc/os-release") or ""
+        fields = dict(re.findall(r'^(ID|VERSION_ID)="?([^"\n]*)"?$', text, re.M))
+        return {k.lower(): v for k, v in fields.items()}
+
+    def container(self) -> dict[str, object]:
+        out: dict[str, object] = {}
+        if engine := self.run(["docker", "version", "--format", "{{.Server.Version}}"]):
+            out["docker_engine"] = engine
+        if info := self.run(["docker", "info", "--format", "{{.CgroupDriver}} {{.CgroupVersion}}"]):
+            driver, _, version = info.partition(" ")
+            out |= {"cgroup_driver": driver, "cgroup_version": version}
+        ctk = self.run(["nvidia-ctk", "--version"]) or ""
+        if m := re.search(r"version\s+(\d+(?:\.\d+)+)", ctk):
+            out["nvidia_container_toolkit"] = m.group(1)
+        return out
+
+    def gpu(self, index: int) -> dict[str, object]:
+        """NVML fields of the bound GPU (and the visible count); never its UUID or serial."""
+        found = self.nvml(index)
+        if not found:
+            return {}
+        out = {k: found[k] for k in GPU_FIELDS if k in found and k != "numa_node"}
+        bus = found.get("pci_bus_id")
+        if isinstance(bus, str) and (
+            node := self.read(f"sys/bus/pci/devices/{bus.lower()}/numa_node")
+        ):
+            out["numa_node"] = int(node)
+        out["bound_index"] = index
+        return out
+
+
+GPU_FIELDS = (
+    "model",
+    "count_visible",
+    "memory_total_mib",
+    "numa_node",
+    "driver_version",
+    "cuda_driver_api",
+)
+
+
+def machine_record(
+    host: Host,
+    *,
+    results: Path,
+    gpu_index: int | None,
+    cpus: Mapping[str, Sequence[int]],
+    mems: Sequence[int],
+    provider: str,
+    verifier_host: str = "same_as_prover",
+    redact: Callable[[str], str] = lambda s: s,
+) -> dict[str, object]:
+    """RFC-0006 §Machine record: exactly the listed fields, every string redacted."""
+    cpu = host.cpu() | {
+        "bound_prover": list(cpus.get("prover", ())),
+        "bound_verifier": list(cpus.get("verifier", ())),
+        "bound_verifier_single": list(cpus.get("verifier_1", ())),
+    }
+    nodes = host.root / "sys/devices/system/node"
+    numa: dict[str, object] = {"bound_mems": list(mems)}
+    if nodes.is_dir():
+        numa["nodes"] = len(list(nodes.glob("node[0-9]*")))
+    record: dict[str, object] = {
+        "cpu": cpu,
+        "numa": numa,
+        "memory": host.memory(),
+        "disk": host.disk(results),
+        "os": host.os_release(),
+        "container": host.container(),
+        "provider": provider,
+        "verifier_host": verifier_host,
+    }
+    if (release := host.run(["uname", "-r"])) is not None:
+        record["kernel"] = {"release": release}
+    if gpu_index is not None and (gpu := host.gpu(gpu_index)):
+        record["gpu"] = gpu
+    clean: dict[str, object] = _redacted(record, redact)
+    return clean
+
+
+def _redacted(value: object, redact: Callable[[str], str]) -> Any:
+    if isinstance(value, str):
+        return redact(value)
+    if isinstance(value, dict):
+        return {k: _redacted(v, redact) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redacted(v, redact) for v in value]
+    return value
+
+
+MACHINE_DRIFT = (("gpu", "driver_version"), ("kernel", "release"), ("cpu", "bound_prover"))
+
+
+def machine_drift(before: Mapping[str, Any], after: Mapping[str, Any]) -> list[str]:
+    """INV-MR-2: the fields that may not change between the two collections."""
+    return [
+        f"{a}.{b}: {before.get(a, {}).get(b)!r} -> {after.get(a, {}).get(b)!r}"
+        for a, b in MACHINE_DRIFT
+        if before.get(a, {}).get(b) != after.get(a, {}).get(b)
+    ]
+
+
+def _run(argv: list[str]) -> str | None:
+    try:
+        done = subprocess.run(argv, capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return done.stdout.strip() or None if done.returncode == 0 else None
+
+
+def _dev_of(path: Path) -> tuple[int, int]:
+    dev = os.stat(path).st_dev
+    return os.major(dev), os.minor(dev)
+
+
+def _nvml(index: int) -> dict[str, object] | None:
+    try:
+        import pynvml  # noqa: PLC0415 (optional extra, INV-ARCH-6)
+
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(index)
+        cuda = pynvml.nvmlSystemGetCudaDriverVersion_v2()
+        return {
+            "model": str(pynvml.nvmlDeviceGetName(handle)),
+            "count_visible": int(pynvml.nvmlDeviceGetCount()),
+            "memory_total_mib": int(pynvml.nvmlDeviceGetMemoryInfo(handle).total) // (1024 * 1024),
+            "driver_version": str(pynvml.nvmlSystemGetDriverVersion()),
+            "cuda_driver_api": f"{cuda // 1000}.{cuda % 1000 // 10}",
+            "pci_bus_id": str(pynvml.nvmlDeviceGetPciInfo(handle).busId),
+        }
+    except Exception:
+        return None
