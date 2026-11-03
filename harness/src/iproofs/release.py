@@ -6,17 +6,23 @@ RFC-0007, RFC-0014).
 `reproduction/1` record; it computes no number other than the tolerance terms.
 """
 
+import datetime as dt
+import functools
+import hashlib
 import json
 import math
 import statistics
 import subprocess
 from collections import Counter
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from iproofs import __version__
+from iproofs.derive import statistic
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import Release
+from iproofs.model import Release, load
+from iproofs.provenance import file_digest
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -347,7 +353,11 @@ REASONS = {
 
 
 def eligibility(
-    run_dir: Path, release: Release, root: Path, registry: SchemaRegistry
+    run_dir: Path,
+    release: Release,
+    root: Path,
+    registry: SchemaRegistry,
+    archived: Collection[tuple[object, ...]] | None = None,
 ) -> tuple[bool, list[str]]:
     """RFC-0014 §Eligibility of one stored run for `release`: (eligible, reason codes from
     REASONS, in that order). Reads only the run's documents, the release record, the listed
@@ -374,23 +384,28 @@ def eligibility(
         "adapter_dirty": system.get("adapter_dirty") is not False,
         "image_digest_kind_config": run.get("manifest", "system", "image", "digest_kind")
         != "manifest",
-        "image_differs_from_system_yaml": _pinned_image(root, system)
+        "image_differs_from_system_yaml": _pinned_image(
+            root, str(system.get("adapter_commit")), str(system.get("name"))
+        )
         != run.get("manifest", "system", "image", "ref"),
-        "no_archived_proof": not _archived(run, release, root),
+        "no_archived_proof": run.key()
+        not in (archived if archived is not None else archived_configurations(release, root)),
     }
     reasons = [code for code in REASONS if failed[code]]
     return not reasons, reasons
 
 
-def _pinned_image(root: Path, system: Mapping[str, object]) -> str | None:
+@functools.cache
+def _pinned_image(root: Path, adapter_commit: str, name: str) -> str | None:
     """`repository@digest` of systems/<name>/system.yaml at the run's adapter commit."""
     import yaml  # noqa: PLC0415
 
     shown = subprocess.run(
-        ["git", "-C", str(root), "show", f"{system.get('adapter_commit')}:systems/"
-         f"{system.get('name')}/system.yaml"],
-        capture_output=True, text=True, check=False,
-    )  # fmt: skip
+        ["git", "-C", str(root), "show", f"{adapter_commit}:systems/{name}/system.yaml"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     if shown.returncode != 0:
         return None
     doc = yaml.safe_load(shown.stdout) or {}
@@ -400,12 +415,197 @@ def _pinned_image(root: Path, system: Mapping[str, object]) -> str | None:
     return image if isinstance(image, str) else None
 
 
-def _archived(run: RunView, release: Release, root: Path) -> bool:
-    """RFC-0014: some run of the same configuration in the release records an archive URI."""
+def archived_configurations(release: Release, root: Path) -> set[tuple[object, ...]]:
+    """RFC-0014: configuration keys of the release's runs that record an archive URI."""
+    found = set()
     for listed in release.runs:
-        other = RunView.read(root / listed) if (root / listed / "manifest.json").is_file() else None
-        if other is not None and other.key() == run.key():
-            proofs = other.manifest.get("proofs")
-            if any(isinstance(p, dict) and p.get("archive") for p in proofs or []):  # type: ignore[attr-defined]
-                return True
-    return False
+        if (root / listed / "manifest.json").is_file():
+            run = RunView.read(root / listed)
+            proofs = run.manifest.get("proofs")
+            if isinstance(proofs, list) and any(
+                isinstance(p, dict) and p.get("archive") for p in proofs
+            ):
+                found.add(run.key())
+    return found
+
+
+# ---------------------------------------------------------------- freeze (RFC-0009)
+
+MIN_WINDOW_DAYS = 14
+OUTCOME_COUNTS = ("rejected", "accepted", "no_verdict", "invalid_call", "void",
+                  "not_applicable", "error", "prover_failed")  # fmt: skip
+
+
+def _fail(message: str) -> IProofsError:
+    return IProofsError(ErrorKind.CONFIG, f"release freeze: {message}")
+
+
+def freeze(
+    release_id: str,
+    root: Path,
+    registry: SchemaRegistry,
+    gates: Callable[[list[str]], list[str]],
+) -> dict[str, object]:
+    """RFC-0009 §Freeze algorithm, steps 1 to 5, 7 and 9 (effective tiers stay `reported` and
+    targets empty until steps 6 and 8 land). `gates` runs G2 to G7 over repository paths and
+    returns the failing lines. Returns the `release-index/1` document; nothing is written and
+    no clock is read, so the same inputs give the same bytes."""
+    read: list[Path] = []
+    path = root / "releases" / release_id / "release.yaml"
+    if not path.is_file():
+        raise _fail(f"no {path.relative_to(root)}")
+    release = load(path, registry)  # step 1
+    if not isinstance(release, Release) or release.release != release_id:
+        raise _fail(f"{path.relative_to(root)} is not release {release_id}")
+    load(root / release.reference_file, registry)  # validates the reference file
+    read += [path, root / release.reference_file]
+    runs = {}
+    for listed in release.runs:
+        run = RunView.read(root / listed)
+        for doc in ("run", "manifest"):
+            errors = registry.errors(f"{doc}/1", getattr(run, doc))
+            if errors:
+                raise _fail(f"{listed}/{doc}.json: {errors[0]}")
+        runs[run.run_id] = run
+        read += [
+            p
+            for n in ("run", "manifest", "controls")
+            if (p := root / listed / f"{n}.json").is_file()
+        ]
+    for card in release.claim_cards:
+        if not (root / card.path).is_file() or file_digest(root / card.path) != card.digest:
+            raise _fail(f"claim card {card.path} does not match its listed digest")
+        read.append(root / card.path)
+    failing = gates([*release.runs, path.relative_to(root).as_posix()])  # step 2
+    if failing:
+        raise _fail(f"gates failed: {failing[0]}")
+    window = release.review_window  # step 3
+    opens, closes = dt.date.fromisoformat(window.opens), dt.date.fromisoformat(window.closes)
+    if (closes - opens).days < MIN_WINDOW_DAYS:
+        raise _fail(
+            f"review window {window.opens} to {window.closes} is under {MIN_WINDOW_DAYS} days"
+        )
+    if dt.date.fromisoformat(release.freeze_date) <= closes:
+        raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
+    excluded = _excluded(release, runs, root, registry)  # step 4
+    configurations, controls = _configurations(runs, excluded)  # steps 5 and 7
+    digests = sorted(file_digest(p) for p in read)
+    return {
+        "schema": "release-index/1",
+        "release": release.release,
+        "reference": {
+            "file": release.reference_file,
+            "digest": file_digest(root / release.reference_file),
+        },
+        "claim_cards": [
+            {
+                "system": c.system,
+                "configuration": c.configuration,
+                "card_version": c.card_version,
+                "path": c.path,
+                "digest": c.digest,
+            }
+            for c in release.claim_cards
+        ],
+        "configurations": configurations,
+        "controls": controls,
+        "targets": [],
+        "inputs_digest": "sha256:"
+        + hashlib.sha256("".join(f"{d}\n" for d in digests).encode()).hexdigest(),
+    }
+
+
+def _excluded(
+    release: Release, runs: Mapping[str, RunView], root: Path, registry: SchemaRegistry
+) -> dict[str, list[str]]:
+    """run id -> reasons: superseded runs (RFC-0009 §Corrections) and ineligible runs."""
+    out: dict[str, list[str]] = {
+        s.run_id: [f"superseded: {s.reason}"] for s in release.superseded_runs
+    }
+    for run in runs.values():
+        replaces = run.run.get("replaces")
+        if isinstance(replaces, dict):
+            out.setdefault(str(replaces["run_id"]), []).append(
+                f"superseded by {run.run_id}: {replaces['reason']}"
+            )
+    archived = archived_configurations(release, root)
+    for run_id, run in runs.items():
+        ok, reasons = eligibility(run.path, release, root, registry, archived)
+        if not ok:
+            out.setdefault(run_id, []).extend(reasons)
+    return out
+
+
+def _repetition_order(run: RunView) -> tuple[str, int]:
+    """Run ids end in a sequence number: order by date and that number, not as text."""
+    head, _, n = run.run_id.rpartition("-")
+    return (run.run_id[:10], int(n) if n.isdigit() else 0) if head else (run.run_id, 0)
+
+
+def _configurations(
+    runs: Mapping[str, RunView], excluded: Mapping[str, list[str]]
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    groups: dict[tuple[object, ...], list[RunView]] = {}
+    for run in runs.values():
+        key = (run.run.get("system"), run.get("manifest", "claim", "configuration"),
+               run.get("manifest", "workload", "id"), run.get("manifest", "workload", "version"),
+               run.get("manifest", "profile", "prover"))  # fmt: skip
+        groups.setdefault(key, []).append(run)
+    configurations, controls = [], []
+    for group_key in sorted(groups, key=lambda k: tuple(str(x) for x in k)):
+        system, configuration, workload, version, profile = group_key
+        members = sorted(groups[group_key], key=_repetition_order)
+        kept = [r for r in members if r.run_id not in excluded]
+        where = {
+            "system": system,
+            "workload": {"id": workload, "version": version},
+            "profile": profile,
+        }
+        configurations.append({
+            **where,
+            "configuration": configuration,
+            "runs": [r.run_id for r in kept],
+            "ineligible": [{"run_id": r.run_id, "reasons": excluded[r.run_id]}
+                           for r in members if r.run_id in excluded],
+            "insufficient_repetitions": sum(r.ok for r in kept) < MIN_REPLAYED,
+            "statistics": _statistics(kept),
+            "effective_tier": "reported",  # step 6, issue #82
+            "evidence": {"reviews": [], "reproductions": []},
+        })  # fmt: skip
+        controls.append({**where, **_control_summary(kept)})
+    return configurations, controls
+
+
+def _statistics(kept: Sequence[RunView]) -> dict[str, object]:
+    """D-STAT per metric over completed repetitions, in repetition order (INV-DERIVE-1);
+    failed repetitions count in n_failed."""
+    done = [r for r in kept if r.ok]
+    failed = [f"{_rel(r)}/run.json#/failure" for r in kept if not r.ok]
+    metrics = sorted({m for r in done for m in r.run["metrics"]})  # type: ignore[attr-defined]
+    out: dict[str, object] = {}
+    for metric in metrics:
+        inputs = [
+            (f"{_rel(r)}/run.json#/metrics/{metric}", r.run["metrics"][metric])  # type: ignore[index]
+            for r in done
+            if metric in r.run["metrics"]  # type: ignore[operator]
+        ]
+        out[metric] = statistic(inputs, failed, __version__)
+    return out
+
+
+def _rel(run: RunView) -> str:
+    """The run directory as a repository path: results/<release>/<system>/<run-id>."""
+    return "/".join(run.path.parts[-4:])
+
+
+def _control_summary(kept: Sequence[RunView]) -> dict[str, object]:
+    counts = dict.fromkeys(OUTCOME_COUNTS, 0)
+    outside = []
+    for run in kept:
+        for c in (run.controls or {}).get("controls") or []:  # type: ignore[attr-defined]
+            counts[str(c["outcome"])] += 1
+            if c["passed"] is False:
+                outside.append(
+                    {"run_id": run.run_id, "control_id": c["id"], "outcome": c["outcome"]}
+                )
+    return {"counts": counts, "outside_expected": outside}

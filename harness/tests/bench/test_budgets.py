@@ -14,7 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from fixtures.release_tree import build as build_release
 from fixtures.synthetic_tree import generate
+from iproofs.cli import main as cli_main
 from iproofs.validate import check_derived
 from iproofs.validate.tree import validate_tree
 
@@ -79,3 +81,13 @@ def test_budget_cli_start() -> None:
     start = time.monotonic()
     subprocess.run([str(cli), "--help"], check=True, capture_output=True)
     report("B-CLI-START", "iproofs --help cold start", time.monotonic() - start, 0.5)
+
+
+def test_budget_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """B-FREEZE: `iproofs release freeze` over a fixture release of 1,000 runs."""
+    build_release(tmp_path, runs=1000)
+    monkeypatch.chdir(tmp_path)
+    start = time.monotonic()
+    assert cli_main(["release", "freeze", "v0.1"]) == 0
+    report("B-FREEZE", "iproofs release freeze over 1,000 run directories",
+           time.monotonic() - start, 60.0)  # fmt: skip

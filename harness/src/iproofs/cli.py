@@ -25,11 +25,10 @@ Handler = Callable[[argparse.Namespace], int]
 
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
-    "release freeze": 93,
     "site build": 96,
 }
 # Commands that check stored files report config, integrity and policy findings with exit 1.
-CHECK_COMMANDS = {"validate", "derive", "reproduce compare"}
+CHECK_COMMANDS = {"validate", "derive", "reproduce compare", "release freeze"}
 
 
 def harness_commit() -> str:
@@ -188,6 +187,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     release_sub = release.add_subparsers(dest="release_command", required=True, metavar="ACTION")
     p = command("freeze", "write releases/<release>/index.json", release_sub, "release freeze")
     p.add_argument("release")
+    p.set_defaults(handler=release_freeze)
     p = command("plan", "project the run-campaign compute budget", release_sub, "release plan")
     p.add_argument("release")
     p.add_argument("--repetitions", type=int, default=3, help="repetitions per configuration")
@@ -455,6 +455,35 @@ def prompts_build(args: argparse.Namespace) -> int:
     }
     sys.stdout.write(dumps(result).decode())
     return 0
+
+
+def release_freeze(args: argparse.Namespace) -> int:
+    """`iproofs release freeze RELEASE`: RFC-0009 §Freeze algorithm; writes
+    releases/<release>/index.json and prints its path. A failing step exits 1."""
+    from iproofs.release import freeze  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.serialize import write_json  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.validate.tree import validate_tree  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    registry = SchemaRegistry.from_tree(root / "schema")
+
+    def gates(paths: list[str]) -> list[str]:
+        found = validate_tree(root, only=paths)
+        return [f.line() for f in found if f.gate in GATES_G2_G7 and not f.warning]
+
+    index = freeze(args.release, root, registry, gates)
+    errors = registry.errors("release-index/1", index)
+    if errors:
+        raise IProofsError(ErrorKind.INTERNAL, f"index.json fails release-index/1: {errors[0]}")
+    out = root / "releases" / args.release / "index.json"
+    write_json(out, index)
+    print(out.relative_to(root))
+    return 0
+
+
+GATES_G2_G7 = {"G2", "G3", "G4", "G5", "G6", "G7"}
 
 
 def release_plan(args: argparse.Namespace) -> int:

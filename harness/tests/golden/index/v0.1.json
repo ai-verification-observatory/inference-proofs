@@ -1,0 +1,220 @@
+{
+  "claim_cards": [
+    {
+      "card_version": 1,
+      "configuration": "default",
+      "digest": "sha256:5b2cb0995da696bde767832c9452621febbea6dccc874d2aa83717fe2124b3b0",
+      "path": "systems/fake/claims/default.yaml",
+      "system": "fake"
+    }
+  ],
+  "configurations": [
+    {
+      "configuration": "default",
+      "effective_tier": "reported",
+      "evidence": {
+        "reproductions": [],
+        "reviews": []
+      },
+      "ineligible": [
+        {
+          "reasons": [
+            "harness_dirty"
+          ],
+          "run_id": "2026-11-06-fake-fake-tiny-ci-ci-cpu-4"
+        },
+        {
+          "reasons": [
+            "superseded: wrong CPU binding"
+          ],
+          "run_id": "2026-11-07-fake-fake-tiny-ci-ci-cpu-5"
+        }
+      ],
+      "insufficient_repetitions": false,
+      "profile": "ci-cpu",
+      "runs": [
+        "2026-11-03-fake-fake-tiny-ci-ci-cpu-1",
+        "2026-11-05-fake-fake-tiny-ci-ci-cpu-2",
+        "2026-11-06-fake-fake-tiny-ci-ci-cpu-3"
+      ],
+      "statistics": {
+        "proof_bytes": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": null,
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/proof_bytes",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/proof_bytes",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/proof_bytes"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "stats": {
+            "max": 64.0,
+            "mean": 64.0,
+            "min": 64.0,
+            "n": 3,
+            "n_failed": 0,
+            "stdev": 0.0
+          },
+          "tier": "reported",
+          "unit": "B",
+          "value": 64.0
+        },
+        "prove_gpu_memory_peak": {
+          "grade": "derived",
+          "null_reason": "not_applicable",
+          "scope": null,
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/prove_gpu_memory_peak",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/prove_gpu_memory_peak",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/prove_gpu_memory_peak"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "MiB",
+          "value": null
+        },
+        "prove_session_seconds": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.session",
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/prove_session_seconds",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/prove_session_seconds",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/prove_session_seconds"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "stats": {
+            "max": 1.5,
+            "mean": 1.5,
+            "min": 1.5,
+            "n": 3,
+            "n_failed": 0,
+            "stdev": 0.0
+          },
+          "tier": "reported",
+          "unit": "s",
+          "value": 1.5
+        },
+        "prove_steady_seconds": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/prove_steady_seconds",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/prove_steady_seconds",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/prove_steady_seconds"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "stats": {
+            "max": 1.0,
+            "mean": 1.0,
+            "min": 1.0,
+            "n": 3,
+            "n_failed": 0,
+            "stdev": 0.0
+          },
+          "tier": "reported",
+          "unit": "s",
+          "value": 1.0
+        },
+        "rate_prove.steady": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/rate_prove.steady",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/rate_prove.steady",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/rate_prove.steady"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "stats": {
+            "max": 36.0,
+            "mean": 36.0,
+            "min": 36.0,
+            "n": 3,
+            "n_failed": 0,
+            "stdev": 0.0
+          },
+          "tier": "reported",
+          "unit": "token/s",
+          "value": 36.0
+        },
+        "tokens_covered_steady": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": null,
+          "source": {
+            "inputs": [
+              "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/tokens_covered_steady",
+              "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/tokens_covered_steady",
+              "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/tokens_covered_steady"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "stats": {
+            "max": 36.0,
+            "mean": 36.0,
+            "min": 36.0,
+            "n": 3,
+            "n_failed": 0,
+            "stdev": 0.0
+          },
+          "tier": "reported",
+          "unit": "token",
+          "value": 36.0
+        }
+      },
+      "system": "fake",
+      "workload": {
+        "id": "fake-tiny-ci",
+        "version": 1
+      }
+    }
+  ],
+  "controls": [
+    {
+      "counts": {
+        "accepted": 0,
+        "error": 0,
+        "invalid_call": 2,
+        "no_verdict": 0,
+        "not_applicable": 1,
+        "prover_failed": 0,
+        "rejected": 5,
+        "void": 0
+      },
+      "outside_expected": [],
+      "profile": "ci-cpu",
+      "system": "fake",
+      "workload": {
+        "id": "fake-tiny-ci",
+        "version": 1
+      }
+    }
+  ],
+  "inputs_digest": "sha256:20a07644117f2bec0834e0373280781d8df754e9d7315d66d0f7459d3620fc61",
+  "reference": {
+    "digest": "sha256:0c4af6e86a2e063e8852d9c06047929be8b747686033e8c50e3f97a38568f88c",
+    "file": "reference/v0.1.yaml"
+  },
+  "release": "v0.1",
+  "schema": "release-index/1",
+  "targets": []
+}
