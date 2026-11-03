@@ -56,12 +56,12 @@ The same in prose. Authored inputs live in git and change only by reviewed pull 
 
 ## Module boundaries
 
-The harness is one Python package, `iproofs` (distribution `inference-proofs-harness`, source in `harness/src/iproofs/`). Modules are arranged in layers. A module may import only from modules in lower layers or its own layer where stated; the import graph has no cycles (INV-ARCH-1). A test (`test_import_layers`) parses every module's imports and fails on an upward or cyclic import.
+The harness is one Python package, `iproofs` (distribution `inference-proofs-harness`, source in `harness/src/iproofs/`). Modules are arranged in layers. A module may import only from modules in lower layers or its own layer where stated; the import graph has no cycles (INV-ARCH-1). A test ([`test_import_layers`](../../harness/tests/unit/test_import_layers.py)) reads the table below, parses every module's imports and fails on an import the table does not allow, on a cycle, and on a module-level import of an optional dependency (INV-ARCH-6). Imports under `if TYPE_CHECKING:` count for the layer rule and are exempt from INV-ARCH-6.
 
 | Layer | Module | Responsibility | May import |
 |---|---|---|---|
 | 0 | `iproofs.errors` | `ErrorKind`, `IProofsError`, `Failure` ([RFC-0010](../../rfcs/0010-harness-runner.md#error-taxonomy)) | stdlib |
-| 0 | `iproofs.log` | JSON Lines logger, redaction, progress output ([05](05-observability.md)) | stdlib |
+| 0 | `iproofs.log` | JSON Lines logger, redaction, progress output ([05](05-observability.md)) | stdlib, `errors` |
 | 1 | `iproofs.serialize` | the single JSON writer, YAML safe loading, byte-format check | `errors` |
 | 1 | `iproofs.quantity` | labelled quantity and statistic types, vocabularies (units, scopes, grades, tiers) | `errors` |
 | 2 | `iproofs.schema` | schema registry, `$id` resolution, validation with Draft 2020-12 | `errors`, `serialize` |
