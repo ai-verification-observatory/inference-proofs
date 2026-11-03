@@ -7,6 +7,8 @@ import subprocess
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
+import yaml
+
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.log.patterns import IPV4_ALLOWED, PATTERNS, is_ipv6
 from iproofs.schema import SchemaRegistry, check_examples, load_document, parse_tree
@@ -202,6 +204,86 @@ def g2_append_only(root: Path, base_ref: str) -> list[Finding]:
     return found
 
 
+CARD_GLOBS = ("systems/*/claim.yaml", "systems/*/claims/*.yaml")
+
+
+def g2_card_edits(root: Path, base_ref: str) -> list[Finding]:
+    """CARD-1 to CARD-3 (RFC-0002 §Rules 5, §Configuration identity 1): a changed card
+    increments `card_version` by exactly 1, drops reviews of older versions, keeps its pin."""
+    base = _git(root, "merge-base", base_ref, "HEAD")[0]
+    found = []
+    for line in _git(root, "diff", "--name-status", f"{base}..HEAD", "--", "systems/"):
+        status, *paths = line.split("\t")
+        path = paths[-1]
+        if status != "M" or not any(fnmatch.fnmatch(path, g) for g in CARD_GLOBS):
+            continue  # a new or renamed card is a new configuration, reviewed from scratch
+        old, new = (_card_at(root, ref, path) for ref in (base, "HEAD"))
+        found += [
+            Finding("G2", path, rule, msg, ErrorKind.POLICY, hint=hint)
+            for rule, msg, hint in card_edit_problems(old, new)
+        ]
+    return found
+
+
+def _card_at(root: Path, ref: str, path: str) -> dict[str, object]:
+    text = subprocess.run(
+        ["git", "-C", str(root), "show", f"{ref}:{path}"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    doc = yaml.safe_load(text)
+    return doc if isinstance(doc, dict) else {}
+
+
+def card_edit_problems(
+    old: dict[str, object], new: dict[str, object]
+) -> list[tuple[str, str, str]]:
+    """(rule, message, hint) for one edited card; empty when the edit follows rule 5."""
+    problems = []
+    before, after = old.get("card_version"), new.get("card_version")
+    content = {k for k in old.keys() | new.keys() if k not in ("reviewed_by", "card_version")}
+    changed = any(old.get(k) != new.get(k) for k in content)
+    bumped = isinstance(before, int) and isinstance(after, int) and after == before + 1
+    if (changed and not bumped) or (before != after and not bumped):
+        problems.append(
+            (
+                "CARD-1",
+                f"card_version {before} -> {after}; a changed card increments it by exactly 1",
+                "increment card_version and reset reviewed_by to []",
+            )
+        )
+    reviews = new.get("reviewed_by")
+    stale = [
+        r
+        for r in (reviews if isinstance(reviews, list) else [])
+        if not isinstance(r, dict) or r.get("card_version") != after
+    ]
+    if stale:
+        problems.append(
+            (
+                "CARD-2",
+                f"reviewed_by holds {len(stale)} review(s) of another card_version than {after}",
+                "reset reviewed_by to []; maintainers re-review the new version",
+            )
+        )
+    pin = [_upstream_commit(d) for d in (old, new)]
+    if pin[0] != pin[1]:
+        problems.append(
+            (
+                "CARD-3",
+                "upstream.commit changed in place; a new pin is a new configuration",
+                "copy the card forward to a new configuration file and leave this one",
+            )
+        )
+    return problems
+
+
+def _upstream_commit(card: dict[str, object]) -> object:
+    upstream = card.get("upstream")
+    return upstream.get("commit") if isinstance(upstream, dict) else None
+
+
 def g2_size(root: Path, files: list[str]) -> list[Finding]:
     """SIZE-1: 5 MiB per file outside run logs, 10 MiB per run directory (limits)."""
     found = []
@@ -377,7 +459,7 @@ def validate_tree(
         files = [f for f in files if any(f == w or f.startswith(w + "/") for w in wanted)]
     found = g2_schema(root, files, registry) + g2_xref(root, files) + g2_size(root, files)
     if base_ref:
-        found += g2_append_only(root, base_ref)
+        found += g2_append_only(root, base_ref) + g2_card_edits(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
     found += g6_policy(root, files) + g7_pins(root, files) + g9_secrets(root, files, only or ())
     if governance.PATH in files:

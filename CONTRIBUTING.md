@@ -21,6 +21,13 @@ Thank you for helping. This project measures provers; it does not build, rank or
 
 A change that would alter a published number, a label, or which rows appear needs an RFC: copy [rfcs/0000-template.md](rfcs/0000-template.md) to the next free number and follow [RFC-0001](rfcs/0001-process-and-governance.md). Implementation pull requests may open against an RFC in Last call; they merge once it is Accepted. Code that implements an Accepted RFC needs no RFC of its own.
 
+## Editing claim cards
+
+A claim card copies what the system's documentation states at the pinned commit ([RFC-0002 §Rules](rfcs/0002-claim-card.md#rules)). On a pull request, `uv run iproofs validate --changed-since origin/main` checks every edited card:
+
+- Any change other than adding a review increments `card_version` by exactly 1 and resets `reviewed_by` to `[]` (`CARD-1`, `CARD-2`). A system maintainer then adds a review entry with the new `card_version`.
+- A new upstream commit is a new configuration: copy the card forward to a new file instead of editing the pin (`CARD-3`, [RFC-0002 §Configuration identity](rfcs/0002-claim-card.md#configuration-identity)).
+
 ## Tests and CI
 
 - Every adapter ships a CPU-only test against stored fixtures; every schema ships valid and invalid examples; every derived metric ships a test against a hand-computed case ([docs/spec/07-testing-strategy.md](docs/spec/07-testing-strategy.md)).
