@@ -34,3 +34,7 @@ It runs ST-CLOCK, ST-NVML, ST-SAMPLER and ST-JITTER (5 s on the bound GPU), and 
 - Gated models: accept the model licence with your own account, then export `HF_TOKEN` in the shell that runs the harness. The token is read from the environment only and passed to the download call only; it is never written to a file, a log or a record, and never passed into a container.
 - Every job rehashes the cached files before it starts, outside every timed scope, and logs the time as `integrity.model_rehash`. A file that changed on disk fails the job with `integrity` and moves the entry to `$IPROOFS_CACHE/quarantine/`; investigate before fetching again.
 - The weights are mounted read-only at `/models` for `commit` and `prove`, and never for `verify`.
+
+## Prompt corpus cache (RFC-0014 §Corpus fetch)
+
+The first job, or `iproofs prompts build`, downloads each text of `workloads/prompts/corpus.yaml` into `$IPROOFS_CACHE/corpus/<sha256>`. A download whose sha256 differs from the listing, or a cached file that changed, fails with `integrity`; nothing unverified is kept. Prompts are built only from the verified cache, after NFC, LF and BOM normalisation. Fetches retry three times, outside every timed scope.
