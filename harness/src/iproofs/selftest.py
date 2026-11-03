@@ -64,38 +64,39 @@ def run_selftest(
         checks += [st_sampler(sampler.stop(start, end)), st_jitter(sampler.lateness_ns)]
     else:
         checks += [SelfTestCheck(c, False, "no GPU sampler") for c in ("ST-SAMPLER", "ST-JITTER")]
-    for name, probe in (("ST-CGROUP", _cgroup), ("ST-WATCH", _watch), ("ST-OOM", _oom)):
+    for name, check in (("ST-CGROUP", cgroup), ("ST-WATCH", _watch), ("ST-OOM", _oom)):
         try:
             if probe_image is None:
                 raise IProofsError(ErrorKind.ENVIRONMENT, "no probe image (--probe-image)")
-            checks.append(probe(probe_image, work / name.lower()))
+            checks.append(check(probe_image, work / name.lower()))
         except IProofsError as e:
             checks.append(SelfTestCheck(name, False, e.message))
     return sorted(checks, key=lambda c: CHECKS.index(c.name))
 
 
-def _probe(image: str, io: Path, mode: str, *, memory: str | None = None,
-           cgroup_parent: str | None = None) -> int:  # fmt: skip
+def probe(image: str, io: Path, mode: str, *, memory: str | None = None,
+          cgroup_parent: str | None = None, **fields: object) -> int:  # fmt: skip
+    """Run the fake image's `probe` subcommand; `fields` go into its job.json."""
     io.mkdir(parents=True, exist_ok=True)
-    (io / "job.json").write_text(json.dumps({"probe": mode}))
+    (io / "job.json").write_text(json.dumps({"probe": mode, **fields}))
     give_io_to_adapter(io)
     argv = docker_create_argv(image, "probe", io, models_dir=None, gpu=None, cpuset="0",
                               mems="0", memory=memory, cgroup_parent=cgroup_parent)  # fmt: skip
     return timed_call(argv, 60.0).exit_code
 
 
-def _run_id() -> str:
+def run_id() -> str:
     return f"selftest-{time.time_ns()}"
 
 
-def _cgroup(image: str, io: Path) -> SelfTestCheck:
-    slice_ = CgroupSlice(_run_id(), "probe-alloc")
+def cgroup(image: str, io: Path) -> SelfTestCheck:
+    slice_ = CgroupSlice(run_id(), "probe-alloc")
     reader = slice_.start()
     sampler = Sampler(None, reader, target_hz=20.0)
     start = time.monotonic_ns()
     sampler.start()
     try:
-        _probe(image, io, "alloc", cgroup_parent=slice_.name)
+        probe(image, io, "alloc", cgroup_parent=slice_.name)
     finally:
         summary = sampler.stop(start, time.monotonic_ns())
     peak, cpu = slice_.finish()
@@ -106,16 +107,16 @@ def _watch(image: str, io: Path) -> SelfTestCheck:
     watcher = ReleaseWatcher(io / "proofs")
     (io / "proofs").mkdir(parents=True, exist_ok=True)
     watcher.start()
-    _probe(image, io, "watch")
+    probe(image, io, "watch")
     releases = watcher.stop(call_end_ns=None)
     return st_watch([r.mono_ns for r in releases], watcher.mechanism)
 
 
 def _oom(image: str, io: Path) -> SelfTestCheck:
-    slice_ = CgroupSlice(_run_id(), "probe-oom")
+    slice_ = CgroupSlice(run_id(), "probe-oom")
     slice_.start()
     try:
-        _probe(image, io, "oom", memory="64m", cgroup_parent=slice_.name)
+        probe(image, io, "oom", memory="64m", cgroup_parent=slice_.name)
     except IProofsError as e:
         if e.kind is not ErrorKind.RESOURCE:
             raise
