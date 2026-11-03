@@ -321,12 +321,13 @@ class Manifest(Document):
     system: SystemRecord
     workload: WorkloadRecord
     profile: ProfileRecord
-    machine: Mapping[str, object]  # RFC-0006 record; typed fields land with issue #73
+    machine: Mapping[str, object]  # RFC-0006 record; schema $defs/machine fixes its fields
     self_test: SelfTest
     commands: tuple[Command, ...]
     commitment: Commitment | None
     proofs: tuple[ProofRecord, ...]
     warnings: tuple[str, ...]
+    machine_verifier: Mapping[str, object] | None = None  # verifier_host: separate
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

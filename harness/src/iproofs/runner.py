@@ -65,7 +65,14 @@ from iproofs.model import (
     load,
     load_reference,
 )
-from iproofs.provenance import file_digest, file_records, git_state
+from iproofs.provenance import (
+    Host,
+    file_digest,
+    file_records,
+    git_state,
+    machine_drift,
+    machine_record,
+)
 from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
@@ -112,7 +119,7 @@ class JobSpec:
 class Environment(Protocol):
     """The host side of a job: machine record, GPU and CPU binding (RFC-0006)."""
 
-    def machine_record(self) -> dict[str, object]: ...
+    def host(self) -> Host: ...
     def gpu(self) -> int | None: ...
     def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]: ...
 
@@ -138,8 +145,8 @@ class RunnerIdentity:
 class CpuOnlyEnvironment:
     """A CPU-only host for profiles without a GPU (`ci-cpu`); the GPU host path is #73 to #76."""
 
-    def machine_record(self) -> dict[str, object]:
-        return {}
+    def host(self) -> Host:
+        return Host()
 
     def gpu(self) -> int | None:
         return None
@@ -328,6 +335,7 @@ class Runner:
                         exit_code=job.failure.exit_code,
                     )
                     break
+            self._machine_drift(job, log)
             final = self._write(job, log)
             log.log(
                 Event.JOB_WRITTEN,
@@ -443,8 +451,38 @@ class Runner:
         else:
             raise IProofsError(ErrorKind.CONFIG, f"{job.spec.system} has no pinned image")
 
+    def _record(self, job: Job) -> dict[str, object]:
+        """RFC-0006 §Machine record from the environment's allowlisted probes."""
+        roles = ("prover", "verifier", "verifier_1")
+        return machine_record(
+            self.env.host(),
+            results=Path(job.spec.results_root),
+            gpu_index=self.env.gpu(),
+            cpus={role: _cpu_list(self.env.cpus(role)[0]) for role in roles},  # type: ignore[arg-type]
+            mems=_cpu_list(self.env.cpus("prover")[1]),
+            provider=self.provider,
+            redact=self.redact,
+        )
+
+    def _machine_drift(self, job: Job, log: JsonlLogger) -> None:
+        """INV-MR-2: collected again after the last step; drift is an environment failure."""
+        if job.failure is not None or not job.machine:
+            return
+        changed = machine_drift(job.machine, self._record(job))
+        if changed:
+            message = f"machine record changed during the job: {'; '.join(changed)}"
+            job.failure = Failure.build(ErrorKind.ENVIRONMENT, "written", self.redact(message))
+            log.log(
+                Event.JOB_FAILED,
+                job=job.run_id,
+                step="written",
+                kind="environment",
+                message=job.failure.message,
+                exit_code=None,
+            )
+
     def _machine(self, job: Job) -> None:
-        job.machine = self.env.machine_record()
+        job.machine = self._record(job)
         assert job.reference is not None
         profile = job.reference.profiles[job.spec.profile]
         gpu = isinstance(profile, ProverProfile) and profile.gpu is not None
@@ -1306,6 +1344,15 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
     shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
     return run_dir / "controls.json"
+
+
+def _cpu_list(spec: str) -> list[int]:
+    """`0-3,8` -> [0, 1, 2, 3, 8] (a docker cpuset string)."""
+    out: list[int] = []
+    for part in filter(None, spec.split(",")):
+        low, _, high = part.partition("-")
+        out += range(int(low), int(high or low) + 1)
+    return out
 
 
 def _has_key(doc: object, key: str) -> bool:

@@ -23,7 +23,194 @@
       "type": "object"
     },
     "machine": {
-      "$comment": "RFC-0006 machine record; fields are fixed by issue #73 (machine-record)",
+      "$comment": "RFC-0006 \u00a7Machine record: exactly these fields (INV-MR-1); a field the host cannot probe is absent",
+      "additionalProperties": false,
+      "properties": {
+        "container": {
+          "additionalProperties": false,
+          "properties": {
+            "cgroup_driver": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "cgroup_version": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "docker_engine": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "nvidia_container_toolkit": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "cpu": {
+          "additionalProperties": false,
+          "properties": {
+            "bound_prover": {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "bound_verifier": {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "bound_verifier_single": {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "logical_cpus": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "model": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "physical_cores": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "smt_active": {
+              "type": "boolean"
+            },
+            "sockets": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "disk": {
+          "additionalProperties": false,
+          "properties": {
+            "free_bytes_at_start": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": {
+              "enum": [
+                "nvme",
+                "ssd",
+                "hdd"
+              ]
+            }
+          },
+          "type": "object"
+        },
+        "gpu": {
+          "additionalProperties": false,
+          "properties": {
+            "bound_index": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "count_visible": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "cuda_driver_api": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "driver_version": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "memory_total_mib": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "model": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "numa_node": {
+              "minimum": -1,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "kernel": {
+          "additionalProperties": false,
+          "properties": {
+            "release": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "memory": {
+          "additionalProperties": false,
+          "properties": {
+            "available_bytes_at_start": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "total_bytes": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "numa": {
+          "additionalProperties": false,
+          "properties": {
+            "bound_mems": {
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "nodes": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          "type": "object"
+        },
+        "os": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version_id": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "provider": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "verifier_host": {
+          "enum": [
+            "same_as_prover",
+            "separate"
+          ]
+        }
+      },
       "type": "object"
     }
   },
@@ -189,6 +376,10 @@
       "type": "object"
     },
     "machine": {
+      "$ref": "#/$defs/machine"
+    },
+    "machine_verifier": {
+      "$comment": "present when verifier_host is separate (RFC-0006)",
       "$ref": "#/$defs/machine"
     },
     "profile": {
@@ -518,6 +709,6 @@
     "proofs",
     "warnings"
   ],
-  "title": "Everything needed to rerun a job: results/.../<run-id>/manifest.json (RFC-0014 §manifest.json)",
+  "title": "Everything needed to rerun a job: results/.../<run-id>/manifest.json (RFC-0014 \u00a7manifest.json)",
   "type": "object"
 }

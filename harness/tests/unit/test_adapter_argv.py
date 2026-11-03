@@ -177,10 +177,14 @@ def test_nonzero_exit_has_no_out(tmp_path: Path) -> None:
 
 
 def test_only_adapter_and_measure_touch_docker() -> None:
-    # INV-ARCH-3: adapter builds the argv, measure.timed_call runs it
-    offenders = [
-        p.name
-        for p in (ROOT / "harness/src/iproofs").rglob("*.py")
-        if '"docker"' in p.read_text() and p.name not in {"adapter.py", "measure.py"}
-    ]
+    # INV-ARCH-3: adapter builds the argv, measure.timed_call runs it. The machine record
+    # (provenance) may only ask the daemon what it is: `docker version` and `docker info`.
+    offenders = []
+    for p in (ROOT / "harness/src/iproofs").rglob("*.py"):
+        text = p.read_text()
+        if p.name in {"adapter.py", "measure.py"} or '"docker"' not in text:
+            continue
+        calls = re.findall(r'"docker",\s*"(\w+)"', text)
+        if p.name != "provenance.py" or set(calls) - {"version", "info"} or not calls:
+            offenders.append(p.name)
     assert offenders == []

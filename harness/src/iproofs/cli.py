@@ -25,7 +25,6 @@ Handler = Callable[[argparse.Namespace], int]
 
 # Commands whose implementation lands later; each names the issue that delivers it.
 PENDING = {
-    "machine-record": 73,
     "fetch-model": 132,
     "prompts build": 48,
     "release freeze": 93,
@@ -143,6 +142,10 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
 
     p = command("machine-record", "print the machine record as JSON (RFC-0006)")
     p.add_argument("--selftest", action="store_true", help="run the RFC-0011 calibration checks")
+    p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
+    p.add_argument("--gpu", type=int, metavar="INDEX", help="the bound GPU (NVML index)")
+    p.add_argument("--results", type=Path, default=Path("results"), help="for disk type and space")
+    p.set_defaults(handler=machine_record_command)
 
     p = command("fetch-model", "fetch a workload's weights and check every hash (RFC-0014)")
     p.add_argument("workload")
@@ -373,6 +376,27 @@ def controls(args: argparse.Namespace) -> int:
         root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
     )
     print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    return 0
+
+
+def machine_record_command(args: argparse.Namespace) -> int:
+    """`iproofs machine-record`: the RFC-0006 record of this host as JSON on stdout (CLI-3)."""
+    from iproofs.log.redact import Redactor  # noqa: PLC0415
+    from iproofs.provenance import Host, machine_record  # noqa: PLC0415
+    from iproofs.serialize import dumps  # noqa: PLC0415
+
+    if args.selftest:
+        raise IProofsError(ErrorKind.INTERNAL, "`--selftest` is not implemented yet (issue #116)")
+    record = machine_record(
+        Host(),
+        results=args.results if args.results.exists() else Path.cwd(),
+        gpu_index=args.gpu,
+        cpus={},
+        mems=[],
+        provider=args.provider or "undeclared",
+        redact=Redactor.from_host(),
+    )
+    sys.stdout.write(dumps(record).decode())
     return 0
 
 
