@@ -40,7 +40,7 @@ packages = ["harness/src/iproofs"]
 include = ["harness/src/iproofs", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
-testpaths = ["harness/tests"]
+testpaths = ["harness/tests", "systems"]
 # shared test helpers such as toy_tokenizer.py
 pythonpath = ["harness/tests"]
 addopts = "-ra --strict-markers"
@@ -48,7 +48,7 @@ addopts = "-ra --strict-markers"
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-src = ["harness/src", "harness/tests"]
+src = ["harness/src", "harness/tests", "systems"]
 # Python only: Python blocks inside the Markdown specs are illustrations, not code.
 include = ["*.py", "*.pyi"]
 # Known-bad gate fixtures are linted only by the tests that point at them.

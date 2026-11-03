@@ -5,4 +5,4 @@ ci:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy --strict harness/src/iproofs harness/tests
-	HYPOTHESIS_PROFILE=ci uv run pytest harness/tests -q
+	HYPOTHESIS_PROFILE=ci uv run pytest harness/tests systems -q

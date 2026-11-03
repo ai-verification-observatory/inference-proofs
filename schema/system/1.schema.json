@@ -41,7 +41,6 @@
         },
         "required": [
           "upstream",
-          "image",
           "profile",
           "proofs"
         ]
@@ -81,6 +80,21 @@
       "then": {
         "required": [
           "maintainers"
+        ]
+      }
+    },
+    {
+      "$comment": "a prover pins its adapter image by digest; test systems are rebuilt in CI",
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "prover"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "image"
         ]
       }
     }

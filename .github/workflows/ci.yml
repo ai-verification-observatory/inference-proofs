@@ -46,4 +46,4 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --frozen --python ${{ matrix.python }}
-      - run: uv run pytest harness/tests -q
+      - run: uv run pytest harness/tests systems -q

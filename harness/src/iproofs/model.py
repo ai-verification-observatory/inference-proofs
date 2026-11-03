@@ -578,6 +578,7 @@ class ClaimCard(Document):
 class ModelSource(Document):
     hub: str
     repo: str
+    path: str | None = None  # hub "repository": toy test data inside this repository
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
