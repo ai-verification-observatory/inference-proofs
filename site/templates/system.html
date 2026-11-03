@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "macros.html" import configuration_table %}
+{% block title %}{{ system }}, release {{ release }}{% endblock %}
+{% block nav %} / <a href="../index.html">{{ release }}</a> / {{ system }}{% endblock %}
+{% block main %}
+<h1>{{ system }}</h1>
+<section id="claim-card">
+<h2>Claim card</h2>
+{% if is_reference %}
+<p>A reference row: it runs the model without proving and makes no proof claim (RFC-0015).</p>
+{% elif not cards %}
+<p>No claim card is listed for this system in the release.</p>
+{% endif %}
+{% for card, text in cards %}
+<p>Configuration {{ card.configuration }}, card version {{ card.card_version }}, <code>{{ card.path }}</code> (<code>{{ card.digest }}</code>):</p>
+<pre>{{ text }}</pre>
+{% endfor %}
+</section>
+<section id="rows">
+<h2>Rows</h2>
+{% for workload, rows in tables %}
+<h3>Workload <a href="../workloads/{{ workload }}.html">{{ workload }}</a></h3>
+{{ configuration_table(rows, "../") }}
+{% endfor %}
+</section>
+<section id="controls">
+<h2>Controls</h2>
+{% for c in controls %}
+<h3>{{ c.workload.id }} v{{ c.workload.version }}, profile {{ c.profile }}</h3>
+<table>
+<thead><tr>{% for outcome, count in c.counts | dictsort %}<th scope="col">{{ outcome }}</th>{% endfor %}</tr></thead>
+<tbody><tr>{% for outcome, count in c.counts | dictsort %}<td>{{ count }} controls</td>{% endfor %}</tr></tbody>
+</table>
+{% if c.outside_expected %}
+<p>Outcomes outside the expected set:</p>
+<ul>{% for o in c.outside_expected %}<li>{{ o.control_id }} in {{ o.run_id }}: {{ o.outcome }}</li>{% endfor %}</ul>
+{% endif %}
+{% endfor %}
+</section>
+<section id="reference-rows">
+<h2>Reference rows on the same workloads</h2>
+{% if reference_rows %}{{ configuration_table(reference_rows, "../") }}{% else %}<p>None.</p>{% endif %}
+</section>
+<section id="reply">
+<h2>Reply from the system maintainers</h2>
+{% if reply %}{{ reply }}{% else %}<p>No reply for this release.</p>{% endif %}
+</section>
+{% endblock %}

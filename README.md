@@ -43,6 +43,17 @@ uv run iproofs --version
 
 Optional extras are installed only where they are needed: `--extra gpu` (NVML sampling on a GPU host), `--extra fetch` (model download) and `--extra prompts` (tokenizers).
 
+## Build the site
+
+The site is static HTML generated from frozen releases (`releases/*/index.json`, [RFC-0009 §Site](rfcs/0009-results-and-publication.md#site)); it is never committed. With the base install:
+
+```
+uv run iproofs site build            # writes site/_build/
+uv run iproofs site build --out DIR  # or any other directory
+```
+
+Open `site/_build/index.html` in a browser; no script is needed. Templates are in [`site/templates/`](site/templates/). Until a release is frozen the site has only its home page.
+
 ## Contributing
 
 Open an issue or a pull request; methodology changes go through an RFC ([RFC-0001](rfcs/0001-process-and-governance.md)). Sign off your commits (DCO). Prover teams who want their system included: open an issue with your repository and the workloads you support, then follow the adapter guide, [systems/README.md](systems/README.md).

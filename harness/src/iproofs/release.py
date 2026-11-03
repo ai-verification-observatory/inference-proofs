@@ -367,20 +367,25 @@ def eligibility(
     m, system = run.manifest, run.get("manifest", "system")
     assert isinstance(system, dict)
     claim = m.get("claim")
+    pinned = _system_at(root, str(system.get("adapter_commit")), str(system.get("name"))) or {}
+    reference = pinned.get("kind") == "reference"  # RFC-0015: no claim card, no proofs (REF-2)
     cards = {(c.system, c.configuration, c.card_version, c.digest) for c in release.claim_cards}
     failed = {
         "other_release": m.get("release") != release.release,
         "manifest_invalid": bool(registry.errors("manifest/1", m)),
         "self_test_failed": run.get("manifest", "self_test", "passed") is not True,
         "nonconforming_host": run.get("manifest", "harness", "nonconforming") is not False,
-        "claim_card_not_listed": not isinstance(claim, dict)
-        or (
-            claim.get("system"),
-            claim.get("configuration"),
-            claim.get("card_version"),
-            system.get("claim_digest"),
-        )
-        not in cards,
+        "claim_card_not_listed": not reference
+        and (
+            not isinstance(claim, dict)
+            or (
+                claim.get("system"),
+                claim.get("configuration"),
+                claim.get("card_version"),
+                system.get("claim_digest"),
+            )
+            not in cards
+        ),
         "harness_dirty": run.get("manifest", "harness", "git_dirty") is not False,
         "adapter_dirty": system.get("adapter_dirty") is not False,
         "image_digest_kind_config": run.get("manifest", "system", "image", "digest_kind")
@@ -389,7 +394,8 @@ def eligibility(
             root, str(system.get("adapter_commit")), str(system.get("name"))
         )
         != run.get("manifest", "system", "image", "ref"),
-        "no_archived_proof": run.key()
+        "no_archived_proof": not reference
+        and run.key()
         not in (archived if archived is not None else archived_configurations(release, root)),
     }
     reasons = [code for code in REASONS if failed[code]]
@@ -397,8 +403,8 @@ def eligibility(
 
 
 @functools.cache
-def _pinned_image(root: Path, adapter_commit: str, name: str) -> str | None:
-    """`repository@digest` of systems/<name>/system.yaml at the run's adapter commit."""
+def _system_at(root: Path, adapter_commit: str, name: str) -> dict[str, object] | None:
+    """systems/<name>/system.yaml at the run's adapter commit, or None when git has none."""
     import yaml  # noqa: PLC0415
 
     shown = subprocess.run(
@@ -407,10 +413,15 @@ def _pinned_image(root: Path, adapter_commit: str, name: str) -> str | None:
         text=True,
         check=False,
     )
-    if shown.returncode != 0:
-        return None
-    doc = yaml.safe_load(shown.stdout) or {}
-    image = doc.get("image") or (doc.get("engine") or {}).get("image")
+    doc = yaml.safe_load(shown.stdout) if shown.returncode == 0 else None
+    return doc if isinstance(doc, dict) else None
+
+
+def _pinned_image(root: Path, adapter_commit: str, name: str) -> str | None:
+    """`repository@digest` (or a reference engine's image) of that system.yaml."""
+    doc = _system_at(root, adapter_commit, name) or {}
+    engine = doc.get("engine")
+    image = doc.get("image") or (engine.get("image") if isinstance(engine, dict) else None)
     if isinstance(image, dict):
         return f"{image.get('repository')}@{image.get('digest')}"
     return image if isinstance(image, str) else None

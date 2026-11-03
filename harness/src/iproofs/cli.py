@@ -23,10 +23,6 @@ if TYPE_CHECKING:
 
 Handler = Callable[[argparse.Namespace], int]
 
-# Commands whose implementation lands later; each names the issue that delivers it.
-PENDING = {
-    "site build": 96,
-}
 # Commands that check stored files report config, integrity and policy findings with exit 1.
 CHECK_COMMANDS = {"validate", "derive", "reproduce compare", "release freeze"}
 
@@ -53,16 +49,6 @@ class _Version(argparse.Action):
         parser.exit()
 
 
-def pending(command: str) -> Handler:
-    def handler(args: argparse.Namespace) -> int:
-        raise IProofsError(
-            ErrorKind.INTERNAL,
-            f"`iproofs {command}` is not implemented yet (issue #{PENDING[command]})",
-        )
-
-    return handler
-
-
 def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement per argument)
     parser = argparse.ArgumentParser(
         prog="iproofs", description="Harness for the Inference Proofs benchmark."
@@ -79,7 +65,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         full: str | None = None,
     ) -> argparse.ArgumentParser:
         p = (parent or sub).add_parser(name, help=help_text)
-        p.set_defaults(handler=pending(full or name), command_name=full or name)
+        p.set_defaults(command_name=full or name)
         return p
 
     p = command("validate", "run every CI check (RFC-0013) on the given paths")
@@ -202,6 +188,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     site_sub = site.add_subparsers(dest="site_command", required=True, metavar="ACTION")
     p = command("build", "generate the static site", site_sub, "site build")
     p.add_argument("--out", type=Path, default=Path("site/_build"))
+    p.set_defaults(handler=site_build)
     return parser
 
 
@@ -489,6 +476,19 @@ def release_freeze(args: argparse.Namespace) -> int:
 
 
 GATES_G2_G7 = {"G2", "G3", "G4", "G5", "G6", "G7"}
+
+
+def site_build(args: argparse.Namespace) -> int:
+    """`iproofs site build [--out DIR]`: the static site of every frozen release (RFC-0009);
+    prints the number of pages written."""
+    from iproofs.site import build  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    out = args.out if args.out.is_absolute() else Path.cwd() / args.out
+    pages = build(root, out)
+    print(f"{len(pages)} pages in {args.out}")
+    return 0
 
 
 def release_plan(args: argparse.Namespace) -> int:
