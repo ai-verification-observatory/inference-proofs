@@ -81,7 +81,7 @@ Rules:
 
 ## Redaction
 
-Applied to every log line, every captured adapter output, every failure message and `last_lines`, before writing (INV-OBS-4). Redaction replaces matches with a fixed marker naming the class, for example `<redacted:token>`.
+Applied to every log line, every captured adapter output, every failure message and `last_lines`, before writing (INV-OBS-4). The redactor is `iproofs.log.redact.Redactor`; its patterns live in `iproofs.log.patterns`, the module gate G9 also uses. Redaction replaces matches with a fixed marker naming the class, for example `<redacted:token>`.
 
 | Class | Rule |
 |---|---|
