@@ -249,6 +249,7 @@ The author's affiliations and any interest in a measured system are declared in 
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-01-31): Whether committing the perturbed Maverick model fits the release compute budget. Default: C3 and P1 run for SASH workloads and for FlashProve on its smallest supported synthetic shape if full-size commit is infeasible, with the substitution declared in the row; otherwise `not_applicable`.
 - OPEN QUESTION Q3: merged into [RFC-0001](0001-process-and-governance.md#open-questions) Q3 (private reporting channel), which owns it. Until resolved, systems without a published policy are contacted through the maintainers listed in `system.yaml`.
 - OPEN QUESTION Q4 (owner: AbdelStark, resolve by: 2027-01-31): upstream rejected-proof examples (for example FlashProve `examples/rejected-proofs`) may come with their own commitment, which conflicts with INV-CTRL-6 (the commitment always comes from a harness record). Default until resolved: such an example is registered only if the harness can regenerate its commitment through the adapter's `commit` step; otherwise it is listed in the adapter README and not run as a control.
+- OPEN QUESTION Q5 (owner: AbdelStark, resolve by: 2027-01-31): how the bytes of a `fixture_proof` control reach the harness (`system-controls/1` names only an upstream `source`, and adapters see only `/io` and `/models`). Default until resolved: a `fixture_proof` control is recorded as `not_applicable` with that reason; `weakened_prover` controls run as specified.
 
 ## References
 

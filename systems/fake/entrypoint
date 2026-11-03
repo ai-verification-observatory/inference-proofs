@@ -136,7 +136,10 @@ def prove(job: dict) -> dict:
                        "parts": parts, "claimed_output": output})
         time.sleep(delay)
     log_command(["fake-prover", "prove", *flags], started, 0)
-    return {**base("prove"), "proofs": proofs}
+    # the binding report (RFC-0008): the tag edge is unbound only when its skip was passed
+    unbound = "--unsound-skip-tag" in flags
+    host("/io/binding.json").write_text(json.dumps({"edges": {"tag": "unbound" if unbound else "bound"}}))
+    return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json"}
 
 
 def verify(job: dict) -> dict:

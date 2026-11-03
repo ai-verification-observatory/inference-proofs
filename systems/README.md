@@ -63,6 +63,15 @@ Follow rules B1 to B7 of [RFC-0014 §Adapter image build](../rfcs/0014-provenanc
 
 Gate G7 checks pins in every Dockerfile ([RFC-0013 §G7](../rfcs/0013-validation-and-ci.md#g7-pin-check)).
 
+## 9a. System-specific controls
+
+Register controls from your upstream suite in `systems/<name>/controls.yaml` (schema `system-controls/1`, [RFC-0008 §System-specific controls](../rfcs/0008-negative-controls.md#system-specific-controls)). The harness runs them after the shared controls and records them with `source: system`:
+
+- `weakened_prover`: the harness runs `prove` in its own io dir with `control: true` and `control_flags` passed explicitly, then verifies every proof with the run's recorded commitment. With `requires_unbound_edge`, the control passes only if your `out.json` `binding_report` marks that edge unbound: a JSON object with `edges`, either `{"<edge>": "bound" | "unbound"}` or a list of `{edge, state}`. This shows the switch is honest and the claim card's binding table accurate.
+- `fixture_proof`: an upstream-supplied proof verified as is. Until RFC-0008 Q5 says how its bytes reach the harness, it is recorded as `not_applicable` with that reason.
+
+`harness/tests/fixtures/controls/fake-broken-controls.yaml` shows one control of each kind.
+
 ## 10. Fixture tests
 
 Every adapter ships CPU-only tests in `systems/<name>/tests/` that run the entrypoint logic against stored fixtures, including the verdict mapping for every documented exit code (INV-ADAPTER-9). Capture the fixtures once on a GPU host:
