@@ -162,7 +162,7 @@ Rule `SEC-n`: no committed text file, including logs under `results/`, matches a
 | `SEC-7` | `(?i)\b([0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b` | MAC addresses |
 | `SEC-8` | `GPU-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}` | NVIDIA GPU UUIDs |
 | `SEC-9` | `(?m)^\s*(Host|HostName|IdentityFile)\s+\S+` in any file | SSH config fragments |
-| `SEC-10` | `/home/[a-z_][a-z0-9_-]*/`, `/Users/[^/\s]+/` | absolute home paths |
+| `SEC-10` | `/home/[a-z_][a-z0-9_-]*/`, `[/]Users/[^/\s]+/` | absolute home paths |
 | `SEC-11` | `(?i)(token|secret|password|api[_-]?key|credential)\s*[:=]\s*['"]?[A-Za-z0-9/+_\-]{16,}` | assignments of secret-like values |
 
 Allowlist: `schema/*/examples/invalid/` and `harness/tests/fixtures/secrets/` contain deliberate matches for the scanner's own tests and are skipped. False positives elsewhere are fixed by changing the text, not by allowlisting.

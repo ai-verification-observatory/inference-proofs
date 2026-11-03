@@ -6,6 +6,7 @@ import pytest
 from iproofs.errors import ErrorKind, Failure
 from iproofs.log import patterns
 from iproofs.log.redact import Redactor
+from secret_samples import RULES, sample
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -20,19 +21,7 @@ def redactor(**kw: object) -> Redactor:
 
 
 # One sample per RFC-0013 G9 rule; every one must disappear from captured output.
-SAMPLES = {
-    "SEC-1": "hf_" + "a" * 34,
-    "SEC-2": "ghp_" + "B" * 36,
-    "SEC-3": "AKIA" + "ABCDEFGHIJKLMNOP",
-    "SEC-4": "-----BEGIN RSA PRIVATE KEY-----",
-    "SEC-5": "10.20.30.40",
-    "SEC-6": "fe80::1ff:fe23:4567:890a",
-    "SEC-7": "00:1a:2b:3c:4d:5e",
-    "SEC-8": "GPU-12345678-90ab-cdef-1234-567890abcdef",
-    "SEC-9": "HostName bastion.internal",
-    "SEC-10": "/home/bob/",
-    "SEC-11": "api_key = 0123456789abcdefXYZ",
-}
+SAMPLES = {rule: sample(rule) for rule in RULES}
 
 
 @pytest.mark.parametrize("rule", sorted(SAMPLES))
@@ -62,8 +51,12 @@ def test_hostname_and_first_label_replaced() -> None:
 
 
 def test_home_path_becomes_tilde() -> None:
-    assert redactor()("/home/alice/.cache/iproofs/model") == "~/.cache/iproofs/model"
-    assert redactor(home="/Users/al")("/Users/al/x and /Users/zed/y") == "~/x and ~/y"
+    home = sample("SEC-10")  # a home directory with its trailing slash
+    assert (
+        redactor(home=home.rstrip("/"))(home + ".cache/iproofs/model") == "~/.cache/iproofs/model"
+    )
+    users = "/Users"  # split so this source holds no home path
+    assert redactor(home=f"{users}/al")(f"{users}/al/x and {users}/zed/y") == "~/x and ~/y"
 
 
 def test_timestamps_and_versions_untouched() -> None:
@@ -83,12 +76,13 @@ def test_gpu_serial_from_nvml_replaced() -> None:
 
 
 def test_failure_record_redacted() -> None:
-    stderr = ["connecting to 10.0.0.12", "device GPU-12345678-90ab-cdef-1234-567890abcdef busy"]
-    f = Failure.build(ErrorKind.ADAPTER, "prove", "host 10.0.0.12 failed", last_lines=stderr)
+    ip, gpu = sample("SEC-5"), sample("SEC-8")
+    stderr = [f"connecting to {ip}", f"device {gpu} busy"]
+    f = Failure.build(ErrorKind.ADAPTER, "prove", f"host {ip} failed", last_lines=stderr)
     clean = redactor().failure(f)
     text = clean.message + "\n".join(clean.last_lines)
-    assert "10.0.0.12" not in text
-    assert "GPU-12345678" not in text
+    assert ip not in text
+    assert gpu not in text
     assert clean.kind is ErrorKind.ADAPTER
 
 
