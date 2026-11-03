@@ -19,11 +19,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from iproofs import __version__
-from iproofs.derive import statistic
+from iproofs.derive import agreement_rate, overhead, provider_spread, statistic
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Release, load
 from iproofs.provenance import file_digest
-from iproofs.quantity import Tier, claim_class_matches, lowest_tier
+from iproofs.quantity import Scope, Tier, claim_class_matches, lowest_tier
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -494,6 +494,7 @@ def freeze(
         raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
     excluded = _excluded(release, runs, root, registry)  # step 4
     configurations, controls, contexts = _configurations(runs, excluded, maintainers or {})
+    _release_rows(release.release, contexts, _reference_roles(root))  # step 5, release rows
     targets = _targets(root, registry, release, contexts, read)  # step 8
     digests = sorted(file_digest(p) for p in read)
     return {
@@ -808,3 +809,97 @@ def _targets(
                         "result": result, "reason": reason, "mean": mean,
                         "least_favourable": dict(worst) if worst else None})  # fmt: skip
     return out
+
+
+# ---------------------------------------------------------------- release rows (RFC-0004)
+
+
+def _reference_roles(root: Path) -> dict[str, str]:
+    """system -> `reference_role` (serve, recompute) of every reference system.yaml."""
+    import yaml  # noqa: PLC0415
+
+    roles = {}
+    for path in sorted(root.glob("systems/*/system.yaml")):
+        doc = yaml.safe_load(path.read_text()) or {}
+        if doc.get("kind") == "reference" and doc.get("reference_role"):
+            roles[path.parent.name] = str(doc["reference_role"])
+    return roles
+
+
+def _measurable(ctx: "_Context") -> bool:
+    """RFC-0015 NM-1: not measurable when every attempt failed with `resource` or `adapter`."""
+    failures = [r.get("run", "failure", "kind") for r in ctx.kept]
+    return (
+        any(r.ok for r in ctx.kept)
+        or not failures
+        or any(f not in ("resource", "adapter") for f in failures)
+    )
+
+
+def _release_rows(release: str, contexts: Sequence["_Context"], roles: Mapping[str, str]) -> None:
+    """Adds to each configuration's statistics the release-level rows of RFC-0004:
+    D-PROVIDER-SPREAD per rate, and for system rows D-OVERHEAD-S against the ref-serve row of
+    the same workload and D-AGREE against the ref-recompute runs that replayed its prompts."""
+    index = f"releases/{release}/index.json#/configurations"
+    for ctx in contexts:
+        done = [r for r in ctx.kept if r.ok]
+        rates = [m for m in sorted(ctx.statistics) if m.startswith("rate_")]
+        for m in rates:
+            by_provider: dict[str, list[tuple[str, Mapping[str, object] | None]]] = {}
+            for r in done:
+                by_provider.setdefault(str(r.get("manifest", "provider")), []).extend(
+                    _metric_inputs([r], m, ctx.tiers)
+                )
+            if any(by_provider.values()):
+                ctx.statistics[f"provider_spread_{m[5:]}"] = provider_spread(
+                    by_provider, Scope(m[5:]), __version__
+                )
+        if str(ctx.where["system"]) in roles:
+            continue
+        _overheads(index, ctx, contexts, roles, rates)
+        _agreement(ctx, contexts, roles)
+
+
+def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],
+               roles: Mapping[str, str], rates: Sequence[str]) -> None:  # fmt: skip
+    """INV-DERIVE-2: join on workload id and version and profile (phase and batch size are
+    the workload version's); a ref-serve row of the same workload that does not join gives
+    `not_applicable`."""
+    wl = ctx.where["workload"]
+    serve = [(i, c) for i, c in enumerate(contexts)
+             if roles.get(str(c.where["system"])) == "serve"
+             and c.where["workload"]["id"] == wl["id"]]  # type: ignore[index]  # fmt: skip
+    if not serve:
+        return
+    same = (wl, ctx.where["profile"])
+    joins = [(i, c) for i, c in serve if (c.where["workload"], c.where["profile"]) == same]
+    i, ref = (joins or serve)[0]
+    mine = contexts.index(ctx)
+    for m in rates:
+        q = ref.statistics.get(m)
+        ctx.statistics[f"overhead_vs_serving_{m[5:]}"] = overhead(
+            (f"{index}/{i}/statistics/{m}", q if isinstance(q, Mapping) else None),
+            (f"{index}/{mine}/statistics/{m}", ctx.statistics[m]),  # type: ignore[arg-type]
+            Scope(m[5:]),
+            joined=bool(joins),
+            measurable=_measurable(ref),
+            version=__version__,
+        )
+
+
+def _agreement(ctx: "_Context", contexts: Sequence["_Context"], roles: Mapping[str, str]) -> None:
+    """RFC-0015 RC-5: the ref-recompute runs whose prompts came from this configuration's runs."""
+    mine = {r.run_id for r in ctx.kept}
+    paired = [c for c in contexts if roles.get(str(c.where["system"])) == "recompute"
+              and any(r.get("manifest", "prompts_from") in mine for r in c.kept)]  # fmt: skip
+    if not paired:
+        return
+    agree: list[tuple[str, Mapping[str, object] | None]] = []
+    disagree: list[tuple[str, Mapping[str, object] | None]] = []
+    for c in paired:
+        runs = [r for r in c.kept if r.ok and r.get("manifest", "prompts_from") in mine]
+        agree += _metric_inputs(runs, "agreement_positions", c.tiers)
+        disagree += _metric_inputs(runs, "disagreement_positions", c.tiers)
+    ctx.statistics["agreement_rate"] = agreement_rate(
+        agree, disagree, measurable=all(_measurable(c) for c in paired), version=__version__
+    )

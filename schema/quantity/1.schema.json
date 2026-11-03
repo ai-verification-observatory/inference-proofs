@@ -17,8 +17,8 @@
       "type": "string"
     },
     "metricId": {
-      "$comment": "RFC-0004 §Recorded metrics and the repetition-level derived ids",
-      "pattern": "^(info_seconds|setup_seconds|commit_seconds|prove_session_seconds|prove_steady_seconds|whole_wall_seconds|prove_call_seconds|proofs_count|requests_count|tokens_covered_total|tokens_covered_prompt|tokens_covered_output|tokens_covered_steady|proof_bytes|proof_bytes_total|verifier_download_bytes|prover_keep_bytes|verify_seconds|verify_seconds_total|verify_single_thread_seconds|verify_host_memory_peak_anon|verdicts_accept_count|commit_seconds_per_token_h1|commit_seconds_per_token_h1000|proof_bytes_per_token|verify_seconds_per_token|verify_single_thread_seconds_per_token|(commit|prove)_(gpu_memory_peak|gpu_util_mean|gpu_util_p95|gpu_energy|host_memory_peak_kernel|host_memory_peak_anon|cpu_seconds)|(rate|seconds_per_token|cost_per_1k_tokens|active_param_tokens_per_second)_(setup|commit|prove\\.steady|prove\\.session|whole_wall|verify|verify\\.single_thread|primitive))$",
+      "$comment": "RFC-0004 \u00a7Recorded metrics, the repetition-level derived ids and the release-level ids (D-OVERHEAD-S, D-AGREE, D-PROVIDER-SPREAD; RFC-0015 RC-5 counts)",
+      "pattern": "^(info_seconds|setup_seconds|commit_seconds|prove_session_seconds|prove_steady_seconds|whole_wall_seconds|prove_call_seconds|proofs_count|requests_count|tokens_covered_total|tokens_covered_prompt|tokens_covered_output|tokens_covered_steady|proof_bytes|proof_bytes_total|verifier_download_bytes|prover_keep_bytes|verify_seconds|verify_seconds_total|verify_single_thread_seconds|verify_host_memory_peak_anon|verdicts_accept_count|commit_seconds_per_token_h1|commit_seconds_per_token_h1000|proof_bytes_per_token|verify_seconds_per_token|verify_single_thread_seconds_per_token|(commit|prove)_(gpu_memory_peak|gpu_util_mean|gpu_util_p95|gpu_energy|host_memory_peak_kernel|host_memory_peak_anon|cpu_seconds)|agreement_positions|disagreement_positions|agreement_rate|(rate|seconds_per_token|cost_per_1k_tokens|active_param_tokens_per_second|overhead_vs_serving|provider_spread)_(setup|commit|prove\\.steady|prove\\.session|whole_wall|verify|verify\\.single_thread|primitive))$",
       "type": "string"
     },
     "profileId": {
@@ -525,5 +525,5 @@
   "$id": "https://inference-proofs.org/schema/quantity/1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Shared $defs only; no document has schema quantity/1.",
-  "title": "Labelled quantity and shared definitions (RFC-0012 §Labelled quantity)"
+  "title": "Labelled quantity and shared definitions (RFC-0012 \u00a7Labelled quantity)"
 }
