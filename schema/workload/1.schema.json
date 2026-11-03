@@ -1,0 +1,310 @@
+{
+  "$id": "https://inference-proofs.org/schema/workload/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "a closed workload fixes exactly one claim class (RFC-0003 §Divisions)",
+      "else": {
+        "not": {
+          "required": [
+            "claim_class"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "division": {
+            "const": "closed"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "claim_class"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "claim_class": {
+      "pattern": "^(next-token|greedy-continuation|segment-grid|other)/(exact-match|tolerance|other)/(committed-weights|public-weights|other)$",
+      "type": "string"
+    },
+    "decoding": {
+      "additionalProperties": false,
+      "properties": {
+        "rule": {
+          "const": "greedy"
+        }
+      },
+      "required": [
+        "rule"
+      ],
+      "type": "object"
+    },
+    "division": {
+      "enum": [
+        "native",
+        "closed",
+        "open"
+      ]
+    },
+    "id": {
+      "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+    },
+    "model": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "files": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "bytes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "path": {
+                "pattern": "^[^/][^\\t\\n]*$",
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "sha256",
+              "bytes"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "licence": {
+          "additionalProperties": false,
+          "properties": {
+            "gated": {
+              "type": "boolean"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "url",
+            "gated"
+          ],
+          "type": "object"
+        },
+        "parameters": {
+          "additionalProperties": false,
+          "properties": {
+            "active_per_token": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "source": {
+              "format": "uri",
+              "type": "string"
+            },
+            "total": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "total",
+            "active_per_token",
+            "source"
+          ],
+          "type": "object"
+        },
+        "revision": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "source": {
+          "additionalProperties": false,
+          "properties": {
+            "hub": {
+              "const": "huggingface"
+            },
+            "repo": {
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "hub",
+            "repo"
+          ],
+          "type": "object"
+        },
+        "tokenizer_file": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "vocab_size": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "revision",
+        "files",
+        "digest",
+        "licence",
+        "parameters",
+        "tokenizer_file",
+        "vocab_size"
+      ],
+      "type": "object"
+    },
+    "notes": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "prefill",
+        "decode",
+        "both"
+      ]
+    },
+    "precision": {
+      "additionalProperties": false,
+      "properties": {
+        "alternatives": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "proved": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "served": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "served",
+        "proved"
+      ],
+      "type": "object"
+    },
+    "prompts": {
+      "additionalProperties": false,
+      "properties": {
+        "corpus_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "generator": {
+          "const": "corpus-window/1"
+        },
+        "length_rule": {
+          "additionalProperties": false,
+          "properties": {
+            "prompt_tokens": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "prompt_tokens"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "generator",
+        "corpus_digest",
+        "count",
+        "length_rule"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "workload/1"
+    },
+    "shape": {
+      "additionalProperties": false,
+      "properties": {
+        "batch_size": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "batches_per_session": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "context_window": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "output_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prompt_tokens",
+        "output_tokens",
+        "batch_size",
+        "batches_per_session",
+        "context_window"
+      ],
+      "type": "object"
+    },
+    "systems": {
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/systemId"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "version": {
+      "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "version",
+    "division",
+    "model",
+    "precision",
+    "prompts",
+    "shape",
+    "decoding",
+    "phase",
+    "systems"
+  ],
+  "title": "Workload: workloads/<id>.yaml (RFC-0003 §Workload file)",
+  "type": "object"
+}

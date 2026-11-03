@@ -26,6 +26,8 @@ Schemas in the RFC-0012 catalogue that have landed, with their Python model in `
 | `run/1` | `results/<release>/<system>/<run-id>/run.json` | `Run` |
 | `manifest/1` | `results/<release>/<system>/<run-id>/manifest.json` | `Manifest` |
 | `claim/1` | `systems/<name>/claim.yaml`, `systems/<name>/claims/<configuration>.yaml` | `ClaimCard` |
+| `workload/1` | `workloads/<id>.yaml` | `Workload` |
+| `corpus/1` | `workloads/prompts/corpus.yaml` | `Corpus` |
 | `release/1` | `releases/<release>/release.yaml` | `Release` |
 | `release-index/1` | `releases/<release>/index.json` | `ReleaseIndex` |
 | `target/1` | `targets/<author>/<id>.yaml` | `Target` |

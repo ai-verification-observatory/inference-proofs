@@ -574,6 +574,119 @@ class ClaimCard(Document):
     forbidden_flags: tuple[str, ...] | None = None
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ModelSource(Document):
+    hub: str
+    repo: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ModelFile(Document):
+    path: str
+    sha256: str
+    bytes: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Licence(Document):
+    name: str
+    url: str
+    gated: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Parameters(Document):
+    total: int
+    active_per_token: int
+    source: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ModelSpec(Document):
+    source: ModelSource
+    revision: str
+    files: tuple[ModelFile, ...]
+    digest: str
+    licence: Licence
+    parameters: Parameters
+    tokenizer_file: str
+    vocab_size: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Precision(Document):
+    served: str
+    proved: str
+    alternatives: tuple[str, ...] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class LengthRule(Document):
+    prompt_tokens: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Prompts(Document):
+    generator: str
+    corpus_digest: str
+    count: int
+    length_rule: LengthRule
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Shape(Document):
+    prompt_tokens: int
+    output_tokens: int
+    batch_size: int
+    batches_per_session: int
+    context_window: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Decoding(Document):
+    rule: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Workload(Document):
+    schema: str
+    id: str
+    version: int
+    division: str
+    model: ModelSpec
+    precision: Precision
+    prompts: Prompts
+    shape: Shape
+    decoding: Decoding
+    phase: str
+    systems: tuple[str, ...]
+    claim_class: str | None = None
+    notes: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Normalisation(Document):
+    unicode: str
+    newlines: str
+    strip_bom: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CorpusText(Document):
+    id: str
+    source_url: str
+    licence: str
+    sha256: str
+    bytes: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Corpus(Document):
+    schema: str
+    normalisation: Normalisation
+    texts: tuple[CorpusText, ...]
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -640,6 +753,20 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("claim/1", "#/$defs/edge"): BindingEdge,
     ("claim/1", "#/properties/quality_gap/items"): QualityGap,
     ("claim/1", "#/properties/reviewed_by/items"): Review,
+    ("workload/1", "#"): Workload,
+    ("workload/1", "#/properties/model"): ModelSpec,
+    ("workload/1", "#/properties/model/properties/source"): ModelSource,
+    ("workload/1", "#/properties/model/properties/files/items"): ModelFile,
+    ("workload/1", "#/properties/model/properties/licence"): Licence,
+    ("workload/1", "#/properties/model/properties/parameters"): Parameters,
+    ("workload/1", "#/properties/precision"): Precision,
+    ("workload/1", "#/properties/prompts"): Prompts,
+    ("workload/1", "#/properties/prompts/properties/length_rule"): LengthRule,
+    ("workload/1", "#/properties/shape"): Shape,
+    ("workload/1", "#/properties/decoding"): Decoding,
+    ("corpus/1", "#"): Corpus,
+    ("corpus/1", "#/properties/normalisation"): Normalisation,
+    ("corpus/1", "#/properties/texts/items"): CorpusText,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
 }
