@@ -1,0 +1,28 @@
+# CI-only workload for the fake systems (RFC-0013 §G10). The model is toy test data in
+# systems/fake/model at commit 64168df9fd07; the corpus is the CI fixture corpus in
+# harness/tests/fixtures/prompts (entries corpus-a and corpus-b).
+schema: "workload/1"
+id: "fake-tiny-ci"
+version: 1
+division: "open"
+model:
+  source: {hub: "repository", repo: "ai-verification-observatory/inference-proofs", path: "systems/fake/model"}
+  revision: "64168df9fd0706dfd955b6795fa6f535872dff78"
+  files:
+    - {path: "tokenizer.json", sha256: "bacd07c46a6bf3b6044b5e08c451e5b0f1e140bcea5f347309e728d763677202", bytes: 1345}
+    - {path: "weights.bin", sha256: "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108", bytes: 64}
+  digest: "sha256:08dc5d4095f1a2479a8247c6e7a2b9ada23a0c4697ac65d8503d67f80b19faf8"
+  licence: {name: "Apache-2.0", url: "https://github.com/ai-verification-observatory/inference-proofs/blob/64168df9fd0706dfd955b6795fa6f535872dff78/LICENSE", gated: false}
+  parameters: {total: 64, active_per_token: 64, source: "https://github.com/ai-verification-observatory/inference-proofs/blob/64168df9fd0706dfd955b6795fa6f535872dff78/systems/fake/README.md"}
+  tokenizer_file: "tokenizer.json"
+  vocab_size: 96
+precision: {served: "int8", proved: "int8"}
+prompts:
+  generator: "corpus-window/1"
+  corpus_digest: "sha256:9ce23fc0c7b65899c302b4903729f1ff3a57d656afa8e9d178e9fbd1ec2f63bf"
+  count: 6
+  length_rule: {prompt_tokens: 8}
+shape: {prompt_tokens: 8, output_tokens: 1, batch_size: 2, batches_per_session: 3, context_window: 8}
+decoding: {rule: "greedy"}
+phase: "prefill"
+systems: ["fake"]

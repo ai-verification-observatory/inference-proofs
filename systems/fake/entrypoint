@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""Fake prover for CI (RFC-0005 §Reference implementations). Standard library only.
+
+Usage: entrypoint <info|setup|commit|prove|verify> /io/job.json /io/out.json
+
+The proof for one request is two parts: body.bin = sha256(key || request), and
+tag.bin = HMAC-SHA256(key, request || claimed_output || body). The prover keys with the
+commitment of the weights it loads; the verifier keys with the commitment_id the harness
+passes from its own commit record. Any change to the request, the output, the commitment,
+the weights or a part therefore changes an HMAC input and the verifier rejects it.
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the harness runs
+this file in process instead of in a container. IPROOFS_FAKE_DELAY_S sets the pause between
+proof releases (default 0.05 s) so prove.steady is observable. IPROOFS_FAKE_ACCEPT_ALL=1
+turns the verifier into one that accepts everything (systems/fake-broken).
+"""
+
+import hashlib
+import hmac
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+FORBIDDEN_FLAGS = ["--unsound-skip-"]
+UPSTREAM_COMMIT = os.environ.get("IPROOFS_FAKE_UPSTREAM", "0" * 40)
+MIN_PART_BYTES = 32
+
+
+def host(container_path: str) -> Path:
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"fake: path {container_path!r} outside /io and /models")
+
+
+def model_commitment(model_dir: Path) -> str:
+    """sha256 over the RFC-0012 model digest string of the loaded weights."""
+    h = hashlib.sha256()
+    for path in sorted(p for p in model_dir.rglob("*") if p.is_file()):
+        name = path.relative_to(model_dir).as_posix()
+        h.update(f"{name}\t{hashlib.sha256(path.read_bytes()).hexdigest()}\n".encode())
+    return hashlib.sha256(("sha256:" + h.hexdigest()).encode()).hexdigest()
+
+
+def claimed_output(request: list[int]) -> list[int]:
+    """A deterministic function of the request: one token id below 256."""
+    return [hashlib.sha256(json.dumps(request).encode()).digest()[0]]
+
+
+def tag(key: str, request: list[int], output: list[int], body: bytes) -> bytes:
+    msg = json.dumps(request).encode() + b"|" + json.dumps(output).encode() + b"|" + body
+    return hmac.new(key.encode(), msg, hashlib.sha256).digest()
+
+
+def log_command(argv: list[str], started: int, exit_code: int) -> None:
+    line = {"argv": argv, "cwd": "/io", "started_mono_ns": started, "exit_code": exit_code}
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}
+
+
+def info(job: dict) -> dict:
+    return {**base("info"), "system": os.environ.get("IPROOFS_FAKE_NAME", "fake"),
+            "upstream_commit": UPSTREAM_COMMIT, "image_inputs": [],
+            "workloads": ["fake-tiny-ci"], "profile": "ci-cpu",
+            "contract_versions": ["adapter/1"]}
+
+
+def setup(job: dict) -> dict:
+    return {**base("setup"), "ready": True, "log_files": []}
+
+
+def commit(job: dict) -> dict:
+    state = host("/io/state")
+    state.mkdir(parents=True, exist_ok=True)
+    key = model_commitment(host(job["model_dir"]))
+    return {**base("commit"), "commitment_id": key, "verifier_files": [], "prover_files": [],
+            "sizes": {"verifier_bytes": 0, "prover_bytes": 0}}
+
+
+def prove(job: dict) -> dict:
+    flags = job.get("control_flags", [])
+    weakening = [f for f in flags if any(f.startswith(p) for p in FORBIDDEN_FLAGS)]
+    if weakening and not job["control"]:  # RFC-0005 rule 4
+        raise SystemExit(f"fake: refusing {weakening} outside a control job")
+    started = time.monotonic_ns()
+    key = model_commitment(host(job["model_dir"]))  # the weights actually loaded
+    prompts = [json.loads(line) for line in host(job["prompts_file"]).read_text().splitlines()]
+    count = job["batch_size"] * job["batches"]
+    proofs_dir = host("/io/proofs")
+    proofs_dir.mkdir(parents=True, exist_ok=True)
+    delay = float(os.environ.get("IPROOFS_FAKE_DELAY_S", "0.05"))
+    proofs = []
+    for i, request in enumerate(prompts[:count]):
+        proof_id = f"req-{i}"
+        output = claimed_output(request)
+        body = hashlib.sha256(key.encode() + json.dumps(request).encode()).digest()
+        tmp = proofs_dir / f".tmp-{proof_id}"
+        tmp.mkdir()
+        (tmp / "body.bin").write_bytes(body)
+        (tmp / "tag.bin").write_bytes(tag(key, request, output, body))
+        os.rename(tmp, proofs_dir / proof_id)  # atomic release (RFC-0005 §Proof release protocol)
+        proofs.append({"proof_id": proof_id, "request_index": i,
+                       "parts": ["body.bin", "tag.bin"], "claimed_output": output})
+        time.sleep(delay)
+    log_command(["fake-prover", "prove", *flags], started, 0)
+    return {**base("prove"), "proofs": proofs}
+
+
+def verify(job: dict) -> dict:
+    started = time.monotonic_ns()
+    proof = host(job["proof_dir"])
+    parts = {name: proof / name for name in ("body.bin", "tag.bin")}
+    if os.environ.get("IPROOFS_FAKE_ACCEPT_ALL") == "1":
+        verdict, code, line = "accept", 0, "ACCEPT (broken verifier)"
+    elif any(not p.is_file() or p.stat().st_size < MIN_PART_BYTES for p in parts.values()):
+        verdict, code, line = "invalid_call", 2, "part missing or truncated"
+    else:
+        body = parts["body.bin"].read_bytes()
+        want = tag(job["commitment_id"], job["request"], job["claimed_output"], body)
+        ok = hmac.compare_digest(want, parts["tag.bin"].read_bytes())
+        verdict, code, line = ("accept", 0, "ACCEPT") if ok else ("reject", 1, "tag mismatch")
+    seconds = (time.monotonic_ns() - started) / 1e9
+    log_command(["fake-verifier", "verify"], started, code)
+    return {**base("verify"), "verdict": verdict, "raw_exit_code": code,
+            "raw_last_line": line, "seconds": seconds}
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"fake: job.json is for {job.get('subcommand')!r}, not {sub!r}")
+    out = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}[sub](job)
+    host(out_path).write_text(json.dumps(out, sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

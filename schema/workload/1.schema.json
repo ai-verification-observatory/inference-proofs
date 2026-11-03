@@ -136,9 +136,38 @@
         },
         "source": {
           "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "path": false
+                }
+              },
+              "if": {
+                "properties": {
+                  "hub": {
+                    "const": "repository"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "path"
+                ]
+              }
+            }
+          ],
           "properties": {
             "hub": {
-              "const": "huggingface"
+              "$comment": "repository: toy test data inside this repository at `path`, pinned by `revision` (a commit of this repository); never real model weights (AGENTS.md rule 8)",
+              "enum": [
+                "huggingface",
+                "repository"
+              ]
+            },
+            "path": {
+              "pattern": "^systems/[a-z][a-z0-9-]{1,31}/model$",
+              "type": "string"
             },
             "repo": {
               "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
