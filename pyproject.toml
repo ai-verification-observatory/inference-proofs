@@ -41,6 +41,8 @@ include = ["harness/src/iproofs", "README.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["harness/tests"]
+# shared test helpers such as toy_tokenizer.py
+pythonpath = ["harness/tests"]
 addopts = "-ra --strict-markers"
 
 [tool.ruff]
@@ -64,3 +66,8 @@ max-args = 8
 strict = true
 python_version = "3.12"
 mypy_path = "harness/src"
+
+[[tool.mypy.overrides]]
+# Optional extras (INV-ARCH-6) are absent from the base install that CI type-checks.
+module = ["tokenizers", "pynvml", "huggingface_hub", "huggingface_hub.*"]
+ignore_missing_imports = true
