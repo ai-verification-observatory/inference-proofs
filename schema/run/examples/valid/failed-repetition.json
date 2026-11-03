@@ -1,0 +1,78 @@
+{
+  "adapter_phases": {
+    "witness": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "primitive",
+      "source": {
+        "kind": "adapter",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/adapter_phases/witness"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.2
+    }
+  },
+  "claim": {
+    "card_version": 1,
+    "configuration": "default",
+    "system": "fake"
+  },
+  "control": false,
+  "events": [
+    {
+      "event": "prove.start",
+      "mono_ns": 1000
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 500001000
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 1500001000
+    }
+  ],
+  "failure": {
+    "at": "2026-11-20T10:00:00Z",
+    "exit_code": null,
+    "kind": "timeout",
+    "last_lines": [
+      "waiting"
+    ],
+    "message": "prove exceeded 60 s",
+    "step": "prove"
+  },
+  "metrics": {},
+  "profile": "ci-cpu",
+  "proofs": [],
+  "raw": {
+    "prove": {
+      "wall_ns": {
+        "grade": "measured",
+        "null_reason": null,
+        "scope": "prove.session",
+        "source": {
+          "kind": "harness",
+          "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/events/2"
+        },
+        "tier": "reported",
+        "unit": "ns",
+        "value": 1500000000.0
+      }
+    }
+  },
+  "release": "v0.1",
+  "repetition": 2,
+  "replaces": null,
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-2",
+  "schema": "run/1",
+  "status": "failed",
+  "system": "fake",
+  "system_kind": "test",
+  "warnings": [],
+  "workload": {
+    "id": "fake-tiny-ci",
+    "version": 1
+  }
+}

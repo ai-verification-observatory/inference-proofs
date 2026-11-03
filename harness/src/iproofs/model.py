@@ -13,7 +13,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Self, Union, get_args, get_origin, get_type_hints
 
-from iproofs.errors import ErrorKind, IProofsError
+from iproofs.errors import ErrorKind, Failure, IProofsError
 from iproofs.quantity import Grade, NullReason, Scope, ScopeMapping, SourceKind, Tier, Unit
 from iproofs.schema import SchemaRegistry, load_document
 
@@ -24,9 +24,9 @@ def _convert(tp: Any, value: object) -> object:  # noqa: PLR0911 (one return per
     origin = get_origin(tp)
     if origin in (Union, types.UnionType):
         options = [a for a in get_args(tp) if a is not type(None)]
-        if len(options) != 1:
-            raise TypeError(f"ambiguous union {tp}")
-        return _convert(options[0], value)
+        if len(options) == 1:
+            return _convert(options[0], value)
+        return _convert(_pick_dataclass(options, value), value)
     if origin is tuple:
         item = get_args(tp)[0]
         assert isinstance(value, list)
@@ -42,6 +42,21 @@ def _convert(tp: Any, value: object) -> object:  # noqa: PLR0911 (one return per
         assert isinstance(value, str)
         return tp(value)
     return value
+
+
+def _pick_dataclass(options: list[Any], value: object) -> Any:
+    """Choose the one dataclass whose fields fit the keys (for example Quantity | Statistic)."""
+    assert isinstance(value, dict)
+    keys = set(value)
+    fitting = [
+        c for c in options
+        if dataclasses.is_dataclass(c)
+        and keys <= {f.name for f in dataclasses.fields(c)}
+        and {f.name for f in dataclasses.fields(c) if f.default is dataclasses.MISSING} <= keys
+    ]  # fmt: skip
+    if len(fitting) != 1:
+        raise TypeError(f"cannot choose among {options} for keys {sorted(keys)}")
+    return fitting[0]
 
 
 def _build(cls: type[Any], tree: Mapping[str, object]) -> Any:
@@ -106,14 +121,245 @@ class Statistic(Quantity):
     stats: Stats
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WorkloadRef(Document):
+    id: str
+    version: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ClaimRef(Document):
+    system: str
+    configuration: str
+    card_version: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Replaces(Document):
+    run_id: str
+    reason: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RawSteps(Document):
+    info: Mapping[str, Quantity] | None = None
+    setup: Mapping[str, Quantity] | None = None
+    commit: Mapping[str, Quantity] | None = None
+    prove: Mapping[str, Quantity] | None = None
+    verify: Mapping[str, Quantity] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Event(Document):
+    event: str
+    mono_ns: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProofResult(Document):
+    proof_id: str
+    release_mono_ns: int | None
+    tokens_covered: int
+    verdict: str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Run(Document):
+    schema: str
+    run_id: str
+    release: str
+    system: str
+    workload: WorkloadRef
+    profile: str
+    repetition: int
+    control: bool
+    system_kind: str
+    claim: ClaimRef | None
+    status: str
+    failure: Failure | None
+    replaces: Replaces | None
+    raw: RawSteps
+    adapter_phases: Mapping[str, Quantity]
+    metrics: Mapping[str, Quantity | Statistic]
+    events: tuple[Event, ...]
+    proofs: tuple[ProofResult, ...]
+    warnings: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class HarnessRecord(Document):
+    version: str
+    git_commit: str
+    git_dirty: bool
+    lock_digest: str
+    nonconforming: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RunnerRecord(Document):
+    handle: str
+    organisation: str
+    affiliated_systems: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Upstream(Document):
+    repo: str
+    commit: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ImageRef(Document):
+    ref: str
+    digest_kind: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ImageInput(Document):
+    name: str
+    url: str
+    digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SystemRecord(Document):
+    name: str
+    system_manifest_digest: str
+    claim_digest: str | None
+    upstream: Upstream | None
+    adapter_commit: str
+    adapter_dirty: bool
+    image: ImageRef
+    image_inputs: tuple[ImageInput, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ModelRecord(Document):
+    source: str
+    revision: str
+    digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WorkloadRecord(Document):
+    id: str
+    version: int
+    file_digest: str
+    model: ModelRecord
+    corpus_digest: str
+    prompt_seed: str
+    prompt_set_digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProfileRecord(Document):
+    prover: str
+    verifier: str
+    verifier_host: str
+    reference_file: str
+    reference_digest: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SelfTestCheck(Document):
+    name: str
+    passed: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SelfTest(Document):
+    passed: bool
+    checks: tuple[SelfTestCheck, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Command(Document):
+    step: str
+    argv: tuple[str, ...]
+    cpuset: str
+    mems: str
+    gpus: str | None
+    network: str
+    started_at: str
+    exit_code: int | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class FileRecord(Document):
+    name: str
+    digest: str
+    bytes: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Commitment(Document):
+    commitment_id: str
+    verifier_files: tuple[FileRecord, ...]
+    prover_files: tuple[FileRecord, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ProofRecord(Document):
+    proof_id: str
+    digest: str
+    parts: tuple[FileRecord, ...]
+    archive: str | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Manifest(Document):
+    schema: str
+    run_id: str
+    release: str
+    control: bool
+    harness: HarnessRecord
+    runner: RunnerRecord
+    claim: ClaimRef | None
+    provider: str
+    system: SystemRecord
+    workload: WorkloadRecord
+    profile: ProfileRecord
+    machine: Mapping[str, object]  # RFC-0006 record; typed fields land with issue #73
+    self_test: SelfTest
+    commands: tuple[Command, ...]
+    commitment: Commitment | None
+    proofs: tuple[ProofRecord, ...]
+    warnings: tuple[str, ...]
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
-MODELS: dict[tuple[str, str], type[Document]] = {
+MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
     ("quantity/1", "#/$defs/source"): Source,
     ("quantity/1", "#/$defs/stats"): Stats,
     ("quantity/1", "#/$defs/quantityCore/properties/quality"): Quality,
+    ("run/1", "#"): Run,
+    ("run/1", "#/properties/workload"): WorkloadRef,
+    ("run/1", "#/properties/claim/anyOf/1"): ClaimRef,
+    ("run/1", "#/properties/replaces/anyOf/1"): Replaces,
+    ("run/1", "#/properties/raw"): RawSteps,
+    ("run/1", "#/properties/events/items"): Event,
+    ("run/1", "#/properties/proofs/items"): ProofResult,
+    ("run/1", "#/$defs/failure"): Failure,
+    ("manifest/1", "#"): Manifest,
+    ("manifest/1", "#/properties/harness"): HarnessRecord,
+    ("manifest/1", "#/properties/runner"): RunnerRecord,
+    ("manifest/1", "#/properties/claim/anyOf/1"): ClaimRef,
+    ("manifest/1", "#/properties/system"): SystemRecord,
+    ("manifest/1", "#/properties/system/properties/upstream/anyOf/1"): Upstream,
+    ("manifest/1", "#/properties/system/properties/image"): ImageRef,
+    ("manifest/1", "#/properties/system/properties/image_inputs/items"): ImageInput,
+    ("manifest/1", "#/properties/workload"): WorkloadRecord,
+    ("manifest/1", "#/properties/workload/properties/model"): ModelRecord,
+    ("manifest/1", "#/properties/profile"): ProfileRecord,
+    ("manifest/1", "#/properties/self_test"): SelfTest,
+    ("manifest/1", "#/properties/self_test/properties/checks/items"): SelfTestCheck,
+    ("manifest/1", "#/properties/commands/items"): Command,
+    ("manifest/1", "#/$defs/file"): FileRecord,
+    ("manifest/1", "#/properties/commitment/anyOf/1"): Commitment,
+    ("manifest/1", "#/properties/proofs/items"): ProofRecord,
 }
 
 

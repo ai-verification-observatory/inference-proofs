@@ -16,6 +16,16 @@ schema/<name>/examples/invalid/*.reason   text the validation error must contain
 - Every object sets `additionalProperties: false` unless the schema documents it as an open map.
 - Formats asserted: `date`, `date-time`, `uri` (syntax only).
 
+## Status
+
+Schemas in the RFC-0012 catalogue that have landed, with their Python model in `iproofs.model`:
+
+| Schema | Instances | Model |
+|---|---|---|
+| `quantity/1` | shared `$defs` | `Quantity`, `Statistic`, `Stats`, `Source`, `Quality` |
+| `run/1` | `results/<release>/<system>/<run-id>/run.json` | `Run` |
+| `manifest/1` | `results/<release>/<system>/<run-id>/manifest.json` | `Manifest` |
+
 ## Examples rule
 
 Every schema ships valid and invalid examples (AGENTS.md, working practice). Each invalid example has a sibling `<file>.reason` whose text must appear in the validation error, so an example cannot fail for an unrelated reason. Gate G2 runs the rule ([RFC-0013 §G2](../rfcs/0013-validation-and-ci.md#g2-schema-validation)); locally, `iproofs.schema.check_examples` runs it.
