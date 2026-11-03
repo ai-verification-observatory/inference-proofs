@@ -1,4 +1,5 @@
-"""Release freeze, effective tiers, review and reproduction records (RFC-0009, RFC-0007).
+"""Release freeze, eligibility, effective tiers, review and reproduction records (RFC-0009,
+RFC-0007, RFC-0014).
 
 `compare` implements `iproofs reproduce compare` (RFC-0007 §Eligibility, §Tolerance,
 §Verdict and digest matching). It reads run directories as stored and writes one
@@ -8,12 +9,14 @@
 import json
 import math
 import statistics
+import subprocess
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.model import Release
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -324,3 +327,85 @@ def write_reproduction(orig: Path, record: dict[str, object], registry: SchemaRe
     path.parent.mkdir(exist_ok=True)
     write_json(path, record)
     return path
+
+
+# ---------------------------------------------------------------- eligibility (RFC-0014)
+
+# Stable reason strings, shown by the release index and the site.
+REASONS = {
+    "other_release": "the run belongs to another release",
+    "manifest_invalid": "the manifest fails manifest/1 (a pin is not in full form)",
+    "self_test_failed": "the host's calibration self-test did not pass",
+    "nonconforming_host": "the host did not conform to the profile",
+    "claim_card_not_listed": "the run's claim card is not the one the release lists",
+    "harness_dirty": "the harness tree was dirty",
+    "adapter_dirty": "the adapter tree was dirty or unknown",
+    "image_digest_kind_config": "the image is pinned by config digest, not manifest digest",
+    "image_differs_from_system_yaml": "the image is not system.yaml's at the adapter commit",
+    "no_archived_proof": "the configuration has no archived proof URI",
+}
+
+
+def eligibility(
+    run_dir: Path, release: Release, root: Path, registry: SchemaRegistry
+) -> tuple[bool, list[str]]:
+    """RFC-0014 §Eligibility of one stored run for `release`: (eligible, reason codes from
+    REASONS, in that order). Reads only the run's documents, the release record, the listed
+    runs' manifests and system.yaml at the run's adapter commit."""
+    run = RunView.read(run_dir)
+    m, system = run.manifest, run.get("manifest", "system")
+    assert isinstance(system, dict)
+    claim = m.get("claim")
+    cards = {(c.system, c.configuration, c.card_version, c.digest) for c in release.claim_cards}
+    failed = {
+        "other_release": m.get("release") != release.release,
+        "manifest_invalid": bool(registry.errors("manifest/1", m)),
+        "self_test_failed": run.get("manifest", "self_test", "passed") is not True,
+        "nonconforming_host": run.get("manifest", "harness", "nonconforming") is not False,
+        "claim_card_not_listed": not isinstance(claim, dict)
+        or (
+            claim.get("system"),
+            claim.get("configuration"),
+            claim.get("card_version"),
+            system.get("claim_digest"),
+        )
+        not in cards,
+        "harness_dirty": run.get("manifest", "harness", "git_dirty") is not False,
+        "adapter_dirty": system.get("adapter_dirty") is not False,
+        "image_digest_kind_config": run.get("manifest", "system", "image", "digest_kind")
+        != "manifest",
+        "image_differs_from_system_yaml": _pinned_image(root, system)
+        != run.get("manifest", "system", "image", "ref"),
+        "no_archived_proof": not _archived(run, release, root),
+    }
+    reasons = [code for code in REASONS if failed[code]]
+    return not reasons, reasons
+
+
+def _pinned_image(root: Path, system: Mapping[str, object]) -> str | None:
+    """`repository@digest` of systems/<name>/system.yaml at the run's adapter commit."""
+    import yaml  # noqa: PLC0415
+
+    shown = subprocess.run(
+        ["git", "-C", str(root), "show", f"{system.get('adapter_commit')}:systems/"
+         f"{system.get('name')}/system.yaml"],
+        capture_output=True, text=True, check=False,
+    )  # fmt: skip
+    if shown.returncode != 0:
+        return None
+    doc = yaml.safe_load(shown.stdout) or {}
+    image = doc.get("image") or (doc.get("engine") or {}).get("image")
+    if isinstance(image, dict):
+        return f"{image.get('repository')}@{image.get('digest')}"
+    return image if isinstance(image, str) else None
+
+
+def _archived(run: RunView, release: Release, root: Path) -> bool:
+    """RFC-0014: some run of the same configuration in the release records an archive URI."""
+    for listed in release.runs:
+        other = RunView.read(root / listed) if (root / listed / "manifest.json").is_file() else None
+        if other is not None and other.key() == run.key():
+            proofs = other.manifest.get("proofs")
+            if any(isinstance(p, dict) and p.get("archive") for p in proofs or []):  # type: ignore[attr-defined]
+                return True
+    return False
