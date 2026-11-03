@@ -1,0 +1,37 @@
+# Shape only, not a reviewed card (RFC-0002 §Example). Values come from docs/PRD.md.
+schema: "claim/1"
+system: "flashprove"
+configuration: "exact-match-lean"
+card_version: 1
+upstream: {repo: "anthropics/FlashProve", commit: "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"}
+claim_class: "next-token/exact-match/committed-weights"
+relation: >
+  The output token is the top choice of the integer model whose weights were
+  committed under the given commitment ID, on the given 1,024-token window.
+relation_formal: "not stated"
+security:
+  notion: {kind: "knowledge_soundness", verifier: "Lean verifier; C++ verifier tested against it"}
+  level: "q/2^124 + 2^-101 after q hash queries, exact-match policy"
+  model: {assumption: "random oracle", adversary: "classical"}
+  setup: "not_stated"
+zero_knowledge:
+  claimed: true
+  hidden: "weights"
+  not_hidden: "a declared list of weights"
+  status: "formally_verified"
+assumptions:
+  - "configuration files fixed before the hash function is drawn"
+  - "the commitment ID is obtained from a trusted party"
+coverage:
+  phase: "prefill"
+  unit: "request"
+  tokens_covered: "the window's 1,024 positions"
+  operations: "not stated"
+  policy: {kind: "exact_match", detail: "top token of the integer model"}
+binding: "not stated"
+residual:
+  - "proves the integer model, which differs from the 16-bit model's top token at some positions"
+availability: "research"
+sources:
+  relation: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md"
+reviewed_by: []

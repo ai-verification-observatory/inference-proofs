@@ -26,6 +26,8 @@ def _convert(tp: Any, value: object) -> object:  # noqa: PLR0911 (one return per
         options = [a for a in get_args(tp) if a is not type(None)]
         if len(options) == 1:
             return _convert(options[0], value)
+        if not isinstance(value, dict):
+            return value  # a primitive union such as `bool | str` ("not stated")
         return _convert(_pick_dataclass(options, value), value)
     if origin is tuple:
         item = get_args(tp)[0]
@@ -476,6 +478,102 @@ class Target(Document):
     profile: str | None = None
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SecurityNotion(Document):
+    kind: str
+    verifier: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SecurityModel(Document):
+    assumption: str
+    adversary: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Security(Document):
+    notion: SecurityNotion
+    level: str
+    model: SecurityModel
+    setup: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ZeroKnowledge(Document):
+    claimed: bool | str  # bool, or the literal "not stated"
+    hidden: str
+    not_hidden: str
+    status: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CoveragePolicy(Document):
+    kind: str
+    detail: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Coverage(Document):
+    phase: str
+    unit: str
+    tokens_covered: str
+    operations: str
+    policy: CoveragePolicy
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class BindingEdge(Document):
+    edge: str
+    state: str
+    switch: str | None
+    source: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Binding(Document):
+    edges: tuple[BindingEdge, ...] | None = None
+    statement: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class QualityGap(Document):
+    metric: str
+    value: str
+    source: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Review(Document):
+    handle: str
+    organisation: str
+    date: str
+    card_version: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ClaimCard(Document):
+    schema: str
+    system: str
+    configuration: str
+    card_version: int
+    upstream: Upstream
+    claim_class: str
+    relation: str
+    security: Security
+    zero_knowledge: ZeroKnowledge
+    assumptions: tuple[str, ...]
+    coverage: Coverage
+    binding: Binding | str  # or the literal "not stated"
+    residual: tuple[str, ...]
+    availability: str
+    sources: Mapping[str, str]
+    reviewed_by: tuple[Review, ...]
+    relation_formal: str | None = None
+    assumptions_not_stated: bool | None = None
+    quality_gap: tuple[QualityGap, ...] | None = None
+    forbidden_flags: tuple[str, ...] | None = None
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 MODELS: dict[tuple[str, str], type[Any]] = {
@@ -530,6 +628,18 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ),
     ("release-index/1", "#/properties/targets/items"): TargetResult,
     ("release-index/1", "#/properties/reference"): ReferenceRecord,
+    ("claim/1", "#"): ClaimCard,
+    ("claim/1", "#/properties/upstream"): Upstream,
+    ("claim/1", "#/properties/security"): Security,
+    ("claim/1", "#/properties/security/properties/notion"): SecurityNotion,
+    ("claim/1", "#/properties/security/properties/model"): SecurityModel,
+    ("claim/1", "#/properties/zero_knowledge"): ZeroKnowledge,
+    ("claim/1", "#/properties/coverage"): Coverage,
+    ("claim/1", "#/properties/coverage/properties/policy"): CoveragePolicy,
+    ("claim/1", "#/properties/binding/anyOf/1"): Binding,
+    ("claim/1", "#/$defs/edge"): BindingEdge,
+    ("claim/1", "#/properties/quality_gap/items"): QualityGap,
+    ("claim/1", "#/properties/reviewed_by/items"): Review,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
 }
