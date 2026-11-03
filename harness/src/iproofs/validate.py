@@ -190,3 +190,102 @@ def check_run_claim(
             f"card_version {claim.card_version} is newer than the card's {card.card_version}"
         )
     return [Finding("G2", where, "CLAIM-REF", p, ErrorKind.CONFIG, "/claim") for p in problems]
+
+
+# ---------------------------------------------------------------- G4 derived recompute
+
+
+def repo_root(start: Path) -> Path:
+    """The repository root: the nearest ancestor that holds the schema tree."""
+    for d in [start.resolve(), *start.resolve().parents]:
+        if (d / "schema" / "quantity" / "1.schema.json").is_file():
+            return d
+    raise IProofsError(ErrorKind.CONFIG, f"{start} is not inside the repository")
+
+
+def resolve(root: Path, pointer: str) -> object:
+    """Value at `<repo-relative file>#<json pointer>`, or None when it does not exist."""
+    file, _, frag = pointer.partition("#")
+    path = root / file
+    if not path.is_file():
+        return None
+    node: object = parse_tree(path) if path.suffix in {".json", ".yaml", ".yml"} else None
+    for part in [p for p in frag.split("/") if p]:
+        key = part.replace("~1", "/").replace("~0", "~")
+        if isinstance(node, Mapping) and key in node:
+            node = node[key]
+        elif isinstance(node, list) and key.isdigit() and int(key) < len(node):
+            node = node[int(key)]
+        else:
+            return None
+    return node
+
+
+def _as_input(value: object) -> Mapping[str, object] | None:
+    """A stored quantity, or a structural number (for example proofs/0/tokens_covered)."""
+    if isinstance(value, Mapping) and "value" in value:
+        return value
+    if isinstance(value, int | float) and not isinstance(value, bool):
+        return {"value": value, "tier": "reported", "source": {"kind": "harness", "ref": ""}}
+    return None
+
+
+def _gpus(root: Path, inputs: list[str], profile: str) -> int:
+    """GPU count of the run's profile, from the reference file a price input points into."""
+    for pointer in inputs:
+        file = pointer.partition("#")[0]
+        if "price_per_gpu_hour_usd" in pointer and (root / file).is_file():
+            gpu = resolve(root, f"{file}#/profiles/{profile}/gpu")
+            return int(gpu["count"]) if isinstance(gpu, Mapping) else 0
+    return 0
+
+
+def check_derived(path: Path, root: Path) -> list[Finding]:
+    """G4: every derived quantity recomputes bit for bit from its stored inputs."""
+    from iproofs.derive import UnknownFormula, recompute  # noqa: PLC0415 (layer 3)
+
+    full = path.resolve()
+    rel = full.relative_to(root).as_posix() if full.is_relative_to(root) else str(path)
+    doc = parse_tree(path)
+    profile = str(doc.get("profile", ""))
+    metrics = doc.get("metrics")
+    found: list[Finding] = []
+    for name, q in sorted(metrics.items()) if isinstance(metrics, Mapping) else []:
+        if not isinstance(q, Mapping) or q.get("grade") != "derived":
+            continue
+        source = q["source"]
+        assert isinstance(source, Mapping)
+        pointers = [str(p) for p in source.get("inputs", [])]
+        where = f"/metrics/{name}"
+        inputs = [(p, _as_input(resolve(root, p))) for p in pointers]
+        missing = [p for p, v in inputs if v is None]
+        # A value derived from inputs that no longer resolve cannot be checked (DER-3). A null
+        # stored with missing_input, or an all-failed statistic, is recomputed as it is.
+        if missing and q.get("value") is not None:
+            found.append(
+                Finding(
+                    "G4", rel, "DER-3", f"inputs missing: {missing}", ErrorKind.INTEGRITY, where
+                )
+            )
+            continue
+        try:
+            fresh = recompute(q, inputs, _gpus(root, pointers, profile))
+        except UnknownFormula as e:
+            found.append(
+                Finding("G4", rel, "DER-2", f"unknown formula {e}", ErrorKind.INTEGRITY, where)
+            )
+            continue
+        if fresh != q:
+            formula = str(source["ref"])
+            found.append(
+                Finding(
+                    "G4",
+                    rel,
+                    "DER-1",
+                    f"{formula} inputs {pointers}: stored {q['value']!r} ({q['null_reason']}) != "
+                    f"recomputed {fresh['value']!r} ({fresh['null_reason']})",
+                    ErrorKind.INTEGRITY,
+                    where,
+                )
+            )
+    return found

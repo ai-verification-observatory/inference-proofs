@@ -1,0 +1,13 @@
+# Fixture reference file for the worked example (test fixture, not a release file).
+profiles:
+  fixture-gpu:
+    gpu: {count: 1}
+cost:
+  price_per_gpu_hour_usd:
+    value: 3.6
+    unit: "USD/gpu_hour"
+    scope: null
+    grade: "asserted"
+    tier: "reported"
+    source: {kind: "reference_file", ref: "harness/tests/fixtures/derive/worked-example/reference.yaml#/cost/price_per_gpu_hour_usd"}
+    null_reason: null

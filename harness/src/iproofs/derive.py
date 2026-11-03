@@ -74,8 +74,9 @@ def scope_seconds(
         whole = span_seconds(events["commit.start"], r_k)
         out["whole_wall_seconds"] = measured(whole, Unit.S, Scope.WHOLE_WALL, ref, None)
     if not observable:  # INV-SCOPE-3
-        steady = measured(None, Unit.S, Scope.PROVE_STEADY, ref,
-                          NullReason.NOT_EXTERNALLY_OBSERVABLE)  # fmt: skip
+        steady = measured(
+            None, Unit.S, Scope.PROVE_STEADY, ref, NullReason.NOT_EXTERNALLY_OBSERVABLE
+        )
     elif len(r) < 2:  # INV-SCOPE-2
         steady = measured(None, Unit.S, Scope.PROVE_STEADY, ref, NullReason.FEWER_THAN_TWO_PROOFS)
     else:
@@ -168,6 +169,35 @@ def derived(
     return out
 
 
+def _ratio(x: list[float], gpus: int) -> float:
+    return nonzero(x[0]) / nonzero(x[1])
+
+
+def _over(x: list[float], gpus: int) -> float:
+    return x[0] / nonzero(x[1])
+
+
+def _amortised(h: int) -> Callable[[list[float], int], float]:
+    def f(x: list[float], gpus: int) -> float:
+        return x[0] / nonzero(nonzero(x[1]) / nonzero(x[2]) * h)
+
+    return f
+
+
+# Formula id -> evaluation over input values in `source.inputs` order (RFC-0004 catalogue).
+COMPUTE: dict[str, Callable[[list[float], int], float]] = {
+    "D-RATE-S": _ratio,
+    "D-SPT-S": _ratio,
+    "D-COST-1K-S": lambda x, gpus: x[0] * 1000 * gpus * x[1] / 3600,
+    "D-APT-S": lambda x, gpus: x[0] * x[1],
+    "D-COMMIT-AMORT-H1": _amortised(1),
+    "D-COMMIT-AMORT-H1000": _amortised(1000),
+    "D-BPT": _over,
+    "D-VSPT": _over,
+    "D-VSPT-1T": _over,
+}
+
+
 def derive_repetition(
     metrics: Mapping[str, QuantityTree],
     *,
@@ -184,54 +214,69 @@ def derive_repetition(
     the reference file, the workload record and run.json `proofs[0]`. Each formula is
     evaluated left to right as written in the RFC table (INV-DERIVE-5).
     """
-    v = harness_version
     out: dict[str, QuantityTree] = {}
 
     def metric(name: str) -> Input:
         return (f"{run_json}#/metrics/{name}", metrics.get(name) or out.get(name))
+
+    def put(name: str, formula: str, unit: Unit, scope: Scope | None, inputs: list[Input]) -> None:
+        compute = COMPUTE[formula]
+        out[name] = derived(
+            formula, harness_version, unit, scope, inputs, lambda x: compute(x, gpus)
+        )
 
     for scope in RATE_SCOPES:
         sec = metric(_SECONDS[scope])
         tok = metric(
             "tokens_covered_steady" if scope is Scope.PROVE_STEADY else "tokens_covered_total"
         )
-        out[f"rate_{scope}"] = derived(
-            "D-RATE-S", v, Unit.TOKEN_PER_S, scope, [tok, sec],
-            lambda x: nonzero(x[0]) / nonzero(x[1]),
-        )  # fmt: skip
-        out[f"seconds_per_token_{scope}"] = derived(
-            "D-SPT-S", v, Unit.S_PER_TOKEN, scope, [sec, tok],
-            lambda x: nonzero(x[0]) / nonzero(x[1]),
-        )  # fmt: skip
-        out[f"cost_per_1k_tokens_{scope}"] = derived(
-            "D-COST-1K-S", v, Unit.USD_PER_1K_TOKEN, scope,
+        put(f"rate_{scope}", "D-RATE-S", Unit.TOKEN_PER_S, scope, [tok, sec])
+        put(f"seconds_per_token_{scope}", "D-SPT-S", Unit.S_PER_TOKEN, scope, [sec, tok])
+        put(
+            f"cost_per_1k_tokens_{scope}",
+            "D-COST-1K-S",
+            Unit.USD_PER_1K_TOKEN,
+            scope,
             [metric(f"seconds_per_token_{scope}"), price],
-            lambda x: x[0] * 1000 * gpus * x[1] / 3600,
-        )  # fmt: skip
-        out[f"active_param_tokens_per_second_{scope}"] = derived(
-            "D-APT-S", v, Unit.PARAM_TOKEN_PER_S, scope,
-            [metric(f"rate_{scope}"), active_parameters], lambda x: x[0] * x[1],
-        )  # fmt: skip
+        )
+        put(
+            f"active_param_tokens_per_second_{scope}",
+            "D-APT-S",
+            Unit.PARAM_TOKEN_PER_S,
+            scope,
+            [metric(f"rate_{scope}"), active_parameters],
+        )
     commit = [metric("commit_seconds"), metric("tokens_covered_total"), metric("requests_count")]
     for h in (1, 1000):
-        out[f"commit_seconds_per_token_h{h}"] = derived(
-            f"D-COMMIT-AMORT-H{h}", v, Unit.S_PER_TOKEN, Scope.COMMIT, commit,
-            lambda x: x[0] / nonzero(nonzero(x[1]) / nonzero(x[2]) * h),  # noqa: B023 (called now)
-        )  # fmt: skip
+        put(
+            f"commit_seconds_per_token_h{h}",
+            f"D-COMMIT-AMORT-H{h}",
+            Unit.S_PER_TOKEN,
+            Scope.COMMIT,
+            commit,
+        )
     total = metric("tokens_covered_total")
-    out["proof_bytes_per_token"] = derived(
-        "D-BPT", v, Unit.B_PER_TOKEN, None, [metric("proof_bytes_total"), total],
-        lambda x: x[0] / nonzero(x[1]),
-    )  # fmt: skip
-    out["verify_seconds_per_token"] = derived(
-        "D-VSPT", v, Unit.S_PER_TOKEN, Scope.VERIFY, [metric("verify_seconds_total"), total],
-        lambda x: x[0] / nonzero(x[1]),
-    )  # fmt: skip
-    out["verify_single_thread_seconds_per_token"] = derived(
-        "D-VSPT-1T", v, Unit.S_PER_TOKEN, Scope.VERIFY_SINGLE_THREAD,
+    put(
+        "proof_bytes_per_token",
+        "D-BPT",
+        Unit.B_PER_TOKEN,
+        None,
+        [metric("proof_bytes_total"), total],
+    )
+    put(
+        "verify_seconds_per_token",
+        "D-VSPT",
+        Unit.S_PER_TOKEN,
+        Scope.VERIFY,
+        [metric("verify_seconds_total"), total],
+    )
+    put(
+        "verify_single_thread_seconds_per_token",
+        "D-VSPT-1T",
+        Unit.S_PER_TOKEN,
+        Scope.VERIFY_SINGLE_THREAD,
         [metric("verify_single_thread_seconds"), first_proof_tokens],
-        lambda x: x[0] / nonzero(x[1]),
-    )  # fmt: skip
+    )
     return out
 
 
@@ -288,8 +333,14 @@ def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> Q
             raise IProofsError(ErrorKind.INTERNAL, "D-STAT over no repetition at all")
         out = derived("D-STAT", version, unit, scope, [(r, None) for r in failed], lambda _: 0.0)
         out["null_reason"] = str(NullReason.STEP_FAILED)
-        out["stats"] = {"n": 0, "n_failed": len(failed), "mean": None, "stdev": None,
-                        "min": None, "max": None}  # fmt: skip
+        out["stats"] = {
+            "n": 0,
+            "n_failed": len(failed),
+            "mean": None,
+            "stdev": None,
+            "min": None,
+            "max": None,
+        }
         return out
     mean = statistics.mean(values)
     stats = {
@@ -368,4 +419,40 @@ def honest_verdict_failure(verdicts: Mapping[str, str]) -> IProofsError | None:
         return None
     return IProofsError(
         ErrorKind.ADAPTER, f"INV-TOK-2: honest proofs not accepted: {bad}", step="verify"
+    )
+
+
+# ---------------------------------------------------------------- recompute (gate G4)
+
+
+class UnknownFormula(Exception):
+    """A derived quantity names a formula id that is not in the registry (DER-2)."""
+
+
+def formula_of(q: Mapping[str, object]) -> tuple[str, str]:
+    """(formula id, harness version) from `source.ref` = `derive:<id>@<version>`."""
+    source = q["source"]
+    assert isinstance(source, Mapping)
+    ref = str(source["ref"])
+    if not ref.startswith("derive:") or "@" not in ref:
+        raise UnknownFormula(ref)
+    formula, version = ref.removeprefix("derive:").split("@", 1)
+    return formula, version
+
+
+def recompute(q: Mapping[str, object], inputs: Sequence[Input], gpus: int) -> QuantityTree:
+    """Re-evaluate a stored derived quantity from its resolved inputs, in stored order."""
+    formula, version = formula_of(q)
+    scope = None if q["scope"] is None else Scope(str(q["scope"]))
+    if formula == "D-STAT":
+        stats = q.get("stats")
+        if isinstance(stats, Mapping) and stats["n"] == 0:
+            return statistic([], [ref for ref, _ in inputs], version)
+        n_failed = int(stats["n_failed"]) if isinstance(stats, Mapping) else 0
+        return statistic(inputs, [f"failed:{i}" for i in range(n_failed)], version)
+    if formula not in COMPUTE:
+        raise UnknownFormula(formula)
+    compute = COMPUTE[formula]
+    return derived(
+        formula, version, Unit(str(q["unit"])), scope, inputs, lambda x: compute(x, gpus)
     )
