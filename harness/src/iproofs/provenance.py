@@ -8,7 +8,8 @@ import os
 import re
 import shutil
 import subprocess
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -325,3 +326,93 @@ def _nvml(index: int) -> dict[str, object] | None:
         }
     except Exception:
         return None
+
+
+# ---------------------------------------------------------------- CPU selection (RFC-0006)
+
+
+@dataclass(frozen=True, slots=True)
+class Cpu:
+    id: int
+    package: int
+    core: int
+    node: int
+
+
+@dataclass(frozen=True, slots=True)
+class Topology:
+    cpus: tuple[Cpu, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class CpuBinding:
+    prover: tuple[int, ...]
+    verifier: tuple[int, ...]
+    verifier_1: tuple[int, ...]
+    mems: tuple[int, ...]
+
+    def roles(self) -> dict[str, list[int]]:
+        """The machine record's `cpu.bound_*` lists, keyed by role."""
+        return {
+            "prover": list(self.prover),
+            "verifier": list(self.verifier),
+            "verifier_1": list(self.verifier_1),
+        }
+
+
+def _ranges(text: str) -> list[int]:
+    out: list[int] = []
+    for part in filter(None, text.strip().split(",")):
+        low, _, high = part.partition("-")
+        out += range(int(low), int(high or low) + 1)
+    return out
+
+
+def read_topology(root: Path = Path("/")) -> Topology:
+    """`/sys/devices/system/cpu/cpuN/topology` and `/sys/devices/system/node/nodeK/cpulist`."""
+    node_of: dict[int, int] = {}
+    for cpulist in (root / "sys/devices/system/node").glob("node[0-9]*/cpulist"):
+        node = int(cpulist.parent.name.removeprefix("node"))
+        node_of |= dict.fromkeys(_ranges(cpulist.read_text()), node)
+    cpus = []
+    for topo in (root / "sys/devices/system/cpu").glob("cpu[0-9]*/topology"):
+        cpu_id = int(topo.parent.name.removeprefix("cpu"))
+        package = int((topo / "physical_package_id").read_text())
+        core = int((topo / "core_id").read_text())
+        cpus.append(Cpu(cpu_id, package, core, node_of.get(cpu_id, 0)))
+    return Topology(tuple(sorted(cpus, key=lambda c: c.id)))
+
+
+def _ordered(cpus: Iterable[Cpu]) -> list[int]:
+    """One logical CPU per physical core first (lowest id of each core), then SMT siblings."""
+    groups: dict[tuple[int, int], list[int]] = {}
+    for c in sorted(cpus, key=lambda c: c.id):
+        groups.setdefault((c.package, c.core), []).append(c.id)
+    cores = sorted(groups.values(), key=min)
+    return [g[0] for g in cores] + [cpu for g in cores for cpu in g[1:]]
+
+
+def select_cpus(
+    topology: Topology, gpu_numa_node: int, n_prover: int = 24, n_verifier: int = 8
+) -> CpuBinding:
+    """RFC-0006 §CPU and memory selection, a pure function of the topology."""
+    on_node = [c for c in topology.cpus if c.node == gpu_numa_node]
+    ordered = _ordered(on_node)
+    if len(ordered) < n_prover:
+        raise IProofsError(
+            ErrorKind.ENVIRONMENT,
+            f"not enough CPUs on GPU NUMA node {gpu_numa_node}: {len(ordered)} < {n_prover}"
+            " (PC-CPU-NUMA)",
+        )
+    prover = ordered[:n_prover]
+    taken = set(prover)
+    rest = [c for c in topology.cpus if c.id not in taken]
+    nodes = sorted({c.node for c in rest}, key=lambda n: (n != gpu_numa_node, n))
+    others = [cpu for n in nodes for cpu in _ordered(c for c in rest if c.node == n)]
+    if len(others) < n_verifier:
+        raise IProofsError(
+            ErrorKind.ENVIRONMENT,
+            f"not enough CPUs for verifier emulation: {len(others)} < {n_verifier}",
+        )
+    verifier = others[:n_verifier]
+    return CpuBinding(tuple(prover), tuple(verifier), tuple(verifier[:1]), (gpu_numa_node,))
