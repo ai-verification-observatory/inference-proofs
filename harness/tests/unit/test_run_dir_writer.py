@@ -80,8 +80,11 @@ def test_digests_txt_sorted(tmp_path: Path) -> None:
     assert lines == sorted(lines, key=str.encode)
     manifest = json.loads((run_dir / "manifest.json").read_text())
     expected = sorted(f"proofs/{p['proof_id']}\t{p['digest']}" for p in manifest["proofs"])
-    assert lines == expected
-    assert len(lines) == 6
+    assert [line for line in lines if line.startswith("proofs/")] == expected
+    assert len(expected) == 6
+    logs = [line.split("\t")[0] for line in lines if not line.startswith("proofs/")]
+    assert "logs/harness.jsonl" in logs  # every log's digest before any truncation (RFC-0009)
+    assert all(name.startswith("logs/") for name in logs)
 
 
 def test_verifier_record_per_proof(tmp_path: Path) -> None:

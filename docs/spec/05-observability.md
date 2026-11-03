@@ -17,7 +17,7 @@ Every job writes, inside its run directory:
 | `logs/commands.jsonl` | upstream command lines the adapter started ([RFC-0005 §Command log](../../rfcs/0005-adapter-contract.md#command-log)) | adapter, copied by harness |
 | `logs/invalid/` | documents that failed validation, kept for diagnosis | harness |
 
-Size caps (INV-OBS-1): each log file is capped at 1 MiB, keeping the first 256 KiB and the last 768 KiB with the marker line `[iproofs: <k> bytes omitted, full digest in digests.txt]` between them; the whole run directory is capped at 10 MiB, enforced by cutting the largest adapter output files further first ([RFC-0009 §Storage](../../rfcs/0009-results-and-publication.md#storage)). The elided byte count is recorded in the `log.truncated` event.
+Size caps (INV-OBS-1): each log file is capped at 1 MiB, keeping the first 256 KiB and the last 768 KiB with the marker line `[iproofs: <k> bytes omitted, full digest in digests.txt]` between them; the whole run directory is capped at 10 MiB, enforced by cutting the largest adapter output files further first ([RFC-0009 §Storage](../../rfcs/0009-results-and-publication.md#storage)). Adapter output is read through bounded captures (`iproofs.measure.Capture`): a runaway adapter fills neither memory nor disk, and the digest of each whole stream, before redaction and truncation, goes into `digests.txt` as `logs/<step>.<stream>`; every other log file's digest is recorded before any cut. The elided byte count is recorded in the `log.truncated` event. `iproofs controls RUN_DIR` adds its calls' output as `logs/controls-verify.*`.
 
 ## Event format
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from iproofs.adapter import InProcessRunner
+from iproofs.log import JsonlLogger
 from iproofs.log.patterns import IPV4_ALLOWED, PATTERNS, is_ipv6
 from iproofs.runner import Job, JobSpec, Runner, RunnerIdentity
 from iproofs.schema import SchemaRegistry
@@ -24,9 +25,9 @@ class Capturing(Runner):
 
     job: Job
 
-    def _write(self, job: Job) -> Path:
+    def _write(self, job: Job, log: JsonlLogger | None = None) -> Path:
         self.job = job
-        return super()._write(job)
+        return super()._write(job, log)
 
 
 @pytest.fixture(scope="module")
