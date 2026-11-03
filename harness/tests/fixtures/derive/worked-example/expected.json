@@ -1,0 +1,15 @@
+{
+  "prove_steady_seconds": 40,
+  "prove_session_seconds": 62.5,
+  "whole_wall_seconds": 125,
+  "rate_prove.steady": 100,
+  "rate_prove.session": 80,
+  "rate_whole_wall": 40,
+  "seconds_per_token_prove.steady": 0.01,
+  "cost_per_1k_tokens_prove.steady": 0.01,
+  "commit_seconds_per_token_h1": 0.05,
+  "commit_seconds_per_token_h1000": 0.00005,
+  "active_param_tokens_per_second_prove.steady": 8.0e11,
+  "proof_bytes_per_token": 2000,
+  "verify_seconds_per_token": 0.005
+}

@@ -1,0 +1,15 @@
+{
+  "comment": "RFC-0004 worked example; seconds from commit start; test fixture, not a result",
+  "gpus": 1,
+  "price_usd_per_gpu_hour": 3.6,
+  "active_parameters_per_token": 8.0e9,
+  "events_s": {"commit.start": 0, "commit.end": 50, "prove.start": 62.5, "prove.end": 125.5},
+  "releases_s": [85, 95, 105, 115, 125],
+  "metrics": {
+    "tokens_covered_total": 5000,
+    "tokens_covered_steady": 4000,
+    "requests_count": 5,
+    "proof_bytes_total": 10000000,
+    "verify_seconds_total": 25
+  }
+}
