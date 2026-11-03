@@ -33,7 +33,7 @@ Every cell above comes from the two repositories at the stated pins. Different m
 
 A neutral, open, reproducible benchmark for provable inference: the same models, the same reference hardware, the same timing rules and an explicit statement of what each proof claims, maintained by the teams that build the provers and the people who would rely on them.
 
-The model is Ethproofs, which made zkVM provers for Ethereum blocks comparable by fixing the workload (real blocks), publishing per-prover rows (hardware, latency, cost) and letting a credible convener publish targets that teams then raced to meet. Two lessons carry over: a fixed workload makes rows comparable, and targets set by users beat rankings set by the benchmark. One lesson does not: Ethereum blocks are one well-defined statement. Inference proofs make different statements, so the claim has to travel with every number.
+The model is Ethproofs, which made zkVM provers for Ethereum blocks comparable by fixing the workload (real blocks), publishing per-prover rows (hardware, latency, cost) and letting a credible convener publish targets that teams then raced to meet. Two lessons carry over: a fixed workload makes rows comparable, and targets set by users serve readers better than rankings set by the benchmark. One lesson does not: Ethereum blocks are one well-defined statement. Inference proofs make different statements, so the claim has to travel with every number.
 
 ## 3. Users
 
@@ -96,7 +96,7 @@ What v0.1 does not do: compare SASH and FlashProve on one model. Neither support
 
 - **N1 Reproducibility.** Every run is reproducible on rented commodity hardware that no maintainer controls.
 - **N2 Transparency.** Raw outputs, logs and verifier transcripts are kept, except proofs above a size cap, which are kept by digest with one archived proof per configuration.
-- **N3 Honesty of numbers.** Ranges and sample sizes, never a single best run. Failed runs are recorded, not dropped.
+- **N3 Honesty of numbers.** Ranges and sample sizes, never a single hand-picked run. Failed runs are recorded, not dropped.
 - **N4 Neutral funding.** Any sponsor of compute is disclosed on the site and in every report, separately from conflict notes, and buys no editorial control.
 - **N5 Licences.** Code Apache-2.0; specifications, data and reports CC BY 4.0. DCO sign-off on contributions.
 
