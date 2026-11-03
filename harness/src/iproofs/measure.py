@@ -20,6 +20,8 @@ from typing import Literal
 from iproofs.derive import span_seconds
 from iproofs.errors import ErrorKind, IProofsError
 
+KILL_WAIT_S = 30  # RFC-0010 §Timeouts: wait for the killed container to exit
+
 __all__ = [
     "CallTiming",
     "EventLog",
@@ -67,17 +69,45 @@ def timed_call(
         on_started(cid)  # samplers attach to the container's cgroup here (RFC-0011)
         stdout, stderr = proc.communicate(timeout=timeout_s)
     except subprocess.TimeoutExpired as e:
-        subprocess.run(["docker", "kill", cid], capture_output=True, check=False)
-        stdout, stderr = proc.communicate()
+        subprocess.run(
+            ["docker", "kill", "--signal", "KILL", cid], capture_output=True, check=False
+        )
+        try:
+            stdout, stderr = proc.communicate(timeout=KILL_WAIT_S)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            stdout, stderr = proc.communicate()
+        _remove(cid)
         raise IProofsError(
             ErrorKind.TIMEOUT,
             f"step exceeded {timeout_s} s",
             last_lines=tuple(stderr.splitlines()[-50:]),
         ) from e
-    finally:
-        end = clock()
-        subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
+    end = clock()
+    oom = proc.returncode != 0 and _oom_killed(cid)
+    _remove(cid)
+    if oom:
+        raise IProofsError(
+            ErrorKind.RESOURCE,
+            "container killed: out of memory",
+            exit_code=proc.returncode,
+            last_lines=tuple(stderr.splitlines()[-50:]),
+        )
     return CallTiming(start, end, proc.returncode, cid, stdout, stderr)
+
+
+def _remove(cid: str) -> None:
+    subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
+
+
+def _oom_killed(cid: str) -> bool:
+    inspect = subprocess.run(
+        ["docker", "inspect", "--format", "{{.State.OOMKilled}}", cid],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return inspect.stdout.strip() == "true"
 
 
 @dataclass(slots=True)

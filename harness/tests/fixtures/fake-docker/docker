@@ -5,6 +5,7 @@ IPROOFS_IO and IPROOFS_MODELS. FAKE_DOCKER_CREATE_DELAY_S makes `create` slow.""
 
 import json
 import os
+import signal
 import subprocess
 import sys
 import time
@@ -25,6 +26,11 @@ if cmd == "create":
     print(cid)
 elif cmd == "start":
     cid = args[-1]
+    (STATE / f"{cid}.pid").write_text(str(os.getpid()))
+    time.sleep(float(os.environ.get("FAKE_DOCKER_START_DELAY_S", "0")))
+    if os.environ.get("FAKE_DOCKER_OOM") == "1":
+        (STATE / f"{cid}.oom").write_text("true")
+        sys.exit(137)
     state = json.loads((STATE / f"{cid}.json").read_text())
     env = {**os.environ, "IPROOFS_IO": state["mounts"]["/io"]}
     if "/models" in state["mounts"]:
@@ -32,8 +38,15 @@ elif cmd == "start":
     done = subprocess.run([sys.executable, os.environ["FAKE_DOCKER_ENTRYPOINT"], *state["argv"]],
                           env=env, check=False)
     sys.exit(done.returncode)
-elif cmd in {"kill", "rm"}:
-    for path in STATE.glob(f"{args[-1]}.json"):
+elif cmd == "inspect":
+    print("true" if (STATE / f"{args[-1]}.oom").exists() else "false")
+elif cmd == "kill":
+    (STATE / "killed").write_text(" ".join(args))
+    pid_file = STATE / f"{args[-1]}.pid"
+    if pid_file.exists():
+        os.kill(int(pid_file.read_text()), signal.SIGKILL)
+elif cmd == "rm":
+    for path in STATE.glob(f"{args[-1]}.*"):
         path.unlink()
 else:
     sys.exit(f"fake docker: unsupported command {cmd}")

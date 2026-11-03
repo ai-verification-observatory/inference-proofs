@@ -54,9 +54,9 @@ Each row names a failure, how it is detected, what the system does, and how it i
 | 20 | Proof part above 64 GiB or more than 10,000 parts | size and count check | run failed | `adapter` |
 | 21 | Tokens covered inconsistent with the shape | INV-ADAPTER-7 | run failed | `adapter` |
 | 22 | Leftover `.tmp-*` proof directory after `prove` | directory scan | ignored, not counted | warning event `proof.tmp_left` |
-| 23 | Step exceeds its wall limit | harness timer | `docker kill`, run failed, no retry | `timeout` |
-| 24 | Container OOM killed | `docker inspect` `State.OOMKilled` | run failed | `resource` |
-| 25 | Disk full while writing proofs or records | `ENOSPC` | run failed; staging kept for diagnosis | `resource` |
+| 23 | Step exceeds its wall limit | harness timer (`iproofs.measure.timed_call`) | `docker kill --signal KILL`, wait up to 30 s, container removed, run failed, `step.timeout` event, no retry | `timeout` |
+| 24 | Container OOM killed | `docker inspect` `State.OOMKilled` after a non-zero exit (`timed_call`) | run failed, `step.oom` event | `resource` |
+| 25 | Disk full while writing proofs or records | `OSError` with `ENOSPC` in a job state (`Runner.run`) | run failed; staging kept for diagnosis | `resource` |
 | 26 | NVML sample gap above 150 ms | sampler timestamps | count the gap; above 5 % gaps mark GPU metrics `degraded: true` | quantity flag, event `sampler.gap` |
 | 27 | NVML unavailable on a GPU profile | NVML init failure | stop before the job | `environment` |
 | 28 | cgroup files of the container unreadable | read error | host memory and CPU time null with `null_reason: "missing_input"` | event `sampler.cgroup_unavailable` |

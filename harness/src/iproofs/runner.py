@@ -5,6 +5,7 @@ reaches `written`; a failed job is written with its failure record, never droppe
 (INV-RUN-4, AGENTS.md rule 5).
 """
 
+import errno
 import json
 import os
 import shutil
@@ -257,6 +258,10 @@ class Runner:
                     actions[state](job)
                 except IProofsError as e:
                     job.failure = self.redact.failure(Failure.from_error(e, step=state))
+                except OSError as e:
+                    if e.errno != errno.ENOSPC:
+                        raise
+                    job.failure = Failure.build(ErrorKind.RESOURCE, state, "disk full (ENOSPC)")
                 except Exception:  # a harness bug is still recorded (INV-RUN-4)
                     text = self.redact(traceback.format_exc())
                     job.failure = Failure.build(
@@ -266,6 +271,11 @@ class Runner:
                         last_lines=text.splitlines(),
                     )
                 if job.failure is not None:
+                    if job.failure.kind is ErrorKind.TIMEOUT:
+                        timeout = job.system.timeout(state) if job.system else None
+                        log.log(Event.STEP_TIMEOUT, job=run_id, step=state, timeout_s=timeout)
+                    elif job.failure.kind is ErrorKind.RESOURCE:
+                        log.log(Event.STEP_OOM, job=run_id, step=state)
                     log.log(
                         Event.JOB_FAILED,
                         job=run_id,
@@ -1056,3 +1066,36 @@ def _alive(pid: int) -> bool:
     except PermissionError:
         return True  # exists, owned by another user
     return True
+
+
+FETCH_BACKOFF_S = (2.0, 8.0, 32.0)
+FETCH_ATTEMPTS = 3
+
+
+def retry_fetch[T](
+    op: Callable[[], T],
+    what: str,
+    *,
+    log: JsonlLogger | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> T:
+    """RFC-0010 §Retry policy: only fetches retry, up to 3 attempts, outside every timed scope.
+
+    The wait before attempt n + 1 is FETCH_BACKOFF_S[n - 1]; with three attempts the waits are
+    2 s and 8 s. Errors of any other kind are raised at once.
+    """
+    for attempt in range(1, FETCH_ATTEMPTS + 1):
+        try:
+            return op()
+        except IProofsError as e:
+            if e.kind is not ErrorKind.FETCH:
+                raise
+            if attempt == FETCH_ATTEMPTS:
+                if log:
+                    log.log(Event.FETCH_FAILED, what=what, attempts=attempt)
+                raise
+            backoff = FETCH_BACKOFF_S[attempt - 1]
+            if log:
+                log.log(Event.FETCH_ATTEMPT, what=what, attempt=attempt, backoff_s=backoff)
+            sleep(backoff)
+    raise AssertionError("unreachable")
