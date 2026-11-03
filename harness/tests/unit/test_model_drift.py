@@ -43,9 +43,7 @@ def properties(
     return props, required
 
 
-def drift(
-    schemas: dict[str, dict[str, Any]], table: dict[tuple[str, str], type[Any]]
-) -> list[str]:
+def drift(schemas: dict[str, dict[str, Any]], table: dict[tuple[str, str], type[Any]]) -> list[str]:
     problems = []
     for (sid, pointer), cls in table.items():
         props, required = properties(schemas, sid, resolve(schemas, sid, pointer))
