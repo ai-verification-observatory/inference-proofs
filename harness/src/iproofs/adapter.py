@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.measure import timed_call
 from iproofs.model import AdapterOut, System, load
 from iproofs.schema import SchemaRegistry
 
@@ -222,7 +223,8 @@ def _tail(text: str) -> tuple[str, ...]:
 
 
 class DockerRunner:
-    """Runs adapter calls with the docker CLI; the only place a container is started."""
+    """Runs adapter calls with the docker CLI; the only place a container is started.
+    Timing goes through `iproofs.measure.timed_call` (RFC-0011 T-1, INV-ARCH-4)."""
 
     def __init__(self, registry: SchemaRegistry, clock: Callable[[], int] = time.monotonic_ns):
         self.registry = registry
@@ -251,38 +253,15 @@ class DockerRunner:
             mems=mems,
             memory=memory,
         )
-        created = subprocess.run(argv, capture_output=True, text=True, check=False)
-        if created.returncode != 0:
-            raise IProofsError(
-                ErrorKind.ENVIRONMENT,
-                f"docker create failed: {created.stderr}",
-                step=subcommand,
-                exit_code=created.returncode,
-            )
-        cid = created.stdout.strip()  # host-local id: used here only, never recorded
-        start = self.clock()
         try:
-            done = subprocess.run(
-                ["docker", "start", "--attach", cid],
-                capture_output=True,
-                text=True,
-                timeout=timeout_s,
-                check=False,
-            )
-        except subprocess.TimeoutExpired as e:
-            subprocess.run(["docker", "kill", cid], capture_output=True, check=False)
-            stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else (e.stderr or "")
-            raise IProofsError(
-                ErrorKind.TIMEOUT,
-                f"{subcommand} exceeded {timeout_s} s",
-                step=subcommand,
-                last_lines=_tail(stderr),
-            ) from e
-        finally:
-            end = self.clock()
-            subprocess.run(["docker", "rm", "-f", cid], capture_output=True, check=False)
-        out = read_out(IoDirs(io_dir), self.registry, subcommand) if done.returncode == 0 else None
-        return StepResult(subcommand, start, end, done.returncode, out, _tail(done.stderr))
+            call = timed_call(argv, timeout_s, clock=self.clock)
+        except IProofsError as e:
+            e.step = subcommand
+            raise
+        out = read_out(IoDirs(io_dir), self.registry, subcommand) if call.exit_code == 0 else None
+        return StepResult(
+            subcommand, call.start_ns, call.end_ns, call.exit_code, out, _tail(call.stderr)
+        )
 
 
 class InProcessRunner:

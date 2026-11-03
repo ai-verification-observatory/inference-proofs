@@ -69,7 +69,7 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 3 | `iproofs.provenance` | digests (files, models, proofs), pin checks, machine record | layers 0 to 2 |
 | 3 | `iproofs.derive` | derived metrics and statistics from stored raw quantities ([RFC-0004](../../rfcs/0004-metrics-timing-grades.md)) | layers 0 to 2 |
 | 4 | `iproofs.workloads` | resolve workload, fetch model, materialise prompts | layers 0 to 3 |
-| 4 | `iproofs.adapter` | job.json and out.json, `docker run` argv, io dirs, path safety, `ContainerRunner` implementations | layers 0 to 3 |
+| 4 | `iproofs.adapter` | job.json and out.json, `docker run` argv, io dirs, path safety, `ContainerRunner` implementations | layers 0 to 3, and `iproofs.measure` (a container call is timed where it runs, RFC-0011 T-1) |
 | 4 | `iproofs.measure` | monotonic clock, NVML sampler, cgroup sampler, release watcher, proof sizes ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md)) | layers 0 to 3 |
 | 4 | `iproofs.reference` | pairing reference rows with prover rows for overhead ([RFC-0015](../../rfcs/0015-reference-rows.md)) | layers 0 to 3 |
 | 5 | `iproofs.controls` | mutations, honest twins, classification, `controls.json` ([RFC-0008](../../rfcs/0008-negative-controls.md)) | layers 0 to 4 |
@@ -83,7 +83,7 @@ Boundary rules:
 
 - **INV-ARCH-1:** no cycles and no upward imports, as above.
 - **INV-ARCH-2:** only `iproofs.serialize` writes JSON or YAML files; every other module calls it.
-- **INV-ARCH-3:** only `iproofs.adapter` builds container command lines and starts containers.
+- **INV-ARCH-3:** only `iproofs.adapter` builds container command lines; `iproofs.measure.timed_call` is the one place that starts, kills and removes the container, because the call is timed where it runs (RFC-0011 T-1).
 - **INV-ARCH-4:** only `iproofs.measure` reads clocks for durations, NVML or cgroup files; the runner receives `StepResult` values.
 - **INV-ARCH-5:** `iproofs.derive` is a pure function of stored documents: no clock, no file system writes, no network. CI can therefore recompute every derived number on any machine.
 - **INV-ARCH-6:** optional dependencies are imported lazily inside the modules that need them (`nvidia-ml-py` in `measure`, `huggingface_hub` and `tokenizers` in `workloads`); `iproofs validate`, `derive`, `release` and `site` run with the base install only.

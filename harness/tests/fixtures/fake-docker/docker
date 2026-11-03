@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""A stand-in for the docker CLI in tests: `create` records the mounts, `start --attach` runs
+the adapter entrypoint named by FAKE_DOCKER_ENTRYPOINT with /io and /models mapped through
+IPROOFS_IO and IPROOFS_MODELS. FAKE_DOCKER_CREATE_DELAY_S makes `create` slow."""
+
+import json
+import os
+import subprocess
+import sys
+import time
+import uuid
+from pathlib import Path
+
+STATE = Path(os.environ["FAKE_DOCKER_STATE"])
+cmd, *args = sys.argv[1:]
+if cmd == "create":
+    time.sleep(float(os.environ.get("FAKE_DOCKER_CREATE_DELAY_S", "0")))
+    mounts = {}
+    for i, a in enumerate(args):
+        if a == "-v":
+            host, target, _ = args[i + 1].split(":")
+            mounts[target] = host
+    cid = uuid.uuid4().hex + uuid.uuid4().hex[:32]
+    (STATE / f"{cid}.json").write_text(json.dumps({"mounts": mounts, "argv": args[-3:]}))
+    print(cid)
+elif cmd == "start":
+    cid = args[-1]
+    state = json.loads((STATE / f"{cid}.json").read_text())
+    env = {**os.environ, "IPROOFS_IO": state["mounts"]["/io"]}
+    if "/models" in state["mounts"]:
+        env["IPROOFS_MODELS"] = state["mounts"]["/models"]
+    done = subprocess.run([sys.executable, os.environ["FAKE_DOCKER_ENTRYPOINT"], *state["argv"]],
+                          env=env, check=False)
+    sys.exit(done.returncode)
+elif cmd in {"kill", "rm"}:
+    for path in STATE.glob(f"{args[-1]}.json"):
+        path.unlink()
+else:
+    sys.exit(f"fake docker: unsupported command {cmd}")
