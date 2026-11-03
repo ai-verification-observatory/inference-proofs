@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import Binding, ClaimCard, ClaimRef, System, load
+from iproofs.model import Binding, ClaimCard, ClaimRef, System, card_path, load
 from iproofs.schema import SchemaRegistry, parse_tree
 
 NOT_STATED = "not stated"
@@ -67,13 +67,6 @@ def _at(tree: Mapping[str, object], path: str) -> object:
             return None
         node = node[part]
     return node
-
-
-def card_path(root: Path, system: str, configuration: str) -> Path | None:
-    """The card for a configuration: `claims/<configuration>.yaml`, else a single `claim.yaml`."""
-    multi = root / "systems" / system / "claims" / f"{configuration}.yaml"
-    single = root / "systems" / system / "claim.yaml"
-    return multi if multi.is_file() else single if single.is_file() else None
 
 
 def check_claim(path: Path, root: Path, registry: SchemaRegistry) -> list[Finding]:

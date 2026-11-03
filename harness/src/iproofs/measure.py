@@ -190,7 +190,14 @@ class ReleaseWatcher:
             (Release(pid, ns) for pid, (ns, _) in self._releases.items()),
             key=lambda r: (r.mono_ns, r.proof_id),
         )
-        late = [r.proof_id for r in releases if call_end_ns is not None and r.mono_ns > call_end_ns]
+        # A release is observed up to one poll interval (or one inotify read) after it happens,
+        # so only observations clearly after the call ended count as W-5 violations.
+        lag_ns = int(max(2 * self.interval, 0.05) * 1e9)
+        late = [
+            r.proof_id
+            for r in releases
+            if call_end_ns is not None and r.mono_ns > call_end_ns + lag_ns
+        ]
         if late:
             raise IProofsError(
                 ErrorKind.ADAPTER, f"W-5: proofs released after prove exited: {late}", step="prove"

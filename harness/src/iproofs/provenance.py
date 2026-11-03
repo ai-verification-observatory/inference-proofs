@@ -5,7 +5,8 @@ Digest byte definitions are normative in RFC-0012 §Digests.
 
 import hashlib
 import re
-from collections.abc import Mapping
+import subprocess
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
@@ -81,3 +82,31 @@ def corpus_digest(entries: Mapping[str, Path]) -> str:
 
 def prompt_set_digest(prompts_jsonl: Path) -> str:
     return file_digest(prompts_jsonl)
+
+
+# ---------------------------------------------------------------- git state (RFC-0014)
+
+
+def git_state(root: Path, paths: Sequence[str] = ()) -> tuple[str, bool]:
+    """(HEAD commit, dirty) of the checkout; `paths` limits the dirty check."""
+    try:
+        head = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "HEAD"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        status = subprocess.run(
+            ["git", "-C", str(root), "status", "--porcelain", "--", *paths],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as e:
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"{root} is not a git checkout") from e
+    return head, bool(status.strip())
+
+
+def file_records(paths: Sequence[Path]) -> list[dict[str, object]]:
+    """`{name, digest, bytes}` per file, as manifest.json lists commitment and proof files."""
+    return [{"name": p.name, "digest": file_digest(p), "bytes": p.stat().st_size} for p in paths]

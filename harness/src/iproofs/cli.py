@@ -221,7 +221,13 @@ def run(args: argparse.Namespace) -> int:
     from iproofs.workloads import load_workload  # noqa: PLC0415
 
     wl = load_workload(args.workload, root=root, registry=registry)
-    runner = Runner(containers, root=root, registry=registry, image=image)  # type: ignore[arg-type]
+    runner = Runner(
+        containers,
+        root=root,
+        registry=registry,
+        image=image,  # type: ignore[arg-type]
+        provider=args.provider or "undeclared",
+    )
     spec = JobSpec(
         args.system,
         args.workload,

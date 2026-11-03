@@ -100,7 +100,7 @@ def test_release_after_call_exit_is_adapter_error(tmp_path: Path) -> None:
     w = ReleaseWatcher(tmp_path, force_poll=True)
     w.start()
     call_end = time.monotonic_ns()
-    time.sleep(0.03)
+    time.sleep(0.2)  # well beyond the observation lag allowed for polling
     release(tmp_path, "late")
     time.sleep(0.03)
     with pytest.raises(IProofsError, match="W-5") as e:
@@ -114,3 +114,12 @@ def test_tmp_left_listed(tmp_path: Path) -> None:
     (tmp_path / ".tmp-req-9").mkdir()
     w.stop()
     assert w.tmp_left() == [".tmp-req-9"]
+
+
+def test_release_seen_just_after_exit_is_not_late(tmp_path: Path) -> None:
+    """A fast adapter's proofs may first be observed just after it exits (poll lag)."""
+    w = ReleaseWatcher(tmp_path, poll_interval_s=5.0, force_poll=True)
+    w.start()
+    release(tmp_path, "req-0")
+    call_end = time.monotonic_ns()
+    assert [r.proof_id for r in w.stop(call_end_ns=call_end)] == ["req-0"]
