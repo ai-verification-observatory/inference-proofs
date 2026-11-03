@@ -1,4 +1,5 @@
-# RFC-0013 §CI workflow structure. Gates G2 to G12 add their jobs as they land.
+# RFC-0013 §CI workflow structure. Each job's hard timeout is twice its docs/spec/08 target,
+# and each job writes its wall time to the job summary.
 name: ci
 
 on:
@@ -16,8 +17,9 @@ concurrency:
 jobs:
   lint-and-types:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20  # twice its target (docs/spec/08 §When a budget is exceeded)
     steps:
+      - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -28,10 +30,14 @@ jobs:
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy --strict harness/src/iproofs harness/tests
+      - name: wall time to the job summary
+        if: always()
+        run: |
+          echo "lint-and-types: $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 20 min, twice B-CI-TOTAL, 10 min; no gate-specific target)" >> "$GITHUB_STEP_SUMMARY"
 
   tests:
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 6  # twice its target (docs/spec/08 §When a budget is exceeded)
     strategy:
       fail-fast: false
       matrix:
@@ -39,6 +45,7 @@ jobs:
     env:
       HYPOTHESIS_PROFILE: ci
     steps:
+      - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -53,12 +60,17 @@ jobs:
           .venv/bin/iproofs --help > /dev/null
           ms=$(( ($(date +%s%N) - start) / 1000000 ))
           echo "iproofs --help cold start on Python ${{ matrix.python }}: ${ms} ms (budget B-CLI-START: 500 ms, a target)" >> "$GITHUB_STEP_SUMMARY"
+      - name: wall time to the job summary
+        if: always()
+        run: |
+          echo "tests (Python ${{ matrix.python }}): $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 6 min, twice B-CI-UNIT, 3 min)" >> "$GITHUB_STEP_SUMMARY"
 
   validate:
     # Gates G2 to G5 (RFC-0013); APP-1 needs the base branch, so history is fetched in full.
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 20  # twice its target (docs/spec/08 §When a budget is exceeded)
     steps:
+      - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -75,13 +87,21 @@ jobs:
           if [ -n "${{ github.base_ref }}" ]; then
             uv run iproofs validate --all --changed-since "origin/${{ github.base_ref }}"
           fi
+      - name: tooling budgets on the synthetic tree (default branch, docs/spec/08)
+        if: github.event_name == 'push'
+        run: IPROOFS_BENCH=1 IPROOFS_BENCH_SUMMARY="$GITHUB_STEP_SUMMARY" uv run pytest harness/tests/bench -q
+      - name: wall time to the job summary
+        if: always()
+        run: |
+          echo "validate: $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 20 min, twice B-CI-TOTAL, 10 min; B-VAL-TREE is benchmarked below)" >> "$GITHUB_STEP_SUMMARY"
 
   dco:
     # Gate G11 (RFC-0013): every commit of the pull request signed off by its author.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 20  # twice its target (docs/spec/08 §When a budget is exceeded)
     steps:
+      - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -94,13 +114,18 @@ jobs:
         run: |
           range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
           uv run python -m iproofs.validate.dco "$range"
+      - name: wall time to the job summary
+        if: always()
+        run: |
+          echo "dco: $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 20 min, twice B-CI-TOTAL, 10 min; no gate-specific target)" >> "$GITHUB_STEP_SUMMARY"
 
   fake-e2e:
     # Gate G10 (RFC-0013): the fake systems end to end in real containers, CPU only. The
     # harness runs as root so it can give each job io dir to the adapter uid (RFC-0005).
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 4  # twice its target (docs/spec/08 §When a budget is exceeded)
     steps:
+      - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
@@ -114,3 +139,7 @@ jobs:
           start=$SECONDS
           sudo -E env "PATH=$PATH" .venv/bin/pytest harness/tests/integration -q -p no:cacheprovider -rs
           echo "fake-e2e on ubuntu-24.04: $((SECONDS - start)) s wall time, image builds included (budget B-CI-E2E: 120 s, a target)" >> "$GITHUB_STEP_SUMMARY"
+      - name: wall time to the job summary
+        if: always()
+        run: |
+          echo "fake-e2e: $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 4 min, twice B-CI-E2E, 2 min)" >> "$GITHUB_STEP_SUMMARY"
