@@ -431,7 +431,7 @@ def controls_document(
     }
 
 
-def run_shared_controls(
+def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
     proofs: Sequence[HonestProof],
     proof_dirs: Mapping[str, Path],
     commit: str,
@@ -441,8 +441,10 @@ def run_shared_controls(
     seed: str,
     verify: Verifier,
     work: Path,
+    check: Callable[[str], None] = lambda proof_id: None,
 ) -> list[dict[str, object]]:
-    """C1 to C8 over a run's honest proofs, each after its honest twins (RFC-0008).
+    """C1 to C8 over a run's honest proofs, each after its honest twins (RFC-0008). `check`
+    rechecks a proof's digest immediately before each control mutates it (RFC-0014).
 
     `vocab_size` and `batch_size` come from the workload record (RFC-0003).
     """
@@ -495,7 +497,19 @@ def run_shared_controls(
         "C7": (c7_calls, c7_twins),
         "C8": (lambda: [c8(target, commit, t_dir, work / "C8", seed)], twin(target)),
     }
-    return [control_record(cid, build, twins, verify) for cid, (build, twins) in builders.items()]
+
+    def checked(build: Callable[[], list[VerifyCall]]) -> Callable[[], list[VerifyCall]]:
+        def run() -> list[VerifyCall]:
+            for p in filter(None, (target, other)):
+                check(p.proof_id)
+            return build()
+
+        return run
+
+    return [
+        control_record(cid, checked(build), twins, verify)
+        for cid, (build, twins) in builders.items()
+    ]
 
 
 # ---------------------------------------------------------------- perturbed weights (C3, P1)

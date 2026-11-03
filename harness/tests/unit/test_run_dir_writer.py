@@ -84,7 +84,7 @@ def test_digests_txt_sorted(tmp_path: Path) -> None:
     assert len(expected) == 6
     logs = [line.split("\t")[0] for line in lines if not line.startswith("proofs/")]
     assert "logs/harness.jsonl" in logs  # every log's digest before any truncation (RFC-0009)
-    assert all(name.startswith("logs/") for name in logs)
+    assert all(name.startswith(("logs/", "archive/")) for name in logs)
 
 
 def test_verifier_record_per_proof(tmp_path: Path) -> None:

@@ -32,6 +32,8 @@ site/_build/
 results/**/.staging-*/
 results/.runner.lock
 results/.selftest.json
+# proof archives kept on the runner until uploaded (RFC-0014, RFC-0009 Q1)
+results/.archive/
 # job io directories kept with --keep-io hold proof bytes (RFC-0009: never committed)
 results/**/io/
 
