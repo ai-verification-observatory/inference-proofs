@@ -1,0 +1,25 @@
+{
+  "contract": "adapter/1",
+  "phases": [
+    {
+      "name": "Witness",
+      "seconds": 1
+    }
+  ],
+  "proofs": [
+    {
+      "claimed_output": [
+        4
+      ],
+      "parts": [
+        "body.bin",
+        "tag.bin"
+      ],
+      "proof_id": "req-0",
+      "request_index": 0
+    }
+  ],
+  "schema": "adapter-out/1",
+  "subcommand": "prove",
+  "warnings": []
+}

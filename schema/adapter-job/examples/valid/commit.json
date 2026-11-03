@@ -1,0 +1,19 @@
+{
+  "contract": "adapter/1",
+  "control": false,
+  "model_dir": "/models",
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "adapter-job/1",
+  "shape": {
+    "batch_size": 2,
+    "batches_per_session": 3,
+    "context_window": 8,
+    "output_tokens": 1,
+    "prompt_tokens": 8
+  },
+  "subcommand": "commit",
+  "workload": {
+    "id": "fake-tiny-ci",
+    "version": 1
+  }
+}
