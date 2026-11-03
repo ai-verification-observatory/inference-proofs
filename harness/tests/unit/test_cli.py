@@ -63,8 +63,8 @@ def test_exit_codes(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_pending_command_names_its_issue(capsys: pytest.CaptureFixture[str]) -> None:
-    assert cli.main(["release", "plan", "v0.1"]) == 5
-    assert "not implemented yet (issue #141)" in capsys.readouterr().err
+    assert cli.main(["release", "freeze", "v0.1"]) == 5
+    assert "not implemented yet (issue #93)" in capsys.readouterr().err
 
 
 def test_help_lists_all_subcommands(capsys: pytest.CaptureFixture[str]) -> None:

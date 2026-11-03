@@ -5,10 +5,13 @@ INV-ARCH-5: every function here is pure: no clock, no file writes, no network.
 
 import statistics
 from collections.abc import Callable, Mapping, Sequence
+from pathlib import Path
 
+from iproofs import __version__
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Shape
 from iproofs.quantity import Grade, NullReason, Scope, SourceKind, Tier, Unit
+from iproofs.serialize import load_yaml
 
 QuantityTree = dict[str, object]
 
@@ -456,3 +459,62 @@ def recompute(q: Mapping[str, object], inputs: Sequence[Input], gpus: int) -> Qu
     return derived(
         formula, version, Unit(str(q["unit"])), scope, inputs, lambda x: compute(x, gpus)
     )
+
+
+# ---------------------------------------------------------------- run-campaign budget (spec 08)
+
+CAMPAIGN_REPETITIONS = 3  # the RFC-0004 minimum
+
+
+def project_campaign(
+    release: str, root: Path, repetitions: int = CAMPAIGN_REPETITIONS
+) -> dict[str, object]:
+    """docs/spec/08 §Run-campaign compute budget, formula P-CAMPAIGN, per configuration:
+    repetitions x whole_wall + one perturbed-weights commit (C3) + two prover-side control
+    proves (P1, P2) + the reference row's session, all from `external` figures. Grade
+    `projected`; a missing input makes it null with `missing_input` and is listed. Setup,
+    counted once per image per host, is not in any configuration's figure."""
+    figures = _external_figures(root)
+    out = []
+    for system, workload in sorted({(s, w) for s, w, _ in figures if not s.startswith("ref-")}):
+        ref = _reference_for(figures, workload)
+        wanted = [(system, "whole_wall_seconds"), (system, "commit_seconds"),
+                  (system, "prove_session_seconds"), (ref, "prove_session_seconds")]  # fmt: skip
+        inputs = [
+            figures.get((s_, workload, m), (f"{s_}:{workload}:{m} (missing)", None))
+            for s_, m in wanted
+        ]
+        total = derived("P-CAMPAIGN", __version__, Unit.S, Scope.WHOLE_WALL, inputs,
+                        lambda v: repetitions * v[0] + v[1] + 2 * v[2] + v[3])  # fmt: skip
+        total["grade"] = str(Grade.PROJECTED)
+        verify = figures.get((system, workload, "verify_single_thread_seconds"))
+        out.append({
+            "system": system,
+            "workload": workload,
+            "campaign_gpu_seconds": total,
+            "missing": [ref.removesuffix(" (missing)") for ref, q in inputs if q is None],
+            # verifier-side controls C1 to C8 run on CPU; shown apart, from the verify figure
+            "verify_seconds_per_proof_external": verify[1] if verify else None,
+        })  # fmt: skip
+    return {"release": release, "repetitions": repetitions, "configurations": out}
+
+
+def _external_figures(root: Path) -> dict[tuple[str, str, str], Input]:
+    """(system, workload, metric) -> (pointer, quantity) over systems/*/external.yaml."""
+    found: dict[tuple[str, str, str], Input] = {}
+    for path in sorted(root.glob("systems/*/external.yaml")):
+        doc = load_yaml(path)
+        system = str(doc.get("system"))
+        figures = doc.get("figures")
+        for i, f in enumerate(figures if isinstance(figures, list) else []):
+            if isinstance(f, dict) and f.get("workload"):
+                rel = path.relative_to(root).as_posix()
+                key = (system, str(f["workload"]), str(f["metric"]))
+                found.setdefault(key, (f"{rel}#/figures/{i}/quantity", f["quantity"]))
+    return found
+
+
+def _reference_for(figures: Mapping[tuple[str, str, str], Input], workload: str) -> str:
+    """The reference system with figures for this workload (ref-serve first), or ref-serve."""
+    systems = sorted({s for (s, w, _) in figures if w == workload and s.startswith("ref-")})
+    return "ref-serve" if "ref-serve" in systems or not systems else systems[0]
