@@ -189,7 +189,37 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p = command("build", "generate the static site", site_sub, "site build")
     p.add_argument("--out", type=Path, default=Path("site/_build"))
     p.set_defaults(handler=site_build)
+
+    archive = sub.add_parser("archive", help="proof archive (RFC-0014, RFC-0009 Q1)")
+    archive_sub = archive.add_subparsers(dest="archive_command", required=True, metavar="ACTION")
+    p = command(
+        "upload",
+        "upload proof archives and upstream inputs, then record each archive URI",
+        archive_sub,
+        "archive upload",
+    )
+    p.add_argument("--results", type=Path, default=Path("results"))
+    p.add_argument("--repo", default=None, help="the archive dataset (default: the project's)")
+    p.set_defaults(handler=archive_upload)
     return parser
+
+
+def archive_upload(args: argparse.Namespace) -> int:
+    """`iproofs archive upload`: run on the GPU host before the results pull request; prints
+    the uploaded inputs and the changed manifests as JSON (CLI-3). Needs HF_TOKEN."""
+    import os  # noqa: PLC0415
+
+    from iproofs.archive import ARCHIVE_REPO, HubStore, upload_archives, upload_sources  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.serialize import dumps  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    store = HubStore(args.repo or ARCHIVE_REPO, os.environ.get("HF_TOKEN"))
+    inputs = upload_sources(root, args.results, store)
+    manifests = upload_archives(args.results, store, SchemaRegistry.from_tree(root / "schema"))
+    sys.stdout.write(dumps({"inputs": inputs, "manifests": manifests}).decode())
+    return 0
 
 
 def derive(args: argparse.Namespace) -> int:

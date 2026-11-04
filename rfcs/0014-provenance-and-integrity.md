@@ -161,7 +161,7 @@ AGENTS.md rule 6: the commitment the verifier checks comes from the harness reco
 - The harness rechecks the proof digest immediately before each `verify` call and each control mutation, so a proof changed on disk between prove and verify is detected (`ErrorKind.integrity`).
 - One proof per configuration (system, workload, profile, release) is archived in full: the first honest proof of repetition 1 that verified `accept`. The archive is a POSIX ustar tar of the proof directory with entries sorted by name, mtime 0, uid and gid 0, mode 0644, no compression, so the archive digest is stable. `manifest.proofs[].archive` records `{uri, digest, bytes}` once uploaded; until then `null`.
 - No proof bytes are committed to git (RFC-0009 §Storage). Other proofs are kept by digest only and MAY be deleted from the runner's disk after controls complete.
-- Hosting is RFC-0009 Q1. Default until resolved: the runner keeps the archive locally and the release cannot freeze without an archive `uri` for each configuration.
+- Hosting is RFC-0009 Q1, resolved: a public dataset repository on the Hugging Face Hub, with URIs pinned to the dataset commit. `manifest.proofs[].archive` holds that URI (`manifest/1`); the archive's digest and size stay in `digests.txt` and the tar. The release cannot freeze without an archive URI for each configuration.
 
 ### Eligibility
 

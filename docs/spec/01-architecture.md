@@ -71,6 +71,7 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 4 | `iproofs.workloads` | resolve workload, fetch model, materialise prompts | layers 0 to 3 |
 | 4 | `iproofs.adapter` | job.json and out.json, `docker run` argv, io dirs, path safety, `ContainerRunner` implementations | layers 0 to 3, and `iproofs.measure` (a container call is timed where it runs, RFC-0011 T-1) |
 | 4 | `iproofs.measure` | monotonic clock, NVML sampler, cgroup sampler, release watcher, proof sizes ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md)) | layers 0 to 3 |
+| 4 | `iproofs.archive` | upload proof archives and upstream inputs, record archive URIs ([RFC-0014](../../rfcs/0014-provenance-and-integrity.md#proof-digests-and-archive), [RFC-0009](../../rfcs/0009-results-and-publication.md) Q1) | layers 0 to 3 |
 | 4 | `iproofs.reference` | pairing reference rows with prover rows for overhead ([RFC-0015](../../rfcs/0015-reference-rows.md)) | layers 0 to 3 |
 | 5 | `iproofs.controls` | mutations, honest twins, classification, `controls.json` ([RFC-0008](../../rfcs/0008-negative-controls.md)) | layers 0 to 4 |
 | 5 | `iproofs.selftest` | the RFC-0011 calibration self-test (`machine-record --selftest`) | layers 0 to 4 |
