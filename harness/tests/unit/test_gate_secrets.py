@@ -82,10 +82,17 @@ def test_machine_record_example_passes() -> None:
         '"ts": "2026-11-03T10:15:02.118Z"',  # clock time
         '"sha256": "ab01cd02"',
         '"driver_version": "560.35.03.01"',  # four groups inside a version field
+        "nvidia-cublas==13.4.1.3 \\",  # a pip requirement pin
     ],
 )
 def test_not_secrets(line: str) -> None:
     assert scan_text(line, "x") == []
+
+
+def test_address_after_other_operator_still_found() -> None:
+    addr = ".".join(["10", "1", "2", "3"])  # built here so the repository scan (G9) passes
+    assert [f.rule for f in scan_text(f"host={addr}", "x")] == ["SEC-5"]
+    assert [f.rule for f in scan_text(f"pkg>={addr}", "x")] == ["SEC-5"]
 
 
 def test_redactor_and_scanner_share_patterns() -> None:

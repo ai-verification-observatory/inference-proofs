@@ -1,0 +1,6 @@
+# RFC-0014 B2: every external input the fetch stage downloads, one per line:
+# <name>	<url>	sha256:<hex>
+# The upstream source at the pin (v0.16.0): the digest is of `git archive --format=tar HEAD`,
+# which the fetch stage recomputes after checking `git rev-parse HEAD` (INV-ADAPTER-2). The CUDA
+# 13.2 Update 2 packages come through cuda-requirements.txt, which carries their hashes.
+FlashProve	https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c	sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48

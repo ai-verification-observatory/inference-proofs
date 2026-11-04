@@ -352,7 +352,8 @@ REASONS = {
     "harness_dirty": "the harness tree was dirty",
     "adapter_dirty": "the adapter tree was dirty or unknown",
     "image_digest_kind_config": "the image is pinned by config digest, not manifest digest",
-    "image_differs_from_system_yaml": "the image is not system.yaml's at the adapter commit",
+    "image_differs_from_system_yaml": "the image is not the one system.yaml pins at the release "
+    "commit, or was not built from that commit's history",
     "image_not_in_project_registry": "the image is not in the project's container registry",
     "no_archived_proof": "the configuration has no archived proof URI",
 }
@@ -367,12 +368,13 @@ def eligibility(
 ) -> tuple[bool, list[str]]:
     """RFC-0014 §Eligibility of one stored run for `release`: (eligible, reason codes from
     REASONS, in that order). Reads only the run's documents, the release record, the listed
-    runs' manifests and system.yaml at the run's adapter commit."""
+    runs' manifests, and system.yaml at the run's adapter commit and at the release commit."""
     run = RunView.read(run_dir)
     m, system = run.manifest, run.get("manifest", "system")
     assert isinstance(system, dict)
     claim = m.get("claim")
     pinned = _system_at(root, str(system.get("adapter_commit")), str(system.get("name"))) or {}
+    head = _head(root)  # the release commit
     reference = pinned.get("kind") == "reference"  # RFC-0015: no claim card, no proofs (REF-2)
     cards = {(c.system, c.configuration, c.card_version, c.digest) for c in release.claim_cards}
     failed = {
@@ -395,10 +397,9 @@ def eligibility(
         "adapter_dirty": system.get("adapter_dirty") is not False,
         "image_digest_kind_config": run.get("manifest", "system", "image", "digest_kind")
         != "manifest",
-        "image_differs_from_system_yaml": _pinned_image(
-            root, str(system.get("adapter_commit")), str(system.get("name"))
-        )
-        != run.get("manifest", "system", "image", "ref"),
+        "image_differs_from_system_yaml": _pinned_image(root, head, str(system.get("name")))
+        != run.get("manifest", "system", "image", "ref")
+        or not _is_ancestor(root, str(system.get("adapter_commit")), head),
         "image_not_in_project_registry": not str(
             run.get("manifest", "system", "image", "ref")
         ).startswith(PROJECT_REGISTRY),
@@ -408,6 +409,23 @@ def eligibility(
     }
     reasons = [code for code in REASONS if failed[code]]
     return not reasons, reasons
+
+
+def _head(root: Path) -> str:
+    done = subprocess.run(["git", "-C", str(root), "rev-parse", "HEAD"], capture_output=True,
+                          text=True, check=False)  # fmt: skip
+    return done.stdout.strip() if done.returncode == 0 else "HEAD"
+
+
+@functools.cache
+def _is_ancestor(root: Path, adapter_commit: str, head: str) -> bool:
+    """The image was built from a commit of the history being released."""
+    done = subprocess.run(
+        ["git", "-C", str(root), "merge-base", "--is-ancestor", adapter_commit, head],
+        capture_output=True,
+        check=False,
+    )
+    return done.returncode == 0
 
 
 @functools.cache
@@ -425,9 +443,11 @@ def _system_at(root: Path, adapter_commit: str, name: str) -> dict[str, object] 
     return doc if isinstance(doc, dict) else None
 
 
-def _pinned_image(root: Path, adapter_commit: str, name: str) -> str | None:
-    """`repository@digest` (or a reference engine's image) of that system.yaml."""
-    doc = _system_at(root, adapter_commit, name) or {}
+def _pinned_image(root: Path, head: str, name: str) -> str | None:
+    """`repository@digest` (or a reference engine's image) of system.yaml at the release
+    commit `head`. An image cannot carry its own digest, so the commit it was built from never
+    pins it; the pin is a later commit, and the build commit must be its ancestor."""
+    doc = _system_at(root, head, name) or {}
     engine = doc.get("engine")
     image = doc.get("image") or (engine.get("image") if isinstance(engine, dict) else None)
     if isinstance(image, dict):

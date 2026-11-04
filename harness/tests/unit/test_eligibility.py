@@ -141,6 +141,30 @@ def test_each_condition_has_its_reason(
     assert reasons(tmp_path, stored, edit) == want
 
 
+def test_image_pinned_after_its_build_commit(tmp_path: Path, stored: Path) -> None:
+    """The real order: the image is built at commit A (no digest in system.yaml yet), and a
+    later commit B pins it. The run is eligible; a build commit outside the history is not."""
+    run_dir, release = setup(tmp_path, stored, lambda m: None)
+    root = run_dir.parents[3]
+    git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    m = json.loads((run_dir / "manifest.json").read_text())
+    system_yaml = root / "systems/fake/system.yaml"
+    pinned = system_yaml.read_text()
+    doc = yaml.safe_load(pinned)
+    del doc["image"]
+    system_yaml.write_text(yaml.safe_dump(doc))
+    subprocess.run([*git, "commit", "-qam", "build", "--no-gpg-sign"], check=True)
+    build = subprocess.run([*git, "rev-parse", "HEAD"], capture_output=True, text=True,
+                           check=True).stdout.strip()  # fmt: skip
+    system_yaml.write_text(pinned)
+    subprocess.run([*git, "commit", "-qam", "pin", "--no-gpg-sign"], check=True)
+    m["system"]["adapter_commit"] = build
+    (run_dir / "manifest.json").write_text(json.dumps(m))
+    assert eligibility(run_dir, release, root, REGISTRY) == (True, [])
+    subprocess.run([*git, "checkout", "-q", "HEAD~1"], check=True)  # releasing the build commit
+    assert eligibility(run_dir, release, root, REGISTRY)[1] == ["image_differs_from_system_yaml"]
+
+
 def test_stored_fake_run_is_ineligible_as_is(tmp_path: Path, stored: Path) -> None:
     """A CI run (local image, no self-test, no claim card) fails several conditions at once."""
     release = Release.from_tree(
