@@ -16,6 +16,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- Workloads `sash-l31-8b-c4096` and `sash-l31-8b-c1024`: Llama-3.1-8B pinned at the revision SASH's runs name, every file hash and the model digest (RFC-0003).
 - The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
 - The `iproofs` harness package (`harness/`), with `validate`, `derive`, `run` and `controls` commands.
 - JSON Schemas under `schema/`, each with valid and invalid examples.
