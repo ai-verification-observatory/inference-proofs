@@ -1,0 +1,156 @@
+#!/usr/bin/env python3
+"""Plain-serving reference adapter (RFC-0015 §Plain serving, §Steps per job).
+
+Usage: entrypoint <info|setup|prove> /io/job.json /io/out.json
+
+`prove` loads the pinned engine once with the workload's options from system.yaml (SRV-3),
+serves the requests in order at the workload's batch size (SRV-1) with greedy decoding and
+`max_tokens` equal to the workload's output tokens (SRV-2), and after each batch releases one
+directory per request, `/io/proofs/req-<i>/outputs.json`, by atomic rename (REF-1). The
+outputs are kept for audit and never compared with a system's outputs (SRV-4). `commit` and
+`verify` are skipped by the harness for a reference system.
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run this
+file in process; IPROOFS_SYSTEM_YAML points at system.yaml outside the image.
+"""
+
+import dataclasses
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+import yaml
+
+ENGINE_COMMIT = "5df63a7203cdb9328d824a27b682e77c7b9928be"  # vLLM v0.32.0, RFC-0015 Q1
+SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.yaml"))
+INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+
+
+def host(container_path: str) -> Path:
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"ref-serve: path {container_path!r} outside /io and /models")
+
+
+def system() -> dict:
+    return yaml.safe_load(SYSTEM_YAML.read_text())
+
+
+def engine_args(workload_id: str) -> list[str]:
+    """The workload's options, verbatim from system.yaml (SRV-3)."""
+    for entry in system()["workloads"]:
+        if entry["id"] == workload_id:
+            return list(entry["engine_args"])
+    raise SystemExit(f"ref-serve: workload {workload_id!r} is not in system.yaml")
+
+
+def model_path(model_dir: Path) -> str:
+    """The model directory, or its first GGUF file for a GGUF model (gguf.md at v0.32.0)."""
+    gguf = sorted(model_dir.rglob("*.gguf"))
+    return str(gguf[0]) if gguf else str(model_dir)
+
+
+class VllmEngine:
+    """The pinned engine, built from its own command-line parser so every option is one the
+    engine documents; prompts and outputs are token ids (`--skip-tokenizer-init`)."""
+
+    def __init__(self, model: str, args: list[str]) -> None:
+        from vllm import LLM
+        from vllm.engine.arg_utils import EngineArgs
+        from vllm.utils.argparse_utils import FlexibleArgumentParser
+
+        parsed = EngineArgs.add_cli_args(FlexibleArgumentParser()).parse_args(
+            ["--model", model, *args]
+        )
+        engine = EngineArgs.from_cli_args(parsed)
+        self.llm = LLM(**{f.name: getattr(engine, f.name) for f in dataclasses.fields(engine)})
+
+    def generate(self, prompts: list[list[int]], max_tokens: int) -> list[list[int]]:
+        from vllm import SamplingParams
+
+        params = SamplingParams(temperature=0.0, max_tokens=max_tokens, detokenize=False)
+        done = self.llm.generate([{"prompt_token_ids": p} for p in prompts], params,
+                                 use_tqdm=False)  # fmt: skip
+        return [list(r.outputs[0].token_ids) for r in done]
+
+
+make_engine = VllmEngine  # the tests replace this with a replay of captured outputs
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}  # fmt: skip
+
+
+def log_command(argv: list[str], started: int, exit_code: int) -> None:
+    line = {"argv": argv, "cwd": "/io", "started_mono_ns": started, "exit_code": exit_code}
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+
+
+def info(job: dict) -> dict:
+    doc = system()
+    out = {**base("info"), "system": doc["name"], "upstream_commit": ENGINE_COMMIT,
+           "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
+           "workloads": [w["id"] for w in doc["workloads"]], "profile": "prover-h100",
+           "contract_versions": ["adapter/1"]}  # fmt: skip
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
+
+
+def setup(job: dict) -> dict:
+    return {**base("setup"), "ready": True, "log_files": []}
+
+
+def release(proofs_dir: Path, proof_id: str, outputs: dict[str, object]) -> None:
+    """REF-1: written under a temporary name, then renamed, so a release is all or nothing."""
+    tmp = proofs_dir / f".tmp-{proof_id}"
+    tmp.mkdir()
+    (tmp / "outputs.json").write_text(json.dumps(outputs, sort_keys=True) + "\n")
+    os.rename(tmp, proofs_dir / proof_id)
+
+
+def prove(job: dict) -> dict:
+    args = engine_args(job["workload"]["id"])
+    started = time.monotonic_ns()
+    engine = make_engine(model_path(host(job["model_dir"])), args)
+    prompts = [json.loads(line) for line in host(job["prompts_file"]).read_text().splitlines()]
+    size, batches = job["batch_size"], job["batches"]
+    if len(prompts) < size * batches:
+        raise SystemExit(f"ref-serve: {len(prompts)} prompts for {batches} batches of {size}")
+    proofs_dir = host("/io/proofs")
+    proofs_dir.mkdir(parents=True, exist_ok=True)
+    proofs = []
+    for b in range(batches):
+        batch = prompts[b * size : (b + 1) * size]
+        outputs = engine.generate(batch, job["shape"]["output_tokens"])
+        if len(outputs) != len(batch):
+            raise SystemExit(f"ref-serve: batch {b}: {len(outputs)} outputs for {len(batch)}")
+        for j, tokens in enumerate(outputs):
+            i = b * size + j
+            release(proofs_dir, f"req-{i}", {"request_index": i, "batch": b, "token_ids": tokens})
+            proofs.append({"proof_id": f"req-{i}", "request_index": i,
+                           "parts": ["outputs.json"], "claimed_output": tokens})  # fmt: skip
+    log_command(["vllm.LLM", "--model", "/models", *args], started, 0)
+    return {**base("prove"), "proofs": proofs}
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"ref-serve: job.json is for {job.get('subcommand')!r}, not {sub!r}")
+    handlers = {"info": info, "setup": setup, "prove": prove}
+    if sub not in handlers:  # RFC-0015: the harness skips commit and verify
+        raise SystemExit(f"ref-serve: no {sub!r} step for a reference system")
+    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

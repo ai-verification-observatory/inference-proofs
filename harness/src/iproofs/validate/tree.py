@@ -711,7 +711,7 @@ def _toolchain_pins(line: str, where: str) -> list[Finding]:
         )
     if m := re.search(r"pip3?\s+install\s+(.*)", line):
         for pkg in m.group(1).split():
-            if not pkg.startswith("-") and "==" not in pkg and "@" not in pkg:
+            if not pkg.startswith("-") and "==" not in pkg and "@" not in pkg and pkg != "\\":
                 found.append(
                     Finding(
                         "G7",

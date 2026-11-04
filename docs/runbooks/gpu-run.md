@@ -90,14 +90,20 @@ GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test proces
 3. Project the GPU time with `uv run iproofs release plan RELEASE` ([docs/spec/08](../spec/08-performance-budget.md#run-campaign-compute-budget)) and check it fits the sponsored budget.
 4. Run the matrix: per configuration, `sudo -E .venv/bin/iproofs run --system S --workload W --profile prover-h100 --repetitions N --control-suite` with N at least 3 (RFC-0004). A failed job (exit 4) is kept as recorded; rerun only as new repetitions, never by deleting the failed one.
 5. Validate the whole tree: `uv run iproofs validate results/`.
-6. Open the results pull request: one pull request per campaign, holding the new run directories under `results/` and nothing else. Its description is the campaign log.
-7. Keep the proof archives (below) until they are uploaded.
+6. Upload the proof archives and upstream inputs, which records each archive URI in its run's manifest: `HF_TOKEN=... uv run --extra fetch iproofs archive upload` (below). Results are append-only, so this comes before the pull request.
+7. Open the results pull request: one pull request per campaign, holding the new run directories under `results/` and nothing else. Its description is the campaign log.
 
 ### Proof archive (RFC-0014 §Proof digests and archive)
 
 The first proof of repetition 1 that verified `accept` is archived in full, once per configuration (system, workload, profile, release), at `results/.archive/<release>/<system>/<workload>/<profile>/<run-id>-<proof-id>.tar`. The tar is POSIX ustar with entries sorted by name, mtime 0, uid and gid 0, mode 0644, uncompressed, so the same proof always gives the same bytes. Its digest is the `archive/<proof-id>.tar` line of the run's `digests.txt`.
 
-`results/.archive/` is ignored by git: no proof bytes are committed (RFC-0009 §Storage). Until the maintainers choose an object store (RFC-0009 Q1), the runner keeps the archives on the host, `manifest.proofs[].archive` stays `null`, and the release cannot freeze. Once a store exists, upload each tar and check that `sha256sum` of the uploaded object equals the `digests.txt` line before recording its URI. Upstream source tarballs go next to the archives at the same time.
+`results/.archive/` is ignored by git: no proof bytes are committed (RFC-0009 §Storage). The archives are stored in the public dataset repository `ai-verification-observatory/inference-proofs-archive` on the Hugging Face Hub (RFC-0009 Q1). `iproofs archive upload`:
+
+- checks each tar against its `digests.txt` line, uploads it to `<release>/<system>/<workload>/<profile>/<run-id>-<proof-id>.tar`, reads the stored object's sha256 back, and writes the URI pinned to the dataset commit (`https://huggingface.co/datasets/<repo>/resolve/<commit>/<path>`) into `manifest.proofs[].archive`;
+- downloads every input in the adapter's `inputs.lock` at the run's adapter commit, checks it against the lock and stores it at `<release>/sources/<system>/<name>` (RFC-0014 Q3);
+- skips what is already stored. Any digest mismatch stops it with kind `integrity` and leaves the manifest unchanged.
+
+The token needs write access to the dataset only. A manifest whose `archive` is still `null` makes its configuration ineligible at freeze (`no_archived_proof`).
 
 Every proof's digest is also rechecked immediately before each verify call and each control mutation; a proof that changed on disk after its release fails the job with kind `integrity`.
 
