@@ -1,0 +1,36 @@
+# RFC-0003 §v0.1 native workloads: FlashProve's Llama 4 Maverick shape, 1,024 prompt tokens and
+# the next token, 24 request(s) a batch, 5 batches a session. The weights are the public 4-bit
+# conversion FlashProve names at 9e2bdd8 (examples/maverick/run.sh lines 73 to 79): folder
+# UD-Q4_K_XL of unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF at 41032e5. That repository has
+# no tokenizer.json; tokenizer_source pins the ungated copy whose LFS pointer blob equals the one
+# in Meta's gated repository (same bytes). parameters: the model card's own figures, 17B
+# activated and 400B total. The native system `flashprove` joins `systems` with its system.yaml.
+schema: "workload/1"
+id: "fp-maverick-w1024-b24"
+version: 1
+division: "native"
+model:
+  source: {hub: "huggingface", repo: "unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF"}
+  revision: "41032e5471dd6ea5b349062d978626215d6c5bba"
+  files:
+    - {path: "UD-Q4_K_XL/Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-00001-of-00005.gguf", sha256: "6e2b84934ae72ce77611e0612f7b3cccaf75b363c630f45a8faafccea999562a", bytes: 49807659968}
+    - {path: "UD-Q4_K_XL/Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-00002-of-00005.gguf", sha256: "d8e9f010b88c8cea88753d90467431da241f997ff3cf2cc7d958cfd9e0c9f8ca", bytes: 49830263808}
+    - {path: "UD-Q4_K_XL/Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-00003-of-00005.gguf", sha256: "2f74972e1b1ea1fc28f370e87533a8e509a34febab7fa6afb0923118d50930df", bytes: 49832905856}
+    - {path: "UD-Q4_K_XL/Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-00004-of-00005.gguf", sha256: "5dbe3bdc6c29830655f7c71e9b05766cc161307eff405dc9875d8becaff21aa0", bytes: 49508645760}
+    - {path: "UD-Q4_K_XL/Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-00005-of-00005.gguf", sha256: "a7dc3e15efbd08d0c6fedbf7be73cecabeb4b8120cde5af1b8abc46c9852cb72", bytes: 33155199296}
+  digest: "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114"
+  licence: {name: "Llama 4 Community License", url: "https://github.com/meta-llama/llama-models/blob/0e0b8c519242d5833d8c11bffc1232b77ad7f301/models/llama4/LICENSE", gated: false}
+  parameters: {total: 400000000000, active_per_token: 17000000000, source: "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/blob/86c5ecb6f2fbddf604c60120125fb202e09f2556/README.md#L138-L140"}
+  tokenizer_file: "tokenizer.json"
+  tokenizer_source: {hub: "huggingface", repo: "unsloth/Llama-4-Maverick-17B-128E-Instruct", revision: "86c5ecb6f2fbddf604c60120125fb202e09f2556", file: {path: "tokenizer.json", sha256: "172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4", bytes: 27948578}}
+  vocab_size: 202048
+precision: {served: "UD-Q4_K_XL", proved: "UD-Q4_K_XL"}
+prompts:
+  generator: "corpus-window/1"
+  corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"
+  count: 120
+  length_rule: {prompt_tokens: 1024}
+shape: {prompt_tokens: 1024, output_tokens: 1, batch_size: 24, batches_per_session: 5, context_window: 1024}
+decoding: {rule: "greedy"}
+phase: "prefill"
+systems: ["ref-serve", "ref-recompute"]

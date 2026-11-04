@@ -17,6 +17,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- Workloads `fp-maverick-w1024-b1` and `fp-maverick-w1024-b24`: the public 4-bit Llama 4 Maverick files FlashProve names, every file hash, the model digest and the tokenizer from a second pinned source (RFC-0003).
 - Workloads `sash-l31-8b-c4096` and `sash-l31-8b-c1024`: Llama-3.1-8B pinned at the revision SASH's runs name, every file hash and the model digest (RFC-0003).
 - `web/`: a first dashboard for the platform (Next.js static export, deployable on Vercel) with the RFC-0009 pages: overview, release, native division with sorted views, systems, workloads, controls, targets, methodology, sponsors. Run values, controls, targets and reproductions are mock data, labelled on every number; upstream figures, the reference price and the RFC list are read from the repository at build time. G3 skips `web/` tool-written JSON and G8 covers the dashboard sources (RFC-0013 text updated).
 - `ref-serve` and `ref-recompute` pin their pushed images, `ghcr.io/ai-verification-observatory/ref-serve` and `.../ref-recompute`, by manifest digest (RFC-0014 B7).
