@@ -237,11 +237,21 @@ class Host:
         out = {k: found[k] for k in GPU_FIELDS if k in found and k != "numa_node"}
         bus = found.get("pci_bus_id")
         if isinstance(bus, str) and (
-            node := self.read(f"sys/bus/pci/devices/{bus.lower()}/numa_node")
+            node := self.read(f"sys/bus/pci/devices/{sysfs_bus_id(bus)}/numa_node")
         ):
             out["numa_node"] = int(node)
         out["bound_index"] = index
         return out
+
+
+def sysfs_bus_id(bus: str) -> str:
+    """NVML's `busId` has an 8-digit PCI domain (NVML_DEVICE_PCI_BUS_ID_FMT, `%08X:%02X:%02X.0`);
+    sysfs names the device with a 4-digit domain, in lower case."""
+    domain, sep, rest = bus.strip().partition(":")
+    try:
+        return f"{int(domain, 16):04x}{sep}{rest}".lower()
+    except ValueError:
+        return bus.strip().lower()
 
 
 GPU_FIELDS = (
