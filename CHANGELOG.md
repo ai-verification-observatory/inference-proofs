@@ -16,6 +16,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `web/`: a first dashboard for the platform (Next.js static export, deployable on Vercel) with the RFC-0009 pages: overview, release, native division with sorted views, systems, workloads, controls, targets, methodology, sponsors. Run values, controls, targets and reproductions are mock data, labelled on every number; upstream figures, the reference price and the RFC list are read from the repository at build time. G3 skips `web/` tool-written JSON and G8 covers the dashboard sources (RFC-0013 text updated).
 - The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
 - The `iproofs` harness package (`harness/`), with `validate`, `derive`, `run` and `controls` commands.
 - JSON Schemas under `schema/`, each with valid and invalid examples.

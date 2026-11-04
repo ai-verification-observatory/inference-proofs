@@ -374,6 +374,10 @@ def g2_size(root: Path, files: list[str]) -> list[Finding]:
 # ---------------------------------------------------------------- G3, G4
 
 
+# schemas are authored; web/ JSON (package.json, its lockfile, tsconfig) is written by npm and tsc
+G3_SKIP = ("schema/", "web/")
+
+
 def g3_format(root: Path, files: list[str]) -> list[Finding]:
     return [
         Finding(
@@ -385,7 +389,7 @@ def g3_format(root: Path, files: list[str]) -> list[Finding]:
             hint=f"run iproofs fmt {rel}",
         )
         for rel in files
-        if rel.endswith(".json") and not rel.startswith("schema/") and not check_format(root / rel)
+        if rel.endswith(".json") and not rel.startswith(G3_SKIP) and not check_format(root / rel)
     ]
 
 
@@ -783,7 +787,8 @@ MENTION = re.compile(r'"[^"]*"|\u201c[^\u201d]*\u201d|`[^`]*`')  # mentions are 
 LANG_ALLOW = re.compile(r"<!--\s*lang-allow:\s*(\S+)\s*(.*?)\s*-->")
 LANG_SCOPE = (
     "docs/**", "rfcs/**", "reports/**", "site/**", "systems/*/README.md",
-    "systems/*/claims/*.yaml", "README.md",
+    "systems/*/claims/*.yaml", "README.md", "web/README.md", "web/app/**", "web/components/**",
+    "web/lib/**",
 )  # fmt: skip
 LANG_SKIP = ("AGENTS.md", "docs/spec/10-glossary.md", "rfcs/0013-validation-and-ci.md")
 # shortcut: emoji blocks, not the full Unicode Extended_Pictographic property (the stdlib has
