@@ -54,7 +54,7 @@ Each invariant is checked by the named gate of [RFC-0013](../../rfcs/0013-valida
 - **INV-DM-1 Referential integrity.** Every run names a workload (id, version), system and profile that exist; every review, reproduction and release entry names existing runs. Gate G2 `XREF-1` to `XREF-4`.
 - **INV-DM-2 Labelled numbers.** Every number in a run, controls file, external file, reference file or release index is a quantity or statistic, or sits on the structural-integer allowlist. Gates G2 and G5.
 - **INV-DM-3 Derived means computed.** Every `grade: derived` quantity equals its recomputation bit for bit. Gate G4.
-- **INV-DM-4 Image consistency.** A run's manifest image digest equals the image digest in its `run.json` and, for release eligibility, the system manifest's image at the release's adapter commit. Gate G2 `XREF-2`, freeze step 4.
+- **INV-DM-4 Image consistency.** A run's manifest image digest equals the image digest in its `run.json` and, for release eligibility, the image that `system.yaml` pins at the release commit, built from an ancestor of that commit. Gate G2 `XREF-2`, freeze step 4.
 - **INV-DM-5 Commitment provenance.** The `commitment_id` and verifier file digests passed to every verify call equal those recorded in the manifest at the commit step. Enforced structurally by the harness ([RFC-0014 §The commitment record](../../rfcs/0014-provenance-and-integrity.md#the-commitment-record)); tested by G10.
 - **INV-DM-6 Control isolation.** A run with `control: true` contributes no measured row to any release table. Gate G6 `POL-2`.
 - **INV-DM-7 Tier location.** Tiers in `results/` are `reported`; effective tiers exist only in release indexes. Gate G5 `LBL-3`.

@@ -16,6 +16,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `ref-serve` and `ref-recompute` pin their pushed images, `ghcr.io/ai-verification-observatory/ref-serve` and `.../ref-recompute`, by manifest digest (RFC-0014 B7).
 - `systems/sash`: the SASH adapter image (Dockerfile, inputs.lock) built by the RFC-0014 rules from upstream's own build at `eb95bfa`, with `info` and `setup`; `write_inputs.py` records an adapter's toolchain versions (B5).
 - `systems/flashprove`: the FlashProve adapter image (Dockerfile, inputs.lock, hash-locked CUDA 13.2.2 packages) built by the RFC-0014 rules from upstream's build instructions at `9e2bdd8`, with `info` and `setup`.
 - The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
@@ -50,6 +51,8 @@ Every pull request that changes the public API, a schema or the methodology adds
 ### Fixed
 
 - Gate G9 (SEC-5) no longer reads a requirement pin such as `nvidia-cublas==13.4.1.3` as an IPv4 address; any other match is still reported.
+- Release eligibility read the pinned image from `system.yaml` at the image's own build commit, which can never hold that image's digest, so every pushed image was ineligible. It now reads the pin at the release commit and requires the build commit to be its ancestor (RFC-0014 §Eligibility, INV-DM-4 wording clarified).
+
 ### Security
 
 - The commitment a verifier checks comes only from the harness's commit record (RFC-0014 §The commitment record).
