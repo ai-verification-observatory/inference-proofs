@@ -101,7 +101,7 @@ Repository-shape checks (also G2):
 
 ### G3 JSON format check
 
-Rule: for every committed `*.json` file outside `schema/` (schemas are authored), `bytes == dumps(json.loads(bytes))` with the RFC-0012 writer. Rule id `FMT-1`. Hint: `run iproofs fmt <path>`. `iproofs fmt` is a hidden maintenance subcommand that rewrites a file with the canonical writer; it is not part of the public CLI.
+Rule: for every committed `*.json` file outside `schema/` (schemas are authored) and `web/` (the dashboard's `package.json`, lockfile and `tsconfig.json` are written by npm and the TypeScript compiler), `bytes == dumps(json.loads(bytes))` with the RFC-0012 writer. Rule id `FMT-1`. Hint: `run iproofs fmt <path>`. `iproofs fmt` is a hidden maintenance subcommand that rewrites a file with the canonical writer; it is not part of the public CLI.
 
 ### G4 Derived recompute
 
@@ -137,7 +137,7 @@ Rule: no measured run uses a weakening configuration.
 
 ### G8 Neutral-language lint
 
-Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, `site/` templates, `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
+Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, `site/` templates, the dashboard sources (`web/README.md`, `web/app/`, `web/components/`, `web/lib/`), `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
 
 ```
 fastest, slowest, best, worst, winner, wins, beats, beat, crushes, outperforms,

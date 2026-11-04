@@ -60,3 +60,9 @@ systems/*/tests/fixtures/**/__pycache__/
 # coverage reports (make ci, the tests job)
 coverage.json
 .coverage
+
+# web/ dashboard build output (Next.js static export)
+web/.next/
+web/out/
+web/next-env.d.ts
+web/*.tsbuildinfo

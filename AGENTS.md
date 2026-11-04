@@ -51,5 +51,6 @@ Plain, dense, active voice, short sentences. Define a term once (`docs/spec/10-g
 | `rfcs/` | normative decisions; `0000-template.md` for new ones |
 | `schema/` | JSON Schemas (to come, RFC-0012 catalogue) |
 | `harness/` | the `iproofs` package and its tests (to come, RFC-0010) |
+| `web/` | the dashboard preview (Next.js static export, mock data until a release index exists) |
 | `systems/<name>/` | one adapter per system (to come: `sash`, `flashprove`) |
 | `workloads/`, `reference/`, `results/`, `site/`, `reports/` | as SPEC Section 2 |
