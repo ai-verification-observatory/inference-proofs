@@ -59,7 +59,7 @@ profiles:
     emulation: {allowed_on: ["prover-h100"]}
 cost:
   price_per_gpu_hour_usd:
-    value: 0.0                  # placeholder until OPEN QUESTION Q1 resolves; CI rejects a release whose value is 0
+    value: 0.0                  # placeholder until Q1 resolves; freeze refuses a release whose value is 0 (C6)
     unit: "USD/gpu_hour"
     scope: null
     grade: "asserted"
@@ -267,7 +267,7 @@ No results exist yet. Revisions from the draft of 2026-11-03: the profile gains 
 
 ## Open Questions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2026-12-15): which providers set the v0.1 price basis, and on which date is it read? Default until resolved: rule C3 with providers named in the v0.1 release pull request; the release cannot freeze before this resolves (C6).
+- Resolved Q1: rule C3 with Lambda, RunPod and CoreWeave, read on 2026-11-04 from their public pricing pages: Lambda's 1x H100 SXM 80 GB, RunPod's H100 SXM on Secure Cloud (its own data centres, not the Community Cloud marketplace), and CoreWeave's 8-GPU HGX H100 instance divided by its 8 GPUs. Each reading (provider, URL, offer, list price, GPU count) is archived in `reference/v0.1.yaml` `cost.readings`, and the validator recomputes the median per GPU-hour from them (COST-1), so the price is never typed by hand. Hyperscalers were not read: their H100 offers are 8-GPU instances whose list prices vary by region.
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-03-31 or an RFC for v0.2): when to add a second GPU profile (multi-GPU or a newer GPU). Default until resolved: only `prover-h100` and `verifier-cpu`.
 - OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): which exact NVIDIA driver version is pinned for v0.1? Default until resolved: the newest driver that supports both CUDA 13.2 Update 2 (FlashProve) and CUDA 12.9 (SASH) containers, chosen in the reference file pull request.
 

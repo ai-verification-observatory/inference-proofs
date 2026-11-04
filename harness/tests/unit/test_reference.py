@@ -26,9 +26,9 @@ def test_reference_valid() -> None:
 
 
 def test_reference_placeholders_are_visible() -> None:
-    """The price and the driver stay placeholders until #78 and #77 resolve them."""
+    """The price is set (#78); the driver stays a placeholder until #77 resolves it."""
     ref = load_reference("v0.1", ROOT, REGISTRY)
-    assert ref.cost.price_per_gpu_hour_usd.value == 0.0
+    assert (ref.cost.price_per_gpu_hour_usd.value or 0) > 0
     assert ref.profiles["prover-h100"].driver == "unpinned"  # type: ignore[union-attr]
 
 

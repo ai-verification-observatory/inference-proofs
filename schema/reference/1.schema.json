@@ -265,6 +265,43 @@
           },
           "type": "array",
           "uniqueItems": true
+        },
+        "readings": {
+          "$comment": "RFC-0006 C3: the archived price readings; the validator recomputes the median (COST-1)",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "gpus": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "list_price_usd_per_hour": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "offer": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "provider": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "url",
+              "offer",
+              "list_price_usd_per_hour",
+              "gpus"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         }
       },
       "required": [
