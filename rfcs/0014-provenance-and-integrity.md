@@ -165,7 +165,7 @@ AGENTS.md rule 6: the commitment the verifier checks comes from the harness reco
 
 ### Eligibility
 
-A run is eligible for a release (RFC-0009 freeze) only if: `self_test.passed` is true, `harness.nonconforming` is false, the claim card named in `claim` is the one the release lists, `harness.git_dirty` is false, `system.adapter_dirty` is false, `image.digest_kind` is `manifest`, every pin in the manifest is in full form, the image digest equals `system.yaml`'s image at the release's adapter commit, and the image is in the project's registry (B7). A run that fails eligibility stays in `results/` (append-only) and is shown, if at all, as ineligible with the reason. Upstream results with a dirty or unknown tree enter only as `external` quantities (RFC-0007 §Clean builds).
+A run is eligible for a release (RFC-0009 freeze) only if: `self_test.passed` is true, `harness.nonconforming` is false, the claim card named in `claim` is the one the release lists, `harness.git_dirty` is false, `system.adapter_dirty` is false, `image.digest_kind` is `manifest`, every pin in the manifest is in full form, the image digest equals the image `system.yaml` pins at the release commit and the image's `adapter_commit` is an ancestor of that commit (an image cannot carry its own digest, so the pin is always a later commit than the build), and the image is in the project's registry (B7). A run that fails eligibility stays in `results/` (append-only) and is shown, if at all, as ineligible with the reason. Upstream results with a dirty or unknown tree enter only as `external` quantities (RFC-0007 §Clean builds).
 
 ### Supply-chain threats and responses
 
