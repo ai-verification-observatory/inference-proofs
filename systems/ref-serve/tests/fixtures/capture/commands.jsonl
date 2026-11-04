@@ -1,0 +1,1 @@
+{"argv": ["vllm.LLM", "--model", "/models", "--quantization", "fp8_per_tensor", "--max-model-len", "1088", "--max-num-seqs", "1", "--skip-tokenizer-init"], "cwd": "/io", "exit_code": 0, "started_mono_ns": 15668015517188}
