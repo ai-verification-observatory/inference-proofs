@@ -225,6 +225,41 @@
       "items": {
         "additionalProperties": false,
         "properties": {
+          "agreement": {
+            "$comment": "ref-recompute only (RFC-0015 RC-3, RC-5): positions of the source run's claimed output that the teacher-forced argmax matches",
+            "additionalProperties": false,
+            "properties": {
+              "agree": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "disagree": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "first_disagreement": {
+                "minimum": 0,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "agree",
+              "disagree",
+              "first_disagreement"
+            ],
+            "type": "object"
+          },
+          "claimed_output": {
+            "$comment": "token ids the system claims for that request; a later ref-recompute run checks them (RFC-0015 RC-1)",
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
           "proof_id": {
             "$ref": "../quantity/1.schema.json#/$defs/proofId"
           },
@@ -234,6 +269,11 @@
               "integer",
               "null"
             ]
+          },
+          "request_index": {
+            "$comment": "the request the proof or output answers (RFC-0005 out.json)",
+            "minimum": 0,
+            "type": "integer"
           },
           "tokens_covered": {
             "minimum": 0,

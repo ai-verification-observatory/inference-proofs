@@ -58,7 +58,7 @@ def repo(tmp_path: Path, used: str, substitution: dict[str, str] | None) -> Path
     shutil.copy(ROOT / "systems/fake/entrypoint", ref / "entrypoint")
     system = {
         "schema": "system/1", "name": "fake-ref", "kind": "reference",
-        "reference_role": "recompute", "contract": "adapter/1",
+        "reference_role": "serve", "contract": "adapter/1",
         "engine": {"name": "engine", "version": "1", "image": IMAGE},
         "workloads": [{"id": "fake-tiny-ci", "precision_used": used,
                        "precision_substitution": substitution, "engine_args": []}],

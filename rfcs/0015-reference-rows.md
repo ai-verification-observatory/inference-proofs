@@ -81,11 +81,11 @@ For `kind: reference` the runner (RFC-0010) runs `info`, `setup`, `prove`; it re
 
 A verifier holding the weights checks a claimed output by running the model itself.
 
-- RC-1. The job reuses the prompt seeds recorded in a named system run: `iproofs run --system ref-recompute --workload W --profile P --prompts-from RUN_DIR`. The manifest records the source run id. Prompts are therefore identical request by request.
+- RC-1. The job reuses the prompt seeds recorded in a named system run: `iproofs run --system ref-recompute --workload W --profile P --prompts-from RUN_DIR`. The manifest records the source run id. Prompts are therefore identical request by request. Every run records each proof's `request_index` and `claimed_output` in `run.json` `proofs[]`; the harness passes the source run's claims to the recompute `prove` call as `/io/claimed.jsonl` (`claims_file` in `job.json`, one array of token ids per request, in request order).
 - RC-2. Batch size 1, always, whatever the workload's batch size, because a verifier checks one request at a time and batch 1 removes batch-composition effects on greedy ties.
 - RC-3. Teacher-forced check: for each request, the engine runs one forward pass over prompt plus the system's claimed output tokens and takes the argmax at each claimed output position (for next-token workloads, the single position after the window). Each position is `agree` when the argmax equals the claimed token, else `disagree`. Ties are resolved by the pinned engine's own argmax rule, which the adapter README states with a link to the engine documentation or source at the pinned version.
 - RC-4. Each request's result is released as `/io/proofs/<request_id>/outputs.json` with per-position argmax tokens; timing follows REF-1. Recompute's cost is reported as D-SPT-prove.steady and D-COST-1K-prove.steady of the ref-recompute configuration: seconds and money per token for a warm verifier holding the weights, on prover-h100.
-- RC-5. Agreement is reported per (system configuration, ref-recompute configuration) pair in the release index:
+- RC-5. The harness compares each request's argmax tokens with the claim, records `{agree, disagree, first_disagreement}` in the recompute run's `run.json` `proofs[].agreement`, and sums them into the run metrics `agreement_positions` and `disagreement_positions` (counts measured by the harness, source `run.json#/proofs`). Agreement is reported per (system configuration, ref-recompute configuration) pair in the release index:
 
 | Metric id | Unit | Scope | Grade | Formula |
 |---|---|---|---|---|

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Plain-serving reference adapter (RFC-0015 §Plain serving, §Steps per job).
+"""Reference adapters (RFC-0015 §Plain serving, §Recompute, §Steps per job): `ref-serve` and
+`ref-recompute` run this file, each image with its own system.yaml, whose `reference_role`
+selects what `prove` does.
 
 Usage: entrypoint <info|setup|prove> /io/job.json /io/out.json
 
@@ -9,6 +11,12 @@ serves the requests in order at the workload's batch size (SRV-1) with greedy de
 directory per request, `/io/proofs/req-<i>/outputs.json`, by atomic rename (REF-1). The
 outputs are kept for audit and never compared with a system's outputs (SRV-4). `commit` and
 `verify` are skipped by the harness for a reference system.
+
+For `reference_role: recompute`, `prove` takes each request alone (RC-2), feeds prompt plus the
+source run's claimed output (`claims_file`) through one forward pass, and takes the argmax at
+every claimed position from the engine's prompt log-probabilities (RC-3, RFC-0015 Q3). It
+releases `/io/proofs/req-<i>/outputs.json` with those argmax tokens (RC-4); the harness compares
+them with the claims.
 
 IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run this
 file in process; IPROOFS_SYSTEM_YAML points at system.yaml outside the image.
@@ -76,6 +84,19 @@ class VllmEngine:
                                  use_tqdm=False)  # fmt: skip
         return [list(r.outputs[0].token_ids) for r in done]
 
+    def argmax(self, prompt: list[int], claimed: list[int]) -> list[int]:
+        """Teacher-forced argmax at each claimed position (RFC-0015 Q3): entry j of
+        `prompt_logprobs` is the distribution of token j given tokens 0..j-1, and its rank-1
+        token is the top-1 of `torch.topk` over the log-probabilities."""
+        from vllm import SamplingParams
+
+        params = SamplingParams(temperature=0.0, max_tokens=1, prompt_logprobs=1,
+                                detokenize=False)  # fmt: skip
+        [done] = self.llm.generate([{"prompt_token_ids": prompt + claimed}], params,
+                                   use_tqdm=False)  # fmt: skip
+        positions = done.prompt_logprobs[len(prompt) : len(prompt) + len(claimed)]
+        return [next(t for t, lp in pos.items() if lp.rank == 1) for pos in positions]
+
 
 make_engine = VllmEngine  # the tests replace this with a replay of captured outputs
 
@@ -125,10 +146,37 @@ def prove(job: dict) -> dict:
         raise SystemExit(f"ref-serve: {len(prompts)} prompts for {batches} batches of {size}")
     proofs_dir = host("/io/proofs")
     proofs_dir.mkdir(parents=True, exist_ok=True)
+    if system()["reference_role"] == "recompute":
+        proofs = recompute(job, engine, prompts[: size * batches], proofs_dir)
+    else:
+        proofs = serve(job, engine, prompts, proofs_dir)
+    log_command(["vllm.LLM", "--model", "/models", *args], started, 0)
+    return {**base("prove"), "proofs": proofs}
+
+
+def recompute(job: dict, engine: object, prompts: list[list[int]], proofs_dir: Path) -> list:
+    """RC-2 to RC-4: one request at a time, teacher-forced over its claimed output."""
+    if "claims_file" not in job:
+        raise SystemExit("ref-recompute: job.json names no claims_file (--prompts-from)")
+    claims = [json.loads(line) for line in host(job["claims_file"]).read_text().splitlines()]
+    if len(claims) < len(prompts):
+        raise SystemExit(f"ref-recompute: {len(claims)} claims for {len(prompts)} requests")
+    proofs = []
+    for i, (prompt, claimed) in enumerate(zip(prompts, claims, strict=False)):
+        tokens = engine.argmax(prompt, claimed)  # type: ignore[attr-defined]
+        release(proofs_dir, f"req-{i}", {"request_index": i, "argmax": tokens})
+        proofs.append({"proof_id": f"req-{i}", "request_index": i,
+                       "parts": ["outputs.json"], "claimed_output": tokens})  # fmt: skip
+    return proofs
+
+
+def serve(job: dict, engine: object, prompts: list[list[int]], proofs_dir: Path) -> list:
+    """SRV-1, SRV-2 and REF-1: batches of the workload's size, released per request."""
+    size, batches = job["batch_size"], job["batches"]
     proofs = []
     for b in range(batches):
         batch = prompts[b * size : (b + 1) * size]
-        outputs = engine.generate(batch, job["shape"]["output_tokens"])
+        outputs = engine.generate(batch, job["shape"]["output_tokens"])  # type: ignore[attr-defined]
         if len(outputs) != len(batch):
             raise SystemExit(f"ref-serve: batch {b}: {len(outputs)} outputs for {len(batch)}")
         for j, tokens in enumerate(outputs):
@@ -136,8 +184,7 @@ def prove(job: dict) -> dict:
             release(proofs_dir, f"req-{i}", {"request_index": i, "batch": b, "token_ids": tokens})
             proofs.append({"proof_id": f"req-{i}", "request_index": i,
                            "parts": ["outputs.json"], "claimed_output": tokens})  # fmt: skip
-    log_command(["vllm.LLM", "--model", "/models", *args], started, 0)
-    return {**base("prove"), "proofs": proofs}
+    return proofs
 
 
 def main() -> int:

@@ -33,7 +33,7 @@ Every option is an engine argument of v0.32.0 ([engine_args.md](https://github.c
 | Option | Value | Why |
 |---|---|---|
 | `--quantization` | `fp8_per_tensor` | SASH workloads only: PM-4 above. |
-| `--max-model-len` | prompt plus output tokens: 4,608, 1,088 or 1,025 | the workload's sequence, nothing longer. |
+| `--max-model-len` | `ref-serve`: prompt plus output tokens (4,608, 1,088 or 1,025); `ref-recompute`: one more (4,609, 1,089 or 1,026) | the workload's sequence, nothing longer. Recompute feeds prompt plus claimed output as its prompt, and the engine refuses a prompt that leaves no room for the one token it must generate (`VLLMValidationError`, found on the GPU capture). |
 | `--max-num-seqs` | the workload's batch size for `ref-serve` (SRV-1); 1 for `ref-recompute` (RC-2) | |
 | `--cpu-offload-gb` | 160 | Maverick only: the part of the weights that cannot sit in GPU memory, kept in host memory (the profile has at least 330 GiB). |
 | `--skip-tokenizer-init` | | The harness sends token ids and reads token ids, so the engine needs no tokenizer. This also avoids converting a tokenizer out of the GGUF files. |
