@@ -3,6 +3,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -23,7 +24,7 @@ def workflow_commands() -> list[str]:
 def make_commands() -> list[str]:
     recipe = (ROOT / "Makefile").read_text().split("ci:\n", 1)[1]
     lines = [ln.strip() for ln in recipe.splitlines() if ln.startswith("\t")]
-    return [re.sub(r"^\w+=\S+ ", "", ln) for ln in lines if "uv run" in ln]
+    return [re.sub(r"^(\w+=\S+ )+", "", ln) for ln in lines if "uv run" in ln]
 
 
 def test_make_ci_runs_the_workflow_commands() -> None:
@@ -48,3 +49,23 @@ def test_g1_rejects_known_bad_fixture() -> None:
     result = subprocess.run(cmd, check=False, capture_output=True)
     assert result.returncode == 1
     assert b"F401" in result.stdout
+
+
+def test_shards_partition_the_suite() -> None:
+    """Every test runs in exactly one shard (docs/spec/07 §Sharding)."""
+    from conftest import shard_of  # noqa: PLC0415
+
+    ids = [f"t{i:03d}" for i in range(100)]
+    parts = [shard_of(ids, f"{i}/3") for i in (1, 2, 3)]
+    assert set().union(*parts) == set(ids)
+    assert sum(len(p) for p in parts) == len(ids)
+    assert sorted(len(p) for p in parts) == [33, 33, 34]
+    with pytest.raises(pytest.UsageError):
+        shard_of(ids, "4/3")
+
+
+def test_shards_cover_the_workflow_matrix() -> None:
+    ci = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    shard = ci["jobs"]["test-shard"]
+    assert shard["env"]["IPROOFS_SHARD"].endswith(f"/{len(shard['strategy']['matrix']['shard'])}")
+    assert ci["jobs"]["tests"]["needs"] == "test-shard"
