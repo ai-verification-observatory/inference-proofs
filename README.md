@@ -54,6 +54,10 @@ uv run iproofs site build --out DIR  # or any other directory
 
 Open `site/_build/index.html` in a browser; no script is needed. Templates are in [`site/templates/`](site/templates/). Until a release is frozen the site has only its home page.
 
+### Dashboard preview (mock data)
+
+[`web/`](web/) is the first version of the platform dashboard: a Next.js static export with the same pages and display rules as RFC-0009, deployable on Vercel. Its run values, controls, targets and reproductions are mock data, labelled as such on every number; see [web/README.md](web/README.md).
+
 ## Contributing
 
 Open an issue or a pull request; methodology changes go through an RFC ([RFC-0001](rfcs/0001-process-and-governance.md)). Sign off your commits (DCO). Prover teams who want their system included: open an issue with your repository and the workloads you support, then follow the adapter guide, [systems/README.md](systems/README.md).

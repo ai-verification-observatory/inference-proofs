@@ -162,6 +162,11 @@ def test_g3_not_canonical(repo: Path) -> None:
     assert ("G3", "FMT-1") in rules(repo)
 
 
+def test_g3_skips_web_tooling(repo: Path) -> None:
+    place(repo, "G3/not-canonical.json", "web/package.json")
+    assert ("G3", "FMT-1") not in rules(repo)
+
+
 def test_g5_bare_float(repo: Path) -> None:
     place(repo, "G5/manifest-bare-float.json", f"{RUN_DIR}/manifest.json")
     found = [f for f in validate_tree(repo) if f.rule == "LBL-4"]
