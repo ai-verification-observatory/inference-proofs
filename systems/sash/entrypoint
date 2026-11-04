@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+"""SASH zk-inference-prover adapter (RFC-0005), standard library only.
+
+Usage: entrypoint <info|setup> /io/job.json /io/out.json
+
+`info` names the upstream commit, the image inputs written at build time (RFC-0014 B5), the
+adapter commit baked in by the build (B6), the workloads and the profile. `setup` has nothing
+to prepare: both prover binaries and the witness harness are built into the image. The
+`commit`, `prove` and `verify` mapping lands with #65.
+
+IPROOFS_IO maps /io to a host directory when the tests run this file in process.
+"""
+
+import json
+import os
+import sys
+from pathlib import Path
+
+UPSTREAM_COMMIT = "eb95bfa887299d1637550228d42086c27cbb2b3b"  # INV-ADAPTER-2
+WORKLOADS = ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
+INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
+
+
+def host(container_path: str) -> Path:
+    if container_path == "/io" or container_path.startswith("/io/"):
+        return Path(os.environ.get("IPROOFS_IO", "/io") + container_path[3:])
+    raise SystemExit(f"sash: path {container_path!r} outside /io")
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}  # fmt: skip
+
+
+def info(job: dict) -> dict:
+    out = {**base("info"), "system": "sash", "upstream_commit": UPSTREAM_COMMIT,
+           "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
+           "workloads": WORKLOADS, "profile": "prover-h100",
+           "contract_versions": ["adapter/1"]}  # fmt: skip
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
+
+
+def setup(job: dict) -> dict:
+    return {**base("setup"), "ready": True, "log_files": []}
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"sash: job.json is for {job.get('subcommand')!r}, not {sub!r}")
+    handlers = {"info": info, "setup": setup}
+    if sub not in handlers:
+        raise SystemExit(f"sash: {sub!r} is not mapped yet (#65)")
+    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

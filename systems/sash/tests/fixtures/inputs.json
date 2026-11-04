@@ -1,0 +1,22 @@
+{
+  "inputs": [
+    {
+      "digest": "sha256:80f0f749ef6dc34419dd8f9451ffa7d729a6a84bd17d6334a2b44055185a6f5f",
+      "name": "zk-inference-prover",
+      "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover.git#eb95bfa887299d1637550228d42086c27cbb2b3b"
+    },
+    {
+      "digest": "sha256:ac0a04b2bb6ca1e69c959e9b941ea4362dfaa005b9a9c86444aa434bca396a08",
+      "name": "rust-nightly-2025-07-14",
+      "url": "https://static.rust-lang.org/dist/2025-07-14/rust-nightly-x86_64-unknown-linux-gnu.tar.xz"
+    }
+  ],
+  "toolchains": {
+    "cargo": "cargo 1.90.0-nightly (eabb4cd92 2025-07-09)",
+    "cuda": "V12.9.86",
+    "gcc": "13.3.0",
+    "python": "3.12.3",
+    "rust": "rustc 1.90.0-nightly (e9182f195 2025-07-13)",
+    "uv": "uv 0.11.18 (x86_64-unknown-linux-musl)"
+  }
+}

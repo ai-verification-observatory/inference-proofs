@@ -45,3 +45,23 @@ forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
 - `proofs.steady_approximate: false`: no steady scope is reported.
 - `deterministic_proofs: true`. Upstream gates every change on reproducing recorded proof digests on both backends: "A change that should not alter the proof reproduces the recorded digests on both backends before it merges" ([README.md](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md#L60-L66)).
 - `forbidden_flags`: the `--unsound-skip-` prefix and `--unsound-argmax-lax`, each of which unbinds or weakens an edge of the binding table ([statement.md](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md#L19-L36), [#L153-L160](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md#L153-L160)).
+
+## Image and toolchain versions
+
+`Dockerfile` follows upstream's own [Dockerfile](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/Dockerfile) at the pin, under the RFC-0014 build rules. Each version below is the one upstream names; none is chosen here.
+
+| Toolchain | Version in the image | Upstream source |
+|---|---|---|
+| CUDA toolkit | 12.9.1 devel on Ubuntu 24.04 (`nvcc` V12.9.86), `nvidia/cuda` by digest | "CUDA 12.9 is the toolkit the recorded digests were built with" ([Dockerfile](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/Dockerfile#L1-L5)); `FROM nvidia/cuda:12.9.1-devel-ubuntu24.04` |
+| gcc and g++ | 13.3 (Ubuntu 24.04), `CUDAHOSTCXX=/usr/bin/g++` | "nvcc 12.9 accepts gcc 14 or older; Ubuntu 24.04 ships gcc 13" ([Dockerfile](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/Dockerfile)) |
+| Rust | `nightly-2025-07-14` (rustc 1.90.0-nightly e9182f195), the standalone tarball with the checksum static.rust-lang.org publishes | [rust-toolchain.toml](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/rust-toolchain.toml) |
+| uv | 0.11.18, `ghcr.io/astral-sh/uv` by digest | `COPY --from=ghcr.io/astral-sh/uv:0.11.18` ([Dockerfile](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/Dockerfile)) |
+| Python packages | `harness/uv.lock` at the pin, `uv sync --frozen --no-group cpu --group cuda` | the CUDA host's selection documented in [harness/pyproject.toml](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/pyproject.toml) (torch from the `cu129` index) |
+
+Build steps, as upstream: `cargo build --release --locked` for `zk-prover-simd`, then `cargo build --release --locked -p zk-prover --features cuda` for `zk-prover-cuda`, with `CUDAARCHS=90` (sm_90, the H100). Differences from upstream's Dockerfile, none of which touches upstream source (AGENTS.md rule 1):
+
+- Rust comes from the checksummed standalone tarball instead of `rustup`, so the fetch stage checks it against `inputs.lock` (B2). `curl` is not installed, since only `rustup` needed it.
+- Crates are fetched with `cargo fetch --locked` in the fetch stage and built `--offline` (B3); Cargo.lock's checksums verify them.
+- The harness's CUDA torch group is installed instead of the default CPU group, as upstream documents for a CUDA host.
+- The source is added with `git` at the pinned commit; the fetch stage checks `git rev-parse HEAD` (INV-ADAPTER-2) and the sha256 of `git archive --format=tar HEAD` against `inputs.lock`.
+- Ubuntu packages are pinned to exact versions (PIN-5) from the archive; the Ubuntu snapshot service, which would keep them installable after an update, returned HTTP 503 for every date on 2026-11-04.
