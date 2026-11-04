@@ -16,6 +16,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `ref-serve` and `ref-recompute` pin their pushed images, `ghcr.io/ai-verification-observatory/ref-serve` and `.../ref-recompute`, by manifest digest (RFC-0014 B7).
 - `systems/sash`: the SASH adapter image (Dockerfile, inputs.lock) built by the RFC-0014 rules from upstream's own build at `eb95bfa`, with `info` and `setup`; `write_inputs.py` records an adapter's toolchain versions (B5).
 - The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
 - The `iproofs` harness package (`harness/`), with `validate`, `derive`, `run` and `controls` commands.
