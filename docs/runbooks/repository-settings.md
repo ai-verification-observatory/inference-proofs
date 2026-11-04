@@ -8,7 +8,7 @@ Settings that live on the hosting platform rather than in files. A maintainer ap
 - Require status checks to pass, with the branch up to date. Required checks, from `.github/workflows/ci.yml`:
   - `lint-and-types`
   - `tests (3.12)`
-  - `tests (3.13)`
+  - `tests (3.13)` (each passes only after its three `test-shard` jobs pass and the combined coverage meets its floors; the shard jobs need not be required)
   - `validate`
   - `fake-e2e`
   - `dco`

@@ -26,6 +26,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Changed
 
+- CI runs the unit tests in three shards per Python version and combines coverage in the `tests` jobs, whose check names are unchanged (docs/spec/07 §Sharding).
 - `reference/1`: optional `cost.readings` (provider, URL, offer, list price, GPU count), from which validate recomputes the price (rule COST-1, RFC-0006 C3).
 - `iproofs release freeze` refuses a reference file with no price or no date (RFC-0006 C6).
 - `reference/v0.1.yaml`: price per GPU-hour set from three providers' readings on 2026-11-04 (RFC-0006 Q1).

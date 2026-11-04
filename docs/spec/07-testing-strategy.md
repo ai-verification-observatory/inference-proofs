@@ -101,6 +101,10 @@ Run by a person on the GPU host before every measurement campaign and recorded i
 
 Line coverage target for `iproofs` excluding `iproofs.measure.nvml` and `iproofs.measure.cgroup`: 90 % (target, measured by `pytest --cov` in CI and reported, not enforced as a gate in v0.1). Branch coverage of `iproofs.derive`, `iproofs.controls` and `iproofs.validate`: 100 % (target, enforced by a coverage threshold in G1 from v0.1-beta), because these modules decide what is published.
 
+## Sharding
+
+On hosted CI the unit, property and schema-example tests run in three shards per Python version (job `test-shard`), so each shard fits B-CI-UNIT ([08](08-performance-budget.md)) on a 2-vCPU runner. `IPROOFS_SHARD=i/n` keeps the i-th of n interleaved parts of the sorted test ids (`harness/tests/conftest.py`), so every test runs in exactly one shard. Each shard writes its own coverage data; the `tests` job of the same Python version combines them and runs the coverage gate, so the floors apply to the whole suite. `make ci` runs the suite unsharded with the same commands.
+
 ## Flaky-test policy
 
 A test that fails intermittently is a bug. The first failure opens an issue with the log; the test is fixed or quarantined within 7 days by marking it `@pytest.mark.quarantine` with the issue number, which CI runs but does not count as blocking. A quarantined test older than 30 days blocks the next harness release (docs/spec/09-release-and-versioning.md). Retrying a failing test automatically in CI is not allowed.

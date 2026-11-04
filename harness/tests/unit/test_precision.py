@@ -32,6 +32,8 @@ def test_bit_widths_and_order() -> None:
     assert "lower bit width" in str(substitution_problem("W8A16", "W8A8"))
     assert "unknown scheme" in str(substitution_problem("int8", "mxfp4-custom"))
     assert "no substitution to declare" in str(substitution_problem("int8", "W8A8"))
+    assert substitution_problem("W8A8", "fp8") is None  # PM-4: same widths, another format
+    assert "no substitution to declare" in str(substitution_problem("bf16", "fp16"))
     assert substituted(ROOT, "no-such-system", "fake-tiny-ci", REGISTRY) is False
 
 
