@@ -165,7 +165,7 @@ AGENTS.md rule 6: the commitment the verifier checks comes from the harness reco
 
 ### Eligibility
 
-A run is eligible for a release (RFC-0009 freeze) only if: `self_test.passed` is true, `harness.nonconforming` is false, the claim card named in `claim` is the one the release lists, `harness.git_dirty` is false, `system.adapter_dirty` is false, `image.digest_kind` is `manifest`, every pin in the manifest is in full form, the image digest equals `system.yaml`'s image at the release's adapter commit, and a prover's image is in the project's registry (B7). A run that fails eligibility stays in `results/` (append-only) and is shown, if at all, as ineligible with the reason. Upstream results with a dirty or unknown tree enter only as `external` quantities (RFC-0007 §Clean builds).
+A run is eligible for a release (RFC-0009 freeze) only if: `self_test.passed` is true, `harness.nonconforming` is false, the claim card named in `claim` is the one the release lists, `harness.git_dirty` is false, `system.adapter_dirty` is false, `image.digest_kind` is `manifest`, every pin in the manifest is in full form, the image digest equals `system.yaml`'s image at the release's adapter commit, and the image is in the project's registry (B7). A run that fails eligibility stays in `results/` (append-only) and is shown, if at all, as ineligible with the reason. Upstream results with a dirty or unknown tree enter only as `external` quantities (RFC-0007 §Clean builds).
 
 ### Supply-chain threats and responses
 
@@ -232,7 +232,7 @@ No adapters or results exist yet. Order: manifest schema and the commitment stor
 ## Open Questions
 
 - OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-03-31, or a later RFC): whether runners sign `run.json` and `manifest.json` (for example with a key bound to an attested runner), and with which scheme. Default for v0.1: unsigned; trust comes from reproduction (RFC-0007).
-- Resolved Q2: the default holds. Release images live in `ghcr.io/ai-verification-observatory/`, the container registry of the organisation that hosts the source. They are kept indefinitely: a digest that a release references is never deleted or overwritten, and lookups never go by tag. Release freeze refuses a prover run whose image is elsewhere (eligibility reason `image_not_in_project_registry`). A reference engine image (RFC-0015) is an upstream artifact pinned by digest at its publisher's registry, like upstream source, and B7 does not apply to it.
+- Resolved Q2: the default holds. Release images live in `ghcr.io/ai-verification-observatory/`, the container registry of the organisation that hosts the source. They are kept indefinitely: a digest that a release references is never deleted or overwritten, and lookups never go by tag. Release freeze refuses a run whose image is elsewhere (eligibility reason `image_not_in_project_registry`), a reference adapter's run included. The engine image a reference adapter builds on (RFC-0015) is a base image pinned by digest at its publisher's registry (B1), like any `FROM`, and is not pushed again.
 - OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): whether the release archive may store upstream source tarballs for systems whose licence does not permit redistribution. Default: v0.1 systems are Apache-2.0 (PRD §1), so yes for v0.1; a future system with a restrictive licence records the digest only.
 
 ## References

@@ -42,7 +42,7 @@ systems/ref-serve/       Dockerfile (engine image by digest), entrypoint, system
 systems/ref-recompute/   Dockerfile (same engine image by digest), entrypoint, system.yaml, README.md, tests/
 ```
 
-Reference systems have no `claim.yaml` (they prove nothing) and no controls. A plugin published by the engine's own project counts as part of the engine pin when it is installed into the adapter image and pinned in its `inputs.lock` (RFC-0014 B2); the adapter README names it. The site shows them only as reference rows beside a workload's system rows, never as systems.
+Reference systems have no `claim.yaml` (they prove nothing) and no controls. A reference adapter's image is built `FROM` the engine image by digest, pushed like any release image (RFC-0014 B7) and pinned in `system.yaml` `image`; the `engine` field names the engine it builds on. A plugin published by the engine's own project counts as part of the engine pin when it is installed into the adapter image and pinned in its `inputs.lock` (RFC-0014 B2); the adapter README names it. The site shows them only as reference rows beside a workload's system rows, never as systems.
 
 ```yaml
 # systems/ref-serve/system.yaml (shape)

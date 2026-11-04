@@ -338,7 +338,8 @@ def write_reproduction(orig: Path, record: dict[str, object], registry: SchemaRe
 
 # ---------------------------------------------------------------- eligibility (RFC-0014)
 
-# B7 (RFC-0014 Q2): release images of provers live here; reference engine images do not.
+# B7 (RFC-0014 Q2): every release image lives here, a reference adapter's included; the
+# engine image a reference adapter builds FROM is a base image, pinned by digest.
 PROJECT_REGISTRY = "ghcr.io/ai-verification-observatory/"
 
 # Stable reason strings, shown by the release index and the site.
@@ -398,8 +399,9 @@ def eligibility(
             root, str(system.get("adapter_commit")), str(system.get("name"))
         )
         != run.get("manifest", "system", "image", "ref"),
-        "image_not_in_project_registry": not reference
-        and not str(run.get("manifest", "system", "image", "ref")).startswith(PROJECT_REGISTRY),
+        "image_not_in_project_registry": not str(
+            run.get("manifest", "system", "image", "ref")
+        ).startswith(PROJECT_REGISTRY),
         "no_archived_proof": not reference
         and run.key()
         not in (archived if archived is not None else archived_configurations(release, root)),
