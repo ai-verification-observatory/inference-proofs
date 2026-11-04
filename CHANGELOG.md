@@ -26,6 +26,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Changed
 
+- CI runs the unit tests in three shards per Python version and combines coverage in the `tests` jobs, whose check names are unchanged (docs/spec/07 §Sharding).
 ### Deprecated
 
 ### Removed

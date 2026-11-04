@@ -32,7 +32,7 @@ These steps must run on any developer machine and on hosted CI (AGENTS.md: CPU-o
 | Budget id | Operation | Target |
 |---|---|---|
 | B-CI-TOTAL | all pull request gates of RFC-0013, wall time | at most 10 minutes |
-| B-CI-UNIT | unit, property and schema-example tests | at most 3 minutes |
+| B-CI-UNIT | unit, property and schema-example tests, per shard on hosted CI ([07 §Sharding](07-testing-strategy.md#sharding)) | at most 3 minutes |
 | B-CI-E2E | fake-system end-to-end run plus controls, and the `fake-broken` check | at most 2 minutes |
 | B-VAL-TREE | `iproofs validate` over a tree of 1,000 run directories | at most 60 seconds |
 | B-DERIVE-RUN | `iproofs derive --check` on one run directory | at most 50 ms |
