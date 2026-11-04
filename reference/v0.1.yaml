@@ -1,7 +1,7 @@
 # Reference profiles and cost basis for benchmark release v0.1 (RFC-0006 §Reference file).
-# The price (value 0.0, no providers yet) is a placeholder until RFC-0006 Q1 is resolved by
-# issue #78; CI rejects a release whose price is 0. The driver is unpinned until issue #77,
-# so every host fails the conformance check until then.
+# The price is the median per-GPU on-demand list price of the readings below (RFC-0006 C3,
+# Q1 resolved by issue #78); validate recomputes it (COST-1). The driver is unpinned until
+# issue #77, so every host fails the conformance check until then.
 schema: "reference/1"
 release: "v0.1"
 profiles:
@@ -23,7 +23,7 @@ profiles:
     emulation: {allowed_on: ["prover-h100"]}
 cost:
   price_per_gpu_hour_usd:
-    value: 0.0
+    value: 4.29
     unit: "USD/gpu_hour"
     scope: null
     grade: "asserted"
@@ -31,7 +31,11 @@ cost:
     source: {kind: "reference_file", ref: "reference/v0.1.yaml#/cost"}
     null_reason: null
   basis: "median on-demand list price of the named providers on the named date"
-  providers: []
-  date: "2026-11-03"
+  providers: ["Lambda", "RunPod", "CoreWeave"]
+  date: "2026-11-04"
+  readings:
+    - {provider: "Lambda", url: "https://lambda.ai/pricing", offer: "1x NVIDIA H100 SXM 80 GB", list_price_usd_per_hour: 4.29, gpus: 1}
+    - {provider: "RunPod", url: "https://www.runpod.io/pricing", offer: "H100 SXM 80 GB, Secure Cloud", list_price_usd_per_hour: 3.99, gpus: 1}
+    - {provider: "CoreWeave", url: "https://www.coreweave.com/pricing", offer: "NVIDIA HGX H100 (8 GPUs), on-demand", list_price_usd_per_hour: 49.24, gpus: 8}
   priced: ["gpu"]
   not_priced: ["cpu", "host_memory", "disk", "network"]

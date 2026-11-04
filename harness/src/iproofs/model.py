@@ -956,6 +956,15 @@ class VerifierProfile(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PriceReading(Document):
+    provider: str
+    url: str
+    offer: str
+    list_price_usd_per_hour: float
+    gpus: int
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Cost(Document):
     price_per_gpu_hour_usd: Quantity
     basis: str
@@ -963,6 +972,7 @@ class Cost(Document):
     date: str
     priced: tuple[str, ...]
     not_priced: tuple[str, ...]
+    readings: tuple[PriceReading, ...] | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1272,6 +1282,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reference/1", "#/$defs/verifier/properties/cpu"): VerifierCpu,
     ("reference/1", "#/$defs/verifier/properties/emulation"): Emulation,
     ("reference/1", "#/properties/cost"): Cost,
+    ("reference/1", "#/properties/cost/properties/readings/items"): PriceReading,
     ("controls/1", "#"): Controls,
     ("controls/1", "#/$defs/control"): ControlResult,
     ("controls/1", "#/$defs/trial"): Trial,

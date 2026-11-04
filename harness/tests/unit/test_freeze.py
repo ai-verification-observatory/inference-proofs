@@ -72,6 +72,22 @@ def test_review_window_under_14_days_fails(
     assert not (tmp_path / "releases/v0.1/index.json").exists()
 
 
+def test_freeze_price_zero(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """TC-FREEZE-PRICE-ZERO (RFC-0006 C6): the old placeholder price stops the freeze."""
+    build(tmp_path)
+    path = tmp_path / "reference/v0.1.yaml"
+    doc = yaml.safe_load(path.read_text())
+    doc["cost"]["price_per_gpu_hour_usd"]["value"] = 0.0
+    path.write_text(yaml.safe_dump(doc, sort_keys=False))
+    commit(tmp_path, "unpriced")
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["release", "freeze", "v0.1"]) == 1
+    assert "has no price or no date (RFC-0006 C6)" in capsys.readouterr().err
+    assert not (tmp_path / "releases/v0.1/index.json").exists()
+
+
 def test_freeze_date_must_follow_window(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

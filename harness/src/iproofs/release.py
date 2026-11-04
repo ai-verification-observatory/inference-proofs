@@ -21,7 +21,7 @@ from pathlib import Path
 from iproofs import __version__
 from iproofs.derive import agreement_rate, overhead, provider_spread, statistic
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import Release, load
+from iproofs.model import ReferenceFile, Release, load
 from iproofs.provenance import file_digest
 from iproofs.quantity import Scope, Tier, claim_class_matches, lowest_tier
 from iproofs.schema import SchemaRegistry
@@ -476,7 +476,10 @@ def freeze(
     release = load(path, registry)  # step 1
     if not isinstance(release, Release) or release.release != release_id:
         raise _fail(f"{path.relative_to(root)} is not release {release_id}")
-    load(root / release.reference_file, registry)  # validates the reference file
+    reference = load(root / release.reference_file, registry)  # validates the reference file
+    assert isinstance(reference, ReferenceFile)
+    if not reference.cost.price_per_gpu_hour_usd.value or not reference.cost.date:
+        raise _fail(f"{release.reference_file} has no price or no date (RFC-0006 C6)")
     read += [path, root / release.reference_file]
     runs = {}
     for listed in release.runs:
