@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
 ENV = {"IPROOFS_FAKE_UPSTREAM": "64168df9fd0706dfd955b6795fa6f535872dff78",
        "IPROOFS_FAKE_DELAY_S": "0"}  # fmt: skip
-IMAGE = "ghcr.io/example/iproofs-fake@sha256:" + "a" * 64
+IMAGE = "ghcr.io/ai-verification-observatory/iproofs-fake@sha256:" + "a" * 64
 CARD = "sha256:" + "c" * 64
 
 
@@ -34,14 +34,14 @@ def stored(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def setup(
-    tmp_path: Path, stored: Path, edit: Callable[[dict[str, Any]], None]
+    tmp_path: Path, stored: Path, edit: Callable[[dict[str, Any]], None], image: str = IMAGE
 ) -> tuple[Path, Release]:
     """A repository whose fake system.yaml pins IMAGE at one commit, the stored run made
     eligible (then changed by `edit`), and a release that lists it and its claim card."""
     root = tmp_path / "repo"
     (root / "systems/fake").mkdir(parents=True)
     system = yaml.safe_load((ROOT / "systems/fake/system.yaml").read_text())
-    repository, _, digest = IMAGE.partition("@")
+    repository, _, digest = image.partition("@")
     system["image"] = {"repository": repository, "digest": digest}
     (root / "systems/fake/system.yaml").write_text(yaml.safe_dump(system))
     git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
@@ -57,7 +57,7 @@ def setup(
     m["self_test"] = {"passed": True, "checks": [{"name": "ST-CLOCK", "passed": True}]}
     m["claim"] = {"system": "fake", "configuration": "default", "card_version": 1}
     m["system"] |= {"adapter_commit": commit, "adapter_dirty": False, "claim_digest": CARD,
-                    "image": {"ref": IMAGE, "digest_kind": "manifest"}}  # fmt: skip
+                    "image": {"ref": image, "digest_kind": "manifest"}}  # fmt: skip
     m["proofs"][0]["archive"] = "https://archive.example.org/v0.1/fake/req-0.tar"
     edit(m)
     (run_dir / "manifest.json").write_text(json.dumps(m))
@@ -68,8 +68,10 @@ def setup(
     return run_dir, Release.from_tree(doc)
 
 
-def reasons(tmp_path: Path, stored: Path, edit: Callable[[dict[str, Any]], None]) -> list[str]:
-    run_dir, release = setup(tmp_path, stored, edit)
+def reasons(
+    tmp_path: Path, stored: Path, edit: Callable[[dict[str, Any]], None], image: str = IMAGE
+) -> list[str]:
+    run_dir, release = setup(tmp_path, stored, edit, image)
     ok, found = eligibility(run_dir, release, run_dir.parents[3], REGISTRY)
     assert ok is (found == [])
     assert set(found) <= set(REASONS)
@@ -102,6 +104,13 @@ def test_config_digest_kind_ineligible(tmp_path: Path, stored: Path) -> None:
     assert reasons(tmp_path, stored, config) == ["image_digest_kind_config"]
 
 
+def test_image_outside_project_registry_ineligible(tmp_path: Path, stored: Path) -> None:
+    """B7 (RFC-0014 Q2): a release image lives in the project's registry, even when the run
+    and system.yaml agree on it."""
+    other = "ghcr.io/example/iproofs-fake@sha256:" + "a" * 64
+    assert reasons(tmp_path, stored, lambda m: None, other) == ["image_not_in_project_registry"]
+
+
 def test_claim_card_mismatch_ineligible(tmp_path: Path, stored: Path) -> None:
     def other_card(m: dict[str, Any]) -> None:
         m["system"]["claim_digest"] = "sha256:" + "d" * 64
@@ -120,7 +129,7 @@ def test_claim_card_mismatch_ineligible(tmp_path: Path, stored: Path) -> None:
         (lambda m: m["harness"].update(git_commit="abc123"), ["manifest_invalid"]),  # short pin
         (
             lambda m: m["system"]["image"].update(ref="ghcr.io/x/y@sha256:" + "b" * 64),
-            ["image_differs_from_system_yaml"],
+            ["image_differs_from_system_yaml", "image_not_in_project_registry"],
         ),
         (lambda m: m["system"].update(adapter_commit="f" * 40), ["image_differs_from_system_yaml"]),
         (lambda m: m["proofs"][0].update(archive=None), ["no_archived_proof"]),

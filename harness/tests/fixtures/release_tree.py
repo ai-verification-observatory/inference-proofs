@@ -24,7 +24,7 @@ from iproofs.serialize import write_json
 ROOT = Path(__file__).resolve().parents[3]
 COPY = ["schema", "systems/fake", "workloads/fake-tiny-ci.yaml", "reference",
         "harness/tests/fixtures/prompts", "site/templates"]  # fmt: skip
-IMAGE = "ghcr.io/example/iproofs-fake@sha256:" + "ab" * 32
+IMAGE = "ghcr.io/ai-verification-observatory/iproofs-fake@sha256:" + "ab" * 32
 GIT_ENV = {"GIT_AUTHOR_NAME": "fixture", "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
            "GIT_COMMITTER_NAME": "fixture", "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
            "GIT_AUTHOR_DATE": "2027-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2027-01-01T00:00:00Z",
