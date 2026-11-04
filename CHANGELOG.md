@@ -27,6 +27,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 - `iproofs run --runner HANDLE --runner-org ORG --affiliated SYSTEM`: the declared runner recorded in every manifest; `iproofs.release.is_unaffiliated` (RFC-0007 §Tiers).
 - `iproofs archive upload`: uploads proof archives and the adapters' upstream inputs to the archive dataset, checks every stored digest and records the pinned archive URI in the manifest (RFC-0014, RFC-0009 Q1).
 - `systems/ref-serve`: the plain-serving reference adapter (entrypoint, Dockerfile, inputs.lock, CPU tests on engine outputs captured on a GPU host) (RFC-0015).
+- `systems/ref-recompute`: the recompute reference adapter, the ref-serve entrypoint with `reference_role: recompute` (teacher-forced argmax from prompt log-probabilities, one request at a time), with CPU tests on argmax tokens captured on a GPU host (RFC-0015).
 - `iproofs reproduce compare ORIG_RUN REPRO_RUN`: eligibility, the tolerance rule, verdict and digest matching, and the `reproduction/1` record (RFC-0007).
 
 ### Changed
