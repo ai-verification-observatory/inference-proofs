@@ -42,7 +42,7 @@ systems/ref-serve/       Dockerfile (engine image by digest), entrypoint, system
 systems/ref-recompute/   Dockerfile (same engine image by digest), entrypoint, system.yaml, README.md, tests/
 ```
 
-Reference systems have no `claim.yaml` (they prove nothing) and no controls. The site shows them only as reference rows beside a workload's system rows, never as systems.
+Reference systems have no `claim.yaml` (they prove nothing) and no controls. A plugin published by the engine's own project counts as part of the engine pin when it is installed into the adapter image and pinned in its `inputs.lock` (RFC-0014 B2); the adapter README names it. The site shows them only as reference rows beside a workload's system rows, never as systems.
 
 ```yaml
 # systems/ref-serve/system.yaml (shape)
@@ -99,8 +99,10 @@ A verifier holding the weights checks a claimed output by running the model itse
 
 ### Precision matching
 
-- PM-1. The reference precision equals the workload's `precision.served` (RFC-0003) when the pinned engine documents support for it on the profile's GPU.
+- PM-0. A reference loads only the workload's pinned model files (RFC-0003), never another checkpoint of the model (for example one pre-quantized with other weights), so it runs the same weights as the workload pins.
+- PM-1. The reference precision equals the workload's `precision.served` (RFC-0003) when the pinned engine documents support for it on the profile's GPU, loading the pinned files.
 - PM-2. Otherwise the reference uses the nearest supported scheme by this order: same weight bit width with higher activation bit width; then the next higher weight bit width with the lowest supported activation bit width. The substitution is declared in `system.yaml` `precision_substitution` with the reason and the engine documentation link, and every metric of the row carries `quality.precision_substituted: true` (RFC-0012).
+- PM-4. When the engine supports the workload's scheme only from another checkpoint (PM-0), the reference first uses the same bit widths in another number format that the engine quantizes at load time from the pinned files (for example FP8 W8A8 for an integer W8A8), before PM-2's order. It is a declared substitution like any other.
 - PM-3. D-OVERHEAD-S over a substituted reference is computed and flagged, not suppressed: the reader sees the factor and the flag. A substitution to a lower bit width than the workload is never allowed (it would flatter the reference).
 
 ### Feasibility on the profile
@@ -164,9 +166,9 @@ GPU host:
 
 ## Open Questions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-01-31): which vLLM release and image digest are pinned for v0.1? Constraint: it documents support for Llama-3.1-8B W8A8 and for the public 4-bit Llama 4 Maverick conversion (or a declared nearest precision) on H100. Default until resolved: the newest release that meets the constraint on the date the `systems/ref-serve` pull request opens.
+- Resolved Q1: by the default rule, on 2026-11-04 (the date the `systems/ref-serve` pull request opened): vLLM v0.32.0 (released 2026-10-18; v0.33.0rc3 is a release candidate), image `docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34`, source commit `5df63a7203cdb9328d824a27b682e77c7b9928be`. It documents `LlamaForCausalLM` (Llama 3.1) and `Llama4ForConditionalGeneration` (Llama 4) on its [supported models](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/models/supported_models.md) page, and INT8 W8A8 and FP8 W8A8 on Hopper ([quantization](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/README.md)). Per workload: the SASH workloads use FP8 W8A8 quantized at load from the pinned files (PM-4), because INT8 W8A8 needs an llm-compressor checkpoint ([int8_w8a8.md](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/llm_compressor/int8_w8a8.md), [online.md](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/online.md)); the Maverick workloads load the pinned GGUF files through the vLLM project's `vllm-gguf-plugin` v0.0.5 ([gguf.md](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/gguf.md)), which does not list Llama 4 among its tested families, so NM-1 is the expected outcome. Details in [`systems/ref-serve/README.md`](../systems/ref-serve/README.md).
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-03-31 or a v0.2 RFC): should a multi-GPU profile be admitted for reference rows only, when a model cannot be served on the system rows' profile? Default until resolved: no; NM-1 applies.
-- OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): does the pinned engine expose argmax over teacher-forced positions directly (for example through prompt log-probabilities), or does the recompute adapter need a documented engine API call? Default until resolved: the adapter README documents the call used; no engine source change is made (AGENTS.md rule 1 applies to reference engines too).
+- Resolved Q3: yes, through prompt log-probabilities. Recompute submits prompt plus claimed output as one prompt of token ids with `SamplingParams(prompt_logprobs=1, max_tokens=1)` ([`sampling_params.py`](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/sampling_params.py#L347-L349)). At each position the engine returns the top-1 token of `torch.topk` over the log-probabilities ([`Sampler.gather_logprobs`](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/v1/sample/sampler.py#L312-L337)), which is the argmax; ties follow `torch.topk`'s order. No engine source change.
 
 ## References
 
