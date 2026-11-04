@@ -17,6 +17,9 @@ Every pull request that changes the public API, a schema or the methodology adds
 ### Added
 
 - `web/`: a first dashboard for the platform (Next.js static export, deployable on Vercel) with the RFC-0009 pages: overview, release, native division with sorted views, systems, workloads, controls, targets, methodology, sponsors. Run values, controls, targets and reproductions are mock data, labelled on every number; upstream figures, the reference price and the RFC list are read from the repository at build time. G3 skips `web/` tool-written JSON and G8 covers the dashboard sources (RFC-0013 text updated).
+- `ref-serve` and `ref-recompute` pin their pushed images, `ghcr.io/ai-verification-observatory/ref-serve` and `.../ref-recompute`, by manifest digest (RFC-0014 B7).
+- `systems/sash`: the SASH adapter image (Dockerfile, inputs.lock) built by the RFC-0014 rules from upstream's own build at `eb95bfa`, with `info` and `setup`; `write_inputs.py` records an adapter's toolchain versions (B5).
+- `systems/flashprove`: the FlashProve adapter image (Dockerfile, inputs.lock, hash-locked CUDA 13.2.2 packages) built by the RFC-0014 rules from upstream's build instructions at `9e2bdd8`, with `info` and `setup`.
 - The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
 - The `iproofs` harness package (`harness/`), with `validate`, `derive`, `run` and `controls` commands.
 - JSON Schemas under `schema/`, each with valid and invalid examples.
@@ -47,6 +50,9 @@ Every pull request that changes the public API, a schema or the methodology adds
 ### Removed
 
 ### Fixed
+
+- Gate G9 (SEC-5) no longer reads a requirement pin such as `nvidia-cublas==13.4.1.3` as an IPv4 address; any other match is still reported.
+- Release eligibility read the pinned image from `system.yaml` at the image's own build commit, which can never hold that image's digest, so every pushed image was ineligible. It now reads the pin at the release commit and requires the build commit to be its ancestor (RFC-0014 §Eligibility, INV-DM-4 wording clarified).
 
 ### Security
 
