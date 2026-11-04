@@ -16,6 +16,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
 - The `iproofs` harness package (`harness/`), with `validate`, `derive`, `run` and `controls` commands.
 - JSON Schemas under `schema/`, each with valid and invalid examples.
 - The `fake` and `fake-broken` test systems, the `fake-tiny-ci` workload and the `ci-cpu` profile.

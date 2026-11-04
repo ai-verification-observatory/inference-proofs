@@ -1,0 +1,43 @@
+name: images
+
+# RFC-0014 B7: build an adapter image from a clean checkout of main (B6) and push it to the
+# project registry, ghcr.io/ai-verification-observatory/ (Q2). The job summary prints the
+# manifest digest that system.yaml then pins. Run by hand; it never blocks a merge.
+on:
+  workflow_dispatch:
+    inputs:
+      system:
+        description: "systems/<name> to build"
+        required: true
+        type: choice
+        options: [ref-serve, ref-recompute, sash, flashprove]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    env:
+      SYSTEM: ${{ inputs.system }}
+      REPOSITORY: ghcr.io/ai-verification-observatory/${{ inputs.system }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # CUDA and vLLM bases need tens of GB; the runner image's unused toolchains are removed first.
+      - run: sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache /usr/local/share/boost && df -h /
+      - run: echo "$TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: build and push
+        run: |
+          dirty=$(test -z "$(git status --porcelain)" && echo false || echo true)
+          docker buildx build --push --provenance=false --metadata-file meta.json \
+            --build-arg IPROOFS_ADAPTER_COMMIT="$GITHUB_SHA" --build-arg IPROOFS_ADAPTER_DIRTY="$dirty" \
+            --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            -t "$REPOSITORY:$GITHUB_SHA" -f "systems/$SYSTEM/Dockerfile" systems
+          digest=$(jq -r '."containerimage.digest"' meta.json)
+          echo "$REPOSITORY@$digest (adapter commit $GITHUB_SHA, dirty $dirty)" | tee -a "$GITHUB_STEP_SUMMARY"
