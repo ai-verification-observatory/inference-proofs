@@ -39,13 +39,14 @@ iproofs reproduce compare ORIG_RUN REPRO_RUN
 iproofs release freeze RELEASE
 iproofs release plan RELEASE
 iproofs site build [--out DIR]
+iproofs archive upload [--results DIR] [--repo REPO]   # GPU host, before the results PR (RFC-0009 Q1)
 ```
 
 Contracts:
 
 - **CLI-1 Exit codes.** 0 success; 1 check failed; 2 usage error; 3 environment does not meet the profile; 4 a job ran and was recorded as failed; 5 internal error. These meanings never change within a harness major version.
 - **CLI-2 No measurement flags.** No command-line option changes what is measured or how. Workload, shape, profile, timeouts and forbidden flags come from reviewed files.
-- **CLI-3 Machine-readable output.** Commands that print data (`machine-record`, `prompts build`, `reproduce compare`) print JSON on stdout through the single writer; human progress goes to stderr and is suppressed by `--quiet`.
+- **CLI-3 Machine-readable output.** Commands that print data (`machine-record`, `prompts build`, `reproduce compare`, `archive upload`) print JSON on stdout through the single writer; human progress goes to stderr and is suppressed by `--quiet`.
 - **CLI-4 Determinism.** `validate`, `derive`, `release freeze` and `site build` produce byte-identical output for identical inputs on any supported platform.
 - **CLI-5 Offline checks.** `validate`, `derive`, `release freeze` and `site build` need no network and no GPU, and run with the base install (no optional extras).
 
