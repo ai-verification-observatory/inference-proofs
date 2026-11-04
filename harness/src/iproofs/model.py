@@ -601,6 +601,16 @@ class ModelFile(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class TokenizerSource(Document):
+    """The tokenizer file alone, from a second pinned repository (RFC-0003)."""
+
+    hub: str
+    repo: str
+    revision: str
+    file: ModelFile
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Licence(Document):
     name: str
     url: str
@@ -624,6 +634,7 @@ class ModelSpec(Document):
     parameters: Parameters
     tokenizer_file: str
     vocab_size: int
+    tokenizer_source: TokenizerSource | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1250,6 +1261,8 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("workload/1", "#/properties/model"): ModelSpec,
     ("workload/1", "#/properties/model/properties/source"): ModelSource,
     ("workload/1", "#/properties/model/properties/files/items"): ModelFile,
+    ("workload/1", "#/properties/model/properties/tokenizer_source"): TokenizerSource,
+    ("workload/1", "#/properties/model/properties/tokenizer_source/properties/file"): ModelFile,
     ("workload/1", "#/properties/model/properties/licence"): Licence,
     ("workload/1", "#/properties/model/properties/parameters"): Parameters,
     ("workload/1", "#/properties/precision"): Precision,

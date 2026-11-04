@@ -73,6 +73,38 @@ def test_tokenizer_file_listed(tree: Path, registry: SchemaRegistry) -> None:
     assert "model.tokenizer_file 'vocab.txt' is not in model.files" in config_error(tree, registry)
 
 
+TOKENIZER_SOURCE = (
+    '  tokenizer_source: {hub: "huggingface", repo: "org/tok", revision: "'
+    + "0" * 40
+    + '", file: {path: "tok.json", sha256: "'
+    + "a" * 64
+    + '", bytes: 3}}\n'
+)
+
+
+def test_tokenizer_from_second_source(tree: Path, registry: SchemaRegistry) -> None:
+    """RFC-0003: the tokenizer file may come from a second pinned repository; then
+    tokenizer_file names that file and need not be among the weights' files."""
+    edit(
+        tree,
+        'tokenizer_file: "tokenizer.json"\n',
+        'tokenizer_file: "tok.json"\n' + TOKENIZER_SOURCE,
+    )
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    assert wl.model.tokenizer_source is not None
+    assert (wl.model.tokenizer_source.repo, wl.model.tokenizer_source.file.bytes) == ("org/tok", 3)
+
+
+def test_tokenizer_file_names_second_source(tree: Path, registry: SchemaRegistry) -> None:
+    edit(
+        tree,
+        'tokenizer_file: "tokenizer.json"\n',
+        'tokenizer_file: "tokenizer.json"\n' + TOKENIZER_SOURCE,
+    )
+    message = config_error(tree, registry)
+    assert "'tokenizer.json' is not model.tokenizer_source.file.path 'tok.json'" in message
+
+
 def test_unknown_system_in_workload(tree: Path, registry: SchemaRegistry) -> None:
     shutil.rmtree(tree / "systems/fake-broken")
     assert "'fake-broken' has no systems/fake-broken/system.yaml" in config_error(tree, registry)

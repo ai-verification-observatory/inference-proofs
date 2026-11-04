@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Protocol
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import Corpus, Workload, load
+from iproofs.model import Corpus, ModelFile, Workload, load
 from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_jsonl
@@ -52,7 +52,13 @@ def check_workload(wl: Workload, root: Path) -> list[str]:
             f"shape.context_window {shape.context_window} < prompt_tokens + output_tokens - 1"
             f" = {needed}"
         )
-    if wl.model.tokenizer_file not in {f.path for f in wl.model.files}:
+    source = wl.model.tokenizer_source
+    if source is not None and wl.model.tokenizer_file != source.file.path:
+        problems.append(
+            f"model.tokenizer_file {wl.model.tokenizer_file!r} is not"
+            f" model.tokenizer_source.file.path {source.file.path!r}"
+        )
+    elif source is None and wl.model.tokenizer_file not in {f.path for f in wl.model.files}:
         problems.append(f"model.tokenizer_file {wl.model.tokenizer_file!r} is not in model.files")
     for system in wl.systems:
         if not (root / "systems" / system / "system.yaml").is_file():
@@ -206,7 +212,10 @@ def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> li
         raise IProofsError(
             ErrorKind.CONFIG, f"{wl.id}: corpus {wl.prompts.corpus_digest} is not available locally"
         )
-    tokenizer = tokenizer_for(models / wl.model.tokenizer_file)
+    path = models / wl.model.tokenizer_file
+    if wl.model.tokenizer_source is not None:  # not in the weights directory
+        path = tokenizer_file(root, wl, default_cache())
+    tokenizer = tokenizer_for(path)
     return corpus_window_v1(
         texts, tokenizer, wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
     )
@@ -384,13 +393,18 @@ def tokenizer_file(
     """The workload's tokenizer file, verified: from the toy model in this repository, from a
     verified model cache entry, or fetched alone and checked against its listed sha256 (so
     checking a prompt set needs no weights)."""
-    name = wl.model.tokenizer_file
-    if wl.model.source.hub == "repository":
+    name, source = wl.model.tokenizer_file, wl.model.tokenizer_source
+    repo, revision = wl.model.source.repo, wl.model.revision
+    if source is not None:  # a second pinned repository: never inside the weights directory
+        listed: ModelFile | None = source.file
+        repo, revision = source.repo, source.revision
+    elif wl.model.source.hub == "repository":
         return model_dir(root, wl) / name
-    model = cache / "models" / wl.model.digest.removeprefix("sha256:") / name
-    if model.is_file():
-        return model
-    listed = next((f for f in wl.model.files if f.path == name), None)
+    else:
+        model = cache / "models" / wl.model.digest.removeprefix("sha256:") / name
+        if model.is_file():
+            return model
+        listed = next((f for f in wl.model.files if f.path == name), None)
     if listed is None:
         raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: {name} is not in model.files")
     path = cache / "tokenizers" / listed.sha256.removeprefix("sha256:") / name
@@ -398,7 +412,7 @@ def tokenizer_file(
         tmp = path.parent.with_name(f".tmp-{path.parent.name}-{os.getpid()}")
         tmp.mkdir(parents=True, exist_ok=True)
         try:
-            (download or hub_download)(wl.model.source.repo, wl.model.revision, [name], tmp, None)
+            (download or hub_download)(repo, revision, [name], tmp, None)
             got = tmp / name
             if file_digest(got).removeprefix("sha256:") != listed.sha256.removeprefix("sha256:"):
                 raise IProofsError(
