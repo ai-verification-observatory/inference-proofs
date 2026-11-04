@@ -40,6 +40,7 @@ def test_fake_dockerfile_is_pinned(repo: Path) -> None:
 def test_checkout_of_full_hash_or_variable_passes(repo: Path) -> None:
     dockerfile = repo / "systems/fake/Dockerfile"
     extra = f"RUN git checkout ${{UPSTREAM_COMMIT}}\nRUN git checkout {'0' * 40}\n"
+    extra += "RUN pip install --no-index numpy==2.1.0 \\\n && true\n"  # `\` is no package
     dockerfile.write_text(dockerfile.read_text() + extra)
     subprocess.run(["git", "-C", str(repo), "add", "-A"], check=True)
     assert [f for f in validate_tree(repo) if f.gate == "G7"] == []

@@ -1,6 +1,15 @@
 # ref-serve and ref-recompute: engine pin
 
-The reference systems of [RFC-0015](../../rfcs/0015-reference-rows.md): plain serving (`ref-serve`) and recompute by a verifier holding the weights (`ref-recompute`). Both run the same pinned engine. The adapters themselves (entrypoint, Dockerfile, tests) come with #138 and #139; this page records the engine pin, the precision used per workload and every engine option, each with the engine's documentation at the pinned version.
+The reference systems of [RFC-0015](../../rfcs/0015-reference-rows.md): plain serving (`ref-serve`) and recompute by a verifier holding the weights (`ref-recompute`, #139). Both run the same pinned engine. This page records the engine pin, the precision used per workload and every engine option, each with the engine's documentation at the pinned version, and how the `ref-serve` adapter works.
+
+## The ref-serve adapter
+
+- **Steps** (RFC-0015 §Steps per job): `info` and `setup` as RFC-0005 defines them; `prove` serves the workload. The harness skips `commit` and `verify`, and the entrypoint refuses them.
+- **`prove`** loads the engine once, from its own command-line parser, with the workload's `engine_args` from `system.yaml`, verbatim (SRV-3). It serves the prompts in order, in batches of the workload's `batch_size` for `batches_per_session` batches (SRV-1). Decoding is greedy, with `max_tokens` equal to the workload's `output_tokens` (SRV-2). Prompts and outputs are token ids.
+- **Release protocol** (REF-1): after each batch, each request of that batch is released as `/io/proofs/req-<i>/outputs.json` (`request_index`, `batch`, `token_ids`), written under a temporary name and renamed. Releases are per request so the harness counts tokens with the per-request rule of the system the row serves (REF-3); they happen at batch boundaries, so `prove.steady` runs from the first to the last batch. The outputs are kept for audit and never compared with a system's outputs (SRV-4).
+- **Commands:** the engine runs inside the adapter process, so `/io/commands.jsonl` records one line, `vllm.LLM --model /models` followed by the options.
+- **Image:** `systems/ref-serve/Dockerfile`, built `FROM` the engine image by digest under the RFC-0014 rules (`docker build -f systems/ref-serve/Dockerfile systems`, see its header). Its fetch stage downloads the plugin wheel listed in `inputs.lock`. The image is pushed to the project registry and pinned in `system.yaml` `image` (RFC-0014 B7) by the first build on a GPU host.
+- **Tests:** `systems/ref-serve/tests/` run on CPU (INV-ADAPTER-9). They replay engine outputs captured once on a GPU host (`tests/fixtures/capture/`, with its own README) through the outputs builder and the release protocol.
 
 ## Engine
 

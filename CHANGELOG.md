@@ -26,10 +26,12 @@ Every pull request that changes the public API, a schema or the methodology adds
 - `iproofs machine-record`: the RFC-0006 machine record from allowlisted probes; every run records it before `info` and checks it again after the last step (INV-MR-2).
 - `iproofs run --runner HANDLE --runner-org ORG --affiliated SYSTEM`: the declared runner recorded in every manifest; `iproofs.release.is_unaffiliated` (RFC-0007 §Tiers).
 - `iproofs archive upload`: uploads proof archives and the adapters' upstream inputs to the archive dataset, checks every stored digest and records the pinned archive URI in the manifest (RFC-0014, RFC-0009 Q1).
+- `systems/ref-serve`: the plain-serving reference adapter (entrypoint, Dockerfile, inputs.lock, CPU tests on engine outputs captured on a GPU host) (RFC-0015).
 - `iproofs reproduce compare ORIG_RUN REPRO_RUN`: eligibility, the tolerance rule, verdict and digest matching, and the `reproduction/1` record (RFC-0007).
 
 ### Changed
 
+- `system/1`: a reference system may pin its adapter image (`image`); release freeze applies the project-registry rule to reference runs too (RFC-0014 B7, RFC-0015).
 - Release freeze refuses a prover run whose image is not in `ghcr.io/ai-verification-observatory/` (eligibility reason `image_not_in_project_registry`, RFC-0014 Q2 and B7; from #255).
 - CI runs the unit tests in three shards per Python version and combines coverage in the `tests` jobs, whose check names are unchanged (docs/spec/07 §Sharding).
 ### Deprecated

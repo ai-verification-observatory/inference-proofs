@@ -28,7 +28,7 @@
       }
     },
     {
-      "$comment": "reference systems (RFC-0015) carry an engine and object workloads; others an upstream, an image and workload ids",
+      "$comment": "reference systems (RFC-0015) carry an engine and object workloads, and may pin their adapter image; others an upstream, an image and workload ids",
       "else": {
         "properties": {
           "engine": false,
@@ -54,7 +54,6 @@
       },
       "then": {
         "properties": {
-          "image": false,
           "upstream": false,
           "workloads": {
             "items": {
