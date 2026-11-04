@@ -14,13 +14,15 @@ on:
 
 permissions:
   contents: read
-  packages: write
 
 jobs:
   build:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 300
+    permissions:  # this job alone pushes packages; it never runs on a pull request
+      contents: read
+      packages: write
     env:
       SYSTEM: ${{ inputs.system }}
       REPOSITORY: ghcr.io/ai-verification-observatory/${{ inputs.system }}
