@@ -864,7 +864,11 @@ def scan_text(text: str, rel: str) -> list[Finding]:
                 hit = m.group(0)
                 if any(a <= m.start() and m.end() <= b for a, b in spans):
                     continue  # inside an earlier hit: a MAC address is not also an IPv6 one
-                if p.rule == "SEC-5" and (hit in IPV4_ALLOWED or _VERSION_FIELD.search(line)):
+                if p.rule == "SEC-5" and (
+                    hit in IPV4_ALLOWED
+                    or _VERSION_FIELD.search(line)
+                    or line[: m.start()].endswith("==")  # a requirement pin, pkg==13.4.1.3
+                ):
                     continue
                 if p.rule == "SEC-6" and not is_ipv6(hit):
                     continue

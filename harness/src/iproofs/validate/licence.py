@@ -27,7 +27,8 @@ CODE = ("harness/*", "systems/*", "site/*", "schema/*", ".github/*")  # Apache-2
 # what an adapter directory holds besides its documents (RFC-0005 §Layout, RFC-0014 B2)
 ADAPTER_CODE = (
     "Dockerfile", "Dockerfile.*", "entrypoint", "entrypoint*", "system.yaml", "controls.yaml",
-    "README.md", "inputs.lock", "policy-allow.txt", "tests/*", "model/*", "*.py",
+    "README.md", "inputs.lock", "*requirements.txt", "policy-allow.txt", "tests/*", "model/*",
+    "*.py",
 )  # fmt: skip
 
 

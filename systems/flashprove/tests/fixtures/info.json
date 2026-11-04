@@ -1,0 +1,26 @@
+{
+  "adapter_commit": "6e28a7f4454ecc61c922fb59961e08e574934442",
+  "adapter_dirty": true,
+  "contract": "adapter/1",
+  "contract_versions": [
+    "adapter/1"
+  ],
+  "image_inputs": [
+    {
+      "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
+      "name": "FlashProve",
+      "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+    }
+  ],
+  "phases": [],
+  "profile": "prover-h100",
+  "schema": "adapter-out/1",
+  "subcommand": "info",
+  "system": "flashprove",
+  "upstream_commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+  "warnings": [],
+  "workloads": [
+    "fp-maverick-w1024-b1",
+    "fp-maverick-w1024-b24"
+  ]
+}
