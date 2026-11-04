@@ -158,11 +158,21 @@ class Event(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Agreement(Document):
+    agree: int
+    disagree: int
+    first_disagreement: int | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ProofResult(Document):
     proof_id: str
     release_mono_ns: int | None
     tokens_covered: int
     verdict: str | None
+    request_index: int | None = None
+    claimed_output: tuple[int, ...] | None = None
+    agreement: Agreement | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -715,6 +725,7 @@ class AdapterJob(Document):
     request: tuple[int, ...] | None = None
     claimed_output: tuple[int, ...] | None = None
     proof_dir: str | None = None
+    claims_file: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1173,6 +1184,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("run/1", "#/properties/raw"): RawSteps,
     ("run/1", "#/properties/events/items"): Event,
     ("run/1", "#/properties/proofs/items"): ProofResult,
+    ("run/1", "#/properties/proofs/items/properties/agreement"): Agreement,
     ("run/1", "#/$defs/failure"): Failure,
     ("manifest/1", "#"): Manifest,
     ("manifest/1", "#/properties/harness"): HarnessRecord,

@@ -30,6 +30,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Changed
 
+- `run/1` `proofs[]`: optional `request_index`, `claimed_output` and, for ref-recompute runs, `agreement`; `adapter-job/1`: optional `claims_file` on `prove`. The runner passes a source run's claims to a ref-recompute job and records the agreement counts as run metrics (RFC-0015 RC-1, RC-5).
 - Release freeze refuses a prover run whose image is not in `ghcr.io/ai-verification-observatory/` (eligibility reason `image_not_in_project_registry`, RFC-0014 Q2 and B7; from #255).
 - CI runs the unit tests in three shards per Python version and combines coverage in the `tests` jobs, whose check names are unchanged (docs/spec/07 §Sharding).
 ### Deprecated
