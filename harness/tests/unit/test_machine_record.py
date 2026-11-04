@@ -8,7 +8,7 @@ import pytest
 
 from iproofs.adapter import InProcessRunner
 from iproofs.log.redact import Redactor
-from iproofs.provenance import Host, machine_drift, machine_record
+from iproofs.provenance import Host, machine_drift, machine_record, sysfs_bus_id
 from iproofs.runner import CpuOnlyEnvironment, JobSpec, Runner
 from iproofs.schema import SchemaRegistry
 from iproofs.validate.tree import scan_text
@@ -33,7 +33,7 @@ def nvml(index: int) -> dict[str, object]:
         "memory_total_mib": 81559,
         "driver_version": "560.35.03",
         "cuda_driver_api": "12.6",
-        "pci_bus_id": "0000:17:00.0",
+        "pci_bus_id": "00000000:17:00.0",  # NVML form: 8-digit domain, sysfs uses 4
         "uuid": UUID,  # NVML knows it; the record must not carry it
         "serial": "1652022000123",
     }
@@ -149,3 +149,17 @@ def test_runner_records_and_checks_drift(tmp_path: Path, kernels: list[str]) -> 
     else:
         assert (run["failure"]["kind"], run["failure"]["step"]) == ("environment", "written")
         assert "kernel.release" in run["failure"]["message"]
+
+
+@pytest.mark.parametrize(
+    ("nvml_bus", "sysfs"),
+    [
+        ("00000000:17:00.0", "0000:17:00.0"),  # NVML_DEVICE_PCI_BUS_ID_FMT
+        ("00000001:A3:00.0", "0001:a3:00.0"),
+        ("0000:17:00.0", "0000:17:00.0"),  # already the sysfs form
+        ("bogus", "bogus"),
+    ],
+)
+def test_sysfs_bus_id(nvml_bus: str, sysfs: str) -> None:
+    """The GPU's NUMA node is read from sysfs, which names devices with a 4-digit domain."""
+    assert sysfs_bus_id(nvml_bus) == sysfs
