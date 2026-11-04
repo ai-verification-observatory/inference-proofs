@@ -1,0 +1,49 @@
+# CUDA 13.2 Update 2 (nvcc 13.2.86) from NVIDIA's PyPI packages, the install that FlashProve's
+# prover/docs/build.md#install-the-compiler shows, locked with hashes for linux x86_64:
+#   uv pip compile --generate-hashes --python-version 3.12 --python-platform x86_64-manylinux_2_28
+cuda-toolkit==13.2.2 \
+    --hash=sha256:d12edc1aad1356236a2ee10c0d794b1aff5d3e79bfeca54867c3bb8e5afd87b0
+    # via -r req.in
+nvidia-cublas==13.4.1.3 \
+    --hash=sha256:4eb1472bf92b741e7cf24da7978dde251b58ddec2092d9f6a04f3623eb4e9a15 \
+    --hash=sha256:7e7f780caf07bde7b36b0d25bdad29e8ccbacfc4b75066907bdb601af1e6d4aa \
+    --hash=sha256:a5917cb642cfb07f4a0231ee16aec7e2e0357d8cb8b1b78a0c9c68dba3e6afc7
+    # via cuda-toolkit
+nvidia-cuda-cccl==13.2.86 \
+    --hash=sha256:05f2a2123cd7bc13b731d219d27e50281150a7985d5955bffcde0e966cefe0a2 \
+    --hash=sha256:35da671cf0cecd3539da214a11bb8e7634366c9e950da9c5feecf6c490a65b20 \
+    --hash=sha256:a983ba0daa8e11be82bb53c6dbac4d8f25c5802fa9f4713b0e766f0e0531ee8f
+    # via cuda-toolkit
+nvidia-cuda-crt==13.2.86 \
+    --hash=sha256:3294669c379ef3382804bc077fec22a48753a743c75c83c1ee3c224bb049423f \
+    --hash=sha256:a1c90081bef01c8688eaf24e8cfaef9b8a05175d761d5828262920cc8abf6561 \
+    --hash=sha256:e3ab08801bf9b1e6dc979275d25e816bb5000521b648e19c324d5eef0c79f1da
+    # via
+    #   cuda-toolkit
+    #   nvidia-cuda-nvcc
+nvidia-cuda-nvcc==13.2.86 \
+    --hash=sha256:4171face482ef8ca35b5b2d59cfd25d2d0e2a2e2534fe34d2ce20695437868d9 \
+    --hash=sha256:7d3f56c8d705bad35bbba69eb0470d90856fd5d4dc48c6a6173aaf1e9f887cf5 \
+    --hash=sha256:909140a1f942b943982b2eff120e618c94e29d75d9e33f5cd074f0e64eb411e8
+    # via cuda-toolkit
+nvidia-cuda-nvrtc==13.2.86 \
+    --hash=sha256:1e5d7b411a2eb83f5c71c98d58133a763fc9fa86a4241ee320c5c4782d9ad1fd \
+    --hash=sha256:8111c5130e967b78222ea2124145f8efe9ce201b752b2579a2513100a53be1c5 \
+    --hash=sha256:bf070582c2d8b03f681cea8d34a9de900d808607deb813a826ecb3a585606f9a
+    # via
+    #   cuda-toolkit
+    #   nvidia-cublas
+nvidia-cuda-runtime==13.2.86 \
+    --hash=sha256:3498247680dfddce31bad102af7e3e26fc795342a3cac64722bb0fa95e7f60f0 \
+    --hash=sha256:37844957894bfdecf90243568d21a2cb251b66106915b71459a23c8e6ef2da69 \
+    --hash=sha256:b26f5dd86e67f0eb404ae679185e1c49fe546fa9a47b32dee31312f65ccfe764
+    # via
+    #   cuda-toolkit
+    #   nvidia-cuda-nvcc
+nvidia-nvvm==13.2.86 \
+    --hash=sha256:7d140c2dd2d177af71240a31bbca20f40b4aee9a4e331156083e387855222b49 \
+    --hash=sha256:a502dcc2859f17a925adba495c222d44a221b9eb10e7d111a7046dc2cc883b69 \
+    --hash=sha256:a9244f3209922d655612c11ebb4117ea1f80983cb2b215c9cccded127282cebc
+    # via
+    #   cuda-toolkit
+    #   nvidia-cuda-nvcc

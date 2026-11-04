@@ -17,6 +17,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 ### Added
 
 - `systems/sash`: the SASH adapter image (Dockerfile, inputs.lock) built by the RFC-0014 rules from upstream's own build at `eb95bfa`, with `info` and `setup`; `write_inputs.py` records an adapter's toolchain versions (B5).
+- `systems/flashprove`: the FlashProve adapter image (Dockerfile, inputs.lock, hash-locked CUDA 13.2.2 packages) built by the RFC-0014 rules from upstream's build instructions at `9e2bdd8`, with `info` and `setup`.
 - The `images` workflow: builds an adapter image from a clean checkout of `main` and pushes it to `ghcr.io/ai-verification-observatory/<system>`, printing the manifest digest (RFC-0014 B6, B7).
 - The `iproofs` harness package (`harness/`), with `validate`, `derive`, `run` and `controls` commands.
 - JSON Schemas under `schema/`, each with valid and invalid examples.
@@ -48,6 +49,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- Gate G9 (SEC-5) no longer reads a requirement pin such as `nvidia-cublas==13.4.1.3` as an IPv4 address; any other match is still reported.
 ### Security
 
 - The commitment a verifier checks comes only from the harness's commit record (RFC-0014 §The commitment record).

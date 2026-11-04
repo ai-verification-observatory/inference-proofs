@@ -1,0 +1,16 @@
+{
+  "inputs": [
+    {
+      "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
+      "name": "FlashProve",
+      "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+    }
+  ],
+  "toolchains": {
+    "cuda": "V13.2.86",
+    "flashprove": "0.16.0",
+    "gcc": "13.3.0",
+    "make": "GNU Make 4.3",
+    "python": "3.12.3"
+  }
+}
