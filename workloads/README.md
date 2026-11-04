@@ -18,10 +18,10 @@ The schema itself enforces the closed-division rule (`claim_class` present exact
 |---|---|---|---|---|---|
 | [`sash-l31-8b-c4096`](sash-l31-8b-c4096.yaml) | `unsloth/Llama-3.1-8B-Instruct` | W8A8 | 4,096 + 512, 1, 1 | both | `ref-serve`, `ref-recompute` |
 | [`sash-l31-8b-c1024`](sash-l31-8b-c1024.yaml) | `unsloth/Llama-3.1-8B-Instruct` | W8A8 | 1,024 + 64, 1, 1 | both | `ref-serve`, `ref-recompute` |
-| `fp-maverick-w1024-b1` | not written yet (#49) | | 1,024 + 1, 1, 5 | prefill | |
-| `fp-maverick-w1024-b24` | not written yet (#49) | | 1,024 + 1, 24, 5 | prefill | |
+| [`fp-maverick-w1024-b1`](fp-maverick-w1024-b1.yaml) | `unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF`, folder `UD-Q4_K_XL`; tokenizer from `unsloth/Llama-4-Maverick-17B-128E-Instruct` | UD-Q4_K_XL | 1,024 + 1, 1, 5 | prefill | `ref-serve`, `ref-recompute` |
+| [`fp-maverick-w1024-b24`](fp-maverick-w1024-b24.yaml) | `unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF`, folder `UD-Q4_K_XL`; tokenizer from `unsloth/Llama-4-Maverick-17B-128E-Instruct` | UD-Q4_K_XL | 1,024 + 1, 24, 5 | prefill | `ref-serve`, `ref-recompute` |
 
-The model is the one each system's own runs name: SASH's recorded runs use the ungated mirror `unsloth/Llama-3.1-8B-Instruct` at `4699cc75b550f9c6f3173fb80f4703b62d946aa5`. A native system joins its workloads' `systems` list when its `system.yaml` lands; until then only the reference systems (RFC-0015) are listed.
+The model is the one each system's own runs name: SASH's recorded runs use the ungated mirror `unsloth/Llama-3.1-8B-Instruct` at `4699cc75b550f9c6f3173fb80f4703b62d946aa5`; FlashProve names the `UD-Q4_K_XL` files of `unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF` at `41032e5471dd6ea5b349062d978626215d6c5bba`, whose repository has no tokenizer file, so `model.tokenizer_source` pins it from the ungated full-precision repository. A native system joins its workloads' `systems` list when its `system.yaml` lands; until then only the reference systems (RFC-0015) are listed.
 
 The prompt corpus is `prompts/corpus.yaml` ([RFC-0003 §Prompt corpus](../rfcs/0003-workloads.md#prompt-corpus)).
 
