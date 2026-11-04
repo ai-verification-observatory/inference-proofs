@@ -1,0 +1,67 @@
+# RFC-0015 reference system. Engine pin: RFC-0015 Q1 (#136); options and precision per
+# workload, with their documentation links: systems/ref-serve/README.md.
+schema: system/1
+name: ref-recompute
+kind: reference
+contract: adapter/1
+reference_role: recompute
+engine:
+  name: vllm
+  version: 0.32.0
+  image: docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+workloads:
+- id: sash-l31-8b-c4096
+  precision_used: fp8
+  precision_substitution:
+    reason: vLLM 0.32.0 serves INT8 W8A8 only from a checkpoint pre-quantized with llm-compressor, which
+      holds other weights than the workload's pinned files (RFC-0015 PM-0); FP8 W8A8 is quantized at load
+      time from the pinned files (PM-4)
+    source: https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/online.md
+  engine_args:
+  - --quantization
+  - fp8_per_tensor
+  - --max-model-len
+  - '4608'
+  - --max-num-seqs
+  - '1'
+  - --skip-tokenizer-init
+- id: sash-l31-8b-c1024
+  precision_used: fp8
+  precision_substitution:
+    reason: vLLM 0.32.0 serves INT8 W8A8 only from a checkpoint pre-quantized with llm-compressor, which
+      holds other weights than the workload's pinned files (RFC-0015 PM-0); FP8 W8A8 is quantized at load
+      time from the pinned files (PM-4)
+    source: https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/online.md
+  engine_args:
+  - --quantization
+  - fp8_per_tensor
+  - --max-model-len
+  - '1088'
+  - --max-num-seqs
+  - '1'
+  - --skip-tokenizer-init
+- id: fp-maverick-w1024-b1
+  precision_used: UD-Q4_K_XL
+  precision_substitution: null
+  engine_args:
+  - --max-model-len
+  - '1025'
+  - --max-num-seqs
+  - '1'
+  - --cpu-offload-gb
+  - '160'
+  - --skip-tokenizer-init
+- id: fp-maverick-w1024-b24
+  precision_used: UD-Q4_K_XL
+  precision_substitution: null
+  engine_args:
+  - --max-model-len
+  - '1025'
+  - --max-num-seqs
+  - '1'
+  - --cpu-offload-gb
+  - '160'
+  - --skip-tokenizer-init
+deterministic_proofs: false
+incremental_proofs: true
+forbidden_flags: []

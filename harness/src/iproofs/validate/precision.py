@@ -3,7 +3,8 @@
 PM-1: a reference that does not use the workload's `precision.served` declares a
 `precision_substitution` with a reason and the engine documentation. PM-2: a substitution
 never goes to a lower bit width than the workload (it would flatter the reference), and every
-quantity of a substituted row carries `quality.precision_substituted: true`.
+quantity of a substituted row carries `quality.precision_substituted: true`. PM-4: the same bit
+widths in another number format (FP8 for an integer W8A8) is a substitution too.
 """
 
 import json
@@ -18,6 +19,7 @@ from iproofs.validate import Finding
 
 NAMED = {"int8": (8, 8), "fp8": (8, 8), "int4": (4, 4), "bf16": (16, 16), "fp16": (16, 16),
          "fp32": (32, 32)}  # fmt: skip
+FLOAT = {"fp8", "bf16", "fp16", "fp32"}  # every other known scheme, W<w>A<a> included, is integer
 
 
 def bit_widths(scheme: str) -> tuple[int, int] | None:
@@ -34,7 +36,7 @@ def substitution_problem(served: str, used: str) -> str | None:
         return f"cannot order precisions {served!r} and {used!r}: unknown scheme"
     if u[0] < s[0] or (u[0] == s[0] and u[1] < s[1]):
         return f"{used} is a lower bit width than the workload's {served}"
-    if u == s:
+    if u == s and (served.strip().lower() in FLOAT) == (used.strip().lower() in FLOAT):
         return f"{used} is the workload's precision; no substitution to declare"
     return None
 
