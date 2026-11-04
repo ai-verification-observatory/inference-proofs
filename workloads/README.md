@@ -7,7 +7,7 @@ One file per workload, `workloads/<id>.yaml`, valid against `schema/workload/1.s
 - the file name matches `id`, and `version` matches the requested version when one is given;
 - INV-WL-4: `prompts.count == shape.batch_size * shape.batches_per_session` and `prompts.length_rule.prompt_tokens == shape.prompt_tokens`;
 - `shape.context_window >= shape.prompt_tokens + shape.output_tokens - 1`;
-- `model.tokenizer_file` is one of `model.files[].path`;
+- `model.tokenizer_file` is one of `model.files[].path`, or, when `model.tokenizer_source` names a second pinned repository for the tokenizer file alone, that source's `file.path`;
 - every id in `systems` has a `systems/<id>/system.yaml`.
 
 The schema itself enforces the closed-division rule (`claim_class` present exactly when `division` is `closed`), greedy decoding and full 40-hex model revisions.

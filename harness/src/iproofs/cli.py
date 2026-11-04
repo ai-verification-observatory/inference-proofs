@@ -549,7 +549,12 @@ def fetch_model(args: argparse.Namespace) -> int:
     from iproofs.runner import retry_fetch  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
-    from iproofs.workloads import default_cache, ensure_model, load_workload  # noqa: PLC0415
+    from iproofs.workloads import (  # noqa: PLC0415
+        default_cache,
+        ensure_model,
+        load_workload,
+        tokenizer_file,
+    )
 
     root = repo_root(Path.cwd())
     wl = load_workload(args.workload, root=root, registry=SchemaRegistry.from_tree(root / "schema"))
@@ -561,6 +566,8 @@ def fetch_model(args: argparse.Namespace) -> int:
         retry=lambda op: retry_fetch(op, f"model {wl.id}"),
         token=os.environ.get("HF_TOKEN"),
     )
+    if wl.model.tokenizer_source is not None:  # a run builds its prompts offline, so fetch it now
+        retry_fetch(lambda: tokenizer_file(root, wl, default_cache()), f"tokenizer {wl.id}")
     print(path)
     return 0
 

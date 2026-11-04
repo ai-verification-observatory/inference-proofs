@@ -10,9 +10,10 @@ import pytest
 from iproofs import cli
 from iproofs.adapter import InProcessRunner
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.model import ModelFile, TokenizerSource
 from iproofs.runner import JobSpec, Runner
 from iproofs.schema import SchemaRegistry
-from iproofs.workloads import load_tokenizer, load_workload, tokenizer_file
+from iproofs.workloads import load_tokenizer, load_workload, materialise_prompts, tokenizer_file
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
@@ -80,3 +81,34 @@ def test_hub_tokenizer_fetched_alone_and_verified(tmp_path: Path) -> None:
     with pytest.raises(IProofsError) as e:
         tokenizer_file(ROOT, wl, tmp_path, download=hub)
     assert e.value.kind is ErrorKind.INTEGRITY
+
+
+def test_tokenizer_from_second_source_fetched_alone(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RFC-0003: a tokenizer_source is fetched from its own repository and revision, checked
+    against its own sha256, and used to build the prompts; the weights' repository is untouched."""
+    wl = load_workload("fake-tiny-ci", root=ROOT, registry=REGISTRY)
+    listed = next(f for f in wl.model.files if f.path == "tokenizer.json")
+    source = TokenizerSource(hub="huggingface", repo="org/tok", revision="1" * 40,
+                             file=ModelFile(path="tokenizer.json", sha256=listed.sha256,
+                                            bytes=listed.bytes))  # fmt: skip
+    wl = dataclasses.replace(wl, model=dataclasses.replace(wl.model, tokenizer_source=source))
+    calls: list[tuple[str, str, list[str]]] = []
+
+    def hub(repo: str, rev: str, files: list[str], into: Path, token: str | None) -> None:
+        calls.append((repo, rev, files))
+        for name in files:
+            (into / name).write_bytes((ROOT / "systems/fake/model" / name).read_bytes())
+
+    path = tokenizer_file(ROOT, wl, tmp_path, download=hub)
+    assert calls == [("org/tok", "1" * 40, ["tokenizer.json"])]
+    assert (
+        path == tmp_path / "tokenizers" / listed.sha256.removeprefix("sha256:") / "tokenizer.json"
+    )
+    monkeypatch.setenv("IPROOFS_CACHE", str(tmp_path))
+    empty = tmp_path / "weights"  # the tokenizer is not looked for among the weights
+    empty.mkdir()
+    prompts = materialise_prompts(ROOT, wl, empty, 1)
+    plain = load_workload("fake-tiny-ci", root=ROOT, registry=REGISTRY)
+    assert prompts == materialise_prompts(ROOT, plain, ROOT / "systems/fake/model", 1)

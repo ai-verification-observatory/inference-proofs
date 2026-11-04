@@ -57,7 +57,8 @@ Scenarios:
 | `model.digest` | yes | `sha256:<hex>` | over `<path>\t<sha256>\n` lines sorted by path bytes (RFC-0012) |
 | `model.licence` | yes | `{name: Text, url: Text, gated: bool}` | access terms |
 | `model.parameters` | yes | `{total: integer, active_per_token: integer, source: URL}` | from the model's own documentation; used by RFC-0004 |
-| `model.tokenizer_file` | yes | path in `model.files` | the tokenizer the prompt generator uses |
+| `model.tokenizer_file` | yes | path in `model.files`, or `model.tokenizer_source.file.path` | the tokenizer the prompt generator uses |
+| `model.tokenizer_source` | no | `{hub: huggingface, repo, revision, file: {path, sha256, bytes}}` | the tokenizer file from a second pinned repository, when the weights' repository has none (for example a GGUF conversion). `model.digest` covers `model.files` only; this file is checked against its own sha256 |
 | `precision` | yes | `{served: Text, proved: Text}` | quantisation as served and as proved |
 | `prompts.generator` | yes | `"corpus-window/1"` | generator id and version |
 | `prompts.corpus_digest` | yes | `sha256:<hex>` | digest of `workloads/prompts/corpus.yaml` content set |

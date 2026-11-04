@@ -8,6 +8,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Methodology
 
+- RFC-0003: a workload may pin its tokenizer file from a second repository (`model.tokenizer_source`, with its own revision and sha256) when the weights' repository has none; `model.digest` still covers the weights only. `fetch-model` and the prompt builder fetch and check it alone.
 - RFC-0015: vLLM v0.32.0 pinned for the reference rows (Q1) and teacher-forced argmax through `prompt_logprobs` (Q3); a reference loads only the workload's pinned files (PM-0) and may use the same bit widths in another number format (PM-4), so the SASH reference rows run FP8 W8A8 as a declared substitution (from #257).
 - RFC-0009 Q1: archived proofs are stored in a public dataset repository on the Hugging Face Hub, at URIs pinned to the dataset commit.
 - RFC-0006 Q1: the v0.1 price per GPU-hour is the median of Lambda, RunPod and CoreWeave on-demand H100 SXM list prices read on 2026-11-04, archived in `reference/v0.1.yaml`.

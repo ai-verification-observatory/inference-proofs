@@ -184,6 +184,52 @@
           "minLength": 1,
           "type": "string"
         },
+        "tokenizer_source": {
+          "$comment": "the tokenizer file from a second pinned repository, when the weights' repository has none (RFC-0003 §Workload file); model.digest covers the weights only",
+          "additionalProperties": false,
+          "properties": {
+            "file": {
+              "additionalProperties": false,
+              "properties": {
+                "bytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "path": {
+                  "pattern": "^[^/][^\\t\\n]*$",
+                  "type": "string"
+                },
+                "sha256": {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "sha256",
+                "bytes"
+              ],
+              "type": "object"
+            },
+            "hub": {
+              "const": "huggingface"
+            },
+            "repo": {
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            },
+            "revision": {
+              "$ref": "../quantity/1.schema.json#/$defs/commit"
+            }
+          },
+          "required": [
+            "hub",
+            "repo",
+            "revision",
+            "file"
+          ],
+          "type": "object"
+        },
         "vocab_size": {
           "minimum": 1,
           "type": "integer"
