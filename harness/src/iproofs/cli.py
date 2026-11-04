@@ -302,7 +302,8 @@ def fmt(args: argparse.Namespace) -> int:
 
 def run(args: argparse.Namespace) -> int:
     """`iproofs run`: N repetitions; exit 4 when any job was recorded as failed."""
-    from iproofs.runner import JobSpec, Runner, recorded_seed  # noqa: PLC0415
+    from iproofs.runner import JobSpec, Runner, recorded_claims, recorded_seed  # noqa: PLC0415
+    from iproofs.serialize import load_yaml  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
     from iproofs.workloads import load_workload  # noqa: PLC0415
 
@@ -313,6 +314,10 @@ def run(args: argparse.Namespace) -> int:
     containers, image, registry = _containers(system_file, args.in_process, args.image)
     wl = load_workload(args.workload, root=root, registry=registry)
     seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
+    recompute = load_yaml(system_file).get("reference_role") == "recompute"
+    if recompute and not args.prompts_from:  # RFC-0015 RC-1, before any step
+        raise IProofsError(ErrorKind.CONFIG, f"{args.system} needs --prompts-from a system run")
+    claims = recorded_claims(args.prompts_from) if args.prompts_from and recompute else None
     runner = Runner(
         containers,
         root=root,
@@ -325,6 +330,7 @@ def run(args: argparse.Namespace) -> int:
         allow_nonconforming=args.allow_nonconforming,
         prompts_from=args.prompts_from.resolve().name if args.prompts_from else None,
         replay_seed=seed,
+        claims=claims,
         keep_io=args.keep_io,
     )
     spec = JobSpec(

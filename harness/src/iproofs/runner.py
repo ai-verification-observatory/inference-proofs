@@ -237,6 +237,7 @@ class Job:
     proof_records: list[dict[str, object]] = field(default_factory=list)
     proof_bytes: dict[str, int] = field(default_factory=dict)
     archive: tuple[str, str, int] | None = None  # (proof id, tar digest, bytes), RFC-0014
+    agreement: dict[str, dict[str, int | None]] = field(default_factory=dict)  # RFC-0015 RC-3
 
 
 class Runner:
@@ -257,6 +258,7 @@ class Runner:
         log_level: str = "info",
         allow_nonconforming: bool = False,
         prompts_from: str | None = None,
+        claims: list[list[int]] | None = None,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -269,6 +271,7 @@ class Runner:
         # RFC-0003 §Seed policy: a fresh seed per job, or a recorded one replayed (--prompts-from)
         self.replay_seed = replay_seed
         self.prompts_from = prompts_from  # the source run id, recorded in the manifest
+        self.claims = claims  # the source run's claimed outputs, for ref-recompute (RC-1)
         self.keep_io = keep_io
         self.progress = progress  # stderr for progress lines; None with --quiet
         self.log_level = log_level
@@ -447,6 +450,12 @@ class Runner:
         io = job.staging / "io"
         io.mkdir()
         job.prompt_set_digest = write_jsonl(io / "prompts.jsonl", job.prompts)
+        if _recompute(job):  # RFC-0015 RC-1: the claims come from the --prompts-from run
+            if self.claims is None or len(self.claims) < len(job.prompts):
+                raise IProofsError(
+                    ErrorKind.CONFIG, "a ref-recompute job needs --prompts-from a run with claims"
+                )
+            write_jsonl(io / "claimed.jsonl", self.claims)
 
     def _resolve_inputs(self, job: Job, log: JsonlLogger | None = None) -> None:
         """System, workload, reference file and the hash-checked model directory."""
@@ -787,11 +796,13 @@ class Runner:
             incremental_proofs=job.system.incremental_proofs,
         )
         watcher.start()
+        fields: dict[str, object] = {"claims_file": "/io/claimed.jsonl"} if _recompute(job) else {}
         try:
             out, _ = self._call(
                 job,
                 "prove",
-                {
+                fields
+                | {
                     "commitment_id": job.commit.commitment_id if job.commit else "not_applicable",
                     "prover_files": list(job.commit.prover_files or ()) if job.commit else [],
                     "model_dir": "/models",
@@ -807,6 +818,12 @@ class Runner:
         job.warnings += check_proofs(IoDirs(job.staging / "io"), out, job.system)
         watcher.check_unchanged()
         job.proofs, job.observable = out, watcher.observable
+        if _recompute(job):
+            assert self.claims is not None
+            job.agreement = {
+                e.proof_id: agreement(e.claimed_output, self.claims[e.request_index], e.proof_id)
+                for e in out.proofs or ()
+            }
         io_root = job.staging / "io"
         for entry in out.proofs or ():
             size = proof_size(io_root / "proofs" / entry.proof_id, io_root)  # Z-1 to Z-3
@@ -1330,6 +1347,20 @@ class Runner:
                 for name, elided in cuts:
                     log.log(Event.LOG_TRUNCATED, job=job.run_id, file=name, elided_bytes=elided)
 
+    def _claim(self, job: Job, proof_id: str) -> dict[str, object]:
+        """The request and claimed output of a proof (RFC-0015 RC-1), with its agreement."""
+        entries = job.proofs.proofs or () if job.proofs is not None else ()
+        entry = next((e for e in entries if e.proof_id == proof_id), None)
+        if entry is None:
+            return {}
+        out: dict[str, object] = {
+            "request_index": entry.request_index,
+            "claimed_output": list(entry.claimed_output),
+        }
+        if proof_id in job.agreement:
+            out["agreement"] = job.agreement[proof_id]
+        return out
+
     def _run_doc(self, job: Job, metrics: dict[str, QuantityTree]) -> dict[str, object]:
         spec = job.spec
         tokens = self._tokens(job) if metrics else [(0, 0)] * len(job.releases)
@@ -1358,6 +1389,7 @@ class Runner:
                     "tokens_covered": sum(tokens[i]),
                     "verdict": job.verdicts.get(pid),
                 }
+                | self._claim(job, pid)
                 for i, (pid, ns) in enumerate(job.releases)
             ],
             "warnings": list(job.warnings),
@@ -1515,6 +1547,9 @@ class Runner:
             return measured(v, Unit.COUNT, None, f"{run_json}#/proofs", None)
 
         m["requests_count"] = count(shape.batch_size * shape.batches_per_session)
+        for name, key in (("agreement_positions", "agree"), ("disagreement_positions", "disagree")):
+            if job.agreement:  # RFC-0015 RC-5, per position over every request
+                m[name] = count(sum(int(a[key] or 0) for a in job.agreement.values()))
         m["proofs_count"] = count(len(job.releases))
         m["verdicts_accept_count"] = count(sum(v == "accept" for v in job.verdicts.values()))
         bref = f"{run_json}#/proofs"
@@ -1735,6 +1770,35 @@ def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
 
 def _reference(job: Job) -> bool:
     return job.system is not None and job.system.kind == "reference"
+
+
+def _recompute(job: Job) -> bool:
+    return _reference(job) and job.system is not None and job.system.reference_role == "recompute"
+
+
+def agreement(
+    argmax: Sequence[int], claimed: Sequence[int], proof_id: str
+) -> dict[str, int | None]:
+    """RFC-0015 RC-3 and RC-7: each claimed position against the teacher-forced argmax at that
+    position; positions after a disagreement are still compared."""
+    if len(argmax) != len(claimed):
+        raise IProofsError(
+            ErrorKind.ADAPTER,
+            f"{proof_id}: {len(argmax)} argmax positions for {len(claimed)} claimed tokens",
+            step="prove",
+        )
+    differ = [i for i, (a, c) in enumerate(zip(argmax, claimed, strict=True)) if a != c]
+    return {"agree": len(claimed) - len(differ), "disagree": len(differ),
+            "first_disagreement": differ[0] if differ else None}  # fmt: skip
+
+
+def recorded_claims(run_dir: Path) -> list[list[int]]:
+    """The claimed outputs of a completed run, by request index (RFC-0015 RC-1)."""
+    proofs = json.loads((run_dir / "run.json").read_text()).get("proofs", [])
+    claims = {p.get("request_index"): p.get("claimed_output") for p in proofs}
+    if not proofs or None in claims.values() or set(claims) != set(range(len(claims))):
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir}: no claimed outputs in the source run")
+    return [list(claims[i]) for i in range(len(claims))]
 
 
 def _cpu_list(spec: str) -> list[int]:

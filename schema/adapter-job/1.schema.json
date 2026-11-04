@@ -16,6 +16,7 @@
           "batch_size": false,
           "batches": false,
           "claimed_output": false,
+          "claims_file": false,
           "commitment_id": false,
           "control_flags": false,
           "model_dir": false,
@@ -41,6 +42,7 @@
           "batch_size": false,
           "batches": false,
           "claimed_output": false,
+          "claims_file": false,
           "commitment_id": false,
           "control_flags": false,
           "model_dir": false,
@@ -66,6 +68,7 @@
           "batch_size": false,
           "batches": false,
           "claimed_output": false,
+          "claims_file": false,
           "commitment_id": false,
           "control_flags": false,
           "prompts_file": false,
@@ -116,6 +119,7 @@
         "properties": {
           "batch_size": false,
           "batches": false,
+          "claims_file": false,
           "control_flags": false,
           "model_dir": false,
           "prompts_file": false,
@@ -161,6 +165,11 @@
         "type": "integer"
       },
       "type": "array"
+    },
+    "claims_file": {
+      "$comment": "prove of a ref-recompute job: one JSON array of claimed token ids per request, in request order (RFC-0015 RC-1)",
+      "minLength": 1,
+      "type": "string"
     },
     "commitment_id": {
       "minLength": 1,
