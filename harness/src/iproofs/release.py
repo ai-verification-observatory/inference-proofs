@@ -338,6 +338,9 @@ def write_reproduction(orig: Path, record: dict[str, object], registry: SchemaRe
 
 # ---------------------------------------------------------------- eligibility (RFC-0014)
 
+# B7 (RFC-0014 Q2): release images of provers live here; reference engine images do not.
+PROJECT_REGISTRY = "ghcr.io/ai-verification-observatory/"
+
 # Stable reason strings, shown by the release index and the site.
 REASONS = {
     "other_release": "the run belongs to another release",
@@ -349,6 +352,7 @@ REASONS = {
     "adapter_dirty": "the adapter tree was dirty or unknown",
     "image_digest_kind_config": "the image is pinned by config digest, not manifest digest",
     "image_differs_from_system_yaml": "the image is not system.yaml's at the adapter commit",
+    "image_not_in_project_registry": "the image is not in the project's container registry",
     "no_archived_proof": "the configuration has no archived proof URI",
 }
 
@@ -394,6 +398,8 @@ def eligibility(
             root, str(system.get("adapter_commit")), str(system.get("name"))
         )
         != run.get("manifest", "system", "image", "ref"),
+        "image_not_in_project_registry": not reference
+        and not str(run.get("manifest", "system", "image", "ref")).startswith(PROJECT_REGISTRY),
         "no_archived_proof": not reference
         and run.key()
         not in (archived if archived is not None else archived_configurations(release, root)),
