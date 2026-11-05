@@ -66,7 +66,12 @@ def test_info(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
     assert out["workloads"] == ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
     assert (out["adapter_commit"], out["adapter_dirty"]) == ("a" * 40, False)
     names = [i["name"] for i in out["image_inputs"]]
-    assert names == ["FlashProve"]
+    assert names == [
+        "FlashProve",
+        "wikitext-2-raw-v1-train",
+        "llama2-tokenizer",
+        "llama4-tokenizer",
+    ]
 
 
 def test_image_info_fixture() -> None:
