@@ -230,3 +230,22 @@ def test_hosted_call_opens_the_parents(tmp_path: Path) -> None:
     runner = HostedRunner(["python3", "/opt/x/entrypoint"], REGISTRY, {})
     runner._command("info", io, None, None, "0", [])
     assert closed.stat().st_mode & 0o777 == 0o745
+
+
+def test_fresh_tmp_removes_only_the_adapters(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """What the adapter uid left in /tmp goes before the next call, as a new docker tmpfs would;
+    anything else in /tmp stays."""
+    from iproofs import adapter  # noqa: PLC0415
+
+    (tmp_path / "cache").mkdir()
+    (tmp_path / "cache/x").write_text("x")
+    (tmp_path / "lock").write_text("")
+    monkeypatch.setattr(adapter, "ADAPTER_UID", str(os.geteuid()))
+    adapter.fresh_tmp(tmp_path)
+    assert list(tmp_path.iterdir()) == []
+    (tmp_path / "theirs").write_text("")
+    monkeypatch.setattr(adapter, "ADAPTER_UID", str(os.geteuid() + 1))
+    adapter.fresh_tmp(tmp_path)
+    assert [p.name for p in tmp_path.iterdir()] == ["theirs"]

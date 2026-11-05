@@ -7,6 +7,7 @@ container-side paths (`/io/...`) only, so no host path reaches a record.
 import os
 import pwd
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -398,6 +399,18 @@ DROP_TO_ADAPTER = ("setpriv", f"--reuid={ADAPTER_UID}", f"--regid={ADAPTER_UID}"
                    "--inh-caps=-all", "--bounding-set=-all", "--no-new-privs")  # fmt: skip
 
 
+def fresh_tmp(tmp: Path) -> None:
+    """Docker gives every call a new /tmp tmpfs (RFC-0005); here /tmp outlives the call, so what
+    the adapter uid left there (engine and compile caches, for one) is removed before the next
+    call, and a later repetition does not start warm."""
+    for entry in tmp.iterdir():
+        if entry.lstat().st_uid == int(ADAPTER_UID):
+            if entry.is_dir() and not entry.is_symlink():
+                shutil.rmtree(entry)
+            else:
+                entry.unlink()
+
+
 def _traversable(path: Path) -> None:
     """Search permission for others on `path` and each parent that lacks it, so the adapter uid
     reaches what a docker bind mount would have given it."""
@@ -429,6 +442,7 @@ class HostedRunner(InProcessRunner):
     ) -> None:
         super().__init__(Path(entrypoint[-1]), registry, env=environ, clock=clock)
         self.argv = list(entrypoint)
+        self.tmp = Path("/tmp")
 
     def _command(
         self,
@@ -440,6 +454,8 @@ class HostedRunner(InProcessRunner):
         ro_mounts: Sequence[tuple[Path, str]],
     ) -> tuple[list[str], dict[str, str]]:
         give_io_to_adapter(io_dir)
+        if os.geteuid() == 0:
+            fresh_tmp(self.tmp)
         for path in (io_dir, models_dir):  # docker mounts them; here their parents must open
             if path is not None:
                 _traversable(path)
