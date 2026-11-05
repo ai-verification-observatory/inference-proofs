@@ -48,16 +48,28 @@ export function Chip({ children, tone = "plain", title }: { children: ReactNode;
 const TIER_TONE: Record<Tier, "plain" | "accent" | "good"> = { reported: "plain", "peer-reviewed": "accent", reproduced: "good" };
 export const TierChip = ({ tier }: { tier: Tier }) => <Chip tone={TIER_TONE[tier]}>tier {tier}</Chip>;
 
-export function SourceRef({ q }: { q: Pick<Quantity, "source" | "mock"> }) {
+export function SourceRef({ q }: { q: Pick<Quantity, "source" | "mock" | "pointer"> }) {
   const { kind, ref } = q.source;
   const cls = "text-[11px] text-ink-3";
+  // A frozen index never changes after merge, so main holds the published record.
+  if (q.pointer) return <a className={`${cls} link`} href={blob(q.pointer.replace(/#.*/, ""), "main")} title={`${q.pointer} (${ref})`}>source: {kind}, {q.pointer.replace(/.*#/, "")}</a>;
   if (ref.startsWith("http")) return <a className={`${cls} link`} href={ref}>source: {kind}</a>;
   if (ref.startsWith("mock://")) return <span className={cls} title={ref}>source: mock {kind} record</span>;
   return <a className={`${cls} link`} href={blob(ref.replace(/#.*/, ""))} title={ref}>source: {kind}</a>;
 }
 
-/** A labelled quantity: value, unit, scope, grade, tier and source side by side (RFC-0009 S2, S3, S4). */
-export function Q({ q, chart }: { q: Quantity; chart?: ReactNode }) {
+export const HOSTED = "prover-h100-hosted";
+
+/** The profile a number ran on; hosted rows say so in words (RFC-0006 §Hosted execution). */
+export const ProfileChip = ({ profile }: { profile: string }) => (
+  <>
+    <Chip>profile {profile}</Chip>
+    {profile === HOSTED && <Chip title="RFC-0006 §Hosted execution: its own configuration, never pooled with prover-h100">hosted: a container the provider starts, not the reference host</Chip>}
+  </>
+);
+
+/** A labelled quantity: value, unit, scope, grade, tier, profile and source side by side (RFC-0009 S2, S3, S4). */
+export function Q({ q, chart, profile }: { q: Quantity; chart?: ReactNode; profile?: string }) {
   return (
     <div className="min-w-44">
       {q.value === null ? (
@@ -73,6 +85,7 @@ export function Q({ q, chart }: { q: Quantity; chart?: ReactNode }) {
         {q.scope && <Chip>scope {q.scope}</Chip>}
         <Chip>grade {q.grade}</Chip>
         <TierChip tier={q.tier} />
+        {profile && <ProfileChip profile={profile} />}
         {q.mock && <Chip tone="mock" title="Invented for layout; no benchmark run produced it">mock</Chip>}
       </div>
       {q.stats && (

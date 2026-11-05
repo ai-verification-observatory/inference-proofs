@@ -3,7 +3,7 @@ import Link from "next/link";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Newsreader } from "next/font/google";
 import type { ReactNode } from "react";
 import { Nav, type NavGroup } from "@/components/nav";
-import { RELEASE, systems, workloads } from "@/lib/mock";
+import { data } from "@/lib/release";
 import { REPO } from "@/lib/repo";
 import "./globals.css";
 
@@ -14,16 +14,34 @@ const display = Newsreader({ subsets: ["latin"], weight: ["400", "500"], variabl
 export const metadata: Metadata = {
   title: { default: "Inference Proofs", template: "%s · Inference Proofs" },
   description: "An open, neutral benchmark for provable inference: same models, same reference hardware, same timing rules, and a claim card per proof.",
-  // Mock numbers must never be indexed as results.
-  robots: { index: false, follow: false },
+  // Mock numbers and release candidates must never be indexed as results.
+  robots: data.release.status === "published" ? undefined : { index: false, follow: false },
 };
 
 const groups: NavGroup[] = [
-  { items: [{ href: "/", label: "Overview" }, { href: `/releases/${RELEASE.id}/`, label: "Release", hint: RELEASE.id }, { href: "/divisions/native/", label: "Native division" }] },
-  { title: "Systems", items: systems.map((s) => ({ href: `/systems/${s.name}/`, label: s.name, hint: s.kind === "reference" ? "ref" : undefined })) },
-  { title: "Workloads", items: workloads.map((w) => ({ href: `/workloads/${w.id}/`, label: w.id })) },
+  { items: [{ href: "/", label: "Overview" }, { href: `/releases/${data.release.id}/`, label: "Release", hint: data.release.id }, { href: "/divisions/native/", label: "Native division" }] },
+  { title: "Systems", items: data.systems.map((s) => ({ href: `/systems/${s.name}/`, label: s.name, hint: s.kind === "reference" ? "ref" : undefined })) },
+  { title: "Workloads", items: data.workloads.map((w) => ({ href: `/workloads/${w.id}/`, label: w.id })) },
   { title: "Evidence", items: [{ href: "/controls/", label: "Negative controls" }, { href: "/targets/", label: "Targets" }, { href: "/methodology/", label: "Methodology" }, { href: "/sponsors/", label: "Sponsors and conflicts" }] },
 ];
+
+/** On every page: mock data, or a release candidate under review (RFC-0009 §Review window). */
+function Banner() {
+  const r = data.release;
+  if (r.status === "published") return null;
+  if (r.status === "mock")
+    return (
+      <div className="hatch border-b border-mock/30 bg-mock-soft/40 px-4 py-2 text-center text-[13px] text-ink">
+        <strong className="font-semibold">Mock data.</strong> Run values, controls, targets and reproductions on this preview are invented for layout. Claim-card text, upstream figures, the reference price and the RFC list come from the repository.
+      </div>
+    );
+  const window = r.review_window ? `review window ${r.review_window.opens} to ${r.review_window.closes}, freeze date ${r.freeze_date}` : `no review window recorded yet: releases/${r.id}/release.yaml does not exist`;
+  return (
+    <div className="hatch border-b border-mock/30 bg-mock-soft/40 px-4 py-2 text-center text-[13px] text-ink">
+      <strong className="font-semibold">Release candidate {r.id}, under review; not a published release.</strong> Built from a draft {r.index_file} before the review window closes ({window}). System maintainers are reviewing their rows, controls and claim cards, and numbers may change before freeze (RFC-0009 §Review window).
+    </div>
+  );
+}
 
 function Brand() {
   return (
@@ -45,9 +63,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-surface focus:px-3 focus:py-2">
           Skip to content
         </a>
-        <div className="hatch border-b border-mock/30 bg-mock-soft/40 px-4 py-2 text-center text-[13px] text-ink">
-          <strong className="font-semibold">Mock data.</strong> Run values, controls, targets and reproductions on this preview are invented for layout. Claim-card text, upstream figures, the reference price and the RFC list come from the repository.
-        </div>
+        <Banner />
         <div className="lg:grid lg:grid-cols-[16rem_1fr]">
           <aside className="hidden border-r border-line bg-sunken/50 lg:block">
             <div className="sticky top-0 flex h-dvh flex-col overflow-y-auto px-3 py-5">

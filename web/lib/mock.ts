@@ -17,6 +17,8 @@ export type Quantity = {
   null_reason: string | null;
   stats?: Stats;
   mock?: boolean;
+  /** path and JSON Pointer of the value in the published release index */
+  pointer?: string;
 };
 
 export const RELEASE = {
@@ -44,13 +46,14 @@ export type ClaimCard = {
   residual: string[];
   availability: string;
   forbidden_flags: string[];
-  reviewed_by: string[];
+  /** null when the card file is not in this checkout */
+  reviewed_by: string[] | null;
 };
 
 export type System = {
   name: string;
   title: string;
-  kind: "prover" | "reference";
+  kind: "prover" | "reference" | "test";
   upstream: { repo: string; commit: string } | null;
   summary: string;
   cards: ClaimCard[];
@@ -146,7 +149,7 @@ export type Workload = {
   id: string;
   version: number;
   system: string;
-  division: "native";
+  division: string;
   model: string;
   precision: string;
   prompt_tokens: number;
@@ -157,6 +160,8 @@ export type Workload = {
   phase: string;
   active_parameters_per_token: string;
   notes: string;
+  model_digest?: string;
+  corpus_digest?: string;
 };
 
 export const workloads: Workload[] = [
@@ -190,7 +195,7 @@ const RAW_META: Record<RawId, { unit: string; scope: string | null }> = {
   verify_single_thread_seconds: { unit: "s", scope: "verify.single_thread" },
 };
 
-export type Run = { run_id: string; status: "completed" | "failed" | "superseded" | "ineligible"; reason?: string; exit_code?: number; last_lines?: string[] };
+export type Run = { run_id: string; status: "completed" | "failed" | "superseded" | "ineligible" | "included"; reason?: string; exit_code?: number; last_lines?: string[] };
 
 export type Configuration = {
   system: string;
@@ -199,6 +204,7 @@ export type Configuration = {
   profile: string;
   effective_tier: Tier;
   runs: Run[];
+  insufficient_repetitions?: boolean;
   raw: Raw;
   null_reasons: Partial<Record<string, string>>;
   statistics: Record<string, Quantity>;
@@ -397,14 +403,14 @@ export const counted = (c: Control) => !["void", "not_applicable", "error"].incl
 
 // ------------------------------------------------------------------ targets (RFC-0009 §Targets)
 
-export type Target = { id: string; author: string; metric: string; comparator: "<=" | ">="; value: number; unit: string; scope: string; claim_class: string; rationale: string };
+export type Target = { id: string; author: string; metric: string; comparator: "<=" | ">=" | "=="; value: number; unit: string; scope: string | null; claim_class: string; rationale: string; file?: string };
 
 export const targets: Target[] = [
   { id: "verify-under-60s", author: "Example relying party (mock)", metric: "verify_seconds", comparator: "<=", value: 60, unit: "s", scope: "verify", claim_class: "*/exact-match/*", rationale: "A mock target from the RFC-0009 example: a relying party that checks every proof on an 8-CPU verifier wants each check under a minute." },
   { id: "cost-under-0.05-per-1k", author: "Example relying party (mock)", metric: "cost_per_1k_tokens_whole_wall", comparator: "<=", value: 0.05, unit: "USD/1k_token", scope: "whole_wall", claim_class: "*", rationale: "A mock target that matches every claim class, so every prover configuration is evaluated against it." },
 ];
 
-export type Evaluation = { target: Target; config: Configuration; result: "meets" | "does_not_meet" | "not_evaluable"; reason?: string; mean?: number; leastFavourable?: number };
+export type Evaluation = { target: Target; system: string; workload: string; profile: string; result: "meets" | "does_not_meet" | "not_evaluable"; reason?: string; mean: Quantity | null; least: Quantity | null };
 
 const classMatches = (pattern: string, cls: string) => {
   if (pattern === "*") return true;
@@ -418,11 +424,13 @@ export function evaluate(t: Target): Evaluation[] {
     const card = systems.find((s) => s.name === config.system)?.cards.find((k) => k.configuration === config.configuration);
     if (!card || !classMatches(t.claim_class, card.claim_class)) return [];
     const q = config.statistics[t.metric];
-    if (!q || q.value === null || !q.stats) return [{ target: t, config, result: "not_evaluable", reason: q?.null_reason ?? "metric missing" }];
-    if (q.unit !== t.unit || q.scope !== t.scope) return [{ target: t, config, result: "not_evaluable", reason: "unit or scope differs" }];
+    const at = { target: t, system: config.system, workload: config.workload, profile: config.profile, mean: null, least: null };
+    if (!q || q.value === null || !q.stats) return [{ ...at, result: "not_evaluable", reason: q?.null_reason ?? "metric missing" }];
+    if (q.unit !== t.unit || q.scope !== t.scope) return [{ ...at, result: "not_evaluable", reason: "unit or scope differs" }];
     const leastFavourable = t.comparator === "<=" ? q.stats.max : q.stats.min;
-    const ok = t.comparator === "<=" ? leastFavourable <= t.value : leastFavourable >= t.value;
-    return [{ target: t, config, result: ok ? "meets" : "does_not_meet", mean: q.value, leastFavourable }];
+    const ok = t.comparator === "<=" ? leastFavourable <= t.value : t.comparator === ">=" ? leastFavourable >= t.value : leastFavourable === t.value;
+    const { stats: _, ...plain } = q;
+    return [{ ...at, result: ok ? "meets" : "does_not_meet", mean: q, least: { ...plain, value: leastFavourable } }];
   });
 }
 

@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { OutcomeBar } from "@/components/charts";
 import { ClaimCardView } from "@/components/claim";
 import { ConfigBlock } from "@/components/config";
-import { A, Chip, Code, PageHeader, Panel, Q, Section, Table } from "@/components/ui";
-import { configsOf, configurations, controls, systems, workloads } from "@/lib/mock";
-import { blob, externals } from "@/lib/repo";
+import { A, Chip, Code, PageHeader, Panel, ProfileChip, Q, Section, Table } from "@/components/ui";
+import { configsOf, data, tally } from "@/lib/release";
+import { blob, externals, notReached } from "@/lib/repo";
 
 type P = { params: Promise<{ system: string }> };
+
+const { configurations, controls, systems, workloads } = data;
 
 export const generateStaticParams = () => systems.map((s) => ({ system: s.name }));
 export const dynamicParams = false;
@@ -23,15 +25,18 @@ export default async function SystemPage({ params }: P) {
   if (!s) notFound();
   const own = configsOf(s.name);
   const ws = [...new Set(own.map((c) => c.workload))];
-  const refRows = configurations.filter((c) => c.system.startsWith("ref-") && c.system !== s.name && ws.includes(c.workload));
+  const refRows = configurations.filter((c) => c.system !== s.name && ws.includes(c.workload) && systems.find((x) => x.name === c.system)?.kind === "reference");
   const ext = externals().find((e) => e.system === s.name);
   const ctl = controls.filter((c) => c.system === s.name);
-  const nav = [["claim-card", "Claim card"], ["rows", "Rows"], ["controls", "Controls"], ["reference-rows", "Reference rows"], ...(ext ? [["upstream", "Upstream figures"]] : []), ["reply", "Reply"]];
+  const nav = [["claim-card", "Claim card"], ["rows", "Rows"], ["controls", "Controls"], ...(ext ? [["upstream", "Upstream figures"]] : []), ["reply", "Reply"]];
 
   return (
     <>
-      <PageHeader eyebrow={s.kind === "reference" ? "Reference system" : "Prover"} title={s.title}>
+      <PageHeader eyebrow={s.kind === "reference" ? "Reference system" : s.kind === "test" ? "Test system" : "Prover"} title={s.title}>
         <p>{s.summary}</p>
+        {notReached(s.name) && (
+          <p className="mt-2 text-sm"><Chip tone="bad">system maintainers not reached</Chip> No one from this system has been reached yet, so no consent or review is recorded (RFC-0001 §System inclusion).</p>
+        )}
         {s.upstream && (
           <p className="mt-2 text-sm">
             Pinned at <a className="link num text-[13px]" href={`https://github.com/${s.upstream.repo}/tree/${s.upstream.commit}`}>{s.upstream.repo}@{s.upstream.commit}</a>
@@ -55,12 +60,13 @@ export default async function SystemPage({ params }: P) {
         )}
       </Section>
 
-      <Section id="rows" title="Rows" note="One block per workload and configuration. Repetition strips use each metric's own axis.">
+      <Section id="rows" title="Rows" note="One block per workload and configuration, then the reference rows on that workload (RFC-0015).">
         {ws.length === 0 && <p className="text-sm text-ink-3">No rows in this release.</p>}
         {ws.map((w) => (
           <div key={w} className="mb-2">
             <h3 className="mb-3 text-sm text-ink-2">Workload <A href={`/workloads/${w}/`}>{w}</A></h3>
-            {own.filter((c) => c.workload === w).map((c) => <ConfigBlock key={c.workload + c.configuration} c={c} />)}
+            {own.filter((c) => c.workload === w).map((c) => <ConfigBlock key={c.workload + c.profile + c.configuration} c={c} />)}
+            {refRows.filter((c) => c.workload === w).map((c) => <ConfigBlock key={c.system + c.workload + c.profile} c={c} anatomy={false} />)}
           </div>
         ))}
       </Section>
@@ -71,17 +77,13 @@ export default async function SystemPage({ params }: P) {
         ) : (
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {ctl.map((c) => (
-              <Panel key={c.workload} className="px-5 py-4">
-                <p className="mb-3 text-sm"><span className="num text-[13px]">{c.workload}</span> <span className="text-ink-3">profile {c.profile}</span></p>
-                <OutcomeBar items={c.items} />
+              <Panel key={c.workload + c.profile} className="px-5 py-4">
+                <p className="mb-3 flex flex-wrap items-center gap-1 text-sm"><span className="num text-[13px]">{c.workload}</span> <ProfileChip profile={c.profile} /></p>
+                <OutcomeBar t={tally([c])} />
               </Panel>
             ))}
           </div>
         )}
-      </Section>
-
-      <Section id="reference-rows" title="Reference rows on the same workloads" note="RFC-0015">
-        {refRows.length ? refRows.map((c) => <ConfigBlock key={c.system + c.workload} c={c} anatomy={false} />) : <p className="text-sm text-ink-3">None.</p>}
       </Section>
 
       {ext && (

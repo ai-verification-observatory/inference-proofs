@@ -1,6 +1,7 @@
 import { RangeStrip, RunAnatomy } from "@/components/charts";
 import type { Configuration } from "@/lib/mock";
-import { A, Chip, Code, Panel, Q, TierChip } from "./ui";
+import { notReached } from "@/lib/repo";
+import { A, Chip, Code, Panel, ProfileChip, Q, TierChip } from "./ui";
 
 export function configTitle(c: Configuration) {
   return `${c.system}${c.configuration ? ` / ${c.configuration}` : ""} on ${c.workload}`;
@@ -12,8 +13,8 @@ export function Runs({ c }: { c: Configuration }) {
     <ul className="space-y-1.5 text-sm">
       {c.runs.map((r) => (
         <li key={r.run_id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          {r.status === "completed" ? <Code>{r.run_id}</Code> : <del className="num text-[12.5px] text-ink-3">{r.run_id}</del>}
-          <Chip tone={r.status === "completed" ? "plain" : r.status === "failed" ? "bad" : "plain"}>{r.status}</Chip>
+          {r.status === "completed" || r.status === "included" ? <Code>{r.run_id}</Code> : <del className="num text-[12.5px] text-ink-3">{r.run_id}</del>}
+          <Chip tone={r.status === "failed" ? "bad" : "plain"} title={r.status === "included" ? "a kept repetition, completed or failed: n_failed in each statistic counts the failed ones" : undefined}>{r.status}</Chip>
           {r.reason && <span className="text-ink-2">{r.reason}</span>}
           {r.exit_code !== undefined && (
             <span className="w-full pl-1 text-xs text-ink-2">
@@ -40,9 +41,10 @@ export function ConfigBlock({ c, anatomy = true }: { c: Configuration; anatomy?:
           <span className="font-normal text-ink-2"> on </span>
           <A href={`/workloads/${c.workload}/`}>{c.workload}</A>
         </h4>
-        <Chip>profile {c.profile}</Chip>
+        <ProfileChip profile={c.profile} />
         <TierChip tier={c.effective_tier} />
-        {c.runs.filter((r) => r.status === "completed").length < 3 && c.runs.length > 0 && <Chip tone="bad">fewer than three completed repetitions</Chip>}
+        {notReached(c.system) && <Chip tone="bad">system maintainers not reached</Chip>}
+        {(c.insufficient_repetitions ?? (c.runs.filter((r) => r.status === "completed").length < 3 && c.runs.length > 0)) && <Chip tone="bad">below minimum repetitions</Chip>}
       </div>
       <div className="grid grid-cols-1 gap-x-8 gap-y-6 px-5 py-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
@@ -54,7 +56,7 @@ export function ConfigBlock({ c, anatomy = true }: { c: Configuration; anatomy?:
                   {(rows as typeof measured).map(([id, q]) => (
                     <div key={id} className="min-w-0 border-t border-line pt-2.5">
                       <p className="num mb-1 truncate text-xs text-ink-2" title={id}>{id}</p>
-                      <Q q={q} chart={q.stats && q.stats.max > q.stats.min ? <RangeStrip values={c.reps[id]} unit={q.unit} /> : null} />
+                      <Q q={q} profile={c.profile} chart={c.reps[id] && q.stats && q.stats.max > q.stats.min ? <RangeStrip values={c.reps[id]} unit={q.unit} /> : null} />
                     </div>
                   ))}
                 </div>

@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { ClaimSummary } from "@/components/claim";
-import { A, PageHeader, Q, Table } from "@/components/ui";
-import { configurations, NATIVE_METRICS, overhead, RELEASE, systems, type Configuration } from "@/lib/mock";
+import { A, Chip, PageHeader, ProfileChip, Q, Table } from "@/components/ui";
+import type { Configuration } from "@/lib/mock";
+import { cardOf, data, NATIVE_METRICS, overhead, served } from "@/lib/release";
+import { notReached } from "@/lib/repo";
 
 export const SORTS = ["workload", "profile", ...NATIVE_METRICS, "overhead_vs_serving_whole_wall"];
 // Metric ids hold dots (rate_prove.steady); a dot in a path segment reads as a file extension.
 export const slug = (id: string) => id.replaceAll(".", "-");
 
 const metric = (c: Configuration, m: string) => (m === "overhead_vs_serving_whole_wall" ? overhead(c) : c.statistics[m]);
+
+const native = new Set(data.workloads.filter((w) => w.division === "native").map((w) => w.id));
+const configurations = served(data.configurations.filter((c) => native.has(c.workload)));
 
 /** A reader-requested sort: a separate static page, never the default (RFC-0009 S5). Nulls go last. */
 function sorted(sort: string | null) {
@@ -27,10 +32,10 @@ export function DivisionTable({ sort }: { sort: string | null }) {
   );
   return (
     <>
-      <PageHeader eyebrow={`Release ${RELEASE.id}`} title="Native division">
+      <PageHeader eyebrow={`Release ${data.release.id}`} title="Native division">
         <p className="rounded-md border border-line-2 bg-surface px-4 py-3 font-medium text-ink">Native workloads differ: rows are not a head-to-head comparison.</p>
         <p className="mt-3">
-          Each system runs its own model and shape, shown side by side with the normalised metrics of RFC-0004. Rows are in alphabetical order by system, workload and profile.{" "}
+          Each system runs its own model and shape, shown side by side with the normalised metrics of RFC-0004. Rows are in alphabetical order by system, workload and profile, with each reference row after the rows it serves.{" "}
           {sort ? (
             <>This page is sorted by <span className="num text-[13px]">{sort}</span>, as requested by following that column&apos;s link; <A href="/divisions/native/">alphabetical order</A>.</>
           ) : (
@@ -40,17 +45,22 @@ export function DivisionTable({ sort }: { sort: string | null }) {
         </p>
       </PageHeader>
       <Table head={[<Link key="s" href="/divisions/native/" className="underline decoration-dotted underline-offset-4 hover:text-ink">System</Link>, "Claim card summary", head("workload", "Workload"), head("profile", "Profile"), ...cols.map((m) => head(m))]} caption="Native division rows">
+        {rows.length === 0 && (
+          <tr><td colSpan={4 + cols.length} className="text-sm text-ink-3">No native-division rows in this release.</td></tr>
+        )}
         {rows.map((c) => {
-          const card = systems.find((s) => s.name === c.system)?.cards.find((k) => k.configuration === c.configuration);
           return (
-            <tr key={c.system + c.workload}>
-              <th scope="row" className="whitespace-nowrap font-medium"><A href={`/systems/${c.system}/`}>{c.system}</A></th>
-              <td className="min-w-64"><ClaimSummary card={card} /></td>
+            <tr key={c.system + c.workload + c.profile + c.configuration}>
+              <th scope="row" className="whitespace-nowrap font-medium">
+                <A href={`/systems/${c.system}/`}>{c.system}</A>
+                {notReached(c.system) && <p className="mt-1"><Chip tone="bad">system maintainers not reached</Chip></p>}
+              </th>
+              <td className="min-w-64"><ClaimSummary card={cardOf(c)} /></td>
               <td className="num whitespace-nowrap text-xs"><A href={`/workloads/${c.workload}/`}>{c.workload}</A></td>
-              <td className="whitespace-nowrap text-xs text-ink-2">{c.profile}</td>
+              <td className="whitespace-nowrap text-xs text-ink-2"><span className="flex flex-col items-start gap-1"><ProfileChip profile={c.profile} /></span></td>
               {cols.map((m) => {
                 const q = metric(c, m);
-                return <td key={m}>{q ? <Q q={q} /> : <span className="text-xs text-ink-3">not reported</span>}</td>;
+                return <td key={m}>{q ? <Q q={q} profile={c.profile} /> : <span className="text-xs text-ink-3">not reported</span>}</td>;
               })}
             </tr>
           );
