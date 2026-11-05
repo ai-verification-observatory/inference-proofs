@@ -1,0 +1,1216 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 218164944505029
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 218165008757095
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 218165039672070
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 218165103789488
+    },
+    {
+      "event": "prove.start",
+      "mono_ns": 218165125882815
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 218231002809953
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 218228339890847
+    }
+  ],
+  "failure": null,
+  "metrics": {
+    "active_param_tokens_per_second_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/rate_prove.session",
+          "workloads/sash-l31-8b-c4096.yaml#/model/parameters/active_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 585367784495.6805
+    },
+    "active_param_tokens_per_second_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/rate_prove.steady",
+          "workloads/sash-l31-8b-c4096.yaml#/model/parameters/active_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": null
+    },
+    "active_param_tokens_per_second_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/rate_whole_wall",
+          "workloads/sash-l31-8b-c4096.yaml#/model/parameters/active_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": null
+    },
+    "commit_seconds": {
+      "grade": "measured",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": null
+    },
+    "commit_seconds_per_token_h1": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/commit_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "commit_seconds_per_token_h1000": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/commit_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1000@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "cost_per_1k_tokens_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/seconds_per_token_prove.session",
+          "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.016347661944039353
+    },
+    "cost_per_1k_tokens_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/seconds_per_token_prove.steady",
+          "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": null
+    },
+    "cost_per_1k_tokens_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/seconds_per_token_whole_wall",
+          "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": null
+    },
+    "info_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064252066
+    },
+    "proof_bytes_per_token": {
+      "grade": "derived",
+      "null_reason": "missing_input",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/proof_bytes_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-BPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "B/token",
+      "value": null
+    },
+    "proofs_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 1
+    },
+    "prove_call_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 65.876927138
+    },
+    "prove_cpu_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 88.132081
+    },
+    "prove_gpu_energy": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "J",
+      "value": 8102.17
+    },
+    "prove_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": 75102.5625
+    },
+    "prove_gpu_util_mean": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 5.207595607195871
+    },
+    "prove_gpu_util_p95": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 26.0
+    },
+    "prove_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 2565431296
+    },
+    "prove_host_memory_peak_kernel": {
+      "grade": "measured",
+      "null_reason": "not_measurable_on_profile",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": null
+    },
+    "prove_session_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 63.214008032
+    },
+    "prove_steady_seconds": {
+      "grade": "measured",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": null
+    },
+    "rate_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/prove_session_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 72.89523546216769
+    },
+    "rate_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_steady",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/prove_steady_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": null
+    },
+    "rate_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/whole_wall_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": null
+    },
+    "requests_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 1
+    },
+    "seconds_per_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/prove_session_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.013718317715277779
+    },
+    "seconds_per_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/prove_steady_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_steady"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "seconds_per_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/whole_wall_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "setup_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064117418
+    },
+    "tokens_covered_output": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 512
+    },
+    "tokens_covered_prompt": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 4096
+    },
+    "tokens_covered_steady": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 0
+    },
+    "tokens_covered_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 4608
+    },
+    "verdicts_accept_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 0
+    },
+    "verify_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": "missing_input",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "verify",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/verify_seconds_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "verify_single_thread_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": "missing_input",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "verify.single_thread",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/metrics/verify_single_thread_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/proofs/0/tokens_covered"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT-1T@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "whole_wall_seconds": {
+      "grade": "measured",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": null
+    }
+  },
+  "profile": "prover-h100-hosted",
+  "proofs": [
+    {
+      "claimed_output": [
+        121113,
+        323,
+        264,
+        11113,
+        9581,
+        682,
+        279,
+        5754,
+        25758,
+        1548,
+        11,
+        477,
+        4856,
+        813,
+        7899,
+        11,
+        10409,
+        603,
+        449,
+        279,
+        12474,
+        18547,
+        11,
+        369,
+        568,
+        198,
+        32345,
+        1027,
+        264,
+        513,
+        2642,
+        3329,
+        893,
+        11,
+        323,
+        584,
+        7020,
+        430,
+        568,
+        2011,
+        617,
+        1027,
+        389,
+        279,
+        198,
+        5383,
+        902,
+        7263,
+        279,
+        4605,
+        311,
+        9635,
+        382,
+        2118,
+        7131,
+        499,
+        4546,
+        927,
+        904,
+        26735,
+        12671,
+        358,
+        4691,
+        1461,
+        382,
+        2118,
+        16589,
+        11,
+        4415,
+        0,
+        912,
+        529,
+        264,
+        3254,
+        20929,
+        0,
+        578,
+        4605,
+        7318,
+        5066,
+        311,
+        733,
+        46217,
+        1752,
+        627,
+        1548,
+        574,
+        264,
+        15234,
+        46229,
+        11,
+        323,
+        1053,
+        539,
+        1095,
+        603,
+        6920,
+        264,
+        3254,
+        198,
+        1757,
+        13,
+        358,
+        4059,
+        1461,
+        994,
+        568,
+        3782,
+        37606,
+        11,
+        323,
+        568,
+        574,
+        779,
+        4040,
+        198,
+        9274,
+        813,
+        3830,
+        477,
+        38411,
+        11,
+        477,
+        8996,
+        279,
+        3245,
+        574,
+        13,
+        1283,
+        1053,
+        539,
+        1095,
+        198,
+        3852,
+        606,
+        2586,
+        3221,
+        433,
+        11,
+        323,
+        568,
+        3952,
+        4443,
+        2512,
+        315,
+        433,
+        5678,
+        2950,
+        2118,
+        7131,
+        499,
+        3596,
+        1518,
+        279,
+        3830,
+        12671,
+        358,
+        4691,
+        382,
+        2118,
+        16589,
+        11,
+        4415,
+        0,
+        912,
+        529,
+        358,
+        0,
+        358,
+        2646,
+        5602,
+        433,
+        12222,
+        568,
+        9107,
+        433,
+        389,
+        279,
+        9722,
+        11,
+        994,
+        198,
+        906,
+        1051,
+        5108,
+        1523,
+        279,
+        13740,
+        13,
+        1102,
+        574,
+        264,
+        2678,
+        3830,
+        11,
+        1903,
+        315,
+        1063,
+        3460,
+        198,
+        1073,
+        25826,
+        11,
+        323,
+        433,
+        574,
+        6965,
+        449,
+        11245,
+        13,
+        1283,
+        9107,
+        433,
+        389,
+        279,
+        9722,
+        11,
+        323,
+        198,
+        34431,
+        559,
+        606,
+        4871,
+        13,
+        358,
+        1436,
+        539,
+        1518,
+        1148,
+        433,
+        574,
+        11,
+        719,
+        568,
+        9508,
+        311,
+        198,
+        1395,
+        16984,
+        11,
+        323,
+        568,
+        8036,
+        433,
+        1523,
+        4062,
+        13,
+        358,
+        574,
+        1063,
+        6138,
+        1022,
+        11,
+        719,
+        358,
+        198,
+        82,
+        675,
+        433,
+        682,
+        2950,
+        2118,
+        7131,
+        499,
+        1518,
+        279,
+        4605,
+        753,
+        3663,
+        994,
+        568,
+        9107,
+        279,
+        3830,
+        12671,
+        358,
+        4691,
+        382,
+        2118,
+        16589,
+        11,
+        4415,
+        0,
+        912,
+        529,
+        358,
+        0,
+        358,
+        1550,
+        539,
+        1518,
+        813,
+        3663,
+        11,
+        719,
+        358,
+        5602,
+        813,
+        1450,
+        11,
+        323,
+        433,
+        198,
+        16514,
+        439,
+        4251,
+        439,
+        43459,
+        13,
+        1283,
+        574,
+        16984,
+        11,
+        323,
+        568,
+        574,
+        23418,
+        11,
+        323,
+        568,
+        198,
+        325,
+        16809,
+        311,
+        387,
+        304,
+        264,
+        9439,
+        28566,
+        2950,
+        2118,
+        7131,
+        499,
+        1518,
+        1461,
+        656,
+        4205,
+        775,
+        19018,
+        12671,
+        358,
+        4691,
+        382,
+        2118,
+        16589,
+        11,
+        4415,
+        0,
+        912,
+        529,
+        358,
+        0,
+        2030,
+        568,
+        574,
+        264,
+        15234,
+        46229,
+        11,
+        323,
+        568,
+        574,
+        198,
+        359,
+        4711,
+        481,
+        13,
+        1283,
+        574,
+        23418,
+        323,
+        503,
+        6895,
+        11,
+        323,
+        568,
+        9508,
+        311,
+        387,
+        198,
+        17557,
+        287,
+        2555,
+        13,
+        358,
+        4059,
+        1461,
+        994,
+        568,
+        3782,
+        37606,
+        11,
+        323,
+        568,
+        574,
+        779,
+        198,
+        4581,
+        24553,
+        922,
+        813,
+        3830,
+        477,
+        38411,
+        11,
+        477,
+        8996,
+        279,
+        3245,
+        574,
+        13,
+        1283,
+        1053,
+        198,
+        1962,
+        1095,
+        5606,
+        2586,
+        3221,
+        433,
+        11,
+        323,
+        568,
+        3952,
+        4443,
+        2512,
+        315,
+        433,
+        5678,
+        2950,
+        2118,
+        7131,
+        499,
+        1518,
+        1461,
+        656,
+        4205,
+        775,
+        19018,
+        12671,
+        358,
+        4691,
+        382,
+        2118,
+        16589,
+        11,
+        4415,
+        0,
+        912,
+        529,
+        358,
+        0,
+        2030,
+        568,
+        574,
+        264,
+        15234,
+        46229,
+        11,
+        323,
+        568,
+        574,
+        198,
+        359,
+        4711,
+        481,
+        13,
+        1283,
+        574,
+        23418,
+        323,
+        503,
+        6895,
+        11,
+        323,
+        568,
+        9508,
+        311,
+        387,
+        198,
+        17557,
+        287,
+        2555,
+        13,
+        358,
+        4059,
+        1461,
+        994,
+        568,
+        3782,
+        37606,
+        11,
+        323,
+        568,
+        574,
+        779,
+        198,
+        4581,
+        24553,
+        922,
+        813,
+        3830,
+        477,
+        38411,
+        11,
+        477,
+        8996,
+        279,
+        3245,
+        574,
+        13,
+        1283
+      ],
+      "proof_id": "req-0",
+      "release_mono_ns": 218228339890847,
+      "request_index": 0,
+      "tokens_covered": 4608,
+      "verdict": null
+    }
+  ],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 3,
+  "replaces": null,
+  "run_id": "2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-6",
+  "schema": "run/1",
+  "status": "completed",
+  "system": "ref-serve",
+  "system_kind": "reference",
+  "warnings": [],
+  "workload": {
+    "id": "sash-l31-8b-c4096",
+    "version": 1
+  }
+}
