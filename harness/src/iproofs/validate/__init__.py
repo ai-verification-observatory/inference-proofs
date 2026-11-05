@@ -235,6 +235,17 @@ def _gpus(root: Path, inputs: list[str], profile: str) -> int:
     return 0
 
 
+def _substituted_row(root: Path, doc: Mapping[str, object]) -> bool:
+    """Is the run a reference row with a declared precision substitution (RFC-0015 PM-2)?"""
+    from iproofs.validate.precision import substituted  # noqa: PLC0415
+
+    workload = doc.get("workload")
+    if doc.get("system_kind") != "reference" or not isinstance(workload, Mapping):
+        return False
+    registry = SchemaRegistry.from_tree(root / "schema")
+    return substituted(root, str(doc.get("system")), str(workload.get("id")), registry)
+
+
 def check_derived(path: Path, root: Path) -> list[Finding]:
     """G4: every derived quantity recomputes bit for bit from its stored inputs."""
     from iproofs.derive import UnknownFormula, recompute  # noqa: PLC0415 (layer 3)
@@ -245,6 +256,7 @@ def check_derived(path: Path, root: Path) -> list[Finding]:
     profile = str(doc.get("profile", ""))
     metrics = doc.get("metrics")
     found: list[Finding] = []
+    row_flag = _substituted_row(root, doc)
     for name, q in sorted(metrics.items()) if isinstance(metrics, Mapping) else []:
         if not isinstance(q, Mapping) or q.get("grade") != "derived":
             continue
@@ -270,6 +282,8 @@ def check_derived(path: Path, root: Path) -> list[Finding]:
                 Finding("G4", rel, "DER-2", f"unknown formula {e}", ErrorKind.INTEGRITY, where)
             )
             continue
+        if row_flag:  # RFC-0015 PM-2 flags every quantity of the row, inputs or not
+            fresh["quality"] = {**(fresh.get("quality") or {}), "precision_substituted": True}  # type: ignore[dict-item]
         if fresh != q:
             formula = str(source["ref"])
             found.append(

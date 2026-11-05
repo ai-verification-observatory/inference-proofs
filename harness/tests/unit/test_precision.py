@@ -11,6 +11,7 @@ import yaml
 from iproofs.adapter import InProcessRunner
 from iproofs.runner import JobSpec, Runner
 from iproofs.schema import SchemaRegistry
+from iproofs.validate import check_derived
 from iproofs.validate.precision import bit_widths, check, substituted, substitution_problem
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -101,6 +102,8 @@ def test_precision_subst(tmp_path: Path) -> None:
     assert all(q["quality"]["precision_substituted"] for q in doc["metrics"].values())
     rel = run_dir.relative_to(higher).as_posix() + "/run.json"
     assert rules(higher, rel) == []
+    # G4: a derived quantity whose inputs are all absent (no verify step) keeps the row's flag
+    assert check_derived(run_dir / "run.json", higher) == []
     stripped = {k: {**q, "quality": None} for k, q in doc["metrics"].items()}
     (run_dir / "run.json").write_text(json.dumps({**doc, "metrics": stripped}))
     assert {r for r, _ in rules(higher, rel)} == {"PM-2"}  # a row that lost its flag fails
