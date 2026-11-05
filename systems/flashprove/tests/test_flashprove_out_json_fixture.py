@@ -1,6 +1,5 @@
-"""INV-ADAPTER-9 against upstream outputs captured on a GPU host (fixtures/gpu/). Skipped until
-they are captured: one commit, prove and verify of fp-maverick-w1024-b1 through the image, kept
-as commit.out.json, prove.out.json and verify.out.json. Nothing here is made up in their place."""
+"""INV-ADAPTER-9 against the adapter's outputs captured on a GPU host (fixtures/gpu/README.md):
+one commit, prove and verify of fp-maverick-w1024-b1."""
 
 import json
 from pathlib import Path

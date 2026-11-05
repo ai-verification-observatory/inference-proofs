@@ -1,0 +1,29 @@
+{
+  "commitment_id": "sha256:00d2f8367cbb8a86d40e31b3763074c33b04bf48841978a5e61c3ad2292e09f7",
+  "contract": "adapter/1",
+  "phases": [
+    {
+      "name": "witness",
+      "seconds": 431.43598397099413
+    },
+    {
+      "name": "model_roots",
+      "seconds": 5804.261921709025
+    }
+  ],
+  "prover_files": [
+    "/io/state/zk-out/attn_ranges.json",
+    "/io/state/zk-out/tokens.npz"
+  ],
+  "schema": "adapter-out/1",
+  "sizes": {
+    "prover_bytes": 1982325,
+    "verifier_bytes": 599752
+  },
+  "subcommand": "commit",
+  "verifier_files": [
+    "/io/state/model-roots.json",
+    "/io/state/grid.json"
+  ],
+  "warnings": []
+}

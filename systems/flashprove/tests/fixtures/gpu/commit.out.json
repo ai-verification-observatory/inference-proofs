@@ -1,0 +1,22 @@
+{
+  "commitment_id": "d070396826111c897380263743b942f4ebdfc3dadb1a63263c2627270fb852c9",
+  "contract": "adapter/1",
+  "phases": [],
+  "prover_files": [
+    "/io/state/isk.tar"
+  ],
+  "schema": "adapter-out/1",
+  "sizes": {
+    "prover_bytes": 2153994240,
+    "verifier_bytes": 6469452
+  },
+  "subcommand": "commit",
+  "verifier_files": [
+    "/io/state/commit/config/policy.txt",
+    "/io/state/commit/config/KL.bin",
+    "/io/state/commit/config/layout.txt",
+    "/io/state/commit/ivk/key.bin",
+    "/io/state/commit/ivk/leaf/0.bin"
+  ],
+  "warnings": []
+}

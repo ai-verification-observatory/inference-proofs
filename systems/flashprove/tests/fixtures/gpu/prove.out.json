@@ -1,0 +1,64 @@
+{
+  "contract": "adapter/1",
+  "phases": [],
+  "proofs": [
+    {
+      "claimed_output": [
+        139472
+      ],
+      "parts": [
+        "response.y",
+        "response.proof"
+      ],
+      "proof_id": "req-0",
+      "request_index": 0
+    },
+    {
+      "claimed_output": [
+        262
+      ],
+      "parts": [
+        "response.y",
+        "response.proof"
+      ],
+      "proof_id": "req-1",
+      "request_index": 1
+    },
+    {
+      "claimed_output": [
+        33871
+      ],
+      "parts": [
+        "response.y",
+        "response.proof"
+      ],
+      "proof_id": "req-2",
+      "request_index": 2
+    },
+    {
+      "claimed_output": [
+        810
+      ],
+      "parts": [
+        "response.y",
+        "response.proof"
+      ],
+      "proof_id": "req-3",
+      "request_index": 3
+    },
+    {
+      "claimed_output": [
+        24
+      ],
+      "parts": [
+        "response.y",
+        "response.proof"
+      ],
+      "proof_id": "req-4",
+      "request_index": 4
+    }
+  ],
+  "schema": "adapter-out/1",
+  "subcommand": "prove",
+  "warnings": []
+}

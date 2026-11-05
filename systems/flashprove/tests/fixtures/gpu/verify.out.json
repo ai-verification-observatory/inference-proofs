@@ -1,0 +1,12 @@
+{
+  "contract": "adapter/1",
+  "phases": [],
+  "policy": "exact-match",
+  "raw_exit_code": 0,
+  "raw_last_line": "YES",
+  "schema": "adapter-out/1",
+  "seconds": 24.399362119002035,
+  "subcommand": "verify",
+  "verdict": "accept",
+  "warnings": []
+}
