@@ -118,7 +118,7 @@ The figures SASH publishes for the 4,096 + 512 shape (rates and times in its `lo
 
 ## Values for `system.yaml`
 
-`system.yaml` lands with the image (#64): `system/1` requires a prover's image digest and its system maintainers, and neither exists yet. These are the values it declares, from the facts above:
+`system.yaml` declares these values, from the facts above, with the image the images workflow pushed and no system maintainer named yet (RFC-0001 §System inclusion):
 
 ```yaml
 deterministic_proofs: true

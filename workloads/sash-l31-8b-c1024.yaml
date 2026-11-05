@@ -36,4 +36,4 @@ prompts:
 shape: {prompt_tokens: 1024, output_tokens: 64, batch_size: 1, batches_per_session: 1, context_window: 1088}
 decoding: {rule: "greedy"}
 phase: "both"
-systems: ["ref-serve", "ref-recompute"]
+systems: ["sash", "ref-serve", "ref-recompute"]

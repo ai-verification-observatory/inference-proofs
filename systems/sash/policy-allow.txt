@@ -1,0 +1,5 @@
+# RFC-0013 POL-3: lines of adapter source that name a forbidden flag, with their guard.
+# Format: <file name><TAB><line content, stripped>. Reviewers check the guard.
+# The list itself; the guard is `if weakening and job.get("control") is not True` in main(),
+# which refuses such a control flag outside a control job before any step or upstream process.
+entrypoint	FORBIDDEN_FLAGS = ["--unsound-skip-", "--unsound-argmax-lax"]  # README.md, system.yaml values
