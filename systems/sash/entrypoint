@@ -1,35 +1,220 @@
 #!/usr/bin/env python3
 """SASH zk-inference-prover adapter (RFC-0005), standard library only.
 
-Usage: entrypoint <info|setup> /io/job.json /io/out.json
+Usage: entrypoint <info|setup|commit|prove|verify> /io/job.json /io/out.json
 
-`info` names the upstream commit, the image inputs written at build time (RFC-0014 B5), the
-adapter commit baked in by the build (B6), the workloads and the profile. `setup` has nothing
-to prepare: both prover binaries and the witness harness are built into the image. The
-`commit`, `prove` and `verify` mapping lands with #65.
+Every upstream step below is the one upstream's own recorded sequence job runs, at the pins
+README.md names: `tools/drivers/lib/sequence-job.sh` and `tools/drivers/headline-c4096.sh`
+(zk-inference-results at 11decec3c0b6) for the extraction, the plan, the kernels, the proof
+loop and the grid, and `tools/drivers/model-commitment.sh` for the commitment. README.md maps
+each argument to its upstream source.
 
-IPROOFS_IO maps /io to a host directory when the tests run this file in process.
+- `commit` extracts a commitment sequence from upstream's own corpus, writes its plan and runs
+  `zk-prover model-roots`: the per-layer model roots and the per-(layer, c) calibration a
+  verifier derives shape roots from. It also keeps the attention calibration and the token
+  cache the prover reuses.
+- `prove` decodes the prompt greedily (`gen_ids`), extracts the witnesses, writes the plan,
+  generates and installs the device kernels for the plan's shapes into a copy of the source
+  and rebuilds the CUDA backend (upstream's documented way to a device build), proves the
+  grid with `compose-chunks` on that backend, and releases one directory per sequence.
+- `verify` runs `boundary-grid --verify` on the SIMD backend and compares the claimed output
+  with the ids the proof states for the generated block.
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run
+this file in process. IPROOFS_SASH_EXEC names a program every upstream process is run
+through (tests only: a stub that stands in for the binaries); the logged argv is unchanged.
 """
 
+import hashlib
 import json
 import os
+import re
+import shlex
+import shutil
+import subprocess
 import sys
+import time
 from pathlib import Path
 
 UPSTREAM_COMMIT = "eb95bfa887299d1637550228d42086c27cbb2b3b"  # INV-ADAPTER-2
 WORKLOADS = ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
+FORBIDDEN_FLAGS = ["--unsound-skip-", "--unsound-argmax-lax"]  # README.md, system.yaml values
+STUB = os.environ.get("IPROOFS_SASH_EXEC")
+
+SIMD = "/usr/local/bin/zk-prover-simd"  # the reference backend: emission, model-roots, grid
+SRC, HSRC = "/src", "/src/harness"
+STATE, BUILD = "/io/state", "/io/state/build"
+CUDA = BUILD + "/t-cuda/release/zk-prover"  # rebuilt with the plan's kernels installed
+ZK_OUT = STATE + "/zk-out"  # common.py ZK_OUT: tokens.npz and attn_ranges.json live here
+# headline-c4096.sh: the configuration of upstream's recorded runs, verbatim
+SPEC = "y-delay-vw12"
+SHARED = ("--round even --numbits 9 --z-hi-bits 7 --variants intexp --head-groups 16,8,8 "
+          "--tight-table")  # fmt: skip
+GKR = "--gkr-key-tiles --gkr-dequant --gkr-residual-stream --gkr-freivalds --gkr-attnout"
+LAYER_FLAGS = "--round even --diagonal-block " + GKR
+HEAD_LAYER = 16
+KERNEL_FAMILIES = ("zk_chan_eval,zk_key_eval,zk_row_eval,zk_attn_out_eval,zk_dequant_eval,"
+                   "zk_freivalds_eval,zk_exp_table_eval,zk_table_eval,zk_residual_stream_eval,"
+                   "zk_residual_stream_table_eval")  # fmt: skip
+SLICE = 64  # segments per compose-chunks process
+# --no-sync: the image's `uv sync --frozen` built the environment; /src is read-only at run time,
+# so uv must use it as it is rather than rebuild the editable project.
+UV = ["uv", "run", "--no-sync", "--project", HSRC, "--no-group", "cpu", "--group", "cuda", "python"]
+# sequence-job.sh, the head segments' own pins, run as upstream's driver runs it
+HEAD_PINS_PY = """import json, sys
+from harness.witness.shapes import shape_of, worst_of
+out, pins, dumps = sys.argv[1], sys.argv[2].split(), sys.argv[3:]
+rows = [shape_of(d) for d in dumps]
+worst, _ = worst_of(rows)
+json.dump({"rows": rows, "worst": worst, "dumps": dumps}, open(out, "w"), indent=1)
+shared = {pins[i]: int(pins[i + 1]) for i in range(0, len(pins), 2)}
+for flag, key in (("--kmax", "kmax"), ("--fold-rem-bits", "fold_rem_bits")):
+    need, have = worst.get(key, 0), shared.get(flag, 0)
+    assert need <= have, (
+        f"the head dumps need {flag} {need} and the layers' merged pin is {have}; "
+        "the shared pins do not cover the head")
+print(f"--ao-rem-bits {worst['ao_rem_bits']}")
+"""
+# gen_ids reads its prompt from common.tokens()'s cache; this puts the job's prompt there and
+# keeps upstream's calibration slice (README.md, deviations)
+PROMPT_PY = """import json, sys
+import numpy as np
+z = np.load(sys.argv[1])
+ids = json.loads(open(sys.argv[2]).read().splitlines()[int(sys.argv[3])])
+np.savez(sys.argv[1], eval=np.array(ids, dtype=np.int64), calib=z["calib"])
+"""
+
+
+Done = subprocess.CompletedProcess[str]
 
 
 def host(container_path: str) -> Path:
-    if container_path == "/io" or container_path.startswith("/io/"):
-        return Path(os.environ.get("IPROOFS_IO", "/io") + container_path[3:])
-    raise SystemExit(f"sash: path {container_path!r} outside /io")
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"sash: path {container_path!r} outside /io and /models")
 
 
 def base(sub: str) -> dict[str, object]:
     return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
             "phases": [], "warnings": []}  # fmt: skip
+
+
+def last_line(text: str) -> str:
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    return lines[-1][-4096:] if lines else ""
+
+
+def mapped(arg: str) -> str:
+    """A container path in an argument or environment value (`/io/x`, `--opt=/io/x`) as the host
+    path, for when IPROOFS_IO and IPROOFS_MODELS map them; anything else unchanged."""
+    key, eq, value = arg.rpartition("=") if "=" in arg and not arg.startswith("/") else ("", "", arg)
+    for prefix in ("/io", "/models"):
+        if value == prefix or value.startswith(prefix + "/"):
+            return key + eq + str(host(value))
+    return arg
+
+
+def run(argv: list[str], *, cwd: str = "/io", env: dict[str, str] | None = None,
+        out: str | None = None, check: bool = True) -> "Done":  # fmt: skip
+    """One upstream process, logged to /io/commands.jsonl (RFC-0005 §Command log)."""
+    started = time.monotonic_ns()
+    real = [STUB, *argv] if STUB else argv
+    stdout = host(out).open("w") if out else subprocess.PIPE
+    try:
+        p = subprocess.run([real[0], *map(mapped, real[1:])], cwd=None if STUB else mapped(cwd),
+                           env={**os.environ, **{k: mapped(v) for k, v in (env or {}).items()}},
+                           stdout=stdout, stderr=subprocess.PIPE, text=True,
+                           check=False)  # fmt: skip
+    finally:
+        if out:
+            stdout.close()  # type: ignore[union-attr]
+    line = {"argv": argv, "cwd": cwd, "started_mono_ns": started, "exit_code": p.returncode}
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+    if check and p.returncode != 0:
+        tail = "\n".join(p.stderr.splitlines()[-50:])
+        raise SystemExit(f"sash: {argv[0]} {argv[1] if len(argv) > 1 else ''} exited "
+                         f"{p.returncode}\n{tail}")  # fmt: skip
+    return p
+
+
+def harness_env() -> dict[str, str]:
+    """common.py reads the model, the device, the threads and its output directory from the
+    environment; the threads are upstream's (20) capped at the CPUs this container has."""
+    cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else 20
+    return {"ZK_MODEL": "/models", "ZK_DEVICE": "cuda", "ZK_THREADS": str(min(20, cpus)),
+            "ZK_OUT": ZK_OUT, "HF_HUB_OFFLINE": "1", "UV_FROZEN": "1"}  # fmt: skip
+
+
+def geometry(shape: dict, layers: int) -> dict[str, object]:
+    """One generated block of S = output tokens, as every upstream run sets it; the head over
+    the last prompt block and the generated block; the links the grid implies."""
+    p, s = shape["prompt_tokens"], shape["output_tokens"]
+    if p % s or p & (p - 1):  # extract.py refuses a ragged block; gen_ids a non-power-of-two
+        raise SystemExit(f"sash: {p} prompt tokens is not a power of two whole blocks of {s}")
+    nb = (p + s) // s
+    return {"prompt": p, "s": s, "blocks": nb, "layers": layers, "head_blocks": [nb - 2, nb - 1],
+            "expect_layer_links": nb * (layers - 1) + 2,
+            "expect_token_links": (nb - 1) * layers}  # fmt: skip
+
+
+def model_layers() -> int:
+    return int(json.loads(host("/models/config.json").read_text())["num_hidden_layers"])
+
+
+def witness_and_plan(g: dict, wit: str, extra: list[str]) -> tuple[str, str, str]:
+    """sequence-job.sh steps 3b and 4: the five extraction passes, the head pass, the shape
+    table, the pins and the plan. `extra` is `--ids` and `--attn-ranges` where prove has them.
+    Returns the plan, the emit list and the pins."""
+    env, n, s, nb, nl = harness_env(), g["prompt"] + g["s"], g["s"], g["blocks"], g["layers"]
+    groups = [[0]] + [list(range(max(1, k), min(k + 8, nl))) for k in range(0, nl, 8)]
+    for layers in groups:
+        run([*UV, "-m", "harness.witness.extract", "--tokens", str(n), "--chunk", str(s),
+             "--layers", ",".join(map(str, layers)), "--spec", SPEC, "--residual-stream",
+             "--diagonal-block", "--slim", "--slim-num", *(["--embed"] if layers == [0] else []),
+             *extra, "--blocks", "all", "--share", f"{wit}/shared", "--out", f"{wit}/witness"],
+            cwd=HSRC, env=env)  # fmt: skip
+    hb = ",".join(map(str, g["head_blocks"]))  # type: ignore[call-overload]
+    run([*UV, "-m", "harness.witness.extract", "--tokens", str(n), "--chunk", str(s), "--layer",
+         str(HEAD_LAYER), "--spec", SPEC, "--head", "--slim", "--diagonal-block", "--blocks", hb,
+         *extra, "--out", f"{wit}/head"], cwd=HSRC, env=env)  # fmt: skip
+    shapes = []
+    for b in range(nb):
+        shapes.append(f"{wit}/shapes_B{b}.json")
+        run([*UV, "-m", "harness.witness.shapes", f"{wit}/witness_B{b}_L", str(nl), shapes[-1]],
+            cwd=HSRC, env=env)  # fmt: skip
+    run([*UV, "-m", "harness.witness.shapes", "--merge", *shapes, "--out",
+         f"{wit}/shapes_all.json"], cwd=HSRC, env=env)  # fmt: skip
+    w = json.loads(host(f"{wit}/shapes_all.json").read_text())["worst"]
+    pins = (f"--kmax {w['kmax']} --ao-rem-bits {w['ao_rem_bits']} "
+            f"--fold-rem-bits {w['fold_rem_bits']} --fold-alpha {w['fold_alpha']}")  # fmt: skip
+    dumps = [f"{wit}/head_B{b}" for b in g["head_blocks"]]  # type: ignore[attr-defined]
+    head = run([*UV, "-c", HEAD_PINS_PY, f"{wit}/shapes_head.json", pins, *dumps], cwd=HSRC,
+               env=env).stdout.strip().splitlines()[-1]  # fmt: skip
+    plan, emit = f"{wit}/plan.txt", f"{wit}/emit.txt"
+    run([*UV, "-m", "harness.witness.plan", "--dir", wit, "--blocks", str(nb), "--with-block-0",
+         "--layers", f"0-{nl - 1}", "--head", f"{wit}/head", "--head-per-block", "--head-blocks",
+         hb, f"--layer-flags={LAYER_FLAGS}", "--l0-flags=", "--l0-dir", wit,
+         f"--head-flags={GKR} {head}", "--out", plan, "--emit-out", emit],
+        cwd=HSRC, env=env)  # fmt: skip
+    return plan, emit, pins
+
+
+def write_json(path: str, doc: object) -> None:
+    host(path).parent.mkdir(parents=True, exist_ok=True)
+    host(path).write_text(json.dumps(doc, sort_keys=True, indent=1) + "\n")
+
+
+def file_digest(path: str) -> str:
+    return hashlib.sha256(host(path).read_bytes()).hexdigest()
+
+
+def commitment_of(files: list[str]) -> str:
+    """sha256 over the verifier files' own digests, so the harness's record names both."""
+    lines = "".join(f"{Path(f).name}\t{file_digest(f)}\n" for f in sorted(files))
+    return "sha256:" + hashlib.sha256(lines.encode()).hexdigest()
 
 
 def info(job: dict) -> dict:
@@ -47,14 +232,235 @@ def setup(job: dict) -> dict:
     return {**base("setup"), "ready": True, "log_files": []}
 
 
+def commit(job: dict) -> dict:
+    """model-commitment.sh step 1 over a commitment sequence: upstream's own corpus, extracted
+    the way a sequence run extracts it (no `--ids`: the corpus's first tokens)."""
+    t0 = time.monotonic()
+    g = geometry(job["shape"], model_layers())
+    wit = STATE + "/commit-witness"
+    for d in (ZK_OUT, wit):
+        host(d).mkdir(parents=True, exist_ok=True)
+    plan, _, pins = witness_and_plan(g, wit, [])
+    t1 = time.monotonic()
+    roots, grid = STATE + "/model-roots.json", STATE + "/grid.json"
+    run([SIMD, "model-roots", "--plan", plan, "--pins", f"{SHARED} {pins}", "--out", roots],
+        out=STATE + "/model-roots.out.json")  # fmt: skip
+    write_json(grid, g)
+    shutil.rmtree(host(wit))  # tens of GB of activations; the plan and pins are in no file kept
+    verifier = [roots, grid]
+    prover = [ZK_OUT + "/attn_ranges.json", ZK_OUT + "/tokens.npz"]
+    if missing := [f for f in prover if not host(f).is_file()]:
+        raise SystemExit(f"sash: the extraction wrote no {missing}")
+    size = lambda fs: sum(host(f).stat().st_size for f in fs)  # noqa: E731
+    return {**base("commit"), "commitment_id": commitment_of(verifier),
+            "verifier_files": verifier, "prover_files": prover,
+            "sizes": {"verifier_bytes": size(verifier), "prover_bytes": size(prover)},
+            "phases": [{"name": "witness", "seconds": t1 - t0},
+                       {"name": "model_roots", "seconds": time.monotonic() - t1}]}  # fmt: skip
+
+
+def kernels(plan: str, emit: str, pins: str, flags: list[str]) -> None:
+    """sequence-job.sh step 5 and tools/gate/on-card.sh: emit the kernels for every shape of
+    the plan, install them into a copy of the vendored library, rebuild the CUDA backend and
+    check that the library carries this card's architecture. Skipped when the shapes match the
+    last install, as upstream's `kernels.done` marker does."""
+    lines = [ln for ln in host(emit).read_text().splitlines() if ln and not ln.startswith("#")]
+    # every head line too: plan.py lists one per table width, the feed kernels are per block
+    head = re.compile(r"--ser-tag [A-Za-z0-9_]*head")
+    lines += [ln for ln in host(plan).read_text().splitlines()
+              if not ln.startswith("#") and head.search(ln)]  # fmt: skip
+    lines = sorted(set(lines))
+    key = hashlib.sha256(("\n".join(lines) + pins + " ".join(flags)).encode()).hexdigest()
+    marker, gen, src = host(BUILD + "/kernels.done"), BUILD + "/gen", BUILD + "/src"
+    if marker.is_file() and marker.read_text() == key:
+        return
+    host(gen).mkdir(parents=True, exist_ok=True)
+    for line in lines:
+        args = shlex.split(line)
+        if "--ser-tag" in args:
+            i = args.index("--ser-tag")
+            del args[i : i + 2]
+        for cmd, opts in (("cudaemit", ["--block", "256", "--min-blocks", "2"]),
+                          ("genemit", ["--families", KERNEL_FAMILIES])):  # fmt: skip
+            # a refused lowering is recorded, never fatal (sequence-job.sh); a shape left
+            # without its kernel then panics in the proof rather than falling back
+            run([SIMD, cmd, *SHARED.split(), *pins.split(), *flags, *args, *opts, "--out", gen],
+                check=False)  # fmt: skip
+    host(src).mkdir(parents=True, exist_ok=True)
+    run(["cp", "-a", *(f"{SRC}/{p}" for p in ("Cargo.toml", "Cargo.lock", "rust-toolchain.toml",
+                                              "prover", "nitroo")), src])  # fmt: skip
+    host(src + "/.source-commit").write_text(f"{UPSTREAM_COMMIT} dirty\n")  # build.rs
+    k = src + "/prover/kernels"
+    run(["python3", f"{k}/install_constraint_kernels.py", "--fork", f"{src}/nitroo", "--gen", gen])
+    run(["python3", f"{k}/install_witness_gen_kernels.py", "--fork", f"{src}/nitroo", "--gen",
+         gen, "--src", k])  # fmt: skip
+    run(["cp", f"{gen}/cudakernels.rs", f"{gen}/gencudakernels.rs", f"{src}/prover/src/"])
+    cap = run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"]).stdout
+    arch = cap.strip().splitlines()[0].replace(".", "") if cap.strip() else ""
+    if not arch.isdigit():
+        raise SystemExit(f"sash: nvidia-smi reported no compute capability ({cap!r})")
+    cargo = BUILD + "/cargo"  # writable CARGO_HOME over the image's fetched registry
+    host(cargo).mkdir(parents=True, exist_ok=True)
+    if not host(cargo + "/registry").is_symlink():
+        os.symlink("/opt/cargo/registry", host(cargo + "/registry"))
+    run(["cargo", "build", "--release", "--locked", "--offline", "-p", "zk-prover", "--features",
+         "cuda"], cwd=src, env={"CARGO_HOME": cargo, "CARGO_TARGET_DIR": BUILD + "/t-cuda",
+                                "CUDAARCHS": arch})  # fmt: skip
+    libs = sorted(host(BUILD + "/t-cuda/release/build").glob("stwo-*/out/libstwo_cuda.a"))
+    if not libs:
+        raise SystemExit("sash: the CUDA build left no libstwo_cuda.a")
+    lib = "/io" + str(libs[0])[len(str(host("/io"))) :]
+    elf = run(["cuobjdump", "--list-elf", lib]).stdout
+    if f"sm_{arch}" not in elf:  # the CMake fallback trap (tools/gate/README.md)
+        raise SystemExit(f"sash: {lib} carries no sm_{arch} code; refusing to prove")
+    marker.write_text(key)
+
+
+def fold_binding(slices: list[dict]) -> dict:
+    """The binding table over every slice: an edge is bound only where every proof binds it."""
+    rank = {"bound": 0, "absent": 1, "unbound": 2}
+    edges: dict[str, str] = {}
+    skips: set[str] = set()
+    for doc in slices:
+        prov = doc["provenance"]
+        skips.update(prov.get("unsound_skips") or [])
+        for e in prov["binding"]["edges"]:
+            name = f"{e['n']}: {e['edge']}"
+            if rank.get(e["state"], 2) >= rank.get(edges.get(name, "bound"), 2):
+                edges[name] = e["state"]
+    return {"edges": edges, "all_bound": all(v == "bound" for v in edges.values()),
+            "unsound_skips": sorted(skips)}  # fmt: skip
+
+
+def prove(job: dict) -> dict:
+    flags = list(job.get("control_flags", []))  # only from control_flags (RFC-0005)
+    g = geometry(job["shape"], model_layers())
+    env = harness_env()
+    prompts = host(job["prompts_file"]).read_text().splitlines()
+    count = job["batch_size"] * job["batches"]
+    if len(prompts) < count:
+        raise SystemExit(f"sash: {len(prompts)} prompts for {count} requests")
+    p, s, nb = g["prompt"], g["s"], g["blocks"]
+    proofs_dir, out = host("/io/proofs"), STATE + "/out"
+    proofs_dir.mkdir(parents=True, exist_ok=True)
+    host(out).mkdir(parents=True, exist_ok=True)
+    phases: dict[str, float] = {}
+    proofs, slices = [], []
+    cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else 16
+    for i in range(count):
+        if len(json.loads(prompts[i])) != p:
+            raise SystemExit(f"sash: prompt {i} is not {p} tokens")
+        t = time.monotonic()
+        wit = f"{STATE}/witness-{i}"
+        host(wit).mkdir(parents=True, exist_ok=True)
+        # the greedy continuation, decoded one token past the block and shifted (shift_ids.py)
+        run([*UV, "-c", PROMPT_PY, ZK_OUT + "/tokens.npz", job["prompts_file"], str(i)],
+            cwd=HSRC, env=env)  # fmt: skip
+        run([*UV, "-m", "harness.witness.gen_ids", "--prefix", str(p), "--offset", "0", "--new",
+             str(s + 1), "--spec", SPEC, "--out", f"{wit}/ids_long.npy"],
+            cwd=HSRC, env=env)  # fmt: skip
+        run([*UV, "-m", "harness.witness.shift_ids", "--ids", f"{wit}/ids_long.npy", "--prefix",
+             str(p), "--new", str(s), "--out", f"{wit}/ids.npy"], cwd=HSRC, env=env)  # fmt: skip
+        phases["ids"] = phases.get("ids", 0.0) + time.monotonic() - t
+        t = time.monotonic()
+        extra = ["--ids", f"{wit}/ids.npy", "--attn-ranges", ZK_OUT + "/attn_ranges.json"]
+        plan, emit, pins = witness_and_plan(g, wit, extra)
+        phases["witness"] = phases.get("witness", 0.0) + time.monotonic() - t
+        t = time.monotonic()
+        kernels(plan, emit, pins, flags)
+        phases["kernels"] = phases.get("kernels", 0.0) + time.monotonic() - t
+        t = time.monotonic()
+        proof_id = f"req-{i}"
+        tmp = f"/io/proofs/.tmp-{proof_id}"
+        host(tmp).mkdir()
+        n = sum(1 for ln in host(plan).read_text().splitlines() if ln and not ln.startswith("#"))
+        for lo in range(0, n, SLICE):
+            hi, tag = min(lo + SLICE, n), f"{out}/req{i}_slice_{lo:04d}.json"
+            r = run([CUDA, "compose-chunks", *SHARED.split(), *pins.split(), *flags, "--plan", plan,
+                     "--plan-slice", f"{lo}:{hi}", "--ser-dir", tmp], out=tag,
+                    env={"ZK_PIPELINE": "1", "ZK_KERNEL_STORE": BUILD + "/gen",
+                         "RAYON_NUM_THREADS": str(min(16, cpus))})  # fmt: skip
+            if "kernel fallback:" in r.stderr:  # never a silent host fallback
+                raise SystemExit(f"sash: slice {lo}:{hi} evaluated a lookup on the host")
+            slices.append(json.loads(host(tag).read_text()))
+        shutil.copyfile(host(plan), host(tmp) / "plan.txt")  # the grid the segments form
+        last = json.loads((host(tmp) / f"B{nb - 1}L0.fixed.json").read_text())
+        claimed = [int(x) for x in last["tok_in"]]
+        os.rename(host(tmp), proofs_dir / proof_id)  # atomic release (RFC-0005)
+        phases["prove"] = phases.get("prove", 0.0) + time.monotonic() - t
+        parts = sorted(f.name for f in (proofs_dir / proof_id).iterdir())
+        proofs.append({"proof_id": proof_id, "request_index": i, "claimed_output": claimed,
+                       "parts": parts})  # fmt: skip
+        shutil.rmtree(host(wit))
+    write_json("/io/binding.json", fold_binding(slices))
+    return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json",
+            "phases": [{"name": k, "seconds": v} for k, v in phases.items()]}  # fmt: skip
+
+
+def verdict_of(code: int, stdout: str, stderr: str, proved: list[int] | None,
+               claimed: list[int]) -> tuple[str, str]:  # fmt: skip
+    """RFC-0005 §Verdict normalisation for SASH, from `boundary-grid`'s exit status and JSON
+    (boundary.rs: exit 0 only when every link chained, every id checked and every segment
+    proof verified; 1 otherwise, after the JSON is written)."""
+    line = last_line(stderr) or last_line(stdout)
+    try:
+        r = json.loads(stdout)["result"]
+        v, tk = r.get("verified") or {}, r.get("tokens") or {}
+        run_, accepted = int(v.get("run", 0)), int(v.get("accepted", 0))
+    except (ValueError, KeyError, TypeError, AttributeError):
+        return "no_verdict", line
+    if code == 1 and accepted < run_:
+        return "reject", line  # a segment proof rejected
+    if code == 1 and (r.get("all_chain") is False or tk.get("all") is False or r.get("failures")):
+        return "reject", line  # the grid check failed
+    passed = (code == 0 and r.get("all_chain") is True and v.get("all") is True
+              and run_ > 0 and accepted == run_ and tk.get("all") is True)  # fmt: skip
+    if not passed or proved is None:
+        return "no_verdict", line
+    if proved != claimed:
+        return "reject", "claimed_output is not the generated block's ids the proof states"
+    return "accept", line
+
+
+def verify(job: dict) -> dict:
+    files = {Path(f).name: f for f in job["verifier_files"]}
+    if set(files) != {"model-roots.json", "grid.json"}:
+        raise SystemExit(f"sash: verifier files {sorted(files)} are not commit's")
+    if commitment_of(list(files.values())) != job["commitment_id"]:
+        raise SystemExit("sash: the verifier files do not match commitment_id")
+    g = json.loads(host(files["grid.json"]).read_text())
+    roots, proof = files["model-roots.json"], job["proof_dir"].rstrip("/")
+    write_json("/io/verify/prompt.json", {"ids": job["request"]})
+    started = time.monotonic()
+    p = run([SIMD, "boundary-grid", "--dir", proof, "--plan", proof + "/plan.txt",
+             "--expect-layer-links", str(g["expect_layer_links"]), "--expect-token-links",
+             str(g["expect_token_links"]), "--verify", "--prompt", "/io/verify/prompt.json",
+             "--verify-calibration", roots, "--expect-model-roots", roots],
+            out="/io/verify/grid.json", check=False)  # fmt: skip
+    seconds = time.monotonic() - started
+    try:
+        tok = json.loads(host(f"{proof}/B{g['blocks'] - 1}L0.fixed.json").read_text())["tok_in"]
+        proved: list[int] | None = [int(x) for x in tok]
+    except (OSError, ValueError, KeyError, TypeError):
+        proved = None
+    stdout = host("/io/verify/grid.json").read_text()
+    verdict, line = verdict_of(p.returncode, stdout, p.stderr, proved, job["claimed_output"])
+    return {**base("verify"), "verdict": verdict, "raw_exit_code": p.returncode,
+            "raw_last_line": line, "seconds": seconds}  # fmt: skip
+
+
 def main() -> int:
     sub, job_path, out_path = sys.argv[1:4]
     job = json.loads(host(job_path).read_text())
     if job.get("subcommand") != sub:
         raise SystemExit(f"sash: job.json is for {job.get('subcommand')!r}, not {sub!r}")
-    handlers = {"info": info, "setup": setup}
+    weakening = [f for f in job.get("control_flags", [])
+                 if any(f.startswith(p) for p in FORBIDDEN_FLAGS)]  # fmt: skip
+    if weakening and job.get("control") is not True:  # INV-ADAPTER-10, before any process
+        raise SystemExit(f"sash: refusing {weakening} outside a control job")
+    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}
     if sub not in handlers:
-        raise SystemExit(f"sash: {sub!r} is not mapped yet (#65)")
+        raise SystemExit(f"sash: no subcommand {sub!r}")
     host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
     return 0
 
