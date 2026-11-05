@@ -58,7 +58,9 @@ KERNEL_FAMILIES = ("zk_chan_eval,zk_key_eval,zk_row_eval,zk_attn_out_eval,zk_deq
                    "zk_freivalds_eval,zk_exp_table_eval,zk_table_eval,zk_residual_stream_eval,"
                    "zk_residual_stream_table_eval")  # fmt: skip
 SLICE = 64  # segments per compose-chunks process
-UV = ["uv", "run", "--project", HSRC, "--no-group", "cpu", "--group", "cuda", "python"]
+# --no-sync: the image's `uv sync --frozen` built the environment; /src is read-only at run time,
+# so uv must use it as it is rather than rebuild the editable project.
+UV = ["uv", "run", "--no-sync", "--project", HSRC, "--no-group", "cpu", "--group", "cuda", "python"]
 # sequence-job.sh, the head segments' own pins, run as upstream's driver runs it
 HEAD_PINS_PY = """import json, sys
 from harness.witness.shapes import shape_of, worst_of
