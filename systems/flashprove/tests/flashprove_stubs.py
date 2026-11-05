@@ -82,6 +82,33 @@ sys.exit(0 if ok else 1)
 """
 
 
+# The fit's four programs: each writes the file the next one reads, with the bytes whose digests
+# the fixture's expected.txt holds; STUB_WSUMS changes wsums.txt to test the digest check.
+FIT_STUBS = {
+    "scales/make_calibration_set.py": "Path(a[4]).write_bytes(b'set')",
+    "bin/weight_sums": "Path(opt('--out')).write_text(os.environ.get('STUB_WSUMS', 'sums') + "
+    "'\\n')",
+    "scales/calibrate.py": "o = Path(opt('--out')); o.mkdir(); (o / 'words.json').write_text('{}')",
+    "scales/words_to_policy.py": "Path(a[4]).write_text('policy'); Path(a[5]).write_text('KL.bin')",
+}
+
+
+def fit_stubs(src: Path, tmp_path: Path) -> None:
+    for rel, body in FIT_STUBS.items():
+        (src / rel).parent.mkdir(parents=True, exist_ok=True)
+        write_stub(src / rel, body + "\n")
+    base = src / "prover/examples/target_full_f2"
+    base.mkdir(parents=True)
+    for name in ("policy.txt", "layout.txt"):
+        (base / name).write_text(name)
+    model = tmp_path / "models/UD-Q4_K_XL"
+    model.mkdir(parents=True)
+    for i in range(1, 6):
+        name = f"Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-0000{i}-of-00005.gguf"
+        (model / name).write_bytes(bytes([i]))
+    (tmp_path / "calibration").mkdir()
+
+
 def write_stub(path: Path, body: str) -> None:
     path.write_text(_HEAD + body)
     path.chmod(0o755)
@@ -97,14 +124,17 @@ def adapter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     (src / "prover/build/hc").mkdir(parents=True)
     for name, body in (("cp_commit", CP_COMMIT), ("cp_prove", CP_PROVE), ("cp_verify", CP_VERIFY)):
         write_stub(src / "prover/build/hc" / name, body)
-    # the fit's files, and their digests where upstream publishes them (expected.txt)
-    weights, config = tmp_path / "models/UD-Q4_K_XL", tmp_path / "models/flashprove-config"
+    # the fit's files as setup leaves them, and their digests where upstream publishes them
+    weights, config = tmp_path / "io/fit/weights", tmp_path / "io/fit/config"
     weights.mkdir(parents=True)
     config.mkdir()
     (weights / "wsums.txt").write_text("sums\n")
     (weights / "fold.txt").write_text("eres 10\nqkrows asis\n")
     for name in ("policy.txt", "KL.bin", "layout.txt"):
         (config / name).write_text(name)
+    fit_stubs(src, tmp_path)
+    monkeypatch.setenv("IPROOFS_FLASHPROVE_PYTHON", sys.executable)
+    monkeypatch.setenv("IPROOFS_FLASHPROVE_CALIBRATION", str(tmp_path / "calibration"))
     (src / "examples/maverick").mkdir(parents=True)
     (src / "examples/maverick/expected.txt").write_text(
         f"{hashlib.sha256(b'sums' + bytes([10])).hexdigest()}  model/wsums.txt\n"

@@ -60,7 +60,7 @@ def test_commit(adapter: ModuleType) -> None:
     assert not adapter.host("/io/state/commit/isk").exists()  # prove uses the record only
     [command] = commands(adapter)
     assert command["argv"][1:] == [
-        "-weights", str(adapter.host("/models/UD-Q4_K_XL")),
+        "-weights", str(adapter.host("/io/fit/weights")),
         "-config", str(adapter.host("/io/state/commit/config")), "-M", "1",
         "-ivk", str(adapter.host("/io/state/commit/ivk")),
         "-isk", str(adapter.host("/io/state/commit/isk")),
@@ -70,7 +70,7 @@ def test_commit(adapter: ModuleType) -> None:
 
 def test_commit_refuses_another_fit(adapter: ModuleType) -> None:
     """The fit must have upstream's published digests (examples/maverick/expected.txt)."""
-    adapter.host("/models/flashprove-config/KL.bin").write_text("other scales")
+    adapter.host("/io/fit/config/KL.bin").write_text("other scales")
     with pytest.raises(SystemExit, match=r"not the published config/KL\.bin"):
         commit(adapter)
     assert commands(adapter) == []
@@ -140,3 +140,34 @@ def test_prove_bad_exit(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) ->
     with pytest.raises(SystemExit, match=r"cp_prove exited 1, last line 'p258 end 1'"):
         prove(adapter, committed)
     assert commands(adapter)[-1]["exit_code"] == 1
+
+
+def test_setup_fits_into_io(adapter: ModuleType) -> None:
+    """The stage fit: calibration set, wsums.txt, fold.txt and layout.txt, the scales, and the
+    weights copied beside wsums.txt and fold.txt; both published digests hold."""
+    import shutil  # noqa: PLC0415
+
+    shutil.rmtree(adapter.host("/io/fit"))
+    out = run(adapter, "setup", job("setup"))
+    assert out["ready"] is True
+    fit = adapter.host("/io/fit")
+    assert sorted(p.name for p in (fit / "weights").iterdir()) == sorted(
+        [*(f"{adapter.STEM}-0000{i}-of-00005.gguf" for i in range(1, 6)), "wsums.txt", "fold.txt"]
+    )
+    assert (fit / "weights/fold.txt").read_text() == "eres 10\nqkrows asis\n"
+    assert sorted(p.name for p in (fit / "config").iterdir()) == ["KL.bin", "layout.txt",
+                                                                   "policy.txt"]  # fmt: skip
+    programs = [
+        Path(c["argv"][2 if "python" in c["argv"][0] else 0]).name for c in commands(adapter)
+    ]
+    assert programs == ["make_calibration_set.py", "weight_sums", "calibrate.py",
+                        "words_to_policy.py"]  # fmt: skip
+
+
+def test_setup_refuses_another_wsums(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+    import shutil  # noqa: PLC0415
+
+    shutil.rmtree(adapter.host("/io/fit"))
+    monkeypatch.setenv("STUB_WSUMS", "other")
+    with pytest.raises(SystemExit, match=r"not the published model/wsums.txt"):
+        run(adapter, "setup", job("setup"))

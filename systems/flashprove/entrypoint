@@ -34,6 +34,7 @@ IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories, and IPROO
 names the upstream checkout (default /src), when the tests run this file in process.
 """
 
+import fcntl
 import hashlib
 import json
 import os
@@ -52,8 +53,13 @@ WORKLOADS = ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
 SRC = Path(os.environ.get("IPROOFS_FLASHPROVE_SRC", "/src"))
 BIN = SRC / "prover/build/hc"  # where upstream's default build puts the three programs
-WEIGHTS = "/models/UD-Q4_K_XL"  # the five GGUF files, with the fit's wsums.txt and fold.txt
-FIT_CONFIG = "/models/flashprove-config"  # the fit's policy.txt, KL.bin and layout.txt
+MODEL = "/models/UD-Q4_K_XL"  # the workload's five GGUF files, read only
+STEM, PARTS_OF = "Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL", 5  # U/examples/maverick/run.sh L76-81
+FIT = "/io/fit"  # setup's fit (U/examples/maverick/run.sh, stage fit)
+WEIGHTS = FIT + "/weights"  # the five GGUF files with the fit's wsums.txt and fold.txt beside
+FIT_CONFIG = FIT + "/config"  # the fit's policy.txt, KL.bin and layout.txt
+PYTHON = os.environ.get("IPROOFS_FLASHPROVE_PYTHON", "/opt/fp-venv/bin/python")
+CALIBRATION = Path(os.environ.get("IPROOFS_FLASHPROVE_CALIBRATION", "/opt/iproofs/calibration"))
 CONFIG_FILES = ("policy.txt", "KL.bin", "layout.txt")
 # Each gives up weight hiding (U/docs/operators-duties.md "Public weights", "What the secret key
 # directory holds"); refused outside a control job (RFC-0005 §Weakening configurations).
@@ -94,7 +100,7 @@ def workdir(path: Path) -> Path:
 
 
 def run(argv: list[str], job: dict, cwd: Path, out: Path, err: Path | None = None,
-        poll: Callable[[], None] | None = None) -> int:  # fmt: skip
+        poll: Callable[[], None] | None = None, cwd_src: bool = False) -> int:  # fmt: skip
     """Starts one upstream process, after the RFC-0005 rule 4 check, and logs it."""
     weakening = [a for a in argv if any(a.startswith(f) for f in FORBIDDEN_FLAGS)]
     if weakening and not job["control"]:
@@ -102,7 +108,7 @@ def run(argv: list[str], job: dict, cwd: Path, out: Path, err: Path | None = Non
     env = dict(os.environ, HOME=str(cwd / "home"), TMPDIR=str(cwd / "tmp"))
     started = time.monotonic_ns()
     with out.open("wb") as o, open(err or os.devnull, "wb") as e:
-        proc = subprocess.Popen(argv, cwd=cwd, env=env, stdout=o,
+        proc = subprocess.Popen(argv, cwd=SRC if cwd_src else cwd, env=env, stdout=o,
                                 stderr=e if err else subprocess.STDOUT)  # fmt: skip
         while proc.poll() is None:
             if poll is None:
@@ -138,20 +144,87 @@ def info(job: dict) -> dict:
     return out
 
 
+def clone(src: Path, dst: Path) -> None:
+    """A copy of src that shares its blocks where the file system can (FICLONE), else a copy."""
+    with src.open("rb") as i, dst.open("wb") as o:
+        try:
+            fcntl.ioctl(o.fileno(), 0x40049409, i.fileno())  # FICLONE, linux/fs.h
+        except OSError:
+            shutil.copyfileobj(i, o, 64 << 20)
+
+
+def cpu_count() -> int:
+    """The CPUs this process may use (its affinity), as upstream's programs size their threads."""
+    if hasattr(os, "sched_getaffinity"):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
+def expected() -> dict[str, str]:
+    """U/examples/maverick/expected.txt: the published digests, by the name run.sh compares."""
+    text = (SRC / "examples/maverick/expected.txt").read_text()
+    return dict(ln.split()[::-1] for ln in text.splitlines() if ln.strip())
+
+
+def published(path: Path, name: str) -> None:
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected()[name]:
+        raise SystemExit(f"flashprove: {path} is missing or is not the published {name}")
+
+
 def setup(job: dict) -> dict:
-    return {**base("setup"), "ready": True, "log_files": []}
+    """The stage fit of U/examples/maverick/run.sh (L1451-1513) into /io/fit: the calibration set
+    (U/scales/README.md "The calibration set"), wsums.txt by bin/weight_sums, fold.txt and
+    layout.txt, the scales by scales/calibrate.py on the GPU and policy.txt and KL.bin by
+    scales/words_to_policy.py; wsums.txt and KL.bin must have the published digests. cp_commit
+    and cp_prove read the weights with wsums.txt and fold.txt beside them, and /models is read
+    only, so the weight files are copied (cloned where the file system can) into /io/fit/weights."""
+    fit, model = workdir(host(FIT)), host(MODEL)
+    weights, config = private(host(WEIGHTS)), private(host(FIT_CONFIG))
+    private(fit / "model")
+    names = [f"{STEM}-0000{i}-of-0000{PARTS_OF}.gguf" for i in range(1, PARTS_OF + 1)]
+    cal = [str(CALIBRATION / n) for n in ("wikitext-2-raw-v1-train.parquet",
+                                          "llama2-tokenizer.json", "llama4-tokenizer.json")]
+    calibration_set = fit / "calibration_set.npy"
+    steps = [
+        [PYTHON, "-Bs", str(SRC / "scales/make_calibration_set.py"), *cal, str(calibration_set)],
+        [str(SRC / "bin/weight_sums"), "--eres", "10", "--threads",
+         str(min(64, cpu_count())), "--out", str(fit / "model/wsums.txt"),
+         *(str(model / n) for n in names)],
+    ]  # fmt: skip
+    for argv in steps:
+        log = fit / f"{Path(argv[2] if argv[0] == PYTHON else argv[0]).stem}.log"
+        if run(argv, job, fit, log, cwd_src=True) != 0:
+            raise SystemExit(f"flashprove: {argv[0]} exited non-zero, last line {last_line(log)!r}")
+    published(fit / "model/wsums.txt", "model/wsums.txt")
+    (fit / "model/fold.txt").write_text("eres 10\nqkrows asis\n")
+    shutil.copyfile(SRC / "prover/examples/target_full_f2/layout.txt", config / "layout.txt")
+    for name in names:  # cp_commit refuses a link, and a second hard link, to a weight file
+        clone(model / name, weights / name)
+    for name in ("wsums.txt", "fold.txt"):
+        shutil.copyfile(fit / "model" / name, weights / name)
+    later = [
+        [PYTHON, "-Bs", str(SRC / "scales/calibrate.py"), "--gguf", str(weights), "--wsums",
+         str(weights / "wsums.txt"), "--tokens", str(calibration_set), "--out",
+         str(fit / "calibration"), "--device", "cuda", "--eres", "10"],
+        [PYTHON, "-Bs", str(SRC / "scales/words_to_policy.py"),
+         str(SRC / "prover/examples/target_full_f2/policy.txt"), str(fit / "calibration/words.json"),
+         str(weights / "wsums.txt"), str(config / "policy.txt"), str(config / "KL.bin")],
+    ]  # fmt: skip
+    for argv in later:
+        log = fit / f"{Path(argv[2]).stem}.log"
+        if run(argv, job, fit, log, cwd_src=True) != 0:
+            raise SystemExit(f"flashprove: {argv[2]} exited non-zero, last line {last_line(log)!r}")
+    published(config / "KL.bin", "config/KL.bin")
+    return {**base("setup"), "ready": True,
+            "log_files": [f"{FIT}/{p.name}" for p in sorted(fit.glob("*.log"))]}  # fmt: skip
 
 
 def commit(job: dict) -> dict:
     weights, fit = host(WEIGHTS), host(FIT_CONFIG)
     # The fit must be upstream's published one: run.sh's stages fit and compare check these two
     # digests against examples/maverick/expected.txt before and after cp_commit.
-    expected = dict(ln.split()[::-1] for ln in (SRC / "examples/maverick/expected.txt")
-                    .read_text().splitlines() if ln.strip())  # fmt: skip
-    for name, path in (("model/wsums.txt", weights / "wsums.txt"),
-                       ("config/KL.bin", fit / "KL.bin")):  # fmt: skip
-        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected[name]:
-            raise SystemExit(f"flashprove: {path} is missing or is not the published {name}")
+    published(weights / "wsums.txt", "model/wsums.txt")
+    published(fit / "KL.bin", "config/KL.bin")
     state = host("/io/state")
     work = workdir(state / "commit")
     config = private(work / "config")
@@ -256,7 +329,7 @@ def verify(job: dict) -> dict:
     request = job["request"]
     (work / "request.req").write_bytes(pack([*request, len(request) - 1, len(request)]))
     (work / "token.y").write_bytes(pack(job["claimed_output"]))
-    cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()
+    cpus = cpu_count()
     argv = [str(BIN / "cp_verify"), str(config), str(work / "ivk"), str(work / "request.req"),
             str(work / "token.y"), str(host(job["proof_dir"]) / PARTS[1]),
             "-id", job["commitment_id"], "-next-token", "-j", str(min(256, cpus or 1))]  # fmt: skip

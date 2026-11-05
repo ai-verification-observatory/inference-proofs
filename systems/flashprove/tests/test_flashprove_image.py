@@ -57,7 +57,7 @@ def test_upstream_pinned_and_checked() -> None:
     assert "patch" not in dockerfile.split("FROM fetch", 1)[1]  # B4
 
 
-def test_info_and_setup(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_info(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("IPROOFS_ADAPTER_COMMIT", "a" * 40)
     monkeypatch.setenv("IPROOFS_ADAPTER_DIRTY", "false")
     out = run(adapter, "info")
@@ -67,7 +67,6 @@ def test_info_and_setup(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) ->
     assert (out["adapter_commit"], out["adapter_dirty"]) == ("a" * 40, False)
     names = [i["name"] for i in out["image_inputs"]]
     assert names == ["FlashProve"]
-    assert run(adapter, "setup")["ready"] is True
 
 
 def test_image_info_fixture() -> None:
