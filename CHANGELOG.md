@@ -64,6 +64,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- `sash` declares a 21,600 s `verify` limit; the 3,600 s default stopped a job whose grid verification on 8 CPUs took longer.
 - `sash` pins the image rebuilt from `main` at `aa3fbb2`: vendored crates readable by the adapter user (#283) and the program path mapped (#289).
 - Hosted execution passes the adapter absolute `IPROOFS_IO` and `IPROOFS_MODELS` paths; with `--results results` they were relative, and FlashProve's fit, which runs upstream from its own directory, could not find `/io/fit`.
 - `sash`: the program path of an upstream call is mapped like its arguments, so `prove` finds the CUDA build it made under `/io/state/build` when `/io` is mapped (hosted execution).
