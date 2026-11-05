@@ -221,6 +221,7 @@ Some GPU providers rent an H100 only as a container they start themselves, from 
 - The recorded commitment copies of RFC-0014 become root-owned and read-only before the call. The verifier reads the harness's own copies, as under docker.
 - The adapter gets the environment the image declares, read from the container's first process, without the names a provider adds (access keys, ports, addresses).
 - The GPU is chosen by `CUDA_VISIBLE_DEVICES` in PCI bus order; `verify` sees no GPU.
+- Docker gives each call a new `/tmp` tmpfs. Here `/tmp` outlives the call, so before each call the harness removes what the adapter uid left in it; engine and compile caches never carry from one repetition to the next. The harness keeps its own files out of `/tmp`.
 
 Not isolated, and recorded so: the network (`commands[].network: "provider"` in `manifest.json`); memory binding (`numa.bound_mems` is the intended node, not enforced: setting a memory policy needs a capability the container lacks); memory limits, including the verifier's 32 GiB; a read-only root filesystem. CPUs may be shared with other tenants under a quota (`cpu.cgroup_quota_cpus`). The host's OS is not visible (`/etc/os-release` is the image's), so PC-OS does not apply and `os` is absent from the record. The disk is the container's overlay, so `disk.type` is absent.
 
