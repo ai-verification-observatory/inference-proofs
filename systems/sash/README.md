@@ -2,6 +2,8 @@
 
 Adapter for [`sg-ai-safety-hub/zk-inference-prover`](https://github.com/sg-ai-safety-hub/zk-inference-prover) at commit `eb95bfa887299d1637550228d42086c27cbb2b3b` (RFC-0005). This page maps each subcommand onto upstream's tools (RFC-0005 README requirements 1 to 4, 6 and 7) and records what upstream states about the grid of proofs and how the benchmark counts it. Every fact links upstream at that commit, or the companion results repository `sg-ai-safety-hub/zk-inference-results` at `11decec3c0b62c707618aab5deb82750b355d202`. Where upstream is silent, this page says not stated (AGENTS.md rule 9).
 
+What an accepted proof establishes, under which assumptions, and which edges it binds is in the claim card, [`claim.yaml`](claim.yaml) (RFC-0002), unreviewed until a SASH system maintainer reviews it.
+
 ## Grid geometry and proof release
 
 ### What one proof is
