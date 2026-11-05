@@ -60,6 +60,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- G4: a derived quantity of a substituted reference row whose inputs are all absent (a reference row has no verify step) recomputes with the row's `precision_substituted` flag (RFC-0015 PM-2); the check had refused six real runs.
 - `sash`: the image makes the vendored crates readable by all; `prove`'s CUDA build, run as the adapter user, failed on an owner-only file of the `fnv` crate.
 - `flashprove`: `prove` unpacks the secret key directory with its recorded modes; `cp_prove` refused it (cp-isk) when the unpack gave its directories the default mode instead of 0700.
 - `ref-serve` and `ref-recompute` pin images rebuilt from `main` with the `/tmp` engine caches (`ref-serve` at `2dacdc8`, `ref-recompute` at `d713177`).
