@@ -18,6 +18,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `systems/sash`: `commit`, `prove` and `verify` mapped onto upstream's recorded job script at `eb95bfa` (witness extraction, model roots, per-shape CUDA kernels, `compose-chunks`, `boundary-grid --verify`), with the forbidden-flag guard and CPU tests against stand-in programs (#65).
 - GPU runs: `iproofs run --gpu N` binds the GPU and selects CPUs on its NUMA node (RFC-0006 §CPU and memory selection), and every step is sampled by NVML at 20 Hz with the cgroup counters read over the call (RFC-0011), so the resource metrics of a GPU run are measured. `machine-record --hosted` and the machine record's `container.execution`, `cpu.cgroup_quota_cpus` and `memory.cgroup_limit_bytes` (additive `manifest/1` and `reference/1` changes).
 - Workloads `fp-maverick-w1024-b1` and `fp-maverick-w1024-b24`: the public 4-bit Llama 4 Maverick files FlashProve names, every file hash, the model digest and the tokenizer from a second pinned source (RFC-0003).
 - Workloads `sash-l31-8b-c4096` and `sash-l31-8b-c1024`: Llama-3.1-8B pinned at the revision SASH's runs name, every file hash and the model digest (RFC-0003).
