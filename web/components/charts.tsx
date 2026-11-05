@@ -1,6 +1,7 @@
 // Small static charts: plain HTML and SVG, native title tooltips, no client JavaScript.
 import { sig4 } from "@/lib/format";
-import { counted, passed, type Configuration, type Control } from "@/lib/mock";
+import type { Configuration } from "@/lib/mock";
+import type { Tally } from "@/lib/release";
 
 /** Repetitions of one statistic on its own axis (min to max), so it never compares rows. */
 export function RangeStrip({ values, unit }: { values: number[]; unit: string }) {
@@ -24,11 +25,11 @@ export function RangeStrip({ values, unit }: { values: number[]; unit: string })
 }
 
 /** Control outcomes as one segmented bar, every segment named in text beside it (RFC-0009 S9). */
-export function OutcomeBar({ items }: { items: Control[] }) {
+export function OutcomeBar({ t }: { t: Tally }) {
   const parts = [
-    { label: "passed", n: items.filter((c) => counted(c) && passed(c)).length, color: "var(--good)" },
-    { label: "failed", n: items.filter((c) => counted(c) && !passed(c)).length, color: "var(--bad)" },
-    { label: "void, not applicable or error", n: items.filter((c) => !counted(c)).length, color: "var(--neutral-mark)" },
+    { label: "passed", n: t.passed, color: "var(--good)" },
+    { label: "failed", n: t.failed, color: "var(--bad)" },
+    { label: "void, not applicable or error", n: t.other, color: "var(--neutral-mark)" },
   ];
   return (
     <div>

@@ -1,9 +1,12 @@
 import { notFound } from "next/navigation";
-import { A, Chip, Code, KV, PageHeader, Panel, Q, Section, Table, TierChip } from "@/components/ui";
-import { configurations, RELEASE, reproductions, systems } from "@/lib/mock";
+import type { ReactNode } from "react";
+import { A, Chip, Code, KV, PageHeader, Panel, ProfileChip, Q, Section, Table, TierChip } from "@/components/ui";
+import { data, isMock, STATUS } from "@/lib/release";
 import { blob, reference, RFC_COMMIT } from "@/lib/repo";
 
 type P = { params: Promise<{ release: string }> };
+
+const { configurations, release: RELEASE, reproductions, systems } = data;
 
 export const generateStaticParams = () => [{ release: RELEASE.id }];
 export const dynamicParams = false;
@@ -13,10 +16,10 @@ export default async function ReleasePage({ params }: P) {
   if ((await params).release !== RELEASE.id) notFound();
   const ref = reference();
   const runs = configurations.flatMap((c) => c.runs.map((r) => ({ ...r, c })));
-  const notCompleted = runs.filter((r) => r.status !== "completed");
+  const notCompleted = runs.filter((r) => r.status !== "completed" && r.status !== "included");
   return (
     <>
-      <PageHeader eyebrow="Release" title={`Release ${RELEASE.id}`}>
+      <PageHeader eyebrow={`Release, ${STATUS[RELEASE.status]}`} title={`Release ${RELEASE.id}`}>
         <p>{RELEASE.scope}</p>
       </PageHeader>
 
@@ -25,10 +28,11 @@ export default async function ReleasePage({ params }: P) {
           <Panel className="px-5 pb-3">
             <KV
               rows={[
-                ["Status", <Chip tone="mock">{RELEASE.status}</Chip>],
-                ["Freeze date", <span className="num">{RELEASE.freeze_date} (mock)</span>],
-                ["Review window", <span className="num">{RELEASE.review_window_days} days before freeze for every listed system</span>],
-                ["RFC commit", <a className="link num text-xs" href={blob("rfcs")}>{RFC_COMMIT}</a>],
+                ["Status", <Chip tone={RELEASE.status === "published" ? "plain" : "mock"}>{STATUS[RELEASE.status]}</Chip>],
+                ["Freeze date", <span className="num">{RELEASE.freeze_date ? `${RELEASE.freeze_date}${isMock ? " (mock)" : ""}` : "not set: no release.yaml yet"}</span>],
+                ["Review window", <span className="num">{RELEASE.review_window ? `${RELEASE.review_window.opens} to ${RELEASE.review_window.closes}` : isMock ? "14 days before freeze for every listed system" : "not set: no release.yaml yet"}</span>],
+                ...(RELEASE.index_file ? [["Release index", <A href={blob(RELEASE.index_file, "main")}>{RELEASE.index_file}</A>] as [string, ReactNode]] : []),
+                ["RFC commit", RELEASE.rfc_commit ? <a className="link num text-xs" href={blob("rfcs", RELEASE.rfc_commit)}>{RELEASE.rfc_commit}</a> : <a className="link num text-xs" href={blob("rfcs")}>{RFC_COMMIT}{RELEASE.index_file && " (dashboard pin; no release.yaml yet)"}</a>],
                 ["Reference file", <A href={blob(RELEASE.reference_file)}>{RELEASE.reference_file}</A>],
                 ["Systems", <span className="flex flex-wrap gap-1.5">{systems.map((s) => <A key={s.name} href={`/systems/${s.name}/`}>{s.name}</A>)}</span>],
               ]}
@@ -69,27 +73,35 @@ export default async function ReleasePage({ params }: P) {
         </div>
       </Section>
 
-      <Section title="Reproduced, reviewed and failed" note="Mock records, RFC-0007">
-        <Table head={["System", "Workload", "By", "Date", "Result", "Effective tier"]} caption="Reproductions">
-          {reproductions.map((r) => (
-            <tr key={r.system + r.workload}>
-              <th scope="row" className="font-medium"><A href={`/systems/${r.system}/`}>{r.system}</A></th>
-              <td className="num text-xs">{r.workload}</td>
-              <td className="text-ink-2">{r.by}</td>
-              <td className="num text-xs text-ink-2">{r.date}</td>
-              <td className="text-ink-2">{r.result}</td>
-              <td><TierChip tier={configurations.find((c) => c.system === r.system && c.workload === r.workload)!.effective_tier} /></td>
-            </tr>
-          ))}
-        </Table>
+      <Section title="Reproduced, reviewed and failed" note={isMock ? "Mock records, RFC-0007" : "RFC-0007"}>
+        {reproductions.length === 0 ? (
+          <p className="text-sm text-ink-3">No reproduction records in this release.</p>
+        ) : (
+          <Table head={["System", "Workload", "By", "Date", "Result", "Effective tier"]} caption="Reproductions">
+            {reproductions.map((r) => {
+              const tier = configurations.find((c) => c.system === r.system && c.workload === r.workload)?.effective_tier;
+              return (
+                <tr key={r.system + r.workload + (r.path ?? r.by)}>
+                  <th scope="row" className="font-medium"><A href={`/systems/${r.system}/`}>{r.system}</A></th>
+                  <td className="num text-xs">{r.workload}</td>
+                  <td className="text-ink-2">{r.by}</td>
+                  <td className="num text-xs text-ink-2">{r.date ?? (r.path ? <A href={blob(r.path, "main")}>record</A> : "not stated")}</td>
+                  <td className="text-ink-2">{r.result}</td>
+                  <td>{tier && <TierChip tier={tier} />}</td>
+                </tr>
+              );
+            })}
+          </Table>
+        )}
       </Section>
 
       <Section title="Runs that did not contribute" note="Listed with the reason; never in statistics (RFC-0009 S7)">
         <Table head={["Run", "Configuration", "Status", "Reason"]} caption="Failed and superseded runs">
+          {notCompleted.length === 0 && <tr><td colSpan={4} className="text-sm text-ink-3">None.</td></tr>}
           {notCompleted.map((r) => (
             <tr key={r.run_id}>
               <th scope="row"><del className="num text-xs font-normal text-ink-2">{r.run_id}</del></th>
-              <td className="text-xs"><A href={`/systems/${r.c.system}/`}>{r.c.system}</A> on {r.c.workload}</td>
+              <td className="text-xs"><A href={`/systems/${r.c.system}/`}>{r.c.system}</A> on {r.c.workload} <ProfileChip profile={r.c.profile} /></td>
               <td><Chip tone={r.status === "failed" ? "bad" : "plain"}>{r.status}</Chip></td>
               <td className="text-xs text-ink-2">{r.reason ?? `exit code ${r.exit_code}: ${r.last_lines?.at(-1)}`}</td>
             </tr>

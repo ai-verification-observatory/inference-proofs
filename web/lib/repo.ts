@@ -1,5 +1,5 @@
 // Real records read from the repository at build time. Nothing here is mock data.
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parse } from "yaml";
 import type { Quantity } from "./mock.ts";
@@ -25,6 +25,13 @@ export type Reference = {
 };
 
 export const reference = (): Reference => yaml("reference/v0.1.yaml");
+
+/** RFC-0001 §System inclusion: `maintainers: []` in system.yaml means no system maintainer has been reached. */
+export function notReached(system: string, root = ROOT): boolean {
+  const file = path.join(root, "systems", system, "system.yaml");
+  const m = existsSync(file) ? parse(readFileSync(file, "utf-8"))?.maintainers : undefined;
+  return Array.isArray(m) && m.length === 0;
+}
 
 export function rfcs(): { id: string; title: string; status: string; file: string }[] {
   return readdirSync(path.join(ROOT, "rfcs"))

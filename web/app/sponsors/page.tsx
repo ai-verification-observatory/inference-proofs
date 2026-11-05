@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { A, PageHeader, Panel, Section, Table } from "@/components/ui";
+import { data } from "@/lib/release";
 import { blob, ROOT } from "@/lib/repo";
 
 export const metadata = { title: "Sponsors and conflicts" };
@@ -20,7 +21,21 @@ export default function Sponsors() {
         <p>Sponsors as listed in the release file and conflicts as declared in MAINTAINERS.md, in separate sections (RFC-0009).</p>
       </PageHeader>
       <Section title="Sponsors">
-        <Panel className="px-5 py-4 text-sm text-ink-2">None listed: the mock release has no release.yaml yet.</Panel>
+        {data.release.sponsors?.length ? (
+          <Table head={["Name", "Provided", "Period"]} caption="Sponsors">
+            {data.release.sponsors.map((s) => (
+              <tr key={s.name + s.period}>
+                <th scope="row" className="font-medium">{s.name}</th>
+                <td className="text-ink-2">{s.provided}</td>
+                <td className="text-ink-2">{s.period}</td>
+              </tr>
+            ))}
+          </Table>
+        ) : (
+          <Panel className="px-5 py-4 text-sm text-ink-2">
+            {data.release.sponsors ? <>None listed in <A href={blob(data.release.record_file!, "main")}>{data.release.record_file}</A>.</> : `None listed: release ${data.release.id} has no release.yaml yet.`}
+          </Panel>
+        )}
       </Section>
       <Section title="Maintainers and declared interests" note={<A href={blob("MAINTAINERS.md")}>MAINTAINERS.md</A>}>
         <Table head={["Handle", "Role", "Organisation", "Systems maintained", "Declared interests", "Since"]} caption="Maintainers">
