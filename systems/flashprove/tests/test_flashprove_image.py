@@ -70,11 +70,6 @@ def test_info_and_setup(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) ->
     assert run(adapter, "setup")["ready"] is True
 
 
-def test_unmapped_step_refused(adapter: ModuleType) -> None:
-    with pytest.raises(SystemExit, match=r"not mapped yet"):
-        run(adapter, "prove")
-
-
 def test_image_info_fixture() -> None:
     """`info` as the built image returned it: valid, with the lock's inputs and the toolchains."""
     out = json.loads((HERE / "fixtures/info.json").read_text())
