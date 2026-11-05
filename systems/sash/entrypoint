@@ -106,6 +106,16 @@ def last_line(text: str) -> str:
     return lines[-1][-4096:] if lines else ""
 
 
+def mapped(arg: str) -> str:
+    """A container path in an argument or environment value (`/io/x`, `--opt=/io/x`) as the host
+    path, for when IPROOFS_IO and IPROOFS_MODELS map them; anything else unchanged."""
+    key, eq, value = arg.rpartition("=") if "=" in arg and not arg.startswith("/") else ("", "", arg)
+    for prefix in ("/io", "/models"):
+        if value == prefix or value.startswith(prefix + "/"):
+            return key + eq + str(host(value))
+    return arg
+
+
 def run(argv: list[str], *, cwd: str = "/io", env: dict[str, str] | None = None,
         out: str | None = None, check: bool = True) -> "Done":  # fmt: skip
     """One upstream process, logged to /io/commands.jsonl (RFC-0005 §Command log)."""
@@ -113,7 +123,8 @@ def run(argv: list[str], *, cwd: str = "/io", env: dict[str, str] | None = None,
     real = [STUB, *argv] if STUB else argv
     stdout = host(out).open("w") if out else subprocess.PIPE
     try:
-        p = subprocess.run(real, cwd=None if STUB else cwd, env={**os.environ, **(env or {})},
+        p = subprocess.run([real[0], *map(mapped, real[1:])], cwd=None if STUB else mapped(cwd),
+                           env={**os.environ, **{k: mapped(v) for k, v in (env or {}).items()}},
                            stdout=stdout, stderr=subprocess.PIPE, text=True,
                            check=False)  # fmt: skip
     finally:

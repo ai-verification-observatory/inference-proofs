@@ -160,3 +160,17 @@ def test_ragged_shape_refused(adapter: ModuleType, step: Step) -> None:
 def test_stub_is_test_only() -> None:
     entry = (Path(__file__).resolve().parents[1] / "entrypoint").read_text()
     assert entry.count("IPROOFS_SASH_EXEC") == 2  # the docstring and the one read
+
+
+def test_container_paths_mapped_for_upstream(
+    adapter: ModuleType, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Upstream gets host paths when /io and /models are mapped (hosted execution, tests); the
+    command log keeps the container form."""
+    monkeypatch.setenv("IPROOFS_IO", "/h/io")
+    monkeypatch.setenv("IPROOFS_MODELS", "/h/models")
+    assert adapter.mapped("/io/state/zk-out") == "/h/io/state/zk-out"
+    assert adapter.mapped("--out=/io/x.json") == "--out=/h/io/x.json"
+    assert adapter.mapped("/models") == "/h/models"
+    assert adapter.mapped("--layers") == "--layers"
+    assert adapter.mapped("/iox") == "/iox"
