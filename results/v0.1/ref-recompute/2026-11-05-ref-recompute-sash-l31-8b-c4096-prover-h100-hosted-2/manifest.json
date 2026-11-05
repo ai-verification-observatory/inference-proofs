@@ -1,0 +1,275 @@
+{
+  "claim": null,
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T21:26:20Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T21:26:21Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T21:26:21Z",
+      "step": "prove"
+    }
+  ],
+  "commitment": null,
+  "control": false,
+  "harness": {
+    "git_commit": "831590b18cb1855f3c733f41530ba990473804df",
+    "git_dirty": false,
+    "lock_digest": "sha256:4eeb7ca62a4029dd085ddd7f6f40e60e10327ff1674fd4909d588d4a9b8a9fc3",
+    "nonconforming": false,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted"
+    },
+    "cpu": {
+      "bound_prover": [
+        104,
+        106,
+        108,
+        110,
+        112,
+        114,
+        116,
+        118,
+        120,
+        122,
+        124,
+        126,
+        128,
+        130,
+        132,
+        134,
+        136,
+        138,
+        140,
+        142,
+        144,
+        146,
+        148,
+        150
+      ],
+      "bound_verifier": [
+        105,
+        107,
+        109,
+        111,
+        113,
+        115,
+        117,
+        119
+      ],
+      "bound_verifier_single": [
+        105
+      ],
+      "cgroup_quota_cpus": 24.96,
+      "logical_cpus": 208,
+      "model": "Intel(R) Xeon(R) Platinum 8480+",
+      "physical_cores": 104,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 627786772480
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.3",
+      "driver_version": "610.57.04",
+      "memory_total_mib": 81559,
+      "model": "NVIDIA H100 80GB HBM3",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.8.0-62-generic"
+    },
+    "memory": {
+      "available_bytes_at_start": 1800673030144,
+      "cgroup_limit_bytes": 645671157760,
+      "total_bytes": 1902330167296
+    },
+    "numa": {
+      "bound_mems": [
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "vast",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h100-hosted",
+    "reference_digest": "sha256:8ee2355f3950d68d11e2b0e85f60f78d7426a017a9f98168edcdfd777293258a",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": "2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-4",
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:e55ab7866a85c83c9a4d4c715308a030b4563374b46e32f5c136a217f27071dd",
+      "parts": [
+        {
+          "bytes": 2864,
+          "digest": "sha256:da3496dfc291742d4a4acfe1e2f73455bba0129a77d09f509b18a6162596d476",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-0"
+    }
+  ],
+  "provider": "vast",
+  "release": "v0.1",
+  "run_id": "2026-11-05-ref-recompute-sash-l31-8b-c4096-prover-h100-hosted-2",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "system": {
+    "adapter_commit": "d713177d12fc49a453e3ce40b89b77d706f294cc",
+    "adapter_dirty": false,
+    "claim_digest": null,
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/ref-recompute@sha256:fa4519d20f329b5b2d59d7b73c6b15070ec7eda61a277ca4dd907137ff4d463b"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:e795779830ad8907cb0e51bf661dd7784ebaf244b0b324af07a8d3925b6a9739",
+        "name": "vllm_gguf_plugin-0.0.5-cp310-abi3-manylinux_2_28_x86_64.whl",
+        "url": "https://files.pythonhosted.org/packages/0b/1f/55b5023c20ef8c30c8099d713aa2be94783d7a67aa31f87963779d82f5c6/vllm_gguf_plugin-0.0.5-cp310-abi3-manylinux_2_28_x86_64.whl"
+      },
+      {
+        "digest": "sha256:70bcd10edfe697fb2dad6e40af2234b9d8ece9a41a99761405121ebda1c3c1cd",
+        "name": "gguf-0.19.0-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/b3/bb/d71d6da82763528c2c2ed6b59a9d6142c6595545a4c448e2085d155e88c2/gguf-0.19.0-py3-none-any.whl"
+      }
+    ],
+    "name": "ref-recompute",
+    "system_manifest_digest": "sha256:a566f1ab7a99514a75c6bf47f157efe34e90531b9f435179d882cdc0c1e36039",
+    "upstream": null
+  },
+  "warnings": [],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:eec9a127905740a14a9f296425f49617e80a58a2fbe1e3ce34b6903ace7d4c6f",
+    "id": "sash-l31-8b-c4096",
+    "model": {
+      "digest": "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7",
+      "revision": "4699cc75b550f9c6f3173fb80f4703b62d946aa5",
+      "source": "huggingface:unsloth/Llama-3.1-8B-Instruct"
+    },
+    "prompt_seed": "0xb416843fc6f856ab",
+    "prompt_set_digest": "sha256:ace8a1d80156b2425ec1d5f113979cf7198944059ddac315de7fc76776eae55c",
+    "version": 1
+  }
+}
