@@ -6,8 +6,6 @@ This file covers two kinds of report: vulnerabilities in this project's own code
 
 Report privately through the hosting platform's private vulnerability reporting for this repository ("Report a vulnerability" on the Security tab). This resolves [RFC-0001](rfcs/0001-process-and-governance.md#open-questions) Q3 with its default.
 
-While the repository is private, the platform does not offer that feature. Until it is public, send the report as a private message to a maintainer listed in [MAINTAINERS.md](MAINTAINERS.md) and do not open an issue.
-
 ## Vulnerabilities in this project
 
 In scope: the harness (`harness/`), the fake systems (`systems/fake`, `systems/fake-broken`), the CI workflows and the site generator. Examples include a container escape path, a path traversal through adapter output, a secret or host identifier written into a run directory, or a validation gate that can be bypassed.
