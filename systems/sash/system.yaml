@@ -2,7 +2,7 @@
 # RFC-0001 §System inclusion: no SASH team member has been reached yet, so `maintainers` is empty
 # and no consent is recorded. Rows carry the note "system maintainers not reached" and the claim
 # card stays unreviewed until a system maintainer is named; silence is never consent.
-# RFC-0014 B7: built by the images workflow from main at d713177d12fc49a453e3ce40b89b77d706f294cc
+# RFC-0014 B7: built by the images workflow from main at aa3fbb2cd5f9f53fadf7966f02784492aaca5392
 # (adapter_dirty false) and pushed to the project registry.
 schema: "system/1"
 name: "sash"
@@ -14,7 +14,7 @@ upstream:
   commit: "eb95bfa887299d1637550228d42086c27cbb2b3b"
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
-  digest: "sha256:b07af0aca9906c0a79c9e59531f4ef57373af7c2eb7c703876ab033767ef9a15"
+  digest: "sha256:bf548d5666b10d653babb23612d670dfa7c86f7b75f3784da0451d53ec90f577"
 maintainers: []
 workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
 profile: "prover-h100"
