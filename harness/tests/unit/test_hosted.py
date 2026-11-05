@@ -249,3 +249,15 @@ def test_fresh_tmp_removes_only_the_adapters(
     monkeypatch.setattr(adapter, "ADAPTER_UID", str(os.geteuid() + 1))
     adapter.fresh_tmp(tmp_path)
     assert [p.name for p in tmp_path.iterdir()] == ["theirs"]
+
+
+def test_hosted_paths_are_absolute(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """With `--results results` the io dir is relative; an adapter that runs upstream from
+    another directory needs the absolute path, as docker's bind mount gives it."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "results/io").mkdir(parents=True)
+    (tmp_path / "models").mkdir()
+    runner = HostedRunner(["python3", "/opt/x/entrypoint"], REGISTRY, {})
+    _, env = runner._command("prove", Path("results/io"), Path("models"), 0, "0", [])
+    assert env["IPROOFS_IO"] == str((tmp_path / "results/io").resolve())
+    assert env["IPROOFS_MODELS"] == str((tmp_path / "models").resolve())

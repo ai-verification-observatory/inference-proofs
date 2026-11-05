@@ -62,6 +62,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- Hosted execution passes the adapter absolute `IPROOFS_IO` and `IPROOFS_MODELS` paths; with `--results results` they were relative, and FlashProve's fit, which runs upstream from its own directory, could not find `/io/fit`.
 - `sash`: the program path of an upstream call is mapped like its arguments, so `prove` finds the CUDA build it made under `/io/state/build` when `/io` is mapped (hosted execution).
 - G4: a derived quantity of a substituted reference row whose inputs are all absent (a reference row has no verify step) recomputes with the row's `precision_substituted` flag (RFC-0015 PM-2); the check had refused six real runs.
 - `sash`: the image makes the vendored crates readable by all; `prove`'s CUDA build, run as the adapter user, failed on an owner-only file of the `fnv` crate.
