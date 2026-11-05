@@ -22,3 +22,7 @@ deterministic_proofs: true
 incremental_proofs: false
 proofs: {granularity: "segment_grid", tokens_covered: "prompt_plus_output", steady_boundary: "not_observable", steady_approximate: false}
 forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
+# RFC-0005 timeouts are limits. verify above the 3,600 s default: on the H100 host, boundary-grid
+# --verify of one sash-l31-8b-c1024 grid took 3,381 s at about 3.9 CPUs (a development call), and
+# the harness also times it on one CPU (verify.single_thread). A job that hit 3,600 s failed.
+timeouts_s: {verify: 21600}
