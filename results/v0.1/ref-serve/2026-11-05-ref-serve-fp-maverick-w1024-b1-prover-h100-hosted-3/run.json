@@ -1,0 +1,31 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [],
+  "failure": {
+    "at": "2026-11-05T13:01:55Z",
+    "exit_code": null,
+    "kind": "config",
+    "last_lines": [],
+    "message": "fp-maverick-w1024-b1 lists no proving system whose token rule a reference row counts by (RFC-0015 REF-3)",
+    "step": "resolved"
+  },
+  "metrics": {},
+  "profile": "prover-h100-hosted",
+  "proofs": [],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 3,
+  "replaces": null,
+  "run_id": "2026-11-05-ref-serve-fp-maverick-w1024-b1-prover-h100-hosted-3",
+  "schema": "run/1",
+  "status": "failed",
+  "system": "ref-serve",
+  "system_kind": "reference",
+  "warnings": [],
+  "workload": {
+    "id": "fp-maverick-w1024-b1",
+    "version": 1
+  }
+}
