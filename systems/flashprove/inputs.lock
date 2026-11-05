@@ -4,3 +4,9 @@
 # which the fetch stage recomputes after checking `git rev-parse HEAD` (INV-ADAPTER-2). The CUDA
 # 13.2 Update 2 packages come through cuda-requirements.txt, which carries their hashes.
 FlashProve	https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c	sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48
+# The fit's calibration set (scales/README.md "The calibration set"): the three files upstream
+# names, by its own sha256. Meta's two tokenizer repositories are gated; these are ungated copies
+# whose bytes have the same sha256 (the same git blob as Meta's file).
+wikitext-2-raw-v1-train	https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet	sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7
+llama2-tokenizer	https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json	sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e
+llama4-tokenizer	https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json	sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4
