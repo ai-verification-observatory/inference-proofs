@@ -1,0 +1,227 @@
+{
+  "claim": {
+    "card_version": 1,
+    "configuration": "exact-match-cp-verify",
+    "system": "flashprove"
+  },
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T13:05:54Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 1,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T13:05:54Z",
+      "step": "setup"
+    }
+  ],
+  "commitment": null,
+  "control": false,
+  "harness": {
+    "git_commit": "100323c383df3f71b0619d14eebeeccbda6be940",
+    "git_dirty": false,
+    "lock_digest": "sha256:4eeb7ca62a4029dd085ddd7f6f40e60e10327ff1674fd4909d588d4a9b8a9fc3",
+    "nonconforming": false,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted"
+    },
+    "cpu": {
+      "bound_prover": [
+        104,
+        106,
+        108,
+        110,
+        112,
+        114,
+        116,
+        118,
+        120,
+        122,
+        124,
+        126,
+        128,
+        130,
+        132,
+        134,
+        136,
+        138,
+        140,
+        142,
+        144,
+        146,
+        148,
+        150
+      ],
+      "bound_verifier": [
+        105,
+        107,
+        109,
+        111,
+        113,
+        115,
+        117,
+        119
+      ],
+      "bound_verifier_single": [
+        105
+      ],
+      "cgroup_quota_cpus": 24.96,
+      "logical_cpus": 208,
+      "model": "Intel(R) Xeon(R) Platinum 8480+",
+      "physical_cores": 104,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 841281236992
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.3",
+      "driver_version": "610.57.04",
+      "memory_total_mib": 81559,
+      "model": "NVIDIA H100 80GB HBM3",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.8.0-62-generic"
+    },
+    "memory": {
+      "available_bytes_at_start": 1860970663936,
+      "cgroup_limit_bytes": 645671157760,
+      "total_bytes": 1902330167296
+    },
+    "numa": {
+      "bound_mems": [
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "vast",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h100-hosted",
+    "reference_digest": "sha256:8ee2355f3950d68d11e2b0e85f60f78d7426a017a9f98168edcdfd777293258a",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [],
+  "provider": "vast",
+  "release": "v0.1",
+  "run_id": "2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-1",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [],
+    "passed": false
+  },
+  "system": {
+    "adapter_commit": "4f1a295e06d52e0e3484f3c88005a1dcdcbd59fb",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e",
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/flashprove@sha256:7ca6c9ee8c6568b9b925a5c8a8d8eb2f3cd7e394b0f047cde3096d99145a91f8"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
+        "name": "FlashProve",
+        "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+      },
+      {
+        "digest": "sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7",
+        "name": "wikitext-2-raw-v1-train",
+        "url": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet"
+      },
+      {
+        "digest": "sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+        "name": "llama2-tokenizer",
+        "url": "https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json"
+      },
+      {
+        "digest": "sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4",
+        "name": "llama4-tokenizer",
+        "url": "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json"
+      }
+    ],
+    "name": "flashprove",
+    "system_manifest_digest": "sha256:c577b9718bf2b8aa4a2e1b52c48d7d4daaa970bf4cc6670cc98d4d8ce70612c7",
+    "upstream": {
+      "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+      "repo": "anthropics/FlashProve"
+    }
+  },
+  "warnings": [],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:f89f6610bde57de8402c8be10d7b7a21f7028d9575f66c5c01be3f00e57a92dc",
+    "id": "fp-maverick-w1024-b1",
+    "model": {
+      "digest": "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114",
+      "revision": "41032e5471dd6ea5b349062d978626215d6c5bba",
+      "source": "huggingface:unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF"
+    },
+    "prompt_seed": "0xf585d719cdb4fcb6",
+    "prompt_set_digest": "sha256:0612ade217d17a5ca909571e3779b31125479ad56a6809a262addf78c8c776c0",
+    "version": 1
+  }
+}
