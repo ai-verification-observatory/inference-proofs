@@ -1,0 +1,186 @@
+# FlashProve claim card (RFC-0002), draft: not reviewed by FlashProve's maintainers (none reached).
+# Every value copies FlashProve's documentation at the pinned commit (AGENTS.md rule 9); quoted
+# text is upstream's own wording. The configuration is the one the adapter's `verify` runs: the C++
+# verifier `cp_verify` under the published commitment's exact-match policy (systems/flashprove/
+# README.md). Upstream proves soundness for its Lean verifier `verify`, not for `cp_verify`, so a
+# Lean-verifier configuration would be a second card (RFC-0002 §Configuration identity 5).
+# Sources keyed `<field>.<n>` give the link for one item of a list field.
+schema: "claim/1"
+system: "flashprove"
+configuration: "exact-match-cp-verify"
+card_version: 1
+upstream: {repo: "anthropics/FlashProve", commit: "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"}
+claim_class: "next-token/exact-match/committed-weights"
+relation: >-
+  Under exact match, a `YES` from `cp_verify` "is meant to show that each checked token is the
+  committed integer model's top choice at its position, up to the error bound". With the range
+  r = T - 1, e = T that the adapter sends, the one checked token is the next token after the
+  T-token window, which the proof covers.
+# The Lean theorem (lean/THEOREM.md) is stated for the Lean verifier `verify`; upstream states no
+# formal statement for `cp_verify` ("no theorem says that they run the protocol the Lean verifier
+# checks", guide/what-is-proved.md#L272-L274).
+relation_formal: "not stated"
+security:
+  notion:
+    kind: "soundness"
+    verifier: >-
+      Stated for the Lean verifier `verify` only, not for `cp_verify`, which this configuration
+      runs: "The C++ verifier and the CUDA prover are written to follow the same protocol and are
+      tested against it, not themselves proved." Its formal name is "index-binding knowledge
+      soundness, in its witness-free case"; upstream: "This is binding for the language, not
+      knowledge soundness".
+  level: >-
+    Not claimed for `cp_verify`: "Neither figure, 124 bits per query or 128 bits per round, is
+    claimed for the C++ programs." For the Lean verifier: "The Lean verifier accepts a proof of a
+    false claim with probability at most about q/2^124 + 2^-101 after q hash queries (about 124
+    bits per query; not "128 bits")", at exact match, for one proof. Of `cp_verify`'s printed bits:
+    "The C++ programs' printed "bits" are their own accounting, not a theorem".
+  model:
+    assumption: >-
+      "The random-oracle model for the hash, with a second, fixed hash function, built on
+      BLAKE2b's compression function, assumed independent of it" (stated for the Lean verifier)
+    adversary: "classical"
+  setup: "not_stated"
+zero_knowledge:
+  claimed: true
+  hidden: >-
+    The weights: "by design, beyond a declared list, every published value that depends on the
+    weights is masked or published only as a salted hash. Zero knowledge, Lean's form of weight
+    hiding, is proved in Lean for the protocol, at full size and at the exact-match policy, with
+    fresh random masks. The honest prover in these theorems is a Lean definition, not the CUDA
+    prover." Of the programs: "we expect, rather than know, that the programs hide the weights at
+    the default setting, in honest runs, if the provider keeps its duties (this does not reach any
+    real model's weights, or the parameter file and scales fitted to them)".
+  not_hidden: >-
+    The declared list, "At least eleven things are visible": each reply, whether a request was
+    served or failed, time, the architecture and every size, settings fitted to the weights, that
+    `cp_commit`'s checks passed, that a batch failed or the service stopped, how much a provider has
+    served and when, who shared a batch and how many, lengths, places in the batch and nonces,
+    masked sums of the weights. "The list says what is visible by design, not that everything else
+    is hidden." In Lean's theorem, one bit per request (served or refused) is revealed, "and it
+    depends on the weights".
+  # Upstream: proved in Lean for the protocol with a Lean-defined prover; "nothing is proved for
+  # the programs", which are "tested, not verified". The card runs the programs.
+  status: "tested"
+assumptions:
+  - >-
+    The commitment ID comes from "a party your user trusts, never from the server being checked or
+    from files sent with the proof".
+  - >-
+    "The client must trust what no call checks: the commitment ID, the expected policy and its
+    numbers, the tokenizer and chat template, and `cp_verify` itself."
+  - >-
+    "Configuration files fixed before the hash function is drawn: the three public files
+    (parameter, layout and scale file). A provider that tunes them to the real hash function is
+    outside the statement." (a condition of the Lean theorem)
+  - >-
+    "One proof format and model size: full size, not the small examples'." (a condition of the
+    Lean theorem)
+  - >-
+    "One proof. N proofs handed in at once under one commitment, or N members of a batch, cost N
+    times that error, taken at the whole list's hash queries; for proofs checked one after
+    another, or members checked in separate sessions, no bound is stated."
+  - >-
+    "Nothing is proved of the C++ verifier that the examples and most users run, of the CUDA
+    prover, or of the committer, and no theorem says that they run the protocol the Lean verifier
+    checks: that rests on tests. [...] compilers and hardware are trusted."
+  - >-
+    For weight hiding, four conditions: the run is honest and uses a production build; the
+    provider follows the thirteen duties, no untrusted code shares its machine, and its GPU is
+    never given to anyone else; the machine has no faults; the seed is secret and `cp_commit`
+    itself sampled it (so not `-public-weights`).
+coverage:
+  phase: "prefill"
+  unit: "request"
+  tokens_covered: >-
+    The window's T = 1,024 positions: upstream's rate counts "a batch's requests times T tokens",
+    and one proof file covers one request, here its next token.
+  operations: >-
+    "Model is Llama 4 Maverick's text transformer in integer arithmetic: integer weights,
+    fixed-point activations with fitted power-of-two scales, and lookup tables for the non-linear
+    functions"; the statement is about "the logits and the output token that Model computes from
+    those weights on those tokens in one forward pass".
+  policy:
+    kind: "exact_match"
+    detail: >-
+      "the policy under which every checked token must be the integer model's top choice. It is
+      `cp_verify`'s default." The published commitment's acceptance policy is exact match.
+binding:
+  statement: >-
+    "The commitment ID is a hash, in 64 hex digits, of the configuration, the Merkle root and
+    shape of the first weight table, a masked encoding of the weights, and the out-of-domain (OOD)
+    seeds and answers. [...] the ID covers them by design, but the soundness theorem on `verify` is
+    stated at given public files and does not itself say that one ID cannot verify under two sets
+    of them. The ID does not cover the leaf files or the key file's proofs, which `cp_verify`
+    checks on reading."
+residual:
+  - >-
+    "Proofs are about the integer model, quantized and fixed-point. How far its outputs track the
+    original floating-point model's is a measurement, not part of any proof".
+  - >-
+    "A yes does not say whose weights they are, that the shipped committer made the commitment, or
+    which real model it is. A provider can commit to any model it likes, a small or degenerate one
+    included, and a scale file within the admitted range can switch off model blocks, up to all of
+    them".
+  - >-
+    "Only the named output positions are covered, and a reply stopped short verifies as a shorter
+    one. [...] A proof names no client or time."
+  - "A parameter file can pass the C++ verifier and yet give less soundness than the figures it prints."
+  - >-
+    "A committer that alters part of the table it stores beside a commitment can still have its
+    proofs accepted by the C++ verifier [...] a yes vouches for the claim, not for every byte
+    stored."
+  - >-
+    "Some bytes of an honest proof, or of a commitment's files, can be altered and the proof still
+    accepted, for the same true claim; non-malleability is not claimed, and an accept does not show
+    that this exact file came from the prover."
+# Upstream's own figures (grade external, tier reported), each "a Python implementation, not the
+# released programs", 3 runs where stated.
+quality_gap:
+  - metric: "positions at which the integer model's top token differs from the 16-bit model's, all texts"
+    value: "6.81 % (one value, 3 runs; public 4-bit files against 16-bit; a Python implementation, not the released programs; external, reported)"
+    source: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L45"
+  - metric: "positions at which the integer model's top token differs from the 16-bit model's, on WikiText-2 only"
+    value: "9.41 % (one value, 3 runs; public 4-bit files against 16-bit; a Python implementation, not the released programs; external, reported)"
+    source: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L46"
+  - metric: "positions at which the integer model's top token differs from the same 4-bit file's in float32"
+    value: "3.11 % (one value; run count not stated; a Python implementation, not the released programs; external, reported)"
+    source: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv#L47"
+availability: "research"
+forbidden_flags: ["-public-weights", "-keep-for-the-audit"]
+sources:
+  relation: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md#L57-L59"
+  relation.range: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/service.md#L84"
+  security.notion: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L3-L8"
+  security.notion.formal_name: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L352-L359"
+  security.notion.not_knowledge_soundness: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/LIMITS.md#L1155-L1157"
+  security.level: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L70"
+  security.level.printed_bits: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L65-L73"
+  security.model: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L57-L58"
+  zero_knowledge: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3-L5"
+  zero_knowledge.claimed: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L7-L12"
+  zero_knowledge.not_hidden: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L5-L21"
+  zero_knowledge.status: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L9-L27"
+  assumptions: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L147-L148"
+  assumptions.1: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md#L39-L41"
+  assumptions.2: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L59-L61"
+  assumptions.3: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L62-L65"
+  assumptions.4: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L66-L68"
+  assumptions.5: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L272-L277"
+  assumptions.6: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L29-L34"
+  coverage: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/driver/README.md#L55"
+  coverage.phase: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L20-L22"
+  coverage.unit: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/service.md#L84-L86"
+  coverage.operations: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/model.md#L3-L10"
+  coverage.policy: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/terms.md#L39-L40"
+  coverage.policy.published: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/examples/maverick/README.md#L287-L288"
+  binding: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md#L32-L37"
+  residual: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L58-L60"
+  residual.1: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L29-L32"
+  residual.2: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L51-L55"
+  residual.3: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L161-L162"
+  residual.4: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L171-L174"
+  residual.5: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L176-L178"
+  availability: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L3"
+  forbidden_flags: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/operators-duties.md#L198-L204"
+reviewed_by: []
