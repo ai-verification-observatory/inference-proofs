@@ -1,0 +1,53 @@
+# SASH soundness switches as weakened-prover controls (RFC-0008 §System-specific controls, #66).
+# Flag names come from prover/README.md at the pin, edge names from claim.yaml binding.edges
+# (upstream's docs/statement.md table). Each control passes only if the run is accepted and the
+# binding report marks the edge unbound: it shows the switch is honest and the card's binding
+# table accurate, not that the verifier catches the switch.
+schema: "system-controls/1"
+controls:
+  - id: "sash-unsound-skip-residual-stream"
+    kind: "weakened_prover"
+    description: >-
+      Turns off the residual-stream components, edges 1 to 3 and 5 to 11 of the binding table;
+      the control checks edge 1, the first edge upstream lists for the switch.
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L88"
+    control_flags: ["--unsound-skip-residual-stream"]
+    expected: ["accepted"]
+    requires_unbound_edge: "1 residual stream into the first norm's reduction"
+  - id: "sash-unsound-skip-layer-boundary"
+    kind: "weakened_prover"
+    description: "Turns off the residual-stream boundary trees (edge 13)."
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L89"
+    control_flags: ["--unsound-skip-layer-boundary"]
+    expected: ["accepted"]
+    requires_unbound_edge: "13 residual stream out of this segment into the next layer's segment"
+  - id: "sash-unsound-skip-kv-boundary"
+    kind: "weakened_prover"
+    description: "Turns off the K/V boundary trees (edge 14)."
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L90"
+    control_flags: ["--unsound-skip-kv-boundary"]
+    expected: ["accepted"]
+    requires_unbound_edge: "14 keys and values out of this token block into the next block (absent on a head segment)"
+  - id: "sash-unsound-skip-argmax"
+    kind: "weakened_prover"
+    description: "Turns off the head's argmax (edge 16)."
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L91"
+    control_flags: ["--unsound-skip-argmax"]
+    expected: ["accepted"]
+    requires_unbound_edge: "16 logits into the emitted token (bound on the head segment, absent elsewhere; weakened past bound by --unsound-argmax-lax)"
+  - id: "sash-unsound-skip-embedding"
+    kind: "weakened_prover"
+    description: "Turns off the layer-0 embedding gadget (edge 15)."
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L92"
+    control_flags: ["--unsound-skip-embedding"]
+    expected: ["accepted"]
+    requires_unbound_edge: "15 embedding row into the first segment's residual stream (bound on layer 0, absent elsewhere)"
+  - id: "sash-unsound-argmax-lax"
+    kind: "weakened_prover"
+    description: >-
+      Weakens the argmax to "attains the maximum" in place of "is the lowest-indexed maximum";
+      upstream lists it in provenance.unsound_skips and marks edge 16 unbound while it is on.
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L94-L102"
+    control_flags: ["--unsound-argmax-lax"]
+    expected: ["accepted"]
+    requires_unbound_edge: "16 logits into the emitted token (bound on the head segment, absent elsewhere; weakened past bound by --unsound-argmax-lax)"

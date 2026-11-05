@@ -19,6 +19,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `systems/sash/controls.yaml`: the six SASH soundness switches (`--unsound-skip-residual-stream`, `-layer-boundary`, `-kv-boundary`, `-argmax`, `-embedding` and `--unsound-argmax-lax`) as `weakened_prover` controls, expected `accepted`, each with `requires_unbound_edge` naming a claim-card edge and a source at `eb95bfa`. The SASH binding report now names edges as the claim card does (#66).
 - `systems/flashprove/README.md` §Upstream's rejected proofs: FlashProve's `examples/rejected-proofs` at `9e2bdd8` listed row by row, and why none is registered as a system control (#70): upstream stores no altered proof (a script makes them from the synthetic `accepted-proof` examples), each set is checked against the example's own commitment ID, which the harness cannot regenerate (INV-CTRL-6, RFC-0008 Q4 default), and the examples' requests (r = 60, e = 64; r = 15, e = 47) and the clipped-gap `-policy` are not what the adapter's `verify` writes. No `controls.yaml` is added.
 - GPU fixtures for `sash` and `flashprove` (`tests/fixtures/gpu/`): one commit, prove and verify of each on an H100, both verdicts `accept`; the two INV-ADAPTER-9 fixture tests run on them.
 - `systems/flashprove/system.yaml`, pinning the FlashProve image built from `main` at `4f1a295`; no system maintainer is named (RFC-0001 §System inclusion: not reached, no consent recorded). The Maverick workloads list `flashprove`.

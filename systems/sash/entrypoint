@@ -58,6 +58,28 @@ KERNEL_FAMILIES = ("zk_chan_eval,zk_key_eval,zk_row_eval,zk_attn_out_eval,zk_deq
                    "zk_freivalds_eval,zk_exp_table_eval,zk_table_eval,zk_residual_stream_eval,"
                    "zk_residual_stream_table_eval")  # fmt: skip
 SLICE = 64  # segments per compose-chunks process
+# claim.yaml binding.edges, in upstream's order (compose.rs EDGES, numbered from 1): the binding
+# report names each edge as the claim card does, so controls.yaml's requires_unbound_edge matches
+CARD_EDGES = (
+    "1 residual stream into the first norm's reduction",
+    "2 first norm's output into the q, k, v matmul inputs",
+    "3 q, k, v outputs into the attention block (absent on a head segment)",
+    "4 attention scores and values into the attention output (absent on a head segment)",
+    "5 attention output into the o matmul input (absent on a head segment)",
+    "6 o output into the first residual add (absent on a head segment)",
+    "7 first residual add into the second norm's reduction (absent on a head segment)",
+    "8 second norm's output into the gate and up matmul inputs (absent on a head segment)",
+    "9 gate and up outputs into the SwiGLU product (absent on a head segment)",
+    "10 SwiGLU output into the down matmul input (absent on a head segment)",
+    "11 down output into the second residual add (absent on a head segment)",
+    "12 each matmul's input times the pinned weights into its accumulator",
+    "13 residual stream out of this segment into the next layer's segment",
+    "14 keys and values out of this token block into the next block (absent on a head segment)",
+    "15 embedding row into the first segment's residual stream (bound on layer 0, absent "
+    "elsewhere)",
+    "16 logits into the emitted token (bound on the head segment, absent elsewhere; weakened past "
+    "bound by --unsound-argmax-lax)",
+)
 # --no-sync: the image's `uv sync --frozen` built the environment; /src is read-only at run time,
 # so uv must use it as it is rather than rebuild the editable project.
 UV = ["uv", "run", "--no-sync", "--project", HSRC, "--no-group", "cpu", "--group", "cuda", "python"]
@@ -317,15 +339,20 @@ def kernels(plan: str, emit: str, pins: str, flags: list[str]) -> None:
 
 
 def fold_binding(slices: list[dict]) -> dict:
-    """The binding table over every slice: an edge is bound only where every proof binds it."""
+    """The binding table over every slice: an edge is bound only where every proof binds it.
+    Each edge is named as the claim card names it."""
     rank = {"bound": 0, "absent": 1, "unbound": 2}
+    card = dict(enumerate(CARD_EDGES, 1))
     edges: dict[str, str] = {}
     skips: set[str] = set()
     for doc in slices:
         prov = doc["provenance"]
         skips.update(prov.get("unsound_skips") or [])
         for e in prov["binding"]["edges"]:
-            name = f"{e['n']}: {e['edge']}"
+            name = card.get(e["n"], "")
+            if not name.startswith(f"{e['n']} {e['edge']}"):
+                raise SystemExit(f"sash: upstream edge {e['n']} {e['edge']!r} is not in the "
+                                 "claim card's binding table")  # fmt: skip
             if rank.get(e["state"], 2) >= rank.get(edges.get(name, "bound"), 2):
                 edges[name] = e["state"]
     return {"edges": edges, "all_bound": all(v == "bound" for v in edges.values()),

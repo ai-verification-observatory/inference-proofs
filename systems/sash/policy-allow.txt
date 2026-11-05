@@ -3,3 +3,5 @@
 # The list itself; the guard is `if weakening and job.get("control") is not True` in main(),
 # which refuses such a control flag outside a control job before any step or upstream process.
 entrypoint	FORBIDDEN_FLAGS = ["--unsound-skip-", "--unsound-argmax-lax"]  # README.md, system.yaml values
+# The claim card's name of edge 16 (CARD_EDGES), a binding-report key; it reaches no process.
+entrypoint	"bound by --unsound-argmax-lax)",
