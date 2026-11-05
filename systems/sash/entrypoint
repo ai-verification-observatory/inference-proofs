@@ -123,7 +123,7 @@ def run(argv: list[str], *, cwd: str = "/io", env: dict[str, str] | None = None,
     real = [STUB, *argv] if STUB else argv
     stdout = host(out).open("w") if out else subprocess.PIPE
     try:
-        p = subprocess.run([real[0], *map(mapped, real[1:])], cwd=None if STUB else mapped(cwd),
+        p = subprocess.run([*map(mapped, real)], cwd=None if STUB else mapped(cwd),
                            env={**os.environ, **{k: mapped(v) for k, v in (env or {}).items()}},
                            stdout=stdout, stderr=subprocess.PIPE, text=True,
                            check=False)  # fmt: skip

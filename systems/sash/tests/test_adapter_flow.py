@@ -174,3 +174,7 @@ def test_container_paths_mapped_for_upstream(
     assert adapter.mapped("/models") == "/h/models"
     assert adapter.mapped("--layers") == "--layers"
     assert adapter.mapped("/iox") == "/iox"
+    # the program itself too: prove runs the CUDA build it made under /io/state/build
+    assert adapter.mapped("/io/state/build/t-cuda/release/zk-prover") == (
+        "/h/io/state/build/t-cuda/release/zk-prover"
+    )
