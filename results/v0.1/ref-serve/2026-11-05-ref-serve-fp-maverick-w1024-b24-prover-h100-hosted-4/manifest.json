@@ -1,0 +1,264 @@
+{
+  "claim": null,
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-05T22:12:17Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-05T22:12:17Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32,34,36,38,40,42,44,46",
+      "exit_code": 1,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-05T22:12:17Z",
+      "step": "prove"
+    }
+  ],
+  "commitment": null,
+  "control": false,
+  "harness": {
+    "git_commit": "fc15b256bb0bdbd14c95a3441c4079103d0cd242",
+    "git_dirty": false,
+    "lock_digest": "sha256:4eeb7ca62a4029dd085ddd7f6f40e60e10327ff1674fd4909d588d4a9b8a9fc3",
+    "nonconforming": false,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted"
+    },
+    "cpu": {
+      "bound_prover": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26,
+        28,
+        30,
+        32,
+        34,
+        36,
+        38,
+        40,
+        42,
+        44,
+        46
+      ],
+      "bound_verifier": [
+        1,
+        3,
+        5,
+        7,
+        9,
+        11,
+        13,
+        15
+      ],
+      "bound_verifier_single": [
+        1
+      ],
+      "cgroup_quota_cpus": 24.96,
+      "logical_cpus": 208,
+      "model": "Intel(R) Xeon(R) Platinum 8480+",
+      "physical_cores": 104,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 841208377344
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.3",
+      "driver_version": "610.57.04",
+      "memory_total_mib": 81559,
+      "model": "NVIDIA H100 80GB HBM3",
+      "numa_node": 0
+    },
+    "kernel": {
+      "release": "6.8.0-62-generic"
+    },
+    "memory": {
+      "available_bytes_at_start": 1506602024960,
+      "cgroup_limit_bytes": 645671157760,
+      "total_bytes": 1902330167296
+    },
+    "numa": {
+      "bound_mems": [
+        0
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "vast",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h100-hosted",
+    "reference_digest": "sha256:8ee2355f3950d68d11e2b0e85f60f78d7426a017a9f98168edcdfd777293258a",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [],
+  "provider": "vast",
+  "release": "v0.1",
+  "run_id": "2026-11-05-ref-serve-fp-maverick-w1024-b24-prover-h100-hosted-4",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "system": {
+    "adapter_commit": "2dacdc85e9871460b82ecc939340c2f988b68338",
+    "adapter_dirty": false,
+    "claim_digest": null,
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/ref-serve@sha256:217b8686298d3438299faf10ae2a1184b0bba0c60f0f59513c40e39d76311575"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:e795779830ad8907cb0e51bf661dd7784ebaf244b0b324af07a8d3925b6a9739",
+        "name": "vllm_gguf_plugin-0.0.5-cp310-abi3-manylinux_2_28_x86_64.whl",
+        "url": "https://files.pythonhosted.org/packages/0b/1f/55b5023c20ef8c30c8099d713aa2be94783d7a67aa31f87963779d82f5c6/vllm_gguf_plugin-0.0.5-cp310-abi3-manylinux_2_28_x86_64.whl"
+      },
+      {
+        "digest": "sha256:70bcd10edfe697fb2dad6e40af2234b9d8ece9a41a99761405121ebda1c3c1cd",
+        "name": "gguf-0.19.0-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/b3/bb/d71d6da82763528c2c2ed6b59a9d6142c6595545a4c448e2085d155e88c2/gguf-0.19.0-py3-none-any.whl"
+      }
+    ],
+    "name": "ref-serve",
+    "system_manifest_digest": "sha256:7e455b24265bd395c40f29fdc4d91ddce84198bf838cc57f20e9f3410ee66c56",
+    "upstream": null
+  },
+  "warnings": [
+    "repetitions_below_minimum"
+  ],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:b7e597f2f3d61b38916bf619bb76596ba341075126b1da1a88243205576b7cfd",
+    "id": "fp-maverick-w1024-b24",
+    "model": {
+      "digest": "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114",
+      "revision": "41032e5471dd6ea5b349062d978626215d6c5bba",
+      "source": "huggingface:unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF"
+    },
+    "prompt_seed": "0xa984194224cca2a2",
+    "prompt_set_digest": "sha256:143dc6fa54bc440674d3ea7109755eeb7d1d4193bc4bbef8f22df091de60f5f1",
+    "version": 1
+  }
+}
