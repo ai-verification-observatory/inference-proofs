@@ -59,6 +59,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- `sash`: the image makes the vendored crates readable by all; `prove`'s CUDA build, run as the adapter user, failed on an owner-only file of the `fnv` crate.
 - `flashprove`: `prove` unpacks the secret key directory with its recorded modes; `cp_prove` refused it (cp-isk) when the unpack gave its directories the default mode instead of 0700.
 - `ref-serve` and `ref-recompute` pin images rebuilt from `main` with the `/tmp` engine caches (`ref-serve` at `2dacdc8`, `ref-recompute` at `d713177`).
 - Hosted execution: the harness removes what the adapter uid left in `/tmp` before each call, as docker's per-call tmpfs would, so engine and compile caches do not carry from one repetition to the next (RFC-0006 §Hosted execution).

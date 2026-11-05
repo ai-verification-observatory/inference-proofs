@@ -32,6 +32,7 @@ RUN test "$(git -C /src rev-parse HEAD)" = eb95bfa887299d1637550228d42086c27cbb2
     --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu \
  && rm -rf /tmp/rust-nightly-x86_64-unknown-linux-gnu /fetch/rust-nightly-x86_64-unknown-linux-gnu.tar.xz \
  && cd /src && cargo fetch --locked \
+ && chmod -R a+rX /opt/cargo \
  && cd harness && uv sync --frozen --no-group cpu --group cuda && rm -rf /tmp/uv-cache
 
 FROM fetch

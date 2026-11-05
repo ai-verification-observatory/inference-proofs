@@ -65,3 +65,8 @@ def test_image_info_fixture() -> None:
     locked = [ln.split("\t") for ln in (SYSTEM / "inputs.lock").read_text().splitlines()
               if ln and not ln.startswith("#")]  # fmt: skip
     assert [[i["name"], i["url"], i["digest"]] for i in out["image_inputs"]] == locked
+
+
+def test_vendored_crates_readable_by_the_adapter() -> None:
+    """prove builds the CUDA library as uid 10001; some crate archives hold owner-only files."""
+    assert "chmod -R a+rX /opt/cargo" in (SYSTEM / "Dockerfile").read_text()
