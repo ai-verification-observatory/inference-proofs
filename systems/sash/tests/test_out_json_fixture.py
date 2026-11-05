@@ -1,16 +1,29 @@
-"""INV-ADAPTER-9: the entrypoint's mapping run on upstream outputs captured once on a GPU host.
+"""INV-ADAPTER-9: the adapter's outputs captured once on a GPU host (fixtures/gpu/README.md):
+one commit, prove and verify of sash-l31-8b-c1024."""
 
-No capture exists yet. The fixtures land under fixtures/gpu/ from one `prove` and `verify` of
-sash-l31-8b-c1024 on the H100 host (RFC-0005 §Testing Strategy, GPU tests); until then this
-test is skipped rather than fed outputs nobody captured."""
-
+import json
 from pathlib import Path
+from typing import Any
 
-import pytest
+from iproofs.schema import SchemaRegistry
 
-GPU = Path(__file__).resolve().parent / "fixtures" / "gpu"
+HERE = Path(__file__).resolve().parent
+GPU = HERE / "fixtures" / "gpu"
+REGISTRY = SchemaRegistry.from_tree(HERE.parents[2] / "schema")
 
 
-@pytest.mark.skip(reason="awaiting the GPU capture of sash-l31-8b-c1024 (#65)")
+def out(step: str) -> dict[str, Any]:
+    doc: dict[str, Any] = json.loads((GPU / f"{step}.out.json").read_text())
+    return doc
+
+
 def test_out_json_fixture() -> None:
-    assert (GPU / "grid.json").is_file()
+    for step in ("commit", "prove", "verify"):
+        assert REGISTRY.errors("adapter-out/1", out(step)) == []
+    [proof] = out("prove")["proofs"]  # one grid: the sequence's segments, released once
+    assert len(proof["claimed_output"]) == 64  # output_tokens of sash-l31-8b-c1024
+    assert len(proof["parts"]) == 3 * 546 + 1  # three files a segment, plus plan.txt
+    verify = out("verify")
+    assert (verify["verdict"], verify["raw_exit_code"]) == ("accept", 0)
+    assert "verified 546/546" in verify["raw_last_line"]
+    assert "(0 bad, 0 unbacked)" in verify["raw_last_line"]
