@@ -23,11 +23,22 @@ ADD --keep-git-dir=true https://github.com/anthropics/FlashProve.git#9e2bdd8ff5b
 # build without a GPU lacks, so NVIDIA's link stub from its CUDA 13.2 image stands in. The programs
 # load the driver's own libcuda.so.1 at run time.
 COPY --from=docker.io/nvidia/cuda@sha256:44a9504c6dfb50b1241464241b02a93871928f373de6f5a644cf5fe9f080aa63 /usr/local/cuda/lib64/stubs/libcuda.so /fetch/stubs/libcuda.so
+# The fit (examples/maverick/run.sh, stage fit): its calibration inputs, and Python 3.13 with
+# upstream's hash-locked requirements.txt (torch 2.9.1) through uv, which checks the interpreter
+# download against its own pinned sums.
+ADD --checksum=sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7 https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet /fetch/calibration/wikitext-2-raw-v1-train.parquet
+ADD --checksum=sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json /fetch/calibration/llama2-tokenizer.json
+ADD --checksum=sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4 https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json /fetch/calibration/llama4-tokenizer.json
+COPY --from=ghcr.io/astral-sh/uv@sha256:78bc42400d77b0678ba95765305c826652ed5431f399257271dda681d0318f03 /uv /usr/local/bin/uv
 RUN test "$(git -C /src rev-parse HEAD)" = 9e2bdd8ff5bf9c62f18263d7dac189b0400b260c \
  && test "sha256:$(git -C /src archive --format=tar HEAD | sha256sum | cut -d' ' -f1)" \
          = "$(awk -F'\t' '$1 == "FlashProve" {print $3}' /fetch/inputs.lock)" \
  && python3 -m pip install --no-cache-dir --require-hashes --target=/opt/cuda-13.2.86 \
-    --requirement=/fetch/cuda-requirements.txt
+    --requirement=/fetch/cuda-requirements.txt \
+ && UV_PYTHON_INSTALL_DIR=/opt/python uv venv --no-cache --python 3.13 /opt/fp-venv \
+ && uv pip install --no-cache --python=/opt/fp-venv/bin/python --require-hashes \
+    --requirement /src/requirements.txt \
+ && chmod -R a+rX /opt/python /opt/fp-venv /fetch/calibration
 
 FROM fetch
 ENV PATH=/opt/cuda-13.2.86/nvidia/cu13/bin:$PATH
@@ -36,13 +47,16 @@ RUN --network=none lib=/opt/cuda-13.2.86/nvidia/cu13/lib \
  && for n in cublasLt cublas cudart; do ln -s lib$n.so.13 "$lib/lib$n.so"; done \
  && mkdir "$lib/stubs" && cp /fetch/stubs/libcuda.so "$lib/stubs/libcuda.so" \
  && chmod -R go-w /opt/cuda-13.2.86 \
- && ../verifier/build.sh && ./build.sh
+ && ../verifier/build.sh && ./build.sh && ../weight_sums/build.sh
 COPY fake/write_inputs.py /opt/iproofs/write_inputs.py
 COPY flashprove/entrypoint /opt/flashprove/entrypoint
 RUN --network=none useradd --uid 10001 --no-create-home adapter \
  && python3 /opt/iproofs/write_inputs.py /fetch/inputs.lock /opt/iproofs/inputs.json \
     cuda="$(nvcc --version | grep -o 'V[0-9.]*$')" gcc="$(gcc -dumpfullversion)" \
-    make="$(make --version | head -1)" flashprove="$(cat /src/VERSION)"
+    make="$(make --version | head -1)" flashprove="$(cat /src/VERSION)" \
+    python="$(/opt/fp-venv/bin/python --version)" \
+    torch="$(/opt/fp-venv/bin/python -c 'import torch; print(torch.__version__)')" \
+ && mkdir -p /opt/iproofs/calibration && cp /fetch/calibration/* /opt/iproofs/calibration/
 ARG IPROOFS_ADAPTER_COMMIT=unknown
 ARG IPROOFS_ADAPTER_DIRTY=true
 ENV IPROOFS_ADAPTER_COMMIT=${IPROOFS_ADAPTER_COMMIT} IPROOFS_ADAPTER_DIRTY=${IPROOFS_ADAPTER_DIRTY}

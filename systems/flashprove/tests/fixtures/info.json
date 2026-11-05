@@ -1,6 +1,6 @@
 {
-  "adapter_commit": "6e28a7f4454ecc61c922fb59961e08e574934442",
-  "adapter_dirty": true,
+  "adapter_commit": "a03797986cd880e5d54508e200194768f105f8fc",
+  "adapter_dirty": false,
   "contract": "adapter/1",
   "contract_versions": [
     "adapter/1"
@@ -10,6 +10,21 @@
       "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
       "name": "FlashProve",
       "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+    },
+    {
+      "digest": "sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7",
+      "name": "wikitext-2-raw-v1-train",
+      "url": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet"
+    },
+    {
+      "digest": "sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+      "name": "llama2-tokenizer",
+      "url": "https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json"
+    },
+    {
+      "digest": "sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4",
+      "name": "llama4-tokenizer",
+      "url": "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json"
     }
   ],
   "phases": [],

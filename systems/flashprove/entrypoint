@@ -1,35 +1,136 @@
 #!/usr/bin/env python3
 """FlashProve adapter (RFC-0005), standard library only.
 
-Usage: entrypoint <info|setup> /io/job.json /io/out.json
+Usage: entrypoint <info|setup|commit|prove|verify> /io/job.json /io/out.json
 
-`info` names the upstream commit, the image inputs written at build time (RFC-0014 B5), the
-adapter commit baked in by the build (B6), the workloads and the profile. `setup` has nothing
-to prepare: the verifier and the default build's cp_commit and cp_prove are built into the image. The
-`commit`, `prove` and `verify` mapping lands with #69.
+Each step calls one upstream program the way upstream's own scripts call it at the pin (U below
+is https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c):
 
-IPROOFS_IO maps /io to a host directory when the tests run this file in process.
+- `commit`: `cp_commit -weights W -config C -M 1 -ivk IVK -isk ISK`, as U/guide/performance.md
+  "Reproduce the numbers" line 2 (one leaf table, the seed drawn by cp_commit, so masking is on as
+  in the timed runs). W must hold the five weight files with the fit's `wsums.txt` and `fold.txt`
+  beside them, and C the fit's `policy.txt`, `KL.bin` and `layout.txt` (U/examples/maverick/
+  run.sh, stage_fit and stage_commit). The ID comes from the line `commitment ID: ` and success
+  from the last line `cp_commit: done. ... is complete and can be handed out`
+  (U/docs/operators-duties.md step 10). The secret key directory, whose files share names, is
+  handed to the harness as one tar file; the verifier gets the config files and the public key.
+- `prove`: one session of `cp_prove -isk ISK -spool S -batch B -in-step K -most-batches N -memory
+  lean,tensor-rooms=8` with HOME and TMPDIR below the work directory, every request laid into
+  `in/` before the start: what U/driver/measure_rate.py does (lines 567-571 and 685; K is 6, or B
+  if B is smaller). A request is T token ids, then r = T - 1 and e = T, then a 32-byte nonce, under
+  the name sha256("p258-spool-req-1" || bytes) (U/docs/service.md "A request file"). cp_prove
+  releases a batch's responses into `out/` together; a response is complete once `<id>.proof`
+  exists (U/docs/service.md "A response"). Each is hard-linked into /io/proofs/.tmp-req-<i>/ and
+  released by rename as soon as it is seen.
+- `verify`: `cp_verify CONFIG IVK REQUEST TOKEN PROOF -id ID -next-token -j N`, as
+  U/driver/measure_rate.py line 698. The request and token files are written here from the job
+  (the client's side, U/docs/verifying.md), never taken from the proof directory. The verdict map
+  is RFC-0005 §Verdict normalisation over U/verifier/docs/output.md "Exit codes".
+
+The programs need an x86-64 CPU with the SHA extensions and, for cp_commit and cp_prove, a
+sandbox that lets madvise(MADV_WIPEONFORK) through (U/prover/docs/build.md "What you need").
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories, and IPROOFS_FLASHPROVE_SRC
+names the upstream checkout (default /src), when the tests run this file in process.
 """
 
+import fcntl
+import hashlib
 import json
 import os
+import re
+import shutil
+import subprocess
 import sys
+import tarfile
+import tempfile
+import time
+from collections.abc import Callable
 from pathlib import Path
 
 UPSTREAM_COMMIT = "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"  # INV-ADAPTER-2
 WORKLOADS = ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
+SRC = Path(os.environ.get("IPROOFS_FLASHPROVE_SRC", "/src"))
+BIN = SRC / "prover/build/hc"  # where upstream's default build puts the three programs
+MODEL = "/models/UD-Q4_K_XL"  # the workload's five GGUF files, read only
+STEM, PARTS_OF = "Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL", 5  # U/examples/maverick/run.sh L76-81
+FIT = "/io/fit"  # setup's fit (U/examples/maverick/run.sh, stage fit)
+WEIGHTS = FIT + "/weights"  # the five GGUF files with the fit's wsums.txt and fold.txt beside
+FIT_CONFIG = FIT + "/config"  # the fit's policy.txt, KL.bin and layout.txt
+PYTHON = os.environ.get("IPROOFS_FLASHPROVE_PYTHON", "/opt/fp-venv/bin/python")
+CALIBRATION = Path(os.environ.get("IPROOFS_FLASHPROVE_CALIBRATION", "/opt/iproofs/calibration"))
+CONFIG_FILES = ("policy.txt", "KL.bin", "layout.txt")
+# Each gives up weight hiding (U/docs/operators-duties.md "Public weights", "What the secret key
+# directory holds"); refused outside a control job (RFC-0005 §Weakening configurations).
+FORBIDDEN_FLAGS = ["-public-weights", "-keep-for-the-audit"]
+MEMORY = "lean,tensor-rooms=8"  # measure_rate.py's default -memory
+PARTS = ["response.y", "response.proof"]
+POLL_S = 0.05
+VERDICTS = {1: "reject", 5: "no_verdict", 2: "invalid_call", 3: "invalid_call",
+            4: "invalid_call", 14: "invalid_call", 15: "invalid_call"}  # fmt: skip
 
 
 def host(container_path: str) -> Path:
-    if container_path == "/io" or container_path.startswith("/io/"):
-        return Path(os.environ.get("IPROOFS_IO", "/io") + container_path[3:])
-    raise SystemExit(f"flashprove: path {container_path!r} outside /io")
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"flashprove: path {container_path!r} outside /io and /models")
 
 
 def base(sub: str) -> dict[str, object]:
     return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
             "phases": [], "warnings": []}  # fmt: skip
+
+
+def private(path: Path) -> Path:
+    """A new directory closed to group and others, as cp_prove asks of -isk, -spool, HOME and
+    TMPDIR (U/docs/service.md "What cp_prove does at startup", step 1)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.mkdir(mode=0o700)
+    return path
+
+
+def workdir(path: Path) -> Path:
+    """A step's work directory, with the HOME and TMPDIR that `run` gives the programs below it
+    (U/docs/operators-duties.md step 15; U/driver/measure_rate.py line 685)."""
+    for p in (path, path / "home", path / "tmp"):
+        private(p)
+    return path
+
+
+def run(argv: list[str], job: dict, cwd: Path, out: Path, err: Path | None = None,
+        poll: Callable[[], None] | None = None, cwd_src: bool = False) -> int:  # fmt: skip
+    """Starts one upstream process, after the RFC-0005 rule 4 check, and logs it."""
+    weakening = [a for a in argv if any(a.startswith(f) for f in FORBIDDEN_FLAGS)]
+    if weakening and not job["control"]:
+        raise SystemExit(f"flashprove: refusing {weakening} outside a control job")
+    env = dict(os.environ, HOME=str(cwd / "home"), TMPDIR=str(cwd / "tmp"))
+    started = time.monotonic_ns()
+    with out.open("wb") as o, open(err or os.devnull, "wb") as e:
+        proc = subprocess.Popen(argv, cwd=SRC if cwd_src else cwd, env=env, stdout=o,
+                                stderr=e if err else subprocess.STDOUT)  # fmt: skip
+        while proc.poll() is None:
+            if poll is None:
+                proc.wait()
+            else:
+                poll()
+                time.sleep(POLL_S)
+    if poll is not None:
+        poll()
+    line = {"argv": argv, "cwd": str(cwd), "started_mono_ns": started, "exit_code": proc.returncode}
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+    return proc.returncode
+
+
+def last_line(path: Path) -> str:
+    lines = [ln for ln in path.read_text(errors="replace").splitlines() if ln.strip()]
+    return lines[-1].encode()[:4096].decode(errors="ignore") if lines else ""
+
+
+def pack(words: list[int]) -> bytes:
+    return b"".join(w.to_bytes(4, "little") for w in words)
 
 
 def info(job: dict) -> dict:
@@ -43,8 +144,204 @@ def info(job: dict) -> dict:
     return out
 
 
+def clone(src: Path, dst: Path) -> None:
+    """A copy of src that shares its blocks where the file system can (FICLONE), else a copy."""
+    with src.open("rb") as i, dst.open("wb") as o:
+        try:
+            fcntl.ioctl(o.fileno(), 0x40049409, i.fileno())  # FICLONE, linux/fs.h
+        except OSError:
+            shutil.copyfileobj(i, o, 64 << 20)
+
+
+def cpu_count() -> int:
+    """The CPUs this process may use (its affinity), as upstream's programs size their threads."""
+    if hasattr(os, "sched_getaffinity"):
+        return len(os.sched_getaffinity(0))
+    return os.cpu_count() or 1
+
+
+def expected() -> dict[str, str]:
+    """U/examples/maverick/expected.txt: the published digests, by the name run.sh compares."""
+    text = (SRC / "examples/maverick/expected.txt").read_text()
+    return dict(ln.split()[::-1] for ln in text.splitlines() if ln.strip())
+
+
+def published(path: Path, name: str) -> None:
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected()[name]:
+        raise SystemExit(f"flashprove: {path} is missing or is not the published {name}")
+
+
 def setup(job: dict) -> dict:
-    return {**base("setup"), "ready": True, "log_files": []}
+    """The stage fit of U/examples/maverick/run.sh (L1451-1513) into /io/fit: the calibration set
+    (U/scales/README.md "The calibration set"), wsums.txt by bin/weight_sums, fold.txt and
+    layout.txt, the scales by scales/calibrate.py on the GPU and policy.txt and KL.bin by
+    scales/words_to_policy.py; wsums.txt and KL.bin must have the published digests. cp_commit
+    and cp_prove read the weights with wsums.txt and fold.txt beside them, and /models is read
+    only, so the weight files are copied (cloned where the file system can) into /io/fit/weights."""
+    fit, model = workdir(host(FIT)), host(MODEL)
+    weights, config = private(host(WEIGHTS)), private(host(FIT_CONFIG))
+    private(fit / "model")
+    names = [f"{STEM}-0000{i}-of-0000{PARTS_OF}.gguf" for i in range(1, PARTS_OF + 1)]
+    cal = [str(CALIBRATION / n) for n in ("wikitext-2-raw-v1-train.parquet",
+                                          "llama2-tokenizer.json", "llama4-tokenizer.json")]
+    calibration_set = fit / "calibration_set.npy"
+    steps = [
+        [PYTHON, "-Bs", str(SRC / "scales/make_calibration_set.py"), *cal, str(calibration_set)],
+        [str(SRC / "bin/weight_sums"), "--eres", "10", "--threads",
+         str(min(64, cpu_count())), "--out", str(fit / "model/wsums.txt"),
+         *(str(model / n) for n in names)],
+    ]  # fmt: skip
+    for argv in steps:
+        log = fit / f"{Path(argv[2] if argv[0] == PYTHON else argv[0]).stem}.log"
+        if run(argv, job, fit, log, cwd_src=True) != 0:
+            raise SystemExit(f"flashprove: {argv[0]} exited non-zero, last line {last_line(log)!r}")
+    published(fit / "model/wsums.txt", "model/wsums.txt")
+    (fit / "model/fold.txt").write_text("eres 10\nqkrows asis\n")
+    shutil.copyfile(SRC / "prover/examples/target_full_f2/layout.txt", config / "layout.txt")
+    for name in names:  # cp_commit refuses a link, and a second hard link, to a weight file
+        clone(model / name, weights / name)
+    for name in ("wsums.txt", "fold.txt"):
+        shutil.copyfile(fit / "model" / name, weights / name)
+    later = [
+        [PYTHON, "-Bs", str(SRC / "scales/calibrate.py"), "--gguf", str(weights), "--wsums",
+         str(weights / "wsums.txt"), "--tokens", str(calibration_set), "--out",
+         str(fit / "calibration"), "--device", "cuda", "--eres", "10"],
+        [PYTHON, "-Bs", str(SRC / "scales/words_to_policy.py"),
+         str(SRC / "prover/examples/target_full_f2/policy.txt"), str(fit / "calibration/words.json"),
+         str(weights / "wsums.txt"), str(config / "policy.txt"), str(config / "KL.bin")],
+    ]  # fmt: skip
+    for argv in later:
+        log = fit / f"{Path(argv[2]).stem}.log"
+        if run(argv, job, fit, log, cwd_src=True) != 0:
+            raise SystemExit(f"flashprove: {argv[2]} exited non-zero, last line {last_line(log)!r}")
+    published(config / "KL.bin", "config/KL.bin")
+    return {**base("setup"), "ready": True,
+            "log_files": [f"{FIT}/{p.name}" for p in sorted(fit.glob("*.log"))]}  # fmt: skip
+
+
+def commit(job: dict) -> dict:
+    weights, fit = host(WEIGHTS), host(FIT_CONFIG)
+    # The fit must be upstream's published one: run.sh's stages fit and compare check these two
+    # digests against examples/maverick/expected.txt before and after cp_commit.
+    published(weights / "wsums.txt", "model/wsums.txt")
+    published(fit / "KL.bin", "config/KL.bin")
+    state = host("/io/state")
+    work = workdir(state / "commit")
+    config = private(work / "config")
+    for name in CONFIG_FILES:
+        shutil.copyfile(fit / name, config / name)
+    argv = [str(BIN / "cp_commit"), "-weights", str(weights), "-config", str(config), "-M", "1",
+            "-ivk", str(work / "ivk"), "-isk", str(work / "isk")]  # fmt: skip
+    log = work / "cp_commit.log"
+    code, last = run(argv, job, work, log), last_line(log)
+    ids = re.findall(r"^commitment ID: ([0-9a-f]{64})$", log.read_text(errors="replace"), re.M)
+    done = last.startswith("cp_commit: done.") and "is complete and can be handed out" in last
+    if code != 0 or not done or len(ids) != 1:
+        raise SystemExit(f"flashprove: cp_commit exited {code}, last line {last!r}")
+    with tarfile.open(state / "isk.tar", "w") as tar:  # its files share names (count.bin)
+        tar.add(work / "isk", arcname="isk")
+    shutil.rmtree(work / "isk")  # prove uses the harness's recorded copy only
+    verifier = [config / n for n in CONFIG_FILES] + [work / "ivk/key.bin"]
+    verifier += sorted((work / "ivk/leaf").glob("*.bin"))
+    return {**base("commit"), "commitment_id": ids[0],
+            "verifier_files": [f"/io/state/{p.relative_to(state).as_posix()}" for p in verifier],
+            "prover_files": ["/io/state/isk.tar"],
+            "sizes": {"verifier_bytes": sum(p.stat().st_size for p in verifier),
+                      "prover_bytes": (state / "isk.tar").stat().st_size}}  # fmt: skip
+
+
+def prove(job: dict) -> dict:
+    size, batches = job["batch_size"], job["batches"]
+    prompts = [json.loads(ln) for ln in host(job["prompts_file"]).read_text().splitlines()]
+    prompts = prompts[: size * batches]
+    tokens = job["shape"]["prompt_tokens"]
+    if len(prompts) < size * batches or any(len(p) != tokens for p in prompts):
+        raise SystemExit(f"flashprove: need {size * batches} prompts of {tokens} token ids")
+    [isk_tar] = job["prover_files"]
+    work = workdir(host("/io/state/prove"))
+    with tarfile.open(host(isk_tar)) as tar:
+        tar.extractall(work, filter="data")
+    spool = private(work / "spool")
+    private(private(spool / "in") / ".tmp")
+    pending: dict[str, int] = {}
+    for i, prompt in enumerate(prompts):  # laid in order: cp_prove takes the oldest first
+        data = pack([*prompt, tokens - 1, tokens]) + os.urandom(32)
+        rid = hashlib.sha256(b"p258-spool-req-1" + data).hexdigest()
+        (spool / "in/.tmp" / rid).write_bytes(data)
+        os.link(spool / "in/.tmp" / rid, spool / "in" / f"{rid}.req")
+        os.unlink(spool / "in/.tmp" / rid)
+        pending[rid] = i
+    proofs_dir = host("/io/proofs")
+    proofs_dir.mkdir(parents=True, exist_ok=True)
+    proofs: list[dict] = []
+    failed: list[int] = []
+
+    def sweep() -> None:
+        for rid, i in list(pending.items()):
+            out = spool / "out" / rid
+            if out.with_suffix(".proof").exists():
+                y = out.with_suffix(".y").read_bytes()
+                tmp = proofs_dir / f".tmp-req-{i}"
+                tmp.mkdir()
+                for part, src in zip(PARTS, (".y", ".proof"), strict=True):
+                    os.link(out.with_suffix(src), tmp / part)
+                os.rename(tmp, proofs_dir / f"req-{i}")
+                proofs.append({"proof_id": f"req-{i}", "request_index": i, "parts": PARTS,
+                               "claimed_output": [int.from_bytes(y, "little")]})  # fmt: skip
+            elif out.with_suffix(".failed").exists():
+                failed.append(i)
+            else:
+                continue
+            del pending[rid]
+
+    argv = [str(BIN / "cp_prove"), "-isk", str(work / "isk"), "-spool", str(spool),
+            "-batch", str(size), "-in-step", str(min(6, size)), "-most-batches", str(batches),
+            "-memory", MEMORY, *job.get("control_flags", [])]  # fmt: skip
+    log = work / "cp_prove.log"
+    code = run(argv, job, work, log, poll=sweep)
+    if code != 0 or failed or pending:
+        unanswered = sorted(pending.values())
+        raise SystemExit(f"flashprove: cp_prove exited {code}, last line {last_line(log)!r}; "
+                         f"failed {sorted(failed)}, unanswered {unanswered}")  # fmt: skip
+    return {**base("prove"), "proofs": sorted(proofs, key=lambda p: p["request_index"])}
+
+
+def verdict(code: int, last: str) -> tuple[str, str | None]:
+    """RFC-0005 §Verdict normalisation; anything else is an adapter failure, never a guess."""
+    if code == 0 and last == "YES":
+        return "accept", "exact-match"
+    if code == 0 and last.startswith("WITHIN LIMITS: clipped-gap"):
+        return "accept", "clipped-gap"
+    if code in VERDICTS:
+        return VERDICTS[code], None
+    raise SystemExit(f"flashprove: cp_verify exit {code}, last line {last!r}: not documented")
+
+
+def verify(job: dict) -> dict:
+    if len(job["claimed_output"]) != 1:  # a proof states the next token only
+        raise SystemExit(f"flashprove: {len(job['claimed_output'])} claimed tokens, not 1")
+    work = workdir(Path(tempfile.mkdtemp(prefix="flashprove-verify-")) / "work")
+    config, leaf = private(work / "config"), private(work / "ivk/leaf")
+    for path in map(host, job["verifier_files"]):
+        into = leaf.parent if path.name == "key.bin" else leaf
+        into = config if path.name in CONFIG_FILES else into
+        shutil.copyfile(path, into / path.name)
+    request = job["request"]
+    (work / "request.req").write_bytes(pack([*request, len(request) - 1, len(request)]))
+    (work / "token.y").write_bytes(pack(job["claimed_output"]))
+    cpus = cpu_count()
+    argv = [str(BIN / "cp_verify"), str(config), str(work / "ivk"), str(work / "request.req"),
+            str(work / "token.y"), str(host(job["proof_dir"]) / PARTS[1]),
+            "-id", job["commitment_id"], "-next-token", "-j", str(min(256, cpus or 1))]  # fmt: skip
+    started = time.monotonic()
+    code = run(argv, job, work, work / "stdout", work / "stderr")
+    seconds = time.monotonic() - started
+    last = last_line(work / "stdout")
+    v, policy = verdict(code, last)
+    out = {**base("verify"), "verdict": v, "raw_exit_code": code, "seconds": seconds,
+           "raw_last_line": last or last_line(work / "stderr")}  # fmt: skip
+    shutil.rmtree(work.parent)
+    return out | ({"policy": policy} if policy else {})
 
 
 def main() -> int:
@@ -52,9 +349,9 @@ def main() -> int:
     job = json.loads(host(job_path).read_text())
     if job.get("subcommand") != sub:
         raise SystemExit(f"flashprove: job.json is for {job.get('subcommand')!r}, not {sub!r}")
-    handlers = {"info": info, "setup": setup}
+    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}
     if sub not in handlers:
-        raise SystemExit(f"flashprove: {sub!r} is not mapped yet (#69)")
+        raise SystemExit(f"flashprove: no subcommand {sub!r}")
     host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
     return 0
 

@@ -57,7 +57,7 @@ def test_upstream_pinned_and_checked() -> None:
     assert "patch" not in dockerfile.split("FROM fetch", 1)[1]  # B4
 
 
-def test_info_and_setup(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_info(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("IPROOFS_ADAPTER_COMMIT", "a" * 40)
     monkeypatch.setenv("IPROOFS_ADAPTER_DIRTY", "false")
     out = run(adapter, "info")
@@ -66,13 +66,12 @@ def test_info_and_setup(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) ->
     assert out["workloads"] == ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
     assert (out["adapter_commit"], out["adapter_dirty"]) == ("a" * 40, False)
     names = [i["name"] for i in out["image_inputs"]]
-    assert names == ["FlashProve"]
-    assert run(adapter, "setup")["ready"] is True
-
-
-def test_unmapped_step_refused(adapter: ModuleType) -> None:
-    with pytest.raises(SystemExit, match=r"not mapped yet"):
-        run(adapter, "prove")
+    assert names == [
+        "FlashProve",
+        "wikitext-2-raw-v1-train",
+        "llama2-tokenizer",
+        "llama4-tokenizer",
+    ]
 
 
 def test_image_info_fixture() -> None:
