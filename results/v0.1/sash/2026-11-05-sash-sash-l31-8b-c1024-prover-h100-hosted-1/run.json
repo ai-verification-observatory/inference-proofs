@@ -1,0 +1,144 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 217603996016439
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 217604060932920
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 217604767580373
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 217604932407528
+    },
+    {
+      "event": "commit.start",
+      "mono_ns": 217605767587763
+    },
+    {
+      "event": "commit.end",
+      "mono_ns": 223975874065741
+    },
+    {
+      "event": "prove.start",
+      "mono_ns": 223976133385656
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 229704285146662
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 229702972504698
+    }
+  ],
+  "failure": {
+    "at": "2026-11-05T21:13:21Z",
+    "exit_code": null,
+    "kind": "timeout",
+    "last_lines": [],
+    "message": "verify exceeded 3600.0 s",
+    "step": "verify"
+  },
+  "metrics": {},
+  "profile": "prover-h100-hosted",
+  "proofs": [
+    {
+      "claimed_output": [
+        374,
+        1633,
+        2653,
+        13118,
+        2950,
+        76637,
+        1436,
+        539,
+        1520,
+        719,
+        12835,
+        520,
+        1077,
+        13219,
+        753,
+        6129,
+        323,
+        198,
+        82,
+        7924,
+        1285,
+        16630,
+        13,
+        1054,
+        2675,
+        527,
+        2288,
+        1695,
+        369,
+        279,
+        1917,
+        2476,
+        1071,
+        1364,
+        11,
+        1054,
+        9514,
+        527,
+        198,
+        37227,
+        1695,
+        369,
+        4205,
+        719,
+        8206,
+        13,
+        2684,
+        374,
+        264,
+        757,
+        83133,
+        304,
+        682,
+        279,
+        198,
+        4109,
+        315,
+        279,
+        1566,
+        3169,
+        11,
+        902,
+        499,
+        16265
+      ],
+      "proof_id": "req-0",
+      "release_mono_ns": 229702972504698,
+      "request_index": 0,
+      "tokens_covered": 0,
+      "verdict": null
+    }
+  ],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 1,
+  "replaces": null,
+  "run_id": "2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1",
+  "schema": "run/1",
+  "status": "failed",
+  "system": "sash",
+  "system_kind": "prover",
+  "warnings": [
+    "repetitions_below_minimum"
+  ],
+  "workload": {
+    "id": "sash-l31-8b-c1024",
+    "version": 1
+  }
+}
