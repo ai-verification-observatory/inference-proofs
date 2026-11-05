@@ -1,0 +1,201 @@
+{
+  "claim_cards": [
+    {
+      "card_version": 1,
+      "configuration": "sound-defaults",
+      "digest": "sha256:6da4277315a62e0fd5110e593825fdc20e66be6d86fc54382ed78f694ed4cf15",
+      "path": "systems/sash/claim.yaml",
+      "system": "sash"
+    },
+    {
+      "card_version": 1,
+      "configuration": "exact-match-cp-verify",
+      "digest": "sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e",
+      "path": "systems/flashprove/claim.yaml",
+      "system": "flashprove"
+    }
+  ],
+  "configurations": [
+    {
+      "configuration": "exact-match-cp-verify",
+      "effective_tier": "reported",
+      "evidence": {
+        "reproductions": [],
+        "reviews": []
+      },
+      "ineligible": [
+        {
+          "reasons": [
+            "self_test_failed",
+            "no_archived_proof"
+          ],
+          "run_id": "2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-3"
+        },
+        {
+          "reasons": [
+            "self_test_failed",
+            "no_archived_proof"
+          ],
+          "run_id": "2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-4"
+        },
+        {
+          "reasons": [
+            "self_test_failed",
+            "no_archived_proof"
+          ],
+          "run_id": "2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-5"
+        }
+      ],
+      "insufficient_repetitions": true,
+      "profile": "prover-h100-hosted",
+      "runs": [],
+      "statistics": {},
+      "system": "flashprove",
+      "workload": {
+        "id": "fp-maverick-w1024-b1",
+        "version": 1
+      }
+    },
+    {
+      "configuration": null,
+      "effective_tier": "reported",
+      "evidence": {
+        "reproductions": [],
+        "reviews": []
+      },
+      "ineligible": [
+        {
+          "reasons": [
+            "self_test_failed"
+          ],
+          "run_id": "2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-1"
+        },
+        {
+          "reasons": [
+            "self_test_failed"
+          ],
+          "run_id": "2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-2"
+        },
+        {
+          "reasons": [
+            "self_test_failed"
+          ],
+          "run_id": "2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-3"
+        }
+      ],
+      "insufficient_repetitions": true,
+      "profile": "prover-h100-hosted",
+      "runs": [],
+      "statistics": {},
+      "system": "ref-serve",
+      "workload": {
+        "id": "sash-l31-8b-c1024",
+        "version": 1
+      }
+    },
+    {
+      "configuration": null,
+      "effective_tier": "reported",
+      "evidence": {
+        "reproductions": [],
+        "reviews": []
+      },
+      "ineligible": [
+        {
+          "reasons": [
+            "self_test_failed"
+          ],
+          "run_id": "2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-1"
+        },
+        {
+          "reasons": [
+            "self_test_failed"
+          ],
+          "run_id": "2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-2"
+        },
+        {
+          "reasons": [
+            "self_test_failed"
+          ],
+          "run_id": "2026-11-05-ref-serve-sash-l31-8b-c4096-prover-h100-hosted-3"
+        }
+      ],
+      "insufficient_repetitions": true,
+      "profile": "prover-h100-hosted",
+      "runs": [],
+      "statistics": {},
+      "system": "ref-serve",
+      "workload": {
+        "id": "sash-l31-8b-c4096",
+        "version": 1
+      }
+    }
+  ],
+  "controls": [
+    {
+      "counts": {
+        "accepted": 0,
+        "error": 0,
+        "invalid_call": 0,
+        "no_verdict": 0,
+        "not_applicable": 0,
+        "prover_failed": 0,
+        "rejected": 0,
+        "void": 0
+      },
+      "outside_expected": [],
+      "profile": "prover-h100-hosted",
+      "system": "flashprove",
+      "workload": {
+        "id": "fp-maverick-w1024-b1",
+        "version": 1
+      }
+    },
+    {
+      "counts": {
+        "accepted": 0,
+        "error": 0,
+        "invalid_call": 0,
+        "no_verdict": 0,
+        "not_applicable": 0,
+        "prover_failed": 0,
+        "rejected": 0,
+        "void": 0
+      },
+      "outside_expected": [],
+      "profile": "prover-h100-hosted",
+      "system": "ref-serve",
+      "workload": {
+        "id": "sash-l31-8b-c1024",
+        "version": 1
+      }
+    },
+    {
+      "counts": {
+        "accepted": 0,
+        "error": 0,
+        "invalid_call": 0,
+        "no_verdict": 0,
+        "not_applicable": 0,
+        "prover_failed": 0,
+        "rejected": 0,
+        "void": 0
+      },
+      "outside_expected": [],
+      "profile": "prover-h100-hosted",
+      "system": "ref-serve",
+      "workload": {
+        "id": "sash-l31-8b-c4096",
+        "version": 1
+      }
+    }
+  ],
+  "inputs_digest": "sha256:a0e8d7a43e109bd5fd610a9e3b50a23058cc3684cac5996c5d38aa23cd2737a0",
+  "reference": {
+    "digest": "sha256:8ee2355f3950d68d11e2b0e85f60f78d7426a017a9f98168edcdfd777293258a",
+    "file": "reference/v0.1.yaml"
+  },
+  "release": "v0.1",
+  "schema": "release-index/1",
+  "targets": []
+}

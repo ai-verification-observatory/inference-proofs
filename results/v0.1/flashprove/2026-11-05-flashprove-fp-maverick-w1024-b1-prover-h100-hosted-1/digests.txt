@@ -1,0 +1,2 @@
+logs/harness.jsonl	sha256:b848037da2f2e3b6df6a360a5ceb08e105170546fd6691631c220fc90b494a7b
+logs/setup.stderr	sha256:ecb89f1c919a22f973447bb39ad1d6a023cc5642b646ae9cea76547bebede528

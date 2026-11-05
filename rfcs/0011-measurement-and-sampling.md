@@ -190,6 +190,8 @@ The harness never runs on prover or verifier CPUs (C-3), so its overhead does no
 
 Failure of any check exits 3 (`environment`) and names the check.
 
+On a host under hosted execution (RFC-0006 §Hosted execution), `iproofs machine-record --selftest --hosted` runs the `systems/fake` entrypoint's `probe` as a process of the container the harness runs in, not as a probe container. ST-CLOCK, ST-NVML, ST-SAMPLER and ST-JITTER are unchanged. ST-CGROUP passes when the container's sampled `memory.stat` anon rises at least 256 MiB over its baseline during the probe and `cpu.stat` increases; the container's `memory.peak` covers its whole life and is not read. ST-WATCH is unchanged, with the probe as a process. ST-OOM is not run and is absent from the record: the container cannot set a memory limit for a probe to exceed. OOM kills during a hosted job are still read from the container's `memory.events` (RFC-0006).
+
 ### Portability
 
 On non-Linux hosts and in hosted CI (fake system only): the watcher uses polling, the sampler runs without NVML (`gpu_index=None`), and cgroup readers are replaced by a null reader that yields null host-memory and CPU metrics with `null_reason: not_applicable`. Such runs are valid for testing and can never enter `results/` for a release (the validator requires a passing self-test, which needs Linux and NVML).

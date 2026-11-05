@@ -1,0 +1,50 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 204149436324854
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 204149500640986
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 204149522426944
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 204149736748511
+    }
+  ],
+  "failure": {
+    "at": "2026-11-05T13:05:54Z",
+    "exit_code": 1,
+    "kind": "adapter",
+    "last_lines": [
+      "flashprove: /opt/fp-venv/bin/python exited non-zero, last line 'make_calibration_set: cannot create results/v0.1/flashprove/.staging-2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-1/io/fit/calibration_set.npy: results/v0.1/flashprove/.staging-2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-1/io/fit is not an existing folder'"
+    ],
+    "message": "setup exited 1",
+    "step": "setup"
+  },
+  "metrics": {},
+  "profile": "prover-h100-hosted",
+  "proofs": [],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 1,
+  "replaces": null,
+  "run_id": "2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-1",
+  "schema": "run/1",
+  "status": "failed",
+  "system": "flashprove",
+  "system_kind": "prover",
+  "warnings": [],
+  "workload": {
+    "id": "fp-maverick-w1024-b1",
+    "version": 1
+  }
+}

@@ -227,6 +227,8 @@ Not isolated, and recorded so: the network (`commands[].network: "provider"` in 
 
 Resource readings (RFC-0011) come from the container's own cgroup: `cpu_seconds` is the difference of `cpu.stat usage_usec` over the call, `host_memory_peak_anon` is the sampled `memory.stat anon`, and an OOM kill during the call is a `resource` failure. These include the harness process, which sleeps between samples. `host_memory_peak_kernel` is null with `not_measurable_on_profile`: the container's `memory.peak` covers its whole life, not one step. GPU readings are NVML's, as on any host.
 
+The calibration self-test of a hosted host is `iproofs machine-record --selftest --hosted` (RFC-0011 §Calibration self-test): the probe runs as a process in the container, ST-CGROUP reads the container's own counters, and ST-OOM is not run.
+
 Rows from a hosted profile are their own configurations (RFC-0009 groups rows by profile); they are never pooled or compared with rows from a docker profile as one set, and the profile name is printed beside every number.
 
 RISK: shared CPUs and an open network make hosted timings noisier and weaker evidence than docker ones. Resolution: the profile name is part of every row's label, the release report says which rows are hosted, and the v0.1 report compares one configuration on both kinds of host once a docker host is available.

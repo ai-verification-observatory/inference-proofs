@@ -55,6 +55,7 @@ __all__ = [
     "select_readers",
     "span_seconds",
     "st_cgroup",
+    "st_cgroup_hosted",
     "st_clock",
     "st_jitter",
     "st_nvml",
@@ -510,6 +511,14 @@ def st_cgroup(kernel_peak: int, anon_peak: int | None, cpu_seconds: float) -> Se
         ok,
         f"memory.peak {kernel_peak} B, anon peak {anon_peak} B, cpu {cpu_seconds} s",
     )
+
+
+def st_cgroup_hosted(anon_rise: int | None, cpu_seconds: float | None) -> SelfTestCheck:
+    """Hosted execution (RFC-0006): a probe process touching 256 MiB in the harness's own
+    container; the sampled `anon` rises at least 256 MiB over its baseline and `cpu.stat` grows.
+    The container's `memory.peak` covers its whole life and is not read."""
+    ok = (anon_rise or 0) >= 256 * MIB and (cpu_seconds or 0) > 0
+    return SelfTestCheck("ST-CGROUP", ok, f"hosted: anon rise {anon_rise} B, cpu {cpu_seconds} s")
 
 
 def st_watch(release_ns: Sequence[int], mechanism: str) -> SelfTestCheck:

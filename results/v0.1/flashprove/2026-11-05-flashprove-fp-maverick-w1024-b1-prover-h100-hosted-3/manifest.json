@@ -1,0 +1,565 @@
+{
+  "claim": {
+    "card_version": 1,
+    "configuration": "exact-match-cp-verify",
+    "system": "flashprove"
+  },
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T13:28:22Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T13:28:22Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "commit",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T13:42:55Z",
+      "step": "commit"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "104,106,108,110,112,114,116,118,120,122,124,126,128,130,132,134,136,138,140,142,144,146,148,150",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:18:23Z",
+      "step": "prove"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "105,107,109,111,113,115,117,119",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "105,107,109,111,113,115,117,119",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:27:20Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "105",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "105",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:27:41Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "105,107,109,111,113,115,117,119",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "105,107,109,111,113,115,117,119",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:28:11Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "105,107,109,111,113,115,117,119",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "105,107,109,111,113,115,117,119",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:28:31Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "105,107,109,111,113,115,117,119",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "105,107,109,111,113,115,117,119",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:28:51Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "105,107,109,111,113,115,117,119",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "105,107,109,111,113,115,117,119",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-05T14:29:12Z",
+      "step": "verify"
+    }
+  ],
+  "commitment": {
+    "commitment_id": "6c210ac80047eaf64ce386bfa2218a4b74f7d84ea52a011bfd308b47c856ed99",
+    "prover_files": [
+      {
+        "bytes": 2153994240,
+        "digest": "sha256:8c750ab3286e34ac67d32eea7f721d1499976847d13f837b9d1d3965aec02500",
+        "name": "isk.tar"
+      }
+    ],
+    "verifier_files": [
+      {
+        "bytes": 2629,
+        "digest": "sha256:91803480b032dc993722b50d552703024f2e78a991c7a239852855177772ee0d",
+        "name": "policy.txt"
+      },
+      {
+        "bytes": 2784,
+        "digest": "sha256:df29bd823d62431945c3124138ed52e1f677db9224c4196505a91663ac48ab1a",
+        "name": "KL.bin"
+      },
+      {
+        "bytes": 224975,
+        "digest": "sha256:a99b964bbd3648d6e3b4007fc9370b5c70c7e9668848daa039820bc9e03e8f80",
+        "name": "layout.txt"
+      },
+      {
+        "bytes": 3293984,
+        "digest": "sha256:2f9408cb59f29e5860d06a106ed4e820274c1e2b914f9a1cba5dc59e54d335f9",
+        "name": "key.bin"
+      },
+      {
+        "bytes": 2945248,
+        "digest": "sha256:0caf30792192de67aa032c1f13c84712a0f7aa572910457c22719a002a5acb84",
+        "name": "0.bin"
+      }
+    ]
+  },
+  "control": false,
+  "harness": {
+    "git_commit": "3df213735333ffa341d1cad6784babe54a073424",
+    "git_dirty": false,
+    "lock_digest": "sha256:4eeb7ca62a4029dd085ddd7f6f40e60e10327ff1674fd4909d588d4a9b8a9fc3",
+    "nonconforming": false,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted"
+    },
+    "cpu": {
+      "bound_prover": [
+        104,
+        106,
+        108,
+        110,
+        112,
+        114,
+        116,
+        118,
+        120,
+        122,
+        124,
+        126,
+        128,
+        130,
+        132,
+        134,
+        136,
+        138,
+        140,
+        142,
+        144,
+        146,
+        148,
+        150
+      ],
+      "bound_verifier": [
+        105,
+        107,
+        109,
+        111,
+        113,
+        115,
+        117,
+        119
+      ],
+      "bound_verifier_single": [
+        105
+      ],
+      "cgroup_quota_cpus": 24.96,
+      "logical_cpus": 208,
+      "model": "Intel(R) Xeon(R) Platinum 8480+",
+      "physical_cores": 104,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 841279684608
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.3",
+      "driver_version": "610.57.04",
+      "memory_total_mib": 81559,
+      "model": "NVIDIA H100 80GB HBM3",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.8.0-62-generic"
+    },
+    "memory": {
+      "available_bytes_at_start": 1832713023488,
+      "cgroup_limit_bytes": 645671157760,
+      "total_bytes": 1902330167296
+    },
+    "numa": {
+      "bound_mems": [
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "vast",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h100-hosted",
+    "reference_digest": "sha256:8ee2355f3950d68d11e2b0e85f60f78d7426a017a9f98168edcdfd777293258a",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:34f4b28645baa5ec7ffea7e6c8ee0abe4561cc9ac0341b9602dd77ff649fb4f9",
+      "parts": [
+        {
+          "bytes": 18775708,
+          "digest": "sha256:acd28d7c84c97f8cc47e7f8980e3b1bb170ef34f9d278d46e47eaf368d06d466",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:e077da6580e4cee40970a425f54ab9fbaca2b10d01597659dac427cfc39111cb",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-0"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:1306521cd132063ec9dab7b498670541fc7ad67ed5171ce021c7f345e71fed1c",
+      "parts": [
+        {
+          "bytes": 18770140,
+          "digest": "sha256:e58ea12d2673d6c6be48d4c0fbfb8f4f4e57af36ee661717e3a6b6d6f229d1d5",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:a8d9e571a3f6f79da5fff4bda27926a1870031369ec137d6587305c8efec80d2",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-1"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:f8528d59205cf91eb94edda7523fbfeb97912198f71c152185d7639fda5eefd7",
+      "parts": [
+        {
+          "bytes": 18763644,
+          "digest": "sha256:f437dfa4e79f037fd3c9270a25a7814a1021d36fa0e95987879376e07809f414",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-2"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:8a1bf790bedb775278524f101092a7eed49bbfeb3793f61c342c219d7c3ab8c7",
+      "parts": [
+        {
+          "bytes": 18759196,
+          "digest": "sha256:06adb3afdc4cf662e50464d8c2f84fda9ff9f73954fd0b3bb64a994c1ebc07ef",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-3"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:66b4e911393b96f5ddf125f6c3d124dd7fc3aff6d40f80f472e36b89ddc6fe80",
+      "parts": [
+        {
+          "bytes": 18766588,
+          "digest": "sha256:c5f184da465e65342a0cdfb80aeb18ea4d2101c5a6d12940c03d777649ef4c0d",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:9e46ee2e369018c86c14b72bc5094a0b015f189d69ee99d6edcade802e848627",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-4"
+    }
+  ],
+  "provider": "vast",
+  "release": "v0.1",
+  "run_id": "2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-3",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [],
+    "passed": false
+  },
+  "system": {
+    "adapter_commit": "4f1a295e06d52e0e3484f3c88005a1dcdcbd59fb",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e",
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/flashprove@sha256:7ca6c9ee8c6568b9b925a5c8a8d8eb2f3cd7e394b0f047cde3096d99145a91f8"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
+        "name": "FlashProve",
+        "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+      },
+      {
+        "digest": "sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7",
+        "name": "wikitext-2-raw-v1-train",
+        "url": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet"
+      },
+      {
+        "digest": "sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+        "name": "llama2-tokenizer",
+        "url": "https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json"
+      },
+      {
+        "digest": "sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4",
+        "name": "llama4-tokenizer",
+        "url": "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json"
+      }
+    ],
+    "name": "flashprove",
+    "system_manifest_digest": "sha256:c577b9718bf2b8aa4a2e1b52c48d7d4daaa970bf4cc6670cc98d4d8ce70612c7",
+    "upstream": {
+      "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+      "repo": "anthropics/FlashProve"
+    }
+  },
+  "warnings": [],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:f89f6610bde57de8402c8be10d7b7a21f7028d9575f66c5c01be3f00e57a92dc",
+    "id": "fp-maverick-w1024-b1",
+    "model": {
+      "digest": "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114",
+      "revision": "41032e5471dd6ea5b349062d978626215d6c5bba",
+      "source": "huggingface:unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF"
+    },
+    "prompt_seed": "0x4eb314ee22426c32",
+    "prompt_set_digest": "sha256:b1c683ccc0078b3da7177d50caf559a079658e00cf4cad729139820827453db2",
+    "version": 1
+  }
+}
