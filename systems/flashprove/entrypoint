@@ -260,7 +260,9 @@ def prove(job: dict) -> dict:
     [isk_tar] = job["prover_files"]
     work = workdir(host("/io/state/prove"))
     with tarfile.open(host(isk_tar)) as tar:
-        tar.extractall(work, filter="data")
+        # "tar", not "data": the data filter gives directories the default mode, and cp_prove
+        # refuses a key directory that is not 0700 as cp_commit made it (refusal cp-isk)
+        tar.extractall(work, filter="tar")
     spool = private(work / "spool")
     private(private(spool / "in") / ".tmp")
     pending: dict[str, int] = {}

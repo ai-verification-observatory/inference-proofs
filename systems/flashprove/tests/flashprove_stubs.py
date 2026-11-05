@@ -35,6 +35,7 @@ for d in ("leaf/0", "anchor"):
     (isk / d).mkdir(parents=True)
     (isk / d / "count.bin").write_bytes(b"")
 (isk / "seed.bin").write_bytes(bytes(32))
+isk.chmod(0o700)  # as cp_commit makes it
 print("commitment ID: " + "c" * 64)
 print("cp_commit: done. the commitment is complete and can be handed out")
 """
@@ -45,6 +46,9 @@ print("cp_commit: done. the commitment is complete and can be handed out")
 CP_PROVE = """
 spool, size = Path(opt("-spool")), int(opt("-batch"))
 assert (Path(opt("-isk")) / "seed.bin").is_file() and os.path.isdir(os.environ["TMPDIR"])
+if Path(opt("-isk")).stat().st_mode & 0o777 != 0o700:  # refusal cp-isk
+    print("p258 end 1 cp-isk")
+    sys.exit(1)
 (spool / "out/.tmp").mkdir(parents=True, exist_ok=True)
 reqs = sorted((spool / "in").glob("*.req"), key=lambda p: (p.stat().st_mtime_ns, p.name))
 for b in range(int(opt("-most-batches"))):
