@@ -14,6 +14,28 @@ import re
 import sys
 from pathlib import Path
 
+# prover/src/compose.rs EDGES at eb95bfa, the names `provenance.binding` prints
+EDGES = (
+    "residual stream into the first norm's reduction",
+    "first norm's output into the q, k, v matmul inputs",
+    "q, k, v outputs into the attention block",
+    "attention scores and values into the attention output",
+    "attention output into the o matmul input",
+    "o output into the first residual add",
+    "first residual add into the second norm's reduction",
+    "second norm's output into the gate and up matmul inputs",
+    "gate and up outputs into the SwiGLU product",
+    "SwiGLU output into the down matmul input",
+    "down output into the second residual add",
+    "each matmul's input times the pinned weights into its accumulator",
+    "residual stream out of this segment into the next layer's segment",
+    "keys and values out of this token block into the next block",
+    "embedding row into the first segment's residual stream",
+    "logits into the emitted token",
+)
+UNBINDS = {"residual-stream": {1, 2, 3, 5, 6, 7, 8, 9, 10, 11}, "layer-boundary": {13},
+           "kv-boundary": {14}, "argmax": {16}, "embedding": {15}, "argmax-lax": {16}}  # fmt: skip
+
 
 def host(p: str) -> Path:
     return Path(os.environ["IPROOFS_IO"] + p[3:]) if p.startswith("/io") else Path(p)
@@ -68,8 +90,12 @@ def compose_chunks(argv: list[str]) -> int:
         (ser / f"{t}.fixed.json").write_text(json.dumps(fixed))
         (ser / f"{t}.claims.json").write_text("{}")
         (ser / f"{t}.proof.json").write_text("{}")
-    edges = [{"n": 16, "edge": "logits into the emitted token", "state": "bound"}]
+    # util.rs unsound_skips(), and the edges each switch unbinds (prover/README.md#L86-L102)
     skips = [a.removeprefix("--unsound-skip-") for a in argv if a.startswith("--unsound-skip-")]
+    skips += ["argmax-lax"] * argv.count("--unsound-argmax-lax")
+    off = {n for s in skips for n in UNBINDS[s]}
+    edges = [{"n": n, "edge": e, "state": "unbound" if n in off else "bound"}
+             for n, e in enumerate(EDGES, 1)]  # fmt: skip
     print(json.dumps({"provenance": {"unsound_skips": skips, "binding": {"edges": edges}}}))
     return 0
 

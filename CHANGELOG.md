@@ -19,6 +19,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `systems/sash/controls.yaml`: the six SASH soundness switches (`--unsound-skip-residual-stream`, `-layer-boundary`, `-kv-boundary`, `-argmax`, `-embedding` and `--unsound-argmax-lax`) as `weakened_prover` controls, expected `accepted`, each with `requires_unbound_edge` naming a claim-card edge and a source at `eb95bfa`. The SASH binding report now names edges as the claim card does (#66).
 - GPU fixtures for `sash` and `flashprove` (`tests/fixtures/gpu/`): one commit, prove and verify of each on an H100, both verdicts `accept`; the two INV-ADAPTER-9 fixture tests run on them.
 - `systems/flashprove/system.yaml`, pinning the FlashProve image built from `main` at `4f1a295`; no system maintainer is named (RFC-0001 §System inclusion: not reached, no consent recorded). The Maverick workloads list `flashprove`.
 - `systems/sash/claim.yaml`: the SASH claim card (configuration `sound-defaults`, card_version 1), every field copied from upstream at `eb95bfa` with a source link or written as not stated; `reviewed_by` is empty until a SASH system maintainer reviews it (#67).
