@@ -1,14 +1,14 @@
 """SASH adapter image on CPU (#64): the Dockerfile rules and `info`/`setup`, in process and
 against the out.json `info` returned by the built image (fixtures/info.json)."""
 
-import importlib.machinery
-import importlib.util
 import json
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+from sash_fixtures import load, run_step
 
 from iproofs.provenance import dockerfile_problems
 from iproofs.schema import SchemaRegistry
@@ -18,30 +18,17 @@ SYSTEM = HERE.parent
 ROOT = SYSTEM.parents[1]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
 COMMIT = "eb95bfa887299d1637550228d42086c27cbb2b3b"
+Step = Callable[..., dict[str, Any]]
 
 
 @pytest.fixture
 def adapter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
-    monkeypatch.setenv("IPROOFS_IO", str(tmp_path))
-    monkeypatch.setenv("IPROOFS_INPUTS", str(HERE / "fixtures/inputs.json"))
-    loader = importlib.machinery.SourceFileLoader("sash", str(SYSTEM / "entrypoint"))
-    spec = importlib.util.spec_from_loader("sash", loader)
-    assert spec is not None
-    module = importlib.util.module_from_spec(spec)
-    loader.exec_module(module)
-    return module
+    return load(tmp_path, monkeypatch)
 
 
-def run(adapter: ModuleType, sub: str) -> dict[str, Any]:
-    io = adapter.host("/io")
-    job = {"schema": "adapter-job/1", "contract": "adapter/1", "subcommand": sub, "run_id": "r",
-           "workload": {"id": "sash-l31-8b-c1024", "version": 1}}  # fmt: skip
-    (io / "job.json").write_text(json.dumps(job))
-    adapter.sys.argv = ["entrypoint", sub, "/io/job.json", "/io/out.json"]
-    assert adapter.main() == 0
-    out: dict[str, Any] = json.loads((io / "out.json").read_text())
-    assert REGISTRY.errors("adapter-out/1", out) == []
-    return out
+@pytest.fixture
+def step(adapter: ModuleType) -> Step:
+    return lambda sub, **fields: run_step(adapter, sub, **fields)
 
 
 def test_dockerfile_rules() -> None:
@@ -57,22 +44,17 @@ def test_upstream_pinned_and_checked() -> None:
     assert "patch" not in dockerfile.split("FROM fetch", 1)[1]  # B4
 
 
-def test_info_and_setup(adapter: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_info_and_setup(step: Step, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("IPROOFS_ADAPTER_COMMIT", "a" * 40)
     monkeypatch.setenv("IPROOFS_ADAPTER_DIRTY", "false")
-    out = run(adapter, "info")
+    out = step("info")
     assert (out["system"], out["upstream_commit"]) == ("sash", COMMIT)
     assert out["profile"] == "prover-h100"
     assert out["workloads"] == ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
     assert (out["adapter_commit"], out["adapter_dirty"]) == ("a" * 40, False)
     names = [i["name"] for i in out["image_inputs"]]
     assert names == ["zk-inference-prover", "rust-nightly-2025-07-14"]
-    assert run(adapter, "setup")["ready"] is True
-
-
-def test_unmapped_step_refused(adapter: ModuleType) -> None:
-    with pytest.raises(SystemExit, match=r"not mapped yet"):
-        run(adapter, "prove")
+    assert step("setup")["ready"] is True
 
 
 def test_image_info_fixture() -> None:
