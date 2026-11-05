@@ -9,11 +9,11 @@ engine:
   name: vllm
   version: 0.32.0
   image: docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
-# RFC-0014 B7: built by the images workflow from main at 6e28a7f4454ecc61c922fb59961e08e574934442
+# RFC-0014 B7: built by the images workflow from main at 2dacdc85e9871460b82ecc939340c2f988b68338
 # (adapter_dirty false) and pushed to the project registry.
 image:
   repository: ghcr.io/ai-verification-observatory/ref-serve
-  digest: sha256:332031a929c0c9e537941e36e542a7ee5c42b42a57aadfa332eb7b02352ed656
+  digest: sha256:217b8686298d3438299faf10ae2a1184b0bba0c60f0f59513c40e39d76311575
 workloads:
 - id: sash-l31-8b-c4096
   precision_used: fp8

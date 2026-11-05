@@ -57,6 +57,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- `ref-serve` and `ref-recompute` pin images rebuilt from `main` with the `/tmp` engine caches (`ref-serve` at `2dacdc8`, `ref-recompute` at `d713177`).
 - Hosted execution: the harness removes what the adapter uid left in `/tmp` before each call, as docker's per-call tmpfs would, so engine and compile caches do not carry from one repetition to the next (RFC-0006 §Hosted execution).
 - `ref-serve` and `ref-recompute`: vLLM's JIT and compile caches go under `/tmp`, writable under a read-only root filesystem; the adapter user has no home, and engine start failed with EACCES on `~/.cache`. The pinned images predate this fix and are rebuilt by the images workflow.
 - Gate G9 (SEC-5) no longer reads a requirement pin such as `nvidia-cublas==13.4.1.3` as an IPv4 address; any other match is still reported.
