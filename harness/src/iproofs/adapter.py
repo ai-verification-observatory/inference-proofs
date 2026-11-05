@@ -465,11 +465,11 @@ class HostedRunner(InProcessRunner):
                 if root:
                     os.chown(path, 0, 0)
                 path.chmod(0o555 if path.is_dir() else 0o444)
-        env = {**self.env, "IPROOFS_IO": str(io_dir), "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+        env = {**self.env, "IPROOFS_IO": str(io_dir.resolve()), "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
                "CUDA_VISIBLE_DEVICES": "" if gpu is None or subcommand not in GPU_STEPS
                else str(gpu)}  # fmt: skip
         if models_dir is not None and subcommand != "verify":
-            env["IPROOFS_MODELS"] = str(models_dir)
+            env["IPROOFS_MODELS"] = str(models_dir.resolve())
         drop = [*DROP_TO_ADAPTER] if root else []
         if root:  # docker --user sets HOME from the image's passwd entry, or / without one
             try:
