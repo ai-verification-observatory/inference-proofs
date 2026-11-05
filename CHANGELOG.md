@@ -18,6 +18,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `systems/flashprove/system.yaml`, pinning the FlashProve image built from `main` at `4f1a295`; no system maintainer is named (RFC-0001 §System inclusion: not reached, no consent recorded). The Maverick workloads list `flashprove`.
 - `systems/sash/claim.yaml`: the SASH claim card (configuration `sound-defaults`, card_version 1), every field copied from upstream at `eb95bfa` with a source link or written as not stated; `reviewed_by` is empty until a SASH system maintainer reviews it (#67).
 - `systems/flashprove/claim.yaml`: the draft FlashProve claim card, configuration `exact-match-cp-verify` (the C++ verifier the adapter's `verify` runs, exact-match policy), every field copied from upstream at `9e2bdd8` with a line-anchored link (RFC-0002, #71). Upstream states soundness for its Lean verifier only and claims no level for `cp_verify`; the card says so. `reviewed_by: []`: no FlashProve maintainer has been reached.
 - `systems/sash/system.yaml`, pinning the SASH image built from `main` at `d713177`; no system maintainer is named (RFC-0001 §System inclusion: not reached, no consent recorded). The SASH workloads list `sash`.

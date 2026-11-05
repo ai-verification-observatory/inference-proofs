@@ -83,7 +83,7 @@ Upstream advises keeping `cp_commit` and `cp_prove` on CPUs of the GPU's NUMA no
 
 ## Values for `system.yaml`
 
-`system.yaml` lands once `system/1`'s image digest and system maintainers exist (RFC-0001). These are the values it declares:
+`system.yaml` declares these values, with the image the images workflow pushed and no system maintainer named yet (RFC-0001 §System inclusion):
 
 ```yaml
 deterministic_proofs: false

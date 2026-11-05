@@ -1,0 +1,5 @@
+# RFC-0013 POL-3: lines of adapter source that name a forbidden flag, with their guard.
+# Format: <file name><TAB><line content, stripped>. Reviewers check the guard.
+# The list itself; the guard is `if weakening and not job["control"]` in run(), which refuses any
+# argument with one of these prefixes before an upstream process starts.
+entrypoint	FORBIDDEN_FLAGS = ["-public-weights", "-keep-for-the-audit"]

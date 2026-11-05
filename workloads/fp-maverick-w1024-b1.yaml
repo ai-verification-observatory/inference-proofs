@@ -33,4 +33,4 @@ prompts:
 shape: {prompt_tokens: 1024, output_tokens: 1, batch_size: 1, batches_per_session: 5, context_window: 1024}
 decoding: {rule: "greedy"}
 phase: "prefill"
-systems: ["ref-serve", "ref-recompute"]
+systems: ["flashprove", "ref-serve", "ref-recompute"]
