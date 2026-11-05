@@ -162,3 +162,45 @@ def test_info_and_skipped_steps(adapter: ModuleType) -> None:
 def test_dockerfile_rules() -> None:
     lock = (SYSTEM / "inputs.lock").read_text()
     assert dockerfile_problems((SYSTEM / "Dockerfile").read_text(), lock) == []
+
+
+def test_engine_caches_under_scratch(
+    adapter: ModuleType, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A read-only root and no home: HOME and the cache root move to the writable scratch."""
+    import sys  # noqa: PLC0415
+    import types  # noqa: PLC0415
+
+    vllm = types.ModuleType("vllm")
+    vllm.LLM = lambda **kw: kw  # type: ignore[attr-defined]
+    for name in ("vllm.engine", "vllm.utils"):
+        monkeypatch.setitem(sys.modules, name, types.ModuleType(name))
+    arg_utils = types.ModuleType("vllm.engine.arg_utils")
+    parser = types.ModuleType("vllm.utils.argparse_utils")
+
+    class Args:
+        @staticmethod
+        def add_cli_args(p: Any) -> Any:
+            return p
+
+        @staticmethod
+        def from_cli_args(_: Any) -> Any:
+            import dataclasses  # noqa: PLC0415
+
+            return dataclasses.make_dataclass("E", [])()
+
+    class Parser:
+        def parse_args(self, argv: list[str]) -> list[str]:
+            return argv
+
+    arg_utils.EngineArgs = Args  # type: ignore[attr-defined]
+    parser.FlexibleArgumentParser = Parser  # type: ignore[attr-defined]
+    for name, mod in (("vllm", vllm), ("vllm.engine.arg_utils", arg_utils),
+                      ("vllm.utils.argparse_utils", parser)):  # fmt: skip
+        monkeypatch.setitem(sys.modules, name, mod)
+    monkeypatch.setattr(adapter, "SCRATCH", str(tmp_path / "scratch"))
+    monkeypatch.setenv("HOME", "/nonexistent")
+    adapter.VllmEngine("/models/m", [])
+    assert adapter.os.environ["HOME"] == str(tmp_path / "scratch")
+    assert adapter.os.environ["XDG_CACHE_HOME"] == str(tmp_path / "scratch/.cache")
+    assert (tmp_path / "scratch").is_dir()

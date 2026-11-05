@@ -32,6 +32,7 @@ from pathlib import Path
 import yaml
 
 ENGINE_COMMIT = "5df63a7203cdb9328d824a27b682e77c7b9928be"  # vLLM v0.32.0, RFC-0015 Q1
+SCRATCH = os.environ.get("IPROOFS_SCRATCH", "/tmp/ref-serve")  # writable under --read-only
 SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.yaml"))
 INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
 
@@ -66,6 +67,10 @@ class VllmEngine:
     engine documents; prompts and outputs are token ids (`--skip-tokenizer-init`)."""
 
     def __init__(self, model: str, args: list[str]) -> None:
+        # The root filesystem is read-only and the adapter user's home does not exist (RFC-0005
+        # §Container invocation); the engine's JIT and compile caches go under the /tmp tmpfs.
+        os.environ.update(HOME=SCRATCH, XDG_CACHE_HOME=f"{SCRATCH}/.cache")
+        Path(SCRATCH).mkdir(parents=True, exist_ok=True)
         from vllm import LLM
         from vllm.engine.arg_utils import EngineArgs
         from vllm.utils.argparse_utils import FlexibleArgumentParser

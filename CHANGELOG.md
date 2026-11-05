@@ -56,6 +56,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- `ref-serve` and `ref-recompute`: vLLM's JIT and compile caches go under `/tmp`, writable under a read-only root filesystem; the adapter user has no home, and engine start failed with EACCES on `~/.cache`. The pinned images predate this fix and are rebuilt by the images workflow.
 - Gate G9 (SEC-5) no longer reads a requirement pin such as `nvidia-cublas==13.4.1.3` as an IPv4 address; any other match is still reported.
 - Release eligibility read the pinned image from `system.yaml` at the image's own build commit, which can never hold that image's digest, so every pushed image was ineligible. It now reads the pin at the release commit and requires the build commit to be its ancestor (RFC-0014 §Eligibility, INV-DM-4 wording clarified).
 
