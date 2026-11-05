@@ -18,6 +18,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `systems/sash/claim.yaml`: the SASH claim card (configuration `sound-defaults`, card_version 1), every field copied from upstream at `eb95bfa` with a source link or written as not stated; `reviewed_by` is empty until a SASH system maintainer reviews it (#67).
 - `systems/sash/system.yaml`, pinning the SASH image built from `main` at `d713177`; no system maintainer is named (RFC-0001 §System inclusion: not reached, no consent recorded). The SASH workloads list `sash`.
 - `systems/sash`: `commit`, `prove` and `verify` mapped onto upstream's recorded job script at `eb95bfa` (witness extraction, model roots, per-shape CUDA kernels, `compose-chunks`, `boundary-grid --verify`), with the forbidden-flag guard and CPU tests against stand-in programs (#65).
 - GPU runs: `iproofs run --gpu N` binds the GPU and selects CPUs on its NUMA node (RFC-0006 §CPU and memory selection), and every step is sampled by NVML at 20 Hz with the cgroup counters read over the call (RFC-0011), so the resource metrics of a GPU run are measured. `machine-record --hosted` and the machine record's `container.execution`, `cpu.cgroup_quota_cpus` and `memory.cgroup_limit_bytes` (additive `manifest/1` and `reference/1` changes).
