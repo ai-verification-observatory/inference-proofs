@@ -151,7 +151,7 @@ forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
 Build steps, as upstream: `cargo build --release --locked` for `zk-prover-simd`, then `cargo build --release --locked -p zk-prover --features cuda` for `zk-prover-cuda`, with `CUDAARCHS=90` (sm_90, the H100). Differences from upstream's Dockerfile, none of which touches upstream source (AGENTS.md rule 1):
 
 - Rust comes from the checksummed standalone tarball instead of `rustup`, so the fetch stage checks it against `inputs.lock` (B2). `curl` is not installed, since only `rustup` needed it.
-- Crates are fetched with `cargo fetch --locked` in the fetch stage and built `--offline` (B3); Cargo.lock's checksums verify them.
+- Crates are fetched with `cargo fetch --locked` in the fetch stage and built `--offline` (B3); Cargo.lock's checksums verify them. Some crate archives carry files readable by their owner only (`fnv` 1.0.7); the fetch stage makes `/opt/cargo` readable by all, since `prove` builds the CUDA library as the adapter user.
 - The harness's CUDA torch group is installed instead of the default CPU group, as upstream documents for a CUDA host.
 - The source is added with `git` at the pinned commit; the fetch stage checks `git rev-parse HEAD` (INV-ADAPTER-2) and the sha256 of `git archive --format=tar HEAD` against `inputs.lock`.
 - Ubuntu packages are pinned to exact versions (PIN-5) from the archive; the Ubuntu snapshot service, which would keep them installable after an update, returned HTTP 503 for every date on 2026-11-04.
