@@ -23,7 +23,7 @@
       "type": "object"
     },
     "machine": {
-      "$comment": "RFC-0006 \u00a7Machine record: exactly these fields (INV-MR-1); a field the host cannot probe is absent",
+      "$comment": "RFC-0006 §Machine record: exactly these fields (INV-MR-1); a field the host cannot probe is absent",
       "additionalProperties": false,
       "properties": {
         "container": {
@@ -40,6 +40,12 @@
             "docker_engine": {
               "minLength": 1,
               "type": "string"
+            },
+            "execution": {
+              "enum": [
+                "docker",
+                "hosted"
+              ]
             },
             "nvidia_container_toolkit": {
               "minLength": 1,
@@ -71,6 +77,10 @@
                 "type": "integer"
               },
               "type": "array"
+            },
+            "cgroup_quota_cpus": {
+              "exclusiveMinimum": 0,
+              "type": "number"
             },
             "logical_cpus": {
               "minimum": 0,
@@ -159,6 +169,10 @@
           "additionalProperties": false,
           "properties": {
             "available_bytes_at_start": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "cgroup_limit_bytes": {
               "minimum": 0,
               "type": "integer"
             },
@@ -278,7 +292,11 @@
             "type": "string"
           },
           "network": {
-            "const": "none"
+            "$comment": "none: docker --network none; provider: a hosted container keeps the provider's network (RFC-0006 §Hosted execution)",
+            "enum": [
+              "none",
+              "provider"
+            ]
           },
           "started_at": {
             "format": "date-time",
@@ -720,6 +738,6 @@
     "proofs",
     "warnings"
   ],
-  "title": "Everything needed to rerun a job: results/.../<run-id>/manifest.json (RFC-0014 \u00a7manifest.json)",
+  "title": "Everything needed to rerun a job: results/.../<run-id>/manifest.json (RFC-0014 §manifest.json)",
   "type": "object"
 }

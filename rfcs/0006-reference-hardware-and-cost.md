@@ -150,6 +150,9 @@ Written by `iproofs machine-record` and stored in `manifest.json` `machine` (sch
 | `kernel.release` | `uname -r` | string |
 | `container.docker_engine`, `container.cgroup_driver`, `container.cgroup_version` | `docker version`, `docker info` | string |
 | `container.nvidia_container_toolkit` | `nvidia-ctk --version` | string |
+| `container.execution` | `hosted` under §Hosted execution; absent under docker | enum |
+| `cpu.cgroup_quota_cpus` | `/sys/fs/cgroup/cpu.max` of the harness's cgroup, quota over period; absent without a quota | number |
+| `memory.cgroup_limit_bytes` | `/sys/fs/cgroup/memory.max`; absent without a limit | int |
 | `provider` | declared by the runner on the command line (`--provider`) | string |
 | `verifier_host` | `same_as_prover` or `separate` | enum |
 
@@ -200,14 +203,32 @@ RISK: an emulated verifier shares caches, memory bandwidth and the CPU model of 
 | PC-DRIVER | driver version differs from `driver` |
 | PC-CPU-NUMA | fewer than 24 logical CPUs on the GPU's NUMA node |
 | PC-CPU-TOTAL | fewer than `logical_cpus_total_min` logical CPUs |
-| PC-MEM | `available_bytes_at_start` < `host_memory_gib_min` GiB |
+| PC-CPU-QUOTA | `cgroup_quota_cpus` < `logical_cpus_on_gpu_numa_node` |
+| PC-MEM | the smaller of `available_bytes_at_start` and `cgroup_limit_bytes` < `host_memory_gib_min` GiB |
 | PC-DISK | free space < `free_gib_min` on the results or model filesystem, or disk type not NVMe |
 | PC-OS | OS id or version differs |
 | PC-KERNEL | kernel older than `kernel_min` |
-| PC-CGROUP | cgroup version is not 2, or driver is not systemd |
-| PC-RUNTIME | Docker Engine or NVIDIA Container Toolkit below minimum |
+| PC-CGROUP | cgroup version is not 2, or driver is not systemd (hosted: cgroup version is not 2) |
+| PC-RUNTIME | Docker Engine or NVIDIA Container Toolkit below minimum; or the record's `execution` differs from the profile's runtime |
 
 `iproofs run --allow-nonconforming` exists for development only: the run is written with `harness.nonconforming: true` in the manifest (RFC-0014) and the list of failures, and the validator (RFC-0013) refuses it in `results/` for any release.
+
+### Hosted execution
+
+Some GPU providers rent an H100 only as a container they start themselves, from an image the renter names, without a docker engine, user namespaces or a writable cgroup tree inside. A profile whose `container_runtime` is `{kind: "hosted", cgroup_version: "2"}` describes such a host. The provider starts the system's pinned image (or, for development, a local build named with `--image`, never eligible for a release under RFC-0014), the harness is installed inside that container, and `iproofs run --hosted --gpu <index>` runs each step as a process of the image's `ENTRYPOINT`:
+
+- CPU binding is the scheduler affinity of the bound CPUs (`taskset -c`), computed by §CPU and memory selection. As root, the call drops to the adapter uid with no capabilities and no new privileges (`setpriv`), as `docker --user --cap-drop ALL --security-opt no-new-privileges` would.
+- The recorded commitment copies of RFC-0014 become root-owned and read-only before the call. The verifier reads the harness's own copies, as under docker.
+- The adapter gets the environment the image declares, read from the container's first process, without the names a provider adds (access keys, ports, addresses).
+- The GPU is chosen by `CUDA_VISIBLE_DEVICES` in PCI bus order; `verify` sees no GPU.
+
+Not isolated, and recorded so: the network (`commands[].network: "provider"` in `manifest.json`); memory binding (`numa.bound_mems` is the intended node, not enforced: setting a memory policy needs a capability the container lacks); memory limits, including the verifier's 32 GiB; a read-only root filesystem. CPUs may be shared with other tenants under a quota (`cpu.cgroup_quota_cpus`). The host's OS is not visible (`/etc/os-release` is the image's), so PC-OS does not apply and `os` is absent from the record. The disk is the container's overlay, so `disk.type` is absent.
+
+Resource readings (RFC-0011) come from the container's own cgroup: `cpu_seconds` is the difference of `cpu.stat usage_usec` over the call, `host_memory_peak_anon` is the sampled `memory.stat anon`, and an OOM kill during the call is a `resource` failure. These include the harness process, which sleeps between samples. `host_memory_peak_kernel` is null with `not_measurable_on_profile`: the container's `memory.peak` covers its whole life, not one step. GPU readings are NVML's, as on any host.
+
+Rows from a hosted profile are their own configurations (RFC-0009 groups rows by profile); they are never pooled or compared with rows from a docker profile as one set, and the profile name is printed beside every number.
+
+RISK: shared CPUs and an open network make hosted timings noisier and weaker evidence than docker ones. Resolution: the profile name is part of every row's label, the release report says which rows are hosted, and the v0.1 report compares one configuration on both kinds of host once a docker host is available.
 
 ### Cost basis
 

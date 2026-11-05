@@ -946,6 +946,14 @@ class ContainerRuntime(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class HostedRuntime(Document):
+    """RFC-0006 §Hosted execution: the provider starts the adapter image, the harness runs in it."""
+
+    kind: Literal["hosted"]
+    cgroup_version: Literal["2"]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ProverProfile(Document):
     kind: str
     gpu: GpuSpec | None
@@ -955,7 +963,7 @@ class ProverProfile(Document):
     os: OsSpec
     kernel_min: str
     driver: str
-    container_runtime: ContainerRuntime
+    container_runtime: ContainerRuntime | HostedRuntime
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1302,7 +1310,8 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reference/1", "#/$defs/prover/properties/cpu"): ProverCpu,
     ("reference/1", "#/$defs/prover/properties/disk"): Disk,
     ("reference/1", "#/$defs/prover/properties/os"): OsSpec,
-    ("reference/1", "#/$defs/prover/properties/container_runtime"): ContainerRuntime,
+    ("reference/1", "#/$defs/prover/properties/container_runtime/anyOf/0"): ContainerRuntime,
+    ("reference/1", "#/$defs/prover/properties/container_runtime/anyOf/1"): HostedRuntime,
     ("reference/1", "#/$defs/verifier"): VerifierProfile,
     ("reference/1", "#/$defs/verifier/properties/cpu"): VerifierCpu,
     ("reference/1", "#/$defs/verifier/properties/emulation"): Emulation,

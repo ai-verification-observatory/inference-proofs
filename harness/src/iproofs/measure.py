@@ -33,6 +33,7 @@ __all__ = [
     "Capture",
     "CgroupReader",
     "CgroupSlice",
+    "ContainerCgroupReader",
     "EventLog",
     "GpuBackend",
     "GpuSample",
@@ -129,9 +130,16 @@ def nvml_available() -> bool:
     return True
 
 
-def select_readers(*, gpu_profile: bool, nvml: Callable[[], bool] = nvml_available) -> CgroupReader:
+def select_readers(
+    *,
+    gpu_profile: bool,
+    hosted: bool = False,
+    nvml: Callable[[], bool] = nvml_available,
+    cgroup_root: Path = Path("/sys/fs/cgroup"),
+) -> CgroupReader:
     """Null readers only for a profile without a GPU (`ci-cpu`). A GPU profile never falls
-    back to them: without NVML it is an `environment` failure before any timed step."""
+    back to them: without NVML it is an `environment` failure before any timed step. Hosted
+    execution reads its own container's cgroup (RFC-0006 §Hosted execution)."""
     if not gpu_profile:
         return NullCgroupReader()
     if not nvml():
@@ -139,6 +147,10 @@ def select_readers(*, gpu_profile: bool, nvml: Callable[[], bool] = nvml_availab
             ErrorKind.ENVIRONMENT,
             "the profile needs a GPU but NVML is unavailable on this host (RFC-0011 §Portability)",
         )
+    if hosted:
+        if not (cgroup_root / "cpu.stat").is_file():
+            raise IProofsError(ErrorKind.ENVIRONMENT, f"no cgroup v2 counters at {cgroup_root}")
+        return ContainerCgroupReader(cgroup_root)
     raise IProofsError(
         ErrorKind.ENVIRONMENT,
         "GPU and cgroup sampling are not implemented yet (issues #114, #115)",
@@ -173,6 +185,15 @@ class SliceCgroupReader:
 
     def oom_kills(self) -> int:
         return self._field("memory.events", "oom_kill")
+
+
+class ContainerCgroupReader(SliceCgroupReader):
+    """Hosted execution: the counters of the container the harness runs in. The CPU time and
+    OOM kills are read as differences over a call and `anon` is sampled during it; the kernel
+    peak is the container's since it started, so it is not a step's and is not read."""
+
+    def memory_peak(self) -> int | None:  # type: ignore[override]
+        return None
 
 
 def job_hash(run_id: str) -> str:

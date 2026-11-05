@@ -4,29 +4,50 @@
       "additionalProperties": false,
       "properties": {
         "container_runtime": {
-          "additionalProperties": false,
-          "properties": {
-            "cgroup_driver": {
-              "enum": [
-                "systemd",
-                "cgroupfs"
-              ]
+          "$comment": "RFC-0006: docker on the host (anyOf/0), or a hosted container the provider starts from the adapter image, with the harness inside it (anyOf/1, §Hosted execution)",
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cgroup_driver": {
+                  "enum": [
+                    "systemd",
+                    "cgroupfs"
+                  ]
+                },
+                "docker_engine_min": {
+                  "pattern": "^[0-9]+(\\.[0-9]+)*$",
+                  "type": "string"
+                },
+                "nvidia_container_toolkit_min": {
+                  "pattern": "^[0-9]+(\\.[0-9]+)*$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "docker_engine_min",
+                "nvidia_container_toolkit_min",
+                "cgroup_driver"
+              ],
+              "type": "object"
             },
-            "docker_engine_min": {
-              "pattern": "^[0-9]+(\\.[0-9]+)*$",
-              "type": "string"
-            },
-            "nvidia_container_toolkit_min": {
-              "pattern": "^[0-9]+(\\.[0-9]+)*$",
-              "type": "string"
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cgroup_version": {
+                  "const": "2"
+                },
+                "kind": {
+                  "const": "hosted"
+                }
+              },
+              "required": [
+                "kind",
+                "cgroup_version"
+              ],
+              "type": "object"
             }
-          },
-          "required": [
-            "docker_engine_min",
-            "nvidia_container_toolkit_min",
-            "cgroup_driver"
-          ],
-          "type": "object"
+          ]
         },
         "cpu": {
           "additionalProperties": false,

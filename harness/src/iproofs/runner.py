@@ -50,8 +50,11 @@ from iproofs.measure import (
     LOG_HEAD_BYTES,
     LOG_TAIL_BYTES,
     Capture,
+    CgroupReader,
     EventLog,
+    NullCgroupReader,
     ReleaseWatcher,
+    Sampler,
     StepResources,
     cap_text,
     files_bytes,
@@ -88,6 +91,7 @@ from iproofs.provenance import (
     model_digest,
     proof_digest,
     read_topology,
+    select_cpus,
 )
 from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
@@ -163,6 +167,29 @@ class RunnerIdentity:
             os.environ.get("IPROOFS_RUNNER_ORG", "undeclared"),
             tuple(s for s in systems.split(",") if s),
         )
+
+
+class GpuEnvironment:
+    """A GPU host (RFC-0006 §CPU and memory selection): the bound GPU by NVML index, the
+    prover's CPUs on its NUMA node and the verifier's elsewhere, a pure function of the
+    topology."""
+
+    def __init__(self, gpu_index: int, host: Host) -> None:
+        self._host, self._gpu = host, gpu_index
+        node = host.gpu(gpu_index).get("numa_node")
+        if not isinstance(node, int) or node < 0:
+            raise IProofsError(ErrorKind.ENVIRONMENT, f"no NUMA node for GPU {gpu_index} (NVML)")
+        self.binding = select_cpus(read_topology(host.root), node)
+
+    def host(self) -> Host:
+        return self._host
+
+    def gpu(self) -> int | None:
+        return self._gpu
+
+    def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]:
+        cpus = self.binding.roles()[role]
+        return ",".join(map(str, cpus)), ",".join(map(str, self.binding.mems))
 
 
 class CpuOnlyEnvironment:
@@ -259,6 +286,7 @@ class Runner:
         allow_nonconforming: bool = False,
         prompts_from: str | None = None,
         claims: list[list[int]] | None = None,
+        hosted: bool = False,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -280,6 +308,8 @@ class Runner:
         self.nonconforming: list[ConformanceFailure] = []
         self.controls_done = False
         self.redact = Redactor.from_host()
+        self.hosted = hosted  # RFC-0006 §Hosted execution
+        self.readers: CgroupReader = NullCgroupReader()
 
     # ---------------------------------------------------------------- public
 
@@ -446,6 +476,13 @@ class Runner:
         self._resolve_inputs(job, log)
         assert job.workload is not None
         assert job.models is not None
+        self._image(job)  # named before anything below can fail
+        if _reference(job) and self._coverage(job) is None:
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"{job.spec.workload} lists no proving system whose token rule a reference row"
+                " counts by (RFC-0015 REF-3)",
+            )
         job.prompts = materialise_prompts(self.root, job.workload, job.models, job.seed)
         io = job.staging / "io"
         io.mkdir()
@@ -594,7 +631,8 @@ class Runner:
         assert job.reference is not None
         profile = job.reference.profiles[job.spec.profile]
         gpu = isinstance(profile, ProverProfile) and profile.gpu is not None
-        select_readers(gpu_profile=gpu)  # null readers only without a GPU; never a fallback
+        # null readers only without a GPU; never a fallback
+        self.readers = select_readers(gpu_profile=gpu, hosted=self.hosted)
 
     def _call(
         self,
@@ -637,7 +675,55 @@ class Runner:
         write_json(io / "job.json", job_json)
         cpuset, mems = self.env.cpus(role)
         started_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-        result = self.containers.run(
+        gpu_index = self.env.gpu() if sub != "verify" else None
+        sampler = Sampler(gpu_index, self.readers)
+        cpu0, oom0 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
+        sampler.start()
+        try:
+            result = self._run_container(job, sub, io, cpuset, mems, ro_mounts)
+        except BaseException:
+            sampler.stop(0, 0)  # the call failed before it ended; nothing is recorded
+            raise
+        summary = sampler.stop(result.started_mono_ns, result.ended_mono_ns)
+        cpu1, oom1 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
+        if not control:
+            job.resources[sub] = StepResources(
+                gpu_memory_peak_mib=summary.memory_peak_mib,
+                gpu_util_mean_pct=summary.util_mean_pct,
+                gpu_util_p95_pct=summary.util_p95_pct,
+                gpu_energy_j=summary.energy_j,
+                host_memory_peak_kernel=self.readers.memory_peak(),
+                host_memory_peak_anon=summary.anon_peak_bytes,
+                cpu_seconds=None if cpu0 is None or cpu1 is None else (cpu1 - cpu0) / 1e6,
+            )
+        if oom0 is not None and oom1 is not None and oom1 > oom0:  # G-6, whatever the exit code
+            raise IProofsError(ErrorKind.RESOURCE, f"{oom1 - oom0} OOM kill(s) in {sub}", step=sub)
+        gpu = self.env.gpu() if sub != "verify" else None
+        job.commands.append(
+            {
+                "step": sub,
+                "argv": [self.redact(a) for a in result.argv] or [sub],
+                "cpuset": cpuset,
+                "mems": mems,
+                "gpus": None if gpu is None else f"device={gpu}",
+                "network": "provider" if self.hosted else "none",
+                "started_at": started_at,
+                "exit_code": result.exit_code,
+            }
+        )
+        return self._after_call(job, sub, io, result, control)
+
+    def _run_container(
+        self,
+        job: Job,
+        sub: str,
+        io: Path,
+        cpuset: str,
+        mems: str,
+        ro_mounts: Sequence[tuple[Path, str]],
+    ) -> StepResult:
+        assert job.system is not None
+        return self.containers.run(
             job.image,
             sub,
             io,
@@ -653,19 +739,10 @@ class Runner:
                 for s in ("stdout", "stderr")
             ],
         )
-        gpu = self.env.gpu() if sub != "verify" else None
-        job.commands.append(
-            {
-                "step": sub,
-                "argv": [self.redact(a) for a in result.argv] or [sub],
-                "cpuset": cpuset,
-                "mems": mems,
-                "gpus": None if gpu is None else f"device={gpu}",
-                "network": "none",
-                "started_at": started_at,
-                "exit_code": result.exit_code,
-            }
-        )
+
+    def _after_call(
+        self, job: Job, sub: str, io: Path, result: StepResult, control: bool
+    ) -> tuple[AdapterOut, StepResult]:
         if sub != "verify" and not control:  # a control call never moves the run's timing
             job.steps[sub] = result
             job.events.record(f"{sub}.start", result.started_mono_ns)
@@ -1225,7 +1302,9 @@ class Runner:
             except IProofsError as e:
                 job.failure = self.redact.failure(Failure.from_error(e, step="written"))
         doc = self._run_doc(job, metrics)
-        manifest = self._manifest(job) if job.workload and job.system else None
+        # a job that failed before its prompts existed was never resolved: no manifest
+        resolved = job.workload and job.system and job.prompt_set_digest
+        manifest = self._manifest(job) if resolved else None
         invalid = {"run.json": (doc, self.registry.errors("run/1", doc))}
         if manifest is not None:
             invalid["manifest.json"] = (manifest, self.registry.errors("manifest/1", manifest))
@@ -1288,7 +1367,7 @@ class Runner:
                     unit,
                     scope if unit is Unit.S else None,
                     f"{run_json}#/raw/{step}",
-                    None if value is not None else NullReason.NOT_APPLICABLE,
+                    None if value is not None else self._null_resource(metric),
                 )
         if job.verify_seconds:
             anon = job.resources.get("verify", StepResources()).host_memory_peak_anon
@@ -1300,6 +1379,12 @@ class Runner:
                 None if anon is not None else NullReason.NOT_APPLICABLE,
             )
         return m
+
+    def _null_resource(self, metric: str) -> NullReason:
+        """Hosted execution cannot read a step's kernel memory peak (RFC-0006)."""
+        if self.hosted and metric == "host_memory_peak_kernel":
+            return NullReason.NOT_MEASURABLE_ON_PROFILE
+        return NullReason.NOT_APPLICABLE
 
     def _cap_run_dir(self, job: Job) -> None:
         """RFC-0009 §Storage, after the harness log is closed: each log file at most the first

@@ -15,12 +15,27 @@ profiles:
     kernel_min: "5.19"
     driver: "unpinned"
     container_runtime: {docker_engine_min: "25.0", nvidia_container_toolkit_min: "1.17", cgroup_driver: "systemd"}
+  # RFC-0006 §Hosted execution: the same GPU in a container the provider starts from the
+  # adapter image, the harness inside it. Network, memory binding and limits are not isolated,
+  # CPUs may be shared under a quota, and the disk is the container's overlay, so its rows are
+  # their own configurations, never pooled with prover-h100. Driver: the one the hosted H100
+  # hosts ran on 2026-11-05.
+  prover-h100-hosted:
+    kind: "prover"
+    gpu: {model: "NVIDIA H100 80GB HBM3", form_factor: "SXM", count: 1, memory_mib_min: 80000}
+    cpu: {logical_cpus_on_gpu_numa_node: 24, logical_cpus_total_min: 32}
+    host_memory_gib_min: 330
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "610.57.04"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
   verifier-cpu:
     kind: "verifier"
     gpu: null
     cpu: {logical_cpus: 8}
     host_memory_gib: 32
-    emulation: {allowed_on: ["prover-h100"]}
+    emulation: {allowed_on: ["prover-h100", "prover-h100-hosted"]}
 cost:
   price_per_gpu_hour_usd:
     value: 4.29
