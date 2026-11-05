@@ -1,0 +1,13 @@
+{"ts":"2026-11-05T16:49:32.303Z","mono_ns":217567110258621,"level":"info","event":"runner.start","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":null,"harness_version":"0.1.0.dev0"}
+{"ts":"2026-11-05T16:49:32.303Z","mono_ns":217567110380332,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"resolved","from":"pending","to":"resolved"}
+{"ts":"2026-11-05T16:49:59.016Z","mono_ns":217593823056978,"level":"info","event":"integrity.model_rehash","job":null,"step":null,"what":"sash-l31-8b-c1024","seconds":26.689905889}
+{"ts":"2026-11-05T16:50:08.848Z","mono_ns":217603655167216,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"image_ready","from":"resolved","to":"image_ready"}
+{"ts":"2026-11-05T16:50:08.848Z","mono_ns":217603655472605,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"machine_recorded","from":"image_ready","to":"machine_recorded"}
+{"ts":"2026-11-05T16:50:08.868Z","mono_ns":217603675707616,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"info","from":"machine_recorded","to":"info"}
+{"ts":"2026-11-05T16:50:09.262Z","mono_ns":217604069746648,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"setup","from":"info","to":"setup"}
+{"ts":"2026-11-05T16:50:10.135Z","mono_ns":217604942498519,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"commit","from":"setup","to":"commit"}
+{"ts":"2026-11-05T18:36:21.142Z","mono_ns":223975949831931,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"prove","from":"commit","to":"prove"}
+{"ts":"2026-11-05T20:12:28.973Z","mono_ns":229743780256270,"level":"info","event":"job.state","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"verify","from":"prove","to":"verify"}
+{"ts":"2026-11-05T21:13:21.476Z","mono_ns":233396283798370,"level":"error","event":"step.timeout","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"verify","timeout_s":3600.0}
+{"ts":"2026-11-05T21:13:21.477Z","mono_ns":233396284044307,"level":"error","event":"job.failed","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"verify","kind":"timeout","message":"verify exceeded 3600.0 s","exit_code":null}
+{"ts":"2026-11-05T21:13:22.638Z","mono_ns":233397445183837,"level":"info","event":"job.written","job":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","step":"written","run_dir":"2026-11-05-sash-sash-l31-8b-c1024-prover-h100-hosted-1","outcome":"failed"}
