@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import ProverProfile
+from iproofs.model import HostedRuntime, ProverProfile
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _CHUNK = 1 << 20
@@ -150,11 +150,14 @@ class Host:
         run: Callable[[list[str]], str | None] | None = None,
         nvml: Callable[[int], dict[str, object] | None] | None = None,
         dev_of: Callable[[Path], tuple[int, int]] | None = None,
+        *,
+        hosted: bool = False,
     ) -> None:
         self.root = root
         self.run = run or _run
         self.nvml = nvml or _nvml
         self.dev_of = dev_of or _dev_of
+        self.hosted = hosted  # RFC-0006 §Hosted execution: the harness runs in the adapter image
 
     def read(self, rel: str) -> str | None:
         try:
@@ -182,6 +185,9 @@ class Host:
             }
         if (smt := self.read("sys/devices/system/cpu/smt/active")) is not None:
             out["smt_active"] = smt == "1"
+        quota, _, period = (self.read("sys/fs/cgroup/cpu.max") or "max").partition(" ")
+        if quota != "max" and period:  # a CPU time quota on this cgroup, in CPUs
+            out["cgroup_quota_cpus"] = round(int(quota) / int(period), 2)
         return out
 
     def memory(self) -> dict[str, object]:
@@ -193,11 +199,14 @@ class Host:
         ):
             if m := re.search(rf"^{key}:\s*(\d+) kB$", info, re.M):
                 out[field_name] = int(m.group(1)) * 1024
+        if (limit := self.read("sys/fs/cgroup/memory.max")) not in (None, "max"):
+            out["cgroup_limit_bytes"] = int(limit)
         return out
 
     def disk(self, path: Path) -> dict[str, object]:
         out: dict[str, object] = {}
-        try:
+        path = next((p for p in [path, *path.absolute().parents] if p.exists()), path)
+        try:  # the results directory may not exist yet: its nearest existing parent
             out["free_bytes_at_start"] = shutil.disk_usage(path).free
             major, minor = self.dev_of(path)
         except OSError:
@@ -213,11 +222,17 @@ class Host:
         return out
 
     def os_release(self) -> dict[str, object]:
+        if self.hosted:  # /etc/os-release is the image's; the host's is not visible
+            return {}
         text = self.read("etc/os-release") or ""
         fields = dict(re.findall(r'^(ID|VERSION_ID)="?([^"\n]*)"?$', text, re.M))
         return {k.lower(): v for k, v in fields.items()}
 
     def container(self) -> dict[str, object]:
+        if self.hosted:  # no engine to ask: the provider started this container
+            mounts = self.read("proc/self/mounts") or ""
+            v2 = re.search(r"^\S+ /sys/fs/cgroup cgroup2 ", mounts, re.M) is not None
+            return {"execution": "hosted", "cgroup_version": "2" if v2 else "1"}
         out: dict[str, object] = {}
         if engine := self.run(["docker", "version", "--format", "{{.Server.Version}}"]):
             out["docker_engine"] = engine
@@ -465,7 +480,7 @@ def _version(text: object) -> tuple[int, ...]:
     return tuple(int(p) for p in m.group(0).split(".")) if m else ()
 
 
-def check_profile(  # noqa: PLR0912 (one branch per RFC-0006 check)
+def check_profile(  # noqa: PLR0912, PLR0915 (one branch per RFC-0006 check)
     record: Mapping[str, Any],
     profile: ProverProfile,
     *,
@@ -507,12 +522,13 @@ def check_profile(  # noqa: PLR0912 (one branch per RFC-0006 check)
             "PC-CPU-TOTAL",
             f"{cpu.get('logical_cpus')} logical CPUs < {profile.cpu.logical_cpus_total_min}",
         )
-    if mem.get("available_bytes_at_start", 0) < profile.host_memory_gib_min * 1024**3:
-        fail(
-            "PC-MEM",
-            f"{mem.get('available_bytes_at_start')} B available"
-            f" < {profile.host_memory_gib_min} GiB",
-        )
+    quota = cpu.get("cgroup_quota_cpus")
+    if quota is not None and quota < profile.cpu.logical_cpus_on_gpu_numa_node:
+        fail("PC-CPU-QUOTA", f"a CPU quota of {quota} CPUs < the prover's"
+             f" {profile.cpu.logical_cpus_on_gpu_numa_node}")  # fmt: skip
+    usable = min(mem.get("available_bytes_at_start", 0), mem.get("cgroup_limit_bytes", 2**63))
+    if usable < profile.host_memory_gib_min * 1024**3:
+        fail("PC-MEM", f"{usable} B available or allowed < {profile.host_memory_gib_min} GiB")
     free_gib = disk.get("free_bytes_at_start", 0) / 1024**3
     if free_gib < profile.disk.free_gib_min or (
         "nvme" in profile.disk.type.lower() and disk.get("type") != "nvme"
@@ -522,7 +538,11 @@ def check_profile(  # noqa: PLR0912 (one branch per RFC-0006 check)
             f"{free_gib:.1f} GiB free on a {disk.get('type')!r} disk; the profile needs"
             f" {profile.disk.free_gib_min} GiB on {profile.disk.type}",
         )
-    if (osr.get("id"), osr.get("version_id")) != (profile.os.id, profile.os.version_id):
+    hosted = isinstance(profile.container_runtime, HostedRuntime)
+    if not hosted and (osr.get("id"), osr.get("version_id")) != (
+        profile.os.id,
+        profile.os.version_id,
+    ):
         fail(
             "PC-OS",
             f"{osr.get('id')} {osr.get('version_id')}, the profile needs"
@@ -535,6 +555,14 @@ def check_profile(  # noqa: PLR0912 (one branch per RFC-0006 check)
             f"kernel {record.get('kernel', {}).get('release')!r} older than {profile.kernel_min}",
         )
     runtime = profile.container_runtime
+    if isinstance(runtime, HostedRuntime):
+        if box.get("execution") != "hosted":
+            fail("PC-RUNTIME", "the profile needs hosted execution (--hosted)")
+        if box.get("cgroup_version") != runtime.cgroup_version:
+            fail("PC-CGROUP", f"cgroup v{box.get('cgroup_version')}; the profile needs v2")
+        return found
+    if box.get("execution") == "hosted":
+        fail("PC-RUNTIME", "the profile needs docker on the host, not hosted execution")
     if box.get("cgroup_version") != "2" or box.get("cgroup_driver") != runtime.cgroup_driver:
         fail(
             "PC-CGROUP",

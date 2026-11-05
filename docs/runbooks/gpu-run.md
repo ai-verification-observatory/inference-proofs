@@ -30,6 +30,17 @@ The minimum versions come from the release's reference file, for example [`refer
 - The harness runs as root, or as a user allowed to start transient scopes and read the slice's `memory.peak`, `memory.stat`, `cpu.stat` and `memory.events`.
 - Scopes named `iproofs-*-hold.scope` left by a crashed runner are stopped before conformance and logged as `cgroup.stale_cleanup`.
 
+## Hosted execution (`prover-h100-hosted`)
+
+Where a provider rents the H100 only as a container it starts from an image you name, use the `prover-h100-hosted` profile ([RFC-0006 §Hosted execution](../../rfcs/0006-reference-hardware-and-cost.md#hosted-execution)). Nothing above about Docker, systemd scopes or the self-test applies; the steps are:
+
+1. Start the container from the system's pinned image, `<repository>@<digest>` from `systems/<name>/system.yaml`, with one H100 and at least 500 GiB of container disk. A development build goes by its digest too; its runs take `--image <id>` and are never eligible for a release.
+2. Inside it, as root: clone the harness at the release's harness commit and `uv sync --frozen --extra gpu --extra fetch` (the image's `python3` is enough). Set `IPROOFS_CACHE` to a directory on the container disk.
+3. `uv run iproofs machine-record --hosted --gpu 0 --provider <name>` prints the record: `container.execution` is `hosted`, `cpu.cgroup_quota_cpus` and `memory.cgroup_limit_bytes` show what the provider allows, and `gpu.driver_version` must equal the profile's `driver`.
+4. `uv run iproofs fetch-model <workload>`, then `uv run iproofs run --system <name> --workload <workload> --profile prover-h100-hosted --hosted --gpu 0 --provider <name>`.
+
+The hosted runner reads the image's environment from the container's first process and drops the names a provider adds there; it never forwards the provider's keys, ports or addresses to the adapter. Keep no credential in the container: the provider's operator can read it.
+
 ## The calibration self-test (RFC-0011)
 
 Run it on the host before its first run of a release and before each run campaign, after any driver, kernel or Docker change, and whenever a run fails with `environment`:

@@ -21,7 +21,7 @@ def test_reference_valid() -> None:
     assert prover.gpu.count == 1
     assert prover.cpu.logical_cpus_on_gpu_numa_node == 24
     assert verifier.cpu.logical_cpus == 8
-    assert verifier.emulation.allowed_on == ("prover-h100",)
+    assert verifier.emulation.allowed_on == ("prover-h100", "prover-h100-hosted")
     assert ref.cost.price_per_gpu_hour_usd.grade == "asserted"
 
 

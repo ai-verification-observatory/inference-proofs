@@ -145,3 +145,21 @@ def test_repetitions_below_minimum_marked(tmp_path: Path) -> None:
     for d in dirs:
         assert "repetitions_below_minimum" in read(d)["warnings"]  # type: ignore[operator]
     assert [read(d)["repetition"] for d in dirs] == [1, 2]
+
+
+def test_failed_prompt_build_still_names_the_image(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A job that fails while building prompts (a missing extra, here) writes a valid manifest
+    naming its image, not an internal error."""
+    from iproofs import runner as runner_module  # noqa: PLC0415
+    from iproofs.errors import ErrorKind, IProofsError  # noqa: PLC0415
+
+    def missing(*_: object, **__: object) -> list[list[int]]:
+        raise IProofsError(ErrorKind.ENVIRONMENT, "tokenizers is not installed")
+
+    monkeypatch.setattr(runner_module, "materialise_prompts", missing)
+    doc = read(runner().run(spec(tmp_path)))
+    failure = doc["failure"]
+    assert isinstance(failure, dict)
+    assert (doc["status"], failure["kind"]) == ("failed", "environment")

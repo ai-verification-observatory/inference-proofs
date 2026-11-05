@@ -6,6 +6,7 @@ Handlers import their modules lazily, so `iproofs --help` loads no optional extr
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 import traceback
@@ -18,7 +19,7 @@ from iproofs.errors import ErrorKind, IProofsError, Phase, exit_code
 
 if TYPE_CHECKING:
     from iproofs.adapter import ContainerRunner
-    from iproofs.runner import RunnerIdentity
+    from iproofs.runner import Environment, RunnerIdentity
     from iproofs.schema import SchemaRegistry
 
 Handler = Callable[[argparse.Namespace], int]
@@ -100,6 +101,13 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         action="store_true",
         help="run a test system's entrypoint as a local process instead of a container",
     )
+    p.add_argument("--gpu", type=int, metavar="INDEX", help="the bound GPU (NVML index)")
+    p.add_argument(
+        "--hosted",
+        action="store_true",
+        help="the provider started this container from the system's pinned image; run each "
+        "step in it as a process (RFC-0006 §Hosted execution)",
+    )
     p.add_argument("--runner", metavar="HANDLE", help="the runner's declared handle (RFC-0007)")
     p.add_argument("--runner-org", metavar="ORG", help="the runner's declared organisation")
     p.add_argument(
@@ -137,6 +145,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
     p.add_argument("--gpu", type=int, metavar="INDEX", help="the bound GPU (NVML index)")
     p.add_argument("--results", type=Path, default=Path("results"), help="for disk type and space")
+    p.add_argument("--hosted", action="store_true", help="the record of a hosted container")
     p.add_argument(
         "--probe-image",
         metavar="IMAGE_ID",
@@ -311,7 +320,9 @@ def run(args: argparse.Namespace) -> int:
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
-    containers, image, registry = _containers(system_file, args.in_process, args.image)
+    containers, image, registry = _containers(
+        system_file, args.in_process, args.image, hosted=args.hosted
+    )
     wl = load_workload(args.workload, root=root, registry=registry)
     seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
     recompute = load_yaml(system_file).get("reference_role") == "recompute"
@@ -332,6 +343,8 @@ def run(args: argparse.Namespace) -> int:
         replay_seed=seed,
         claims=claims,
         keep_io=args.keep_io,
+        env=_environment(args.gpu, args.hosted),
+        hosted=args.hosted,
     )
     spec = JobSpec(
         args.system,
@@ -371,15 +384,35 @@ def _operator(root: Path, args: argparse.Namespace) -> "RunnerIdentity":
     )
 
 
+def _environment(gpu: int | None, hosted: bool) -> "Environment | None":
+    """The GPU host for `--gpu`; without it, the CPU-only host."""
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import GpuEnvironment  # noqa: PLC0415
+
+    return None if gpu is None else GpuEnvironment(gpu, Host(hosted=hosted))
+
+
+def entrypoint_argv(dockerfile: str) -> list[str]:
+    """The image's ENTRYPOINT, exec form, from the system's Dockerfile (the last one wins)."""
+    found = re.findall(r"^ENTRYPOINT\s+(\[.*\])\s*$", dockerfile, re.M)
+    if not found:
+        raise IProofsError(ErrorKind.CONFIG, "the Dockerfile has no exec-form ENTRYPOINT")
+    argv = json.loads(found[-1])
+    assert isinstance(argv, list)
+    return [str(a) for a in argv]
+
+
 def _containers(
-    system_file: Path, in_process: bool, image_id: str | None = None
+    system_file: Path, in_process: bool, image_id: str | None = None, *, hosted: bool = False
 ) -> tuple["ContainerRunner", str | None, "SchemaRegistry"]:
     """The container runner for a system; in process only for test systems."""
     from iproofs.adapter import (  # noqa: PLC0415
         LOCAL_IMAGE_PREFIX,
         DockerRunner,
+        HostedRunner,
         InProcessRunner,
         check_image,
+        image_environment,
     )
     from iproofs.model import System, load  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
@@ -387,6 +420,13 @@ def _containers(
     registry = SchemaRegistry.from_tree(system_file.parents[2] / "schema")
     system = load(system_file, registry)
     assert isinstance(system, System)
+    if hosted:  # the provider started the pinned image, or the local build named by --image
+        if in_process:
+            raise IProofsError(ErrorKind.CONFIG, "--hosted runs an image; drop --in-process")
+        argv = entrypoint_argv((system_file.parent / "Dockerfile").read_text())
+        environ = image_environment(Path("/proc/1/environ").read_text())
+        local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
+        return HostedRunner(argv, registry, environ), local and check_image(local), registry
     if not in_process:
         local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
         return DockerRunner(registry), local and check_image(local), registry
@@ -579,7 +619,7 @@ def machine_record_command(args: argparse.Namespace) -> int:
     from iproofs.serialize import dumps  # noqa: PLC0415
 
     record = machine_record(
-        Host(),
+        Host(hosted=args.hosted),
         results=args.results if args.results.exists() else Path.cwd(),
         gpu_index=args.gpu,
         cpus={},

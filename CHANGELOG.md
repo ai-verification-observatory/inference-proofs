@@ -8,6 +8,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Methodology
 
+- RFC-0006 §Hosted execution: a prover profile may name a hosted runtime, a container the provider starts from the adapter image with the harness inside it; `iproofs run --hosted --gpu N` runs each step as a process of the image's ENTRYPOINT under the bound CPUs' affinity, as the adapter uid with no capabilities. The network, memory binding and limits are not isolated and are recorded so (`commands[].network: "provider"`). New profile `prover-h100-hosted` in `reference/v0.1.yaml` (driver 610.57.04); new checks PC-CPU-QUOTA and the hosted forms of PC-CGROUP, PC-RUNTIME and PC-MEM.
 - RFC-0003: a workload may pin its tokenizer file from a second repository (`model.tokenizer_source`, with its own revision and sha256) when the weights' repository has none; `model.digest` still covers the weights only. `fetch-model` and the prompt builder fetch and check it alone.
 - RFC-0015: vLLM v0.32.0 pinned for the reference rows (Q1) and teacher-forced argmax through `prompt_logprobs` (Q3); a reference loads only the workload's pinned files (PM-0) and may use the same bit widths in another number format (PM-4), so the SASH reference rows run FP8 W8A8 as a declared substitution (from #257).
 - RFC-0009 Q1: archived proofs are stored in a public dataset repository on the Hugging Face Hub, at URIs pinned to the dataset commit.
@@ -17,6 +18,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- GPU runs: `iproofs run --gpu N` binds the GPU and selects CPUs on its NUMA node (RFC-0006 §CPU and memory selection), and every step is sampled by NVML at 20 Hz with the cgroup counters read over the call (RFC-0011), so the resource metrics of a GPU run are measured. `machine-record --hosted` and the machine record's `container.execution`, `cpu.cgroup_quota_cpus` and `memory.cgroup_limit_bytes` (additive `manifest/1` and `reference/1` changes).
 - Workloads `fp-maverick-w1024-b1` and `fp-maverick-w1024-b24`: the public 4-bit Llama 4 Maverick files FlashProve names, every file hash, the model digest and the tokenizer from a second pinned source (RFC-0003).
 - Workloads `sash-l31-8b-c4096` and `sash-l31-8b-c1024`: Llama-3.1-8B pinned at the revision SASH's runs name, every file hash and the model digest (RFC-0003).
 - `web/`: a first dashboard for the platform (Next.js static export, deployable on Vercel) with the RFC-0009 pages: overview, release, native division with sorted views, systems, workloads, controls, targets, methodology, sponsors. Run values, controls, targets and reproductions are mock data, labelled on every number; upstream figures, the reference price and the RFC list are read from the repository at build time. G3 skips `web/` tool-written JSON and G8 covers the dashboard sources (RFC-0013 text updated).

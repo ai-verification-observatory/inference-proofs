@@ -131,7 +131,7 @@ def test_prompts_from_refuses_another_version_or_a_failed_run(repo: Path, tmp_pa
 
 
 def _in_process_any(  # type: ignore[no-untyped-def]
-    system_file: Path, in_process: bool, image_id: str | None = None
+    system_file: Path, in_process: bool, image_id: str | None = None, *, hosted: bool = False
 ):
     """The CLI runs only test systems in process; this test runs the reference fixture so."""
     from iproofs.adapter import InProcessRunner  # noqa: PLC0415
@@ -191,3 +191,18 @@ def test_agreement_positions() -> None:
     assert got == {"agree": 2, "disagree": 2, "first_disagreement": 1}
     with pytest.raises(IProofsError, match="3 argmax positions for 4 claimed tokens"):
         agreement([1, 2, 3], [1, 2, 3, 4], "req-0")
+
+
+def test_reference_without_a_served_system_is_refused(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RFC-0015 REF-3: a reference row counts tokens by the rule of the proving system the
+    workload lists; without one the job stops at resolve with a config failure."""
+    from iproofs.runner import Runner  # noqa: PLC0415
+
+    monkeypatch.setattr("iproofs.cli._containers", _in_process_any)
+    monkeypatch.setattr(Runner, "_coverage", lambda self, job: None)
+    assert run("fake-ref", repo / "results", "--allow-nonconforming") == 4
+    doc = json.loads((only_run(repo / "results", "fake-ref") / "run.json").read_text())
+    assert doc["failure"]["kind"] == "config"
+    assert "REF-3" in doc["failure"]["message"]

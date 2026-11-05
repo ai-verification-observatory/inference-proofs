@@ -5,6 +5,7 @@ container-side paths (`/io/...`) only, so no host path reaches a record.
 """
 
 import os
+import pwd
 import re
 import stat
 import subprocess
@@ -337,10 +338,7 @@ class InProcessRunner:
     ) -> StepResult:
         """`ro_mounts` cannot be enforced without a container; the harness has already placed
         the recorded copies at those paths."""
-        argv = [sys.executable, str(self.entrypoint), subcommand, "/io/job.json", "/io/out.json"]
-        env = {**os.environ, **self.env, "IPROOFS_IO": str(io_dir)}
-        if models_dir is not None and subcommand != "verify":
-            env["IPROOFS_MODELS"] = str(models_dir)
+        argv, env = self._command(subcommand, io_dir, models_dir, gpu, cpuset, ro_mounts)
         err = Capture()
         start = self.clock()
         proc = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -359,11 +357,111 @@ class InProcessRunner:
         end = self.clock()
         out = read_out(IoDirs(io_dir), self.registry, subcommand) if proc.returncode == 0 else None
         return StepResult(
-            subcommand,
-            start,
-            end,
-            proc.returncode,
-            out,
-            _tail(err.text()),
-            ("in-process", *argv[1:]),
+            subcommand, start, end, proc.returncode, out, _tail(err.text()), self._recorded(argv)
         )
+
+    def _command(
+        self,
+        subcommand: str,
+        io_dir: Path,
+        models_dir: Path | None,
+        gpu: int | None,
+        cpuset: str,
+        ro_mounts: Sequence[tuple[Path, str]],
+    ) -> tuple[list[str], dict[str, str]]:
+        argv = [sys.executable, str(self.entrypoint), subcommand, "/io/job.json", "/io/out.json"]
+        env = {**os.environ, **self.env, "IPROOFS_IO": str(io_dir)}
+        if models_dir is not None and subcommand != "verify":
+            env["IPROOFS_MODELS"] = str(models_dir)
+        return argv, env
+
+    def _recorded(self, argv: list[str]) -> tuple[str, ...]:
+        return ("in-process", *argv[1:])
+
+
+# Names a provider adds to its container's environment (access keys, ports, addresses); the
+# adapter gets the image's own environment, never these (AGENTS.md rule 7).
+PROVIDER_ENV = re.compile(r"^(VAST_|CONTAINER_|PUBLIC_|SSH_|JUPYTER|OPEN_BUTTON|DIRECT_|PORTAL_)"
+                          r"|^(HOSTNAME|GPU_COUNT|NV_GPU)$|KEY|TOKEN|SECRET|PASSW")  # fmt: skip
+
+
+def image_environment(environ: str) -> dict[str, str]:
+    """The environment the image declares, from the container's first process
+    (`/proc/1/environ`), without the provider's additions."""
+    pairs = (e.partition("=") for e in environ.split("\0") if "=" in e)
+    return {k: v for k, _, v in pairs if not PROVIDER_ENV.search(k)}
+
+
+# As root, a hosted call runs as the adapter uid with no capabilities (RFC-0005: --user,
+# --cap-drop ALL and no-new-privileges under docker).
+DROP_TO_ADAPTER = ("setpriv", f"--reuid={ADAPTER_UID}", f"--regid={ADAPTER_UID}", "--clear-groups",
+                   "--inh-caps=-all", "--bounding-set=-all", "--no-new-privs")  # fmt: skip
+
+
+def _traversable(path: Path) -> None:
+    """Search permission for others on `path` and each parent that lacks it, so the adapter uid
+    reaches what a docker bind mount would have given it."""
+    for p in [path.resolve(), *path.resolve().parents]:
+        if not p.exists():
+            continue
+        mode = p.stat().st_mode
+        if not mode & stat.S_IXOTH and p.stat().st_uid == os.geteuid():
+            try:
+                p.chmod(stat.S_IMODE(mode) | stat.S_IXOTH)
+            except OSError:  # a protected system directory: the adapter's error will name it
+                continue
+
+
+class HostedRunner(InProcessRunner):
+    """RFC-0006 §Hosted execution: the provider has started the adapter image and the harness
+    runs inside it, so each call runs the image's ENTRYPOINT as a process. CPU binding is the
+    scheduler affinity (`taskset`); as root, the call drops to the adapter uid with no
+    capabilities and the recorded commitment copies become root-owned and read-only. Not
+    enforced here, and recorded as such: the network (`provider`), memory binding and limits,
+    and a read-only root filesystem."""
+
+    def __init__(
+        self,
+        entrypoint: Sequence[str],
+        registry: SchemaRegistry,
+        environ: Mapping[str, str],
+        clock: Callable[[], int] = time.monotonic_ns,
+    ) -> None:
+        super().__init__(Path(entrypoint[-1]), registry, env=environ, clock=clock)
+        self.argv = list(entrypoint)
+
+    def _command(
+        self,
+        subcommand: str,
+        io_dir: Path,
+        models_dir: Path | None,
+        gpu: int | None,
+        cpuset: str,
+        ro_mounts: Sequence[tuple[Path, str]],
+    ) -> tuple[list[str], dict[str, str]]:
+        give_io_to_adapter(io_dir)
+        for path in (io_dir, models_dir):  # docker mounts them; here their parents must open
+            if path is not None:
+                _traversable(path)
+        root = os.geteuid() == 0
+        for host, _ in ro_mounts:
+            for path in [host, *host.rglob("*")] if host.is_dir() else [host]:
+                if root:
+                    os.chown(path, 0, 0)
+                path.chmod(0o555 if path.is_dir() else 0o444)
+        env = {**self.env, "IPROOFS_IO": str(io_dir), "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+               "CUDA_VISIBLE_DEVICES": "" if gpu is None or subcommand not in GPU_STEPS
+               else str(gpu)}  # fmt: skip
+        if models_dir is not None and subcommand != "verify":
+            env["IPROOFS_MODELS"] = str(models_dir)
+        drop = [*DROP_TO_ADAPTER] if root else []
+        if root:  # docker --user sets HOME from the image's passwd entry, or / without one
+            try:
+                env["HOME"] = pwd.getpwuid(int(ADAPTER_UID)).pw_dir
+            except KeyError:
+                env["HOME"] = "/"
+        argv = ["taskset", "-c", cpuset, *drop, *self.argv]
+        return [*argv, subcommand, "/io/job.json", "/io/out.json"], env
+
+    def _recorded(self, argv: list[str]) -> tuple[str, ...]:
+        return ("hosted", *argv)
