@@ -36,7 +36,7 @@ RUN test "$(git -C /src rev-parse HEAD)" = 9e2bdd8ff5bf9c62f18263d7dac189b0400b2
  && python3 -m pip install --no-cache-dir --require-hashes --target=/opt/cuda-13.2.86 \
     --requirement=/fetch/cuda-requirements.txt \
  && UV_PYTHON_INSTALL_DIR=/opt/python uv venv --no-cache --python 3.13 /opt/fp-venv \
- && uv pip install --no-cache --python /opt/fp-venv/bin/python --require-hashes \
+ && uv pip install --no-cache --python=/opt/fp-venv/bin/python --require-hashes \
     --requirement /src/requirements.txt \
  && chmod -R a+rX /opt/python /opt/fp-venv /fetch/calibration
 
