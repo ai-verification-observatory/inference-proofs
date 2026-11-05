@@ -1,0 +1,768 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 217845079667029
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 217845144049205
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 217845177743027
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 217845241889363
+    },
+    {
+      "event": "prove.start",
+      "mono_ns": 217845265331068
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 217909428544461
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 217906736984635
+    }
+  ],
+  "failure": null,
+  "metrics": {
+    "active_param_tokens_per_second_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/rate_prove.session",
+          "workloads/sash-l31-8b-c1024.yaml#/model/parameters/active_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 142129318650.93454
+    },
+    "active_param_tokens_per_second_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/rate_prove.steady",
+          "workloads/sash-l31-8b-c1024.yaml#/model/parameters/active_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": null
+    },
+    "active_param_tokens_per_second_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/rate_whole_wall",
+          "workloads/sash-l31-8b-c1024.yaml#/model/parameters/active_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": null
+    },
+    "commit_seconds": {
+      "grade": "measured",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": null
+    },
+    "commit_seconds_per_token_h1": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/commit_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "commit_seconds_per_token_h1000": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/commit_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1000@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "cost_per_1k_tokens_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/seconds_per_token_prove.session",
+          "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.0673287872248851
+    },
+    "cost_per_1k_tokens_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/seconds_per_token_prove.steady",
+          "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": null
+    },
+    "cost_per_1k_tokens_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/seconds_per_token_whole_wall",
+          "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": null
+    },
+    "info_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064382176
+    },
+    "proof_bytes_per_token": {
+      "grade": "derived",
+      "null_reason": "missing_input",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/proof_bytes_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-BPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "B/token",
+      "value": null
+    },
+    "proofs_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 1
+    },
+    "prove_call_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 64.163213393
+    },
+    "prove_cpu_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 87.668091
+    },
+    "prove_gpu_energy": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "J",
+      "value": 7284.602
+    },
+    "prove_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": 74738.5625
+    },
+    "prove_gpu_util_mean": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 1.6221335235847676
+    },
+    "prove_gpu_util_p95": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 14.0
+    },
+    "prove_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 2562740224
+    },
+    "prove_host_memory_peak_kernel": {
+      "grade": "measured",
+      "null_reason": "not_measurable_on_profile",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": null
+    },
+    "prove_session_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 61.471653567
+    },
+    "prove_steady_seconds": {
+      "grade": "measured",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": null
+    },
+    "rate_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/prove_session_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 17.699214790344833
+    },
+    "rate_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_steady",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/prove_steady_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": null
+    },
+    "rate_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/whole_wall_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": null
+    },
+    "requests_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 1
+    },
+    "seconds_per_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/prove_session_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.05649968158731617
+    },
+    "seconds_per_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": "not_externally_observable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/prove_steady_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_steady"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "seconds_per_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/whole_wall_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "setup_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064146336
+    },
+    "tokens_covered_output": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 64
+    },
+    "tokens_covered_prompt": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 1024
+    },
+    "tokens_covered_steady": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 0
+    },
+    "tokens_covered_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 1088
+    },
+    "verdicts_accept_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 0
+    },
+    "verify_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": "missing_input",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "verify",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/verify_seconds_total",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "verify_single_thread_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": "missing_input",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "verify.single_thread",
+      "source": {
+        "inputs": [
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/metrics/verify_single_thread_seconds",
+          "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/proofs/0/tokens_covered"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT-1T@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": null
+    },
+    "whole_wall_seconds": {
+      "grade": "measured",
+      "null_reason": "not_applicable",
+      "quality": {
+        "precision_substituted": true
+      },
+      "scope": "whole_wall",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/ref-serve/2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": null
+    }
+  },
+  "profile": "prover-h100-hosted",
+  "proofs": [
+    {
+      "claimed_output": [
+        11,
+        323,
+        856,
+        7126,
+        11,
+        824,
+        47444,
+        198,
+        9210,
+        358,
+        574,
+        539,
+        304,
+        264,
+        1614,
+        311,
+        387,
+        93469,
+        449,
+        11,
+        59477,
+        311,
+        33147,
+        279,
+        3917,
+        382,
+        5159,
+        7126,
+        11,
+        889,
+        1047,
+        520,
+        1176,
+        10825,
+        311,
+        19780,
+        757,
+        311,
+        9635,
+        11,
+        574,
+        198,
+        67,
+        1430,
+        1171,
+        505,
+        433,
+        555,
+        813,
+        18547,
+        922,
+        856,
+        2890,
+        13,
+        1283,
+        574,
+        16984,
+        430,
+        279,
+        198,
+        3455,
+        315,
+        10182,
+        323
+      ],
+      "proof_id": "req-0",
+      "release_mono_ns": 217906736984635,
+      "request_index": 0,
+      "tokens_covered": 1088,
+      "verdict": null
+    }
+  ],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 3,
+  "replaces": null,
+  "run_id": "2026-11-05-ref-serve-sash-l31-8b-c1024-prover-h100-hosted-6",
+  "schema": "run/1",
+  "status": "completed",
+  "system": "ref-serve",
+  "system_kind": "reference",
+  "warnings": [],
+  "workload": {
+    "id": "sash-l31-8b-c1024",
+    "version": 1
+  }
+}
