@@ -1,0 +1,27 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "rm -rf public && mkdir public && cp *.html words.css words.js public/",
+  "cleanUrls": true,
+  "framework": null,
+  "headers": [
+    {
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ],
+      "source": "/(.*)"
+    }
+  ],
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+  "outputDirectory": "public"
+}

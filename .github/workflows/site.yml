@@ -1,0 +1,30 @@
+# The public site, prototypes/words. Vercel deploys it to www.inferenceproofs.ai on every commit to
+# main that changes this folder (prototypes/words/vercel.json: ignoreCommand). It serves the pages
+# as committed, so this check holds them to what build.py writes from _data/: a pull request whose
+# pages are stale, or whose sort keys fail their test, does not pass. No secrets, no upload.
+name: site
+
+on:
+  pull_request:
+    paths: ["prototypes/words/**", ".github/workflows/site.yml"]
+  push:
+    branches: [main]
+    paths: ["prototypes/words/**", ".github/workflows/site.yml"]
+
+permissions:
+  contents: read
+
+jobs:
+  built:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: the build and its sort-key test
+        working-directory: prototypes/words
+        run: |
+          python3 --version
+          python3 -I build.py
+          python3 -I test_sort_keys.py
+      - name: the committed pages are the built pages
+        run: git diff --exit-code --stat -- prototypes/words
