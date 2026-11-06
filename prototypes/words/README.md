@@ -1,8 +1,8 @@
 # Made of words (prototype site)
 
-A static prototype of the public site. Draft criteria, prototype only, needs an RFC (RFC-0001). Every run-here value and every benchmark result here is invented for layout and marked MOCK. Quotes, model sizes and each system's published figures come from the data and are real.
+A static prototype of the public site. Draft criteria, prototype only, needs an RFC (RFC-0001). The site shows only the benchmark's own runs. **Every benchmark result in this prototype is a placeholder** from the data fixture; the pages do not mark them, because the published site will only ever show real runs. Model sizes, pins and workloads come from the data and are real.
 
-Four static pages built from two data files: `index.html` (the overview), `flashprove.html` and `sash.html` (one page per benchmarked system), `reference.html` (the reference rows), and `system.html` (a redirect to the first system page).
+Four static pages built from two data files: `index.html` (the overview), `flashprove.html` and `sash.html` (one page per benchmarked system), `reference.html` (the two references) and `system.html` (a redirect to the first system page).
 
 ## Build and check
 
@@ -11,57 +11,70 @@ From this folder:
 ```
 python3 -I build.py                      # writes the five HTML files and the contrast table below
 python3 test_sort_keys.py                # or: python3 -m pytest test_sort_keys.py
-python3 -m http.server 4421 --bind 127.0.0.1 --directory .
+python3 -m http.server 4440 --bind 127.0.0.1 --directory .
 PLAYWRIGHT_MODULE=<path to playwright/index.mjs> \
 AXE_MODULE=<path to @axe-core/playwright/dist/index.mjs> \
-BASE=http://127.0.0.1:4421/ node shoot.mjs    # screenshots and checks into shots/ (shots/checks.txt)
+BASE=http://127.0.0.1:4440/ node shoot.mjs    # screenshots and checks into shots/ (shots/checks.txt)
 ```
 
-`PLAYWRIGHT_MODULE` and `AXE_MODULE` default to the package names `playwright` and `@axe-core/playwright`, so with both installed next to the scripts the two variables can be left out. `node peek.mjs <page> <width> <height> <out.png> [1 for full page] [script]` takes one screenshot. `shoot.mjs` exits non-zero when any check fails.
+`PLAYWRIGHT_MODULE` and `AXE_MODULE` default to the package names `playwright` and `@axe-core/playwright`. In this repository they are installed under `prototypes/_tools/node_modules/`. `node peek.mjs <page> <width> <height> <out.png> [1 for full page] [script]` takes one screenshot. `shoot.mjs` exits non-zero when any check fails.
+
+## Deploy
+
+www.inferenceproofs.ai serves this folder from Vercel's Git integration, once the Vercel project's Root Directory is `prototypes/words` (a setting in the Vercel project, not in this repository). `vercel.json` here does the rest:
+
+- `ignoreCommand`: `git diff --quiet HEAD^ HEAD -- .` skips a deployment when the commit (on main, the merge commit against its first parent) does not change this folder.
+- `buildCommand`: no build on Vercel; it copies the committed pages, `words.css` and `words.js` into `public/`, the only folder served. The data, scripts, screenshots and README are not.
+- `cleanUrls`, and the headers of the previous site, `noindex` included while the results are placeholders.
+
+The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request that touches this folder it runs `build.py` and `test_sort_keys.py` and fails if the committed files differ from what the build writes.
 
 ## Data
 
-`build.py` reads only `_data/site.json` and `_data/criteria.json`, found relative to its own file. Both files are in the repository's canonical JSON form (`iproofs fmt`); the footer prints the `criteria.json` hash that `site.json` recorded when it was built. The build stops if a pie's states differ from `criteria.json`, if a state ink steps less than 1.7:1 from the one below, if a text pair falls under 4.5:1, or if a home figure's sort key disagrees with the number the figure prints. Every value, label, quote, pin, hash and data sentence on the pages comes from the data. The build computes only pie geometry, sort keys and the contrast table. `words.js` and `words.css` hold no data.
+`build.py` reads only `_data/site.json` and `_data/criteria.json`, found relative to its own file. It stops if a pie's states differ from `criteria.json`, if a state ink steps less than 1.7:1 from the one below, if a text pair falls under 4.5:1, if a home figure's sort key disagrees with the number the figure prints, or if the default model does not name exactly one workload. Every value, label, pin and hash on the pages comes from the data. The build computes only pie geometry, sort keys and the contrast table. `words.js` and `words.css` hold no data.
 
-Three data sentences are not printed: "These tests show only what happened to these attempts, nothing more." (tamper tests), "Printed as text." (inside one of our notes) and "Run-here values are MOCK: never set them against a published figure." (every run-here value carries its own MOCK chip, and the sentence made the table jump when the view changed). "Native workloads differ: rows are not a head-to-head comparison." is printed only where rows sit side by side: the Benchmarked table and the reference page.
+What the pages leave out of the data, on purpose:
+
+- The systems' own published figures and every quote. The benchmark measures; who said what is not shown. The pie's states and our short reasons stay.
+- Every placeholder marking: MOCK chips, the placeholder banner, and the parts of the data's label text that speak of mock values (a " · "-separated segment, or a clause of a sentence, that says mock; `clean` and `clean_prose` in `build.py`). A label left empty by that is not printed.
+- The references' rows per model. Each reference is one row (`ref_summary` in `build.py`): a figure the models share is printed once; where they differ, the one that holds a value (plain serving's overhead is 1× by definition, run or not); what one proof covers, stored as "same as above", reads "Same as the system" with its rule (RFC-0015 REF-3).
+- Two data sentences: "These tests show only what happened to these attempts, nothing more." and "Printed as text.".
+
+## Models
+
+Each system is shown on the biggest model it runs, by total parameters in its workload records (`biggest_workload` in `build.py`; the build stops if a system's home row runs a smaller one). Rows are set side by side only within one model, and the models follow each other, biggest first: Llama 4 Maverick (FlashProve), then Llama 3.1 8B (SASH).
 
 ## Design
 
-Dark ground, paper text. Violet is the benchmark's own frame: the six properties and page titles, never a value or a state. Green, amber, red and empty mean Yes, Partly, No and Not stated, and appear only in pie slices and state squares. The paper chip is MOCK. Archivo for display, IBM Plex Mono for data and quotes. No cards, shadows or double rules; no helper sentences, taglines or captions.
+Dark ground, paper text. Violet is the benchmark's own frame: the six properties and page titles, never a value or a state. Green, amber, red and empty mean Yes, Partly, No and Not stated, and appear only in pie slices and state squares. Archivo for display, IBM Plex Mono for data. No cards, shadows or double rules; no helper sentences, taglines or captions.
 
-Each system is a flat pie of six slices, one per property, clockwise from twelve: Weights hidden, Model bound, Whole output proved, Formally verified, Security level, No trusted party. The properties carry no numbers anywhere, visible or spoken, so they do not read as a sequence.
+Each system is a flat pie of six slices, one per property, clockwise from twelve: Weights hidden, Model bound, Whole output proved, Formally verified, Security level, No trusted party. The properties carry no numbers anywhere.
 
-### Overview header
+### Overview
 
-A plain legend on the violet field: six small key pies (each with its own slice filled in paper), the property name and its question, the states key and the draft-criteria link. Nothing in it reacts to the pointer: no buttons, no hover or pressed states, no script. 276 px tall at 1440 px wide; the six questions share one top line. Below 560 px it is one compact line per property (22 px key pie, name, question), so the first system's name shows on a 390 x 844 screen without scrolling.
+1. A plain legend on the violet field: six small key pies, each property's name and question, the states key and the draft-criteria link. Nothing in it reacts to the pointer.
+2. One section per model, biggest first: the model's name, its workload in one line, and a sortable table of the systems on it (pie, name, model and pin, then One proof covers, Proof size, Check time, Overhead). Each figure links to its plate on the system page and shows its sample size and range when it has them.
+3. **References**, after the models: two rows, plain serving and a rerun by a weights holder, on the same columns. Not sorted.
+4. **Not benchmarked yet**: a compact grid, A to Z, of pie, name, models and status.
 
-### Overview rows
-
-Each row: the pie, the system name (both link to the system page), the model and pinned commit, then the four figures with their label lines. Each figure links to its plate on the system page, and its full label line is in its `title`. A figure with a stored spread always shows its sample size (with failed runs) and range first, e.g. SASH run here: "n = 3 runs, n_failed = 1", "119.8 s to 122.6 s". Pointing at a slice with a mouse lifts that slice (the others keep their ink) and shows the property's name and state in a small positioned label under the pie, so nothing moves. Touch screens show no label. There is no per-row readout block.
+Pointing at a row's slice with a mouse lifts it (the others keep their ink) and shows its name and state under the pie.
 
 ### Sorting
 
-The Benchmarked table sorts on System (A to Z, Z to A) and on each figure column: One proof covers, Proof size, Check time, Overhead.
+The column heads are the only sort control, and one order applies to every model's table. Each head is a button with a glyph: ↕ idle, ↑ or ↓ when it sorts, a second press reverses. The sorting head is in paper with a rule under it and its cell has `aria-sort`; the order is also named for screen readers ("Proof size, large to small", from the data's direction words). Below 920 px the heads wrap into a strip of the same buttons above the rows.
 
-- Every column head is a button with a glyph: ↕ when idle, ↑ or ↓ when it sorts the table. The sorting head is in paper with a rule under it, and its header cell has `aria-sort`. A second press reverses the order.
-- The Sort control (a native select) above the table names the order in words, from the data's own direction words: "Proof size, small to large", "Overhead, closer to plain serving first", and so on. Below 920 px the heads are hidden, the control stays, and each row's sorted figure label turns paper and carries the glyph.
-- The order is kept in the hash, with the view when it is Run here: `#sort=proof_size-desc`, `#sort=check_time-desc&view=run`. The default (System, A to Z, published values) has no hash. An unknown order in a link falls back to the default and the hash is rewritten to match. The draft-criteria link scrolls to the footer without replacing the hash, so a sorted link survives it.
-- Sorting uses the values of the current view. Switching between Published by each system and Run here (MOCK) re-sorts.
-- A figure with no number (Not published, No value) goes last in both directions. Ties fall back to the name.
-- Rows move to their new place in 200 ms (FLIP), and at once under reduced motion.
-- Neutral: no rank numbers, no medals, no ranking words. "Native workloads differ: rows are not a head-to-head comparison." stays directly above the sorted table, beside the Sort control.
+- The order is kept in the hash: `#sort=proof_size-desc`. The default (System, A to Z) has no hash; an unknown order falls back to it.
+- A figure with no number goes last in both directions. Ties fall back to the name.
+- Rows move in 200 ms (FLIP), at once under reduced motion.
+- Neutral: no rank numbers, medals or ranking words.
 
-Sort keys are computed, never typed. For each prover row, view and column, `build.py` takes the raw number from the axis chart that plots that figure (`axes.<axis>.charts[<chart>].views.<view>.rows[].value` in `site.json`) and multiplies it into one base unit by the chart's declared unit (bytes for proof size, seconds for check time, positions for coverage, a plain ratio for overhead). The keys go on each row as `data-k`. The build also parses each printed figure ("18.78 MB", "1,583×") only to check that the raw number rounds to it; the printed text is never a key. `test_sort_keys.py` checks the keys against hand-computed cases (18.78 MB < 19.83 GB, 16.84 s < 119.1 s, missing overheads), the unit table, and the data's own precomputed sort orders.
-
-Not sortable, by design: the Reference table. Its cells have no raw number in the data ("same as above", "No proof", "Does not apply", "1× by definition"), so it keeps the data's order. The Not benchmarked yet tab has no figures.
+Sort keys are computed, never typed: for each row and column, `build.py` takes the raw number from the axis chart that plots that figure (`axes.<axis>.charts[<chart>].views.run.rows[].value`) and multiplies it into one base unit by the chart's declared unit. The printed figure is parsed only to check that the raw number rounds to it. `test_sort_keys.py` checks the keys against hand-computed cases, the unit table, the data's own sorted orders, the model order and the reference figure.
 
 ### System pages
 
-The large pie with quotes inside is gone. The page opens on the violet field with the system name, the pinned repository and in-page links (Properties, Figures, Tamper tests, Sources). Then the system's own quote with its source, beside its facts (kind, model, repository, licence, status).
+The violet band holds the name. Below it, one screen: the pie (200 px) in the middle with each property beside its own slice, slices 1 to 3 on its right and 4 to 6 on its left, top to bottom. Each property shows its name, state and our short reason (left out when it only repeats Not stated). Pointing at a property lifts its slice; pointing at a slice marks its property. Beside the pie, the facts: kind, model, pinned repositories, licence, status, adapter notes. Below 1240 px the facts move under the pie; on phones the pie sits on top with its left-hand and right-hand properties in two columns under it.
 
-What one proof establishes is one view, with everything visible at once: a 168 px pie, sticky beside six lines. Each line has a small key pie drawn like the header legend (its slice in paper), the property name and question, the state and our short reason, and the decisive verbatim quote with its source link (or what was read, when silent). When a property is Not stated, the generic reason ("Not stated in the pinned repositories.") is left out: the state word and "Silent in the N sources read" already say it. Further quotes, our notes and the system's own notes outside the pin go into one `details` per line. The summary names what is inside, with the data's own outside-pin line in muted text and no state colour ("Outside the pin, SASH's own note says: Partly (not counted)"); the coloured state and its reason appear only inside. Pointing at a line lifts its slice on the pie (CSS only).
-
-Figures follow: the published or run-here view, four plates with every label (spread, as published, scope, grade, checked, workload, source and caveats), more numbers, tamper tests (MOCK) with the control test, and sources and pins. The reference page uses the same property view and plates for each reference system.
+Then the figures (four plates with every label: spread, scope, grade, checked, workload, source and caveats; more numbers in a table) and the tamper tests with the control test. The reference page uses the same layout for each reference, with one set of figures.
 
 ## Inks and contrast (computed by `build.py`)
 
@@ -86,23 +99,14 @@ Figures follow: the published or run-here view, four plates with every label (sp
 
 ## Files
 
-- `build.py`: the pages, the sort keys and the contrast table. `test_sort_keys.py`: the sort-key test, and the spread shown on every home figure that stores one.
+- `build.py`: the pages, the sort keys and the contrast table. `test_sort_keys.py`: the sort keys, the model order, the reference figure and the spread shown on every home figure that stores one.
 - `words.css`, `words.js`: style and behaviour, no data.
-- `shoot.mjs`: screenshots and checks: horizontal overflow at 360 and 390 px (every page and tab) and 768 to 1100 px, clipped figures, CLS on load and after sorting, a static header, row hover without shift, sort order for every column, direction and view (missing values last), hash round-trip (unknown order and the draft link included), a table that stays put when the view changes, sample size and range on every run figure that has them, the first system name on landing at 390 px, keyboard sorting, the cut sentences, ranking words in the site's controls, numbered property names, dead local links, console errors, and axe on every page (1440 and 390 px, home tabs and sorted run view). `peek.mjs`: one screenshot.
-- `_data/`: `site.json` and `criteria.json`, a frozen snapshot from the prototype data pipeline (MOCK benchmark fixtures; quotes and published figures at their pins). The generator is not part of this folder.
+- `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table per model, biggest first, references after them; a static header; row hover without shift; sort order for every column and direction from the heads (missing values last), the hash round-trip and keyboard sorting; overflow at 360 to 1100 px on every page; CLS; the first system name on landing at 390 px; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
+- `_data/`: `site.json` and `criteria.json`.
 - `shots/`: screenshots and `checks.txt`.
 
 ## Open
 
-- The reference table cannot be sorted until the data stores raw numbers for its cells.
-- The Sort select is as wide as its longest option ("Overhead, further from plain serving first"), so it does not change width as the order changes. The direction words come from the data (`overview.sort_keys[].dir_words` in `site.json`); making them one pattern ("low to high", "few to many") is a change to the data generator, not to this folder.
-- The phone system page puts the pie above the six lines rather than beside them.
-
-## Critique
-
-- Sorting is visible in three places at 1440 px: the Sort select, the column-head glyphs and the paper rule under the active head. That is one control too many for two rows; it earns its place once more systems are benchmarked.
-- The desktop table shows the sorted column only in its 12 px head. Phones mark each row's figure label instead, because they have no heads.
-- The phone header is still about 400 px tall. The first system's name shows on landing at 390 x 844, its pie only in part.
-- The option words mix two patterns ("small to large", "fewer positions first") and "plain serving" is named on the Reference tab, not on the Benchmarked one. Both come from the data generator.
-- The property view's 26 px key pie is quiet at 1x; the state square beside it carries the state.
-- With two benchmarked systems, the sort changes little on screen. The checks run every column, direction and view, but the design has not been seen with ten rows.
+- Each model's table has one row today; sorting shows its value once two systems run the same model.
+- The pie's states still come from reading each system's documentation (the criteria in `criteria.json`). Showing them as measured needs checks of our own per property; until then the reason line is ours and the quotes are left out.
+- The direction words come from the data generator (`prototypes/v7/_data/overview.py`) and mix two patterns ("small to large", "fewer positions first").

@@ -1,7 +1,7 @@
 // One-shot screenshot: node peek.mjs <page> <width> <height> <out.png> [full: 1] [js to run first]
 // PLAYWRIGHT_MODULE: path to playwright's index.mjs (default: the "playwright" package). BASE: the server.
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
-const BASE = process.env.BASE || 'http://127.0.0.1:4421/';
+const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 const [pg, w, h, out, full, js] = process.argv.slice(2);
 const b = await chromium.launch();
 const ctx = await b.newContext({ viewport: { width: +w, height: +h } });

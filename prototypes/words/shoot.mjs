@@ -6,7 +6,7 @@ import fs from 'node:fs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 let AxeBuilder = null;
 try { AxeBuilder = (await import(process.env.AXE_MODULE || '@axe-core/playwright')).default; } catch (_) { /* reported below */ }
-const BASE = process.env.BASE || 'http://127.0.0.1:4421/';
+const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
 const PAGES = ['index.html', 'flashprove.html', 'sash.html', 'reference.html'];
@@ -41,135 +41,111 @@ async function full(p, path) {
   await p.screenshot({ path });
   await p.setViewportSize(vp);
 }
-const order = (p) => p.evaluate(() => [...document.querySelectorAll('#panel-benchmarked .row')].map((r) => r.id));
+// one order for every model's table: the rows of each table, table after table
+const order = (p) => p.evaluate(() => [...document.querySelectorAll('.tbl')].map((t) => [...t.querySelectorAll('.rows > .row')].map((r) => r.id)));
 // the expected order, computed here from data-k, independently of words.js
-const expected = (p, col, dir, view) => p.evaluate(([col, dir, view]) => {
-  const rows = [...document.querySelectorAll('#panel-benchmarked .row')].map((r) => ({ id: r.id, name: r.dataset.name, k: JSON.parse(r.dataset.k)[view][col] }));
+const expected = (p, col, dir) => p.evaluate(([col, dir]) => [...document.querySelectorAll('.tbl')].map((t) => {
+  const rows = [...t.querySelectorAll('.rows > .row')].map((r) => ({ id: r.id, name: r.dataset.name, k: JSON.parse(r.dataset.k)[col] }));
   const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
   if (col === 'system') return rows.sort((a, b) => (dir === 'asc' ? 1 : -1) * byName(a, b)).map((r) => r.id);
   const have = rows.filter((r) => r.k != null).sort((a, b) => (dir === 'asc' ? a.k - b.k : b.k - a.k) || byName(a, b));
   const none = rows.filter((r) => r.k == null).sort(byName);
   return [...have, ...none].map((r) => r.id);
-}, [col, dir, view]);
+}), [col, dir]);
 const sortState = (p) => p.evaluate(() => ({
-  sel: document.querySelector('#sort').value,
-  aria: [...document.querySelectorAll('.hc[aria-sort]')].map((h) => `${h.dataset.col}:${h.getAttribute('aria-sort')}`),
+  aria: [...new Set([...document.querySelectorAll('.hc[aria-sort]')].map((h) => `${h.dataset.col}:${h.getAttribute('aria-sort')}`))],
+  heads: document.querySelectorAll('.hc[aria-sort]').length,
   glyphs: [...document.querySelectorAll('.hc .g')].map((g) => g.textContent).join(''),
   hash: location.hash,
-  run: document.body.classList.contains('view-run'),
 }));
+// click a head until it sorts the wanted way
+const sortBy = async (p, col, dir) => {
+  for (let i = 0; i < 2; i++) {
+    const s = await sortState(p);
+    if (s.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`) return;
+    await p.locator(`.tbl .sb[data-col="${col}"]`).last().click(); await p.waitForTimeout(260);
+  }
+};
 
-// ---------------------------------------------------------------- home 1440: header, rows, hover
+// ---------------------------------------------------------------- home 1440: header, sections, hover
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   await p.screenshot({ path: OUT + 'home-1440.png' });
+  await full(p, OUT + 'home-1440-full.png');
   const mast = await p.evaluate(() => Math.round(document.querySelector('.mast').getBoundingClientRect().height));
   log('home-1440 header height', mast, 'px');
   ok(await cls(p) === 0, 'home-1440 CLS on load is 0');
   ok((await p.locator('.mast button, .mast [tabindex], .mast [aria-pressed]').count()) === 0, 'header has no buttons or pressable elements');
-  ok((await p.locator('.mast a').count()) === 1, 'header holds one link (the draft-criteria link)');
   const snap = () => p.evaluate(() => [...document.querySelectorAll('.mast *')].map((n) => { const s = getComputedStyle(n); return s.color + s.backgroundColor + s.transform + s.fill + s.textDecorationThickness; }).join('|'));
   const s0 = await snap();
   for (const q of await p.locator('.mast .q').all()) { await q.hover(); await p.waitForTimeout(80); }
   ok(s0 === await snap(), 'pointing at header properties changes nothing');
-  ok((await p.locator('.rd, .lay').count()) === 0, 'no per-row readout block');
+  const shape = await p.evaluate(() => ({
+    select: document.querySelectorAll('select, #sort, .sortc').length,
+    toggles: document.querySelectorAll('[aria-pressed], [role=tab], .vk').length,
+    quotes: document.querySelectorAll('blockquote').length,
+    tables: [...document.querySelectorAll('.bench')].map((s) => `${s.querySelector('h2').textContent}:${[...s.querySelectorAll('.tbl .row')].map((r) => r.id).join('+')}`),
+    refs: [...document.querySelectorAll('.refs .row')].map((r) => r.id),
+    wip: document.querySelectorAll('#wip, .wip, .mwip').length + (/work in progress/i.test(document.body.innerText) ? 1 : 0),
+    sameAsAbove: /same as above/i.test(document.body.innerText),
+    nb: document.querySelectorAll('#not-yet .nb').length,
+    sections: [...document.querySelectorAll('main .sec')].map((s) => s.id),
+  }));
+  ok(shape.select === 0 && shape.toggles === 0, 'no sort control, no view toggle, no tabs', shape);
+  ok(shape.quotes === 0, 'no quotes on the home');
+  ok(shape.tables.join() === 'Llama 4 Maverick:flashprove,Llama 3.1 8B:sash' && shape.wip === 0, 'one table per model, biggest model first; no work-in-progress label', shape.tables);
+  ok(shape.refs.join() === 'ref-serve,ref-recompute' && !shape.sameAsAbove, 'two reference rows after the models, no "same as above"', shape.refs);
+  ok(shape.sections.join() === 'llama-4-maverick,llama-3-1-8b,references,not-yet' && shape.nb === 19, 'sections in order, 19 not benchmarked yet', shape.sections);
   // row slice hover: lift and a positioned label; no row moves; the other slices keep their ink
-  const h0 = await p.evaluate(() => [...document.querySelectorAll('.row')].filter((r) => r.offsetParent).map((r) => r.getBoundingClientRect().height));
-  const pie = await p.locator('#sash .pie').boundingBox();
+  const h0 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
+  const pie = await p.locator('#flashprove .pie').boundingBox();
   await p.mouse.move(pie.x + pie.width * 0.8, pie.y + pie.height * 0.5); await p.waitForTimeout(400);
-  const tip = await p.evaluate(() => { const t = document.querySelector('#sash .tip'); return { shown: getComputedStyle(t).display !== 'none', text: t.textContent, pos: getComputedStyle(t).position }; });
+  const tip = await p.evaluate(() => { const t = document.querySelector('#flashprove .tip'); return { shown: getComputedStyle(t).display !== 'none', text: t.textContent, pos: getComputedStyle(t).position }; });
   ok(tip.shown && tip.pos === 'absolute' && tip.text.length > 3, 'row slice hover shows its name and state', tip.text);
-  await p.screenshot({ path: OUT + 'home-1440-hover.png' });
-  const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].filter((r) => r.offsetParent).map((r) => r.getBoundingClientRect().height));
+  const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
-  ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].filter((s) => s.closest('.row').offsetParent).every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
+  ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
+  const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: n = /.test(a.title))
+    .map((a) => /n = \d+ runs/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
+  ok(spreads.length === 4 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);
   await ctx.close();
 }
 
-// ---------------------------------------------------------------- sorting: every column, both directions, both views
+// ---------------------------------------------------------------- sorting by the column heads: every column, both directions
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc', 'published')), 'default order is System A to Z', await order(p));
   const st0 = await sortState(p);
-  ok(st0.sel === 'system-asc' && st0.aria.join() === 'system:ascending' && st0.hash === '', 'default state: select, aria-sort, empty hash', st0);
-  const cols = ['system', 'covers', 'proof_size', 'check_time', 'overhead'];
-  for (const view of ['published', 'run']) {
-    await p.click(`.vk[data-view="${view}"]`); await p.waitForTimeout(150);
-    for (const col of cols) {
-      for (const dir of ['asc', 'desc']) {
-        await p.selectOption('#sort', `${col}-${dir}`); await p.waitForTimeout(260);
-        const got = await order(p);
-        const want = await expected(p, col, dir, view);
-        const st = await sortState(p);
-        const lastMissing = await p.evaluate(([col, view]) => {
-          if (col === 'system') return true;
-          const ks = [...document.querySelectorAll('#panel-benchmarked .row')].map((r) => JSON.parse(r.dataset.k)[view][col]);
-          const firstNull = ks.findIndex((k) => k == null);
-          return firstNull === -1 || ks.slice(firstNull).every((k) => k == null);
-        }, [col, view]);
-        ok(JSON.stringify(got) === JSON.stringify(want) && lastMissing && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`,
-          `sort ${view} ${col} ${dir}`, { got, missing_last: lastMissing, hash: st.hash, glyphs: st.glyphs });
-      }
+  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === 2 && st0.hash === '', 'default: System A to Z in both tables, empty hash', st0);
+  for (const col of ['system', 'covers', 'proof_size', 'check_time', 'overhead']) {
+    for (const dir of ['asc', 'desc']) {
+      await sortBy(p, col, dir);
+      const got = await order(p);
+      const st = await sortState(p);
+      ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === 2 && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
+        && (col === 'system' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`), `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
     }
   }
-  // switching the view re-sorts with that view's values
-  await p.click('.vk[data-view="published"]'); await p.waitForTimeout(150);
-  await p.selectOption('#sort', 'check_time-desc'); await p.waitForTimeout(260);
-  const pubOrder = await order(p);
-  await p.click('.vk[data-view="run"]'); await p.waitForTimeout(300);
-  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'check_time', 'desc', 'run')), 'view switch re-sorts with run-here values', { published: pubOrder, run: await order(p) });
-  // every visible run figure with a stored spread shows n and its range on the row
-  const spreads = await p.evaluate(() => [...document.querySelectorAll('.val.v-run')].filter((a) => a.offsetParent && /spread: n = /.test(a.title))
-    .map((a) => /n = \d+ runs/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
-  ok(spreads.length === 4 && spreads.every(Boolean), 'run figures show sample size and range', spreads);
-  // the table does not move when the view changes
-  await p.click('.vk[data-view="published"]'); await p.waitForTimeout(300);
-  const t0 = await p.evaluate(() => Math.round(document.querySelector('.tbl').getBoundingClientRect().top + scrollY));
-  await p.click('.vk[data-view="run"]'); await p.waitForTimeout(300);
-  const t1 = await p.evaluate(() => Math.round(document.querySelector('.tbl').getBoundingClientRect().top + scrollY));
-  ok(t0 === t1, 'table top unchanged by the view switch', [t0, t1]);
-  await ctx.close();
-}
-
-// ---------------------------------------------------------------- shots of sorted states, hash round-trip, CLS
-{
-  const { ctx, p } = await pg(1440, 900);
-  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  await p.selectOption('#sort', 'proof_size-desc'); await p.waitForTimeout(400);
-  await p.evaluate(() => scrollTo(0, 300)); await p.waitForTimeout(200);
-  await p.screenshot({ path: OUT + 'home-1440-sorted.png' });
-  const st = await sortState(p);
-  ok(st.hash === '#sort=proof_size-desc', 'hash written', st.hash);
+  await sortBy(p, 'proof_size', 'desc');
   ok(await cls(p) === 0, 'CLS after a sort (shifts without input) is 0');
+  const said = await p.evaluate(() => document.querySelector('#sort-now').textContent);
+  ok(said === 'Proof size, large to small', 'the order is named for screen readers', said);
   await ctx.close();
-  // round-trip: a fresh page on that hash shows the same order and state
   const r = await pg(1440, 900);
-  await r.p.goto(BASE + 'index.html' + st.hash, { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
+  await r.p.goto(BASE + 'index.html#sort=check_time-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
   const st2 = await sortState(r.p);
-  ok(st2.sel === 'proof_size-desc' && st2.aria.join() === 'proof_size:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'proof_size', 'desc', 'published')), 'hash round-trip (proof size)', st2);
+  ok(st2.aria.join() === 'check_time:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'check_time', 'desc')), 'hash round-trip', st2);
   ok(await cls(r.p) === 0, 'CLS on load with a sort hash is 0');
+  await r.p.evaluate(() => { location.hash = 'sort=overhead-desc'; }); await r.p.waitForTimeout(400);
+  ok((await sortState(r.p)).aria.join() === 'overhead:descending', 'hashchange applies a new order');
+  await r.p.click('.mast .draft'); await r.p.waitForTimeout(900);
+  ok(/sort=overhead-desc/.test((await sortState(r.p)).hash), 'the #criteria link keeps the order and its hash');
   await r.ctx.close();
-  const q = await pg(1440, 900);
-  await q.p.goto(BASE + '#sort=check_time-desc&view=run', { waitUntil: 'networkidle' }); await q.p.waitForTimeout(settle);
-  const st3 = await sortState(q.p);
-  ok(st3.run && st3.sel === 'check_time-desc' && JSON.stringify(await order(q.p)) === JSON.stringify(await expected(q.p, 'check_time', 'desc', 'run')), 'hash round-trip (run here, check time)', st3);
-  await q.p.evaluate(() => scrollTo(0, 300)); await q.p.waitForTimeout(200);
-  await q.p.screenshot({ path: OUT + 'home-1440-sorted-run.png' });
-  ok(await cls(q.p) === 0, 'CLS on load with a run-view sort hash is 0');
-  // hashchange and the draft-criteria link (#criteria) keep the order
-  await q.p.evaluate(() => { location.hash = 'sort=overhead-desc'; }); await q.p.waitForTimeout(400);
-  ok((await sortState(q.p)).sel === 'overhead-desc', 'hashchange applies a new order');
-  await q.p.click('.mast .draft'); await q.p.waitForTimeout(900);
-  const stc = await sortState(q.p);
-  ok(stc.sel === 'overhead-desc' && /sort=overhead-desc/.test(stc.hash), 'the #criteria link keeps the order and its hash', stc.hash);
-  await q.ctx.close();
-  // an unknown order in the link: the page shows the default and the hash says so
   const z = await pg(1440, 900);
   await z.p.goto(BASE + 'index.html#sort=bogus-asc', { waitUntil: 'networkidle' }); await z.p.waitForTimeout(600);
   const stz = await sortState(z.p);
-  ok(stz.sel === 'system-asc' && stz.hash === '', 'unknown sort in the hash falls back and clears it', stz.hash);
+  ok(stz.aria.join() === 'system:ascending' && stz.hash === '', 'unknown sort in the hash falls back and clears it', stz.hash);
   await z.ctx.close();
 }
 
@@ -177,31 +153,27 @@ const sortState = (p) => p.evaluate(() => ({
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  await p.focus('#sort');
-  await p.keyboard.press('Tab');
-  const f1 = await p.evaluate(() => document.activeElement.matches('.sb') && document.activeElement.dataset.col);
-  ok(f1 === 'system', 'Tab from the sort control reaches the System head button', f1);
-  await p.keyboard.press('Tab'); await p.keyboard.press('Tab');
-  const f2 = await p.evaluate(() => document.activeElement.dataset.col);
+  await p.locator('.sb[data-col="proof_size"]').first().focus();
   await p.keyboard.press('Enter'); await p.waitForTimeout(300);
   let st = await sortState(p);
-  ok(f2 === 'proof_size' && st.sel === 'proof_size-asc' && st.aria.join() === 'proof_size:ascending', 'Enter on Proof size sorts ascending', st);
+  ok(st.aria.join() === 'proof_size:ascending', 'Enter on Proof size sorts ascending', st);
   await p.keyboard.press('Space'); await p.waitForTimeout(300);
   st = await sortState(p);
-  ok(st.sel === 'proof_size-desc', 'Space on it again sorts descending', st);
+  ok(st.aria.join() === 'proof_size:descending', 'Space on it again sorts descending', st);
   const fv = await p.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
   ok(fv !== 'none', 'keyboard focus is visible on a head button', fv);
-  await p.screenshot({ path: OUT + 'home-1440-keyboard.png' });
   await ctx.close();
 }
 
 // ---------------------------------------------------------------- narrow widths
 for (const w of [1100, 1024, 900, 768]) {
-  const { ctx, p } = await pg(w, 900);
-  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  const o = await overflow(p);
-  ok(o.over <= 0 && !o.clipped.length, `home-${w} no overflow, no clipped figure`, o);
-  await ctx.close();
+  for (const name of PAGES) {
+    const { ctx, p } = await pg(w, 900);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
+    const o = await overflow(p);
+    ok(o.over <= 0 && !o.clipped.length, `${name}-${w} no overflow, no clipped figure`, o);
+    await ctx.close();
+  }
 }
 for (const w of [390, 360]) {
   for (const name of PAGES) {
@@ -210,33 +182,24 @@ for (const w of [390, 360]) {
     const tag = name.replace('.html', '').replace('index', 'home');
     if (tag === 'home' && w === 390) {
       await p.screenshot({ path: OUT + 'home-390-landing.png' });
-      const top = await p.evaluate(() => Math.round(document.querySelector('#panel-benchmarked .row .name').getBoundingClientRect().bottom));
+      const top = await p.evaluate(() => Math.round(document.querySelector('.tbl .row .name').getBoundingClientRect().bottom));
       log(`home-${w} first system name bottom`, top, 'px');
       ok(top < 844, `home-${w} first system name shows on landing`, top);
     }
-    if ((tag === 'home') || (tag === 'flashprove' && w === 390)) await full(p, OUT + `${tag}-${w}.png`);
+    if (w === 390) await full(p, OUT + `${tag}-${w}.png`);
     const o = await overflow(p);
     ok(o.over <= 0 && !o.clipped.length, `${tag}-${w} no horizontal overflow`, o);
     ok(await cls(p) === 0, `${tag}-${w} CLS 0`);
     if (tag === 'home') {
-      for (const t of ['reference', 'not_benchmarked']) {
-        await p.click(`#tab-${t}`); await p.waitForTimeout(400);
-        const o2 = await overflow(p);
-        ok(o2.over <= 0, `home-${w} ${t} tab no overflow`, o2);
-      }
-      await p.click('#tab-benchmarked'); await p.waitForTimeout(200);
-      await p.selectOption('#sort', 'check_time-desc'); await p.waitForTimeout(300);
-      const o3 = await overflow(p);
-      ok(o3.over <= 0, `home-${w} sorted no overflow`, o3);
-      ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'check_time', 'desc', 'published')), `home-${w} sort works from the control`);
-      const lbl = await p.evaluate(() => { const l = document.querySelector('.vc[data-col="check_time"] .val:not([style*="none"]) .lbl'); return getComputedStyle(l, '::after').content; });
-      ok(/↓/.test(lbl), `home-${w} sorted column label carries its glyph`, lbl);
+      ok(await p.locator('.sb[data-col="check_time"]').first().isVisible(), `home-${w} the column heads stay as sort buttons`);
+      await sortBy(p, 'check_time', 'desc');
+      ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'check_time', 'desc')), `home-${w} sorts from the heads`);
     }
     await ctx.close();
   }
 }
 
-// ---------------------------------------------------------------- system pages and the reference page
+// ---------------------------------------------------------------- system pages and the reference page: the pie with its properties around it
 for (const name of ['flashprove', 'sash', 'reference']) {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + name + '.html', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
@@ -244,19 +207,32 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   ok(await cls(p) === 0, `${name}-1440 CLS 0`);
   const o = await overflow(p);
   ok(o.over <= 0 && !o.clipped.length, `${name}-1440 no overflow`, o);
-  const v = await p.evaluate(() => ({
-    wordpie: document.querySelectorAll('.wpie, .net, .bigpie, .lab').length,
-    pies: [...document.querySelectorAll('.ppie .pie-svg')].map((s) => Math.round(s.getBoundingClientRect().width)),
-    lines: document.querySelectorAll('.pview .prop').length,
-    quotesVisible: [...document.querySelectorAll('.pview .prop')].every((l) => l.querySelector('.pb > blockquote, .pb > .silent').offsetHeight > 0),
+  const v = await p.evaluate(() => [...document.querySelectorAll('.rose')].map((r) => {
+    const pie = r.querySelector('.rpie .pie-svg').getBoundingClientRect();
+    const cx = pie.left + pie.width / 2;
+    const items = [...r.querySelectorAll('.rp')].map((li) => { const b = li.getBoundingClientRect(); return { n: +li.dataset.n, side: b.left > cx ? 'r' : b.right < cx ? 'l' : 'x', top: b.top }; });
+    const byN = Object.fromEntries(items.map((i) => [i.n, i]));
+    return {
+      pie: Math.round(pie.width), n: items.length,
+      sides: items.every((i) => i.side === (i.n <= 3 ? 'r' : 'l')),
+      downward: byN[1].top < byN[2].top && byN[2].top < byN[3].top && byN[6].top < byN[5].top && byN[5].top < byN[4].top,
+      facts: !!r.parentElement.querySelector('.facts'),
+    };
   }));
-  ok(v.wordpie === 0 && v.pies.every((x) => x >= 120 && x <= 170) && v.lines === 6 * v.pies.length && v.quotesVisible, `${name}: no word pie; one small pie beside six lines, decisive quote visible`, v);
+  ok(v.length >= 1 && v.every((x) => x.pie <= 220 && x.n === 6 && x.sides && x.downward && x.facts), `${name}: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside`, v);
+  const firstScreen = await p.evaluate(() => Math.round(document.querySelector('.rose').getBoundingClientRect().bottom));
+  ok(firstScreen <= 900, `${name}: the six properties fit the first screen`, firstScreen);
+  ok(await p.evaluate(() => document.querySelectorAll('blockquote, details').length === 0), `${name}: no quotes, nothing folded`);
+  // pointing at a property lifts its slice
+  await p.hover('.rp[data-n="2"]'); await p.waitForTimeout(300);
+  const lift = await p.evaluate(() => getComputedStyle(document.querySelector('.rpie .s2')).transform);
+  ok(lift !== 'none', `${name}: pointing at a property lifts its slice`, lift);
   await ctx.close();
 }
 {
   const { ctx, p } = await pg(1440, 900);
-  await p.goto(BASE + 'sash.html#figures-run', { waitUntil: 'networkidle' }); await p.waitForTimeout(1200);
-  ok(await p.evaluate(() => document.body.classList.contains('view-run')), 'sash.html#figures-run opens in the run view');
+  await p.goto(BASE + 'sash.html', { waitUntil: 'networkidle' });
+  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /Llama 3\.1 8B/.test(await p.locator('#figures .sec-l').innerText()), 'sash.html: no work-in-progress label; its figures name their model');
   await p.goto(BASE + 'system.html', { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
   ok(p.url().endsWith('flashprove.html'), 'system.html redirects', p.url());
   await ctx.close();
@@ -270,10 +246,11 @@ for (const name of ['flashprove', 'sash', 'reference']) {
     await p.goto(BASE + name, { waitUntil: 'networkidle' });
     const t = await p.evaluate(() => {
       const all = document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label],[title]')].map((n) => (n.getAttribute('aria-label') || '') + ' ' + (n.title || '')).join(' ');
-      const chrome = [...document.querySelectorAll('.top, .mast, .controls, .nbar, .heads, #sort, .jump, .crumbs')].map((n) => n.textContent).join(' ');
+      const chrome = [...document.querySelectorAll('.top, .mast, .heads, .sec-h, .subh')].map((n) => n.textContent).join(' ');
       return { all, chrome };
     });
     ok(!/These tests show only what happened|Printed as text/.test(t.all), `${name}: cut sentences absent`);
+    ok(!/\bmock\b/i.test(t.all), `${name}: no placeholder marking on the page`);
     ok(!/\b(best|top|fastest|leader|leaderboard|winner|rank(ed|ing)?)\b|#\s?1\b|🥇/i.test(t.chrome), `${name}: no ranking words in the site's own controls`);
     ok(!/\d\s*(Weights hidden|Model bound|Whole output proved|Formally verified|Security level|No trusted party)/.test(t.all), `${name}: no numbered property names`);
     ok(!/step \d of \d/i.test(t.all), `${name}: no "step N of M"`);
@@ -284,19 +261,18 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   await ctx.close();
 }
 
-// ---------------------------------------------------------------- axe: every page, plus home tabs, sorted and run states, at 1440 and 390
+// ---------------------------------------------------------------- axe: every page and a sorted home, at 1440 and 390
 if (AxeBuilder) {
   const runs = [];
   for (const w of [1440, 390]) {
     for (const name of PAGES) runs.push([w, name, null]);
-    runs.push([w, 'index.html#sort=overhead-desc&view=run', null], [w, 'index.html', 'reference'], [w, 'index.html', 'not_benchmarked']);
+    runs.push([w, 'index.html#sort=overhead-desc', null]);
   }
-  for (const [w, url, tab] of runs) {
+  for (const [w, url] of runs) {
     const { ctx, p } = await pg(w, 900, { reduce: true });
     await p.goto(BASE + url, { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
-    if (tab) { await p.click(`#tab-${tab}`); await p.waitForTimeout(200); }
     const res = await new AxeBuilder({ page: p }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
-    ok(res.violations.length === 0, `axe ${w} ${url}${tab ? ' tab ' + tab : ''}`, res.violations.map((v) => `${v.id} x${v.nodes.length} ${v.nodes[0]?.target}`));
+    ok(res.violations.length === 0, `axe ${w} ${url}`, res.violations.map((v) => `${v.id} x${v.nodes.length} ${v.nodes[0]?.target}`));
     await ctx.close();
   }
 } else {
