@@ -51,8 +51,9 @@ Benchmark release v0.1 covers two systems on their native workloads on one NVIDI
 | [0013](../rfcs/0013-validation-and-ci.md) | Validation pipeline and CI gates | v0.1-alpha | every CI gate and its exact rule |
 | [0014](../rfcs/0014-provenance-and-integrity.md) | Provenance, pinning and artifact integrity | v0.1-beta | pins, image builds, model fetch, manifest, commitment handling |
 | [0015](../rfcs/0015-reference-rows.md) | Reference rows: plain serving and recompute | v0.1-beta | what the reference rows measure and when they are null |
+| [0016](../rfcs/0016-glyph-properties-and-states.md) | Glyph properties and states | v0.1 | the six glyph properties, the four states, the source of each state by row class, the criteria file |
 
-Every RFC is Draft. The set enters Last call together once the specification pull request merges ([RFC-0001](../rfcs/0001-process-and-governance.md)); implementation pull requests may open against an RFC in Last call and merge once it is Accepted.
+Every RFC is Draft. The bootstrap set (RFC-0001 to RFC-0015) enters Last call together once the specification pull request merges; RFC-0016 has its own Last call ([RFC-0001](../rfcs/0001-process-and-governance.md)); implementation pull requests may open against an RFC in Last call and merge once it is Accepted.
 
 ## Pinned upstreams for v0.1
 
