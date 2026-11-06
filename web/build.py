@@ -518,11 +518,13 @@ def footer():
     )
 
 
-def page(title, desc, body, cls):
+def page(title, desc, body, cls, path, card):
+    """One page. path: its address under the site ("" for the home); card: its preview card's name."""
     return (
         f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
         f'<script>try{{if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("anim")}}catch(_){{}}</script>'
-        f'<title>{e(title)}</title><meta name="description" content="{e(desc)}"><meta name="color-scheme" content="dark">{FONTS}'
+        f'<title>{e(title)}</title><meta name="description" content="{e(desc)}"><meta name="color-scheme" content="dark">'
+        f"{share_meta(title, desc, path, card)}{icon_links()}{FONTS}"
         f'<link rel="stylesheet" href="words.css"></head><body class="{cls}">{body}'
         f'<p class="sr" aria-live="polite" id="live"></p><script src="words.js" defer></script></body></html>'
     )
@@ -746,8 +748,10 @@ def build_index():
 {footer()}"""
     return page(
         "Inference proofs",
-        "Six properties of one proof per system, and the benchmark's own figures per model, sortable by column.",
+        HOME_DESC,
         body,
+        "home",
+        "",
         "home",
     )
 
@@ -862,9 +866,11 @@ def build_system(sid):
 {footer()}'''
     return page(
         s["name"],
-        f"{s['name']}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels.",
+        system_desc(sid),
         body,
         "system",
+        sid,
+        sid,
     )
 
 
@@ -911,10 +917,219 @@ def build_reference():
         "The references: plain serving and a rerun by a weights holder, their six properties and their figures.",
         body,
         "system reference",
+        "reference",
+        "home",
     )
 
 
+# ------------------------------------------------------------------ preview cards
+# What a shared link shows: Open Graph and X tags on every page, and one picture per card. build.py
+# writes each picture's source, og/<card>.html (CARD_W x CARD_H CSS px, the data's own words and
+# pies); og.mjs renders it to og/<card>.png at CARD_SCALE and records both sha256 in og/cards.json.
+# The pages name each picture with its hash, so a new picture is a new URL for link caches, and
+# test_cards.py fails when a committed picture was not rendered from its committed source.
+SITE_URL = "https://www.inferenceproofs.ai"
+CARD_W, CARD_H, CARD_SCALE = 1200, 630, 2
+OG = HERE / "og"
+HOME_DESC = "Six properties of one proof per system (draft criteria), and the benchmark's own figures per model, sortable by column."
+
+
+def system_desc(sid):
+    return f"{site['systems'][sid]['name']}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels."
+
+
+def icon_links():
+    rec = cards_record().get("icon")
+    v = f"?v={rec['png'][:12]}" if rec else ""
+    return (
+        '<link rel="icon" href="/og/icon.svg" type="image/svg+xml">'
+        f'<link rel="apple-touch-icon" href="/og/icon.png{v}">'
+    )
+
+
+def cards_record():
+    f = OG / "cards.json"
+    return json.loads(f.read_text()) if f.exists() else {}
+
+
+def card_alt(card):
+    """The picture in words, from the same data the picture draws."""
+    draft = G["legend"]["draft_short"]
+    if card == "home":
+        names = ", ".join(site["systems"][r["system"]]["name"] for r in card_provers())
+        return (
+            f"Inference proofs: the six properties of one proof, and the pies of {names}. {draft}."
+        )
+    s, g = site["systems"][card], G["rows"][card]
+    row = next(r for r in PROVERS if r["system"] == card)
+    states = "; ".join(f"{c['name']}: {c['word']}" for c in g["cells"])
+    return f"{s['name']} on {model_name(row)} @{s['upstream']['commit_short']}. {states}. {draft}."
+
+
+def share_meta(title, desc, path, card):
+    url = f"{SITE_URL}/{path}"
+    rec = cards_record().get(card)
+    img = f"{SITE_URL}/og/{card}.png" + (f"?v={rec['png'][:12]}" if rec else "")
+    full = title if title == "Inference proofs" else f"{title} · Inference proofs"
+    alt = card_alt(card)
+    tags = [
+        ("property", "og:type", "website"),
+        ("property", "og:site_name", "Inference proofs"),
+        ("property", "og:title", full),
+        ("property", "og:description", desc),
+        ("property", "og:url", url),
+        ("property", "og:image", img),
+        ("property", "og:image:type", "image/png"),
+        ("property", "og:image:width", str(CARD_W * CARD_SCALE)),
+        ("property", "og:image:height", str(CARD_H * CARD_SCALE)),
+        ("property", "og:image:alt", alt),
+        ("name", "twitter:card", "summary_large_image"),
+        ("name", "twitter:title", full),
+        ("name", "twitter:description", desc),
+        ("name", "twitter:image", img),
+        ("name", "twitter:image:alt", alt),
+    ]
+    return f'<link rel="canonical" href="{e(url)}">' + "".join(
+        f'<meta {k}="{v}" content="{e(c)}">' for k, v, c in tags
+    )
+
+
+def card_provers():
+    """The benchmarked systems, model by model (biggest first), A to Z within one."""
+    return [r for d in MODELS for r in by_name(r for r in PROVERS if model_of(r) == d)]
+
+
+CARD_CSS = f"""
+*{{box-sizing:border-box;margin:0;padding:0}}
+html,body{{width:{CARD_W}px;height:{CARD_H}px;overflow:hidden;background:{GROUND};color:{PAPER};-webkit-font-smoothing:antialiased}}
+.mono{{font-family:"IBM Plex Mono",monospace}}
+.disp{{font-family:"Archivo",sans-serif;font-stretch:66%;font-weight:900}}
+.sl.yes{{fill:{INK["green"]}}}.sl.partly{{fill:{INK["amber"]}}}.sl.no{{fill:{INK["red"]}}}
+.sl.unstated{{fill:{GROUND};stroke:{RULE};stroke-width:1.2}}
+.pie-svg{{display:block;overflow:visible}}
+.kmini path{{fill:transparent;stroke:{GROUND};stroke-width:1.8;stroke-linejoin:round}}.kmini path.on{{fill:{PAPER};stroke-width:2.2}}
+.sw{{display:inline-block;width:.62em;height:.62em;margin-right:.32em;vertical-align:.02em}}
+.sw.yes{{background:{INK["green"]}}}.sw.partly{{background:{INK["amber"]}}}.sw.no{{background:{INK["red"]}}}.sw.unstated{{box-shadow:inset 0 0 0 2px {RULE}}}
+"""
+
+
+def card_page(card, body, css):
+    return (
+        f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{e(card)} card</title>{FONTS}'
+        f"<style>{CARD_CSS}{css}</style></head><body>{body}</body></html>\n"
+    )
+
+
+def home_card():
+    """Violet: the six properties, each beside its place in the pie. Black: each benchmarked system's pie."""
+    props = "".join(
+        f'<li>{key_mini(p["n"], 50)}<span class="disp">{e(p["name"])}</span></li>'
+        for p in G["properties"]
+    )
+    key = "".join(
+        f'<span class="chip mono"><i class="sw {CLS[s]}"></i>{e(WORD[s])}</span>'
+        for s in G["state_order"]
+    )
+    rows = card_provers()
+    assert 1 <= len(rows) <= 3, "the home card holds one to three systems"
+    systems = "".join(
+        f'<div class="sys">{pie_svg(G["rows"][r["system"]]["states"], 128)}'
+        f'<div><p class="disp n">{e(site["systems"][r["system"]]["name"])}</p><p class="mono m">{e(model_name(r))}</p></div></div>'
+        for r in rows
+    )
+    css = f"""
+.l{{position:absolute;left:0;top:0;width:690px;height:{CARD_H}px;background:{VIOLET};color:{GROUND};padding:46px 56px}}
+.r{{position:absolute;left:690px;top:0;right:0;height:{CARD_H}px;padding:46px 48px 46px 52px;display:flex;flex-direction:column;justify-content:center;gap:28px}}
+.k{{font-size:20px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}}
+ul{{list-style:none;margin-top:26px;display:grid;gap:9px}}
+li{{display:flex;align-items:center;gap:18px}}
+li .disp{{font-size:54px;line-height:1;letter-spacing:-.004em}}
+.key{{position:absolute;left:56px;bottom:40px;display:flex;gap:10px}}
+.chip{{background:{GROUND};color:{PAPER};font-size:17px;font-weight:500;padding:7px 11px 7px 10px;white-space:nowrap}}
+.draft{{position:absolute;right:48px;bottom:46px;font-size:16px;color:{MUTED}}}
+.sys .sl.unstated{{stroke-width:2.4}}
+.sys{{display:flex;align-items:center;gap:24px}}
+.sys .pie-svg{{width:124px;height:124px;flex:none}}
+.n{{font-size:60px;line-height:.9}}
+.m{{font-size:18px;color:{MUTED};margin-top:10px}}
+.url{{position:absolute;right:48px;top:46px;font-size:17px;color:{MUTED};letter-spacing:.04em}}
+"""
+    body = (
+        f'<div class="l"><p class="k mono">What one proof establishes</p><ul>{props}</ul><p class="key">{key}</p></div>'
+        f'<div class="r">{systems}</div><p class="url mono">inferenceproofs.ai</p>'
+        f'<p class="draft mono">{e(G["legend"]["draft_short"])}</p>'
+    )
+    return card_page("home", body, css)
+
+
+def system_card(sid):
+    """The system page's first screen: its name on the violet band, then its pie with each property beside its slice."""
+    s, g = site["systems"][sid], G["rows"][sid]
+    row = next(r for r in PROVERS if r["system"] == sid)
+    items = "".join(
+        f'<li class="p{c["n"]} {SIDE[c["n"]]}"><p class="mono pn">{e(c["name"])}</p>'
+        f'<p class="disp pw"><i class="sw {CLS[c["state"]]}"></i>{e(c["word"])}</p></li>'
+        for c in g["cells"]
+    )
+    css = f"""
+.band{{position:absolute;left:0;top:0;right:0;height:206px;background:{VIOLET};color:{GROUND};padding:0 56px;overflow:hidden}}
+.name{{position:absolute;left:52px;bottom:-9px;font-size:214px;line-height:.8;letter-spacing:-.012em;white-space:nowrap}}
+.meta{{position:absolute;right:56px;top:40px;text-align:right;font-size:18px;line-height:1.5}}
+.meta b{{display:block;font-weight:600;letter-spacing:.12em;text-transform:uppercase;font-size:17px;margin-bottom:6px}}
+.rose{{position:absolute;left:56px;right:56px;top:232px;bottom:52px;display:grid;grid-template-columns:1fr 330px 1fr;
+grid-template-areas:"p6 pie p1" "p5 pie p2" "p4 pie p3";column-gap:40px;align-items:center}}
+.rose .pie-svg{{grid-area:pie;width:330px;height:330px;justify-self:center;align-self:center}}
+ol{{display:contents;list-style:none}}
+.p1{{grid-area:p1}}.p2{{grid-area:p2}}.p3{{grid-area:p3}}.p4{{grid-area:p4}}.p5{{grid-area:p5}}.p6{{grid-area:p6}}
+.l{{text-align:right}}
+.pn{{font-size:17px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:{VIOLET}}}
+.pw{{font-size:46px;line-height:1.05;margin-top:4px;font-stretch:80%;font-weight:800}}
+.rose .sl.unstated{{stroke-width:3.2}}
+.draft{{position:absolute;right:56px;bottom:24px;font-size:16px;color:{MUTED}}}
+"""
+    body = (
+        f'<div class="band"><h1 class="disp name">{e(s["name"])}</h1>'
+        f'<p class="mono meta"><b>Inference proofs</b>{e(model_name(row))}<br>@{e(s["upstream"]["commit_short"])}</p></div>'
+        f'<div class="rose">{pie_svg(g["states"], 330)}<ol>{items}</ol></div>'
+        f'<p class="mono draft">{e(G["legend"]["draft_short"])}</p>'
+    )
+    return card_page(sid, body, css)
+
+
+ICON = 180  # the touch icon's side, CSS px at scale 1
+
+
+def icon_svg():
+    """The site's icon: the six-slice pie in ground ink on the violet field."""
+    parts = "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -32 64 64">'
+        f'<rect x="-32" y="-32" width="64" height="64" fill="{VIOLET}"/><g fill="{GROUND}">{parts}</g></svg>\n'
+    )
+
+
+def icon_card():
+    body = f'<img src="icon.svg" width="{ICON}" height="{ICON}" alt="" style="display:block">'
+    page_ = card_page("icon", body, "")
+    return page_.replace(
+        '<html lang="en">', f'<html lang="en" data-w="{ICON}" data-h="{ICON}" data-scale="1">', 1
+    ).replace(
+        f"html,body{{width:{CARD_W}px;height:{CARD_H}px;",
+        f"html,body{{width:{ICON}px;height:{ICON}px;",
+    )
+
+
+def write_cards():
+    OG.mkdir(exist_ok=True)
+    (OG / "icon.svg").write_text(icon_svg())
+    (OG / "icon.html").write_text(icon_card())
+    (OG / "home.html").write_text(home_card())
+    for sid in PAGE:
+        (OG / f"{sid}.html").write_text(system_card(sid))
+
+
 def main():
+    write_cards()
     (HERE / "index.html").write_text(build_index())
     for sid, name in PAGE.items():
         (HERE / name).write_text(build_system(sid))
@@ -942,7 +1157,9 @@ def main():
             flags=re.S,
         )
         readme.write_text(txt)
-    print("built index.html,", ", ".join(PAGE.values()) + ",", REF_PAGE)
+    print(
+        "built index.html,", ", ".join(PAGE.values()) + ",", REF_PAGE, "and the card sources in og/"
+    )
 
 
 if __name__ == "__main__":

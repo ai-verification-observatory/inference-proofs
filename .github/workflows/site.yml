@@ -1,7 +1,8 @@
 # The public site, web/. Vercel deploys it to www.inferenceproofs.ai on every commit to
 # main that changes this folder (web/vercel.json: ignoreCommand). It serves the pages
 # as committed, so this check holds them to what build.py writes from _data/: a pull request whose
-# pages are stale, or whose sort keys fail their test, does not pass. No secrets, no upload.
+# pages are stale, whose sort keys fail their test, or whose preview pictures were not rendered
+# from their committed sources (og/cards.json), does not pass. No secrets, no upload.
 name: site
 
 on:
@@ -26,5 +27,6 @@ jobs:
           python3 --version
           python3 -I build.py
           python3 -I test_sort_keys.py
+          python3 -I test_cards.py
       - name: the committed pages are the built pages
         run: git diff --exit-code --stat -- web
