@@ -2,6 +2,8 @@
 
 The public site at www.inferenceproofs.ai, its design named "Made of words". Draft criteria, needs an RFC (RFC-0001). The site shows only the benchmark's own runs. **Every benchmark result in this prototype is a placeholder** from the data fixture; the pages do not mark them, because the published site will only ever show real runs. Model sizes, pins and workloads come from the data and are real.
 
+The rules the site follows (pages, order, labels, script, narrow screens) and where it does not meet them yet are in [RFC-0009 §Site](../rfcs/0009-results-and-publication.md#site).
+
 Static pages built from two data files, served at clean addresses: `/` (the overview, `index.html`), `/flashprove` and `/sash` (one page per benchmarked system), `/reference` (the two references), `/criteria` (what each state means for each property) and the 404 page.
 
 ## Build and check
