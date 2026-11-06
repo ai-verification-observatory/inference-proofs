@@ -107,6 +107,15 @@ const sortBy = async (p, col, dir) => {
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
+  // an empty (Not stated) slot is its side alone: pointing at it lifts that side in paper, with no outline
+  const sb = await p.locator('#sash .pie .h1').boundingBox();
+  await p.mouse.move(sb.x + sb.width * 0.6, sb.y + sb.height * 0.4); await p.waitForTimeout(400);
+  const emp = await p.evaluate(() => {
+    const pie = document.querySelector('#sash .pie'); const s = pie.querySelector('.s1'); const cs = getComputedStyle(s);
+    return { hot: pie.dataset.hot, band: s.classList.contains('eb'), fill: cs.fill, stroke: cs.stroke, moved: cs.transform !== 'none', ticks: pie.querySelectorAll('.eo').length, paper: getComputedStyle(document.body).color };
+  });
+  ok(emp.hot === '1' && emp.band && emp.moved && emp.fill === emp.paper && emp.stroke === 'none', 'an empty slot lifts its side alone, in paper, with no outline', emp);
+  await p.mouse.move(0, 0);
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: /.test(a.title))
     .map((a) => /\d+\s+completed, \d+\s+failed/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
   ok(spreads.length === 4 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);

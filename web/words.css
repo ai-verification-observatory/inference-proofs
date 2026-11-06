@@ -102,6 +102,7 @@ html:not(.js) .search { display: none; }
 .so.on { box-shadow: inset 3px 0 0 var(--paper); }
 .sp .pie-svg, .sp .kmini { display: block; width: 28px; height: 28px; overflow: visible; }
 .sp .kmini .eo { stroke: var(--rule); }
+.sp .kmini .eb { fill: var(--rule); }
 .sp .kmini .on { fill: var(--paper); }
 .sn { display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
 .so .sm { display: block; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -126,6 +127,7 @@ html:not(.js) .search { display: none; }
 .kmini { display: block; grid-row: span 2; width: 48px; height: 48px; overflow: visible; }
 .kmini .on { fill: var(--ground); }
 .kmini .eo { stroke: var(--ground); }
+.kmini .eb { fill: var(--ground); }
 .qw { display: block; padding-top: 2px; font: 900 32px/1 var(--disp); font-stretch: 66%; letter-spacing: -.004em; white-space: nowrap; }
 .qq { display: block; font: 500 13px/17px var(--mono); margin-top: 5px; max-width: 46ch; text-wrap: balance; }
 .keyline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 500 12px/1 var(--mono); margin-top: 18px; }
@@ -203,10 +205,17 @@ html:not(.js) .search { display: none; }
 .pie-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .sl { transition: transform .22s var(--ease), stroke .18s; }
 .sl.yes { fill: var(--yes); } .sl.partly { fill: var(--partly); } .sl.no { fill: var(--no); }
-/* a Not stated slot is empty: its unfilled shape only takes the lift's edge; its side is the line */
-.sl.unstated { fill: none; }
-.eo { fill: none; stroke: var(--rule); stroke-linejoin: miter; }
-.eo-s { stroke: var(--rule-small); }
+/* a Not stated slot is its side alone (.eb, a band along the edge); the ticks between two of them are .eo */
+.eb { fill: var(--rule); }
+.eb-s { fill: var(--rule-small); }
+.eo { fill: none; stroke: var(--rule); }
+/* lifted, an empty side turns paper, with no edge around it */
+.sl.eb { stroke: none !important; }
+.pie[data-hot="1"] .s1.eb, .pie[data-hot="2"] .s2.eb, .pie[data-hot="3"] .s3.eb, .pie[data-hot="4"] .s4.eb, .pie[data-hot="5"] .s5.eb, .pie[data-hot="6"] .s6.eb,
+.rose:has(.rp[data-n="1"]:hover) .s1.eb, .rose:has(.rp[data-n="2"]:hover) .s2.eb, .rose:has(.rp[data-n="3"]:hover) .s3.eb,
+.rose:has(.rp[data-n="4"]:hover) .s4.eb, .rose:has(.rp[data-n="5"]:hover) .s5.eb, .rose:has(.rp[data-n="6"]:hover) .s6.eb,
+.rose:has(.h1:hover) .s1.eb, .rose:has(.h2:hover) .s2.eb, .rose:has(.h3:hover) .s3.eb,
+.rose:has(.h4:hover) .s4.eb, .rose:has(.h5:hover) .s5.eb, .rose:has(.h6:hover) .s6.eb { fill: var(--paper); }
 /* each slice's lift direction, the bisector of its wedge (build.py checks these against the geometry) */
 .s1 { --dx: 0.5; --dy: -0.866; }
 .s2 { --dx: 1; --dy: 0; }
@@ -340,6 +349,7 @@ html:not(.js) .search { display: none; }
 .crit .ch { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; align-content: start; }
 .crit .kmini { grid-row: span 2; }
 .crit .kmini .eo { stroke: var(--rule); }
+.crit .kmini .eb { fill: var(--rule); }
 .crit .kmini .on { fill: var(--paper); }
 .cq { font: 500 13px/1.45 var(--mono); color: var(--muted); margin-top: 6px; text-wrap: balance; }
 .cs { margin: 0; font: 400 13px/1.5 var(--mono); }
@@ -497,6 +507,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sw { forced-color-adjust: none; }
   .sw.unstated { background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
   .eo, .kmini .eo, .crit .kmini .eo, .sp .kmini .eo { stroke: CanvasText; }
+  .eb, .kmini .eb, .crit .kmini .eb, .sp .kmini .eb { fill: CanvasText; }
   .kmini .on, .crit .kmini .on, .sp .kmini .on { fill: CanvasText; }
   .sfield { border: 1px solid CanvasText; }
   .sfield:focus-within { outline: 2px solid Highlight; outline-offset: 1px; }

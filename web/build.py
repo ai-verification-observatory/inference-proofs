@@ -306,40 +306,46 @@ def _d(poly, c):
     return "M" + "L".join(f"{x + c[0]:.2f} {y + c[1]:.2f}" for x, y in poly) + "Z"
 
 
-def _empty_line(size, c, R, wr, wc, empty, key):
-    """The sides of the empty slots as one line; ticks down the cuts where two empty slots meet."""
-    sw = max(1.4, size * 0.024) if key else (1.5 if size < 32 else max(1.25, size * 0.016))
-    tick = (0 if size < 24 else 0.22) * R
-    rc = R - (sw / 2) / C30  # a corner of the inset outline
+def _line_width(size, key):
+    return max(1.4, size * 0.024) if key else (1.5 if size < 32 else max(1.25, size * 0.016))
 
-    def xy(p):
-        return f"{p[0] + c[0]:.2f} {p[1] + c[1]:.2f}"
 
-    E, parts, ticks = set(empty), [], []
-    if len(E) == 6:
-        parts.append("M" + "L".join(xy(pt(rc, 60 * k)) for k in range(6)) + "Z")
-        ticks = list(range(6))
-    else:
-        for f in (i for i in sorted(E) if (i - 1) % 6 not in E):
-            run = [f]
-            while (run[-1] + 1) % 6 in E:
-                run.append((run[-1] + 1) % 6)
-            pts = [_seg(run[0], R, wr, wc, sw / 2)[0]]
-            for i in run[1:]:
-                pts.append(pt(rc, 60 * i))
-                ticks.append(i)
-            pts.append(_seg(run[-1], R, wr, wc, sw / 2)[1])
-            parts.append("M" + "L".join(xy(p) for p in pts))
-    for k in ticks if tick else []:
-        v = pt(rc, 60 * k)
-        parts.append(f"M{xy(v)}L{xy(_add(v, pt(1, 60 * k), -tick))}")
-    cls = "eo eo-s" if size < 24 and not key else "eo"
-    return f'<path class="{cls}" stroke-width="{sw:.2f}" d="{"".join(parts)}"/>'
+def _band(i, R, wr, wc, sw, empty):
+    """Empty slot i drawn as its side alone: a band sw wide along the hexagon's edge. Next to an
+    empty slot it runs to the corner, mitred, so runs of empty slots join into one outline; next
+    to a filled slot it stops at the cut, as the triangle does. Its own shape, so it lifts alone."""
+    a0, a1 = 60 * i, 60 * (i + 1)
+    m = pt(1, a0 + 30)  # outward normal of the side
+    v0, v1 = pt(R, a0), pt(R, a1)
+    w0, w1 = _add(v0, m, -sw), _add(v1, m, -sw)  # the band's inner edge
+    ends = []
+    for k, v, n in ((i - 1, v0, pt(1, a0 + 90)), (i + 1, v1, pt(1, a1 - 90))):
+        if k % 6 in empty:
+            ends.append((v, pt(R - sw / C30, 60 * (i if k < i else i + 1))))
+        else:
+            cut = (_add(v, n, wr / 2), _add((0, 0), n, wc / 2))
+            ends.append((_cross(*cut, v0, v1), _cross(*cut, w0, w1)))
+    return [ends[0][0], ends[1][0], ends[1][1], ends[0][1]]
+
+
+def _ticks(size, c, R, sw, empty):
+    """A short tick down each cut where two empty slots meet, so they stay countable."""
+    if size < 24:
+        return ""
+    rc, tick = R - (sw / 2) / C30, 0.22 * R
+    E = set(empty)
+    d = ""
+    for k in range(6):
+        if k in E and (k - 1) % 6 in E:
+            v = pt(rc, 60 * k)
+            t = _add(v, pt(1, 60 * k), -tick)
+            d += f"M{v[0] + c[0]:.2f} {v[1] + c[1]:.2f}L{t[0] + c[0]:.2f} {t[1] + c[1]:.2f}"
+    return d and f'<path class="eo" stroke-width="{sw:.2f}" d="{d}"/>'
 
 
 def hex_svg(size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg"):
     """The glyph. states: six state keys, inked by words.css (.sl.yes ...). key: n, the legend key
-    (slot n filled, the rest as line). mono: every slot filled in currentColor (the logo).
+    (slot n filled, the rest as their sides). mono: every slot filled in currentColor (the logo).
     cells: each slot carries its property's name and state word (read by words.js). hit: a still
     copy of the six triangles on top takes the pointer, so a lifted slot never slips from under it."""
     c, R = _frame(size)
@@ -348,28 +354,32 @@ def hex_svg(size, states=None, key=None, mono=False, cells=None, hit=False, cls=
         if mono
         else (max(1.0, size * 0.012), max(1.8, size * 0.05))
     )
-    parts, empty = [], []
+    sw = _line_width(size, key)
+    if mono:
+        empty = set()
+    elif key:
+        empty = {i for i in range(6) if i + 1 != key}
+    else:
+        empty = {i for i in range(6) if states[i] == "grey"}
+    small = " eb-s" if size < 24 and not key else ""
+    parts = []
     for i in range(6):
-        d = _d(_seg(i, R, wr, wc), c)
+        d = _d(_band(i, R, wr, wc, sw, empty) if i in empty else _seg(i, R, wr, wc), c)
         if mono:
             parts.append(f'<path d="{d}"/>')
         elif key:
-            if key == i + 1:
-                parts.append(f'<path class="on" d="{d}"/>')
-            else:
-                empty.append(i)
+            parts.append(f'<path class="{"eb" if i in empty else "on"}" d="{d}"/>')
         else:
             extra = ""
             if cells:
                 extra = f' data-name="{e(cells[i]["name"])}" data-word="{e(cells[i]["word"])}"'
-            # a Not stated slot keeps an unfilled shape too: the pointer can lift it, and its edge shows
+            # a Not stated slot is its side alone (.eb), so pointing at it lifts that side
+            band = f" eb{small}" if i in empty else ""
             parts.append(
-                f'<path class="sl s{i + 1} {CLS[states[i]]}" data-n="{i + 1}"{extra} d="{d}"/>'
+                f'<path class="sl s{i + 1} {CLS[states[i]]}{band}" data-n="{i + 1}"{extra} d="{d}"/>'
             )
-            if states[i] == "grey":
-                empty.append(i)
     if empty:
-        parts.append(_empty_line(size, c, R, wr, wc, empty, key))
+        parts.append(_ticks(size, c, R, sw, empty))
     if hit:
         parts.append(
             '<g class="hit">'
@@ -1652,9 +1662,9 @@ html,body{{width:{CARD_W}px;height:{CARD_H}px;overflow:hidden;background:{GROUND
 .mono{{font-family:"IBM Plex Mono",monospace}}
 .disp{{font-family:"Archivo",sans-serif;font-stretch:66%;font-weight:900}}
 .sl.yes{{fill:{INK["green"]}}}.sl.partly{{fill:{INK["amber"]}}}.sl.no{{fill:{INK["red"]}}}
-.sl.unstated{{fill:none}}.eo{{fill:none;stroke:{RULE};stroke-linejoin:miter}}.eo-s{{stroke:#8a847a}}
+.eb{{fill:{RULE}}}.eb-s{{fill:#8a847a}}.eo{{fill:none;stroke:{RULE}}}
 .pie-svg{{display:block;overflow:visible}}
-.kmini .on{{fill:{GROUND}}}.kmini .eo{{stroke:{GROUND}}}
+.kmini .on,.kmini .eb{{fill:{GROUND}}}.kmini .eo{{stroke:{GROUND}}}
 .sw{{display:inline-block;width:.62em;height:.62em;margin-right:.32em;vertical-align:.02em}}
 .sw.yes{{background:{INK["green"]}}}.sw.partly{{background:{INK["amber"]}}}.sw.no{{background:{INK["red"]}}}.sw.unstated{{box-shadow:inset 0 0 0 2px {RULE}}}
 """

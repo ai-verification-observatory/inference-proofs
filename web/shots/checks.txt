@@ -10,6 +10,7 @@ ok   sections in order, 19 not benchmarked yet, no Llama 3.1 8B ["llama-4-maveri
 ok   row slice hover shows its name and state Model boundPartly
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
+ok   an empty slot lifts its side alone, in paper, with no outline {"hot":"1","band":true,"fill":"rgb(241, 239, 233)","stroke":"none","moved":true,"ticks":1,"paper":"rgb(241, 239, 233)"}
 ok   figures with a spread show sample size and range [true,true,true,true]
 ok   default: System A to Z in the table, empty hash {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
 ok   sort system asc {"got":[["flashprove","sash"]],"hash":"","glyphs":"↑↕↕↕↕"}
