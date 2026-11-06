@@ -60,12 +60,55 @@ p { margin: 0; }
 .top nav a { text-decoration: none; color: var(--muted); }
 .top nav a[aria-current] { color: var(--paper); box-shadow: 0 2px 0 var(--violet); }
 .top nav a:hover { color: var(--paper); }
-.top .repo { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: var(--muted); transition: color .15s; }
+.top .repo { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: var(--muted); transition: color .15s; }
 .top .repo:hover { color: var(--paper); }
 .top .repo .gh { display: block; flex: none; }
 /* touch targets at least 24 px tall, without moving the text */
 .brand a, .top nav a { display: inline-block; padding-block: 6px; margin-block: -6px; }
 .top .repo { padding-block: 6px; margin-block: -6px; }
+
+/* ---------------------------------------------------------------- search: a field in the top bar, its results under it */
+/* the bar in three: the name and pages, the field in the middle of the page, GitHub at the right */
+/* the field in the middle of the room between the pages and GitHub, as wide as that room allows */
+.top { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 32px; }
+.tl { display: flex; align-items: center; gap: 32px; }
+.brand { white-space: nowrap; }
+.top .repo { justify-self: end; grid-column: 3; }
+.search { position: relative; justify-self: center; width: min(100%, 600px); text-transform: none; letter-spacing: 0; }
+html:not(.js) .search { display: none; }
+.sopen { display: none; }
+.sfield { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 12px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); transition: box-shadow .15s, color .15s; }
+.sfield:hover { box-shadow: inset 0 0 0 1px var(--rule); }
+.sfield:focus-within { box-shadow: inset 0 0 0 2px var(--paper); color: var(--paper); }
+.si { display: block; flex: none; }
+#q { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--paper); font: 500 13px/1 var(--mono); letter-spacing: .04em; outline: none; appearance: none; }
+#q::placeholder { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+#q::-webkit-search-cancel-button { appearance: none; }
+.skey { font: 500 11px/1 var(--mono); color: var(--muted); padding: 2px 5px; box-shadow: inset 0 0 0 1px var(--line); }
+.sfield:focus-within .skey { visibility: hidden; }
+.slist { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20; max-height: min(70vh, 560px); overflow: auto; margin: 0; padding: 6px 0; list-style: none; background: var(--ground); box-shadow: inset 0 0 0 1px var(--rule); }
+.so { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: "p n b" "p m b"; column-gap: 12px; align-items: center; padding: 8px 12px; cursor: pointer; }
+.sp { grid-area: p; }
+.sn { grid-area: n; }
+.sbadge { grid-area: b; }
+.sm { grid-area: m; }
+.so.on, .so:hover { background: var(--line); }
+/* the option the arrows chose: a paper edge as well, so it reads at 3:1 and more */
+.so.on { box-shadow: inset 3px 0 0 var(--paper); }
+.sp .pie-svg, .sp .kmini { display: block; width: 28px; height: 28px; overflow: visible; }
+.sp .kmini path { stroke: var(--rule); }
+.sp .kmini path.on { fill: var(--paper); stroke: var(--paper); }
+.sn { display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
+.so .sm { display: block; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* what kind of entry it is; "Not benchmarked" in paper, so it reads at once */
+.sbadge { font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 6px; box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; }
+.k-unbenchmarked .sbadge { color: var(--paper); box-shadow: inset 0 0 0 1px var(--rule); }
+.snone { padding: 10px 12px; font: 400 12px/1.4 var(--mono); color: var(--muted); }
+/* a not-benchmarked system reached from search: its card in the overview, marked */
+.nb { position: relative; scroll-margin-top: 16px; }
+.nb:target:before { content: ""; position: absolute; left: -10px; top: 0; bottom: 0; width: 3px; background: var(--violet); }
+/* landed on from search, the card says what it is, whatever the scroll left above it */
+.nb:target .nbn:after { content: "Not benchmarked"; display: inline-block; margin-left: 10px; vertical-align: 3px; font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--paper); padding: 4px 6px; box-shadow: inset 0 0 0 1px var(--rule); }
 
 /* ---------------------------------------------------------------- masthead: a plain legend, black on violet
    Six small pies, one per property: its own wedge filled in ground ink, the others in line, its name and question beside it.
@@ -402,22 +445,29 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 /* below the width the top bar needs on one line: brand and GitHub on the first line, the pages on
    the second, at every width */
-@media (max-width: 700px) {
-  .top { display: grid; grid-template-columns: 1fr auto; gap: 16px 18px; }
-  .top .repo { grid-row: 1; grid-column: 2; margin-left: 0; }
+/* below the width a centred field needs: the name, a search button and GitHub on the first line, the
+   pages on the second; the button opens the field over the first line */
+@media (max-width: 960px) {
+  .tl { display: contents; }
+  .top { display: grid; grid-template-columns: 1fr auto auto; gap: 16px 18px; }
+  .top .repo { grid-row: 1; grid-column: 3; margin-left: 0; }
   .top nav { grid-row: 2; grid-column: 1 / -1; flex-wrap: wrap; gap: 12px 20px; }
+  /* search: a button by GitHub; pressed, the field covers the first line and its results drop below */
+  .search { grid-row: 1; grid-column: 2; position: static; margin-left: 0; }
+  .sopen { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; margin: -9px 0; color: var(--muted); }
+  .sopen:hover { color: var(--paper); }
+  .sfield { display: none; }
+  .top.s-on .sfield { display: flex; position: absolute; left: 16px; right: 16px; top: 8px; width: auto; height: 36px; background: var(--ground); z-index: 21; }
+  .slist { left: 16px; right: 16px; top: 52px; width: auto; }
+  .top.s-on nav, .top.s-on .sopen { visibility: hidden; }
+  .skey { display: none; }
 }
 /* phones: one plate per line, so a source path keeps its parts whole */
 @media (max-width: 560px) {
   .facts div { grid-template-columns: 1fr; gap: 2px; }
   .plates, .plates-sys { grid-template-columns: 1fr; }
   .crit .ch { grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; }
-  .top nav { gap: 12px 14px; letter-spacing: .02em; }
   .crit .kmini { width: 32px; height: 32px; }
-}
-/* the narrowest phones: the five pages in two rows of three and two */
-@media (max-width: 389px) {
-  .top nav { display: grid; grid-template-columns: repeat(3, max-content); gap: 12px 20px; letter-spacing: .08em; }
 }
 /* phones held sideways: the legend in three short columns, so the first table shows on landing */
 @media (max-height: 500px) and (orientation: landscape) {
@@ -437,4 +487,10 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sl.unstated { fill: Canvas; stroke: CanvasText; }
   .kmini path, .crit .kmini path { stroke: CanvasText; }
   .kmini path.on, .crit .kmini path.on { fill: CanvasText; stroke: CanvasText; }
+  .sfield { border: 1px solid CanvasText; }
+  .sfield:focus-within { outline: 2px solid Highlight; outline-offset: 1px; }
+  .slist { border: 1px solid CanvasText; }
+  .so.on { outline: 2px solid Highlight; outline-offset: -2px; }
+  .sbadge, .nb:target .nbn:after { border: 1px solid CanvasText; }
+  .nb:target:before { background: Highlight; }
 }

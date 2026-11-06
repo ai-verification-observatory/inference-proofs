@@ -1,7 +1,7 @@
 """Local preview with the site's own addresses: python3 -I serve.py [port]   (default 4440)
 
 Serves this folder as Vercel does with web/vercel.json:
-- only the files its buildCommand deploys (the pages, words.css, words.js, og/*.png and *.svg,
+- only the files its buildCommand deploys (the pages, words.css, words.js, search.json, og/*.png and *.svg,
   fonts/*.woff2); anything else, like the data or this script, answers the 404 page;
 - clean addresses: /flashprove answers flashprove.html, and /flashprove.html and /flashprove/
   redirect to /flashprove; an unknown path answers 404.html with status 404;
@@ -24,7 +24,7 @@ REDIRECTS = {
 }
 HEADERS = [(re.compile(f"^{h['source']}$"), h["headers"]) for h in VERCEL["headers"]]
 DEPLOYED = re.compile(
-    r"^(words\.css|words\.js|og/[^/]+\.(png|svg)|fonts/[^/]+\.woff2|[^/]+\.html)$"
+    r"^(words\.css|words\.js|search\.json|og/[^/]+\.(png|svg)|fonts/[^/]+\.woff2|[^/]+\.html)$"
 )
 
 

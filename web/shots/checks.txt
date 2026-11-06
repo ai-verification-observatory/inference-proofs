@@ -37,6 +37,27 @@ ok   sort with missing values: check_time desc {"got":["sash","zz-a","flashprove
 ok   sort with missing values: overhead asc {"got":["zz-a","zz-b","flashprove","sash"],"keys":[3,7,null,null]}
 ok   sort with missing values: overhead desc {"got":["zz-b","zz-a","flashprove","sash"],"keys":[7,3,null,null]}
 ok   unknown sort in the hash falls back and clears it
+ok   "/" focuses search and opens the list
+ok   an empty search lists the benchmarked systems ["FlashProve","SASH"]
+ok   the field is wide and centred between the pages and GitHub, its list as wide {"w":600,"gaps":[114,114],"list":0}
+ok   "flash" finds FlashProve first
+ok   not-benchmarked systems come after the others, each marked ["FlashProve:system on","SASH:system","zkGPT:unbenchmarked","zkLLM:unbenchmarked","ZKML:unbenchmarked","zkPyTorch:unbenchmarked","ZKTorch:unbenchmarked","Attestable prover:unbenchmarked","DeepProve:unbenchmarked","EZKL:unbenchmarked","JOLT Atlas:unbenchmarked","JSTprove:unbenchmarked","LuminAIR:unbenchmarked","NanoZK:unbenchmarked"]
+ok   one typo still finds the system
+ok   a not-benchmarked result leads to its card in the overview, marked and labelled {"url":"/#nb-attestable","bar":"\"\"","label":"\"Not benchmarked\""}
+ok   no match says so
+ok   "atest" finds Attestable prover first ["Attestable prover","Private ML SDK","Tinfoil"]
+ok   "flsh" finds FlashProve first ["FlashProve"]
+ok   "flahsprove" finds FlashProve first ["FlashProve"]
+ok   "sahs" finds SASH first ["SASH"]
+ok   "llama4" finds FlashProve first ["FlashProve","SASH","VerInf"]
+ok   an exact word brings no typo noise ("sash" finds SASH only) ["SASH"]
+ok   "stark" finds only the systems whose stated technique is one
+ok   one letter still lists the not-benchmarked names that start with it
+ok   Enter goes to the first result of a typed search http://127.0.0.1:4440/criteria#weights_hidden
+ok   the arrows choose another result http://127.0.0.1:4440/reference#ref-recompute
+ok   Enter in an empty field picks nothing http://127.0.0.1:4440/
+ok   phone: a search button, the field hidden
+ok   phone: the button opens the field and its results, nothing overflows {"over":0,"wide":[],"clipped":[]}
 ok   Enter on Proof size sorts ascending {"aria":["proof_size:ascending"],"heads":1,"glyphs":"↕↕↑↕↕","hash":"#sort=proof_size-asc"}
 ok   Space on it again sorts descending {"aria":["proof_size:descending"],"heads":1,"glyphs":"↕↕↓↕↕","hash":"#sort=proof_size-desc"}
 ok   keyboard focus is visible on a head button solid
@@ -60,8 +81,8 @@ ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped"
 ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 730 px
-ok   home-390 first system name shows on landing 730
+home-390 first system name bottom 732 px
+ok   home-390 first system name shows on landing 732
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -101,19 +122,19 @@ ok   criteria-320 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties fit the first screen 479
+ok   flashprove: the six properties fit the first screen 501
 ok   flashprove: no quotes, nothing folded
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties fit the first screen 491
+ok   sash: the six properties fit the first screen 513
 ok   sash: no quotes, nothing folded
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
 ok   reference-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true},{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   reference: the six properties fit the first screen 664
+ok   reference: the six properties fit the first screen 686
 ok   reference: no quotes, nothing folded
 ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash: no work-in-progress label; its figures name their model
@@ -122,7 +143,7 @@ ok   /a/b/c answers the styled 404 page 404
 ok   /system redirects to /flashprove http://127.0.0.1:4440/flashprove
 ok   /system.html redirects to /flashprove http://127.0.0.1:4440/flashprove
 ok   a malformed hash does not stop hash sorting
-ok   landscape phone: the model heading shows on landing 336
+ok   landscape phone: the model heading shows on landing 366
 ok   home: cut sentences absent
 ok   home: no placeholder marking on the page
 ok   home: no ranking words in the site's own controls
@@ -166,6 +187,7 @@ ok   axe 1440 reference []
 ok   axe 1440 criteria []
 ok   axe 1440 #sort=overhead-desc []
 ok   axe 1440 nope []
+ok   axe 1440  search []
 ok   axe 390  []
 ok   axe 390 flashprove []
 ok   axe 390 sash []
@@ -173,5 +195,6 @@ ok   axe 390 reference []
 ok   axe 390 criteria []
 ok   axe 390 #sort=overhead-desc []
 ok   axe 390 nope []
+ok   axe 390  search []
 ok   no console or page errors []
 0 failed check(s)

@@ -34,6 +34,156 @@
     pie.addEventListener('pointerleave', () => set(0));
   });
 
+  // ------------------------------------------------------------ search: a combobox over search.json (written by build.py)
+  // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
+  // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
+  // only from its first letter on. Order: not-benchmarked systems after every other match; within
+  // each part, where the words matched, then the kind of entry, then how closely, then the name. It
+  // never orders by how good a system is.
+  const sbox = $('.search');
+  if (sbox) {
+    const input = $('#q', sbox);
+    const list = $('#q-list', sbox);
+    const opener = $('.sopen', sbox);
+    const top = sbox.closest('.top');
+    const CAP = 12;  // per part: other matches, then not-benchmarked ones; the rest is counted, not hidden
+    let entries = null;
+    let loading = null;
+    let failed = false;
+    let shown = [];
+    let active = -1;
+    // lower case, no accents, a number apart from the word it is glued to ("llama4" is "llama 4")
+    const norm = (s) => s.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '')
+      .replace(/([a-z])(\d)/g, '$1 $2').replace(/[^a-z0-9.]+/g, ' ').trim();
+    const load = () => {
+      loading = loading || fetch(list.dataset.index).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((d) => {
+        entries = d.entries.map((x) => ({ ...x, nw: norm(x.name).split(' '), tw: norm(x.terms).split(' '), n: norm(x.name) }));
+      }).catch(() => { failed = true; });
+      return loading;
+    };
+    // one letter added, missing or wrong, or two neighbours swapped
+    const near = (a, b) => {
+      if (a === b) return true;
+      if (Math.abs(a.length - b.length) > 1) return false;
+      let i = 0;
+      while (i < a.length && a[i] === b[i]) i++;
+      if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
+      const [s, l] = a.length < b.length ? [a, b] : [b, a];
+      return s.slice(i) === l.slice(i + 1);
+    };
+    // how one query word matches a list of words: 0 starts one, 1 sits inside one, 2 one typo away
+    const wordScore = (q, ws, typo) => {
+      let best = 9;
+      for (const w of ws) {
+        if (w.startsWith(q)) return 0;
+        if (q.length >= 3 && w.includes(q)) best = Math.min(best, 1);
+        else if (typo && q.length >= 4 && w[0] === q[0] && [q.length - 1, q.length, q.length + 1].some((L) => near(q, w.slice(0, L)))) best = Math.min(best, 2);
+      }
+      return best;
+    };
+    const rank = (x, qs, whole, typo) => {
+      if (x.n.startsWith(whole)) return [0, 0];
+      const inName = qs.map((q, k) => wordScore(q, x.nw, typo[k]));
+      if (inName.every((s) => s < 9)) return [1, inName.reduce((a, b) => a + b, 0)];
+      if (whole.length < 2) return null;  // one letter: names only
+      const inAll = qs.map((q, k) => Math.min(wordScore(q, x.nw, typo[k]), wordScore(q, x.tw, typo[k])));
+      if (inAll.every((s) => s < 9)) return [2, inAll.reduce((a, b) => a + b, 0)];
+      return null;
+    };
+    const results = (q) => {
+      const whole = norm(q);
+      if (!whole) { const all = entries.filter((x) => x.kind === 'system'); return { shown: all, total: all.length }; }
+      const qs = whole.split(' ');
+      // a word some entry has is matched as typed; only a word no entry has gets typo matching
+      const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
+      const ms = entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
+        .sort((a, b) => a.r[0] - b.r[0] || a.x.tier - b.x.tier || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
+        .map((m) => m.x);
+      const others = ms.filter((x) => x.kind !== 'unbenchmarked');
+      const nb = ms.filter((x) => x.kind === 'unbenchmarked');
+      return { shown: [...others.slice(0, CAP), ...nb.slice(0, CAP)], total: ms.length };
+    };
+    const note = (text) => {
+      const li = document.createElement('li'); li.className = 'snone'; li.setAttribute('role', 'presentation'); li.textContent = text;
+      return li;
+    };
+    const option = (x, i) => {
+      const li = document.createElement('li');
+      li.id = `q-o${i}`; li.className = `so k-${x.kind}`; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
+      // name, then what kind of entry it is, then the line of context: the order a screen reader reads
+      // (the grid shows the badge at the right)
+      const pie = document.createElement('span'); pie.className = 'sp'; pie.innerHTML = x.pie;  // the build's own svg
+      const b = document.createElement('b'); b.className = 'sn'; b.textContent = x.name;
+      li.append(pie, b);
+      if (x.badge) { const t = document.createElement('span'); t.className = 'sbadge'; t.textContent = ` ${x.badge} `; li.append(t); }
+      if (x.meta) { const m = document.createElement('span'); m.className = 'sm'; m.textContent = x.meta; li.append(m); }
+      li.addEventListener('pointerdown', (ev) => ev.preventDefault());  // keep focus in the field
+      li.addEventListener('click', () => go(x));
+      return li;
+    };
+    const mark = (i) => {
+      active = i;
+      $$('.so', list).forEach((li, k) => { li.classList.toggle('on', k === i); li.setAttribute('aria-selected', String(k === i)); });
+      if (i >= 0) { input.setAttribute('aria-activedescendant', `q-o${i}`); $(`#q-o${i}`)?.scrollIntoView({ block: 'nearest' }); } else input.removeAttribute('aria-activedescendant');
+    };
+    const open = (yes) => {
+      list.hidden = !yes;
+      input.setAttribute('aria-expanded', String(yes));
+      if (!yes) mark(-1);
+    };
+    const render = () => {
+      if (document.activeElement !== input) return;  // the index may arrive after the field was left
+      if (failed) { list.replaceChildren(note('Search could not load')); shown = []; open(true); return; }
+      if (!entries) return;
+      const typed = norm(input.value);
+      const r = results(input.value);
+      shown = r.shown;
+      list.replaceChildren(...shown.map(option));
+      if (!shown.length) list.append(note('No match'));
+      else if (r.total > shown.length) list.append(note(`${r.total - shown.length} more: type more letters`));
+      open(true);
+      mark(typed && shown.length ? 0 : -1);
+      if (typed) say(!shown.length ? 'No match' : r.total > shown.length ? `${r.total} results, ${shown.length} shown` : `${shown.length} result${shown.length > 1 ? 's' : ''}`);
+    };
+    const go = (x) => {
+      open(false);
+      const here = location.pathname === x.url.split('#')[0];
+      location.href = x.url;
+      if (here) { input.blur(); setPhone(false); }
+    };
+    const phone = () => opener && getComputedStyle(opener).display !== 'none';
+    const setPhone = (on) => {
+      top.classList.toggle('s-on', on);
+      if (opener) opener.setAttribute('aria-expanded', String(on));
+      if (on) input.focus();
+    };
+    input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(render); });
+    input.addEventListener('input', () => { load().then(render); });
+    input.addEventListener('blur', () => { open(false); if (top.classList.contains('s-on')) setPhone(false); });
+    input.addEventListener('keydown', (ev) => {
+      const n = shown.length;
+      if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); if (list.hidden) render(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
+        // the chosen option, or the first result of a typed search; never a pick nobody made
+        const x = active >= 0 ? shown[active] : (norm(input.value) ? shown[0] : null);
+        if (x) { ev.preventDefault(); go(x); }
+      } else if (ev.key === 'Escape') {
+        if (!list.hidden && input.value) { input.value = ''; render(); } else if (phone()) { open(false); setPhone(false); opener.focus(); } else open(false);
+      }
+    });
+    if (opener) {
+      opener.addEventListener('pointerdown', (ev) => ev.preventDefault());  // the field keeps focus while it toggles
+      opener.addEventListener('click', () => setPhone(!top.classList.contains('s-on')));
+    }
+    // "/" or Ctrl/Cmd + K, from anywhere but a field
+    addEventListener('keydown', (ev) => {
+      const typing = ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable]');
+      if ((ev.key === '/' && !typing && !ev.metaKey && !ev.ctrlKey) || (ev.key.toLowerCase() === 'k' && (ev.metaKey || ev.ctrlKey))) {
+        ev.preventDefault();
+        if (phone()) setPhone(true); else input.focus();
+      }
+    });
+  }
+
   // ------------------------------------------------------------ sorting the benchmarked tables by their column heads
   // One order for every model's table. Keys come from data-k (computed by build.py from the raw numbers).
   // Rows with no number go last in both directions; ties and the default fall back to the name, A to Z.

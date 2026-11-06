@@ -175,6 +175,63 @@ const sortBy = async (p, col, dir) => {
   await z.ctx.close();
 }
 
+// ---------------------------------------------------------------- search
+{
+  const { ctx, p } = await pg(1440, 900);
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
+  const opts = () => p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ name: o.querySelector('.sn').textContent, kind: o.className.replace(/.*k-/, ''), badge: (o.querySelector('.sbadge')?.textContent || '').trim() })));
+  const type = async (q) => { await p.fill('#q', q); await p.waitForTimeout(250); };
+  await p.keyboard.press('/'); await p.waitForTimeout(400);
+  ok(await p.evaluate(() => document.activeElement.id === 'q' && !document.getElementById('q-list').hidden), '"/" focuses search and opens the list');
+  const empty = await opts();
+  ok(empty.length && empty.every((o) => o.kind === 'system'), 'an empty search lists the benchmarked systems', empty.map((o) => o.name));
+  const geo = await p.evaluate(() => { const f = document.querySelector('.sfield').getBoundingClientRect(); const l = document.querySelector('#q-list').getBoundingClientRect(); const n = document.querySelector('.tl').getBoundingClientRect(); const g = document.querySelector('.repo').getBoundingClientRect(); return { w: Math.round(f.width), gaps: [Math.round(f.left - n.right), Math.round(g.left - f.right)], list: Math.round(l.width - f.width) }; });
+  ok(geo.w >= 560 && Math.abs(geo.gaps[0] - geo.gaps[1]) <= 2 && geo.list === 0, 'the field is wide and centred between the pages and GitHub, its list as wide', geo);
+  await type('flash');
+  ok((await opts())[0]?.name === 'FlashProve', '"flash" finds FlashProve first');
+  await type('zk');
+  const zk = await opts();
+  const firstNb = zk.findIndex((o) => o.kind === 'unbenchmarked');
+  ok(firstNb > 0 && zk.slice(firstNb).every((o) => o.kind === 'unbenchmarked' && o.badge === 'Not benchmarked'), 'not-benchmarked systems come after the others, each marked', zk.map((o) => `${o.name}:${o.kind}`));
+  await type('atestable');
+  ok((await opts())[0]?.name === 'Attestable prover', 'one typo still finds the system');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(500);
+  const tgt = await p.evaluate(() => ({ url: location.pathname + location.hash, bar: getComputedStyle(document.querySelector('#nb-attestable'), '::before').content, label: getComputedStyle(document.querySelector('#nb-attestable .nbn'), '::after').content }));
+  ok(tgt.url === '/#nb-attestable' && tgt.bar !== 'none' && /Not benchmarked/.test(tgt.label), 'a not-benchmarked result leads to its card in the overview, marked and labelled', tgt);
+  await type('qqqqzz');
+  ok(await p.evaluate(() => document.querySelector('#q-list .snone')?.textContent === 'No match'), 'no match says so');
+  for (const [q, want] of [['atest', 'Attestable prover'], ['flsh', 'FlashProve'], ['flahsprove', 'FlashProve'], ['sahs', 'SASH'], ['llama4', 'FlashProve']]) {
+    await type(q);
+    ok((await opts())[0]?.name === want, `"${q}" finds ${want} first`, (await opts()).map((o) => o.name).slice(0, 3));
+  }
+  await type('sash');
+  ok((await opts()).length === 1, 'an exact word brings no typo noise ("sash" finds SASH only)', (await opts()).map((o) => o.name));
+  await type('stark');
+  ok(JSON.stringify((await opts()).map((o) => o.name)) === '["SASH","LuminAIR"]', '"stark" finds only the systems whose stated technique is one');
+  await type('a');
+  ok((await opts()).some((o) => o.name === 'Attestable prover'), 'one letter still lists the not-benchmarked names that start with it');
+  await type('weights hidden');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/criteria#weights_hidden', 'Enter goes to the first result of a typed search', p.url());
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.focus('#q'); await p.waitForTimeout(300); await type('weights');
+  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/reference#ref-recompute', 'the arrows choose another result', p.url());
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.focus('#q'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
+  ok(new URL(p.url()).pathname === '/', 'Enter in an empty field picks nothing', p.url());
+  await ctx.close();
+  // phones: a button opens the field over the first line
+  const ph = await pg(390, 844, { touch: true });
+  await ph.p.goto(BASE + 'flashprove', { waitUntil: 'networkidle' }); await ph.p.waitForTimeout(settle);
+  ok(await ph.p.locator('.sopen').isVisible() && !(await ph.p.locator('#q').isVisible()), 'phone: a search button, the field hidden');
+  await ph.p.click('.sopen'); await ph.p.waitForTimeout(400);
+  await ph.p.fill('#q', 'llama'); await ph.p.waitForTimeout(300);
+  const o = await overflow(ph.p);
+  ok(await ph.p.locator('#q').isVisible() && (await ph.p.locator('#q-list .so').count()) > 0 && o.over <= 0, 'phone: the button opens the field and its results, nothing overflows', o);
+  await ph.ctx.close();
+}
+
 // ---------------------------------------------------------------- keyboard
 {
   const { ctx, p } = await pg(1440, 900);
@@ -262,7 +319,7 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   // an unknown address: the site's own 404 page, with the site's header, at any depth
   for (const u of ['nope', 'a/b/c']) {
     const res = await p.goto(BASE + u, { waitUntil: 'networkidle' });
-    ok(res.status() === 404 && (await p.locator('.top nav a').count()) >= 4 && (await p.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(11, 11, 12)', `/${u} answers the styled 404 page`, res.status());
+    ok(res.status() === 404 && (await p.locator('.top nav a').count()) >= 3 && (await p.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(11, 11, 12)', `/${u} answers the styled 404 page`, res.status());
   }
   // an older address redirects to the first system page
   for (const u of ['system', 'system.html']) {
@@ -324,13 +381,17 @@ if (AxeBuilder) {
   const runs = [];
   for (const w of [1440, 390]) {
     for (const name of PAGES) runs.push([w, name, null]);
-    runs.push([w, '#sort=overhead-desc', null], [w, 'nope', null]);
+    runs.push([w, '#sort=overhead-desc', null], [w, 'nope', null], [w, '', 'search']);
   }
-  for (const [w, url] of runs) {
+  for (const [w, url, mode] of runs) {
     const { ctx, p } = await pg(w, 900, { reduce: true });
     await p.goto(BASE + url, { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
+    if (mode === 'search') {  // the results list open, with not-benchmarked entries in it
+      if (await p.locator('.sopen').isVisible()) await p.click('.sopen'); else await p.focus('#q');
+      await p.fill('#q', 'zk'); await p.waitForTimeout(300);
+    }
     const res = await new AxeBuilder({ page: p }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice']).analyze();
-    ok(res.violations.length === 0, `axe ${w} ${url}`, res.violations.map((v) => `${v.id} x${v.nodes.length} ${v.nodes[0]?.target}`));
+    ok(res.violations.length === 0, `axe ${w} ${url}${mode ? ' ' + mode : ''}`, res.violations.map((v) => `${v.id} x${v.nodes.length} ${v.nodes[0]?.target}`));
     await ctx.close();
   }
 } else {

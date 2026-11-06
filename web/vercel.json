@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "rm -rf public && mkdir -p public/og public/fonts && cp *.html words.css words.js public/ && cp og/*.png og/*.svg public/og/ && cp fonts/*.woff2 public/fonts/",
+  "buildCommand": "rm -rf public && mkdir -p public/og public/fonts && cp *.html words.css words.js search.json public/ && cp og/*.png og/*.svg public/og/ && cp fonts/*.woff2 public/fonts/",
   "cleanUrls": true,
   "framework": null,
   "headers": [
@@ -40,7 +40,7 @@
           "value": "public, max-age=31536000, immutable"
         }
       ],
-      "source": "/(words\\.css|words\\.js)"
+      "source": "/(words\\.css|words\\.js|search\\.json)"
     },
     {
       "headers": [
