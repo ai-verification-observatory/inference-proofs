@@ -447,7 +447,7 @@
       "proof_id": "req-1"
     },
     {
-      "archive": null,
+      "archive": "https://huggingface.co/datasets/abdelstark/inference-proofs-archive/resolve/052c817f1fb4d8a170482b0ce37819b6c88bcbd9/v0.1/flashprove/fp-maverick-w1024-b1/prover-h100-hosted/2026-11-05-flashprove-fp-maverick-w1024-b1-prover-h100-hosted-6-req-2.tar",
       "digest": "sha256:d57482f873cc3a1b6bfe6c6225ed83807ceb4147ad890fb6d708340a0b1fa152",
       "parts": [
         {

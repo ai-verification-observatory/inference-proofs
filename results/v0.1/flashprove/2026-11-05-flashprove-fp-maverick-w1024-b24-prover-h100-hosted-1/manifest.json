@@ -3518,7 +3518,7 @@
   "prompts_from": null,
   "proofs": [
     {
-      "archive": null,
+      "archive": "https://huggingface.co/datasets/abdelstark/inference-proofs-archive/resolve/0c613f849e69f567c3c02e4347b08f224e581982/v0.1/flashprove/fp-maverick-w1024-b24/prover-h100-hosted/2026-11-05-flashprove-fp-maverick-w1024-b24-prover-h100-hosted-1-req-0.tar",
       "digest": "sha256:060968b48f450a3c441fc1dbf99ed3871fcc7a5ad7e9854b09ada9e57f56989a",
       "parts": [
         {
