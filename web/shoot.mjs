@@ -350,6 +350,139 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   await ls.ctx.close();
 }
 
+// ---------------------------------------------------------------- phones: search sheet, header, legend, strip, taps, targets
+{
+  // the search sheet: 16 px type (no zoom on focus), a tap around it closes it and reaches nothing, a close button
+  const { ctx, p } = await pg(390, 844, { touch: true });
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  const fs16 = await p.evaluate(() => parseFloat(getComputedStyle(document.getElementById('q')).fontSize));
+  ok(fs16 >= 16, 'phone: the search field is set at 16 px or more, so focusing it does not zoom', fs16);
+  await p.tap('.sopen'); await p.fill('#q', 'sash'); await p.waitForTimeout(300);
+  await p.touchscreen.tap(200, 780); await p.waitForTimeout(400);
+  const after = await p.evaluate(() => ({ path: location.pathname + location.hash, on: document.querySelector('.top').classList.contains('s-on') }));
+  ok(after.path === '/' && !after.on, 'phone: a tap on the sheet closes search and activates nothing under it', after);
+  await p.tap('.sopen'); await p.waitForTimeout(300);
+  await p.evaluate(() => document.getElementById('q').blur()); await p.waitForTimeout(200);
+  ok(await p.evaluate(() => !document.getElementById('q-list').hidden), 'phone: hiding the keyboard keeps the results');
+  const cb = await p.locator('.sclose').boundingBox();
+  await p.tap('.sclose'); await p.waitForTimeout(300);
+  const closed = await p.evaluate(() => ({ on: document.querySelector('.top').classList.contains('s-on'), focus: document.activeElement.className }));
+  ok(cb.width >= 44 && cb.height >= 44 && !closed.on && closed.focus === 'sopen', 'phone: a 44 px close button closes search and returns focus to the search button', { cb, closed });
+  // open, the sheet holds still and what it covers is out of reach; closed, everything is back
+  await p.tap('.sopen'); await p.fill('#q', 'z'); await p.waitForTimeout(300);
+  await p.evaluate(() => scrollBy(0, 600)); await p.waitForTimeout(200);
+  const held = await p.evaluate(() => ({ field: Math.round(document.querySelector('.sfield').getBoundingClientRect().top), lock: getComputedStyle(document.documentElement).overflow, main: document.querySelector('main').inert, repo: document.querySelector('.repo').inert, search: !!document.querySelector('.search').closest('[inert]') }));
+  ok(held.field === 4 && held.lock === 'hidden' && held.main && held.repo && !held.search, 'phone: the open sheet stays on screen, the page under it is locked and inert', held);
+  await p.tap('.sclose'); await p.waitForTimeout(300);
+  ok(await p.evaluate(() => !document.querySelector('[inert]') && getComputedStyle(document.documentElement).overflow !== 'hidden'), 'phone: closing the sheet gives the page back');
+  await p.evaluate(() => scrollTo(0, 0));
+  await p.setViewportSize({ width: 390, height: 500 }); await p.waitForTimeout(200);
+  await p.tap('.sopen'); await p.fill('#q', 'zk'); await p.waitForTimeout(300);
+  const lb = await p.evaluate(() => Math.round(document.getElementById('q-list').getBoundingClientRect().bottom));
+  ok(lb <= 488, 'phone: the results end above the keyboard (390 x 500 visible)', lb);
+  await p.tap('#q-list .so'); await p.waitForTimeout(600);
+  ok(new URL(p.url()).pathname === '/flashprove', 'phone: a tap on a result opens it', p.url());
+  await ctx.close();
+}
+{
+  // the header: one line from 561 px, two lines and 44 px search and GitHub targets below
+  for (const [w, h] of [[600, 900], [768, 1024], [844, 390]]) {
+    const { ctx, p } = await pg(w, h, { touch: true });
+    await p.goto(BASE + 'sash', { waitUntil: 'networkidle' });
+    const t = await p.evaluate(() => {
+      const c = (s) => document.querySelector(s).getBoundingClientRect();
+      const l = c('.logo'); const mid = (r) => (r.top + r.bottom) / 2;
+      return { h: Math.round(c('.top').height), dy: [...document.querySelectorAll('.top nav a')].map((a) => Math.round(Math.abs(mid(a.getBoundingClientRect()) - mid(l)))) };
+    });
+    ok(t.h <= 60 && t.dy.every((d) => d <= 4), `header-${w}x${h}: the pages share the logo's line`, t);
+    await ctx.close();
+  }
+  const { ctx, p } = await pg(390, 844, { touch: true });
+  await p.goto(BASE, { waitUntil: 'networkidle' });
+  const t = await p.evaluate(() => ({ sopen: Math.round(document.querySelector('.sopen').getBoundingClientRect().height), repo: Math.round(document.querySelector('.top .repo').getBoundingClientRect().height), nav: [...document.querySelectorAll('.top nav a')].map((a) => Math.round(a.getBoundingClientRect().height)) }));
+  ok(t.sopen >= 44 && t.repo >= 44 && t.nav.every((x) => x >= 32), 'header-390: search and GitHub 44 px to press, the pages 32 px', t);
+  await ctx.close();
+}
+for (const [w, h] of [[375, 667], [320, 568]]) {
+  // the legend: a 2 x 3 key, so the first glyph shows on landing; the questions still read aloud
+  const { ctx, p } = await pg(w, h, { touch: true });
+  await p.goto(BASE, { waitUntil: 'networkidle' });
+  // 375 x 667: the first glyph whole; 320 x 568: the first row starts on screen
+  const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
+  ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
+  // the sort strip: two even lines of buttons at least 32 px tall
+  const s = await p.evaluate(() => { const b = [...document.querySelectorAll('.bench .sb')].map((x) => x.getBoundingClientRect()); return { rows: new Set(b.map((x) => Math.round(x.top))).size, h: Math.min(...b.map((x) => Math.round(x.height))) }; });
+  ok(s.rows === 2 && s.h >= 32, `home-${w}: the sort strip is two lines of buttons 32 px tall or more`, s);
+  await ctx.close();
+}
+{
+  // touch: the first tap on a triangle names it, the second follows the link; the sorted figure is marked in each row
+  const { ctx, p } = await pg(390, 844, { touch: true });
+  await p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
+  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc .lbl')].map((l) => `${l.closest('.vc').dataset.col}:${getComputedStyle(l).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
+  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_time') ? 'on' : 'off')), 'home-390: the sorted figure is marked in every row', mk);
+  await p.locator('#flashprove .pie').scrollIntoViewIfNeeded();
+  const bx = await p.locator('#flashprove .pie').boundingBox();
+  const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
+  await p.touchscreen.tap(...at); await p.waitForTimeout(300);
+  const tip = await p.evaluate(() => { const pie = document.querySelector('#flashprove .pie'); const t = pie.querySelector('.tip'); return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', text: t.textContent, sw: !!t.querySelector('.sw') }; });
+  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw, 'touch: a first tap on a triangle names it and stays on the page', tip);
+  await p.touchscreen.tap(...at); await p.waitForTimeout(800);
+  ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
+  // the system page: one column of properties 1 to 6, each with a key glyph in its state's ink; a tap lifts a slice
+  await p.waitForTimeout(400);
+  const r = await p.evaluate(() => {
+    const rps = [...document.querySelectorAll('.rose .rp')].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
+    return { order: rps.map((x) => x.dataset.n).join(''), ink: rps.every((rp) => { const k = rp.querySelector('.rk'); return k.getBoundingClientRect().width === 24 && getComputedStyle(k.querySelector('.on')).fill === getComputedStyle(rp.querySelector('.sw')).backgroundColor; }) };
+  });
+  ok(r.order === '123456' && r.ink, 'flashprove-390: properties 1 to 6 in one column, each key glyph in its state ink', r);
+  const sb = await p.locator('.rpie .h2').boundingBox();
+  await p.touchscreen.tap(sb.x + sb.width * 0.7, sb.y + sb.height * 0.5); await p.waitForTimeout(400);
+  const lift = await p.evaluate(() => ({ s2: getComputedStyle(document.querySelector('.rpie .s2')).transform, rn: getComputedStyle(document.querySelector('.rp[data-n="2"] .rn')).color, path: location.pathname }));
+  ok(lift.s2 !== 'none' && lift.rn === 'rgb(241, 239, 233)' && lift.path === '/flashprove', 'touch: a tap on a slice lifts it and marks its property', lift);
+  await ctx.close();
+}
+{
+  // inline links on every page: hit boxes 24 px tall or more, none overlapping another
+  for (const w of [390, 320]) {
+    for (const name of [...PAGES, 'nope']) {
+      const { ctx, p } = await pg(w, 844, { touch: true });
+      await p.goto(BASE + name, { waitUntil: 'networkidle' });
+      const t = await p.evaluate(() => {
+        const els = [...document.querySelectorAll('a, button')].filter((a) => a.getClientRects().length && getComputedStyle(a).visibility !== 'hidden' && !a.closest('.sr, [hidden]'));
+        const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
+        const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));
+        const hit = [];
+        for (let i = 0; i < bx.length; i++) for (let j = i + 1; j < bx.length; j++) {
+          if (bx[i].a.contains(bx[j].a) || bx[j].a.contains(bx[i].a)) continue;
+          if (bx[i].rs.some((r1) => bx[j].rs.some((r2) => r1.left < r2.right - 0.5 && r2.left < r1.right - 0.5 && r1.top < r2.bottom - 0.5 && r2.top < r1.bottom - 0.5))) hit.push(`${bx[i].a.textContent.trim().slice(0, 16)} x ${bx[j].a.textContent.trim().slice(0, 16)}`);
+        }
+        return { small, hit };
+      });
+      ok(!t.small.length && !t.hit.length, `${tagOf(name)}-${w}: every link and button 24 px tall or more, none overlapping`, t);
+      await ctx.close();
+    }
+  }
+}
+{
+  // phones held sideways: the band and the whole glyph on the first screen
+  for (const name of ['sash', 'flashprove']) {
+    const { ctx, p } = await pg(844, 390, { touch: true });
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const g = await p.evaluate(() => Math.round(document.querySelector('.rpie svg').getBoundingClientRect().bottom));
+    ok(g <= 390, `${name}-844x390: the whole glyph on the first screen`, g);
+    await ctx.close();
+  }
+  // the 404 page on a phone: the search field shown, no keyboard on load
+  const { ctx, p } = await pg(390, 844, { touch: true });
+  await p.goto(BASE + 'nope', { waitUntil: 'networkidle' });
+  const f = await p.evaluate(() => ({ h: Math.round(document.querySelector('.sfield').getBoundingClientRect().height), vis: document.getElementById('q').getBoundingClientRect().width > 0, focus: document.activeElement.tagName }));
+  ok(f.vis && f.h >= 44 && f.focus === 'BODY', '404-390: the search field is shown, not focused', f);
+  await p.tap('#q'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(new URL(p.url()).pathname === '/sash', '404-390: search leads on from the 404 page', p.url());
+  await ctx.close();
+}
+
 // ---------------------------------------------------------------- words: cut sentences, neutrality, numbered names, links
 {
   const { ctx, p } = await pg(1440, 900);
