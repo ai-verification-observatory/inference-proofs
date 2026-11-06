@@ -1,5 +1,5 @@
 # The page builder writes HTML from f-string templates whose lines are markup, not logic.
-extend = "../../pyproject.toml"
+extend = "../pyproject.toml"
 
 [lint]
 extend-ignore = ["E501"]

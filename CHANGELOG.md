@@ -65,6 +65,8 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Removed
 
+- The Next.js dashboard preview in `web/`. `web/` is now the public site: static pages built by `web/build.py` from a frozen data snapshot, deployed to www.inferenceproofs.ai by Vercel when the folder changes, and checked by the `site` workflow. G3 no longer skips `web/` JSON, and G8 covers the site's README and pages in place of the dashboard sources (RFC-0013 text updated).
+
 ### Fixed
 
 - `iproofs archive upload` stores a repository input (`<repo>.git#<commit>`) as its `git archive`, the bytes `inputs.lock` digests; it fetched the URL as a file and every repository input failed its check.

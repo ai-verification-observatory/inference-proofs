@@ -63,8 +63,8 @@ def test_scope_and_allowlist(tmp_path: Path) -> None:
     assert lint(tmp_path, "the fastest\n", "systems/sash/README.md") == [
         ("systems/sash/README.md:1", "LANG-1", False)
     ]
-    assert lint(tmp_path, "the fastest\n", "web/app/page.tsx") == [
-        ("web/app/page.tsx:1", "LANG-1", False)
+    assert lint(tmp_path, "the fastest\n", "web/index.html") == [
+        ("web/index.html:1", "LANG-1", False)
     ]
 
 

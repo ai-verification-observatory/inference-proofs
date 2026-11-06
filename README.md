@@ -54,9 +54,9 @@ uv run iproofs site build --out DIR  # or any other directory
 
 Open `site/_build/index.html` in a browser; no script is needed. Templates are in [`site/templates/`](site/templates/). Until a release is frozen the site has only its home page.
 
-### Dashboard preview (mock data)
+### Public site
 
-[`web/`](web/) is the first version of the platform dashboard: a Next.js static export with the same pages and display rules as RFC-0009, deployable on Vercel. Its run values, controls, targets and reproductions are mock data, labelled as such on every number; see [web/README.md](web/README.md).
+[`web/`](web/) is the public site, deployed to www.inferenceproofs.ai by Vercel when it changes: static pages built by `web/build.py` from a frozen data snapshot. Its benchmark results are placeholders until a release exists; see [web/README.md](web/README.md).
 
 ## Contributing
 
