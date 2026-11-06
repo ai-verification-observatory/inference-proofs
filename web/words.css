@@ -309,11 +309,10 @@ html:not(.js) .search { display: none; }
 .rr { font: 400 12px/1.42 var(--mono); color: var(--muted); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
 .rp.l .rr { margin-left: auto; }
 /* each property's own key glyph, its slot in its state's ink: shown only where the properties stack */
-.rk { display: none; }
-.rk .kmini { display: block; width: 24px; height: 24px; overflow: visible; }
-.rk .kmini .off { fill: var(--line); opacity: 1; }
-.rk.yes .on { fill: var(--yes); } .rk.partly .on { fill: var(--partly); } .rk.no .on { fill: var(--no); }
-.rk.unstated .on { fill: var(--unstated); }
+/* each property's name in its own triangle: drawn by build.py, shown on phones only (760 px and below) */
+.rpie .tx { display: none; }
+.rpie .t { pointer-events: none; transition: transform .22s var(--ease); }
+.rpie .t text { fill: var(--ground); stroke: none; font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
 /* a property under the pointer lifts its slice; a slice under the pointer marks its property */
 @media (hover: hover) {
   .rose:has(.rp[data-n="1"]:hover) .s1, .rose:has(.rp[data-n="2"]:hover) .s2, .rose:has(.rp[data-n="3"]:hover) .s3,
@@ -398,6 +397,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 
 /* system page */
 .anim .sysname .lt { animation: rise .7s var(--ease) backwards .08s; }
+.anim .rpie .t { animation: fade .5s ease backwards .35s; }
 .anim .rpie .sl { transform-box: view-box; transform-origin: 0 0; animation: grow .6s var(--ease) backwards .25s; }
 .anim .rp, .anim .facts { animation: fade .5s ease backwards .4s; }
 /* figures arrive like the home rows', after the type has loaded, so nothing visible moves */
@@ -471,13 +471,24 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sysname { font-size: min(72px, 18vw); }
   .sect { font-size: 34px; }
   .refh { font-size: 44px; }
-  /* the pie on top, its right-hand properties in the right column and its left-hand ones in the left */
-  .rose { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "pie pie" "p6 p1" "p5 p2" "p4 p3"; column-gap: 16px; row-gap: 14px; align-items: start; }
-  .rpie .pie-svg { width: 148px; height: 148px; }
-  .rp.l { text-align: left; }
-  .rp.l .rr { margin-left: 0; }
-  .rp[data-n] { align-self: start; }
-  .rs { font-size: 19px; }
+  /* the glyph once, large, each triangle carrying its property's name (never its state: the ink says
+     it); under it one ruled row per property, clockwise from twelve: the name a quiet label, the
+     state with its square in a fixed column, the reason a muted second line */
+  .over { padding-top: 24px; row-gap: 28px; }
+  .rose { display: block; }
+  .rpie { display: block; }
+  .rpie .tx { display: inline; }
+  .rpie .pie-svg { width: min(340px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
+  .rprops { display: block; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+  .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 3px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
+  .rp + .rp { border-top: 1px solid var(--line); }
+  .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: .05em; color: var(--paper); }
+  .rn a { display: inline-block; padding-block: 6px; margin-block: -6px; }
+  .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
+  .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
+  /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
+  .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
+  .rose[data-hot="4"] .rp[data-n="4"], .rose[data-hot="5"] .rp[data-n="5"], .rose[data-hot="6"] .rp[data-n="6"] { background: var(--line); box-shadow: -8px 0 0 var(--line), 8px 0 0 var(--line); }
   .tamper, .reflead { font-size: 18px; }
   .plates-sys .plate { padding-bottom: 16px; }
   .cs div { grid-template-columns: 112px minmax(0, 1fr); }
@@ -565,13 +576,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .refs .sysc { grid-template-columns: 80px minmax(0, 1fr); }
   .refs .pie { width: 64px; height: 64px; margin: 0 8px; }
   .refs .na { font-size: 18px; padding-top: 8px; }
-  /* system page: one column of properties, 1 to 6 under the glyph, each with its key glyph */
-  .rose { grid-template-columns: minmax(0, 1fr); grid-template-areas: "pie" "p1" "p2" "p3" "p4" "p5" "p6"; row-gap: 12px; }
-  /* the key glyph at the left; name and state share a line where they fit, the reason under both */
-  .rp { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-left: 36px; }
-  .rk { display: block; position: absolute; left: 0; top: 0; }
-  .rs { margin-top: 0; }
-  .rr { flex-basis: 100%; max-width: none; }
   /* system page figures: each label close to its figure, one rule between plates */
   .blk { margin-top: 32px; }
   .plates-sys .pv { min-height: 0; margin-bottom: 10px; }
@@ -692,7 +696,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* forced colours (Windows high contrast): the state squares keep their inks so they still match the
    slices, Not stated grey included */
 @media (forced-colors: active) {
-  .sw, .rk .kmini { forced-color-adjust: none; }
+  .sw, .rpie .t text { forced-color-adjust: none; }
   .kmini .off, .crit .kmini .off, .sp .kmini .off { fill: GrayText; opacity: 1; }
   .kmini .on, .crit .kmini .on, .sp .kmini .on { fill: CanvasText; }
   .sfield { border: 1px solid CanvasText; }

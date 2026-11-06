@@ -438,13 +438,38 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw, 'touch: a first tap on a triangle names it and stays on the page', tip);
   await p.touchscreen.tap(...at); await p.waitForTimeout(800);
   ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
-  // the system page: one column of properties 1 to 6, each with a key glyph in its state's ink; a tap lifts a slice
+  // the system page: the glyph once, wide, each triangle carrying its property's name and never a state
+  // word; under it six ruled rows, 1 to 6, each with its state in text in one column; no key glyphs
   await p.waitForTimeout(400);
   const r = await p.evaluate(() => {
-    const rps = [...document.querySelectorAll('.rose .rp')].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
-    return { order: rps.map((x) => x.dataset.n).join(''), ink: rps.every((rp) => { const k = rp.querySelector('.rk'); return k.getBoundingClientRect().width === 24 && getComputedStyle(k.querySelector('.on')).fill === getComputedStyle(rp.querySelector('.sw')).backgroundColor; }) };
+    const box = (x) => x.getBoundingClientRect();
+    const svg = document.querySelector('.rpie .pie-svg');
+    const g = box(svg);
+    const words = ['YES', 'PARTLY', 'NO', 'NOT STATED'];
+    // every corner of each line's capitals (baseline to cap height) falls in its own triangle's fill
+    const out = [];
+    [1, 2, 3, 4, 5, 6].forEach((n) => {
+      const sl = svg.querySelector(`.sl.s${n}`);
+      svg.querySelectorAll(`.t.s${n} text`).forEach((t) => {
+        const bb = t.getBBox(); const y = +t.getAttribute('y'); const m = sl.getCTM().inverse().multiply(t.getCTM());
+        [[bb.x, y], [bb.x + bb.width, y], [bb.x, y - 7], [bb.x + bb.width, y - 7]].forEach(([x, yy]) => {
+          if (!sl.isPointInFill(new DOMPoint(x, yy).matrixTransform(m))) out.push(`${n}:${t.textContent}`);
+        });
+      });
+    });
+    const inside = !out.length;
+    const names = [...svg.querySelectorAll('.t')].map((t) => [...t.querySelectorAll('text')].map((x) => x.textContent).join(' '));
+    const rows = [...document.querySelectorAll('.rose .rp')].sort((a, b) => box(a).top - box(b).top);
+    return {
+      wide: Math.round(g.width), inside, out, names,
+      stateless: names.every((t) => !words.includes(t)),
+      order: rows.map((x) => x.dataset.n).join(''),
+      below: rows.every((x) => box(x).top >= g.bottom - 1),
+      col: new Set(rows.map((x) => Math.round(box(x.querySelector('.rs')).left))).size,
+      keys: document.querySelectorAll('.rose .kmini').length,
+    };
   });
-  ok(r.order === '123456' && r.ink, 'flashprove-390: properties 1 to 6 in one column, each key glyph in its state ink', r);
+  ok(r.wide >= 330 && r.inside && r.stateless && r.order === '123456' && r.below && r.col === 1 && r.keys === 0, 'flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs', r);
   const sb = await p.locator('.rpie .h2').boundingBox();
   await p.touchscreen.tap(sb.x + sb.width * 0.7, sb.y + sb.height * 0.5); await p.waitForTimeout(400);
   const lift = await p.evaluate(() => ({ s2: getComputedStyle(document.querySelector('.rpie .s2')).transform, rn: getComputedStyle(document.querySelector('.rp[data-n="2"] .rn')).color, path: location.pathname }));

@@ -310,12 +310,74 @@ def _d(poly, c):
     return "M" + "L".join(f"{x + c[0]:.2f} {y + c[1]:.2f}" for x, y in poly) + "Z"
 
 
-def hex_svg(size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg"):
+# A property's name set in its own triangle (phone system pages, words.css shows them):
+# condensed capitals in ground ink, in user units of the glyph's viewBox. A slanted side carries its
+# name along it, the longer line nearer the side; an upright side, level, against it.
+NAME_PX, NAME_CAP, NAME_GAP, NAME_INSET = 10.5, 7.45, 10.29, 4.7
+
+
+def _name_lines(name, outer_first):
+    """Two lines at most. Slanted: the line nearer the side (the wider part of the triangle) is the
+    longer, and as short as that allows. Upright: the most even split."""
+    w = name.upper().split()
+    if len(w) == 1:
+        return w
+    cuts = [(" ".join(w[:k]), " ".join(w[k:])) for k in range(1, len(w))]
+    if outer_first is None:
+        return list(min(cuts, key=lambda ab: max(len(ab[0]), len(ab[1]))))
+    fits = [
+        ab for ab in cuts if len(ab[0 if outer_first else 1]) >= len(ab[1 if outer_first else 0])
+    ]
+    return list(min(fits or cuts, key=lambda ab: len(ab[0 if outer_first else 1])))
+
+
+def _names_svg(names, c, R):
+    out = []
+    for i, name in enumerate(names):
+        mid = 60 * i + 30
+        if i in (
+            1,
+            4,
+        ):  # the upright sides: level, against the side, centred on the centre's height
+            lines = _name_lines(name, None)
+            x = c[0] + (1 if i == 1 else -1) * (R * C30 - NAME_INSET)
+            y0 = c[1] - (NAME_CAP + NAME_GAP * (len(lines) - 1)) / 2 + NAME_CAP
+            anchor = "end" if i == 1 else "start"
+            body = "".join(
+                f'<text x="{x:.2f}" y="{y0 + k * NAME_GAP:.2f}" text-anchor="{anchor}">{e(t)}</text>'
+                for k, t in enumerate(lines)
+            )
+        else:  # slanted: along the side, inward from its midpoint
+            top = i in (0, 5)
+            lines = _name_lines(name, top)
+            mx, my = pt(R * C30, mid)
+            rot = mid if top else mid - 180
+            rot = rot - 360 if rot > 180 else rot
+            if top:
+                ys = [NAME_INSET + NAME_CAP + k * NAME_GAP for k in range(len(lines))]
+            else:
+                ys = [-NAME_INSET - (len(lines) - 1 - k) * NAME_GAP for k in range(len(lines))]
+            body = (
+                f'<g transform="translate({mx + c[0]:.2f} {my + c[1]:.2f}) rotate({rot:g})">'
+                + "".join(
+                    f'<text x="0" y="{y:.2f}" text-anchor="middle">{e(t)}</text>'
+                    for t, y in zip(lines, ys, strict=True)
+                )
+                + "</g>"
+            )
+        out.append(f'<g class="t s{i + 1}">{body}</g>')
+    return f'<g class="tx">{"".join(out)}</g>'
+
+
+def hex_svg(
+    size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg", names=None
+):
     """The glyph: six filled triangles, always. states: six state keys, inked by words.css
     (.sl.yes ... .sl.unstated, a grey of its own). key: n, the legend key (slot n in full ink, the
     other five faint). mono: every slot in currentColor (the logo). cells: each slot carries its
     property's name and state word (read by words.js). hit: a still copy of the six triangles on
-    top takes the pointer, so a lifted slot never slips from under it."""
+    top takes the pointer, so a lifted slot never slips from under it. names: each slot's property
+    name set in it (shown on phone system pages only)."""
     c, R = _frame(size)
     wr, wc = (
         (max(1.0, size * 0.016), max(3.0, size * 0.10))
@@ -336,6 +398,8 @@ def hex_svg(size, states=None, key=None, mono=False, cells=None, hit=False, cls=
             parts.append(
                 f'<path class="sl s{i + 1} {CLS[states[i]]}" data-n="{i + 1}"{extra} d="{d}"/>'
             )
+    if names:
+        parts.append(_names_svg(names, c, R))
     if hit:
         parts.append(
             '<g class="hit">'
@@ -1173,8 +1237,6 @@ def rose_item(c, pre):
     reason = "" if generic else f'<p class="rr">{e(words(c["reason_short"]))}</p>'
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
-        # its place in the glyph, in its state's ink: shown where the properties stack (phones)
-        f'<span class="rk {CLS[st]}" aria-hidden="true">{key_mini(c["n"], 24)}</span>'
         f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
         f'<p class="rs"><i class="sw {CLS[st]}"></i>{e(c["word"])}</p>{reason}</li>'
     )
@@ -1185,7 +1247,7 @@ def rose(g, hid, name, level=2, pre=""):
     under the page's own; pre: an id prefix when one page holds several roses."""
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
-        f'<div class="rpie" role="img" aria-label="{e(aria(g, name))}">{pie_svg(g["states"], 184, hit=True)}</div>'
+        f'<div class="rpie" role="img" aria-label="{e(aria(g, name))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in sorted(g["cells"], key=lambda c: c["n"])])}</div>'
         f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre) for c in g["cells"])}</ol></div>'
     )
 
