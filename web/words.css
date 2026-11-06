@@ -25,6 +25,7 @@
   --yes: #7cf29a;
   --partly: #e89400;
   --no: #e8332a;
+  --unstated: #67635c;  /* Not stated: a filled slot in a grey of its own */
   --disp: "Archivo", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --ease: cubic-bezier(.16, .84, .24, 1);
@@ -51,7 +52,7 @@ p { margin: 0; }
 /* state squares */
 .sw { display: inline-block; width: .72em; height: .72em; margin-right: .42em; vertical-align: baseline; }
 .sw.yes { background: var(--yes); } .sw.partly { background: var(--partly); } .sw.no { background: var(--no); }
-.sw.unstated { box-shadow: inset 0 0 0 1px var(--rule); }
+.sw.unstated { background: var(--unstated); }
 
 /* ---------------------------------------------------------------- top bar */
 .top { display: flex; align-items: center; gap: 32px; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
@@ -100,8 +101,8 @@ html:not(.js) .search { display: none; }
 /* the option the arrows chose: a paper edge as well, so it reads at 3:1 and more */
 .so.on { box-shadow: inset 3px 0 0 var(--paper); }
 .sp .pie-svg, .sp .kmini { display: block; width: 28px; height: 28px; overflow: visible; }
-.sp .kmini path { stroke: var(--rule); }
-.sp .kmini path.on { fill: var(--paper); stroke: var(--paper); }
+.sp .kmini .off { fill: var(--paper); opacity: .16; }
+.sp .kmini .on { fill: var(--paper); }
 .sn { display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
 .so .sm { display: block; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* what kind of entry it is; "Not benchmarked" in paper, so it reads at once */
@@ -123,8 +124,8 @@ html:not(.js) .search { display: none; }
 .map { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; }
 .q { display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 14px; align-items: start; }
 .kmini { display: block; grid-row: span 2; width: 48px; height: 48px; overflow: visible; }
-.kmini path { fill: transparent; stroke: var(--ground); stroke-width: 1.6; stroke-linejoin: round; }
-.kmini path.on { fill: var(--ground); stroke-width: 2; }
+.kmini .on { fill: var(--ground); }
+.kmini .off { fill: var(--ground); opacity: .2; }
 .qw { display: block; padding-top: 2px; font: 900 32px/1 var(--disp); font-stretch: 66%; letter-spacing: -.004em; white-space: nowrap; }
 .qq { display: block; font: 500 13px/17px var(--mono); margin-top: 5px; max-width: 46ch; text-wrap: balance; }
 .keyline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 500 12px/1 var(--mono); margin-top: 18px; }
@@ -146,7 +147,6 @@ html:not(.js) .search { display: none; }
   .map { margin-top: 16px; gap: 16px 14px; }
   .q { grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; }
   .kmini { grid-row: auto; width: 32px; height: 32px; }
-  .kmini path { stroke-width: 1.4; }
   .qw { padding-top: 0; align-self: center; font-size: 20px; line-height: 1.05; white-space: normal; }
   .qq { grid-column: 1 / -1; font-size: 12px; line-height: 15px; margin-top: 6px; }
   .keyline { margin-top: 16px; gap: 6px 8px; }
@@ -158,7 +158,6 @@ html:not(.js) .search { display: none; }
   .map { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: 12px; }
   .q { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto; column-gap: 10px; }
   .kmini { width: 22px; height: 22px; grid-row: span 2; margin-top: 1px; }
-  .kmini path { stroke-width: 1.2; }
   .qw { font-size: 18px; line-height: 1; align-self: start; }
   .qq { grid-column: 2; font-size: 11px; line-height: 14px; margin-top: 2px; max-width: none; text-wrap: pretty; }
   .keyline { margin-top: 12px; gap: 6px; }
@@ -204,7 +203,7 @@ html:not(.js) .search { display: none; }
 .pie-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .sl { transition: transform .22s var(--ease), stroke .18s; }
 .sl.yes { fill: var(--yes); } .sl.partly { fill: var(--partly); } .sl.no { fill: var(--no); }
-.sl.unstated { fill: var(--ground); stroke: var(--rule); stroke-width: 1.2; }
+.sl.unstated { fill: var(--unstated); }
 /* each slice's lift direction, the bisector of its wedge (build.py checks these against the geometry) */
 .s1 { --dx: 0.5; --dy: -0.866; }
 .s2 { --dx: 1; --dy: 0; }
@@ -337,8 +336,8 @@ html:not(.js) .search { display: none; }
 .crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 .crit .ch { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; align-content: start; }
 .crit .kmini { grid-row: span 2; }
-.crit .kmini path { stroke: var(--rule); }
-.crit .kmini path.on { fill: var(--paper); stroke: var(--paper); }
+.crit .kmini .off { fill: var(--paper); opacity: .16; }
+.crit .kmini .on { fill: var(--paper); }
 .cq { font: 500 13px/1.45 var(--mono); color: var(--muted); margin-top: 6px; text-wrap: balance; }
 .cs { margin: 0; font: 400 13px/1.5 var(--mono); }
 .cs div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
@@ -490,13 +489,11 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .keyline { margin-top: 10px; }
 }
 /* forced colours (Windows high contrast): the state squares keep their inks so they still match the
-   slices, and Not stated stays empty in either canvas colour */
+   slices, Not stated grey included */
 @media (forced-colors: active) {
   .sw { forced-color-adjust: none; }
-  .sw.unstated { background: Canvas; box-shadow: inset 0 0 0 1px CanvasText; }
-  .sl.unstated { fill: Canvas; stroke: CanvasText; }
-  .kmini path, .crit .kmini path { stroke: CanvasText; }
-  .kmini path.on, .crit .kmini path.on { fill: CanvasText; stroke: CanvasText; }
+  .kmini .off, .crit .kmini .off, .sp .kmini .off { fill: GrayText; opacity: 1; }
+  .kmini .on, .crit .kmini .on, .sp .kmini .on { fill: CanvasText; }
   .sfield { border: 1px solid CanvasText; }
   .sfield:focus-within { outline: 2px solid Highlight; outline-offset: 1px; }
   .slist { border: 1px solid CanvasText; }

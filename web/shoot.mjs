@@ -107,6 +107,17 @@ const sortBy = async (p, col, dir) => {
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
+  // a Not stated slot is filled like the others, in its own grey, and lifts like them
+  const sb = await p.locator('#sash .pie .h1').boundingBox();
+  await p.mouse.move(sb.x + sb.width * 0.6, sb.y + sb.height * 0.4); await p.waitForTimeout(400);
+  const emp = await p.evaluate(() => {
+    const pie = document.querySelector('#sash .pie'); const s = pie.querySelector('.s1'); const cs = getComputedStyle(s);
+    const grey = getComputedStyle(document.documentElement).getPropertyValue('--unstated').trim();
+    const rgb = '#' + cs.fill.match(/\d+/g).map((v) => (+v).toString(16).padStart(2, '0')).join('');
+    return { hot: pie.dataset.hot, unstated: s.classList.contains('unstated'), fill: rgb, grey, moved: cs.transform !== 'none', loose: pie.querySelectorAll('svg > path:not(.sl)').length };
+  });
+  ok(emp.hot === '1' && emp.unstated && emp.fill === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is filled in its own grey and lifts like the others', emp);
+  await p.mouse.move(0, 0);
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: /.test(a.title))
     .map((a) => /\d+\s+completed, \d+\s+failed/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
   ok(spreads.length === 4 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);

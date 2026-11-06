@@ -124,6 +124,14 @@ def test_each_system_has_its_own_card():
         assert f"/og/{sid}.png?" in meta(build.file_of(path).name)["og:image"]
 
 
+def test_card_styles_are_css():
+    # every card's style holds CSS values only (a Python object printed into it once hid the empty slots)
+    for card in RECORD:
+        src = (OG / f"{card}.html").read_text()
+        for leak in ("re.compile", "<function", "None;"):
+            assert leak not in src, (card, leak)
+
+
 def test_404_is_never_shared():
     t = meta("404.html")
     assert t.get("robots") == "noindex"

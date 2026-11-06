@@ -87,6 +87,7 @@ def slug(s):
 # ------------------------------------------------------------------ inks
 GROUND, PAPER, MUTED, RULE = "#0b0b0c", "#f1efe9", "#9b978e", "#6f6a62"
 VIOLET = "#c45cff"
+UNSTATED = "#67635c"  # Not stated: a filled slot in a grey of its own, never a fourth hue
 INK = {k: v["ink"] for k, v in G["states"].items() if k != "grey"}
 # words.css renders these inks; its :root must hold the same values the checks below compute on
 _CSS_INKS = dict(re.findall(r"--(\w+):\s*(#[0-9a-f]{6})", (HERE / "words.css").read_text()))
@@ -96,6 +97,7 @@ for _k, _v in {
     "muted": MUTED,
     "rule": RULE,
     "violet": VIOLET,
+    "unstated": UNSTATED,
     "yes": INK["green"],
     "partly": INK["amber"],
     "no": INK["red"],
@@ -119,19 +121,20 @@ def ratio(a, b):
     return (x + 0.05) / (y + 0.05)
 
 
-ladder, prev = [], GROUND
+ladder, prev = [], UNSTATED
 ladder.append(
     (
         "Not stated",
-        f"none (empty, outline `{RULE}`, {ratio(RULE, GROUND):.2f}:1)",
-        f"{lum(GROUND):.3f}",
-        "1.00:1",
+        f"`{UNSTATED}` (a grey, no hue)",
+        f"{lum(UNSTATED):.3f}",
+        f"{ratio(UNSTATED, GROUND):.2f}:1",
         "",
     )
 )
 for st, word in (("red", "No"), ("amber", "Partly"), ("green", "Yes")):
     step = ratio(INK[st], prev)
-    assert step >= 1.7, word
+    # grey to red is told apart by hue, not lightness; the colour steps are told apart by both
+    assert step >= 1.7 or prev == UNSTATED, word
     ladder.append(
         (
             word,
@@ -151,6 +154,7 @@ pairs = [
 pairs += [(f"ground text on {WORD[s]}", GROUND, INK[s]) for s in ("green", "amber", "red")]
 for name, a, b in pairs:
     assert ratio(a, b) >= 4.5, name
+assert ratio(UNSTATED, GROUND) >= 3, "a Not stated slot must stand off the ground (3:1 for shapes)"
 
 # ------------------------------------------------------------------ sort keys (computed, never typed)
 # Each home figure column sorts on the raw number the data stores for it, in the axis chart that
@@ -253,7 +257,15 @@ def sort_words():
     return out
 
 
-# ------------------------------------------------------------------ the flat pie
+# ------------------------------------------------------------------ the glyph: the hex asterisk
+# Six triangles make a point-top hexagon, one per property, clockwise from twelve: segment i spans
+# the side from vertex 60*i to vertex 60*(i+1), so 1 to 3 sit on the right and 4 to 6 on the left,
+# on the pie's own 60-degree axes. The cuts between them widen toward the centre, so the ground
+# they leave draws an asterisk, the footnote mark. Every slot is always filled: Not stated in a grey
+# of its own (--unstated), so the hexagon is always whole.
+# Drawn in device pixels (viewBox 0 0 size size): every gap and line is sized for the size it is
+# shown at, and up to 40 px the centre and the flat sides sit on the pixel grid.
+C30 = math.cos(math.radians(30))
 
 
 def pt(r, deg):
@@ -261,18 +273,99 @@ def pt(r, deg):
     return r * math.sin(a), -r * math.cos(a)
 
 
-def wedge(i, R, g):
-    """Wedge i (0..5, clockwise from twelve) of radius R, inset by g from both edges and the arc."""
+def _add(p, q, k=1.0):
+    return p[0] + k * q[0], p[1] + k * q[1]
+
+
+def _cross(p1, p2, p3, p4):
+    d1, d2 = (p2[0] - p1[0], p2[1] - p1[1]), (p4[0] - p3[0], p4[1] - p3[1])
+    den = d1[0] * d2[1] - d1[1] * d2[0]
+    t = ((p3[0] - p1[0]) * d2[1] - (p3[1] - p1[1]) * d2[0]) / den
+    return p1[0] + t * d1[0], p1[1] + t * d1[1]
+
+
+def _seg(i, R, wr, wc, inset=0.0):
+    """Segment i around the origin, with cut half-widths wr/2 at the rim and wc/2 at the centre,
+    every edge moved inward by inset."""
     a0, a1 = 60 * i, 60 * (i + 1)
-    r = R - g
-    d = math.degrees(math.asin(g / r))
-    ax, ay = pt(2 * g, a0 + 30)
-    x0, y0 = pt(r, a0 + d)
-    x1, y1 = pt(r, a1 - d)
-    return f"M{ax:.2f} {ay:.2f}L{x0:.2f} {y0:.2f}A{r:.2f} {r:.2f} 0 0 1 {x1:.2f} {y1:.2f}Z"
+    v0, v1 = pt(R, a0), pt(R, a1)
+    n0, n1 = pt(1, a0 + 90), pt(1, a1 - 90)  # inward normals of the two cuts
+    e0 = (_add(v0, n0, wr / 2 + inset), _add((0, 0), n0, wc / 2 + inset))
+    e1 = (_add(v1, n1, wr / 2 + inset), _add((0, 0), n1, wc / 2 + inset))
+    m = pt(1, a0 + 30)  # outward normal of the side
+    s0, s1 = _add(v0, m, -inset), _add(v1, m, -inset)
+    return [_cross(*e0, s0, s1), _cross(*e1, s0, s1), _cross(*e0, *e1)]
 
 
-# The direction each slice steps out along when lifted (the bisector of wedge i). words.css holds
+def _frame(size):
+    """Centre and circumradius in px. Up to 40 px the centre sits on a pixel centre and the
+    vertical sides on pixel edges, so the cut at twelve and both flat sides are crisp."""
+    if size <= 40:
+        half = math.floor(size * 0.5 * C30 - 0.5) + 0.5
+        return (size / 2 + 0.5, size / 2), half / C30
+    return (size / 2, size / 2), size / 2 * 0.985
+
+
+def _d(poly, c):
+    return "M" + "L".join(f"{x + c[0]:.2f} {y + c[1]:.2f}" for x, y in poly) + "Z"
+
+
+def hex_svg(size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg"):
+    """The glyph: six filled triangles, always. states: six state keys, inked by words.css
+    (.sl.yes ... .sl.unstated, a grey of its own). key: n, the legend key (slot n in full ink, the
+    other five faint). mono: every slot in currentColor (the logo). cells: each slot carries its
+    property's name and state word (read by words.js). hit: a still copy of the six triangles on
+    top takes the pointer, so a lifted slot never slips from under it."""
+    c, R = _frame(size)
+    wr, wc = (
+        (max(1.0, size * 0.016), max(3.0, size * 0.10))
+        if mono
+        else (max(1.0, size * 0.012), max(1.8, size * 0.05))
+    )
+    parts = []
+    for i in range(6):
+        d = _d(_seg(i, R, wr, wc), c)
+        if mono:
+            parts.append(f'<path d="{d}"/>')
+        elif key:
+            parts.append(f'<path class="{"on" if key == i + 1 else "off"}" d="{d}"/>')
+        else:
+            extra = ""
+            if cells:
+                extra = f' data-name="{e(cells[i]["name"])}" data-word="{e(cells[i]["word"])}"'
+            parts.append(
+                f'<path class="sl s{i + 1} {CLS[states[i]]}" data-n="{i + 1}"{extra} d="{d}"/>'
+            )
+    if hit:
+        parts.append(
+            '<g class="hit">'
+            + "".join(
+                f'<path class="h{i + 1}" data-n="{i + 1}" d="{_d(_seg(i, R, 0, 0), c)}"/>'
+                for i in range(6)
+            )
+            + "</g>"
+        )
+    return (
+        f'<svg class="{cls}" viewBox="0 0 {size} {size}" width="{size}" height="{size}" '
+        f'aria-hidden="true" focusable="false">{"".join(parts)}</svg>'
+    )
+
+
+def pie_svg(states, size, cells=None, hit=False):
+    return hex_svg(size, states=states, cells=cells, hit=hit)
+
+
+def key_mini(n, size=48):
+    """One property's place in the glyph: its own slot in full ink, the other five faint (words.css inks it)."""
+    return hex_svg(size, key=n, cls="kmini")
+
+
+def mark_svg(size, cls="lm"):
+    """The logo mark: the six slots in one colour (currentColor), the asterisk between them."""
+    return hex_svg(size, mono=True, cls=cls)
+
+
+# The direction each slot steps out along when lifted (the bisector of slot i). words.css holds
 # them as --dx/--dy on .s1 to .s6, so the pages carry no inline style; the build checks they agree.
 LIFT = {i + 1: pt(1, 60 * i + 30) for i in range(6)}
 _css = (HERE / "words.css").read_text()
@@ -281,48 +374,6 @@ for _n, (_dx, _dy) in LIFT.items():
     assert _m, f"words.css lacks the .s{_n} lift"
     assert abs(float(_m[1]) - _dx) < 1e-3, f".s{_n} --dx"
     assert abs(float(_m[2]) - _dy) < 1e-3, f".s{_n} --dy"
-
-
-def pie_svg(states, size, g=None, cells=None, hit=False):
-    """One pie. With cells, each slice carries its property's name and state word (read by words.js).
-    With hit, a still copy of the six wedges sits on top to take the pointer, so a lifted slice never
-    moves out from under it."""
-    R = size / 2
-    g = g if g is not None else max(1.0, size / 80)
-    m = 8 if size > 40 else 2
-    parts = []
-    for i, st in enumerate(states):
-        extra = ""
-        if cells:
-            c = cells[i]
-            extra = f' data-name="{e(c["name"])}" data-word="{e(c["word"])}"'
-        parts.append(
-            f'<path class="sl s{i + 1} {CLS[st]}" data-n="{i + 1}"{extra} d="{wedge(i, R, g)}"/>'
-        )
-    if hit:
-        parts.append(
-            '<g class="hit">'
-            + "".join(
-                f'<path class="h{i + 1}" data-n="{i + 1}" d="{wedge(i, R, g)}"/>'
-                for i in range(len(states))
-            )
-            + "</g>"
-        )
-    return (
-        f'<svg class="pie-svg" viewBox="{-R - m} {-R - m} {size + 2 * m} {size + 2 * m}" width="{size + 2 * m}" height="{size + 2 * m}" '
-        f'aria-hidden="true" focusable="false">{"".join(parts)}</svg>'
-    )
-
-
-def key_mini(n, size=48):
-    """One property's place in the pie: its own wedge filled, the other five in line (words.css inks it)."""
-    R = size / 2
-    parts = []
-    for i in range(6):
-        on = i + 1 == n
-        parts.append(f'<path class="{"on" if on else ""}" d="{wedge(i, R - 3, 0.001)}"/>')
-    parts.sort(key=lambda x: 'class="on"' in x)  # the filled wedge last, so its outline sits on top
-    return f'<svg class="kmini" viewBox="{-R} {-R} {size} {size}" width="{size}" height="{size}" aria-hidden="true" focusable="false">{"".join(parts)}</svg>'
 
 
 # ------------------------------------------------------------------ words and labels
@@ -408,7 +459,7 @@ for _k in PHRASES:
     assert _k in _data_text, f"PHRASES: {_k!r} no longer in the data"
 
 # RFC rule codes ("(RFC-0015 NM-1)") in data text: a link to the RFC on the page, never the bare code
-RULE = re.compile(r"\s*\((RFC-(\d{4})(?:\s[A-Z]+-\d+)?)\)")
+RFC_RULE = re.compile(r"\s*\((RFC-(\d{4})(?:\s[A-Z]+-\d+)?)\)")
 RFC_FILES = {f.name[:4]: f.name for f in (HERE.parent / "rfcs").glob("[0-9][0-9][0-9][0-9]-*.md")}
 
 
@@ -446,13 +497,13 @@ def clean_prose(text):
 
 def no_rule(text):
     """Text without its RFC rule codes (where a link cannot go, as inside another link or a title)."""
-    return RULE.sub("", text)
+    return RFC_RULE.sub("", text)
 
 
 def with_rule(text):
     """Escaped text whose RFC rule codes become a small link to the RFC."""
     out, last = [], 0
-    for m in RULE.finditer(text):
+    for m in RFC_RULE.finditer(text):
         out.append(e(text[last : m.start()]))
         f = RFC_FILES.get(m[2])
         assert f, f"no rfcs/{m[2]}-*.md for {m[1]}"
@@ -753,12 +804,8 @@ def header(here):
     )
 
 
-# The site's mark, as on the icon and the preview cards: the six-slice pie, here in violet
-LOGO_MARK = (
-    '<svg class="lm" viewBox="-27 -27 54 54" width="22" height="22" aria-hidden="true" focusable="false">'
-    + "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
-    + "</svg>"
-)
+# The site's mark, as on the icon and the preview cards: the hex asterisk, here in violet
+LOGO_MARK = mark_svg(22)
 
 SEARCH_MARK = (
     '<svg class="si" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">'
@@ -1571,11 +1618,11 @@ html,body{{width:{CARD_W}px;height:{CARD_H}px;overflow:hidden;background:{GROUND
 .mono{{font-family:"IBM Plex Mono",monospace}}
 .disp{{font-family:"Archivo",sans-serif;font-stretch:66%;font-weight:900}}
 .sl.yes{{fill:{INK["green"]}}}.sl.partly{{fill:{INK["amber"]}}}.sl.no{{fill:{INK["red"]}}}
-.sl.unstated{{fill:{GROUND};stroke:{RULE};stroke-width:1.2}}
+.sl.unstated{{fill:{UNSTATED}}}
 .pie-svg{{display:block;overflow:visible}}
-.kmini path{{fill:transparent;stroke:{GROUND};stroke-width:1.8;stroke-linejoin:round}}.kmini path.on{{fill:{GROUND};stroke-width:2.2}}
+.kmini .on{{fill:{GROUND}}}.kmini .off{{fill:{GROUND};opacity:.2}}
 .sw{{display:inline-block;width:.62em;height:.62em;margin-right:.32em;vertical-align:.02em}}
-.sw.yes{{background:{INK["green"]}}}.sw.partly{{background:{INK["amber"]}}}.sw.no{{background:{INK["red"]}}}.sw.unstated{{box-shadow:inset 0 0 0 2px {RULE}}}
+.sw.yes{{background:{INK["green"]}}}.sw.partly{{background:{INK["amber"]}}}.sw.no{{background:{INK["red"]}}}.sw.unstated{{background:{UNSTATED}}}
 """
 
 
@@ -1588,12 +1635,11 @@ def card_page(card, body, css):
 
 def home_card():
     """Only what does not change with the systems benchmarked, since link previews stay cached:
-    violet, the six properties, each beside its place in the pie; black, the site's mark and name."""
+    violet, the six properties, each beside its place in the glyph; black, the site's mark and name."""
     props = "".join(
         f'<li>{key_mini(p["n"], 52)}<span class="disp">{e(p["name"])}</span></li>'
         for p in G["properties"]
     )
-    mark = "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
     css = f"""
 .l{{position:absolute;left:0;top:0;width:690px;height:{CARD_H}px;background:{VIOLET};color:{GROUND};padding:50px 56px}}
 .r{{position:absolute;left:690px;top:0;right:0;height:{CARD_H}px;padding:50px 52px;display:flex;flex-direction:column;justify-content:center}}
@@ -1607,7 +1653,7 @@ li .disp{{font-size:58px;line-height:1;letter-spacing:-.004em}}
 """
     body = (
         f'<div class="l"><p class="k mono">What one proof establishes</p><ul>{props}</ul></div>'
-        f'<div class="r"><svg class="mark" viewBox="-32 -32 64 64" aria-hidden="true">{mark}</svg>'
+        f'<div class="r">{mark_svg(176, cls="mark")}'
         f'<p class="disp name">Inference<br>proofs</p><p class="mono url">inferenceproofs.ai</p></div>'
     )
     return card_page("home", body, css)
@@ -1635,7 +1681,6 @@ ol{{display:contents;list-style:none}}
 .l{{text-align:right}}
 .pn{{font-size:17px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:{VIOLET}}}
 .pw{{font-size:46px;line-height:1.05;margin-top:4px;font-stretch:80%;font-weight:800}}
-.rose .sl.unstated{{stroke-width:3.2}}
 .draft{{position:absolute;right:56px;bottom:24px;font-size:16px;color:{MUTED}}}
 """
     body = (
@@ -1651,11 +1696,11 @@ ICON = 180  # the touch icon's side, CSS px at scale 1
 
 
 def icon_svg():
-    """The site's icon: the six-slice pie in ground ink on the violet field."""
-    parts = "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
+    """The site's icon: the hex asterisk in ground ink on the violet field."""
+    parts = "".join(re.findall(r'<path d="[^"]+"/>', mark_svg(64)))
     return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-32 -32 64 64">'
-        f'<rect x="-32" y="-32" width="64" height="64" fill="{VIOLET}"/><g fill="{GROUND}">{parts}</g></svg>\n'
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="-10 -10 84 84">'
+        f'<rect x="-10" y="-10" width="84" height="84" fill="{VIOLET}"/><g fill="{GROUND}">{parts}</g></svg>\n'
     )
 
 
