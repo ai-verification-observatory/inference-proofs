@@ -171,9 +171,9 @@ body[data-tab="reference"] .sortc { visibility: hidden; }
 .who { padding-top: 10px; min-width: 0; }
 .name { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; padding-bottom: .04em; }
 .name a { text-decoration: none; }
-.name a::after { content: "\00a0→"; font-weight: 500; font-size: .5em; vertical-align: .55em; color: var(--muted); transition: color .15s; }
-.name a:hover::after, .name a:focus-visible::after { color: var(--paper); }
-.row:has(.pie:hover) .name a::after { color: var(--paper); }
+.name a:after { content: "\00a0→"; font-weight: 500; font-size: .5em; vertical-align: .55em; color: var(--muted); transition: color .15s; }
+.name a:hover:after, .name a:focus-visible:after { color: var(--paper); }
+.row:has(.pie:hover) .name a:after { color: var(--paper); }
 .name a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
 .wl { display: flex; flex-direction: column; align-items: flex-start; margin-top: 8px; font: 400 12px/18px var(--mono); color: var(--muted); }
 .pin { display: inline-block; font: 500 12px/1 var(--mono); margin-top: 8px; color: var(--paper); }
@@ -182,8 +182,8 @@ body[data-tab="reference"] .sortc { visibility: hidden; }
 .val { display: block; align-self: start; min-width: 0; padding-top: 14px; position: relative; text-decoration: none; }
 .val .lbl { display: none; font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
 .vm { display: block; padding-bottom: 4px; position: relative; }
-.vm::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--paper); transform: scaleX(0); transform-origin: left; transition: transform .28s var(--ease); }
-.val:hover .vm::after, .val:focus-visible .vm::after { transform: scaleX(1); }
+.vm:after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--paper); transform: scaleX(0); transform-origin: left; transition: transform .28s var(--ease); }
+.val:hover .vm:after, .val:focus-visible .vm:after { transform: scaleX(1); }
 .fig { display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: .3em; }
 .fig .n { font: 800 44px/1 var(--disp); font-stretch: 84%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .fig .u { font: 500 14px/1.2 var(--mono); }
@@ -323,7 +323,7 @@ body[data-tab="reference"] .sortc { visibility: hidden; }
 .anim .ppie .sl { transform-box: view-box; transform-origin: 0 0; animation: grow .6s var(--ease) backwards .3s; }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  *, *:before, *:after { animation: none !important; transition: none !important; }
 }
 
 /* ================================================================ narrower */
@@ -350,10 +350,10 @@ body[data-tab="reference"] .sortc { visibility: hidden; }
   /* the sorted column's label in paper, with its glyph */
   .tbl[data-col="covers"] .vc[data-col="covers"] .lbl, .tbl[data-col="proof_size"] .vc[data-col="proof_size"] .lbl,
   .tbl[data-col="check_time"] .vc[data-col="check_time"] .lbl, .tbl[data-col="overhead"] .vc[data-col="overhead"] .lbl { color: var(--paper); }
-  .tbl[data-col="covers"][data-dir="asc"] .vc[data-col="covers"] .lbl::after, .tbl[data-col="proof_size"][data-dir="asc"] .vc[data-col="proof_size"] .lbl::after,
-  .tbl[data-col="check_time"][data-dir="asc"] .vc[data-col="check_time"] .lbl::after, .tbl[data-col="overhead"][data-dir="asc"] .vc[data-col="overhead"] .lbl::after { content: "\00a0↑"; }
-  .tbl[data-col="covers"][data-dir="desc"] .vc[data-col="covers"] .lbl::after, .tbl[data-col="proof_size"][data-dir="desc"] .vc[data-col="proof_size"] .lbl::after,
-  .tbl[data-col="check_time"][data-dir="desc"] .vc[data-col="check_time"] .lbl::after, .tbl[data-col="overhead"][data-dir="desc"] .vc[data-col="overhead"] .lbl::after { content: "\00a0↓"; }
+  .tbl[data-col="covers"][data-dir="asc"] .vc[data-col="covers"] .lbl:after, .tbl[data-col="proof_size"][data-dir="asc"] .vc[data-col="proof_size"] .lbl:after,
+  .tbl[data-col="check_time"][data-dir="asc"] .vc[data-col="check_time"] .lbl:after, .tbl[data-col="overhead"][data-dir="asc"] .vc[data-col="overhead"] .lbl:after { content: "\00a0↑"; }
+  .tbl[data-col="covers"][data-dir="desc"] .vc[data-col="covers"] .lbl:after, .tbl[data-col="proof_size"][data-dir="desc"] .vc[data-col="proof_size"] .lbl:after,
+  .tbl[data-col="check_time"][data-dir="desc"] .vc[data-col="check_time"] .lbl:after, .tbl[data-col="overhead"][data-dir="desc"] .vc[data-col="overhead"] .lbl:after { content: "\00a0↓"; }
   .val { padding-top: 12px; }
   .fig .n { font-size: 34px; }
   .nbrow .sysc { grid-template-columns: 88px minmax(0, 1fr); }

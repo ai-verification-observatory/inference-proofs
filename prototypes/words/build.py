@@ -7,7 +7,6 @@ pie geometry, the sort keys of the home figures (raw values from the data, units
 the contrast of each ink, which it writes into README.md between markers.
 """
 
-import hashlib
 import html
 import json
 import math
@@ -28,8 +27,10 @@ def e(s):
 
 
 # ------------------------------------------------------------------ consistency checks
-crit_sha = hashlib.sha256(CRIT_BYTES).hexdigest()
-assert crit_sha == G["input"]["sha256"], "criteria.json changed since site.json was built"
+# The sha256 of criteria.json as the data pipeline read it, recorded in site.json. The copy in
+# _data/ is in the repository's canonical JSON form (iproofs fmt), so its bytes differ; the
+# content checks below tie the two files together instead.
+crit_sha = G["input"]["sha256"]
 assert G["order"] == crit["order"]
 for rid, states in crit["test_mapping"].items():
     if rid in G["rows"]:
