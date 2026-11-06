@@ -62,9 +62,9 @@ The site compares systems on one model, Llama 4 Maverick (400B parameters, 17B a
 
 ## Design
 
-Dark ground, paper text. Violet is the benchmark's own frame: the six properties and page titles, never a value or a state. Green, amber, red and empty mean Yes, Partly, No and Not stated, and appear only in pie slices and state squares. Archivo for display, IBM Plex Mono for data. No cards, shadows or double rules; no helper sentences, taglines or captions.
+Dark ground, paper text. Violet is the benchmark's own frame: the six properties and page titles, never a value or a state. Green, amber, red and grey mean Yes, Partly, No and Not stated, and appear only in the glyph's slots and the state squares. The grey (`--unstated`) has no hue, so it never reads as a fourth state colour. Archivo for display, IBM Plex Mono for data. No cards, shadows or double rules; no helper sentences, taglines or captions.
 
-Each system is drawn as the **hex asterisk**: six triangles that make a point-top hexagon, one per property, clockwise from twelve (Weights hidden, Model bound, Whole output proved, Formally verified, Security level, No trusted party), so 1 to 3 sit on the right and 4 to 6 on the left, on a pie's own 60-degree axes. The cuts between the triangles widen toward the centre, so the ground they leave draws an asterisk, the footnote mark that sends a reader to the fine print. A Not stated slot keeps only its side, as a line, so it reads as empty inside an outline that stays whole; where two empty slots meet, a short tick down the cut keeps them countable. The glyph is drawn in device pixels (`hex_svg` in `build.py`): gaps and lines are sized for each size, and up to 40 px the centre and the flat sides sit on the pixel grid. In one colour (`mark_svg`, wider cuts so the asterisk leads) it is the logo, the favicon and the touch icon. It was chosen in a study of six directions (hexagon, ring, pinwheel, asterisk, pixel disc, cut pie) judged on reading, brand and fit. The properties carry no numbers anywhere.
+Each system is drawn as the **hex asterisk**: six triangles that make a point-top hexagon, one per property, clockwise from twelve (Weights hidden, Model bound, Whole output proved, Formally verified, Security level, No trusted party), so 1 to 3 sit on the right and 4 to 6 on the left, on a pie's own 60-degree axes. The cuts between the triangles widen toward the centre, so the ground they leave draws an asterisk, the footnote mark that sends a reader to the fine print. Every slot is always filled, Not stated in the grey, so the hexagon is always whole. The glyph is drawn in device pixels (`hex_svg` in `build.py`): gaps and lines are sized for each size, and up to 40 px the centre and the flat sides sit on the pixel grid. In one colour (`mark_svg`, wider cuts so the asterisk leads) it is the logo, the favicon and the touch icon. It was chosen in a study of six directions (hexagon, ring, pinwheel, asterisk, pixel disc, cut pie) judged on reading, brand and fit. The properties carry no numbers anywhere.
 
 ### Header and footer
 
@@ -82,7 +82,7 @@ Not-benchmarked systems come after every other match, each marked "Not benchmark
 
 ### Overview
 
-1. A plain legend on the violet field: six small key glyphs (each property's own triangle filled in ground ink, 5.92:1 on violet, the others as line), each property's name and question, the states key and the link to the criteria page. Nothing in it reacts to the pointer. On a phone held sideways it folds into three short columns so the first table's heading shows on landing.
+1. A plain legend on the violet field: six small key glyphs (each property's own triangle in ground ink, 5.92:1 on violet, the other five faint), each property's name and question, the states key and the link to the criteria page. Nothing in it reacts to the pointer. On a phone held sideways it folds into three short columns so the first table's heading shows on landing.
 2. **Llama 4 Maverick**: the model's name, its size and workload in one line, and a sortable table of the systems on it (glyph, name and pin, then One proof covers, Proof size, Check time, Overhead). Each figure links to its plate on the system page and shows its sample size and range when it has them. Each figure link is named after its column for screen readers, also where the column heads are out of view.
 3. **References**, after the models: two rows, plain serving and a rerun by a weights holder, on the same columns. Not sorted. Their figures link to the reference's figures.
 4. **Not benchmarked yet**: a compact grid, A to Z, of glyph, name, models and status.
@@ -116,7 +116,7 @@ What a shared link shows (Open Graph and X `summary_large_image`): every page ca
 
 - `og/home.png` (the home, the reference and the criteria page): only what does not change with the systems benchmarked, since link previews stay cached in message apps for as long as the message lives: the six property names on the violet field, each beside its place in the pie, and the site's mark and name. No system, model or state.
 - `og/<system>.png`: the system page's first screen: the name on the violet band with its model and pin, then its pie with each property's state beside its own slice.
-- A system card says "Draft criteria, needs an RFC" (the data's label), since a picture travels without the page around it. Not stated slices get a heavier outline than on the pages, so they still read at preview size. The alt text says what the picture draws.
+- A system card says "Draft criteria, needs an RFC" (the data's label), since a picture travels without the page around it. The alt text says what the picture draws.
 - `og/icon.svg` (the favicon) and `og/icon.png` (the 180 px touch icon, rendered from `og/icon.html`): the hex asterisk in ground ink on the violet field.
 
 No figures are drawn: results are placeholders until a release exists, and a picture travels without its labels. `build.py` writes each picture's source (`og/<card>.html`); `og.mjs` renders it with the same Playwright as `shoot.mjs`, with the fonts from `fonts/` (no network), refuses a card whose fonts did not load, whose content spills past its edges or whose system name runs into the band's corner text, and records the sha256 of source and picture in `og/cards.json`. The pages name each picture with `?v=` and the first 12 hex of its hash, so a new picture is a new URL for link-preview caches. `test_cards.py` fails when a committed picture was not rendered from its committed source.
@@ -134,8 +134,8 @@ axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practic
 <!-- ladder -->
 | Word | Ink | Luminance | Contrast on the ground `#0b0b0c` | Step from the state below |
 |---|---|---|---|---|
-| Not stated | none (empty, outline `#6f6a62`, 3.67:1) | 0.003 | 1.00:1 |  |
-| No | `#e8332a` | 0.197 | 4.63:1 | 4.63:1 |
+| Not stated | `#67635c` (a grey, no hue) | 0.126 | 3.29:1 |  |
+| No | `#e8332a` | 0.197 | 4.63:1 | 1.40:1 |
 | Partly | `#e89400` | 0.383 | 8.12:1 | 1.76:1 |
 | Yes | `#7cf29a` | 0.701 | 14.08:1 | 1.73:1 |
 
