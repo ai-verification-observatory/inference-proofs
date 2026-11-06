@@ -9,8 +9,10 @@ Four static pages built from two data files: `index.html` (the overview), `flash
 From this folder:
 
 ```
-python3 -I build.py                      # writes the five HTML files and the contrast table below
+python3 -I build.py                      # writes the five HTML files, the card sources in og/ and the contrast table below
+PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs && python3 -I build.py   # when a card source changed
 python3 test_sort_keys.py                # or: python3 -m pytest test_sort_keys.py
+python3 test_cards.py                    # each picture rendered from its committed source; every page names one
 python3 -m http.server 4440 --bind 127.0.0.1 --directory .
 PLAYWRIGHT_MODULE=<path to playwright/index.mjs> \
 AXE_MODULE=<path to @axe-core/playwright/dist/index.mjs> \
@@ -24,10 +26,10 @@ BASE=http://127.0.0.1:4440/ node shoot.mjs    # screenshots and checks into shot
 www.inferenceproofs.ai serves this folder from Vercel's Git integration (the Vercel project's Root Directory is `web`). `vercel.json` here does the rest:
 
 - `ignoreCommand`: `git diff --quiet HEAD^ HEAD -- .` skips a deployment when the commit (on main, the merge commit against its first parent) does not change this folder.
-- `buildCommand`: no build on Vercel; it copies the committed pages, `words.css` and `words.js` into `public/`, the only folder served. The data, scripts, screenshots and README are not.
+- `buildCommand`: no build on Vercel; it copies the committed pages, `words.css`, `words.js` and the preview pictures `og/*.png` into `public/`, the only folder served. The data, scripts, card sources, screenshots and README are not.
 - `cleanUrls`, and the headers of the previous site, `noindex` included while the results are placeholders.
 
-The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request that touches this folder it runs `build.py` and `test_sort_keys.py` and fails if the committed files differ from what the build writes.
+The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request that touches this folder it runs `build.py`, `test_sort_keys.py` and `test_cards.py` and fails if the committed files differ from what the build writes.
 
 ## Data
 
@@ -76,6 +78,17 @@ The violet band holds the name. Below it, one screen: the pie (200 px) in the mi
 
 Then the figures (four plates with every label: spread, scope, grade, checked, workload, source and caveats; more numbers in a table) and the tamper tests with the control test. The reference page uses the same layout for each reference, with one set of figures.
 
+### Preview cards
+
+What a shared link shows (Open Graph and X `summary_large_image`): every page carries its title, description, canonical URL and a picture with its alt text, all from the data. The pictures are 1200 x 630 at 2x (2400 x 1260 PNG) and drawn in the site's own type and inks:
+
+- `og/home.png` (the home and the reference page): only what does not change with the systems benchmarked, since link previews stay cached in message apps for as long as the message lives: the six property names on the violet field, each beside its place in the pie, and the site's mark and name. No system, model or state.
+- `og/<system>.png`: the system page's first screen: the name on the violet band with its model and pin, then its pie with each property's state beside its own slice.
+- A system card says "Draft criteria, needs an RFC" (the data's label), since a picture travels without the page around it. Not stated slices get a heavier outline than on the pages, so they still read at preview size. The alt text says what the picture draws.
+- `og/icon.svg` (the favicon) and `og/icon.png` (the 180 px touch icon, rendered from `og/icon.html`): the pie in ground ink on the violet field.
+
+No figures are drawn: results are placeholders until a release exists, and a picture travels without its labels. `build.py` writes each picture's source (`og/<card>.html`); `og.mjs` renders it with the same Playwright as `shoot.mjs` (fonts from Google Fonts, so it needs the network), refuses a card whose fonts did not load, whose content spills past its edges or whose system name runs into the band's corner text, and records the sha256 of source and picture in `og/cards.json`. The pages name each picture with `?v=` and the first 12 hex of its hash, so a new picture is a new URL for link-preview caches. `test_cards.py` fails when a committed picture was not rendered from its committed source.
+
 ## Inks and contrast (computed by `build.py`)
 
 <!-- ladder -->
@@ -102,6 +115,7 @@ Then the figures (four plates with every label: spread, scope, grade, checked, w
 - `build.py`: the pages, the sort keys and the contrast table. `test_sort_keys.py`: the sort keys, the model order, the reference figure and the spread shown on every home figure that stores one.
 - `words.css`, `words.js`: style and behaviour, no data.
 - `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table per model, biggest first, references after them; a static header; row hover without shift; sort order for every column and direction from the heads (missing values last), the hash round-trip and keyboard sorting; overflow at 360 to 1100 px on every page; CLS; the first system name on landing at 390 px; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
+- `og.mjs`, `og/`: the preview cards (sources, pictures, `cards.json`). `test_cards.py`: their check.
 - `_data/`: `site.json` and `criteria.json`.
 - `shots/`: screenshots and `checks.txt`.
 
