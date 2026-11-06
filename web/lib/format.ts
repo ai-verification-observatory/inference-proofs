@@ -3,7 +3,8 @@
 export type Stats = { n: number; n_failed: number; mean: number; stdev: number; min: number; max: number };
 
 /** 4 significant digits, thousands separated, exponent outside [1e-4, 1e9). */
-export function sig4(v: number): string {
+export function sig4(v: number | null | undefined): string {
+  if (v === null || v === undefined) return "null"; // a statistic over no successful repetition
   if (v === 0) return "0";
   const a = Math.abs(v);
   if (a < 1e-4 || a >= 1e9) return v.toExponential(3).replace("e+", "e");
