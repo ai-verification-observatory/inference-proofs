@@ -83,6 +83,32 @@ def test_sorted_orders():
     assert by("check_time") == ["flashprove", "sash"]
 
 
+def test_ref_summary():
+    # one row per reference: covers follows the system, a proof's figures do not apply, and plain
+    # serving's overhead is 1x by definition (run or not), the rerun's does not apply
+    got = {
+        gid: {
+            c: (x["run"].get("value"), (x["run"].get("absent") or {}).get("text"))
+            for c, x in build.ref_summary(gid)["cells"].items()
+        }
+        for gid in build.G["orders"]["reference"]
+    }
+    for gid in got:
+        assert got[gid]["covers"] == (None, "Same as the system")
+        assert got[gid]["proof_size"] == (None, "No proof")
+        assert got[gid]["check_time"] == (None, "Does not apply")
+    assert got["ref-serve"]["overhead"][0].startswith("1×")
+    assert got["ref-recompute"]["overhead"] == (None, "Does not apply")
+
+
+def test_readable_labels():
+    nb = "\u00a0"  # a number keeps its word on its line
+    assert build.readable("n = 3 runs, n_failed = 0") == f"3{nb}completed, 0{nb}failed"
+    assert build.readable("1 proof") == "per proof"
+    assert build.readable("18.77 MB to 18.78 MB") == "18.77\u00a0MB to 18.78\u00a0MB"
+    assert build.no_rule("one H100 (RFC-0015 NM-1).") == "one H100."
+
+
 def test_home_figures_show_spread():
     # every figure whose data holds a SPREAD line shows its sample size and range first
     seen = 0

@@ -1,5 +1,5 @@
 // Screenshots and checks: node shoot.mjs   (writes shots/*.png and shots/checks.txt)
-// Env: BASE (default http://127.0.0.1:4421/), PLAYWRIGHT_MODULE (default "playwright"),
+// Env: BASE (default http://127.0.0.1:4440/, served by python3 -I serve.py), PLAYWRIGHT_MODULE (default "playwright"),
 //      AXE_MODULE (default "@axe-core/playwright"; the axe checks are skipped, and say so, if it cannot be loaded).
 import fs from 'node:fs';
 
@@ -9,7 +9,8 @@ try { AxeBuilder = (await import(process.env.AXE_MODULE || '@axe-core/playwright
 const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
-const PAGES = ['index.html', 'flashprove.html', 'sash.html', 'reference.html'];
+const PAGES = ['', 'flashprove', 'sash', 'reference', 'criteria'];  // clean addresses, as on the site
+const tagOf = (name) => name || 'home';
 const b = await chromium.launch();
 const errs = [];
 const report = [];
@@ -106,8 +107,8 @@ const sortBy = async (p, col, dir) => {
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
-  const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: n = /.test(a.title))
-    .map((a) => /n = \d+ runs/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
+  const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: /.test(a.title))
+    .map((a) => /\d+\s+completed, \d+\s+failed/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
   ok(spreads.length === 4 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);
   await ctx.close();
 }
@@ -117,7 +118,7 @@ const sortBy = async (p, col, dir) => {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const st0 = await sortState(p);
-  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === 1 && st0.hash === '', 'default: System A to Z in both tables, empty hash', st0);
+  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === 1 && st0.hash === '', 'default: System A to Z in the table, empty hash', st0);
   for (const col of ['system', 'covers', 'proof_size', 'check_time', 'overhead']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(p, col, dir);
@@ -133,17 +134,42 @@ const sortBy = async (p, col, dir) => {
   ok(said === 'Proof size, large to small', 'the order is named for screen readers', said);
   await ctx.close();
   const r = await pg(1440, 900);
-  await r.p.goto(BASE + 'index.html#sort=check_time-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
+  await r.p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
   const st2 = await sortState(r.p);
   ok(st2.aria.join() === 'check_time:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'check_time', 'desc')), 'hash round-trip', st2);
   ok(await cls(r.p) === 0, 'CLS on load with a sort hash is 0');
   await r.p.evaluate(() => { location.hash = 'sort=overhead-desc'; }); await r.p.waitForTimeout(400);
   ok((await sortState(r.p)).aria.join() === 'overhead:descending', 'hashchange applies a new order');
-  await r.p.click('.mast .draft'); await r.p.waitForTimeout(900);
-  ok(/sort=overhead-desc/.test((await sortState(r.p)).hash), 'the #criteria link keeps the order and its hash');
   await r.ctx.close();
+  // Back to the page without a hash shows the default order again
+  const bk = await pg(1440, 900);
+  await bk.p.goto(BASE, { waitUntil: 'networkidle' }); await bk.p.waitForTimeout(settle);
+  await bk.p.evaluate(() => { location.hash = 'sort=check_time-desc'; }); await bk.p.waitForTimeout(300);
+  await bk.p.goBack(); await bk.p.waitForTimeout(400);
+  const stb = await sortState(bk.p);
+  ok(stb.aria.join() === 'system:ascending' && stb.hash === '', 'Back to no hash restores the default order', stb);
+  // sorting that can fail: rows that differ in every column, with missing values among them
+  await bk.p.evaluate(() => {
+    const box = document.querySelector('.tbl .rows');
+    const src = box.querySelector('.row');
+    [['zz-a', 'aaa', { covers: 512, proof_size: null, check_time: 9, overhead: 3 }],
+     ['zz-b', 'zzz', { covers: 2048, proof_size: 1, check_time: null, overhead: 7 }]].forEach(([id, name, k]) => {
+      const r = src.cloneNode(true); r.id = id; r.dataset.name = name; r.dataset.k = JSON.stringify(k); box.appendChild(r);
+    });
+  });
+  for (const col of ['covers', 'proof_size', 'check_time', 'overhead']) {
+    for (const dir of ['asc', 'desc']) {
+      await sortBy(bk.p, col, dir);
+      const got = (await order(bk.p))[0];
+      const keys = await bk.p.evaluate((col) => [...document.querySelectorAll('.tbl .rows > .row')].map((r) => JSON.parse(r.dataset.k)[col]), col);
+      const firstNull = keys.findIndex((k) => k == null);
+      const missingLast = firstNull === -1 || keys.slice(firstNull).every((k) => k == null);
+      ok(JSON.stringify(got) === JSON.stringify((await expected(bk.p, col, dir))[0]) && missingLast, `sort with missing values: ${col} ${dir}`, { got, keys });
+    }
+  }
+  await bk.ctx.close();
   const z = await pg(1440, 900);
-  await z.p.goto(BASE + 'index.html#sort=bogus-asc', { waitUntil: 'networkidle' }); await z.p.waitForTimeout(600);
+  await z.p.goto(BASE + '#sort=bogus-asc', { waitUntil: 'networkidle' }); await z.p.waitForTimeout(600);
   const stz = await sortState(z.p);
   ok(stz.aria.join() === 'system:ascending' && stz.hash === '', 'unknown sort in the hash falls back and clears it', stz.hash);
   await z.ctx.close();
@@ -171,15 +197,15 @@ for (const w of [1100, 1024, 900, 768]) {
     const { ctx, p } = await pg(w, 900);
     await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
     const o = await overflow(p);
-    ok(o.over <= 0 && !o.clipped.length, `${name}-${w} no overflow, no clipped figure`, o);
+    ok(o.over <= 0 && !o.clipped.length, `${tagOf(name)}-${w} no overflow, no clipped figure`, o);
     await ctx.close();
   }
 }
-for (const w of [390, 360]) {
+for (const w of [390, 360, 320]) {
   for (const name of PAGES) {
     const { ctx, p } = await pg(w, 844, { touch: true });
     await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-    const tag = name.replace('.html', '').replace('index', 'home');
+    const tag = tagOf(name);
     if (tag === 'home' && w === 390) {
       await p.screenshot({ path: OUT + 'home-390-landing.png' });
       const top = await p.evaluate(() => Math.round(document.querySelector('.tbl .row .name').getBoundingClientRect().bottom));
@@ -202,11 +228,11 @@ for (const w of [390, 360]) {
 // ---------------------------------------------------------------- system pages and the reference page: the pie with its properties around it
 for (const name of ['flashprove', 'sash', 'reference']) {
   const { ctx, p } = await pg(1440, 900);
-  await p.goto(BASE + name + '.html', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  await full(p, OUT + `${name}-1440.png`);
-  ok(await cls(p) === 0, `${name}-1440 CLS 0`);
+  await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
+  await full(p, OUT + `${tagOf(name)}-1440.png`);
+  ok(await cls(p) === 0, `${tagOf(name)}-1440 CLS 0`);
   const o = await overflow(p);
-  ok(o.over <= 0 && !o.clipped.length, `${name}-1440 no overflow`, o);
+  ok(o.over <= 0 && !o.clipped.length, `${tagOf(name)}-1440 no overflow`, o);
   const v = await p.evaluate(() => [...document.querySelectorAll('.rose')].map((r) => {
     const pie = r.querySelector('.rpie .pie-svg').getBoundingClientRect();
     const cx = pie.left + pie.width / 2;
@@ -219,23 +245,41 @@ for (const name of ['flashprove', 'sash', 'reference']) {
       facts: !!r.parentElement.querySelector('.facts'),
     };
   }));
-  ok(v.length >= 1 && v.every((x) => x.pie <= 220 && x.n === 6 && x.sides && x.downward && x.facts), `${name}: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside`, v);
+  ok(v.length >= 1 && v.every((x) => x.pie <= 220 && x.n === 6 && x.sides && x.downward && x.facts), `${tagOf(name)}: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside`, v);
   const firstScreen = await p.evaluate(() => Math.round(document.querySelector('.rose').getBoundingClientRect().bottom));
-  ok(firstScreen <= 900, `${name}: the six properties fit the first screen`, firstScreen);
-  ok(await p.evaluate(() => document.querySelectorAll('blockquote, details').length === 0), `${name}: no quotes, nothing folded`);
+  ok(firstScreen <= 900, `${tagOf(name)}: the six properties fit the first screen`, firstScreen);
+  ok(await p.evaluate(() => document.querySelectorAll('blockquote, details').length === 0), `${tagOf(name)}: no quotes, nothing folded`);
   // pointing at a property lifts its slice
   await p.hover('.rp[data-n="2"]'); await p.waitForTimeout(300);
   const lift = await p.evaluate(() => getComputedStyle(document.querySelector('.rpie .s2')).transform);
-  ok(lift !== 'none', `${name}: pointing at a property lifts its slice`, lift);
+  ok(lift !== 'none', `${tagOf(name)}: pointing at a property lifts its slice`, lift);
   await ctx.close();
 }
 {
   const { ctx, p } = await pg(1440, 900);
-  await p.goto(BASE + 'sash.html', { waitUntil: 'networkidle' });
-  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama 4 Maverick/.test(await p.locator('#figures .sec-l').innerText()), 'sash.html: no work-in-progress label; its figures name their model');
-  await p.goto(BASE + 'system.html', { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
-  ok(p.url().endsWith('flashprove.html'), 'system.html redirects', p.url());
+  await p.goto(BASE + 'sash', { waitUntil: 'networkidle' });
+  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s4\sMaverick/.test(await p.locator('#figures .sec-l').innerText()), 'sash: no work-in-progress label; its figures name their model');
+  // an unknown address: the site's own 404 page, with the site's header, at any depth
+  for (const u of ['nope', 'a/b/c']) {
+    const res = await p.goto(BASE + u, { waitUntil: 'networkidle' });
+    ok(res.status() === 404 && (await p.locator('.top nav a').count()) >= 4 && (await p.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(11, 11, 12)', `/${u} answers the styled 404 page`, res.status());
+  }
+  // an older address redirects to the first system page
+  for (const u of ['system', 'system.html']) {
+    await p.goto(BASE + u, { waitUntil: 'networkidle' });
+    ok(new URL(p.url()).pathname === '/flashprove', `/${u} redirects to /flashprove`, p.url());
+  }
+  // a malformed escape in the hash breaks nothing: sorting and Back keep working
+  await p.goto(BASE + '#100%', { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
+  await p.evaluate(() => { location.hash = 'sort=proof_size-desc'; }); await p.waitForTimeout(300);
+  ok((await sortState(p)).aria.join() === 'proof_size:descending', 'a malformed hash does not stop hash sorting');
+  // a phone held sideways: the first table's heading shows on landing
   await ctx.close();
+  const ls = await pg(844, 390, { touch: true });
+  await ls.p.goto(BASE, { waitUntil: 'networkidle' }); await ls.p.waitForTimeout(settle);
+  const hb = await ls.p.evaluate(() => Math.round(document.querySelector('.bench .sect').getBoundingClientRect().bottom));
+  ok(hb <= 390, 'landscape phone: the model heading shows on landing', hb);
+  await ls.ctx.close();
 }
 
 // ---------------------------------------------------------------- words: cut sentences, neutrality, numbered names, links
@@ -246,16 +290,30 @@ for (const name of ['flashprove', 'sash', 'reference']) {
     await p.goto(BASE + name, { waitUntil: 'networkidle' });
     const t = await p.evaluate(() => {
       const all = document.body.innerText + ' ' + [...document.querySelectorAll('[aria-label],[title]')].map((n) => (n.getAttribute('aria-label') || '') + ' ' + (n.title || '')).join(' ');
-      const chrome = [...document.querySelectorAll('.top, .mast, .heads, .sec-h, .subh')].map((n) => n.textContent).join(' ');
-      return { all, chrome };
+      const vis = document.body.innerText;
+      const chrome = [...document.querySelectorAll('.top, .mast, .heads, .sec-h')].map((n) => n.textContent).join(' ');
+      const ids = {};
+      document.querySelectorAll('[id]').forEach((n) => { ids[n.id] = (ids[n.id] || 0) + 1; });
+      return { all, vis, chrome, dup: Object.keys(ids).filter((k) => ids[k] > 1) };
     });
-    ok(!/These tests show only what happened|Printed as text/.test(t.all), `${name}: cut sentences absent`);
-    ok(!/\bmock\b/i.test(t.all), `${name}: no placeholder marking on the page`);
-    ok(!/\b(best|top|fastest|leader|leaderboard|winner|rank(ed|ing)?)\b|#\s?1\b|🥇/i.test(t.chrome), `${name}: no ranking words in the site's own controls`);
-    ok(!/\d\s*(Weights hidden|Model bound|Whole output proved|Formally verified|Security level|No trusted party)/.test(t.all), `${name}: no numbered property names`);
-    ok(!/step \d of \d/i.test(t.all), `${name}: no "step N of M"`);
-    const local = await p.evaluate(() => [...new Set([...document.querySelectorAll('a[href]')].map((a) => a.href).filter((h) => h.startsWith(location.origin)).map((h) => h.split('#')[0]))]);
-    for (const u of local) { const r = await p.request.get(u); if (r.status() >= 400) bad.push(`${name} -> ${u} ${r.status()}`); }
+    ok(!/These tests show only what happened|Printed as text/.test(t.all), `${tagOf(name)}: cut sentences absent`);
+    ok(!/\bmock\b/i.test(t.all), `${tagOf(name)}: no placeholder marking on the page`);
+    ok(!/\b(best|top|fastest|leader|leaderboard|winner|rank(ed|ing)?)\b|#\s?1\b|🥇/i.test(t.chrome), `${tagOf(name)}: no ranking words in the site's own controls`);
+    ok(!/\d\s*(Weights hidden|Model bound|Whole output proved|Formally verified|Security level|No trusted party)/.test(t.all), `${tagOf(name)}: no numbered property names`);
+    ok(!/step \d of \d/i.test(t.all), `${tagOf(name)}: no "step N of M"`);
+    ok(!t.dup.length, `${tagOf(name)}: no duplicate ids`, t.dup);
+    ok(!/\bfixture\b|n_failed|RFC-\d{4} [A-Z]+-\d/.test(t.vis), `${tagOf(name)}: no placeholder words, field names or bare rule codes in visible text`);
+    // every local link resolves, and its #fragment names exactly one element on the target page
+    const local = await p.evaluate(() => [...new Set([...document.querySelectorAll('a[href]')].map((a) => a.href).filter((h) => h.startsWith(location.origin)))]);
+    for (const u of local) {
+      const [page, frag] = u.split('#');
+      const r = await p.request.get(page);
+      if (r.status() >= 400) { bad.push(`${tagOf(name)} -> ${u} ${r.status()}`); continue; }
+      if (frag && !/^sort=/.test(frag)) {
+        const n = ((await r.text()).match(new RegExp(` id="${frag}"`, 'g')) || []).length;
+        if (n !== 1) bad.push(`${tagOf(name)} -> ${u} has ${n} #${frag}`);
+      }
+    }
   }
   ok(!bad.length, 'no dead local links', bad);
   await ctx.close();
@@ -266,7 +324,7 @@ if (AxeBuilder) {
   const runs = [];
   for (const w of [1440, 390]) {
     for (const name of PAGES) runs.push([w, name, null]);
-    runs.push([w, 'index.html#sort=overhead-desc', null]);
+    runs.push([w, '#sort=overhead-desc', null], [w, 'nope', null]);
   }
   for (const [w, url] of runs) {
     const { ctx, p } = await pg(w, 900, { reduce: true });
@@ -279,7 +337,9 @@ if (AxeBuilder) {
   log('SKIP axe: @axe-core/playwright not found (set AXE_MODULE)');
 }
 
-ok(!errs.length, 'no console or page errors', errs);
+// the 404 checks load unknown addresses on purpose; the browser logs their status as an error
+const realErrs = errs.filter((e) => !/\/(nope|a\/b\/c): Failed to load resource: .* 404/.test(e));
+ok(!realErrs.length, 'no console or page errors', realErrs);
 log(`${fails} failed check(s)`);
 fs.writeFileSync(OUT + 'checks.txt', report.join('\n') + '\n');
 await b.close();

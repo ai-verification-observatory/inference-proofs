@@ -1,0 +1,103 @@
+{
+  "faces": [
+    {
+      "fam": "Archivo",
+      "file": "archivo-latin-ext.a75c792f98.woff2",
+      "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+      "stretch": "62% 125%",
+      "subset": "latin-ext",
+      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kQo8UDI-1M0wlSfdfoLmvDIaK18A.woff2",
+      "wt": "400 900"
+    },
+    {
+      "fam": "Archivo",
+      "file": "archivo-latin.4c98b9d490.woff2",
+      "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+      "stretch": "62% 125%",
+      "subset": "latin",
+      "url": "https://fonts.gstatic.com/s/archivo/v25/k3kQo8UDI-1M0wlSfdnoLmvDIaI.woff2",
+      "wt": "400 900"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-400-latin-ext.f1050dc531.woff2",
+      "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+      "stretch": null,
+      "subset": "latin-ext",
+      "url": "https://fonts.gstatic.com/s/ibmplexmono/v20/-F63fjptAgt5VM-kVkqdyU8n1iEq131nj-otFQ.woff2",
+      "wt": "400"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-400-latin.c36f509c0a.woff2",
+      "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+      "stretch": null,
+      "subset": "latin",
+      "url": "https://fonts.gstatic.com/s/ibmplexmono/v20/-F63fjptAgt5VM-kVkqdyU8n1i8q131nj-o.woff2",
+      "wt": "400"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-500-latin-ext.77f03e26f9.woff2",
+      "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+      "stretch": null,
+      "subset": "latin-ext",
+      "url": "https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3twJwl5FgsAXHNlYzg.woff2",
+      "wt": "500"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-500-latin.a76f53ca66.woff2",
+      "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+      "stretch": null,
+      "subset": "latin",
+      "url": "https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3twJwlBFgsAXHNk.woff2",
+      "wt": "500"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-600-latin-ext.1b6b18fd0f.woff2",
+      "range": "U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF",
+      "stretch": null,
+      "subset": "latin-ext",
+      "url": "https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3vAOwl5FgsAXHNlYzg.woff2",
+      "wt": "600"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-600-latin.ad4580d8cb.woff2",
+      "range": "U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD",
+      "stretch": null,
+      "subset": "latin",
+      "url": "https://fonts.gstatic.com/s/ibmplexmono/v20/-F6qfjptAgt5VM-kVkqdyU8n3vAOwlBFgsAXHNk.woff2",
+      "wt": "600"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-400-arrows.638684ffc0.woff2",
+      "range": "U+d7, U+2190-2193, U+2195, U+2197, U+2248",
+      "stretch": null,
+      "subset": "arrows",
+      "url": "https://fonts.gstatic.com/l/font?kit=-F63fjptAgt5VM-kVkqdyU8n5i0g0F9ltf3WgzvmX3l0R1a5KiIR8lzg0EXLt76Z1A&skey=b40c83751ce1954d&v=v20",
+      "wt": "400"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-500-arrows.001854c4e1.woff2",
+      "range": "U+d7, U+2190-2193, U+2195, U+2197, U+2248",
+      "stretch": null,
+      "subset": "arrows",
+      "url": "https://fonts.gstatic.com/l/font?kit=-F6qfjptAgt5VM-kVkqdyU8n3twJ8lJPheIVJs6jWHl0Rla5KSIR81zg1kXLtb6Wy47HdQ&skey=38b39ff75b2f08ac&v=v20",
+      "wt": "500"
+    },
+    {
+      "fam": "IBM Plex Mono",
+      "file": "plex-mono-600-arrows.b24a689f1a.woff2",
+      "range": "U+d7, U+2190-2193, U+2195, U+2197, U+2248",
+      "stretch": null,
+      "subset": "arrows",
+      "url": "https://fonts.gstatic.com/l/font?kit=-F6qfjptAgt5VM-kVkqdyU8n3vAO8lJPheIVJs6jWHl0Rla5KSIR81zg1kXLtb6Wy47HdQ&skey=1e39eeb85b51796&v=v20",
+      "wt": "600"
+    }
+  ]
+}

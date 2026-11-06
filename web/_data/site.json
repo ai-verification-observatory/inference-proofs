@@ -34618,8 +34618,8 @@
                 "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md?plain=1#L26"
               }
             ],
-            "reason": "Soundness and zero knowledge proved in Lean.",
-            "reason_short": "Soundness and zero knowledge proved in Lean.",
+            "reason": "Soundness and zero knowledge proved in Lean for the protocol; the C++ verifier and CUDA prover are tested, not proved.",
+            "reason_short": "Soundness and zero knowledge proved in Lean for the protocol; the C++ verifier and CUDA prover are tested, not proved.",
             "searched": 0,
             "source": {
               "label": "README.md L26 · 9e2bdd8f",

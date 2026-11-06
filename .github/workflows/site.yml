@@ -21,12 +21,14 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: the build and its sort-key test
+      - name: the build and its tests
         working-directory: web
         run: |
           python3 --version
           python3 -I build.py
           python3 -I test_sort_keys.py
           python3 -I test_cards.py
-      - name: the committed pages are the built pages
-        run: git diff --exit-code --stat -- web
+      - name: the committed files are the built files (new files included)
+        run: |
+          git status --porcelain -- web
+          test -z "$(git status --porcelain -- web)"
