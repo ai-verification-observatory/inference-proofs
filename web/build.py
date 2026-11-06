@@ -702,7 +702,8 @@ def preloads():
 
 
 def version(name):
-    """A file's URL with the first 12 hex of its sha256, so it can be cached until it changes."""
+    """A file's URL with the first 12 hex of its sha256, so it can be cached until it changes
+    (words.css, words.js, search.json)."""
     return f"/{name}?v={hashlib.sha256((HERE / name).read_bytes()).hexdigest()[:12]}"
 
 
@@ -739,20 +740,47 @@ def header(here):
     def a(href, label, key):
         return f'<a href="{href}"{" aria-current=page" if here == key else ""}>{label}</a>'
 
-    nav = (
-        a("/", "Overview", "home")
-        + "".join(
-            a(PAGE[sid], e(site["systems"][sid]["name"]), sid)
-            for sid in sorted(PAGE, key=lambda k: site["systems"][k]["name"].lower())
-        )
-        + a(REF_PAGE, "References", "reference")
-        + a(CRIT_PAGE, "Criteria", "criteria")
-    )
+    # The logo leads to the overview; the nav holds the other pages; systems are reached by search
+    # (one link each would not scale) or from the overview.
+    nav = a(REF_PAGE, "References", "reference") + a(CRIT_PAGE, "Criteria", "criteria")
+    current = " aria-current=page" if here == "home" else ""
     return (
-        f'<header class="top"><p class="brand"><a href="/">Inference proofs</a></p>'
-        f'<nav aria-label="Site">{nav}</nav>'
+        f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{LOGO_MARK}<span>Inference proofs</span></a></p>'
+        f'<nav aria-label="Site">{nav}</nav></div>'
+        f"{search_box(here)}"
         f'<a class="repo" href="{e(REPO_URL)}">{GITHUB_MARK}GitHub</a>'
         "</header>"
+    )
+
+
+# The site's mark, as on the icon and the preview cards: the six-slice pie, here in violet
+LOGO_MARK = (
+    '<svg class="lm" viewBox="-27 -27 54 54" width="22" height="22" aria-hidden="true" focusable="false">'
+    + "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
+    + "</svg>"
+)
+
+SEARCH_MARK = (
+    '<svg class="si" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">'
+    '<circle cx="6.5" cy="6.5" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/>'
+    '<path d="M10.2 10.2 15 15" stroke="currentColor" stroke-width="1.6" stroke-linecap="square"/></svg>'
+)
+
+
+def search_box(here):
+    """The search field: a combobox over search.json (words.js fills the list). With script only;
+    on phones a button opens it over the top bar. The current system page's name is not needed."""
+    return (
+        '<div class="search" role="search">'
+        f'<button type="button" class="sopen" aria-label="Search" aria-expanded="false">{SEARCH_MARK}</button>'
+        f'<label class="sr" for="q">Search systems, properties and pages</label>'
+        f'<span class="sfield">{SEARCH_MARK}'
+        '<input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search" '
+        'role="combobox" aria-expanded="false" aria-controls="q-list" aria-autocomplete="list" '
+        'aria-keyshortcuts="/ Control+K Meta+K">'
+        '<kbd class="skey" aria-hidden="true">/</kbd></span>'
+        f'<ul id="q-list" class="slist" role="listbox" aria-label="Results" hidden data-index="{version("search.json")}"></ul>'
+        "</div>"
     )
 
 
@@ -1266,6 +1294,98 @@ def build_reference():
     )
 
 
+# ------------------------------------------------------------------ search
+# search.json, the local index the header's search reads (words.js; nothing leaves the browser).
+# Systems and properties only: the pages are in the nav. Each entry: its name, where it leads, its kind and tier (benchmarked first, not benchmarked last:
+# the order says what kind of entry it is, never how good a system is), a line of context, its pie
+# and the words it is found by. TERMS adds the words people search with for a family of systems.
+# Only words true of every system in the family: how a system proves (STARK, SNARK, sumcheck...) comes
+# from its own stated technique, never from its family (AGENTS.md rule 9).
+TERMS = {
+    "proved": "zk proof cryptographic",
+    "attested": "tee enclave hardware attestation confidential",
+    "re-executed": "rerun re-execution recompute optimistic dispute",
+    "fingerprinted": "fingerprint",
+}
+# words for what the data's code field says about a system's source
+CODE_TERMS = {"no_public_code": "closed source"}
+TIER = {"system": 0, "property": 1, "reference": 2, "unbenchmarked": 3}
+BADGE = {"reference": "Reference", "unbenchmarked": "Not benchmarked", "property": "Property"}
+
+
+def family(text):
+    return text.split(":", 1)[0].strip().lower()
+
+
+def search_entries():
+    out = []
+
+    def add(kind, name, url, meta, pie, terms, fam=""):
+        words_ = " ".join([name, meta, terms, TERMS.get(fam, ""), BADGE.get(kind, "")])
+        out.append(
+            {
+                "kind": kind,
+                "tier": TIER[kind],
+                "badge": BADGE.get(kind, ""),
+                "name": name,
+                "url": url,
+                "meta": meta,
+                "pie": pie,
+                "terms": " ".join(words_.lower().split()),
+            }
+        )
+
+    for r in PROVERS:
+        s, g = site["systems"][r["system"]], G["rows"][r["system"]]
+        add(
+            "system",
+            s["name"],
+            PAGE[r["system"]],
+            f"{family(r['kind_title']).capitalize()} · {model_name(r)}",
+            pie_svg(g["states"], 28),
+            f"{r['kind_title']} {s['upstream']['repo']}",
+            family(r["kind_title"]),
+        )
+    for gid in G["orders"]["reference"]:
+        r = ref_summary(gid)
+        add(
+            "reference",
+            r["name"],
+            f"{REF_PAGE}#{gid}",
+            sentence_case(words(r["kind_title"])[len(r["name"]) + 2 :])
+            if r["kind_title"].startswith(r["name"] + ": ")
+            else words(r["kind_title"]),
+            pie_svg(G["rows"][gid]["states"], 28),
+            "reference baseline",
+        )
+    nb = {r["id"]: r for r in OV["not_benchmarked"]["rows"]}
+    for rid in G["orders"]["not_benchmarked"]:
+        r = nb[rid]
+        add(
+            "unbenchmarked",
+            r["name"],
+            f"/#nb-{rid}",
+            f"{r['family_label']} · {nb_models(r)}",
+            pie_svg(G["rows"][rid]["states"], 28),
+            # status, models, source and stated technique; not the "by" field, which names people
+            " ".join(
+                [
+                    nb_meta(r),
+                    *r["models"],
+                    r.get("code_label") or "",
+                    CODE_TERMS.get(r.get("code"), ""),
+                    r["technique_words"] if r.get("technique") not in (None, "not_stated") else "",
+                ]
+            ),
+            r["family_label"].lower(),
+        )
+    for p in G["properties"]:
+        add(
+            "property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(p["n"], 28), ""
+        )
+    return out
+
+
 # ------------------------------------------------------------------ the criteria and the 404
 
 
@@ -1342,7 +1462,7 @@ def vercel_json():
     first = PAGE[G["orders"]["benchmarked"][0]]
     return {
         "$schema": "https://openapi.vercel.sh/vercel.json",
-        "buildCommand": "rm -rf public && mkdir -p public/og public/fonts && cp *.html words.css words.js public/ && cp og/*.png og/*.svg public/og/ && cp fonts/*.woff2 public/fonts/",
+        "buildCommand": "rm -rf public && mkdir -p public/og public/fonts && cp *.html words.css words.js search.json public/ && cp og/*.png og/*.svg public/og/ && cp fonts/*.woff2 public/fonts/",
         "cleanUrls": True,
         "trailingSlash": False,
         "framework": None,
@@ -1369,7 +1489,7 @@ def vercel_json():
                 ],
             },
             # versioned by ?v=<hash> (words.css, words.js, the pictures) or by the file name (fonts)
-            {"source": "/(words\\.css|words\\.js)", "headers": forever},
+            {"source": "/(words\\.css|words\\.js|search\\.json)", "headers": forever},
             {"source": "/og/(.*)\\.png", "headers": forever},
             {"source": "/fonts/(.*)", "headers": forever},
         ],
@@ -1573,6 +1693,11 @@ def write_font_faces():
 def main():
     write_font_faces()
     write_cards()
+    # before the pages: they link it by its hash
+    (HERE / "search.json").write_text(
+        json.dumps({"entries": search_entries()}, indent=2, sort_keys=True, ensure_ascii=False)
+        + "\n"
+    )
     file_of("/").write_text(build_index())
     for sid, path in PAGE.items():
         file_of(path).write_text(build_system(sid))

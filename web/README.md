@@ -13,6 +13,7 @@ python3 -I build.py                      # the pages, 404.html, vercel.json, the
 PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs && python3 -I build.py   # when a card source changed
 python3 -I test_sort_keys.py             # or: python3 -m pytest test_sort_keys.py
 python3 -I test_cards.py                 # each picture rendered from its committed source; every page names one
+python3 -I test_search.py                # the search index
 python3 -I serve.py                      # http://127.0.0.1:4440/ as on Vercel: the deployed files only, clean addresses, redirects, headers (CSP included), 404
 PLAYWRIGHT_MODULE=<path to playwright/index.mjs> \
 AXE_MODULE=<path to @axe-core/playwright/dist/index.mjs> \
@@ -31,7 +32,7 @@ www.inferenceproofs.ai serves this folder from Vercel's Git integration (the Ver
 - Headers on every response: `noindex` while the results are placeholders, a Content-Security-Policy that allows only this site's own files plus the one inline script by its sha256 (computed by the build), `X-Frame-Options: DENY`, a Permissions-Policy, `nosniff` and a referrer policy.
 - Caching: `words.css` and `words.js` are linked with `?v=` and the first 12 hex of their sha256, the pictures likewise, and each font file carries its hash in its name; all four get a one-year immutable cache. Pages revalidate on every visit.
 
-The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request that touches this folder it runs `build.py`, `test_sort_keys.py` and `test_cards.py` and fails if any file differs from what the build writes, new files included.
+The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request that touches this folder it runs `build.py`, `test_sort_keys.py`, `test_cards.py` and `test_search.py` and fails if any file differs from what the build writes, new files included.
 
 ## Fonts
 
@@ -67,7 +68,17 @@ Each system is a flat pie of six slices, one per property, clockwise from twelve
 
 ### Header and footer
 
-The top bar: the site's name, the pages (Overview, each system, References, Criteria), and GitHub at the right. Up to 700 px, the width it needs on one line, the name and GitHub share the first line and the pages the second; below 390 px the pages take two rows (Overview, FlashProve, SASH / References, Criteria). Every link there is at least 24 px tall to the touch. The footer links the criteria page, RFC-0001 and the committed `criteria.json`, pinned by its sha256.
+The top bar: the logo (the site's mark, the six-slice pie in violet, and its name; it leads to the overview and marks it as the current page there) and the pages (References, Criteria) at the left, a wide search field (up to 600 px) centred in the room between them and GitHub at the right. Up to 960 px, below the width a centred field needs, the name, a search button and GitHub share the first line and the pages the second; the button opens the field over the first line.
+
+### Search
+
+Systems are reached by search, not by one nav link each, since there will be many. `build.py` writes `search.json` (linked by its hash): every benchmarked system, reference, not-benchmarked system and property (the pages are in the nav), with a line of context, its pie and the words it is found by: its name, models, kind and status, its stated technique, its code status ("no public code", "closed source"), its badge, and a few words true of its whole family (`TERMS`: "zk", "TEE", "enclave"...; how a system proves, STARK or SNARK, comes only from its own stated technique). People's names are not indexed.
+
+`words.js` loads it on first focus and matches locally (nothing leaves the browser): the start of a name, a word in the name, then the other words. A typo (a letter added, missing or wrong, or two swapped) is tried only for a word no entry has, and only from its right first letter. A number glued to a word is apart ("llama4" is "llama 4"); one letter searches names only.
+
+Not-benchmarked systems come after every other match, each marked "Not benchmarked" (most are closed source, so they cannot be run here). Within each part results are ordered by where the words matched, then by kind of entry (benchmarked systems, properties, references), then by closeness. Up to 12 of each part are listed, and a line counts the rest. A not-benchmarked result leads to its card in the overview, marked and labelled "Not benchmarked". An empty field lists the benchmarked systems.
+
+`/` or Ctrl/Cmd + K focuses it from anywhere (`aria-keyshortcuts`); arrows choose, Enter goes to the chosen result or the first of a typed search, Escape clears then closes. It is an ARIA combobox with a listbox; the count is announced; without script it is not shown. If `search.json` cannot load, the list says so and the next focus tries again.
 
 ### Overview
 
@@ -145,7 +156,8 @@ axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practic
 - `test_sort_keys.py`: the sort keys, the single model, the reference rows and the label rewrites. `test_cards.py`: the preview cards, the share tags, the icon and the 404.
 - `words.css`, `words.js`: style and behaviour, no data (the fonts block in `words.css` is written by the build).
 - `fonts/`: the font files, `faces.json` and their licences.
-- `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table, Llama 4 Maverick, references after it; a static header; row hover without shift; sort order for every column and direction from the heads, also on rows that differ in every column with missing values among them, the hash round-trip, Back to the default and keyboard sorting; overflow at 320 to 1100 px on every page; `/system` redirects; a malformed hash breaks nothing; every local link and its #fragment resolve; CLS; the first system name on landing at 390 px and the model heading on a phone held sideways; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the styled 404 at any depth; no duplicate ids, no placeholder words, field names or bare rule codes; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
+- `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table, Llama 4 Maverick, references after it; a static header; row hover without shift; sort order for every column and direction from the heads, also on rows that differ in every column with missing values among them, the hash round-trip, Back to the default and keyboard sorting; overflow at 320 to 1100 px on every page; `/system` redirects; a malformed hash breaks nothing; search (the shortcut, order, typos, the not-benchmarked badge and landing, Enter and arrows, the phone button); every local link and its #fragment resolve; CLS; the first system name on landing at 390 px and the model heading on a phone held sideways; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the styled 404 at any depth; no duplicate ids, no placeholder words, field names or bare rule codes; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
+- `search.json` (written by `build.py`) and `test_search.py`: the search index and its check.
 - `og.mjs`, `og/`: the preview cards (sources, pictures, `cards.json`).
 - `_data/`: `site.json`, `criteria.json` and `maverick_only.py`.
 - `shots/`: screenshots and `checks.txt`.

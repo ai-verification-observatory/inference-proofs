@@ -28,6 +28,7 @@ jobs:
           python3 -I build.py
           python3 -I test_sort_keys.py
           python3 -I test_cards.py
+          python3 -I test_search.py
       - name: the committed files are the built files (new files included)
         run: |
           git status --porcelain -- web
