@@ -31,7 +31,32 @@
       }
     };
     pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });
-    pie.addEventListener('pointerleave', () => set(0));
+    pie.addEventListener('pointerleave', (ev) => { if (mouse(ev)) set(0); });
+    // touch: the first tap on a triangle names it; a second tap on the same one follows the link
+    let kind = '';
+    pie.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
+    pie.addEventListener('click', (ev) => {
+      if (kind === 'mouse') return;
+      const n = +(ev.target.closest('.hit path')?.dataset.n || 0);
+      if (n && n !== hot) { ev.preventDefault(); set(n); }
+    });
+    document.addEventListener('pointerdown', (ev) => { if (!pie.contains(ev.target)) set(0); });
+  });
+
+  // ------------------------------------------------------------ system pages: on a touch screen, a tap on a slice or
+  // on a property (not its link) lifts the slice and marks the property, as pointing does with a mouse
+  $$('.rose').forEach((rose) => {
+    let kind = '';
+    const cool = () => { rose.removeAttribute('data-hot'); };
+    rose.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
+    rose.addEventListener('click', (ev) => {
+      if (kind === 'mouse' || ev.target.closest('a')) return;
+      const at = ev.target.closest('.rpie .hit path') || ev.target.closest('.rp');
+      const n = at ? at.dataset.n : '';
+      if (!n) return;
+      if (rose.dataset.hot === n) cool(); else rose.dataset.hot = n;
+    });
+    document.addEventListener('pointerdown', (ev) => { if (!rose.contains(ev.target)) cool(); });
   });
 
   // ------------------------------------------------------------ search: a combobox over search.json (written by build.py)
@@ -52,6 +77,12 @@
     let failed = false;
     let shown = [];
     let active = -1;
+    // A press on a result or a search button keeps the field's focus: a mouse press is cancelled; a
+    // touch press is not (WebKit then drops the tap's click), so the blur it causes is let pass once.
+    let pressing = false;
+    const hold = (ev) => { if (mouse(ev)) ev.preventDefault(); else pressing = true; };
+    addEventListener('click', () => { pressing = false; }, true);
+    addEventListener('pointercancel', () => { pressing = false; }, true);
     // lower case, no accents, a number apart from the word it is glued to ("llama4" is "llama 4")
     const norm = (s) => s.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '')
       .replace(/([a-z])(\d)/g, '$1 $2').replace(/[^a-z0-9.]+/g, ' ').trim();
@@ -117,7 +148,7 @@
       li.append(pie, b);
       if (x.badge) { const t = document.createElement('span'); t.className = 'sbadge'; t.textContent = ` ${x.badge} `; li.append(t); }
       if (x.meta) { const m = document.createElement('span'); m.className = 'sm'; m.textContent = x.meta; li.append(m); }
-      li.addEventListener('pointerdown', (ev) => ev.preventDefault());  // keep focus in the field
+      li.addEventListener('pointerdown', hold);  // keep focus in the field
       li.addEventListener('click', () => go(x));
       return li;
     };
@@ -152,14 +183,20 @@
       if (here) { input.blur(); setPhone(false); }
     };
     const phone = () => opener && getComputedStyle(opener).display !== 'none';
+    // while the sheet is open, what it covers is out of reach (Tab, screen readers): only the search stays live
+    const covered = () => [...document.body.children, ...top.children].filter((el) => el !== top && el !== sbox && !el.contains(sbox) && el.tagName !== 'SCRIPT');
     const setPhone = (on) => {
+      covered().forEach((el) => { el.inert = on; });
       top.classList.toggle('s-on', on);
       if (opener) opener.setAttribute('aria-expanded', String(on));
       if (on) input.focus();
     };
+    // phones: the open field is a sheet; closing it returns focus to the button that opened it
+    const close = () => { open(false); setPhone(false); opener.focus(); };
     input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(render); });
     input.addEventListener('input', () => { load().then(render); });
-    input.addEventListener('blur', () => { open(false); if (top.classList.contains('s-on')) setPhone(false); });
+    // on a phone, hiding the keyboard blurs the field: the sheet and its list stay until closed
+    input.addEventListener('blur', () => { if (pressing) pressing = false; else if (!phone()) open(false); });
     input.addEventListener('keydown', (ev) => {
       const n = shown.length;
       if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); if (list.hidden) render(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
@@ -167,12 +204,26 @@
         const x = active >= 0 ? shown[active] : (norm(input.value) ? shown[0] : null);
         if (x) { ev.preventDefault(); go(x); }
       } else if (ev.key === 'Escape') {
-        if (!list.hidden && input.value) { input.value = ''; render(); } else if (phone()) { open(false); setPhone(false); opener.focus(); } else open(false);
+        if (!list.hidden && input.value) { input.value = ''; render(); } else if (phone()) close(); else open(false);
       }
     });
     if (opener) {
-      opener.addEventListener('pointerdown', (ev) => ev.preventDefault());  // the field keeps focus while it toggles
+      opener.addEventListener('pointerdown', hold);  // the field keeps focus while it toggles
       opener.addEventListener('click', () => setPhone(!top.classList.contains('s-on')));
+      const shut = $('.sclose', sbox);
+      if (shut) {
+        shut.addEventListener('pointerdown', hold);
+        shut.addEventListener('click', close);
+      }
+      // a tap on the sheet around the field and its list closes it, and reaches nothing under it
+      top.addEventListener('pointerdown', (ev) => { if (top.classList.contains('s-on') && ev.target === top) hold(ev); });
+      top.addEventListener('click', (ev) => { if (top.classList.contains('s-on') && ev.target === top) { ev.preventDefault(); close(); } });
+      // the list ends above the on-screen keyboard
+      const vv = window.visualViewport;
+      if (vv) {
+        const fit = () => document.documentElement.style.setProperty('--vvh', `${vv.height}px`);
+        vv.addEventListener('resize', fit); fit();
+      }
     }
     // "/" or Ctrl/Cmd + K, from anywhere but a field
     addEventListener('keydown', (ev) => {
@@ -194,7 +245,7 @@
   const DEFAULT = 'system-asc';
   const keys = new Map();
   const btn = (col) => $(`.tbl .sb[data-col="${col}"]`);
-  const words = () => { const b = btn(state.col); return b ? `${b.firstChild.textContent}, ${b.dataset[state.dir]}` : ''; };
+  const words = () => { const b = btn(state.col); return b ? `${b.firstChild.textContent.trim()}, ${b.dataset[state.dir]}` : ''; };
 
   const sortRows = (animate) => tbls.forEach((tbl) => {
     const box = $('.rows', tbl);

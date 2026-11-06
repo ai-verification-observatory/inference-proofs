@@ -664,7 +664,8 @@ def link_or_text(text, href):
     return with_rule(text)
 
 
-def plate(row, col):
+def plate(row, col, pid=""):
+    """One figure's plate; pid: an id prefix, so a home figure can link to its own plate."""
     x = cell(row, col)
     head, kv = parse_title(x["title"])
     kv = [[k, v, None] for k, v in kv]
@@ -702,7 +703,7 @@ def plate(row, col):
     )
     val = fig(x["value"]) if x.get("value") else f'<span class="na">{e(x["absent"]["text"])}</span>'
     return (
-        f'<div class="plate" data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
+        f'<div class="plate"{f' id="{e(pid)}{col}"' if pid else ""} data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
         f'<p class="pv">{val}</p><dl>{dl}</dl></div>'
     )
 
@@ -822,10 +823,12 @@ def search_box(here):
         f'<button type="button" class="sopen" aria-label="Search" aria-expanded="false">{SEARCH_MARK}</button>'
         f'<label class="sr" for="q">Search systems, properties and pages</label>'
         f'<span class="sfield">{SEARCH_MARK}'
-        '<input id="q" type="search" autocomplete="off" spellcheck="false" placeholder="Search" '
+        '<input id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" '
+        'enterkeyhint="go" spellcheck="false" placeholder="Search" '
         'role="combobox" aria-expanded="false" aria-controls="q-list" aria-autocomplete="list" '
         'aria-keyshortcuts="/ Control+K Meta+K">'
-        '<kbd class="skey" aria-hidden="true">/</kbd></span>'
+        '<kbd class="skey" aria-hidden="true">/</kbd>'
+        '<button type="button" class="sclose" aria-label="Close search">×</button></span>'
         f'<ul id="q-list" class="slist" role="listbox" aria-label="Results" hidden data-index="{version("search.json")}"></ul>'
         "</div>"
     )
@@ -856,7 +859,7 @@ def page(title, desc, body, cls, path, card):
     or None for a page that is never shared (the 404)."""
     meta = share_meta(title, desc, path, card) if card else '<meta name="robots" content="noindex">'
     return (
-        f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+        f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">'
         f"<script>{HEAD_SCRIPT}</script>"
         f'<title>{e(full_title(title))}</title><meta name="description" content="{e(desc)}">'
         f'<meta name="color-scheme" content="dark"><meta name="theme-color" content="{GROUND}">'
@@ -947,12 +950,14 @@ def row_html(row, g, href, right, table=False):
 </div>'''
 
 
-def figures(row, href, table):
+def figures(row, base, table, block=None):
+    """The four figures of a home row; each links to its own plate, at base + "-" + its column, or
+    all to one block (a reference's figures, short enough to show whole with its name)."""
     cell = ' role="cell"' if table else ""
     return (
         '<div class="vals">'
         + "".join(
-            f'<div class="vc"{cell} data-col="{c}">{value_link(row, c, href, row["name"])}</div>'
+            f'<div class="vc"{cell} data-col="{c}">{value_link(row, c, block or f"{base}-{c}", row["name"])}</div>'
             for c in COLS
         )
         + "</div>"
@@ -971,7 +976,7 @@ def sort_heads():
             + (' aria-sort="ascending"' if on else "")
             + ">"
             f'<button type="button" class="sb" data-col="{col}" data-asc="{e(w["asc"])}" data-desc="{e(w["desc"])}">'
-            f'{label}<span class="g" aria-hidden="true">{"↑" if on else "↕"}</span></button></div>'
+            f'{label}\u00a0<span class="g" aria-hidden="true">{"↑" if on else "↕"}</span></button></div>'
         )
 
     return (
@@ -1082,6 +1087,14 @@ def ref_summary(gid):
     }
 
 
+def facts_line(text):
+    """A line of facts: each one a span, so phones can list them (words.css); the separator stays
+    in the text, so the facts never run together when read aloud."""
+    return '<span class="sep">\u00a0· </span>'.join(
+        f"<span>{e(x)}</span>" for x in re.split(r"[ \u00a0]· ", text)
+    )
+
+
 def build_index():
     first = f"System, {sort_words()['system']['asc']}"
     secs = ""
@@ -1093,14 +1106,14 @@ def build_index():
                 r,
                 G["rows"][r["system"]],
                 PAGE[r["system"]],
-                figures(r, f"{PAGE[r['system']]}#figures", True),
+                figures(r, f"{PAGE[r['system']]}#fig", True),
                 True,
             )
             for r in rows
         )
         secs += f"""
   <section class="sec bench" id="{sid_}" aria-labelledby="h-{sid_}">
-    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{e(readable(model_sizes(rows[0]) + " · " + workload_line(rows[0])))}</p></div>
+    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + workload_line(rows[0])))}</p></div>
     <div class="tbl" role="table" aria-labelledby="h-{sid_}" aria-describedby="sort-now" data-col="system" data-dir="asc">
       {sort_heads()}
       <div class="rows" role="rowgroup">{body_rows}</div>
@@ -1111,7 +1124,7 @@ def build_index():
             r,
             G["rows"][r["id"]],
             f"{REF_PAGE}#{r['id']}",
-            figures(r, f"{REF_PAGE}#{r['id']}-figures", False),
+            figures(r, "", False, block=f"{REF_PAGE}#{r['id']}-figures"),
         )
         for r in (ref_summary(gid) for gid in G["orders"]["reference"])
     )
@@ -1160,6 +1173,8 @@ def rose_item(c, pre):
     reason = "" if generic else f'<p class="rr">{e(words(c["reason_short"]))}</p>'
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
+        # its place in the glyph, in its state's ink: shown where the properties stack (phones)
+        f'<span class="rk {CLS[st]}" aria-hidden="true">{key_mini(c["n"], 24)}</span>'
         f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
         f'<p class="rs"><i class="sw {CLS[st]}"></i>{e(c["word"])}</p>{reason}</li>'
     )
@@ -1245,7 +1260,7 @@ def build_system(sid):
         for r in s["about"]["repos"]
     )
     facts = [
-        ("kind", e(words(row["kind_title"]))),
+        ("kind", keep(words(row["kind_title"]))),
         ("model", keep(card_fact(lines, "MODEL"))),
         ("pinned", f'<span class="links">{repos}</span>'),
         ("licence", e(card_fact(lines, "LICENCE"))),
@@ -1253,7 +1268,7 @@ def build_system(sid):
         ("adapter", f'<a href="{e(s["adapter_readme"])}">systems/{e(sid)}/README.md{EXT}</a>'),
     ]
     t = s["tamper"]
-    plates = "".join(plate(row, c) for c in COLS)
+    plates = "".join(plate(row, c, "fig-") for c in COLS)
     body = f'''
 {header(sid)}
 <main id="main" class="sys">
@@ -1310,8 +1325,8 @@ def build_reference():
         ]
         r = ref_summary(gid)
         figs = (
-            f'<div class="reffigs" id="{e(gid)}-figures"><h3 class="sect sm">Figures</h3>'
-            f'<div class="plates plates-sys">{"".join(plate(r, c) for c in COLS)}</div></div>'
+            f'<div class="reffigs" id="{e(gid)}-figures"><h3 class="sect sm">Figures<span class="of"> · {e(r0["name"])}</span></h3>'
+            f'<div class="plates plates-sys">{"".join(plate(r, c, f"{gid}-fig-") for c in COLS)}</div></div>'
         )
         secs += f'''
     <section class="refsys" id="{e(gid)}" aria-labelledby="h-{e(gid)}">
@@ -1439,6 +1454,11 @@ def search_entries():
 def build_criteria():
     """What each state means for each property, from criteria.json: the draft the pies are coloured by."""
     props = {p["id"]: p for p in crit["properties"]}
+    # a jump index of the six properties, shown on phones (words.css), names only
+    idx = "".join(
+        f'<li><a href="#{e(gp["id"])}">{key_mini(gp["n"], 22)}<span>{e(props[gp["id"]]["name"])}</span></a></li>'
+        for gp in G["properties"]
+    )
     secs = ""
     for gp in G["properties"]:
         p = props[gp["id"]]
@@ -1459,6 +1479,7 @@ def build_criteria():
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Criteria</span></h1></div>
   </section>
   <div class="wrap">
+    <ul class="cidx" aria-label="Properties">{idx}</ul>
     {secs}
   </div>
 </main>
