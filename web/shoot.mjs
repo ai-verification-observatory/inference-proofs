@@ -438,17 +438,33 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw, 'touch: a first tap on a triangle names it and stays on the page', tip);
   await p.touchscreen.tap(...at); await p.waitForTimeout(800);
   ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
-  // the system page: one column of properties 1 to 6, each with a key glyph in its state's ink; a tap lifts a slice
+  // the system page: the six states beside the glyph, 1 to 6, each key glyph in its state's ink; under both,
+  // only the properties with a reason, each key glyph in its state's ink; a tap lifts a slice
   await p.waitForTimeout(400);
   const r = await p.evaluate(() => {
-    const rps = [...document.querySelectorAll('.rose .rp')].sort((a, b) => a.getBoundingClientRect().top - b.getBoundingClientRect().top);
-    return { order: rps.map((x) => x.dataset.n).join(''), ink: rps.every((rp) => { const k = rp.querySelector('.rk'); return k.getBoundingClientRect().width === 24 && getComputedStyle(k.querySelector('.on')).fill === getComputedStyle(rp.querySelector('.sw')).backgroundColor; }) };
+    const box = (x) => x.getBoundingClientRect();
+    const g = box(document.querySelector('.rpie .pie-svg'));
+    const sum = [...document.querySelectorAll('.rsum li')];
+    const sb = box(document.querySelector('.rsum'));
+    const ink = (li, sw) => box(li.querySelector('.rk')).width === 24 && getComputedStyle(li.querySelector('.rk .on')).fill === sw;
+    const shown = [...document.querySelectorAll('.rose .rp')].filter((x) => getComputedStyle(x).display !== 'none');
+    return {
+      beside: sb.left >= g.right && sb.top < g.bottom && sb.bottom > g.top,
+      order: sum.sort((a, b) => box(a).top - box(b).top).map((x) => x.dataset.n).join(''),
+      sumInk: sum.every((li) => ink(li, getComputedStyle(document.querySelector(`.rp[data-n="${li.dataset.n}"] .sw`)).backgroundColor)),
+      below: shown.every((x) => box(x).top >= Math.max(g.bottom, sb.bottom)),
+      reasons: shown.every((x) => x.querySelector('.rr')) && shown.length === document.querySelectorAll('.rose .rp:not(.bare)').length,
+      ink: shown.every((x) => ink(x, getComputedStyle(x.querySelector('.sw')).backgroundColor)),
+    };
   });
-  ok(r.order === '123456' && r.ink, 'flashprove-390: properties 1 to 6 in one column, each key glyph in its state ink', r);
+  ok(r.beside && r.order === '123456' && r.sumInk && r.below && r.reasons && r.ink, 'flashprove-390: the six states beside the glyph, the reasons under both, each key glyph in its state ink', r);
   const sb = await p.locator('.rpie .h2').boundingBox();
   await p.touchscreen.tap(sb.x + sb.width * 0.7, sb.y + sb.height * 0.5); await p.waitForTimeout(400);
   const lift = await p.evaluate(() => ({ s2: getComputedStyle(document.querySelector('.rpie .s2')).transform, rn: getComputedStyle(document.querySelector('.rp[data-n="2"] .rn')).color, path: location.pathname }));
   ok(lift.s2 !== 'none' && lift.rn === 'rgb(241, 239, 233)' && lift.path === '/flashprove', 'touch: a tap on a slice lifts it and marks its property', lift);
+  await p.goto(BASE + 'sash', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
+  const bare = await p.evaluate(() => ({ bare: [...document.querySelectorAll('.rp.bare')].map((x) => getComputedStyle(x).display), sum: document.querySelectorAll('.rsum li a').length, first: Math.round(document.querySelector('.rose .rp:not(.bare)').getBoundingClientRect().top) }));
+  ok(bare.bare.length && bare.bare.every((d) => d === 'none') && bare.sum === 6 && bare.first < 844, 'sash-390: a property without a reason shows only beside the glyph; the first reason on landing', bare);
   await ctx.close();
 }
 {

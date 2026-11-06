@@ -51,7 +51,7 @@
     rose.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
     rose.addEventListener('click', (ev) => {
       if (kind === 'mouse' || ev.target.closest('a')) return;
-      const at = ev.target.closest('.rpie .hit path') || ev.target.closest('.rp');
+      const at = ev.target.closest('.rpie .hit path') || ev.target.closest('.rp, .rsum li');
       const n = at ? at.dataset.n : '';
       if (!n) return;
       if (rose.dataset.hot === n) cool(); else rose.dataset.hot = n;

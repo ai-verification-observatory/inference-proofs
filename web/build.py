@@ -1171,13 +1171,27 @@ def rose_item(c, pre):
     st = c["state"]
     generic = st == "grey" and c["reason_short"].startswith("Not stated") and not c.get("source")
     reason = "" if generic else f'<p class="rr">{e(words(c["reason_short"]))}</p>'
+    bare = "" if reason else " bare"
     return (
-        f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
+        f'<li class="rp {SIDE[c["n"]]}{bare}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
         # its place in the glyph, in its state's ink: shown where the properties stack (phones)
         f'<span class="rk {CLS[st]}" aria-hidden="true">{key_mini(c["n"], 24)}</span>'
         f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
         f'<p class="rs"><i class="sw {CLS[st]}"></i>{e(c["word"])}</p>{reason}</li>'
     )
+
+
+def rose_sum(g, hid):
+    """Phones: the six states beside the glyph, each with its key glyph, its name (a link to what its
+    states mean) and its question for screen readers, to read in one look. Hidden elsewhere (CSS); on
+    phones the list below keeps only the properties with a reason."""
+    rows = "".join(
+        f'<li data-n="{c["n"]}"><span class="rk {CLS[c["state"]]}" aria-hidden="true">{key_mini(c["n"], 24)}</span>'
+        f'<span class="rsn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></span>'
+        f'<span class="rsv">{e(c["word"])}</span></li>'
+        for c in g["cells"]
+    )
+    return f'<ul class="rsum" role="list" aria-labelledby="{e(hid)}">{rows}</ul>'
 
 
 def rose(g, hid, name, level=2, pre=""):
@@ -1186,6 +1200,7 @@ def rose(g, hid, name, level=2, pre=""):
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
         f'<div class="rpie" role="img" aria-label="{e(aria(g, name))}">{pie_svg(g["states"], 184, hit=True)}</div>'
+        f"{rose_sum(g, hid)}"
         f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre) for c in g["cells"])}</ol></div>'
     )
 
