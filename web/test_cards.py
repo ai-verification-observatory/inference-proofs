@@ -68,12 +68,22 @@ def test_picture_size():
         assert png.stat().st_size < 1_000_000  # well under the 5 MB the platforms accept
 
 
-def test_cards_carry_the_draft_label():
+def test_system_cards_carry_the_draft_label():
     # the states are draft criteria; a picture travels without the page around it, so it says so
     draft = build.html.escape(build.G["legend"]["draft_short"])
-    for card in RECORD:
-        if card != "icon":
-            assert draft in (OG / f"{card}.html").read_text(), card
+    for sid in build.PAGE:
+        assert draft in (OG / f"{sid}.html").read_text(), sid
+
+
+def test_home_card_holds_nothing_that_changes():
+    # link previews stay cached in message apps: the home picture names no system and no model
+    src = (OG / "home.html").read_text()
+    for sid, sys_ in build.site["systems"].items():
+        assert sys_["name"] not in src, sid
+    for name in build.MODEL_NAME.values():
+        assert name not in src, name
+    assert 'class="sl ' not in src  # no system's pie
+    assert build.card_alt("home").count(":") == 1  # the alt names the properties only
 
 
 def test_icon():

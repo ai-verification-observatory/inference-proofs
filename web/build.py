@@ -956,10 +956,7 @@ def card_alt(card):
     """The picture in words, from the same data the picture draws."""
     draft = G["legend"]["draft_short"]
     if card == "home":
-        names = ", ".join(site["systems"][r["system"]]["name"] for r in card_provers())
-        return (
-            f"Inference proofs: the six properties of one proof, and the pies of {names}. {draft}."
-        )
+        return "Inference proofs: " + ", ".join(p["name"] for p in G["properties"]) + "."
     s, g = site["systems"][card], G["rows"][card]
     row = next(r for r in PROVERS if r["system"] == card)
     states = "; ".join(f"{c['name']}: {c['word']}" for c in g["cells"])
@@ -994,11 +991,6 @@ def share_meta(title, desc, path, card):
     )
 
 
-def card_provers():
-    """The benchmarked systems, model by model (biggest first), A to Z within one."""
-    return [r for d in MODELS for r in by_name(r for r in PROVERS if model_of(r) == d)]
-
-
 CARD_CSS = f"""
 *{{box-sizing:border-box;margin:0;padding:0}}
 html,body{{width:{CARD_W}px;height:{CARD_H}px;overflow:hidden;background:{GROUND};color:{PAPER};-webkit-font-smoothing:antialiased}}
@@ -1021,43 +1013,28 @@ def card_page(card, body, css):
 
 
 def home_card():
-    """Violet: the six properties, each beside its place in the pie. Black: each benchmarked system's pie."""
+    """Only what does not change with the systems benchmarked, since link previews stay cached:
+    violet, the six properties, each beside its place in the pie; black, the site's mark and name."""
     props = "".join(
-        f'<li>{key_mini(p["n"], 50)}<span class="disp">{e(p["name"])}</span></li>'
+        f'<li>{key_mini(p["n"], 52)}<span class="disp">{e(p["name"])}</span></li>'
         for p in G["properties"]
     )
-    key = "".join(
-        f'<span class="chip mono"><i class="sw {CLS[s]}"></i>{e(WORD[s])}</span>'
-        for s in G["state_order"]
-    )
-    rows = card_provers()
-    assert 1 <= len(rows) <= 3, "the home card holds one to three systems"
-    systems = "".join(
-        f'<div class="sys">{pie_svg(G["rows"][r["system"]]["states"], 128)}'
-        f'<div><p class="disp n">{e(site["systems"][r["system"]]["name"])}</p><p class="mono m">{e(model_name(r))}</p></div></div>'
-        for r in rows
-    )
+    mark = "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
     css = f"""
-.l{{position:absolute;left:0;top:0;width:690px;height:{CARD_H}px;background:{VIOLET};color:{GROUND};padding:46px 56px}}
-.r{{position:absolute;left:690px;top:0;right:0;height:{CARD_H}px;padding:46px 48px 46px 52px;display:flex;flex-direction:column;justify-content:center;gap:28px}}
+.l{{position:absolute;left:0;top:0;width:690px;height:{CARD_H}px;background:{VIOLET};color:{GROUND};padding:50px 56px}}
+.r{{position:absolute;left:690px;top:0;right:0;height:{CARD_H}px;padding:50px 52px;display:flex;flex-direction:column;justify-content:center}}
 .k{{font-size:20px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}}
-ul{{list-style:none;margin-top:26px;display:grid;gap:9px}}
-li{{display:flex;align-items:center;gap:18px}}
-li .disp{{font-size:54px;line-height:1;letter-spacing:-.004em}}
-.key{{position:absolute;left:56px;bottom:40px;display:flex;gap:10px}}
-.chip{{background:{GROUND};color:{PAPER};font-size:17px;font-weight:500;padding:7px 11px 7px 10px;white-space:nowrap}}
-.draft{{position:absolute;right:48px;bottom:46px;font-size:16px;color:{MUTED}}}
-.sys .sl.unstated{{stroke-width:2.4}}
-.sys{{display:flex;align-items:center;gap:24px}}
-.sys .pie-svg{{width:124px;height:124px;flex:none}}
-.n{{font-size:60px;line-height:.9}}
-.m{{font-size:18px;color:{MUTED};margin-top:10px}}
-.url{{position:absolute;right:48px;top:46px;font-size:17px;color:{MUTED};letter-spacing:.04em}}
+ul{{list-style:none;margin-top:30px;display:grid;gap:14px}}
+li{{display:flex;align-items:center;gap:20px}}
+li .disp{{font-size:58px;line-height:1;letter-spacing:-.004em}}
+.mark{{display:block;width:176px;height:176px;fill:{VIOLET}}}
+.name{{font-size:104px;line-height:.86;margin-top:40px;letter-spacing:-.008em}}
+.url{{font-size:19px;color:{MUTED};letter-spacing:.04em;margin-top:26px}}
 """
     body = (
-        f'<div class="l"><p class="k mono">What one proof establishes</p><ul>{props}</ul><p class="key">{key}</p></div>'
-        f'<div class="r">{systems}</div><p class="url mono">inferenceproofs.ai</p>'
-        f'<p class="draft mono">{e(G["legend"]["draft_short"])}</p>'
+        f'<div class="l"><p class="k mono">What one proof establishes</p><ul>{props}</ul></div>'
+        f'<div class="r"><svg class="mark" viewBox="-32 -32 64 64" aria-hidden="true">{mark}</svg>'
+        f'<p class="disp name">Inference<br>proofs</p><p class="mono url">inferenceproofs.ai</p></div>'
     )
     return card_page("home", body, css)
 
