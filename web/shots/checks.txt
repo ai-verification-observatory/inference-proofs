@@ -48,8 +48,8 @@ ok   index.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped"
 ok   flashprove.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 705 px
-ok   home-390 first system name shows on landing 705
+home-390 first system name bottom 707 px
+ok   home-390 first system name shows on landing 707
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -73,19 +73,19 @@ ok   reference-360 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties fit the first screen 469
+ok   flashprove: the six properties fit the first screen 471
 ok   flashprove: no quotes, nothing folded
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties fit the first screen 460
+ok   sash: the six properties fit the first screen 462
 ok   sash: no quotes, nothing folded
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
 ok   reference-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true},{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   reference: the six properties fit the first screen 662
+ok   reference: the six properties fit the first screen 664
 ok   reference: no quotes, nothing folded
 ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash.html: no work-in-progress label; its figures name their model
