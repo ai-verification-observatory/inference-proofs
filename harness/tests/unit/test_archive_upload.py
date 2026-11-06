@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 
 from iproofs.adapter import InProcessRunner
-from iproofs.archive import _download, upload_archives, upload_sources
+from iproofs.archive import _download, _git_archive, upload_archives, upload_sources
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.runner import JobSpec, Runner
 from iproofs.schema import SchemaRegistry
@@ -155,3 +155,30 @@ def test_cli_prints_changes(
     assert cli.main(["archive", "upload", "--results", str(results)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out == {"inputs": [], "manifests": [manifest(results)[0].as_posix()]}  # fake: no inputs
+
+
+def test_repository_input_is_its_git_archive(tmp_path: Path) -> None:
+    """A `<repo>.git#<commit>` input is stored as `git archive --format=tar <commit>`, the
+    bytes inputs.lock digests, not whatever the URL serves."""
+    import hashlib  # noqa: PLC0415
+    import subprocess  # noqa: PLC0415
+
+    src = tmp_path / "up"
+    src.mkdir()
+
+    def run(*a: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(["git", "-C", str(src), *a], check=True, capture_output=True,
+                              text=True)  # fmt: skip
+
+    run("init", "-q")
+    (src / "f.txt").write_text("x\n")
+    run("add", "f.txt")
+    run("-c", "user.name=t", "-c", "user.email=t@example.org", "commit", "-q", "-m", "c")
+    commit = run("rev-parse", "HEAD").stdout.strip()
+    expected = subprocess.run(["git", "-C", str(src), "archive", "--format=tar", commit],
+                              check=True, capture_output=True).stdout  # fmt: skip
+    _git_archive(str(src), commit, tmp_path / "out.tar")
+    got = (tmp_path / "out.tar").read_bytes()
+    assert hashlib.sha256(got).hexdigest() == hashlib.sha256(expected).hexdigest()
+    with pytest.raises(IProofsError, match="cannot fetch"):
+        _git_archive(str(tmp_path / "missing"), commit, tmp_path / "x.tar")
