@@ -21,7 +21,7 @@ from iproofs.provenance import file_digest
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
-ARCHIVE_REPO = "ai-verification-observatory/inference-proofs-archive"
+ARCHIVE_REPO = "abdelstark/inference-proofs-archive"  # RFC-0009 Q1, as amended on 2026-11-06
 
 
 class Store(Protocol):
@@ -125,9 +125,29 @@ def upload_archives(results: Path, store: Store, registry: SchemaRegistry) -> li
 def _download(url: str, out: Path) -> None:
     if not url.startswith("https://"):
         raise IProofsError(ErrorKind.CONFIG, f"inputs.lock URL {url!r} is not https")
+    if ".git#" in url:  # a repository at a commit: its digest is of `git archive` (RFC-0014 B2)
+        repo, commit = url.split("#", 1)
+        _git_archive(repo, commit, out)
+        return
     with urllib.request.urlopen(url, timeout=60) as response, out.open("wb") as f:
         while chunk := response.read(1 << 20):
             f.write(chunk)
+
+
+def _git_archive(repo: str, commit: str, out: Path) -> None:
+    """`git archive --format=tar <commit>` of `repo`, the bytes inputs.lock digests for a
+    repository input (the image build checks the same, systems/*/Dockerfile)."""
+    with tempfile.TemporaryDirectory() as tmp:
+        steps = [["git", "init", "-q", tmp],
+                 ["git", "-C", tmp, "fetch", "-q", "--depth", "1", repo, commit]]  # fmt: skip
+        for argv in steps:
+            if subprocess.run(argv, capture_output=True, check=False).returncode != 0:
+                raise IProofsError(ErrorKind.ENVIRONMENT, f"cannot fetch {repo} at {commit}")
+        with out.open("wb") as f:
+            done = subprocess.run(["git", "-C", tmp, "archive", "--format=tar", "FETCH_HEAD"],
+                                  stdout=f, check=False)  # fmt: skip
+        if done.returncode != 0:
+            raise IProofsError(ErrorKind.ENVIRONMENT, f"git archive of {repo} at {commit} failed")
 
 
 def _lock_at(root: Path, commit: str, system: str) -> list[tuple[str, str, str]]:

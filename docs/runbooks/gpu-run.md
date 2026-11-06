@@ -108,7 +108,7 @@ GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test proces
 
 The first proof of repetition 1 that verified `accept` is archived in full, once per configuration (system, workload, profile, release), at `results/.archive/<release>/<system>/<workload>/<profile>/<run-id>-<proof-id>.tar`. The tar is POSIX ustar with entries sorted by name, mtime 0, uid and gid 0, mode 0644, uncompressed, so the same proof always gives the same bytes. Its digest is the `archive/<proof-id>.tar` line of the run's `digests.txt`.
 
-`results/.archive/` is ignored by git: no proof bytes are committed (RFC-0009 §Storage). The archives are stored in the public dataset repository `ai-verification-observatory/inference-proofs-archive` on the Hugging Face Hub (RFC-0009 Q1). `iproofs archive upload`:
+`results/.archive/` is ignored by git: no proof bytes are committed (RFC-0009 §Storage). The archives are stored in the public dataset repository `abdelstark/inference-proofs-archive` on the Hugging Face Hub (RFC-0009 Q1). `iproofs archive upload`:
 
 - checks each tar against its `digests.txt` line, uploads it to `<release>/<system>/<workload>/<profile>/<run-id>-<proof-id>.tar`, reads the stored object's sha256 back, and writes the URI pinned to the dataset commit (`https://huggingface.co/datasets/<repo>/resolve/<commit>/<path>`) into `manifest.proofs[].archive`;
 - downloads every input in the adapter's `inputs.lock` at the run's adapter commit, checks it against the lock and stores it at `<release>/sources/<system>/<name>` (RFC-0014 Q3);

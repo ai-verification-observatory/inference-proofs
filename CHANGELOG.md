@@ -8,6 +8,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Methodology
 
+- RFC-0009 Q1: the proof archive is the public dataset `abdelstark/inference-proofs-archive` on the Hugging Face Hub, the maintainer's choice while the project has no organisation there.
 - RFC-0011: the calibration self-test of a hosted host (`machine-record --selftest --hosted`): the probe runs as a process, ST-CGROUP reads the container's own anon rise and CPU time, ST-OOM is not run (no memory limit can be set). Without it no hosted run could be eligible for a release (RFC-0014).
 - RFC-0006 §Hosted execution: a prover profile may name a hosted runtime, a container the provider starts from the adapter image with the harness inside it; `iproofs run --hosted --gpu N` runs each step as a process of the image's ENTRYPOINT under the bound CPUs' affinity, as the adapter uid with no capabilities. The network, memory binding and limits are not isolated and are recorded so (`commands[].network: "provider"`). New profile `prover-h100-hosted` in `reference/v0.1.yaml` (driver 610.57.04); new checks PC-CPU-QUOTA and the hosted forms of PC-CGROUP, PC-RUNTIME and PC-MEM.
 - RFC-0003: a workload may pin its tokenizer file from a second repository (`model.tokenizer_source`, with its own revision and sha256) when the weights' repository has none; `model.digest` still covers the weights only. `fetch-model` and the prompt builder fetch and check it alone.
@@ -66,6 +67,7 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Fixed
 
+- `iproofs archive upload` stores a repository input (`<repo>.git#<commit>`) as its `git archive`, the bytes `inputs.lock` digests; it fetched the URL as a file and every repository input failed its check.
 - `sash` declares a 21,600 s `verify` limit; the 3,600 s default stopped a job whose grid verification on 8 CPUs took longer.
 - `sash` pins the image rebuilt from `main` at `aa3fbb2`: vendored crates readable by the adapter user (#283) and the program path mapped (#289).
 - Hosted execution passes the adapter absolute `IPROOFS_IO` and `IPROOFS_MODELS` paths; with `--results results` they were relative, and FlashProve's fit, which runs upstream from its own directory, could not find `/io/fit`.
