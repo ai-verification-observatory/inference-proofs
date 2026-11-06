@@ -621,6 +621,49 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .brand .logo { gap: 8px; }
   .brand .logo span { font-size: 20px; }
 }
+/* the tables where the row stacks: a board. Glyph and name on one line, the four figures
+   on the next in columns that line up with the heads from row to row; the sorted column in paper,
+   the others muted. Each figure's label is the head above it (still read aloud in the cell). */
+@media (max-width: 920px) {
+  .heads.plain { display: grid; }
+  :is(.bench, .refs) .heads { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 14px; row-gap: 0; }
+  .bench .hc { min-width: 0; }
+  :is(.bench, .refs) .hsys { grid-column: 1 / -1; }
+  .heads.plain > span { padding-top: 10px; padding-bottom: 8px; }
+  .heads.plain > .hsys { padding-bottom: 2px; }
+  .refs .row .pie { margin: 0; }
+  .bench .heads .sb { text-align: left; }
+  :is(.bench, .refs) .row { padding: 12px 0 16px; }
+  :is(.bench, .refs) .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+  :is(.bench, .refs) .row .pie { width: 52px; height: 52px; }
+  :is(.bench, .refs) .pie[data-hot="1"] .s1, :is(.bench, .refs) .pie[data-hot="2"] .s2, :is(.bench, .refs) .pie[data-hot="3"] .s3, :is(.bench, .refs) .pie[data-hot="4"] .s4, :is(.bench, .refs) .pie[data-hot="5"] .s5, :is(.bench, .refs) .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke-width: 1.5; }
+  :is(.bench, .refs) .who { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-top: 0; }
+  :is(.bench, .refs) .name { font-size: 30px; }
+  :is(.bench, .refs) .wl { margin-top: 0; }
+  .refs .wl { flex-basis: 100%; margin-top: 4px; }
+  :is(.bench, .refs) .vals { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 14px; margin-top: 6px; }
+  :is(.bench, .refs) .val { padding-top: 6px; }
+  :is(.bench, .refs) .val .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :is(.bench, .refs) .fig .n { font-size: 28px; }
+  :is(.bench, .refs) .na { font-size: 18px; padding-top: 4px; }
+  .bench .tbl:not([data-col="system"]) .vc { color: var(--muted); }
+  .bench .tbl:not([data-col="system"]) .vc .na.word { color: var(--muted); }
+  .bench .tbl[data-col="covers"] .vc[data-col="covers"], .bench .tbl[data-col="proof_size"] .vc[data-col="proof_size"],
+  .bench .tbl[data-col="check_time"] .vc[data-col="check_time"], .bench .tbl[data-col="overhead"] .vc[data-col="overhead"] { color: var(--paper); }
+}
+/* phones: smaller figures, and the run counts and ranges left to the system page (still read aloud) */
+@media (max-width: 560px) {
+  :is(.bench, .refs) .heads, :is(.bench, .refs) .vals { column-gap: 10px; }
+  .bench .heads .sb, .heads.plain > span { font-size: 11px; letter-spacing: .02em; line-height: 1.25; }
+  :is(.bench, .refs) .sysc { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
+  :is(.bench, .refs) .row .pie { width: 40px; height: 40px; }
+  :is(.bench, .refs) .name { font-size: min(26px, 7vw); }
+  :is(.bench, .refs) .fig .n { font-size: 21px; }
+  :is(.bench, .refs) .fig .u, :is(.bench, .refs) .fig .ux { font-size: 11px; }
+  :is(.bench, .refs) .na { font-size: 15px; }
+  :is(.bench, .refs) .sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; margin: 0; }
+}
+@media (max-width: 360px) { :is(.bench, .refs) .heads, :is(.bench, .refs) .vals { column-gap: 8px; } :is(.bench, .refs) .fig .n { font-size: 19px; } :is(.bench, .refs) .fig .ux { font-size: 10px; } }
 /* phones held sideways: the legend in three short columns, so the first table shows on landing */
 @media (max-height: 500px) and (orientation: landscape) {
   .mast-in { padding: 12px 0; }

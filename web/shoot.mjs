@@ -410,17 +410,26 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   // 375 x 667: the first glyph whole; 320 x 568: the first row starts on screen
   const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
   ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
-  // the sort strip: two even lines of buttons at least 32 px tall
-  const s = await p.evaluate(() => { const b = [...document.querySelectorAll('.bench .sb')].map((x) => x.getBoundingClientRect()); return { rows: new Set(b.map((x) => Math.round(x.top))).size, h: Math.min(...b.map((x) => Math.round(x.height))) }; });
-  ok(s.rows === 2 && s.h >= 32, `home-${w}: the sort strip is two lines of buttons 32 px tall or more`, s);
+  // the board: System on its own line, the four column heads on one line above their own figures, every
+  // button at least 32 px tall; each row two lines (name, figures), so several systems fit on one screen
+  const s = await p.evaluate(() => {
+    const r = (x) => x.getBoundingClientRect();
+    const b = [...document.querySelectorAll('.bench .hc:not(.hsys) .sb')];
+    const sys = r(document.querySelector('.bench .hsys .sb'));
+    const row = document.querySelector('.bench .row');
+    const lefts = b.map((x) => Math.round(r(x).left));
+    const cols = [...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).left));
+    return { sysAlone: sys.bottom <= Math.min(...b.map((x) => r(x).top)) + 1, bottoms: new Set(b.map((x) => Math.round(r(x).bottom))).size, aligned: lefts.every((x, i) => Math.abs(x - cols[i]) <= 1), h: Math.min(...[sys, ...b.map(r)].map((x) => Math.round(x.height))), rowH: Math.round(r(row).height), lefts, cols };
+  });
+  ok(s.sysAlone && s.bottoms === 1 && s.aligned && s.h >= 32 && s.rowH <= 140, `home-${w}: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less`, s);
   await ctx.close();
 }
 {
   // touch: the first tap on a triangle names it, the second follows the link; the sorted figure is marked in each row
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc .lbl')].map((l) => `${l.closest('.vc').dataset.col}:${getComputedStyle(l).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
-  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_time') ? 'on' : 'off')), 'home-390: the sorted figure is marked in every row', mk);
+  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c.querySelector('.n, .na')).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
+  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_time') ? 'on' : 'off')), 'home-390: the sorted column is in paper in every row, the others muted', mk);
   await p.locator('#flashprove .pie').scrollIntoViewIfNeeded();
   const bx = await p.locator('#flashprove .pie').boundingBox();
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
