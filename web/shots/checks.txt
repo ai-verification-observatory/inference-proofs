@@ -164,9 +164,8 @@ ok   home-320: a board, each head above its own column, buttons 32 px tall or mo
 ok   home-390: the sorted column is in paper in every row, the others muted ["covers:off","proof_size:off","check_time:on","overhead:off","covers:off","proof_size:off","check_time:on","overhead:off"]
 ok   touch: a first tap on a triangle names it and stays on the page {"path":"/","hot":"2","shown":true,"text":"Model boundPartly","sw":true}
 ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4440/flashprove
-ok   flashprove-390: the six states beside the glyph, the reasons under both, each key glyph in its state ink {"beside":true,"order":"123456","sumInk":true,"below":true,"reasons":true,"ink":true}
+ok   flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs {"wide":340,"inside":true,"out":[],"names":["WEIGHTS HIDDEN","MODEL BOUND","WHOLE OUTPUT PROVED","FORMALLY VERIFIED","SECURITY LEVEL","NO TRUSTED PARTY"],"stateless":true,"order":"123456","below":true,"col":1,"keys":0}
 ok   touch: a tap on a slice lifts it and marks its property {"s2":"matrix(1, 0, 0, 1, 6, 0)","rn":"rgb(241, 239, 233)","path":"/flashprove"}
-ok   sash-390: a property without a reason shows only beside the glyph; the first reason on landing {"bare":["none","none","none"],"sum":6,"first":442}
 ok   home-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   flashprove-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   sash-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}

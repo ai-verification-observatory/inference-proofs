@@ -309,11 +309,10 @@ html:not(.js) .search { display: none; }
 .rr { font: 400 12px/1.42 var(--mono); color: var(--muted); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
 .rp.l .rr { margin-left: auto; }
 /* each property's own key glyph, its slot in its state's ink: shown only where the properties stack */
-.rk, .rsum { display: none; }
-.rk .kmini { display: block; width: 24px; height: 24px; overflow: visible; }
-.rk .kmini .off { fill: var(--line); opacity: 1; }
-.rk.yes .on { fill: var(--yes); } .rk.partly .on { fill: var(--partly); } .rk.no .on { fill: var(--no); }
-.rk.unstated .on { fill: var(--unstated); }
+/* each property's name in its own triangle: drawn by build.py, shown on phones only (760 px and below) */
+.rpie .tx { display: none; }
+.rpie .t { pointer-events: none; transition: transform .22s var(--ease); }
+.rpie .t text { fill: var(--ground); stroke: none; font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
 /* a property under the pointer lifts its slice; a slice under the pointer marks its property */
 @media (hover: hover) {
   .rose:has(.rp[data-n="1"]:hover) .s1, .rose:has(.rp[data-n="2"]:hover) .s2, .rose:has(.rp[data-n="3"]:hover) .s3,
@@ -398,8 +397,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 
 /* system page */
 .anim .sysname .lt { animation: rise .7s var(--ease) backwards .08s; }
+.anim .rpie .t { animation: fade .5s ease backwards .35s; }
 .anim .rpie .sl { transform-box: view-box; transform-origin: 0 0; animation: grow .6s var(--ease) backwards .25s; }
-.anim .rp, .anim .rsum, .anim .facts { animation: fade .5s ease backwards .4s; }
+.anim .rp, .anim .facts { animation: fade .5s ease backwards .4s; }
 /* figures arrive like the home rows', after the type has loaded, so nothing visible moves */
 .anim .plates-sys .fig, .anim .plates-sys .na { animation: riseS .55s var(--ease) backwards .45s; }
 
@@ -471,28 +471,24 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sysname { font-size: min(72px, 18vw); }
   .sect { font-size: 34px; }
   .refh { font-size: 44px; }
-  /* the glyph at the left, the six states beside it to read in one look (.rsum, its own list for
-     screen readers there); under both, at full width, each property that has a reason: key glyph, name, state at
-     the right, the reason under them. The properties without one show only beside the glyph. */
-  .rose { grid-template-columns: min(150px, 36vw) minmax(0, 1fr); grid-template-areas: "pie sum" "props props"; grid-template-rows: auto auto; column-gap: 18px; row-gap: 24px; align-items: center; }
-  .rpie .pie-svg { width: min(150px, 36vw); height: min(150px, 36vw); }
-  .rsum { grid-area: sum; display: grid; row-gap: 8px; list-style: none; margin: 0; padding: 0; }
-  .rsum li { display: grid; grid-template-columns: 24px minmax(0, 1fr); column-gap: 10px; align-items: center; cursor: default; }
-  .rsum .rk { display: block; grid-row: span 2; }
-  .rsum .rsn { font: 600 11px/1.25 var(--mono); letter-spacing: .05em; text-transform: uppercase; color: var(--violet); }
-  .rsum .rsv { font: 750 17px/1.1 var(--disp); font-stretch: 84%; }
-  .rprops { grid-area: props; display: block; margin: 0; padding: 0; }
-  .rp { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; column-gap: 10px; row-gap: 4px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
-  .rp, .rp.l { text-align: left; }
-  .rp .rk { display: block; }
-  .rp .rs { grid-column: 3; margin-top: 0; font-size: 17px; justify-self: end; }
-  .rp .rr { grid-column: 2 / -1; max-width: none; margin: 0; }
-  .rp.l .rr { margin-left: 0; }
-  .rp.bare { display: none; }
-  .rsn a:hover, .rsn a:focus-visible { text-decoration: underline; }
-  .rsn a { display: inline-block; color: inherit; text-decoration: none; padding-block: 6px; margin-block: -6px; }
-  .rose[data-hot="1"] .rsum [data-n="1"] .rsn, .rose[data-hot="2"] .rsum [data-n="2"] .rsn, .rose[data-hot="3"] .rsum [data-n="3"] .rsn,
-  .rose[data-hot="4"] .rsum [data-n="4"] .rsn, .rose[data-hot="5"] .rsum [data-n="5"] .rsn, .rose[data-hot="6"] .rsum [data-n="6"] .rsn { color: var(--paper); }
+  /* the glyph once, large, each triangle carrying its property's name (never its state: the ink says
+     it); under it one ruled row per property, clockwise from twelve: the name a quiet label, the
+     state with its square in a fixed column, the reason a muted second line */
+  .over { padding-top: 24px; row-gap: 28px; }
+  .rose { display: block; }
+  .rpie { display: block; }
+  .rpie .tx { display: inline; }
+  .rpie .pie-svg { width: min(340px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
+  .rprops { display: block; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+  .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 3px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
+  .rp + .rp { border-top: 1px solid var(--line); }
+  .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: .05em; color: var(--paper); }
+  .rn a { display: inline-block; padding-block: 6px; margin-block: -6px; }
+  .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
+  .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
+  /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
+  .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
+  .rose[data-hot="4"] .rp[data-n="4"], .rose[data-hot="5"] .rp[data-n="5"], .rose[data-hot="6"] .rp[data-n="6"] { background: var(--line); box-shadow: -8px 0 0 var(--line), 8px 0 0 var(--line); }
   .tamper, .reflead { font-size: 18px; }
   .plates-sys .plate { padding-bottom: 16px; }
   .cs div { grid-template-columns: 112px minmax(0, 1fr); }
@@ -696,11 +692,11 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .crit { margin-top: 24px; }
 }
 /* touch: a property's name shows it is a link */
-@media (hover: none) { .rn a, .rsn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
+@media (hover: none) { .rn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
 /* forced colours (Windows high contrast): the state squares keep their inks so they still match the
    slices, Not stated grey included */
 @media (forced-colors: active) {
-  .sw, .rk .kmini { forced-color-adjust: none; }
+  .sw, .rpie .t text { forced-color-adjust: none; }
   .kmini .off, .crit .kmini .off, .sp .kmini .off { fill: GrayText; opacity: 1; }
   .kmini .on, .crit .kmini .on, .sp .kmini .on { fill: CanvasText; }
   .sfield { border: 1px solid CanvasText; }
