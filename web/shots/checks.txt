@@ -82,8 +82,8 @@ ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped"
 ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 547 px
-ok   home-390 first system name shows on landing 547
+home-390 first system name bottom 553 px
+ok   home-390 first system name shows on landing 553
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -157,11 +157,11 @@ ok   header-600x900: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-768x1024: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-844x390: the pages share the logo's line {"h":45,"dy":[1,1]}
 ok   header-390: search and GitHub 44 px to press, the pages 32 px {"sopen":44,"repo":44,"nav":[32,32]}
-ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":602,"cols":2,"qq":true}
-ok   home-375: the sort strip is two lines of buttons 32 px tall or more {"rows":2,"h":34}
-ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":525,"cols":2,"qq":true}
-ok   home-320: the sort strip is two lines of buttons 32 px tall or more {"rows":2,"h":34}
-ok   home-390: the sorted figure is marked in every row ["covers:off","proof_size:off","check_time:on","overhead:off","covers:off","proof_size:off","check_time:on","overhead:off"]
+ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":573,"cols":2,"qq":true}
+ok   home-375: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less {"sysAlone":true,"bottoms":1,"aligned":true,"h":36,"rowH":119,"lefts":[16,104,193,281],"cols":[16,104,193,281]}
+ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":538,"cols":2,"qq":true}
+ok   home-320: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less {"sysAlone":true,"bottoms":1,"aligned":true,"h":36,"rowH":117,"lefts":[16,90,164,238],"cols":[16,90,164,238]}
+ok   home-390: the sorted column is in paper in every row, the others muted ["covers:off","proof_size:off","check_time:on","overhead:off","covers:off","proof_size:off","check_time:on","overhead:off"]
 ok   touch: a first tap on a triangle names it and stays on the page {"path":"/","hot":"2","shown":true,"text":"Model boundPartly","sw":true}
 ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4440/flashprove
 ok   flashprove-390: properties 1 to 6 in one column, each key glyph in its state ink {"order":"123456","ink":true}
