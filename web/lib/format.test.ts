@@ -10,6 +10,7 @@ test("sig4 keeps 4 significant digits", () => {
   assert.equal(sig4(0.0042916), "0.004292");
   assert.equal(sig4(19_800_000_000), "1.980e10");
   assert.equal(sig4(0), "0");
+  assert.equal(sig4(null), "null"); // all repetitions failed: no mean, min or max
   assert.equal(sig4(1), "1");
   assert.equal(sig4(4608), "4,608");
   assert.equal(sig4(122_880), "122,900");
