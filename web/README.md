@@ -44,7 +44,9 @@ What the pages leave out of the data, on purpose:
 
 ## Models
 
-Each system is shown on the biggest model it runs, by total parameters in its workload records (`biggest_workload` in `build.py`; the build stops if a system's home row runs a smaller one). Rows are set side by side only within one model, and the models follow each other, biggest first: Llama 4 Maverick (FlashProve), then Llama 3.1 8B (SASH).
+The site compares systems on one model, Llama 4 Maverick (400B parameters), and shows only systems run on it: `TARGET_MODEL` in `build.py`, which stops if a benchmarked row is on another model. The code still sets rows side by side per model, biggest first, should the data ever hold more than one.
+
+**SASH's figures on Llama 4 Maverick are placeholders placed there for layout.** SASH's pinned code runs Llama 3.1 8B only (RFC-0003). `_data/maverick_only.py` moved its placeholder row from Llama 3.1 8B onto FlashProve's workload: what one proof covers, the overhead ("No value": the reference could not run the model on one H100) and the per-unit lines are the workload's, taken from FlashProve's cells; proof size, check time and the more-numbers keep SASH's placeholder values. It also removed the reference rows on Llama 3.1 8B. The script edits only what `build.py` reads and does nothing when run again; the rest of `site.json` (configurations, the overview's precomputed orders) still describes the earlier snapshot.
 
 ## Design
 
@@ -55,7 +57,7 @@ Each system is a flat pie of six slices, one per property, clockwise from twelve
 ### Overview
 
 1. A plain legend on the violet field: six small key pies, each property's name and question, the states key and the draft-criteria link. Nothing in it reacts to the pointer.
-2. One section per model, biggest first: the model's name, its workload in one line, and a sortable table of the systems on it (pie, name, model and pin, then One proof covers, Proof size, Check time, Overhead). Each figure links to its plate on the system page and shows its sample size and range when it has them.
+2. **Llama 4 Maverick**: the model's name, its workload in one line, and a sortable table of the systems on it (pie, name, model and pin, then One proof covers, Proof size, Check time, Overhead). Each figure links to its plate on the system page and shows its sample size and range when it has them.
 3. **References**, after the models: two rows, plain serving and a rerun by a weights holder, on the same columns. Not sorted.
 4. **Not benchmarked yet**: a compact grid, A to Z, of pie, name, models and status.
 
@@ -114,13 +116,13 @@ No figures are drawn: results are placeholders until a release exists, and a pic
 
 - `build.py`: the pages, the sort keys and the contrast table. `test_sort_keys.py`: the sort keys, the model order, the reference figure and the spread shown on every home figure that stores one.
 - `words.css`, `words.js`: style and behaviour, no data.
-- `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table per model, biggest first, references after them; a static header; row hover without shift; sort order for every column and direction from the heads (missing values last), the hash round-trip and keyboard sorting; overflow at 360 to 1100 px on every page; CLS; the first system name on landing at 390 px; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
+- `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table, Llama 4 Maverick, references after it; a static header; row hover without shift; sort order for every column and direction from the heads (missing values last), the hash round-trip and keyboard sorting; overflow at 360 to 1100 px on every page; CLS; the first system name on landing at 390 px; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
 - `og.mjs`, `og/`: the preview cards (sources, pictures, `cards.json`). `test_cards.py`: their check.
 - `_data/`: `site.json` and `criteria.json`.
 - `shots/`: screenshots and `checks.txt`.
 
 ## Open
 
-- Each model's table has one row today; sorting shows its value once two systems run the same model.
+- SASH's row on Llama 4 Maverick is a layout placeholder (see Models); the table needs a second real system on the model before sorting compares measured runs.
 - The pie's states still come from reading each system's documentation (the criteria in `criteria.json`). Showing them as measured needs checks of our own per property; until then the reason line is ours and the quotes are left out.
 - The direction words come from the data generator, which is not in this repository (`_data/site.json` is a frozen snapshot of its output), and mix two patterns ("small to large", "fewer positions first").

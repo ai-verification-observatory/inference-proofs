@@ -2,35 +2,35 @@ home-1440 header height 276 px
 ok   home-1440 CLS on load is 0
 ok   header has no buttons or pressable elements
 ok   pointing at header properties changes nothing
-ok   no sort control, no view toggle, no tabs {"select":0,"toggles":0,"quotes":0,"tables":["Llama 4 Maverick:flashprove","Llama 3.1 8B:sash"],"refs":["ref-serve","ref-recompute"],"wip":0,"sameAsAbove":false,"nb":19,"sections":["llama-4-maverick","llama-3-1-8b","references","not-yet"]}
+ok   no sort control, no view toggle, no tabs {"select":0,"toggles":0,"quotes":0,"tables":["Llama 4 Maverick:flashprove+sash"],"refs":["ref-serve","ref-recompute"],"wip":0,"sameAsAbove":false,"nb":19,"sections":["llama-4-maverick","references","not-yet"]}
 ok   no quotes on the home
-ok   one table per model, biggest model first; no work-in-progress label ["Llama 4 Maverick:flashprove","Llama 3.1 8B:sash"]
+ok   one table, Llama 4 Maverick, every benchmarked system in it; no work-in-progress label ["Llama 4 Maverick:flashprove+sash"]
 ok   two reference rows after the models, no "same as above" ["ref-serve","ref-recompute"]
-ok   sections in order, 19 not benchmarked yet ["llama-4-maverick","llama-3-1-8b","references","not-yet"]
+ok   sections in order, 19 not benchmarked yet, no Llama 3.1 8B ["llama-4-maverick","references","not-yet"]
 ok   row slice hover shows its name and state Model boundPartly
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
 ok   figures with a spread show sample size and range [true,true,true,true]
-ok   default: System A to Z in both tables, empty hash {"aria":["system:ascending"],"heads":2,"glyphs":"↑↕↕↕↕↑↕↕↕↕","hash":""}
-ok   sort system asc {"got":[["flashprove"],["sash"]],"hash":"","glyphs":"↑↕↕↕↕↑↕↕↕↕"}
-ok   sort system desc {"got":[["flashprove"],["sash"]],"hash":"#sort=system-desc","glyphs":"↓↕↕↕↕↓↕↕↕↕"}
-ok   sort covers asc {"got":[["flashprove"],["sash"]],"hash":"#sort=covers-asc","glyphs":"↕↑↕↕↕↕↑↕↕↕"}
-ok   sort covers desc {"got":[["flashprove"],["sash"]],"hash":"#sort=covers-desc","glyphs":"↕↓↕↕↕↕↓↕↕↕"}
-ok   sort proof_size asc {"got":[["flashprove"],["sash"]],"hash":"#sort=proof_size-asc","glyphs":"↕↕↑↕↕↕↕↑↕↕"}
-ok   sort proof_size desc {"got":[["flashprove"],["sash"]],"hash":"#sort=proof_size-desc","glyphs":"↕↕↓↕↕↕↕↓↕↕"}
-ok   sort check_time asc {"got":[["flashprove"],["sash"]],"hash":"#sort=check_time-asc","glyphs":"↕↕↕↑↕↕↕↕↑↕"}
-ok   sort check_time desc {"got":[["flashprove"],["sash"]],"hash":"#sort=check_time-desc","glyphs":"↕↕↕↓↕↕↕↕↓↕"}
-ok   sort overhead asc {"got":[["flashprove"],["sash"]],"hash":"#sort=overhead-asc","glyphs":"↕↕↕↕↑↕↕↕↕↑"}
-ok   sort overhead desc {"got":[["flashprove"],["sash"]],"hash":"#sort=overhead-desc","glyphs":"↕↕↕↕↓↕↕↕↕↓"}
+ok   default: System A to Z in both tables, empty hash {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
+ok   sort system asc {"got":[["flashprove","sash"]],"hash":"","glyphs":"↑↕↕↕↕"}
+ok   sort system desc {"got":[["sash","flashprove"]],"hash":"#sort=system-desc","glyphs":"↓↕↕↕↕"}
+ok   sort covers asc {"got":[["flashprove","sash"]],"hash":"#sort=covers-asc","glyphs":"↕↑↕↕↕"}
+ok   sort covers desc {"got":[["flashprove","sash"]],"hash":"#sort=covers-desc","glyphs":"↕↓↕↕↕"}
+ok   sort proof_size asc {"got":[["flashprove","sash"]],"hash":"#sort=proof_size-asc","glyphs":"↕↕↑↕↕"}
+ok   sort proof_size desc {"got":[["sash","flashprove"]],"hash":"#sort=proof_size-desc","glyphs":"↕↕↓↕↕"}
+ok   sort check_time asc {"got":[["flashprove","sash"]],"hash":"#sort=check_time-asc","glyphs":"↕↕↕↑↕"}
+ok   sort check_time desc {"got":[["sash","flashprove"]],"hash":"#sort=check_time-desc","glyphs":"↕↕↕↓↕"}
+ok   sort overhead asc {"got":[["flashprove","sash"]],"hash":"#sort=overhead-asc","glyphs":"↕↕↕↕↑"}
+ok   sort overhead desc {"got":[["flashprove","sash"]],"hash":"#sort=overhead-desc","glyphs":"↕↕↕↕↓"}
 ok   CLS after a sort (shifts without input) is 0
 ok   the order is named for screen readers Proof size, large to small
-ok   hash round-trip {"aria":["check_time:descending"],"heads":2,"glyphs":"↕↕↕↓↕↕↕↕↓↕","hash":"#sort=check_time-desc"}
+ok   hash round-trip {"aria":["check_time:descending"],"heads":1,"glyphs":"↕↕↕↓↕","hash":"#sort=check_time-desc"}
 ok   CLS on load with a sort hash is 0
 ok   hashchange applies a new order
 ok   the #criteria link keeps the order and its hash
 ok   unknown sort in the hash falls back and clears it
-ok   Enter on Proof size sorts ascending {"aria":["proof_size:ascending"],"heads":2,"glyphs":"↕↕↑↕↕↕↕↑↕↕","hash":"#sort=proof_size-asc"}
-ok   Space on it again sorts descending {"aria":["proof_size:descending"],"heads":2,"glyphs":"↕↕↓↕↕↕↕↓↕↕","hash":"#sort=proof_size-desc"}
+ok   Enter on Proof size sorts ascending {"aria":["proof_size:ascending"],"heads":1,"glyphs":"↕↕↑↕↕","hash":"#sort=proof_size-asc"}
+ok   Space on it again sorts descending {"aria":["proof_size:descending"],"heads":1,"glyphs":"↕↕↓↕↕","hash":"#sort=proof_size-desc"}
 ok   keyboard focus is visible on a head button solid
 ok   index.html-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   flashprove.html-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
@@ -79,7 +79,7 @@ ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties fit the first screen 462
+ok   sash: the six properties fit the first screen 470
 ok   sash: no quotes, nothing folded
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0

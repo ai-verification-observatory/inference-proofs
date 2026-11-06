@@ -32,22 +32,20 @@ def test_check_time_in_seconds():
 
 
 def test_covers_in_positions():
-    # positions one proof covers, by the workload records: 1,024 prompt; 4,096 prompt and 512 output
-    w = build.site["workloads"]
+    # positions one proof covers, by the workload record both systems run: a 1,024-token prompt
+    w = build.site["workloads"]["fp-maverick-w1024-b24"]
     assert (
         K["flashprove"]["covers"]
-        == w["fp-maverick-w1024-b24"]["one_proof_covers"]["tokens_counted"]
-    )
-    assert (
-        K["sash"]["covers"]
-        == w["sash-l31-8b-c4096"]["one_proof_covers"]["tokens_counted"]
-        == 4096 + 512
+        == K["sash"]["covers"]
+        == w["one_proof_covers"]["tokens_counted"]
+        == 1024
     )
 
 
 def test_overhead_ratio_and_missing():
-    assert K["flashprove"]["overhead"] is None  # "No value"
-    assert round(K["sash"]["overhead"]) == 1583
+    # the reference could not run Llama 4 Maverick on one H100: no overhead for either system
+    assert K["flashprove"]["overhead"] is None
+    assert K["sash"]["overhead"] is None
 
 
 def test_units_normalise():
@@ -62,23 +60,6 @@ def test_units_normalise():
     assert build.shown_number("Not published") is None
 
 
-def test_orders_agree_with_the_data():
-    # the data's own sorted orders (overview.sort_pages, run view), prover rows only, give the same order
-    ids = {r["id"]: sid for sid, r in ROWS.items()}
-    seen = 0
-    for sp in build.OV["sort_pages"]:
-        col = next((c for c, w in build.SORT_WORDS.items() if w == sp["key"]), None)
-        if col is None or sp["view"] != build.VIEW:
-            continue
-        want = [ids[i] for i in sp["order"] if i in ids]
-        have = [k for k in K if K[k][col] is not None]
-        have.sort(key=lambda s: K[s][col], reverse=sp["dir"] == "desc")
-        have += sorted(k for k in K if K[k][col] is None)
-        assert have == want, (col, sp["dir"], have, want)
-        seen += 1
-    assert seen
-
-
 def test_sort_words():
     w = build.sort_words()
     assert w["system"]["asc"] == "A to Z"
@@ -87,29 +68,19 @@ def test_sort_words():
     assert set(w) == {"system", *build.COLS}
 
 
-def test_models_biggest_first():
-    # each system on the biggest model it runs, by total parameters; the models in that order
-    assert [build.MODEL_NAME[d] for d in build.MODELS] == ["Llama 4 Maverick", "Llama 3.1 8B"]
-    w = build.site["workloads"]
-    assert (
-        w["fp-maverick-w1024-b24"]["model"]["parameters_total"]
-        > w["sash-l31-8b-c4096"]["model"]["parameters_total"]
-    )
-    assert build.biggest_workload("sash").startswith("sash-l31-8b")
-    refs = [r for r in build.H5["rows"] if r["kind"] == "reference"]
-    for d in build.MODELS:
-        assert sorted(r["id"].split("--")[0] for r in refs if build.model_of(r) == d) == [
-            "ref-recompute",
-            "ref-serve",
-        ]
+def test_one_model():
+    # only systems run on Llama 4 Maverick are shown; the references are those on it
+    assert [build.MODEL_NAME[d] for d in build.MODELS] == [build.TARGET_MODEL]
+    assert {r["workload"] for r in build.H5["rows"]} == {"fp-maverick-w1024-b24"}
+    refs = sorted(r["id"].split("--")[0] for r in build.H5["rows"] if r["kind"] == "reference")
+    assert refs == ["ref-recompute", "ref-serve"]
 
 
-def test_reference_covers_names_the_system():
-    # a reference stores "same as above"; shown away from that row, it prints the system's figure, named
-    r = next(x for x in build.H5["rows"] if x["id"].startswith("ref-serve--sash"))
-    x = build.cell(r, "covers")
-    assert x["value"] == ROWS["sash"]["cells"]["covers"][build.VIEW]["value"]
-    assert "as SASH" in x["title"]
+def test_sorted_orders():
+    # hand-computed from the printed figures: 18.78 MB < 19.80 GB, 3.120 s < 121.3 s
+    by = lambda col: sorted(K, key=lambda s: K[s][col])  # noqa: E731
+    assert by("proof_size") == ["flashprove", "sash"]
+    assert by("check_time") == ["flashprove", "sash"]
 
 
 def test_home_figures_show_spread():

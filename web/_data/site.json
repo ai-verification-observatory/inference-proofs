@@ -402,7 +402,7 @@
                   ],
                   "mock": false,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [
                     {
@@ -786,7 +786,7 @@
                   "marks": [],
                   "mock": true,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [
                     {
@@ -4713,11 +4713,11 @@
                   "marks": [],
                   "mock": false,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [],
                   "title": "4,608 token positions per proof; 512 tokens checked · 290 segment proofs",
-                  "value": 4608,
+                  "value": 1024,
                   "work": null,
                   "x": 0.9216
                 }
@@ -5011,11 +5011,11 @@
                   "marks": [],
                   "mock": false,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [],
                   "title": "4,608 token positions per proof; 512 tokens checked · 290 segment proofs",
-                  "value": 4608,
+                  "value": 1024,
                   "work": null,
                   "x": 0.9216
                 }
@@ -5588,11 +5588,11 @@
                   "marks": [],
                   "mock": false,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [],
                   "title": "Not published: The system states that it does not publish this figure. published by the system; one runner, not yet checked.",
-                  "value": null,
+                  "value": 71.4,
                   "work": null,
                   "x": null
                 }
@@ -5907,7 +5907,7 @@
                   ],
                   "mock": true,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [
                     {
@@ -5924,7 +5924,7 @@
                     }
                   ],
                   "title": "1,583× (1583.2439452139554 ratio) · scope: proving session · grade: calculated from recorded numbers · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/human/time_per_token_vs_plain_serving",
-                  "value": 1583.2439452139554,
+                  "value": null,
                   "work": null,
                   "x": 0.799887
                 }
@@ -6403,7 +6403,7 @@
                   ],
                   "mock": false,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [
                     {
@@ -6762,7 +6762,7 @@
                   "marks": [],
                   "mock": true,
                   "name": "SASH",
-                  "row": "sash--sash-l31-8b-c4096--prover-h100",
+                  "row": "sash--fp-maverick-w1024-b24--prover-h100",
                   "system": "sash",
                   "tags": [
                     {
@@ -43230,7 +43230,7 @@
                 ],
                 "meaning": null,
                 "note_link": {
-                  "href": "/axes/check-time/#note-sash--sash-l31-8b-c4096--prover-h100",
+                  "href": "/axes/check-time/#note-sash--fp-maverick-w1024-b24--prover-h100",
                   "label": "Read SASH's note on this figure →"
                 },
                 "open": {
@@ -43243,8 +43243,8 @@
               },
               "href": "/systems/sash/#check-time",
               "lines": [
-                "16 threads",
-                "sum of 290 checks",
+                "8 threads",
+                "1 check",
                 "their timing scope"
               ],
               "marks": [
@@ -43301,7 +43301,7 @@
                     "cobalt": false,
                     "href": "/data/site.json",
                     "k": "SOURCE",
-                    "v": "MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/human/checking_time_per_proof ↗"
+                    "v": "MOCK fixture, site.json /configurations/sash--fp-maverick-w1024-b24--prover-h100/human/checking_time_per_proof ↗"
                   }
                 ],
                 "marks": [],
@@ -43316,7 +43316,9 @@
                 "words": 69
               },
               "href": "/run/systems/sash/#check-time",
-              "lines": [],
+              "lines": [
+                "1 check"
+              ],
               "marks": [],
               "marks_shown": [],
               "mock": true,
@@ -43325,7 +43327,7 @@
               ],
               "stamp": null,
               "stepped": true,
-              "title": "121.3 s (121.26666666666667 s) · scope: checking (8 CPU threads) · grade: calculated from recorded numbers · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/human/checking_time_per_proof",
+              "title": "121.3 s (121.26666666666667 s) · scope: checking (8 CPU threads) · grade: calculated from recorded numbers · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--fp-maverick-w1024-b24--prover-h100/human/checking_time_per_proof",
               "value": "121.3 s"
             }
           },
@@ -43418,9 +43420,9 @@
                 "lines": [
                   {
                     "cobalt": false,
-                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/sash-l31-8b-c4096.yaml#L27-L36",
+                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/fp-maverick-w1024-b24.yaml#L23-L33",
                     "k": "WORKLOAD",
-                    "v": "sash-l31-8b-c4096 ↗"
+                    "v": "fp-maverick-w1024-b24 ↗"
                   },
                   {
                     "cobalt": false,
@@ -43436,37 +43438,42 @@
                   },
                   {
                     "cobalt": false,
-                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/sash-l31-8b-c4096.yaml#L27-L36",
+                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/fp-maverick-w1024-b24.yaml#L23-L33",
                     "k": "SOURCE",
-                    "v": "ai-verification-observatory/inference-proofs · workloads/sash-l31-8b-c4096.yaml · L27-L36 · fbe1f9c7 ↗"
+                    "v": "ai-verification-observatory/inference-proofs · workloads/fp-maverick-w1024-b24.yaml · L23-L33 · fbe1f9c7 ↗"
                   }
                 ],
                 "marks": [],
-                "meaning": null,
+                "meaning": "1,024-token window; states the next token. Counted by our rules from the workload record.",
                 "note_link": null,
                 "open": {
-                  "href": "/systems/sash/#covers",
-                  "label": "Open SASH · One proof covers"
+                  "href": "/systems/flashprove/#covers",
+                  "label": "Open FlashProve · One proof covers"
                 },
-                "quote_link": true,
-                "quotes": [],
-                "value": "4,608 token positions",
-                "words": 43
+                "quotes": [
+                  {
+                    "href": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/terms.md?plain=1#L61-L62",
+                    "label": "anthropics/FlashProve · guide/terms.md · L61-L62 · 9e2bdd8f",
+                    "text": "Instance: the same definition's word for what one proof is about: here, a prompt with its output tokens."
+                  }
+                ],
+                "value": "1,024 token positions",
+                "words": 79
               },
-              "href": "/systems/sash/#covers",
+              "href": "/systems/flashprove/#covers",
               "lines": [
-                "512 tokens checked"
+                "1 token checked"
               ],
               "marks": [],
               "marks_shown": [],
               "mock": false,
               "q": [
-                "512 tokens checked"
+                "1 token checked"
               ],
               "stamp": null,
               "stepped": false,
-              "title": "4,608 token positions per proof; 512 tokens checked · 290 segment proofs · workload: sash-l31-8b-c4096 · scope: none (not a timed number) · grade, step: counted by our rules from the workload record · a property of the workload, not a result · source: ai-verification-observatory/inference-proofs · workloads/sash-l31-8b-c4096.yaml · L27-L36 · fbe1f9c7",
-              "value": "4,608 positions"
+              "title": "1,024 token positions per proof; 1 token checked · workload: fp-maverick-w1024-b24 · scope: none (not a timed number) · grade, step: counted by our rules from the workload record · a property of the workload, not a result · source: ai-verification-observatory/inference-proofs · workloads/fp-maverick-w1024-b24.yaml · L23-L33 · fbe1f9c7",
+              "value": "1,024 positions"
             },
             "run": {
               "absent": null,
@@ -43476,9 +43483,9 @@
                 "lines": [
                   {
                     "cobalt": false,
-                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/sash-l31-8b-c4096.yaml#L27-L36",
+                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/fp-maverick-w1024-b24.yaml#L23-L33",
                     "k": "WORKLOAD",
-                    "v": "sash-l31-8b-c4096 ↗"
+                    "v": "fp-maverick-w1024-b24 ↗"
                   },
                   {
                     "cobalt": false,
@@ -43494,60 +43501,79 @@
                   },
                   {
                     "cobalt": false,
-                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/sash-l31-8b-c4096.yaml#L27-L36",
+                    "href": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/workloads/fp-maverick-w1024-b24.yaml#L23-L33",
                     "k": "SOURCE",
-                    "v": "ai-verification-observatory/inference-proofs · workloads/sash-l31-8b-c4096.yaml · L27-L36 · fbe1f9c7 ↗"
+                    "v": "ai-verification-observatory/inference-proofs · workloads/fp-maverick-w1024-b24.yaml · L23-L33 · fbe1f9c7 ↗"
                   }
                 ],
                 "marks": [],
-                "meaning": null,
+                "meaning": "1,024-token window; states the next token. Counted by our rules from the workload record.",
                 "note_link": null,
                 "open": {
-                  "href": "/run/systems/sash/#covers",
-                  "label": "Open SASH · One proof covers"
+                  "href": "/run/systems/flashprove/#covers",
+                  "label": "Open FlashProve · One proof covers"
                 },
-                "quote_link": true,
-                "quotes": [],
-                "value": "4,608 token positions",
-                "words": 43
+                "quotes": [
+                  {
+                    "href": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/terms.md?plain=1#L61-L62",
+                    "label": "anthropics/FlashProve · guide/terms.md · L61-L62 · 9e2bdd8f",
+                    "text": "Instance: the same definition's word for what one proof is about: here, a prompt with its output tokens."
+                  }
+                ],
+                "value": "1,024 token positions",
+                "words": 79
               },
-              "href": "/run/systems/sash/#covers",
+              "href": "/run/systems/flashprove/#covers",
               "lines": [
-                "512 tokens checked"
+                "1 token checked"
               ],
               "marks": [],
               "marks_shown": [],
               "mock": false,
               "q": [
-                "512 tokens checked"
+                "1 token checked"
               ],
               "stamp": null,
               "stepped": false,
-              "title": "4,608 token positions per proof; 512 tokens checked · 290 segment proofs · workload: sash-l31-8b-c4096 · scope: none (not a timed number) · grade, step: counted by our rules from the workload record · a property of the workload, not a result · source: ai-verification-observatory/inference-proofs · workloads/sash-l31-8b-c4096.yaml · L27-L36 · fbe1f9c7",
-              "value": "4,608 positions"
+              "title": "1,024 token positions per proof; 1 token checked · workload: fp-maverick-w1024-b24 · scope: none (not a timed number) · grade, step: counted by our rules from the workload record · a property of the workload, not a result · source: ai-verification-observatory/inference-proofs · workloads/fp-maverick-w1024-b24.yaml · L23-L33 · fbe1f9c7",
+              "value": "1,024 positions"
             }
           },
           "overhead": {
             "published": {
-              "absent": {
-                "kind": "not_published",
-                "text": "Not published"
-              },
+              "absent": null,
               "card": {
-                "caveats": [],
+                "caveats": [
+                  {
+                    "sym": "†",
+                    "text": "The system's own definition and baseline, not mapped to our timing rules (RFC-0004)."
+                  }
+                ],
                 "head": "OVERHEAD · SASH",
                 "lines": [
                   {
+                    "cobalt": true,
+                    "href": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv?plain=1#L54",
+                    "k": "AS PUBLISHED",
+                    "v": "\"71.4 times slower per GPU\""
+                  },
+                  {
                     "cobalt": false,
+                    "href": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/limits-all-rows.tsv?plain=1#L1382",
+                    "k": "BASELINE",
+                    "v": "stock vLLM 0.29.0, FP8 release, 8 H100s ↗"
+                  },
+                  {
+                    "cobalt": true,
                     "href": null,
-                    "k": "WHY",
-                    "v": "The system states that it does not publish this figure."
+                    "k": "ITS CAVEAT",
+                    "v": "\"Not like for like: stock vLLM ran the model's FP8 release on eight H100s; the prover ran the public 4-bit files on one.\""
                   },
                   {
                     "cobalt": false,
                     "href": null,
-                    "k": "NOTE",
-                    "v": "SASH publishes cost per proved position and the unproved baseline in parts (prefill, decode, end to end) instead of a multiple"
+                    "k": "SCOPE",
+                    "v": "steady proving"
                   },
                   {
                     "cobalt": false,
@@ -43557,112 +43583,110 @@
                   },
                   {
                     "cobalt": false,
-                    "href": "https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/docs/decisions/2026-09-08-cost-per-proved-position-not-an-overhead-multiple.md?plain=1#L8-L11",
+                    "href": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/figures.tsv?plain=1#L54",
                     "k": "SOURCE",
-                    "v": "sg-ai-safety-hub/zk-inference-results · docs/decisions/2026-09-08-cost-per-proved-position-not-an-overhead-multiple.md · L8-L11 · 11decec3 ↗"
+                    "v": "anthropics/FlashProve · docs/figures.tsv · L54 · 9e2bdd8f ↗"
+                  }
+                ],
+                "marks": [
+                  {
+                    "sym": "†",
+                    "title": "The system's own definition and baseline, not mapped to our timing rules (RFC-0004)."
+                  }
+                ],
+                "meaning": null,
+                "note_link": {
+                  "href": "/axes/overhead/#note-sash--fp-maverick-w1024-b24--prover-h100",
+                  "label": "Read FlashProve's note on this figure →"
+                },
+                "open": {
+                  "href": "/systems/flashprove/#overhead",
+                  "label": "Open FlashProve · Overhead"
+                },
+                "quotes": [],
+                "value": "71.4×",
+                "words": 84
+              },
+              "href": "/systems/flashprove/#overhead",
+              "lines": [
+                "vs vLLM FP8 on 8 H100s",
+                "per GPU",
+                "their baseline"
+              ],
+              "marks": [
+                {
+                  "sym": "†",
+                  "title": "The system's own definition and baseline, not mapped to our timing rules (RFC-0004)."
+                }
+              ],
+              "marks_shown": [
+                {
+                  "sym": "†",
+                  "title": "The system's own definition and baseline, not mapped to our timing rules (RFC-0004)."
+                }
+              ],
+              "mock": false,
+              "q": [
+                "vs vLLM FP8 on 8 H100s, per GPU"
+              ],
+              "stamp": null,
+              "stepped": true,
+              "title": "71.4× (71.4 ratio) · scope: steady proving · grade: published by the system · checked: one runner, not yet checked · source: anthropics/FlashProve · docs/figures.tsv · L54 · 9e2bdd8f",
+              "value": "71.4×"
+            },
+            "run": {
+              "absent": {
+                "kind": "no_value",
+                "text": "No value"
+              },
+              "card": {
+                "caveats": [],
+                "head": "OVERHEAD · SASH",
+                "lines": [
+                  {
+                    "cobalt": false,
+                    "href": null,
+                    "k": "WHY",
+                    "v": "The reference could not run this model on one H100 (RFC-0015 NM-1)."
+                  },
+                  {
+                    "cobalt": false,
+                    "href": null,
+                    "k": "GRADE, STEP",
+                    "v": "calculated from recorded numbers · one runner, not yet checked"
+                  },
+                  {
+                    "cobalt": false,
+                    "href": "/data/site.json",
+                    "k": "SOURCE",
+                    "v": "MOCK fixture, site.json /configurations/sash--fp-maverick-w1024-b24--prover-h100/human/time_per_token_vs_plain_serving ↗"
                   }
                 ],
                 "marks": [],
                 "meaning": "How many times longer proving takes per position than plain serving of the same model, task and GPU.",
                 "note_link": null,
                 "open": {
-                  "href": "/systems/sash/#overhead",
-                  "label": "Open SASH · Overhead"
+                  "href": "/run/systems/flashprove/#overhead",
+                  "label": "Open FlashProve · Overhead"
                 },
                 "quotes": [],
-                "value": "Not published",
-                "words": 74
+                "value": "No value",
+                "words": 54
               },
-              "href": "/systems/sash/#overhead",
-              "lines": [],
+              "href": "/run/systems/flashprove/#overhead",
+              "lines": [
+                "not run on 1 H100"
+              ],
               "marks": [],
               "marks_shown": [],
-              "mock": false,
-              "q": [
-                "SASH states why"
-              ],
-              "stamp": null,
-              "stepped": true,
-              "title": "Not published: The system states that it does not publish this figure. published by the system; one runner, not yet checked.",
-              "value": null
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [
-                  {
-                    "sym": "‡",
-                    "text": "Plain serving ran FP8 W8A8 in place of INT8 W8A8, a declared substitution (RFC-0015 PM-4)."
-                  }
-                ],
-                "head": "OVERHEAD · SASH",
-                "lines": [
-                  {
-                    "cobalt": false,
-                    "href": null,
-                    "k": "SCOPE",
-                    "v": "proving session"
-                  },
-                  {
-                    "cobalt": false,
-                    "href": null,
-                    "k": "PRECISION",
-                    "v": "plain serving ran FP8 W8A8 in place of INT8 W8A8 (RFC-0015 PM-4); flagged, not suppressed (PM-3)"
-                  },
-                  {
-                    "cobalt": false,
-                    "href": null,
-                    "k": "GRADE, STEP",
-                    "v": "calculated from recorded numbers · one runner, not yet checked · MOCK"
-                  },
-                  {
-                    "cobalt": false,
-                    "href": "/data/site.json",
-                    "k": "SOURCE",
-                    "v": "MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/human/time_per_token_vs_plain_serving ↗"
-                  }
-                ],
-                "marks": [
-                  {
-                    "sym": "‡",
-                    "title": "Plain serving ran FP8 W8A8 in place of INT8 W8A8, a declared substitution (RFC-0015 PM-4)."
-                  }
-                ],
-                "meaning": "How many times longer proving takes per position than plain serving of the same model, task and GPU. This proof covers 4,608 positions and checks 512 tokens.",
-                "note_link": null,
-                "open": {
-                  "href": "/run/systems/sash/#overhead",
-                  "label": "Open SASH · Overhead"
-                },
-                "quotes": [],
-                "value": "1,583×",
-                "words": 85
-              },
-              "href": "/run/systems/sash/#overhead",
-              "lines": [
-                "same task, same H100",
-                "FP8 in place of INT8"
-              ],
-              "marks": [
-                {
-                  "sym": "‡",
-                  "title": "Plain serving ran FP8 W8A8 in place of INT8 W8A8, a declared substitution (RFC-0015 PM-4)."
-                }
-              ],
-              "marks_shown": [
-                {
-                  "sym": "‡",
-                  "title": "Plain serving ran FP8 W8A8 in place of INT8 W8A8, a declared substitution (RFC-0015 PM-4)."
-                }
-              ],
               "mock": true,
               "q": [
-                "same task, same H100"
+                "not run on 1 H100"
               ],
               "stamp": null,
               "stepped": true,
-              "title": "1,583× (1583.2439452139554 ratio) · scope: proving session · grade: calculated from recorded numbers · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/human/time_per_token_vs_plain_serving",
-              "value": "1,583×"
+              "title": "No value: The reference could not run this model on one H100 (RFC-0015 NM-1). calculated from recorded numbers; one runner, not yet checked.",
+              "value": null
             }
           },
           "proof_size": {
@@ -43722,7 +43746,7 @@
                 ],
                 "meaning": null,
                 "note_link": {
-                  "href": "/axes/proof-size/#note-sash--sash-l31-8b-c4096--prover-h100",
+                  "href": "/axes/proof-size/#note-sash--fp-maverick-w1024-b24--prover-h100",
                   "label": "Read SASH's note on this figure →"
                 },
                 "open": {
@@ -43735,7 +43759,7 @@
               },
               "href": "/systems/sash/#proof-size",
               "lines": [
-                "sum of 290 proofs"
+                "1 proof"
               ],
               "marks": [
                 {
@@ -43796,7 +43820,9 @@
                 "words": 70
               },
               "href": "/run/systems/sash/#proof-size",
-              "lines": [],
+              "lines": [
+                "1 proof"
+              ],
               "marks": [],
               "marks_shown": [],
               "mock": true,
@@ -43942,11 +43968,11 @@
           "published": "/systems/sash/",
           "run": "/run/systems/sash/"
         },
-        "id": "sash--sash-l31-8b-c4096--prover-h100",
+        "id": "sash--fp-maverick-w1024-b24--prover-h100",
         "kind": "prover",
         "kind_stamp": "PROVED",
         "kind_title": "Proved: STARK over an execution trace (Circle STARK)",
-        "model": "Llama 3.1 8B · 8.03B dense",
+        "model": "Llama 4 Maverick · 17B active",
         "more": {
           "published": [
             {
@@ -44029,7 +44055,7 @@
               "marks": [],
               "mock": true,
               "scope": "proving session",
-              "title": "0.8511 positions/s (0.8510612325585404 token/s) · scope: proving session · grade: calculated from recorded numbers · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/rates/rate_prove.session",
+              "title": "0.8511 positions/s (0.8510612325585404 token/s) · scope: proving session · grade: calculated from recorded numbers · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--fp-maverick-w1024-b24--prover-h100/rates/rate_prove.session",
               "value": "0.8511 positions/s"
             },
             {
@@ -44051,7 +44077,7 @@
               "marks": [],
               "mock": true,
               "scope": "commit",
-              "title": "64.37 s (64.36666666666666 s) · scope: preparing the model · grade: recorded by our harness · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--sash-l31-8b-c4096--prover-h100/recorded/commit_seconds",
+              "title": "64.37 s (64.36666666666666 s) · scope: preparing the model · grade: recorded by our harness · checked: one runner, not yet checked · MOCK · source: MOCK fixture, site.json /configurations/sash--fp-maverick-w1024-b24--prover-h100/recorded/commit_seconds",
               "value": "64.37 s"
             },
             {
@@ -44080,9 +44106,9 @@
         },
         "name": "SASH",
         "serves": null,
-        "strip": "sash--sash-l31-8b-c4096--prover-h100",
+        "strip": "sash--fp-maverick-w1024-b24--prover-h100",
         "system": "sash",
-        "workload": "sash-l31-8b-c4096"
+        "workload": "fp-maverick-w1024-b24"
       },
       {
         "cells": {
@@ -44299,35 +44325,32 @@
               "value": "1× by definition, not run yet"
             },
             "run": {
-              "absent": {
-                "kind": "no_value",
-                "text": "No value"
-              },
+              "absent": null,
               "card": {
                 "caveats": [],
                 "head": "OVERHEAD · PLAIN SERVING",
                 "lines": [],
                 "marks": [],
-                "meaning": "the reference could not run this model on one H100 (RFC-0015 NM-1)",
+                "meaning": "Plain serving is the baseline of the overhead ratio: 1 by definition, whether or not it has run.",
                 "note_link": null,
                 "open": {
                   "href": "/run/reference/#ref-serve--fp-maverick-w1024-b24--prover-h100",
                   "label": "Open Reference rows"
                 },
                 "quotes": [],
-                "value": "No value",
-                "words": 20
+                "value": "1× by definition",
+                "words": 27
               },
               "href": "/run/reference/#ref-serve--fp-maverick-w1024-b24--prover-h100",
               "lines": [],
               "marks": [],
               "marks_shown": [],
-              "mock": true,
+              "mock": false,
               "q": [],
               "stamp": null,
               "stepped": true,
-              "title": "the reference could not run this model on one H100 (RFC-0015 NM-1)",
-              "value": null
+              "title": "Plain serving is the baseline of the overhead ratio: 1 by definition, whether or not it has run.",
+              "value": "1× by definition"
             }
           },
           "proof_size": {
@@ -44585,505 +44608,6 @@
         "strip": "ref-serve--fp-maverick-w1024-b24--prover-h100",
         "system": "ref-serve",
         "workload": "fp-maverick-w1024-b24"
-      },
-      {
-        "cells": {
-          "check_time": {
-            "published": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "Does not apply"
-              },
-              "card": {
-                "caveats": [],
-                "head": "CHECK TIME · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Does not apply",
-                "words": 17
-              },
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            "run": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "Does not apply"
-              },
-              "card": {
-                "caveats": [],
-                "head": "CHECK TIME · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Does not apply",
-                "words": 17
-              },
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          },
-          "checked_by": {
-            "published": {
-              "absent": {
-                "kind": "no_value",
-                "text": "Not run yet"
-              },
-              "card": {
-                "caveats": [],
-                "head": "CHECKED BY · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "Nothing was published or run for this reference row yet.",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Not run yet",
-                "words": 20
-              },
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Nothing was published or run for this reference row yet.",
-              "value": null
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "CHECKED BY · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "one runner, not yet checked",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "",
-                "words": 12
-              },
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": true,
-              "q": [],
-              "stamp": "STEP 1 OF 3",
-              "stepped": true,
-              "title": "one runner, not yet checked",
-              "value": ""
-            }
-          },
-          "covers": {
-            "published": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "ONE PROOF COVERS · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "same token count as the row it serves (RFC-0015 REF-3)",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "same as above",
-                "words": 21
-              },
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": false,
-              "title": "same token count as the row it serves (RFC-0015 REF-3)",
-              "value": "same as above"
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "ONE PROOF COVERS · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "same token count as the row it serves (RFC-0015 REF-3)",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "same as above",
-                "words": 21
-              },
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": false,
-              "title": "same token count as the row it serves (RFC-0015 REF-3)",
-              "value": "same as above"
-            }
-          },
-          "overhead": {
-            "published": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "OVERHEAD · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "Plain serving is the baseline of the overhead ratio: 1 by definition, whether or not it has run.",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "1× by definition",
-                "words": 27
-              },
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Plain serving is the baseline of the overhead ratio: 1 by definition, whether or not it has run.",
-              "value": "1× by definition, not run yet"
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "OVERHEAD · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "Plain serving is the baseline of the overhead ratio: 1 by definition, whether or not it has run.",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "1× by definition",
-                "words": 27
-              },
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Plain serving is the baseline of the overhead ratio: 1 by definition, whether or not it has run.",
-              "value": "1× by definition"
-            }
-          },
-          "proof_size": {
-            "published": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "No proof"
-              },
-              "card": {
-                "caveats": [],
-                "head": "PROOF SIZE · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "No proof",
-                "words": 16
-              },
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            "run": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "No proof"
-              },
-              "card": {
-                "caveats": [],
-                "head": "PROOF SIZE · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "No proof",
-                "words": 16
-              },
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          },
-          "system": {
-            "published": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "REFERENCE · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "Plain serving · Llama 3.1 8B (SASH's task)",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Plain serving",
-                "words": 15
-              },
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Plain serving · Llama 3.1 8B (SASH's task)",
-              "value": "Plain serving"
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "REFERENCE · PLAIN SERVING",
-                "lines": [],
-                "marks": [],
-                "meaning": "Plain serving · Llama 3.1 8B (SASH's task)",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Plain serving",
-                "words": 15
-              },
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Plain serving · Llama 3.1 8B (SASH's task)",
-              "value": "Plain serving"
-            }
-          }
-        },
-        "chain": "ref-serve",
-        "family": "unchecked",
-        "href": {
-          "published": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-          "run": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100"
-        },
-        "id": "ref-serve--sash-l31-8b-c4096--prover-h100",
-        "kind": "reference",
-        "kind_stamp": "UNCHECKED",
-        "kind_title": "Plain serving: the baseline with no check, for cost comparison.",
-        "model": null,
-        "more": {
-          "published": [
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "prove_rate",
-              "label": "Proving rate",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "cost_1k",
-              "label": "GPU cost per 1,000 positions",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "commit",
-              "label": "Commit once",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "verify_memory",
-              "label": "Checker memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "gpu_memory",
-              "label": "GPU memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          ],
-          "run": [
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "prove_rate",
-              "label": "Proving rate",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "cost_1k",
-              "label": "GPU cost per 1,000 positions",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "commit",
-              "label": "Commit once",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "verify_memory",
-              "label": "Checker memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-serve--sash-l31-8b-c4096--prover-h100",
-              "id": "gpu_memory",
-              "label": "GPU memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          ]
-        },
-        "name": "Plain serving",
-        "serves": "sash",
-        "strip": "ref-serve--sash-l31-8b-c4096--prover-h100",
-        "system": "ref-serve",
-        "workload": "sash-l31-8b-c4096"
       },
       {
         "cells": {
@@ -45589,511 +45113,6 @@
         "strip": "ref-recompute--fp-maverick-w1024-b24--prover-h100",
         "system": "ref-recompute",
         "workload": "fp-maverick-w1024-b24"
-      },
-      {
-        "cells": {
-          "check_time": {
-            "published": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "Does not apply"
-              },
-              "card": {
-                "caveats": [],
-                "head": "CHECK TIME · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Does not apply",
-                "words": 20
-              },
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            "run": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "Does not apply"
-              },
-              "card": {
-                "caveats": [],
-                "head": "CHECK TIME · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Does not apply",
-                "words": 20
-              },
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          },
-          "checked_by": {
-            "published": {
-              "absent": {
-                "kind": "no_value",
-                "text": "Not run yet"
-              },
-              "card": {
-                "caveats": [],
-                "head": "CHECKED BY · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "Nothing was published or run for this reference row yet.",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Not run yet",
-                "words": 23
-              },
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Nothing was published or run for this reference row yet.",
-              "value": null
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "CHECKED BY · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "one runner, not yet checked",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "",
-                "words": 15
-              },
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": true,
-              "q": [],
-              "stamp": "STEP 1 OF 3",
-              "stepped": true,
-              "title": "one runner, not yet checked",
-              "value": ""
-            }
-          },
-          "covers": {
-            "published": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "ONE PROOF COVERS · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "same token count as the row it serves (RFC-0015 REF-3)",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "same as above",
-                "words": 24
-              },
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": false,
-              "title": "same token count as the row it serves (RFC-0015 REF-3)",
-              "value": "same as above"
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "ONE PROOF COVERS · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "same token count as the row it serves (RFC-0015 REF-3)",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "same as above",
-                "words": 24
-              },
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": false,
-              "title": "same token count as the row it serves (RFC-0015 REF-3)",
-              "value": "same as above"
-            }
-          },
-          "overhead": {
-            "published": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "Does not apply"
-              },
-              "card": {
-                "caveats": [],
-                "head": "OVERHEAD · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "A rerun is not the baseline.",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Does not apply",
-                "words": 18
-              },
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "A rerun is not the baseline.",
-              "value": null
-            },
-            "run": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "Does not apply"
-              },
-              "card": {
-                "caveats": [],
-                "head": "OVERHEAD · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "A rerun is not the baseline.",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Does not apply",
-                "words": 18
-              },
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "A rerun is not the baseline.",
-              "value": null
-            }
-          },
-          "proof_size": {
-            "published": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "No proof"
-              },
-              "card": {
-                "caveats": [],
-                "head": "PROOF SIZE · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "No proof",
-                "words": 19
-              },
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            "run": {
-              "absent": {
-                "kind": "not_applicable",
-                "text": "No proof"
-              },
-              "card": {
-                "caveats": [],
-                "head": "PROOF SIZE · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "This row makes no proof (RFC-0015 REF-2).",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "No proof",
-                "words": 19
-              },
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          },
-          "system": {
-            "published": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "REFERENCE · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "Rerun it yourself · Llama 3.1 8B (SASH's task)",
-                "note_link": null,
-                "open": {
-                  "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Rerun by a weights holder",
-                "words": 22
-              },
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Rerun it yourself · Llama 3.1 8B (SASH's task)",
-              "value": "Rerun by a weights holder"
-            },
-            "run": {
-              "absent": null,
-              "card": {
-                "caveats": [],
-                "head": "REFERENCE · RERUN BY A WEIGHTS HOLDER",
-                "lines": [],
-                "marks": [],
-                "meaning": "Rerun it yourself · Llama 3.1 8B (SASH's task)",
-                "note_link": null,
-                "open": {
-                  "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-                  "label": "Open Reference rows"
-                },
-                "quotes": [],
-                "value": "Rerun by a weights holder",
-                "words": 22
-              },
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "lines": [],
-              "marks": [],
-              "marks_shown": [],
-              "mock": false,
-              "q": [],
-              "stamp": null,
-              "stepped": true,
-              "title": "Rerun it yourself · Llama 3.1 8B (SASH's task)",
-              "value": "Rerun by a weights holder"
-            }
-          }
-        },
-        "chain": "ref-recompute",
-        "family": "re_executed",
-        "href": {
-          "published": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-          "run": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100"
-        },
-        "id": "ref-recompute--sash-l31-8b-c4096--prover-h100",
-        "kind": "reference",
-        "kind_stamp": "RE-EXECUTED",
-        "kind_title": "Someone reruns the work: a referee settles a dispute between providers, or a checker holding the weights recomputes.",
-        "model": null,
-        "more": {
-          "published": [
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "prove_rate",
-              "label": "Proving rate",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "cost_1k",
-              "label": "GPU cost per 1,000 positions",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "commit",
-              "label": "Commit once",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "verify_memory",
-              "label": "Checker memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "gpu_memory",
-              "label": "GPU memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          ],
-          "run": [
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "prove_rate",
-              "label": "Proving rate",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "cost_1k",
-              "label": "GPU cost per 1,000 positions",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "commit",
-              "label": "Commit once",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "verify_memory",
-              "label": "Checker memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            },
-            {
-              "absent": "Does not apply",
-              "href": "/run/reference/#ref-recompute--sash-l31-8b-c4096--prover-h100",
-              "id": "gpu_memory",
-              "label": "GPU memory",
-              "marks": [],
-              "mock": false,
-              "scope": "",
-              "title": "This row makes no proof (RFC-0015 REF-2).",
-              "value": null
-            }
-          ]
-        },
-        "name": "Rerun by a weights holder",
-        "serves": "sash",
-        "strip": "ref-recompute--sash-l31-8b-c4096--prover-h100",
-        "system": "ref-recompute",
-        "workload": "sash-l31-8b-c4096"
       }
     ]
   },
@@ -56789,7 +55808,7 @@
                 "lines": [
                   {
                     "k": "MODEL",
-                    "v": "Llama 3.1 8B Instruct, 8.03B parameters (dense), W8A8"
+                    "v": "Llama 4 Maverick, 400B total, 17B active per token, UD-Q4_K_XL (4-bit)"
                   },
                   {
                     "href": "https://github.com/sg-ai-safety-hub/zk-inference-prover/tree/eb95bfa887299d1637550228d42086c27cbb2b3b",
@@ -63634,7 +62653,7 @@
         },
         "workload": "sash-l31-8b-c4096"
       },
-      "home_line": "Llama 3.1 8B · 4,096-token prompt, 512 generated · 1 request per batch · one H100 GPU",
+      "home_line": "Llama 4 Maverick · 1,024-token prompt, the next token · 24 requests per batch · one H100 GPU",
       "how_to_read_example": "proving_time_per_proof",
       "human_units": [
         {
@@ -63933,7 +62952,7 @@
       "review_status": "card not reviewed by system maintainers",
       "runs_line": "Runs of this setup: 3 completed; 1 failed and is not counted (a fault on the runner's machine while uploading its proofs; exit code 1; last line: \"harness: run failed in phase upload, proofs kept on the runner\"); 1 superseded and replaced (the checker's container ran with 4 CPUs instead of 8). Each number below is over the completed runs.",
       "tamper": {
-        "config_id": "sash--sash-l31-8b-c4096--prover-h100",
+        "config_id": "sash--fp-maverick-w1024-b24--prover-h100",
         "control_test": {
           "binding_report_marks_unbound": null,
           "control_id": "S-W1",
