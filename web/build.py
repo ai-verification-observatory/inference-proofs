@@ -38,8 +38,10 @@ for rid, states in crit["test_mapping"].items():
         assert G["rows"][rid]["states"] == states, f"states differ for {rid}"
 
 # ------------------------------------------------------------------ models
-# Each system is shown on the biggest model it runs (total parameters in its workload records).
-# Rows are set side by side only within one model; the models follow each other, biggest first.
+# The site compares systems on one model, Llama 4 Maverick (400B parameters): only systems run on
+# it are shown (the data puts every benchmarked system there, _data/maverick_only.py). Rows are set
+# side by side only within one model, biggest first, should the data ever hold more than one.
+TARGET_MODEL = "Llama 4 Maverick"
 
 
 def model_name(row):
@@ -53,15 +55,8 @@ def wl_model(wid):
 PROVERS = [r for r in H5["rows"] if r["kind"] == "prover"]
 
 
-def biggest_workload(sid):
-    wls = [w for w in site["workloads"].values() if w["system"] == sid]
-    return max(wls, key=lambda w: w["model"]["parameters_total"])["id"]
-
-
 for _r in PROVERS:
-    assert (
-        wl_model(_r["workload"])["digest"] == wl_model(biggest_workload(_r["system"]))["digest"]
-    ), f"{_r['id']}: the home row runs the system's biggest model"
+    assert model_name(_r) == TARGET_MODEL, f"{_r['id']} is not on {TARGET_MODEL}"
 
 
 def model_of(row):
@@ -909,7 +904,10 @@ def build_reference():
         r0 = rows[0]
         facts = [
             ("kind", e(r0["kind_title"])),
-            ("models", e(" · ".join(MODEL_NAME[model_of(x)] for x in rows))),
+            (
+                "model" if len(rows) == 1 else "models",
+                e(" · ".join(MODEL_NAME[model_of(x)] for x in rows)),
+            ),
         ]
         r = ref_summary(gid)
         figs = (

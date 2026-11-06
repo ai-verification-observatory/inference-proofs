@@ -94,9 +94,9 @@ const sortBy = async (p, col, dir) => {
   }));
   ok(shape.select === 0 && shape.toggles === 0, 'no sort control, no view toggle, no tabs', shape);
   ok(shape.quotes === 0, 'no quotes on the home');
-  ok(shape.tables.join() === 'Llama 4 Maverick:flashprove,Llama 3.1 8B:sash' && shape.wip === 0, 'one table per model, biggest model first; no work-in-progress label', shape.tables);
+  ok(shape.tables.join() === 'Llama 4 Maverick:flashprove+sash' && shape.wip === 0, 'one table, Llama 4 Maverick, every benchmarked system in it; no work-in-progress label', shape.tables);
   ok(shape.refs.join() === 'ref-serve,ref-recompute' && !shape.sameAsAbove, 'two reference rows after the models, no "same as above"', shape.refs);
-  ok(shape.sections.join() === 'llama-4-maverick,llama-3-1-8b,references,not-yet' && shape.nb === 19, 'sections in order, 19 not benchmarked yet', shape.sections);
+  ok(shape.sections.join() === 'llama-4-maverick,references,not-yet' && shape.nb === 19 && !/Llama 3\.1 8B/.test(await p.locator('.bench, .refs').allInnerTexts().then((x) => x.join(' '))), 'sections in order, 19 not benchmarked yet, no Llama 3.1 8B', shape.sections);
   // row slice hover: lift and a positioned label; no row moves; the other slices keep their ink
   const h0 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   const pie = await p.locator('#flashprove .pie').boundingBox();
@@ -117,13 +117,13 @@ const sortBy = async (p, col, dir) => {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const st0 = await sortState(p);
-  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === 2 && st0.hash === '', 'default: System A to Z in both tables, empty hash', st0);
+  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === 1 && st0.hash === '', 'default: System A to Z in both tables, empty hash', st0);
   for (const col of ['system', 'covers', 'proof_size', 'check_time', 'overhead']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(p, col, dir);
       const got = await order(p);
       const st = await sortState(p);
-      ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === 2 && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
+      ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === 1 && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
         && (col === 'system' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`), `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
     }
   }
@@ -232,7 +232,7 @@ for (const name of ['flashprove', 'sash', 'reference']) {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + 'sash.html', { waitUntil: 'networkidle' });
-  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /Llama 3\.1 8B/.test(await p.locator('#figures .sec-l').innerText()), 'sash.html: no work-in-progress label; its figures name their model');
+  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama 4 Maverick/.test(await p.locator('#figures .sec-l').innerText()), 'sash.html: no work-in-progress label; its figures name their model');
   await p.goto(BASE + 'system.html', { waitUntil: 'networkidle' }); await p.waitForTimeout(600);
   ok(p.url().endsWith('flashprove.html'), 'system.html redirects', p.url());
   await ctx.close();
