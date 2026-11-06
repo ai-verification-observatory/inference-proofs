@@ -1,0 +1,7 @@
+# The page builder writes HTML from f-string templates whose lines are markup, not logic.
+extend = "../../pyproject.toml"
+
+[lint]
+extend-ignore = ["E501"]
+# Figures print the multiplication sign (1,583×), and the build parses it back.
+allowed-confusables = ["×"]
