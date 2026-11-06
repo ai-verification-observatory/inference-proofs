@@ -319,7 +319,7 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   // an unknown address: the site's own 404 page, with the site's header, at any depth
   for (const u of ['nope', 'a/b/c']) {
     const res = await p.goto(BASE + u, { waitUntil: 'networkidle' });
-    ok(res.status() === 404 && (await p.locator('.top nav a').count()) >= 3 && (await p.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(11, 11, 12)', `/${u} answers the styled 404 page`, res.status());
+    ok(res.status() === 404 && (await p.locator('.top .logo, .top nav a').count()) >= 3 && (await p.evaluate(() => getComputedStyle(document.body).backgroundColor)) === 'rgb(11, 11, 12)', `/${u} answers the styled 404 page`, res.status());
   }
   // an older address redirects to the first system page
   for (const u of ['system', 'system.html']) {

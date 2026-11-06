@@ -68,7 +68,7 @@ Each system is a flat pie of six slices, one per property, clockwise from twelve
 
 ### Header and footer
 
-The top bar: the site's name and pages (Overview, References, Criteria) at the left, a wide search field (up to 600 px) centred in the room between them and GitHub at the right. Up to 960 px, below the width a centred field needs, the name, a search button and GitHub share the first line and the pages the second; the button opens the field over the first line.
+The top bar: the logo (the site's mark, the six-slice pie in violet, and its name; it leads to the overview and marks it as the current page there) and the pages (References, Criteria) at the left, a wide search field (up to 600 px) centred in the room between them and GitHub at the right. Up to 960 px, below the width a centred field needs, the name, a search button and GitHub share the first line and the pages the second; the button opens the field over the first line.
 
 ### Search
 

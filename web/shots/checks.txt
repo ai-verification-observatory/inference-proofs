@@ -39,7 +39,7 @@ ok   sort with missing values: overhead desc {"got":["zz-b","zz-a","flashprove",
 ok   unknown sort in the hash falls back and clears it
 ok   "/" focuses search and opens the list
 ok   an empty search lists the benchmarked systems ["FlashProve","SASH"]
-ok   the field is wide and centred between the pages and GitHub, its list as wide {"w":600,"gaps":[114,114],"list":0}
+ok   the field is wide and centred between the pages and GitHub, its list as wide {"w":600,"gaps":[138,138],"list":0}
 ok   "flash" finds FlashProve first
 ok   not-benchmarked systems come after the others, each marked ["FlashProve:system on","SASH:system","zkGPT:unbenchmarked","zkLLM:unbenchmarked","ZKML:unbenchmarked","zkPyTorch:unbenchmarked","ZKTorch:unbenchmarked","Attestable prover:unbenchmarked","DeepProve:unbenchmarked","EZKL:unbenchmarked","JOLT Atlas:unbenchmarked","JSTprove:unbenchmarked","LuminAIR:unbenchmarked","NanoZK:unbenchmarked"]
 ok   one typo still finds the system
@@ -81,8 +81,8 @@ ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped"
 ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 732 px
-ok   home-390 first system name shows on landing 732
+home-390 first system name bottom 740 px
+ok   home-390 first system name shows on landing 740
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -143,7 +143,7 @@ ok   /a/b/c answers the styled 404 page 404
 ok   /system redirects to /flashprove http://127.0.0.1:4440/flashprove
 ok   /system.html redirects to /flashprove http://127.0.0.1:4440/flashprove
 ok   a malformed hash does not stop hash sorting
-ok   landscape phone: the model heading shows on landing 366
+ok   landscape phone: the model heading shows on landing 375
 ok   home: cut sentences absent
 ok   home: no placeholder marking on the page
 ok   home: no ranking words in the site's own controls

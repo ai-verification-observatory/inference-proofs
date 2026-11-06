@@ -740,20 +740,25 @@ def header(here):
     def a(href, label, key):
         return f'<a href="{href}"{" aria-current=page" if here == key else ""}>{label}</a>'
 
-    # The pages; systems are reached by search (one link each would not scale) or from the overview.
-    nav = (
-        a("/", "Overview", "home")
-        + a(REF_PAGE, "References", "reference")
-        + a(CRIT_PAGE, "Criteria", "criteria")
-    )
+    # The logo leads to the overview; the nav holds the other pages; systems are reached by search
+    # (one link each would not scale) or from the overview.
+    nav = a(REF_PAGE, "References", "reference") + a(CRIT_PAGE, "Criteria", "criteria")
+    current = " aria-current=page" if here == "home" else ""
     return (
-        f'<header class="top"><div class="tl"><p class="brand"><a href="/">Inference proofs</a></p>'
+        f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{LOGO_MARK}<span>Inference proofs</span></a></p>'
         f'<nav aria-label="Site">{nav}</nav></div>'
         f"{search_box(here)}"
         f'<a class="repo" href="{e(REPO_URL)}">{GITHUB_MARK}GitHub</a>'
         "</header>"
     )
 
+
+# The site's mark, as on the icon and the preview cards: the six-slice pie, here in violet
+LOGO_MARK = (
+    '<svg class="lm" viewBox="-27 -27 54 54" width="22" height="22" aria-hidden="true" focusable="false">'
+    + "".join(f'<path d="{wedge(i, 26, 1.6)}"/>' for i in range(6))
+    + "</svg>"
+)
 
 SEARCH_MARK = (
     '<svg class="si" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">'
