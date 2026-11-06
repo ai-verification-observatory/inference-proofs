@@ -11,7 +11,7 @@ ok   row slice hover shows its name and state Model boundPartly
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
 ok   figures with a spread show sample size and range [true,true,true,true]
-ok   default: System A to Z in both tables, empty hash {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
+ok   default: System A to Z in the table, empty hash {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
 ok   sort system asc {"got":[["flashprove","sash"]],"hash":"","glyphs":"↑↕↕↕↕"}
 ok   sort system desc {"got":[["sash","flashprove"]],"hash":"#sort=system-desc","glyphs":"↓↕↕↕↕"}
 ok   sort covers asc {"got":[["flashprove","sash"]],"hash":"#sort=covers-asc","glyphs":"↕↑↕↕↕"}
@@ -27,29 +27,41 @@ ok   the order is named for screen readers Proof size, large to small
 ok   hash round-trip {"aria":["check_time:descending"],"heads":1,"glyphs":"↕↕↕↓↕","hash":"#sort=check_time-desc"}
 ok   CLS on load with a sort hash is 0
 ok   hashchange applies a new order
-ok   the #criteria link keeps the order and its hash
+ok   Back to no hash restores the default order {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
+ok   sort with missing values: covers asc {"got":["zz-a","flashprove","sash","zz-b"],"keys":[512,1024,1024,2048]}
+ok   sort with missing values: covers desc {"got":["zz-b","flashprove","sash","zz-a"],"keys":[2048,1024,1024,512]}
+ok   sort with missing values: proof_size asc {"got":["zz-b","flashprove","sash","zz-a"],"keys":[1,18779444.444444444,19800000000,null]}
+ok   sort with missing values: proof_size desc {"got":["sash","flashprove","zz-b","zz-a"],"keys":[19800000000,18779444.444444444,1,null]}
+ok   sort with missing values: check_time asc {"got":["flashprove","zz-a","sash","zz-b"],"keys":[3.12,9,121.26666666666667,null]}
+ok   sort with missing values: check_time desc {"got":["sash","zz-a","flashprove","zz-b"],"keys":[121.26666666666667,9,3.12,null]}
+ok   sort with missing values: overhead asc {"got":["zz-a","zz-b","flashprove","sash"],"keys":[3,7,null,null]}
+ok   sort with missing values: overhead desc {"got":["zz-b","zz-a","flashprove","sash"],"keys":[7,3,null,null]}
 ok   unknown sort in the hash falls back and clears it
 ok   Enter on Proof size sorts ascending {"aria":["proof_size:ascending"],"heads":1,"glyphs":"↕↕↑↕↕","hash":"#sort=proof_size-asc"}
 ok   Space on it again sorts descending {"aria":["proof_size:descending"],"heads":1,"glyphs":"↕↕↓↕↕","hash":"#sort=proof_size-desc"}
 ok   keyboard focus is visible on a head button solid
-ok   index.html-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   flashprove.html-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sash.html-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   reference.html-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   index.html-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   flashprove.html-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sash.html-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   reference.html-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   index.html-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   flashprove.html-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sash.html-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   reference.html-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   index.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   flashprove.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sash.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   reference.html-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 707 px
-ok   home-390 first system name shows on landing 707
+ok   home-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sash-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   reference-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   criteria-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   home-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sash-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   reference-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   criteria-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   home-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sash-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   reference-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   criteria-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   home-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+home-390 first system name bottom 730 px
+ok   home-390 first system name shows on landing 730
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -60,6 +72,8 @@ ok   sash-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash-390 CLS 0
 ok   reference-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference-390 CLS 0
+ok   criteria-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   criteria-390 CLS 0
 ok   home-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-360 CLS 0
 ok   home-360 the column heads stay as sort buttons
@@ -70,16 +84,30 @@ ok   sash-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash-360 CLS 0
 ok   reference-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference-360 CLS 0
+ok   criteria-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   criteria-360 CLS 0
+ok   home-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   home-320 CLS 0
+ok   home-320 the column heads stay as sort buttons
+ok   home-320 sorts from the heads
+ok   flashprove-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-320 CLS 0
+ok   sash-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   sash-320 CLS 0
+ok   reference-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   reference-320 CLS 0
+ok   criteria-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   criteria-320 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties fit the first screen 471
+ok   flashprove: the six properties fit the first screen 479
 ok   flashprove: no quotes, nothing folded
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties fit the first screen 470
+ok   sash: the six properties fit the first screen 491
 ok   sash: no quotes, nothing folded
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
@@ -88,38 +116,62 @@ ok   reference: small pie, slices 1-3 described on its right and 4-6 on its left
 ok   reference: the six properties fit the first screen 664
 ok   reference: no quotes, nothing folded
 ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
-ok   sash.html: no work-in-progress label; its figures name their model
-ok   system.html redirects http://127.0.0.1:4440/flashprove.html
-ok   index.html: cut sentences absent
-ok   index.html: no placeholder marking on the page
-ok   index.html: no ranking words in the site's own controls
-ok   index.html: no numbered property names
-ok   index.html: no "step N of M"
-ok   flashprove.html: cut sentences absent
-ok   flashprove.html: no placeholder marking on the page
-ok   flashprove.html: no ranking words in the site's own controls
-ok   flashprove.html: no numbered property names
-ok   flashprove.html: no "step N of M"
-ok   sash.html: cut sentences absent
-ok   sash.html: no placeholder marking on the page
-ok   sash.html: no ranking words in the site's own controls
-ok   sash.html: no numbered property names
-ok   sash.html: no "step N of M"
-ok   reference.html: cut sentences absent
-ok   reference.html: no placeholder marking on the page
-ok   reference.html: no ranking words in the site's own controls
-ok   reference.html: no numbered property names
-ok   reference.html: no "step N of M"
+ok   sash: no work-in-progress label; its figures name their model
+ok   /nope answers the styled 404 page 404
+ok   /a/b/c answers the styled 404 page 404
+ok   /system redirects to /flashprove http://127.0.0.1:4440/flashprove
+ok   /system.html redirects to /flashprove http://127.0.0.1:4440/flashprove
+ok   a malformed hash does not stop hash sorting
+ok   landscape phone: the model heading shows on landing 336
+ok   home: cut sentences absent
+ok   home: no placeholder marking on the page
+ok   home: no ranking words in the site's own controls
+ok   home: no numbered property names
+ok   home: no "step N of M"
+ok   home: no duplicate ids []
+ok   home: no placeholder words, field names or bare rule codes in visible text
+ok   flashprove: cut sentences absent
+ok   flashprove: no placeholder marking on the page
+ok   flashprove: no ranking words in the site's own controls
+ok   flashprove: no numbered property names
+ok   flashprove: no "step N of M"
+ok   flashprove: no duplicate ids []
+ok   flashprove: no placeholder words, field names or bare rule codes in visible text
+ok   sash: cut sentences absent
+ok   sash: no placeholder marking on the page
+ok   sash: no ranking words in the site's own controls
+ok   sash: no numbered property names
+ok   sash: no "step N of M"
+ok   sash: no duplicate ids []
+ok   sash: no placeholder words, field names or bare rule codes in visible text
+ok   reference: cut sentences absent
+ok   reference: no placeholder marking on the page
+ok   reference: no ranking words in the site's own controls
+ok   reference: no numbered property names
+ok   reference: no "step N of M"
+ok   reference: no duplicate ids []
+ok   reference: no placeholder words, field names or bare rule codes in visible text
+ok   criteria: cut sentences absent
+ok   criteria: no placeholder marking on the page
+ok   criteria: no ranking words in the site's own controls
+ok   criteria: no numbered property names
+ok   criteria: no "step N of M"
+ok   criteria: no duplicate ids []
+ok   criteria: no placeholder words, field names or bare rule codes in visible text
 ok   no dead local links []
-ok   axe 1440 index.html []
-ok   axe 1440 flashprove.html []
-ok   axe 1440 sash.html []
-ok   axe 1440 reference.html []
-ok   axe 1440 index.html#sort=overhead-desc []
-ok   axe 390 index.html []
-ok   axe 390 flashprove.html []
-ok   axe 390 sash.html []
-ok   axe 390 reference.html []
-ok   axe 390 index.html#sort=overhead-desc []
+ok   axe 1440  []
+ok   axe 1440 flashprove []
+ok   axe 1440 sash []
+ok   axe 1440 reference []
+ok   axe 1440 criteria []
+ok   axe 1440 #sort=overhead-desc []
+ok   axe 1440 nope []
+ok   axe 390  []
+ok   axe 390 flashprove []
+ok   axe 390 sash []
+ok   axe 390 reference []
+ok   axe 390 criteria []
+ok   axe 390 #sort=overhead-desc []
+ok   axe 390 nope []
 ok   no console or page errors []
 0 failed check(s)

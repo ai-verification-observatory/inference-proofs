@@ -2,7 +2,7 @@
 // Renders each og/<card>.html that build.py wrote to og/<card>.png and records the sha256 of both in
 // og/cards.json; build.py then names each picture in the pages. A card is 1200 x 630 CSS px at 2x
 // unless its <html> sets data-w, data-h and data-scale (the 180 px touch icon). test_cards.py
-// checks the record against the files. The fonts come from Google Fonts, so it needs the network.
+// checks the record against the files. Fonts load from ../fonts/, so it needs no network.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';

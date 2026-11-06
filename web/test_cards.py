@@ -15,7 +15,9 @@ import build
 
 OG = build.OG
 RECORD = json.loads((OG / "cards.json").read_text())
-PAGES = ["index.html", *build.PAGE.values(), build.REF_PAGE]
+PAGES = [
+    build.file_of(p).name for p in ["/", *build.PAGE.values(), build.REF_PAGE, build.CRIT_PAGE]
+]
 
 
 def sha(path):
@@ -118,8 +120,15 @@ def test_pages_name_their_card():
 
 
 def test_each_system_has_its_own_card():
-    for sid, page in build.PAGE.items():
-        assert f"/og/{sid}.png?" in meta(page)["og:image"]
+    for sid, path in build.PAGE.items():
+        assert f"/og/{sid}.png?" in meta(build.file_of(path).name)["og:image"]
+
+
+def test_404_is_never_shared():
+    t = meta("404.html")
+    assert t.get("robots") == "noindex"
+    assert "og:image" not in t
+    assert "canonical" not in t
 
 
 if __name__ == "__main__":

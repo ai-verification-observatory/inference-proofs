@@ -11,25 +11,27 @@
 
   // ------------------------------------------------------------ row pies: the slice under the pointer lifts,
   // and its property's name and state show under the pie (positioned: nothing moves). The others keep their ink.
+  // The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
   $$('.row .pie').forEach((pie) => {
     const tip = $('.tip', pie);
     let hot = 0;
-    const set = (sl) => {
-      const n = sl ? +sl.dataset.n : 0;
+    const set = (n) => {
       if (n === hot) return;
       hot = n;
       if (!n) { delete pie.dataset.hot; return; }
       pie.dataset.hot = n;
-      if (tip) {
+      const sl = $(`.sl.s${n}`, pie);
+      if (tip && sl) {
         const b = document.createElement('b');
         b.textContent = sl.dataset.name;
         const sw = document.createElement('i');
-        sw.className = `sw ${[...sl.classList].find((c) => ['yes', 'partly', 'no', 'unstated'].includes(c)) || ''}`;
+        // the slice's state class (yes, partly, no, unstated) is the one besides sl, sN
+        sw.className = `sw ${[...sl.classList].find((c) => c !== 'sl' && !/^s\d$/.test(c)) || ''}`;
         tip.replaceChildren(b, sw, document.createTextNode(sl.dataset.word));
       }
     };
-    pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(ev.target.closest('.sl')); });
-    pie.addEventListener('pointerleave', () => set(null));
+    pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });
+    pie.addEventListener('pointerleave', () => set(0));
   });
 
   // ------------------------------------------------------------ sorting the benchmarked tables by their column heads
@@ -105,21 +107,17 @@
     setSort(`${col}-${dir}`, { announce: true });
   }));
 
-  // the hash: #sort=proof_size-asc
+  // the hash: #sort=proof_size-asc; no hash at all is the default order (Back to a page without one)
   const readHash = (animate) => {
-    const h = decodeURIComponent(location.hash.slice(1));
+    let h = location.hash.slice(1);
+    try { h = decodeURIComponent(h); } catch (_) { /* a malformed escape: read the hash as it is */ }
+    if (h === '') { setSort(DEFAULT, { animate, hash: false }); return; }
     if (!/^sort=/.test(h)) return;
     const want = h.slice(5);
     setSort(want, { animate, hash: false });
     if (`${state.col}-${state.dir}` !== want) writeHash(); // an unknown order in the link: name the one shown
   };
-  // the draft-criteria link scrolls to the footer without replacing the order kept in the hash
-  $$('a[href="#criteria"]').forEach((a) => a.addEventListener('click', (ev) => {
-    const t = $('#criteria');
-    if (!t || !/^sort=/.test(location.hash.slice(1))) return;
-    ev.preventDefault();
-    t.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth' });
-  }));
   readHash(false);
   addEventListener('hashchange', () => readHash(true));
+  addEventListener('popstate', () => readHash(true));
 })();
