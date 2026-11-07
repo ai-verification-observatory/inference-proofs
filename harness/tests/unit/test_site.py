@@ -27,7 +27,7 @@ from typing import Any
 
 import pytest
 
-from fixtures.placeholder_release import build_site
+from fixtures.placeholder_release import FREEZE_DATE, REVIEW_WINDOW, build_site
 from iproofs.site import renderer, reply_html
 from iproofs.site.view import site_view
 
@@ -202,9 +202,7 @@ def test_release_page(site: Build) -> None:
     for x in release["superseded_runs"]:
         assert x["run_id"] in said
         assert x["reason"] in said
-    window = release["review_window"]
-    assert f"{window['opens']} to {window['closes']}" in said
-    assert release["freeze_date"] in said
+    _release_dates(release, said)
     assert f"/tree/{release['rfc_commit']}/rfcs" in text
     assert release["reference_file"] in said
     for card in release["claim_cards"]:
@@ -213,6 +211,35 @@ def test_release_page(site: Build) -> None:
     for system in release["replies"]:
         assert f'href="/{system}#reply"' in text
     assert ('href="/targets"' in text) == bool(site.view["targets"])
+
+
+def _release_dates(release: dict[str, Any], said: str) -> None:
+    """While the release is a candidate its dates are the placeholder fixture's, not the
+    release's, so the page says they are not set and prints none of them (AGENTS.md rule 5);
+    once it is published, the review window and the freeze date `release.yaml` sets."""
+    window = release["review_window"]
+    if release["candidate"]:
+        assert f"not set: {release['id']} is not frozen (#146)" in said
+        for value in (FREEZE_DATE, *REVIEW_WINDOW.values(), release["freeze_date"],
+                      window["opens"], window["closes"]):  # fmt: skip
+            assert value not in said, value
+    else:
+        assert f"{window['opens']} to {window['closes']}" in said
+        assert release["freeze_date"] in said
+
+
+def test_release_dates_once_published(extras: Build) -> None:
+    """Once a tracked file records the release's publication, `/release` prints its review
+    window and freeze date, and `/sponsors` its sponsor list, from `release.yaml`."""
+    build = renderer(ROOT)
+    view = json.loads(json.dumps(extras.view))
+    view["release"]["candidate"] = False
+    build.setup(view, extras.out)
+    _release_dates(view["release"], flat(build.draw.release.build_release()))
+    sponsors = plain(build.draw.release.build_sponsors())
+    assert "not frozen" not in sponsors
+    if not view["release"]["sponsors"]:
+        assert f"No sponsor is listed for release {view['release']['id']}." in sponsors
 
 
 def test_sponsors_and_conflicts(site: Build) -> None:
@@ -227,9 +254,13 @@ def test_sponsors_and_conflicts(site: Build) -> None:
         assert f"organisation: {m['organisation']}" in said
         assert f"declared interests: {m['interests']}" in said
     sponsors = plain(text[text.index('id="sponsors"') : text.index('id="conflicts"')])
-    for x in site.view["release"]["sponsors"]:
+    release = site.view["release"]
+    if release["candidate"]:  # the placeholder's list is a fixture's, not the release's
+        assert f"No sponsor list yet: {release['id']} is not frozen (#146)." in sponsors
+        return
+    for x in release["sponsors"]:
         assert x["name"] in sponsors
-    if not site.view["release"]["sponsors"]:
+    if not release["sponsors"]:
         assert "No sponsor is listed" in sponsors
 
 
@@ -415,41 +446,85 @@ def _property_claims(
     else:  # OVR-8: the stated state in words, not drawn
         assert '<i class="sw ' not in body
         assert f"Stated: {WORD[state]}" in said, (system, p["id"])
-    quotes = cell["quotes"] if cell["conflict"] else cell["quotes"][:1]
-    for q in quotes:  # verbatim, with its source at the pin
-        assert q["text"] in html.unescape(body), (system, p["id"])
-        assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
-        assert f"{q['repo']}@{q['commit'][:8]}" in said, (system, p["id"])
-    if not cell["quotes"]:
-        _sources_read(system, cell["sources_read"], said)
+    _quotes_printed(system, p, cell, body, said)
+    if not cell["quotes"] and cell["sources_read"]:
+        _sources_read(site, system, p, said)
     if pc is None or pc["withheld"]:
         assert 'class="ec"' not in body, (system, p["id"])
         assert 'class="ex"' not in body, (system, p["id"])
         return
     mapped = pc["properties"][p["id"]]["mapped"]
-    if not mapped:
-        assert "No control tests this property" in said
+    if not mapped:  # OVR-7: the page says no RFC-0008 control tests the property
+        assert "controls none rule" in plain(body), (system, p["id"])
     for cid in mapped:
         assert cid in said, (system, cid)
     for run in pc["runs"] if mapped else []:  # every run read, under every mapped property
         assert run["run_id"] in said, (system, p["id"], run["run_id"])
-    if not pc["runs"] and mapped:
-        assert f"{', '.join(mapped)}: not run" in said
+    if not pc["runs"] and mapped:  # no run read says why, never "not run" (OVR-5)
+        assert f"{', '.join(mapped)}: no run read, since " in said, (system, p["id"])
+        assert "not run" not in said, (system, p["id"])
     if cell.get("stated"):
-        assert f"Stated {WORD[cell['stated']]}" in said
+        assert f"stated {WORD[cell['stated']]}" in plain(body)
         for x in cell["contradicted_by"]:
             assert f"{x['control']} accepted in run {x['run_id']}" in said
 
 
-def _sources_read(system: str, sources: list[dict[str, Any]], said: str) -> None:
-    """RFC-0016 ST-2: what was read for a Not stated cell, in criteria/1 form: a repository at
-    a full commit with its paths, or a web page with its retrieval date."""
-    for source in sources:
+def _quotes_printed(
+    system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
+) -> None:
+    """S1 item 1: the quote marked `decides` (every quote of a conflict), verbatim, with its
+    source at the pin; a stated cell always prints one; a quote that does not decide is not
+    printed."""
+    state = cell["state"]
+    deciding = [q for q in cell["quotes"] if q.get("decides")]
+    quotes = cell["quotes"] if cell["conflict"] else deciding
+    if state != "not_stated":
+        assert quotes, (system, p["id"])  # a stated cell prints the quote it rests on
+    for q in [q for q in cell["quotes"] if q not in quotes]:  # a non-deciding quote: not printed
+        assert q["text"] not in html.unescape(body), (system, p["id"])
+    for q in quotes:  # verbatim, with its source at the pin
+        assert q["text"] in html.unescape(body), (system, p["id"])
+        assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
+        assert f"{q['repo']}@{q['commit'][:8]}" in said, (system, p["id"])
+
+
+def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> None:
+    """RFC-0016 ST-2: a Not stated cell lists what was read, each repository linked at its
+    commit; a list equal to one printed above it on the page names that property instead."""
+    cells = site.view["criteria"]["rows"][system]["cells"]
+    text = site.pages[f"{system}.html"]
+    order = re.findall(r'<li class="rp [rl]" id="p-([a-z_]+)"', text)
+    mine = cells[p["id"]]["sources_read"]
+    earlier = [q for q in order[: order.index(p["id"])]
+               if not cells[q]["quotes"] and cells[q]["sources_read"] == mine]  # fmt: skip
+    if earlier:
+        name = next(x["name"] for x in site.view["criteria"]["properties"] if x["id"] == earlier[0])
+        assert f"as for {name}" in said, (system, p["id"])
+        assert f'href="#p-{earlier[0]}"' in text
+        return
+    for source in mine:  # criteria/1: a repository at a full commit, or a web page
         if "repo" in source:
-            assert f"{source['repo']}@{source['commit'][:8]}" in said, (system, source)
             assert ", ".join(source["paths"]) in said, (system, source)
+            tree = f"https://github.com/{source['repo']}/tree/{source['commit']}"
+            assert tree in text, (system, source)
         else:
             assert f"retrieved {source['retrieved']}" in said, (system, source)
+
+
+def test_stated_cell_needs_its_deciding_quote() -> None:
+    """S1 item 1, AGENTS.md rule 9: the quote printed is the one marked `decides`, wherever it
+    sits in the cell; a stated cell with none, or a printed quote with no repo, commit or url,
+    stops the build instead of printing a state with nothing under it."""
+    shown = renderer(ROOT).draw.claims.shown_quotes
+    q = {"repo": "o/r", "commit": "a" * 40, "url": "https://github.com/o/r", "text": "t"}
+    other = {**q, "text": "u", "decides": False}
+    cell = {"state": "yes", "conflict": False, "quotes": [other, {**q, "decides": True}]}
+    assert shown("s", "p", cell) == [{**q, "decides": True}]
+    with pytest.raises(RuntimeError, match="no deciding quote"):
+        shown("s", "p", {**cell, "quotes": [other]})
+    with pytest.raises(RuntimeError, match="no repo, commit or url"):
+        shown("s", "p", {**cell, "quotes": [{"text": "t", "decides": True}]})
+    assert shown("s", "p", {"state": "not_stated", "conflict": False, "quotes": []}) == []
 
 
 def _strings(value: object) -> list[str]:
@@ -691,13 +766,25 @@ def test_unexpected_control_printed_in_full(site: Build) -> None:
                 assert anchor not in text
                 assert anchor not in release
                 continue
-            block = text[text.index(f'id="{anchor}"') : text.index("</dl>", text.index(anchor))]
+            start = text.index(f'id="{anchor}"')
+            block = text[start : text.index("</dl>", text.index("<dt>record</dt>", start))]
             said = flat(block)
             stored = u["stored"]
             assert f"control{u['control']}" in said.replace(" ", "") or u["control"] in said
             for word in (u["run_id"], stored["side"], stored["source"], u["record"]):
                 assert word in said, word
             assert len(re.findall(r"<dt>trial</dt>", block)) == len(stored["trials"])
+            for t in stored["trials"]:  # every field of each trial, the mutation included
+                for key in t:
+                    assert f"<dt>{key}</dt>" in block, key
+                assert t["raw_last_line"] in html.unescape(block)
+                for k, v in t["mutation"].items():
+                    assert f"<dt>{k}</dt>" in block, k
+                    assert str(v) in said, (k, v)
+                if not t["mutation"]:
+                    assert "<dt>mutation</dt><dd>none</dd>" in block
+            for key in set(stored) - {"id", "trials", "twin", "expected"}:
+                assert f"<dt>{key}</dt>" in block, key
             assert f'href="/{cfg["system"]}#{anchor}"' in release
             assert text.index('id="h-tamper"') < text.index(f'id="{anchor}"')
             seen += 1

@@ -28,9 +28,12 @@ def rows_dl(rows, cls="tlab"):
     return f'<dl class="{cls}">{items}</dl>'
 
 
-def section(sid, title, body):
+def section(sid, title, body, small=False):
+    """A section of a release page; small: a heading in the small size, for a section of a line
+    or two under a title that already names it."""
+    cls = "sect sm" if small else "sect"
     return (f'<section class="blk" id="{e(sid)}" aria-labelledby="h-{e(sid)}">'
-            f'<h2 id="h-{e(sid)}" class="sect">{e(title)}</h2>{body}</section>')  # fmt: skip
+            f'<h2 id="h-{e(sid)}" class="{cls}">{e(title)}</h2>{body}</section>')  # fmt: skip
 
 
 def file_link(path):
@@ -58,10 +61,22 @@ def run_status(run, left):
     return "completed", ""
 
 
+def not_frozen():
+    """While the release is a candidate, the words for a fact only its frozen `release.yaml`
+    sets: until #146 the deployed pages are built from the placeholder release, whose dates and
+    sponsors are a test fixture's, not the release's (web/README.md §Data)."""
+    return f"not set: {S.V['release']['id']} is not frozen (#146)"
+
+
 def release_facts():
     rel = S.V["release"]
     rfc = rel["rfc_commit"]
     window = rel["review_window"]
+    if rel["candidate"]:
+        freeze, review = e(not_frozen()), e(not_frozen())
+    else:
+        freeze = f'<span class="nw">{e(rel["freeze_date"])}</span>'
+        review = keep(f"{window['opens']} to {window['closes']}")
     index = (file_link(rel["index"]) if not rel["candidate"]
              else f'<span class="rec">{path_html(rel["index"])}</span>')  # fmt: skip
     cards = "".join(
@@ -80,12 +95,11 @@ def release_facts():
     )
     rows = [
         ("release", e(rel["id"] + (" (candidate)" if rel["candidate"] else ""))),
-        ("freeze date", f'<span class="nw">{e(rel["freeze_date"])}</span>'),
-        ("review window", keep(f"{window['opens']} to {window['closes']}")),
+        ("freeze date", freeze),
+        ("review window", review),
         (
-            "methodology",
-            f'<a href="{e(S.REPO_URL)}/tree/{e(rfc)}/rfcs">rfcs/ at '
-            f'<span class="nw">@{e(rfc[:8])}</span>{EXT}</a>',
+            "RFCs",
+            f'<a href="{e(S.REPO_URL)}/tree/{e(rfc)}/rfcs">rfcs/<span class="nw">@{e(rfc[:8])}</span>{EXT}</a>',
         ),
         ("reference file", file_link(rel["reference_file"])),
         ("harness", e(rel["harness_version"])),
@@ -102,18 +116,24 @@ def release_facts():
 
 
 def runs_listed():
-    """Every run the release lists, in its order, with its status and record."""
+    """Every run the release lists, grouped by system and setup (workload and profile) in the
+    order the release first lists each, each run by its id with its status and record."""
     left = {x["run_id"]: x for c in S.CONFIGS for x in c["runs"]["left_out"]}
-    rows = []
+    groups = {}
     for run in S.V["release"]["runs"]:
-        status, more = run_status(run, left)
-        where = keep(f"{run['workload']} · {run['profile']}") + (f"; {more}" if more else "")
-        rows.append((status, f'<span class="rid">{run_ref(run["run_id"], run["record"])}</span>'
-                             f'<span class="rw">{where}</span>'))  # fmt: skip
+        groups.setdefault((run["system"], run["workload"], run["profile"]), []).append(run)
+    body = ""
+    for (sid, workload, profile), runs in groups.items():
+        rows = []
+        for run in runs:
+            status, more = run_status(run, left)
+            rows.append((status, f'<span class="rid">{run_ref(run["run_id"], run["record"])}</span>'
+                                 + (f'<span class="rw">{more}</span>' if more else "")))  # fmt: skip
+        body += (f'<p class="rgh">{e(name_of(sid))} · {keep(f"{workload} · {profile}")}</p>'
+                 + rows_dl(rows, "tlab runs"))  # fmt: skip
     withdrawn = S.V["release"]["superseded_runs"]
-    body = rows_dl(rows, "tlab runs")
     if withdrawn:
-        body += '<h3 class="sect sm">Withdrawn</h3>' + rows_dl(
+        body += '<p class="rgh">Withdrawn</p>' + rows_dl(
             [(x["run_id"], e(x["reason"])) for x in withdrawn], "tlab runs")  # fmt: skip
     return body
 
@@ -193,6 +213,8 @@ def build_sponsors():
         sp = rows_dl([(x["name"], e(f"{x['provided']} · {x['period']}")) for x in sponsors])
     else:
         sp = f'<p class="lead">No sponsor is listed for release {e(rel["id"])}.</p>'
+    if rel["candidate"]:  # the placeholder's list is a fixture's, not the release's (not_frozen)
+        sp = f'<p class="lead">No sponsor list yet: {e(rel["id"])} is not frozen (#146).</p>'
     people = [
         (m["handle"], keep(" · ".join([m["role"], f"organisation: {m['organisation']}",
                                        f"systems: {m['systems']}",
@@ -209,8 +231,8 @@ def build_sponsors():
 <main id="main" class="sys relpage">
   {band("Sponsors and conflicts")}
   <div class="wrap">
-    {section("sponsors", "Sponsors", sp)}
-    {section("conflicts", "Conflicts", conflicts)}
+    {section("sponsors", "Sponsors", sp, small=True)}
+    {section("conflicts", "Conflicts", conflicts, small=True)}
   </div>
 </main>
 {footer()}"""

@@ -4,7 +4,15 @@ facts, figures and tamper tests), the reference page, the criteria page and the 
 
 from . import state as S
 from .chrome import CRIT_PAGE, footer, header, page
-from .claims import card_fact, card_full, evidence, gap_block, property_controls_of, run_ref
+from .claims import (
+    card_fact,
+    card_full,
+    card_value,
+    evidence_of,
+    gap_block,
+    property_controls_of,
+    run_ref,
+)
 from .hexagon import hex_svg, key_mini
 from .overview import model_line, plate_prefix, shape_words
 from .plates import (
@@ -241,7 +249,7 @@ def left_out(cfg):
         if x["replaced_by"]:
             why = "; ".join(r.split(": ", 1)[1] if ": " in r else r for r in x["reasons"])
             by = f"replaced by {run_ref(x['replaced_by'], x['replaced_by_record'])}"
-            rows.append(("superseded", x["run_id"], x["record"], f"{by}; {e(why)}"))
+            rows.append(("superseded", x["run_id"], x["record"], f"{e(why)}; {by}"))
         else:
             rows.append(("left out", x["run_id"], x["record"], e("; ".join(x["reason_words"]))))
     if not rows:
@@ -289,13 +297,44 @@ def config_figures(cfg, name, one):
     return body if one else f'<div class="cfgfigs" id="{e(row_id(cfg))}">{body}</div>'
 
 
+TRIAL_KEYS = (
+    "seed_index",
+    "outcome",
+    "verdict",
+    "raw_exit_code",
+    "raw_last_line",
+    "seconds",
+    "mutation",
+)  # the stored order of a trial's fields, as printed (schema controls/1)
+SHOWN = {"id", "outcome", "expected", "side", "source", "twin", "trials", "note"}
+
+
+def trial_html(t):
+    """One stored trial in full: every field under its stored name, the mutation as its own
+    keys and values or "none" when it holds none (RFC-0008 §Reporting: "in full")."""
+    keys = [*(k for k in TRIAL_KEYS if k in t), *(k for k in t if k not in TRIAL_KEYS)]
+    rows = []
+    for k in keys:
+        v = t[k]
+        if k == "outcome":
+            v = OUTCOME_SHORT[v]
+        if k == "raw_last_line":
+            shown_ = f"“{e(v)}”"
+        elif isinstance(v, dict) and not v:
+            shown_ = "none"
+        else:
+            shown_ = card_value(v)
+        rows.append(f"<div><dt>{e(k)}</dt><dd>{shown_}</dd></div>")
+    return f'<dl class="cn">{"".join(rows)}</dl>'
+
+
 def unexpected_full(cfg):
     """RFC-0008 §Reporting: each outcome outside its control's expected set, printed in full
-    from its stored record, with the record it comes from."""
+    from its stored record (every field, each trial with its mutation and raw last line), with
+    the record it comes from."""
     out = ""
     for u in cfg["unexpected"]:
         rec = u["stored"] or {}
-        trials = rec.get("trials") or []
         kv = [
             ("control", e(u["control"])),
             ("run", run_ref(u["run_id"], None)),
@@ -304,18 +343,12 @@ def unexpected_full(cfg):
             ("side", e(rec.get("side"))),
             ("source", e(rec.get("source"))),
         ]
-        if rec.get("twin"):
-            tw = rec["twin"]
-            kv.append(
-                ("honest twin", e(f"verdict {tw['verdict']}, exit code {tw['raw_exit_code']}"))
-            )
-        for t in trials:
-            line = f"seed {t['seed_index']}: {OUTCOME_SHORT[t['outcome']]}, verdict {t['verdict']}, exit code {t['raw_exit_code']}"
-            if t.get("raw_last_line"):
-                line += f', last line: "{t["raw_last_line"]}"'
-            kv.append(("trial", e(line)))
-        if rec.get("note"):
-            kv.append(("note", e(rec["note"])))
+        tw = rec.get("twin")
+        kv.append(("honest twin", e(f"verdict {tw['verdict']}, exit code {tw['raw_exit_code']}")
+                   if tw else "none"))  # fmt: skip
+        kv += [(k, card_value(v)) for k, v in rec.items() if k not in SHOWN]
+        kv += [("trial", trial_html(t)) for t in rec.get("trials") or []]
+        kv.append(("note", e(rec["note"]) if rec.get("note") else "none"))
         kv.append(("record", record_html(u["record"]) if u["record"] else "not in this release"))
         rows = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
         out += (f'<dl class="tlab unexp" id="unexpected-{e(u["control"])}-{e(u["run_id"])}">'
@@ -346,7 +379,7 @@ def claims_section(sid, cfgs, g, facts):
     (folded) and its quality gap and residual beside the agreement rate; before any figure."""
     cfg = cfgs[0]
     pc = property_controls_of(cfgs)
-    ev = {p["id"]: evidence(sid, p["id"], pc) for p in S.PROPS}
+    ev = evidence_of(sid, pc, [c["prop"] for c in g["cells"]])
     name = name_of(sid)
     return (
         f'<section class="claims" id="claims-{e(cfg["configuration"])}" aria-labelledby="h-props">'

@@ -8,6 +8,9 @@ Every word printed here is the system's own (quotes, card fields), the criteria 
 a stored outcome or a fixed word for a stored id: nothing is inferred.
 """
 
+import json
+import re
+
 from . import state as S
 from .plates import (
     EXT,
@@ -30,6 +33,24 @@ from .words import (
 
 # ------------------------------------------------------------------ one property's evidence
 
+GITHUB_BLOB = re.compile(
+    r"https://github\.com/([^/]+/[^/]+)/blob/([0-9a-f]{7,40})/([^#?]+)(?:\?[^#]*)?(?:#(L\d+(?:-L\d+)?))?"
+)
+
+
+def pin_label(url):
+    """A source link's words: repository@commit (8 hex), path and lines, as a quote's source
+    reads; a link that is no GitHub file at a commit keeps its path words (`source_label`)."""
+    m = GITHUB_BLOB.match(url)
+    if not m:
+        return source_label(url)
+    return " ".join(x for x in (f"{m[1]}@{m[2][:8]}", m[3], m[4]) if x)
+
+
+def source_link(url, prefix=""):
+    """A small underlined link to a source at its pin (`.qsrc`)."""
+    return f'<a class="qsrc" href="{e(url)}">{path_html(prefix + pin_label(url))}{EXT}</a>'
+
 
 def quote_source(q):
     """A quote's source at the pin: repository@commit, path and lines, linked at that commit."""
@@ -39,24 +60,52 @@ def quote_source(q):
 
 
 def quote_html(q):
-    """The quote, verbatim, with its source under it."""
+    """The quote, verbatim (its line breaks kept, words.css `.eq p`), with its source under it."""
     return (
         f'<blockquote class="eq"><p>“{e(q["text"])}”</p></blockquote>'
         f'<p class="es">{quote_source(q)}</p>'
     )
 
 
-def sources_read(items):
-    """RFC-0016 ST-2: what was read for a Not stated cell (criteria/1 `sources_read`), each
-    repository at its commit with the paths read, each web page with its retrieval date."""
+def shown_quotes(sid, prop, cell):
+    """S1 item 1: the quote the state rests on (`decides: true`), or every quote of a conflicting
+    cell (RFC-0016 ST-8). A stated cell with no deciding quote, or a printed quote with no
+    repository, commit or link, stops the build: a state is never printed without its source
+    (AGENTS.md rule 9)."""
+    quotes = cell["quotes"] if cell["conflict"] else [q for q in cell["quotes"] if q.get("decides")]
+    if cell["state"] != "not_stated" and not quotes:
+        raise RuntimeError(f"criteria {sid}/{prop}: state {cell['state']} with no deciding quote")
+    for q in quotes:
+        if not all(q.get(k) for k in ("repo", "commit", "url")):
+            raise RuntimeError(f"criteria {sid}/{prop}: a printed quote has no repo, commit or url")
+    return quotes
+
+
+def ev_line(cls, label, body):
+    """One line of a property's evidence: a quiet label ("read", "controls", "stated") in its own
+    column, the text beside it (words.css `.er`, `.ec`, `.ex`)."""
+    return f'<p class="{cls}"><span class="ek">{label}</span><span class="eb">{body}</span></p>'
+
+
+def sources_read(items, same_as=None):
+    """RFC-0016 ST-2: what was read for a Not stated cell, one line per repository, which links
+    the repository's tree at that commit. A list equal to an earlier property's names that
+    property instead of printing it twice."""
+    if same_as:
+        prop = next(p for p in S.PROPS if p["id"] == same_as)
+        return ev_line("er", "read", f'as for <a class="qsrc" href="#p-{e(same_as)}">'
+                                     f'<span class="seg">{e(prop["name"])}</span></a>')  # fmt: skip
     parts = []
-    for s in items:
+    for s in items:  # criteria/1: a repository at a full commit with its paths, or a web page
         if "repo" in s:
-            head = f"{s['repo']}@{s['commit'][:8]}"
-            parts.append(f"{path_html(head)}: {e(', '.join(s['paths']))}")
+            head = path_html(f"{s['repo']}@{s['commit'][:8]}")
+            url = f"https://github.com/{s['repo']}/tree/{s['commit']}"
+            parts.append(f'<span class="rd"><a class="qsrc" href="{e(url)}">{head}{EXT}</a> '
+                         f'{e(", ".join(s["paths"]))}</span>')  # fmt: skip
         else:
-            parts.append(f"{path_html(source_label(s['url']))} retrieved {e(s['retrieved'])}")
-    return f'<p class="er"><span class="ek">Read</span> {"; ".join(parts)}</p>'
+            parts.append(f'<span class="rd">{source_link(s["url"])} retrieved '
+                         f"{e(s['retrieved'])}</span>")  # fmt: skip
+    return ev_line("er", "read", "".join(parts))
 
 
 def run_ref(rid, record):
@@ -64,18 +113,27 @@ def run_ref(rid, record):
     return record_html(record, rid) if record else path_html(rid)
 
 
+def no_run_read():
+    """Why a card row reads no run (RFC-0016 OVR-5): the criteria file names no release, or the
+    release it names lists no run of the card."""
+    release = S.CRIT.get("release")
+    if release is None:
+        return "no run read, since the criteria file names no release (RFC-0016 OVR-5)"
+    return f"no run read, since release {release} and those before it list no run of this card (RFC-0016 OVR-5)"
+
+
 def control_lines(pc, prop):
     """RFC-0016 OVR-7: each control the map ties to the property, with its outcome in every run
     read, one line per run that recorded any of them (linked to its `controls.json`), then the
-    runs that recorded none, named in one line ("not run"). A property no control is tied to
-    says so. With no run read (the criteria file names no release, OVR-5), every mapped control
-    reads "not run"."""
+    runs that recorded none, named in one line ("not run"). One form for every case: "controls",
+    then the ids or "none", then what the runs say. With no run read (OVR-5), the line says why,
+    so it never reads as a run that skipped them."""
     entry = pc["properties"][prop]
     if not entry["mapped"]:
-        return f'<p class="ec">{with_rule("No control tests this property (RFC-0008).")}</p>'
+        return ev_line("ec", "controls", with_rule("none (RFC-0008)"))
     ids = ", ".join(entry["mapped"])
     if not pc["runs"]:
-        return f'<p class="ec"><span class="ek">Controls</span> {e(ids)}: not run</p>'
+        return ev_line("ec", "controls", f"{e(ids)}: {with_rule(readable(no_run_read()))}")
     out, silent = [], []
     for run in pc["runs"]:
         found = [o for o in entry["outcomes"] if o["run_id"] == run["run_id"]]
@@ -88,17 +146,12 @@ def control_lines(pc, prop):
             if o.get("note") and o["outcome"] in ("not_applicable", "void", "error"):
                 w += f" ({o['note']})"
             said.append(f'<span class="nw">{e(o["control"])}</span> {e(w)}')
-        out.append(
-            f'<p class="ec">{", ".join(said)} <span class="ek">in run</span> '
-            f"{run_ref(run['run_id'], run['controls'])}</p>"
-        )
+        out.append(ev_line("ec", "controls", f"{', '.join(said)} in run "
+                                             f"{run_ref(run['run_id'], run['controls'])}"))  # fmt: skip
     if silent:
         runs = ", ".join(run_ref(r["run_id"], r["record"]) for r in silent)
         word = "run" if len(silent) == 1 else "runs"
-        out.append(
-            f'<p class="ec"><span class="ek">Controls</span> {e(ids)}: not run '
-            f'<span class="ek">in {word}</span> {runs}</p>'
-        )
+        out.append(ev_line("ec", "controls", f"{e(ids)}: not run in {word} {runs}"))
     return "".join(out)
 
 
@@ -110,24 +163,36 @@ def contradicted_lines(cell, pc, prop):
     found = pc["properties"][prop]["contradicted"] if pc and not pc["withheld"] else []
     runs = "; ".join(f'<span class="nw">{e(x["control"])}</span> accepted in run '
                      f"{run_ref(x['run_id'], x['record'])}" for x in found)  # fmt: skip
-    return (f'<p class="ex"><span class="ek">Stated</span> {e(STATE_WORD[cell["stated"]])}'
-            f'{"; contradicted by " + runs if runs else ""}</p>')  # fmt: skip
+    return ev_line("ex", "stated", e(STATE_WORD[cell["stated"]])
+                   + ("; contradicted by " + runs if runs else ""))  # fmt: skip
 
 
-def evidence(sid, prop, pc):
-    """What one property's state rests on, under its reason: the deciding quote (both, in a
-    conflict), or the sources read; the stated state of an overridden cell and what contradicts
-    it; the mapped controls' outcomes. Under a pending disclosure (OVR-8, `pc` withheld) the
-    quotes only."""
+def evidence(sid, prop, pc, same_as=None):
+    """What one property's state rests on, under its reason: the deciding quote (every quote, in
+    a conflict), or the sources read (`same_as`: an earlier property that read the same); the
+    stated state of an overridden cell and what contradicts it; the mapped controls' outcomes.
+    Under a pending disclosure (OVR-8, `pc` withheld) the quotes only."""
     cell = S.CRIT["rows"][sid]["cells"][prop]
-    quotes = cell["quotes"]
-    shown = quotes[:1] if not cell["conflict"] else quotes
-    body = "".join(quote_html(q) for q in shown if q.get("repo"))
-    if not quotes and cell["sources_read"]:
-        body += sources_read(cell["sources_read"])
+    body = "".join(quote_html(q) for q in shown_quotes(sid, prop, cell))
+    if not cell["quotes"] and cell["sources_read"]:
+        body += sources_read(cell["sources_read"], same_as)
     if pc is not None and not pc["withheld"]:
         body += contradicted_lines(cell, pc, prop) + control_lines(pc, prop)
     return f'<div class="ev">{body}</div>' if body else ""
+
+
+def evidence_of(sid, pc, order):
+    """Each property's evidence (`evidence`), by property id; `order`: the property ids in the
+    order the page prints them, so a Not stated cell whose sources read equal an earlier one's
+    names the one printed above it."""
+    out, seen = {}, {}
+    for prop in order:
+        cell = S.CRIT["rows"][sid]["cells"][prop]
+        key = json.dumps(cell["sources_read"], sort_keys=True) if not cell["quotes"] else None
+        out[prop] = evidence(sid, prop, pc, seen.get(key) if key else None)
+        if key:
+            seen.setdefault(key, prop)
+    return out
 
 
 # ------------------------------------------------------------------ the card: identity, in full, gap
@@ -151,41 +216,53 @@ def card_fact(cfg):
 SCALAR = {None: "null", True: "true", False: "false"}
 
 
-def card_value(v):
-    """One card value as stored: text, a link for a source URL, a list one item per line, a
-    mapping as its own keys and values."""
-    if isinstance(v, str):
-        if v.startswith("https://"):
-            return f'<a class="qsrc" href="{e(v)}">{path_html(source_label(v))}{EXT}</a>'
-        return e(v)
-    if v is None or isinstance(v, bool):
-        return SCALAR[v]
-    if isinstance(v, list):
-        items = "".join(f"<li>{card_value(x)}</li>" for x in v)
-        return f'<ul class="cl">{items}</ul>' if v else "none"
-    if isinstance(v, dict):
-        rows = "".join(f"<div><dt>{e(k)}</dt><dd>{card_value(x)}</dd></div>" for k, x in v.items())
-        return f'<dl class="cn">{rows}</dl>'
-    return e(v)
-
-
-def field_sources(body, field):
-    """The card's `sources` entries for one field (`relation`, `relation.segment`...), linked."""
+def own_sources(path, children, sources):
+    """The card's `sources` entries for the field at `path` (`relation`, `security.notion`,
+    `residual.1`): its own key, and any deeper key that names no child of the field, labelled
+    with the rest of its key. A child's entries are printed under that child."""
     out = []
-    for key, url in (body.get("sources") or {}).items():
-        if key == field or key.startswith(field + "."):
-            sub = key[len(field) + 1 :]
-            label = (f"{sub}: " if sub else "") + source_label(url)
-            out.append(f'<a class="qsrc" href="{e(url)}">{path_html(label)}{EXT}</a>')
-    return f'<p class="es">{" ".join(out)}</p>' if out else ""
+    for key, url in sources.items():
+        if key == path:
+            out.append(source_link(url))
+        elif key.startswith(path + "."):
+            rest = key[len(path) + 1 :]
+            if rest.split(".", 1)[0] not in children:
+                out.append(source_link(url, f"{rest}: "))
+    return f'<p class="es">{"".join(out)}</p>' if out else ""
+
+
+def card_value(v, path="", sources=None):
+    """One card value as stored, with its sources (the card's `sources` keyed by `path`): text,
+    a link for a source URL, a list one item per line, a mapping as its own keys and values.
+    A field's own sources follow a text value and head a list or mapping, above its items."""
+    sources = sources or {}
+    if isinstance(v, list):
+        own = own_sources(path, {str(i) for i in range(len(v))}, sources)
+        items = "".join(
+            f"<li>{card_value(x, f'{path}.{i}', sources)}</li>" for i, x in enumerate(v)
+        )
+        return own + (f'<ul class="cl">{items}</ul>' if v else "none")
+    if isinstance(v, dict):
+        own = own_sources(path, set(v), sources)
+        rows = "".join(f"<div><dt>{e(k)}</dt><dd>{card_value(x, f'{path}.{k}', sources)}</dd></div>"
+                       for k, x in v.items())  # fmt: skip
+        return own + (f'<dl class="cn">{rows}</dl>' if v else "none")
+    if isinstance(v, str) and v.startswith("https://"):
+        text = source_link(v)
+    elif v is None or isinstance(v, bool):
+        text = SCALAR[v]
+    else:
+        text = e(v)
+    return text + own_sources(path, set(), sources)
 
 
 def card_full(cfg, sid):
     """S1 item 4: the claim card in full, each field with its sources, folded in a native
     `details` that opens with one press, with or without script."""
     body = cfg["card"]["body"]
+    sources = body.get("sources") or {}
     rows = "".join(
-        f"<div><dt>{e(k)}</dt><dd>{card_value(v)}{field_sources(body, k)}</dd></div>"
+        f"<div><dt>{e(k)}</dt><dd>{card_value(v, k, sources)}</dd></div>"
         for k, v in body.items()
         if k != "sources"
     )
@@ -197,21 +274,24 @@ def card_full(cfg, sid):
 
 
 def gap_items(body, field):
-    """`quality_gap` or `residual` as the card states it, with its sources; "not stated" where
-    the card holds no such field (AGENTS.md rule 9)."""
+    """`quality_gap` or `residual` as the card states it, each item with its source under it;
+    "not stated" where the card holds no such field (AGENTS.md rule 9)."""
     v = body.get(field)
     if not v:
         return "not stated"
+    sources = body.get("sources") or {}
     if field == "quality_gap":
         items = "".join(
             f"<li>{e(x['metric'])}: {e(x['value'])}"
-            + (f' <a class="qsrc" href="{e(x["source"])}">{path_html(source_label(x["source"]))}{EXT}</a>'
-               if x.get("source") else "")
+            + (f'<p class="es">{source_link(x["source"])}</p>' if x.get("source") else "")
             + "</li>"
             for x in v
-        )  # fmt: skip
-        return f'<ul class="cl">{items}</ul>'
-    return card_value(v) + field_sources(body, field)
+        )
+        return (
+            own_sources(field, {str(i) for i in range(len(v))}, sources)
+            + f'<ul class="cl">{items}</ul>'
+        )
+    return card_value(v, field, sources)
 
 
 def agreement_plate(cfg, label):
@@ -234,13 +314,14 @@ def agreement_plate(cfg, label):
 
 
 def gap_block(cfgs):
-    """S1 item 5: open, after the card, its `quality_gap` and `residual` with the agreement
-    rate on a plate beside them, where the release reports one (RFC-0015 RC-6)."""
+    """S1 item 5: open, after the card, its `quality_gap` and `residual` under a label of their
+    own, with the agreement rate on a plate beside them, where the release reports one
+    (RFC-0015 RC-6)."""
     body = cfgs[0]["card"]["body"]
     gap = (
-        '<dl class="facts gapf">'
+        '<div class="gapc"><p class="lbl">Quality gap and residual</p><dl class="facts gapf">'
         f"<div><dt>quality gap</dt><dd>{gap_items(body, 'quality_gap')}</dd></div>"
-        f"<div><dt>residual</dt><dd>{gap_items(body, 'residual')}</dd></div></dl>"
+        f"<div><dt>residual</dt><dd>{gap_items(body, 'residual')}</dd></div></dl></div>"
     )
     rated = [c for c in cfgs if c["agreement"]["recorded"]]
     many = len(rated) > 1

@@ -243,7 +243,7 @@ html:not(.js) .search { display: none; }
 /* an id, a date or a model name that never breaks at its hyphen */
 .nw { white-space: nowrap; }
 .tlab { margin: 14px 0 0; font: 400 12px/1.45 var(--mono); max-width: 80ch; }
-.tlab div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
+.tlab > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
 .tlab dt { color: var(--muted); }
 .tlab dd { margin: 0; overflow-wrap: anywhere; }
 .ctl { font: 400 14px/1.45 var(--mono); max-width: 80ch; margin-top: 16px; }
@@ -284,12 +284,14 @@ html:not(.js) .search { display: none; }
 /* what a state rests on, under its reason: the deciding quote (mono, muted), its source at the pin
    (a small underlined link), the sources read, the controls tied to the property and their outcomes */
 .ev { font: 400 11.5px/1.45 var(--mono); color: var(--muted); margin-top: 8px; max-width: 46ch; text-wrap: pretty; }
-.rp.l .ev { margin-left: auto; }
+.rp.l .ev { margin-left: auto; text-align: left; }
 .eq { margin: 0; }
-.eq p { color: var(--muted); }
+.eq p { color: var(--muted); white-space: pre-line; }
 .es { display: flex; flex-wrap: wrap; column-gap: 12px; font-size: 11px; }
-.er, .ec, .ex { margin-top: 6px; }
-.ek { font-weight: 500; color: var(--paper); text-transform: uppercase; letter-spacing: .05em; font-size: 10.5px; margin-right: .4em; }
+.er, .ec, .ex { margin-top: 6px; display: grid; grid-template-columns: 10ch minmax(0, 1fr); align-items: baseline; }
+.eb { min-width: 0; }
+.ek { color: var(--muted); }
+.rd { display: block; }
 .qsrc { display: inline-block; padding-block: 4px; line-height: 16px; color: var(--muted); text-decoration: none; }
 .qsrc .seg { display: inline-block; max-width: 100%; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .qsrc:hover { color: var(--paper); }
@@ -314,12 +316,17 @@ html:not(.js) .search { display: none; }
 .cl { list-style: none; margin: 0; padding: 0; }
 .cl > li + li { margin-top: 6px; }
 .gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 56px; align-items: start; margin-top: 32px; }
-.gapf { align-self: start; }
-.gapf dd { max-width: 100ch; }
+.gapc { min-width: 0; }
+.gapc .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.gapf dd { max-width: 100ch; color: var(--muted); font-size: 11.5px; }
 .agree { display: grid; row-gap: 24px; }
 /* runs left out of the figures, and the release's runs: each id over its status */
 .runs .rid, .runs .rw { display: block; }
 .runs .rw { color: var(--muted); }
+.rgh { font: 500 12px/1.4 var(--mono); margin-top: 26px; }
+.rgh:first-of-type { margin-top: 16px; }
+.rgh + .tlab { margin-top: 6px; }
+.relpage .blk > .sect.sm { margin-top: 0; }
 .unexp { margin-top: 18px; }
 .facts.relf { max-width: 880px; margin-top: 32px; }
 .replyb { font: 400 14px/1.5 var(--mono); max-width: 70ch; margin-top: 16px; }
@@ -433,6 +440,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .facts { columns: 2; column-gap: 32px; }
   .facts div { break-inside: avoid; }
   .facts div:last-child { border-bottom: 0; }
+  .facts.gapf, .facts.relf { columns: auto; }
+  .facts.gapf > div:last-child, .facts.relf > div:last-child { border-bottom: 1px solid var(--line); }
   .gapblk { grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
   .agree { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
 }
@@ -567,7 +576,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mtab .mv .fig { justify-content: flex-end; }
   .sec { padding-top: 28px; }
   .vals { grid-template-columns: 1fr 1fr; }
-  .tlab div { grid-template-columns: 1fr; gap: 2px; }
+  .tlab > div { grid-template-columns: 1fr; gap: 2px; }
   .sysname { font-size: min(72px, 18vw); }
   .sect { font-size: 34px; }
   .refh { font-size: 44px; }
@@ -586,10 +595,10 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
   .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
   .rp .ev, .rp.l .ev { grid-column: 1 / -1; max-width: none; margin: 4px 0 0; font-size: 11px; }
-  .ev .er, .ev .ec, .ev .ex { margin-top: 10px; }
   .cf > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .cn > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .cn > div + div { margin-top: 4px; }
+  .cn .cn { padding-left: 12px; border-left: 1px solid var(--line); margin-top: 2px; }
   .cardfull { margin-top: 32px; }
   /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
   .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
