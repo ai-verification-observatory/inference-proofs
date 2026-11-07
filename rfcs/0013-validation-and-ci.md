@@ -79,7 +79,7 @@ Failures are sorted by gate, then path bytes, then pointer. After the list, a su
 
 Rule: every document in the tree that has a schema validates against the schema its `schema` field names (RFC-0012). Every `schema/*/examples/valid/*` validates; every `schema/*/examples/invalid/*` fails, and the failure text contains the content of its `.reason` file.
 
-Inputs: files matching `systems/*/claim.yaml`, `systems/*/claims/*.yaml`, `systems/*/{system,external,controls}.yaml`, `workloads/**/*.yaml`, `reference/*.yaml`, `targets/**/*.yaml`, `releases/*/release.yaml`, `releases/*/index.json`, `results/**/{run,manifest,controls}.json`, `results/**/reviews/*.json`, `results/**/reproductions/*.json`, `schema/*/examples/**`.
+Inputs: files matching `systems/*/claim.yaml`, `systems/*/claims/*.yaml`, `systems/*/{system,external,controls}.yaml`, `workloads/**/*.yaml`, `reference/*.yaml`, `targets/**/*.yaml`, `releases/*/release.yaml`, `releases/*/index.json`, `results/**/{run,manifest,controls}.json`, `results/**/reviews/*.json`, `results/**/reproductions/*.json`, `web/_data/facts.json`, `schema/*/examples/**`.
 
 Cross-document checks (also G2, rule ids `XREF-n`):
 
