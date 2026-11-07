@@ -85,6 +85,16 @@ def test_units_normalise(site):
     )
 
 
+def test_four_digits_at_any_size(site):
+    # S4: four significant digits above 9,999 too, by hand: 122,880 tokens is 1.229e5
+    b = site.build
+    assert b.sig4(122880) == "122,900"
+    assert b.sig4(12346.0) == "12,350"
+    assert b.sig4(1024) == "1,024"
+    assert b.shown(16384.0, "token") == "16,380 positions"
+    assert b.shown(12346, "ratio") == "12,350×"
+
+
 def test_sort_words(site):
     w = site.build.SORT_WORDS
     assert w["system"]["asc"] == "A to Z"

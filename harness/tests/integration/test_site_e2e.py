@@ -27,7 +27,10 @@ ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" da
 PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
 SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
+         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0,
+         # more numbers: token/s, and USD per 1,000 tokens (the row names the basis)
+         "positions/s": 1.0, "USD": 1.0}  # fmt: skip
+MORE_ROW = re.compile(r'<tr><th scope="row">.*?</tr>', re.S)
 COLUMN = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
@@ -126,6 +129,27 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
             assert close_at_4(printed(number[1], number[2]), stat["value"]), (name, found[1])
             traced += 1
     assert traced >= 12  # two systems, three measured figures, on the overview and the plates
+    more = 0
+    for name in ("flashprove.html", "sash.html"):
+        for row in MORE_ROW.findall(site[name]):
+            found = POINTER.search(re.sub(r"<[^>]+>", "", row))
+            number = NUMBER.search(row)
+            if found is None:  # a metric the runs did not record: no value and no record
+                assert number is None, (name, row)
+                assert "Not recorded in these runs." in row
+                continue
+            stat = resolve(doc, found[1])
+            if stat["value"] is None:
+                assert number is None, (name, found[1])
+                continue
+            assert number, (name, found[1])
+            value = printed(number[1], number[2])
+            assert close_at_4(value, stat["value"]), (name, found[1])
+            stats = stat["stats"]
+            spread = f"{stats['n']} completed, {stats['n_failed']} failed"
+            assert spread in re.sub(r"<[^>]+>", "", row).replace("\N{NO-BREAK SPACE}", " ")
+            more += 1
+    assert more >= 6  # two systems: proving rate, GPU cost, commit once
     for rid, keys in ROW.findall(site["index.html"]):
         position = next(i for i, c in enumerate(doc["configurations"]) if c["system"] == rid)
         statistics = doc["configurations"][position]["statistics"]

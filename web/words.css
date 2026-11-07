@@ -209,6 +209,8 @@ html:not(.js) .search { display: none; }
 .sl { transition: transform .22s var(--ease), stroke .18s; }
 .sl.yes { fill: var(--yes); } .sl.partly { fill: var(--partly); } .sl.no { fill: var(--no); }
 .sl.unstated { fill: var(--unstated); }
+/* a row under a pending disclosure draws no state (RFC-0016 OVR-8): the slots' outlines only */
+.sl.none { fill: none; stroke: var(--rule); stroke-width: 1px; }
 /* each slice's lift direction, the bisector of its wedge (build.py checks these against the geometry) */
 .s1 { --dx: 0.5; --dy: -0.866; }
 .s2 { --dx: 1; --dy: 0; }
