@@ -68,9 +68,11 @@ def row_html(rid, name, g, href, idle, right, table=False, keys=None):
     cells = g["cells"] if g["drawn"] else None
     cell = f' role="rowheader" aria-labelledby="{e(rid)}-name"' if table else ""
     hid = f' id="{e(rid)}-name"' if table else ""
-    attrs = ""
-    if table:
-        attrs = f' role="row" data-name="{e(name.lower())}" data-k="{e(json.dumps(keys, separators=(",", ":")))}"'
+    attrs = ' role="row"' if table else ""
+    if table and keys is not None:  # a sortable table's row: its name and sort keys (S4, S5)
+        attrs += (
+            f' data-name="{e(name.lower())}" data-k="{e(json.dumps(keys, separators=(",", ":")))}"'
+        )
     return f'''
 <div class="row" id="{e(rid)}"{attrs}>
   <div class="r-main">
@@ -83,14 +85,13 @@ def row_html(rid, name, g, href, idle, right, table=False, keys=None):
 </div>'''
 
 
-def figures(cfg, base, table, block=None, who=""):
-    """The four figures of a home row; each links to its own plate, at base + "-" + its column, or
-    all to one block (a reference's figures, short enough to show whole with its name)."""
+def figures(cfg, base, table, who=""):
+    """The four figures of a home row; each links to its own plate, at base + "-" + its column."""
     cell = ' role="cell"' if table else ""
     return (
         '<div class="vals">'
         + "".join(
-            f'<div class="vc"{cell} data-col="{c}">{value_link(cfg, c, block or f"{base}-{c}", who)}</div>'
+            f'<div class="vc"{cell} data-col="{c}">{value_link(cfg, c, f"{base}-{c}", who)}</div>'
             for c in COLS
         )
         + "</div>"
@@ -220,6 +221,11 @@ def plate_prefix(cfg):
     return f"{row_id(cfg)}-fig-"
 
 
+def claims_href(cfg):
+    """A row header's link: the validated claims of the row's card on its system page (S1)."""
+    return f"{S.PAGE[cfg['system']]}#claims-{cfg['configuration']}"
+
+
 def fig_href(cfg, col):
     """An overview figure's plate on the system page."""
     return f"{S.PAGE[cfg['system']]}#{plate_prefix(cfg)}{col}"
@@ -253,7 +259,7 @@ def build_index():
                 row_id(r),
                 name_of(r["system"]),
                 glyph(r["system"]),
-                S.PAGE[r["system"]],
+                claims_href(r),
                 pin_line(r, rows),
                 '<div class="vals">'
                 + "".join(
@@ -285,7 +291,8 @@ def build_index():
             glyph(rid),
             f"{REF_PAGE}#{rid}",
             f'<p class="wl"><span>{e(kind_words(rid))}</span></p>{counts}',
-            figures(cfg, "", False, block=f"{REF_PAGE}#{rid}-figures", who=name_of(rid)),
+            figures(cfg, f"{REF_PAGE}#{rid}-fig", True, who=name_of(rid)),
+            True,
         )
     nb_count = len(S.V["orders"]["not_benchmarked"])
     body = f"""
@@ -297,8 +304,10 @@ def build_index():
   <p id="sort-now" hidden>{e(first)}</p>
   <section class="sec refs" id="references" aria-labelledby="h-refs">
     <div class="sec-h"><h2 id="h-refs" class="sect">References</h2></div>
+    <div role="table" aria-labelledby="h-refs">
     {plain_heads("Reference")}
     {refs}
+    </div>
   </section>
   <section class="sec" id="not-yet" aria-labelledby="h-nb">
     <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet<sup aria-hidden="true">{nb_count}</sup><span class="sr">, {nb_count} systems</span></h2></div>
@@ -318,9 +327,10 @@ def build_index():
 
 
 def plain_heads(first):
-    """Column heads for a block that does not sort: the same columns, for the eye only."""
+    """Column heads for a table that does not sort: the same columns, not pressable (S9: each
+    cell has one column header)."""
     return (
-        f'<div class="heads plain" aria-hidden="true"><span class="hsys">{e(first)}</span>'
-        + "".join(f"<span>{e(HEAD[c])}</span>" for c in COLS)
+        f'<div class="heads plain" role="row"><span class="hsys" role="columnheader">{e(first)}</span>'
+        + "".join(f'<span role="columnheader">{e(HEAD[c])}</span>' for c in COLS)
         + "</div>"
     )

@@ -2,10 +2,9 @@
 facts, figures and tamper tests), the reference page, the criteria page and the 404 page.
 """
 
-import re
-
 from . import state as S
 from .chrome import CRIT_PAGE, footer, header, page
+from .claims import card_fact, card_full, evidence, gap_block, property_controls_of, run_ref
 from .hexagon import hex_svg, key_mini
 from .overview import model_line, plate_prefix, shape_words
 from .plates import (
@@ -22,17 +21,21 @@ from .plates import (
     path_html,
     plate,
     readable,
+    record_html,
     row_id,
     runs_counts,
-    runs_line,
     source_html,
+    source_label,
     upstream,
     with_rule,
     words,
 )
 from .words import (
     ACCEPTED_WHY,
+    FAIL_KIND,
+    FAIL_STEP,
     FAMILY_WORD,
+    OUTCOME_SHORT,
     OUTCOME_VERB,
     OUTCOME_WORDS,
     PENDING,
@@ -57,9 +60,10 @@ from .words import (
 SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 
 
-def rose_item(c, pre, drawn=True):
+def rose_item(c, pre, drawn=True, ev=""):
     """One property beside its slice: its name (a link to what its states mean), its question for
-    screen readers, the state, and our short reason (left out when it only repeats Not stated)."""
+    screen readers, the state, our short reason (left out when it only repeats Not stated) and,
+    on a system page, what the state rests on (`ev`, draw/claims.py)."""
     generic = (
         c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
     )
@@ -71,17 +75,18 @@ def rose_item(c, pre, drawn=True):
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
         f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
-        f"{state}{reason}</li>"
+        f"{state}{reason}{ev}</li>"
     )
 
 
-def rose(g, hid, name, level=2, pre=""):
+def rose(g, hid, name, level=2, pre="", ev=None):
     """The pie, centred, with each property beside its own slice. level: the hidden heading's level
-    under the page's own; pre: an id prefix when one page holds several roses."""
+    under the page's own; pre: an id prefix when one page holds several roses; ev: each
+    property's evidence by property id (system pages)."""
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
         f'<div class="rpie" role="img" aria-label="{e(aria(g, name, outside=True))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in g["cells"]])}</div>'
-        f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre, g["drawn"]) for c in g["cells"])}</ol></div>'
+        f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre, g["drawn"], (ev or {}).get(c["prop"], "")) for c in g["cells"])}</ol></div>'
     )
 
 
@@ -144,15 +149,6 @@ def tamper_words(cfg):
         if said
         else "No tampering test ran on this setup."
     )
-
-
-def source_label(url):
-    """A link's words: the file path and lines a GitHub blob URL names."""
-    m = re.match(
-        r"https://github\.com/[^/]+/[^/]+/blob/[0-9a-f]+/([^#?]+)(?:\?[^#]*)?(?:#(L\d+(?:-L\d+)?))?",
-        url,
-    )
-    return f"{m[1]} {m[2]}" if m and m[2] else (m[1] if m else url)
 
 
 def control_tests(cfg):
@@ -226,10 +222,59 @@ def config_where(cfg):
     )
 
 
+def left_out(cfg):
+    """S7: every run of the configuration its figures leave out, each by its id with its record:
+    a failed run with its failure kind, step, exit code and last line; a superseded run with its
+    reason and the run that replaces it; an ineligible run with its reasons. Named in words."""
+    runs = cfg["runs"]
+    rows = []
+    for f in runs["failed"]:
+        parts = [
+            FAIL_KIND[f["kind"]] + (f" {FAIL_STEP[f['step']]}" if f["step"] in FAIL_STEP else "")
+        ]
+        if f["exit_code"] is not None:
+            parts.append(f"exit code {f['exit_code']}")
+        if f["last_line"]:
+            parts.append(f'last line: "{f["last_line"]}"')
+        rows.append(("failed", f["run_id"], f["record"], e("; ".join(parts))))
+    for x in runs["left_out"]:
+        if x["replaced_by"]:
+            why = "; ".join(r.split(": ", 1)[1] if ": " in r else r for r in x["reasons"])
+            by = f"replaced by {run_ref(x['replaced_by'], x['replaced_by_record'])}"
+            rows.append(("superseded", x["run_id"], x["record"], f"{by}; {e(why)}"))
+        else:
+            rows.append(("left out", x["run_id"], x["record"], e("; ".join(x["reason_words"]))))
+    if not rows:
+        return ""
+    items = "".join(f'<div><dt>{e(k)}</dt><dd><span class="rid">{run_ref(rid, rec)}</span>'
+                    f'<span class="rw">{why}</span></dd></div>' for k, rid, rec, why in rows)  # fmt: skip
+    return f'<dl class="tlab runs" aria-label="Runs left out of these figures">{items}</dl>'
+
+
+def runs_lead(cfg):
+    """What the figures are over (S7), and how many runs they leave out, by kind."""
+    runs = cfg["runs"]
+    n = len(runs["completed"])
+    said = [f"Runs of this setup: {n} completed"]
+    out = []
+    if runs["failed"]:
+        out.append(f"{len(runs['failed'])} failed")
+    sup = sum(1 for x in runs["left_out"] if x["replaced_by"])
+    if sup:
+        out.append(f"{sup} superseded")
+    other = len(runs["left_out"]) - sup
+    if other:
+        out.append(f"{other} left out")
+    if out:
+        said.append(f"not counted: {', '.join(out)}")
+    return "; ".join(said) + ". Each number below is over the completed runs."
+
+
 def config_figures(cfg, name, one):
-    """One configuration's figures: what they are over, a plate per overview column, the other
-    figures in a table. one: the system has one configuration, so the section heading already
-    names the model and shape; otherwise a heading names the configuration first."""
+    """One configuration's figures: what they are over and the runs left out (S7), a plate per
+    overview column, the other figures in a table. one: the system has one configuration, so
+    the section heading already names the model and shape; otherwise a heading names the
+    configuration first."""
     head = ""
     if not one:
         rid = row_id(cfg)
@@ -237,26 +282,87 @@ def config_figures(cfg, name, one):
                 f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p></div>')  # fmt: skip
     plates = "".join(plate(cfg, c, plate_prefix(cfg)) for c in COLS)
     body = (
-        f'{head}<p class="lead">{e(runs_line(cfg))}</p>'
+        f'{head}<p class="lead">{e(runs_lead(cfg))}</p>{left_out(cfg)}'
         f'<div class="plates plates-sys">{plates}</div>'
         f"{more_table(cfg, f'More numbers for {name}, with spread, scope, grade, checked step and source')}"
     )
     return body if one else f'<div class="cfgfigs" id="{e(row_id(cfg))}">{body}</div>'
 
 
+def unexpected_full(cfg):
+    """RFC-0008 §Reporting: each outcome outside its control's expected set, printed in full
+    from its stored record, with the record it comes from."""
+    out = ""
+    for u in cfg["unexpected"]:
+        rec = u["stored"] or {}
+        trials = rec.get("trials") or []
+        kv = [
+            ("control", e(u["control"])),
+            ("run", run_ref(u["run_id"], None)),
+            ("outcome", e(OUTCOME_SHORT[u["outcome"]])),
+            ("expected", e(", ".join(OUTCOME_SHORT[x] for x in rec.get("expected") or []))),
+            ("side", e(rec.get("side"))),
+            ("source", e(rec.get("source"))),
+        ]
+        if rec.get("twin"):
+            tw = rec["twin"]
+            kv.append(
+                ("honest twin", e(f"verdict {tw['verdict']}, exit code {tw['raw_exit_code']}"))
+            )
+        for t in trials:
+            line = f"seed {t['seed_index']}: {OUTCOME_SHORT[t['outcome']]}, verdict {t['verdict']}, exit code {t['raw_exit_code']}"
+            if t.get("raw_last_line"):
+                line += f', last line: "{t["raw_last_line"]}"'
+            kv.append(("trial", e(line)))
+        if rec.get("note"):
+            kv.append(("note", e(rec["note"])))
+        kv.append(("record", record_html(u["record"]) if u["record"] else "not in this release"))
+        rows = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
+        out += (f'<dl class="tlab unexp" id="unexpected-{e(u["control"])}-{e(u["run_id"])}">'
+                f"{rows}</dl>")  # fmt: skip
+    return out
+
+
 def config_tamper(cfg, drawn):
-    """One configuration's controls: each stored outcome count, then the system's own controls;
-    under a pending disclosure only the RFC-0008 notice (RFC-0016 OVR-8)."""
+    """One configuration's controls: each stored outcome count, every outcome outside its
+    expected set in full, then the system's own controls; under a pending disclosure only the
+    RFC-0008 notice (RFC-0016 OVR-8)."""
     where = (
         f'<dl class="tlab"><div><dt>configuration</dt><dd>{keep(config_where(cfg))}</dd></div></dl>'
     )
     if not drawn:
         return f'<p class="tamper">{with_rule(PENDING_TAMPER)}</p>{where}'
-    return f'<p class="tamper">{e(tamper_words(cfg))}</p>{where}{control_tests(cfg)}'
+    return (f'<p class="tamper">{e(tamper_words(cfg))}</p>{where}{unexpected_full(cfg)}'
+            f"{control_tests(cfg)}")  # fmt: skip
 
 
 def system_desc(sid):
     return f"{name_of(sid)}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels."
+
+
+def claims_section(sid, cfgs, g, facts):
+    """S1: the card's validated claims (the pie, and per property its state, reason, quote or
+    sources read, and control outcomes), its identity among the facts, the card in full
+    (folded) and its quality gap and residual beside the agreement rate; before any figure."""
+    cfg = cfgs[0]
+    pc = property_controls_of(cfgs)
+    ev = {p["id"]: evidence(sid, p["id"], pc) for p in S.PROPS}
+    name = name_of(sid)
+    return (
+        f'<section class="claims" id="claims-{e(cfg["configuration"])}" aria-labelledby="h-props">'
+        f'<div class="over" id="properties">{rose(g, "h-props", name, ev=ev)}{facts_dl(facts)}</div>'
+        f"{card_full(cfg, sid)}{gap_block(cfgs)}</section>"
+    )
+
+
+def reply_section(sid):
+    """§Right of reply: the system maintainers' reply, unedited, escaped at build."""
+    reply = S.V["release"]["replies"].get(sid)
+    if not reply:
+        return ""
+    return (f'<section class="blk reply" id="reply" aria-labelledby="h-reply">'
+            f'<h2 id="h-reply" class="sect">Reply from the system maintainers</h2>'
+            f'<div class="replyb">{reply}</div></section>')  # fmt: skip
 
 
 def build_system(sid):
@@ -268,6 +374,7 @@ def build_system(sid):
     row = S.V["facts"]["rows"][sid]
     models = list(dict.fromkeys(model_line(c) for c in cfgs))
     facts = [
+        ("card", card_fact(cfg)),
         ("kind", keep(words(f"{FAMILY_WORD[S.CRIT['rows'][sid]['family']]}: {row['technique']}"))),
         ("model" if len(models) == 1 else "models", keep(" · ".join(models))),
         ("pinned", f'<span class="links">{pinned(cfg)}</span>'),
@@ -278,17 +385,14 @@ def build_system(sid):
     shape = (f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p>'
              if one else "")  # fmt: skip
     notice = "" if g["drawn"] else f'<p class="lead notice">{with_rule(PENDING)}</p>'
-    body = f'''
+    body = f"""
 {header(sid)}
 <main id="main" class="sys">
   <section class="mast mast-sys" aria-labelledby="h-name">
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(name)}</span></h1></div>
   </section>
   <div class="wrap">
-    {notice}<section class="over" id="properties" aria-label="{e(name)}: properties and facts">
-      {rose(g, "h-props", name)}
-      {facts_dl(facts)}
-    </section>
+    {notice}{claims_section(sid, cfgs, g, facts)}
     <section class="blk" id="figures" aria-labelledby="h-figs">
       <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2>{shape}</div>
       {"".join(config_figures(c, name, one) for c in cfgs)}
@@ -297,9 +401,10 @@ def build_system(sid):
       <h2 id="h-tamper" class="sect">Tamper tests</h2>
       {"".join(config_tamper(c, g["drawn"]) for c in cfgs)}
     </section>
+    {reply_section(sid)}
   </div>
 </main>
-{footer()}'''
+{footer()}"""
     return page(
         name,
         system_desc(sid),

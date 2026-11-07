@@ -3,15 +3,14 @@
 `glyph` turns a criteria row into the six cells the pages draw. The text helpers reword criteria
 phrases (`PHRASES`), keep numbers with their units (`readable`) and turn RFC rule codes into links
 (`with_rule`, which stops the build on a code that names no RFC). `cell_words` and `plate` print
-one figure with every label (S2, S3); `runs_line` says what the figures are over (S7).
+one figure with every label (S2, S3); `runs_counts` says what a configuration with no
+figure ran (S3, S7).
 """
 
 import re
 
 from . import state as S
 from .words import (
-    FAIL_KIND,
-    FAIL_STEP,
     STATE_WORD,
     e,
     gpu_words,
@@ -276,6 +275,25 @@ def link_or_text(text, href):
     return with_rule(text)
 
 
+def source_label(url):
+    """A link's words: the file path and lines a GitHub blob URL names."""
+    m = re.match(
+        r"https://github\.com/[^/]+/[^/]+/blob/[0-9a-f]+/([^#?]+)(?:\?[^#]*)?(?:#(L\d+(?:-L\d+)?))?",
+        url,
+    )
+    return f"{m[1]} {m[2]}" if m and m[2] else (m[1] if m else url)
+
+
+def record_html(path, words=None):
+    """A record of the release (a run's `run.json` or `controls.json`): a link to the file once
+    the release is published, its path as text while it is a candidate, since no tracked file
+    holds it yet (#146; as the figures' `index.json` pointers). words: the link's text, when not
+    the path (a run id)."""
+    if not S.V["release"]["candidate"]:
+        return f'<a href="{e(blob(path))}">{path_html(words or path)}{EXT}</a>'
+    return f'<span class="rec">{path_html(words or path)}</span>'
+
+
 def blob(path):
     """A file of this repository, at the commit the site links (RFC-0009 S1, #320 plan §1.1)."""
     return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
@@ -383,32 +401,3 @@ def runs_counts(cfg):
     if runs["not_measurable"]:
         parts.append(f"not measurable on {gpu_words(cfg)} (RFC-0015 NM-1)")
     return " · ".join(parts)
-
-
-def runs_line(cfg):
-    """S7: what the figures are over, and every kept run not counted, with its failure record."""
-    runs = cfg["runs"]
-    out = [f"Runs of this setup: {len(runs['completed'])} completed"]
-    if runs["failed"]:
-        n = len(runs["failed"])
-        said = []
-        for f in runs["failed"]:
-            parts = [
-                FAIL_KIND[f["kind"]]
-                + (f" {FAIL_STEP[f['step']]}" if f["step"] in FAIL_STEP else "")
-            ]
-            if f["exit_code"] is not None:
-                parts.append(f"exit code {f['exit_code']}")
-            if f["last_line"]:
-                parts.append(f'last line: "{f["last_line"]}"')
-            said.append("; ".join(parts))
-        out.append(f"{n} failed and {'is' if n == 1 else 'are'} not counted ({'; '.join(said)})")
-    superseded = [x for x in runs["left_out"] if x["replaced_by"]]
-    other = [x for x in runs["left_out"] if not x["replaced_by"]]
-    if superseded:
-        why = "; ".join(r.split(": ", 1)[1] if ": " in r else r
-                        for x in superseded for r in x["reasons"])  # fmt: skip
-        out.append(f"{len(superseded)} superseded and replaced ({why})")
-    if other:
-        out.append(f"{len(other)} left out ({'; '.join(r for x in other for r in x['reasons'])})")
-    return "; ".join(out) + ". Each number below is over the completed runs."

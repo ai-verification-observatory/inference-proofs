@@ -19,6 +19,13 @@ from .words import STATE_CLS, STATE_ORDER, STATE_WORD, e
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
 REF_PAGE = "/reference"  # one page for the reference systems
 CRIT_PAGE = "/criteria"  # the criteria behind the six states
+RELEASE_PAGE = "/release"  # the release record (RFC-0009 §Release record)
+SPONSORS_PAGE = "/sponsors"  # sponsors and conflicts of interest (PRD §7 N4)
+TARGETS_PAGE = "/targets"  # relying parties' targets, only when the release evaluates one
+
+
+def has_targets():
+    return bool(S.V["targets"])
 
 
 def file_of(path):
@@ -142,18 +149,20 @@ def criteria_label():
 
 
 def footer():
+    """Every page's footer: the criteria and their file, then the release (its page, its
+    `index.json` as text until it is published, #146), sponsors and conflicts and the licence."""
     head, _, rfc = criteria_label()
     rel = S.V["release"]
-    line = (
-        f"Release {rel['id']}"
-        + (" (candidate)" if rel["candidate"] else "")
-        + f" · licence {rel['licence']}"
-    )
+    index = (f'<a class="nw" href="{e(S.REPO_URL)}/blob/{S.LINK_REF}/{e(rel["index"])}">index.json</a>'
+             if not rel["candidate"] else f'<span class="nw">{e(rel["index"])}</span>')  # fmt: skip
+    name = f"Release {rel['id']}" + (" (candidate)" if rel["candidate"] else "")
+    licence = readable(f"licence {rel['licence']}").replace("CC BY 4.0", "CC\u00a0BY\u00a04.0")
     return (
         f'<footer class="foot"><p><a href="{CRIT_PAGE}">{e(head)}</a>'
         f' (<a class="nw" href="{e(S.REPO_URL)}/blob/{S.RFC_REF}/rfcs/{S.RFC_FILES[rfc]}">RFC-{rfc}</a>)'
         f'\u00a0· <a href="{e(S.REPO_URL)}/blob/main/{e(S.CRIT["path"])}">criteria.json</a> sha256 <code>{S.crit_sha[:12]}</code></p>'
-        f"<p>{e(readable(line).replace('CC BY 4.0', 'CC\u00a0BY\u00a04.0'))}</p></footer>"
+        f'<p><a class="nw" href="{RELEASE_PAGE}">{e(name)}</a>\u00a0· {index}'
+        f'\u00a0· <a class="nw" href="{SPONSORS_PAGE}">Sponsors and conflicts</a>\u00a0· {e(licence)}</p></footer>'
     )
 
 

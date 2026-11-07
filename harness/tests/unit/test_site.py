@@ -4,11 +4,11 @@ Page tests run over two builds: the placeholder release with every test-only cas
 never deployed) and the committed `web/` pages (the deployed build, `extras=False`), each with
 the view it was printed from. A check that needs a test-only case skips on `web/` and says so.
 
-Where RFC-0009 §Site lists a gap for #320 that its second pull request closes (system page
-validated claims, card identity and card in full, run ids and links, per-configuration sections,
-the References table's roles, the footer links), the test says so in its docstring and checks
-what the pages hold today. Renamed tests (RFC-0009 §Testing Strategy): `test_display_rounding`
-is `test_sort_key_is_stored_value`, `test_no_aggregate_score_column` is `test_no_ranking`,
+Gaps RFC-0009 §Site still lists (S6 table headings on the overview and the Not benchmarked yet
+note, which wait for the owner's sign-off on the overview's look; links to records once #146
+publishes the release) are named in the docstring of the test they touch. Renamed tests
+(RFC-0009 §Testing Strategy): `test_display_rounding` is `test_sort_key_is_stored_value`,
+`test_no_aggregate_score_column` is `test_no_ranking`,
 `test_superseded_and_ineligible_struck_through` is `test_runs_left_out_listed`,
 `test_no_script_tags_required` is `test_reads_without_script`.
 
@@ -28,7 +28,7 @@ from typing import Any
 import pytest
 
 from fixtures.placeholder_release import build_site
-from iproofs.site import reply_html
+from iproofs.site import renderer, reply_html
 from iproofs.site.view import site_view
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -80,6 +80,13 @@ def plain(text: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(text).replace("\N{NO-BREAK SPACE}", " ")).strip()
 
 
+def flat(text: str) -> str:
+    """Text of an HTML fragment with its tags dropped in place, so a path split into parts for
+    line breaks reads whole."""
+    text = re.sub(r"<[^>]+>", "", text)
+    return re.sub(r"\s+", " ", html.unescape(text).replace("\N{NO-BREAK SPACE}", " ")).strip()
+
+
 def _build(root: Path, *, extras: bool) -> tuple[Path, dict[str, Any]]:
     out = build_site(root / "repo", root / "out", extras=extras)
     return out, site_view(root / "repo")
@@ -126,7 +133,8 @@ def system_configs(build: Build, system: str) -> list[dict[str, Any]]:
     configuration line; every configuration of the system in the view, each once."""
     text = build.pages[f"{system}.html"]
     out: list[dict[str, Any]] = []
-    for named in re.findall(r"<dt>configuration</dt><dd>(.*?)</dd>", text, re.S):
+    where = r'<dl class="tlab"><div><dt>configuration</dt><dd>(.*?)</dd>'
+    for named in re.findall(where, text, re.S):
         configuration, workload, _, profile = plain(named).split(" · ")
         found = [c for c in build.view["configurations"] if c["system"] == system
                  and (c["configuration"], c["workload"]["id"], c["profile"])
@@ -155,18 +163,93 @@ def more_rows(text: str) -> list[str]:
 
 
 def test_page_set_and_footer(site: Build) -> None:
-    """Page table: the overview, one page per benchmarked system, the references, the criteria
-    and Not found; every footer names the release and links the criteria page. The release,
-    sponsors and conflicts and targets pages and the footer links to them and to `index.json`
-    are RFC-0009 §Site gaps for #320 (its second pull request; the index waits for #146)."""
-    want = {"index.html", "reference.html", "criteria.html", "404.html"}
+    """Page table: the overview, one page per benchmarked system, the references, the criteria,
+    the release, sponsors and conflicts, Targets only when the release evaluates a target, and
+    Not found; every footer names the release and links the release page, the sponsors and
+    conflicts page and the criteria page, and names the release's `index.json`: as text while
+    the release is a candidate (no tracked file records its publication, #146), else a link."""
+    want = {"index.html", "reference.html", "criteria.html", "release.html", "sponsors.html",
+            "404.html"}  # fmt: skip
     want |= {f"{s}.html" for s in site.view["orders"]["benchmarked"]}
-    assert want <= set(site.pages)
-    release = site.view["release"]["id"]
+    if site.view["targets"]:
+        want.add("targets.html")
+    assert set(site.pages) == want
+    assert bool(site.view["targets"]) == (site.kind == "extras")
+    release = site.view["release"]
     for name, text in site.pages.items():
         foot = text[text.index('<footer class="foot">') :]
-        assert f"Release {release}" in plain(foot), name
-        assert 'href="/criteria"' in foot, name
+        assert f"Release {release['id']}" in plain(foot), name
+        for href in ("/criteria", "/release", "/sponsors"):
+            assert f'href="{href}"' in foot, (name, href)
+        assert release["index"] in plain(foot), name
+        assert release["candidate"]  # until #146 the index is named, not linked
+        assert f"/{release['index']}" not in foot, name
+    if site.kind == "web":
+        vercel = json.loads((site.out / "vercel.json").read_text())
+        assert vercel["cleanUrls"] is True
+        assert "*.html" in vercel["buildCommand"]
+
+
+def test_release_page(site: Build) -> None:
+    """Page table, Release: every run the release lists, by id, with its status; the superseded
+    and withdrawn runs with their reasons; the review window, freeze date, RFC commit, reference
+    file, claim cards with their digests, and replies."""
+    text = site.pages["release.html"]
+    said = flat(text)
+    release = site.view["release"]
+    for run in release["runs"]:
+        assert run["run_id"] in said, run["run_id"]
+    for x in release["superseded_runs"]:
+        assert x["run_id"] in said
+        assert x["reason"] in said
+    window = release["review_window"]
+    assert f"{window['opens']} to {window['closes']}" in said
+    assert release["freeze_date"] in said
+    assert f"/tree/{release['rfc_commit']}/rfcs" in text
+    assert release["reference_file"] in said
+    for card in release["claim_cards"]:
+        assert card["path"] in said
+        assert card["digest"].removeprefix("sha256:")[:12] in said
+    for system in release["replies"]:
+        assert f'href="/{system}#reply"' in text
+    assert ('href="/targets"' in text) == bool(site.view["targets"])
+
+
+def test_sponsors_and_conflicts(site: Build) -> None:
+    """Page table, Sponsors and conflicts: the sponsors `release.yaml` lists, then every row of
+    `MAINTAINERS.md` with its organisation and declared interests, in separate sections."""
+    text = site.pages["sponsors.html"]
+    assert text.index('id="sponsors"') < text.index('id="conflicts"')
+    said = plain(text[text.index('id="conflicts"') :])
+    assert site.view["maintainers"]
+    for m in site.view["maintainers"]:
+        assert m["handle"] in said
+        assert f"organisation: {m['organisation']}" in said
+        assert f"declared interests: {m['interests']}" in said
+    sponsors = plain(text[text.index('id="sponsors"') : text.index('id="conflicts"')])
+    for x in site.view["release"]["sponsors"]:
+        assert x["name"] in sponsors
+    if not site.view["release"]["sponsors"]:
+        assert "No sponsor is listed" in sponsors
+
+
+def test_targets_page(site: Build) -> None:
+    """Page table, Targets (only when the release evaluates one): each target with its author,
+    and each row it was evaluated against with its result, mean and least favourable value,
+    each value with its labels and its record in the index."""
+    if not site.view["targets"]:
+        assert "targets.html" not in site.pages
+        pytest.skip("the deployed release evaluates no target")
+    text = site.pages["targets.html"]
+    said = flat(text)
+    for t in site.view["targets"]:
+        assert t["author"]["name"] in said
+        assert t["id"] in said
+        for r in t["results"]:
+            for key in ("mean", "least_favourable"):
+                assert f"#/targets/{r['position']}/{key}" in said
+    for label in ("scope: ", "grade: ", "checked: ", "spread: "):
+        assert label in said
 
 
 def test_every_number_has_labels(site: Build) -> None:
@@ -208,17 +291,22 @@ def test_every_number_has_labels(site: Build) -> None:
 
 def test_glyph_before_numbers(site: Build) -> None:
     """S1: on every page each row's header, holding its glyph, precedes the row's first figure;
-    a system row's header links its system page and a reference's glyph its entry on
-    `/reference`. The `#claims-<configuration>` target is an RFC-0009 §Site gap for #320."""
+    a system row's header links the validated claims of its card on the system page
+    (`/<system>#claims-<configuration>`, an anchor that page holds once) and a reference's glyph
+    its entry on `/reference`."""
     index = site.pages["index.html"]
     rows = ROW.findall(index)
     assert rows
     for rid, _, _, body in rows:
-        system = row_config(site.view, rid)["system"]
+        cfg = row_config(site.view, rid)
+        system, anchor = cfg["system"], f"claims-{cfg['configuration']}"
         assert body.index('class="pie"') < body.index('class="vc"'), rid
-        assert f'<a href="/{system}">' in body[: body.index('class="vc"')], rid
+        head = body[: body.index('class="vc"')]
+        assert f'<a href="/{system}#{anchor}">' in head, rid
+        assert f'<a class="pie" href="/{system}#{anchor}"' in head, rid
+        assert site.pages[f"{system}.html"].count(f'id="{anchor}"') == 1, rid
     for ref in site.view["orders"]["reference"]:
-        row = index[index.index(f'<div class="row" id="{ref}">') :]
+        row = index[index.index(f'<div class="row" id="{ref}"') :]
         assert row.index('class="pie"') < row.index('class="vc"'), ref
         assert f'href="/reference#{ref}"' in row[: row.index('class="vc"')], ref
     for system in site.view["orders"]["benchmarked"]:
@@ -273,22 +361,95 @@ def test_claim_card_before_numbers(site: Build) -> None:
 
 
 def _validated_claims(site: Build, system: str) -> None:
-    """A system page's validated claims precede every figure, each state as its word; under a
-    pending disclosure the stated state in words, not drawn (OVR-8)."""
-    criteria, props = site.view["criteria"]["rows"], site.view["criteria"]["properties"]
+    """S1 on a system page, in DOM order: the validated claims (per property its state, reason,
+    deciding quote with its source at the pin, or the sources read; both quotes of a conflict;
+    each mapped control in every run read, or "not run"), the card's identity with its file
+    and digest, the card in full in a `details` element folded in the HTML as sent, then
+    `quality_gap` and `residual` with the agreement rate outside it; all before every figure.
+    Under a pending disclosure the stated state in words, not drawn, and no control (OVR-8)."""
+    props = site.view["criteria"]["properties"]
     text = site.pages[f"{system}.html"]
-    assert text.index('class="rprops"') < text.index('class="fig"'), system
-    cells = criteria[system]["cells"]
+    configs = system_configs(site, system)
+    cfg = configs[0]
+    card = cfg["card"]
+    first_figure = re.search(r'class="plate" id="[^"]*fig-', text).start()  # type: ignore[union-attr]
+    claims = text.index(f'id="claims-{cfg["configuration"]}"')
+    identity = text.index(f'href="{card["link"]}"')
+    folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
+    gap = text.index('class="gapblk"')
+    assert claims < text.index('class="rprops"') < identity < folded < gap < first_figure
+    assert text.index('class="rprops"') < text.index('class="fig"')
+    assert "<details open" not in text  # folded as sent (S1 item 4)
+    details = text[folded : text.index("</details>", folded)]
+    for field in card["body"]:
+        if field != "sources":
+            assert f"<dt>{field}</dt>" in details, field
+    assert card["digest"].removeprefix("sha256:")[:12] in plain(text[identity:folded])
+    assert ("card not reviewed by system maintainers" in plain(text[identity:folded])) == (
+        not card["reviewed"])  # fmt: skip
+    after = plain(text[gap:first_figure])
+    assert "quality gap" in after
+    assert "residual" in after
+    if cfg["agreement"]["recorded"]:  # RFC-0015 RC-6: the rate beside them, outside the fold
+        assert 'class="plate" id="agree-' in text[gap:first_figure]
+    pc = next((c["property_controls"] for c in configs if c.get("property_controls")), None)
     for p in props:
-        item = re.search(rf'<li class="rp [rl]" id="p-{p["id"]}".*?</li>', text, re.S)
-        assert item, (system, p["id"])
-        state = cells[p["id"]]["state"]
-        if criteria[system]["drawn"]:
-            assert '<p class="rs"><i class="sw ' in item[0]
-            assert WORD[state] in plain(item[0]), (system, p["id"])
-        else:  # OVR-8: the stated state in words, not drawn
-            assert '<i class="sw ' not in item[0]
-            assert f"Stated: {WORD[state]}" in plain(item[0]), (system, p["id"])
+        _property_claims(site, system, p, pc)
+
+
+def _property_claims(
+    site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None
+) -> None:
+    """One property of a system page's validated claims (`_validated_claims`)."""
+    criteria = site.view["criteria"]["rows"]
+    text = site.pages[f"{system}.html"]
+    cells = criteria[system]["cells"]
+    item = re.search(rf'<li class="rp [rl]" id="p-{p["id"]}".*?</li>', text, re.S)
+    assert item, (system, p["id"])
+    body, said = item[0], flat(item[0])
+    cell = cells[p["id"]]
+    state = cell["state"]
+    if criteria[system]["drawn"]:
+        assert '<p class="rs"><i class="sw ' in body
+        assert WORD[state] in said, (system, p["id"])
+    else:  # OVR-8: the stated state in words, not drawn
+        assert '<i class="sw ' not in body
+        assert f"Stated: {WORD[state]}" in said, (system, p["id"])
+    quotes = cell["quotes"] if cell["conflict"] else cell["quotes"][:1]
+    for q in quotes:  # verbatim, with its source at the pin
+        assert q["text"] in html.unescape(body), (system, p["id"])
+        assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
+        assert f"{q['repo']}@{q['commit'][:8]}" in said, (system, p["id"])
+    if not cell["quotes"]:
+        _sources_read(system, cell["sources_read"], said)
+    if pc is None or pc["withheld"]:
+        assert 'class="ec"' not in body, (system, p["id"])
+        assert 'class="ex"' not in body, (system, p["id"])
+        return
+    mapped = pc["properties"][p["id"]]["mapped"]
+    if not mapped:
+        assert "No control tests this property" in said
+    for cid in mapped:
+        assert cid in said, (system, cid)
+    for run in pc["runs"] if mapped else []:  # every run read, under every mapped property
+        assert run["run_id"] in said, (system, p["id"], run["run_id"])
+    if not pc["runs"] and mapped:
+        assert f"{', '.join(mapped)}: not run" in said
+    if cell.get("stated"):
+        assert f"Stated {WORD[cell['stated']]}" in said
+        for x in cell["contradicted_by"]:
+            assert f"{x['control']} accepted in run {x['run_id']}" in said
+
+
+def _sources_read(system: str, sources: list[dict[str, Any]], said: str) -> None:
+    """RFC-0016 ST-2: what was read for a Not stated cell, in criteria/1 form: a repository at
+    a full commit with its paths, or a web page with its retrieval date."""
+    for source in sources:
+        if "repo" in source:
+            assert f"{source['repo']}@{source['commit'][:8]}" in said, (system, source)
+            assert ", ".join(source["paths"]) in said, (system, source)
+        else:
+            assert f"retrieved {source['retrieved']}" in said, (system, source)
 
 
 def _strings(value: object) -> list[str]:
@@ -443,40 +604,49 @@ def test_native_workloads_header(site: Build) -> None:
 
 def test_runs_left_out_listed(site: Build) -> None:
     """S7: each failed repetition and each superseded or ineligible run of each configuration a
-    system page shows is listed above that configuration's figures, with its reasons, exit code
-    and last line, and is in no statistic (the completed count is over the completed runs
-    only). Run ids, links to the run record and to the replacing run are RFC-0009 §Site gaps
-    for #320 (its second pull request)."""
+    system page shows is listed above that configuration's figures, by its run id, with its
+    reasons (a failure's exit code and last line; a superseded run's replacing run), and is in
+    no statistic (the completed count is over the completed runs only). Each run's record is
+    named by its path while the release is a candidate (#146), and linked once it is published
+    (`test_run_records_link_once_published`)."""
     listed = 0
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         leads = [m.start() for m in re.finditer('<p class="lead">', text)]
-        plates = [m.start() for m in re.finditer('class="plate"', text)]
+        plates = [m.start() for m in re.finditer('class="plate" id="[^"]*fig-', text)]
         configs = system_configs(site, system)
         assert len(leads) == len(configs)
         for i, (cfg, at) in enumerate(zip(configs, leads, strict=True)):
-            # each configuration's line comes before its own plates, after the previous ones
+            # each configuration's runs come before its own plates, after the previous ones
             assert at < plates[i * len(COLS)]
             assert i == 0 or plates[i * len(COLS) - 1] < at
-            listed += _left_out_listed(cfg, plain(text[at : text.index("</p>", at)]), system)
+            block = text[at : plates[i * len(COLS)]]
+            listed += _left_out_listed(cfg, flat(block), block, system)
     assert listed >= 2  # SASH: one failed repetition, one superseded run
 
 
-def _left_out_listed(cfg: dict[str, Any], lead: str, system: str) -> int:
-    """One configuration's runs line holds each of its runs not counted (S7)."""
+def _left_out_listed(cfg: dict[str, Any], said: str, block: str, system: str) -> int:
+    """One configuration's runs line and list hold each of its runs not counted (S7)."""
     listed = 0
     runs = cfg["runs"]
-    assert f"{len(runs['completed'])} completed" in lead
+    assert f"{len(runs['completed'])} completed" in said
     for f in runs["failed"]:
+        assert f["run_id"] in said, system
         if f["exit_code"] is not None:
-            assert f"exit code {f['exit_code']}" in lead, system
+            assert f"exit code {f['exit_code']}" in said, system
         if f["last_line"]:
-            assert f["last_line"] in lead, system
+            assert f["last_line"] in said, system
         listed += 1
     for x in runs["left_out"]:
-        for reason in x["reasons"]:
-            assert reason.split(": ", 1)[-1] in lead, (system, reason)
+        assert x["run_id"] in said, system
+        if x["replaced_by"]:
+            assert f"replaced by {x['replaced_by']}" in said, system
+        for reason in x["reason_words"]:
+            assert reason.split(": ", 1)[-1] in said, (system, reason)
         listed += 1
+    if runs["failed"] or runs["left_out"]:
+        assert 'class="tlab runs"' in block
+        assert ('<span class="rec">' in block) == site_candidate(block)
     for f in cfg["figures"].values():
         if f.get("stats"):
             assert f["stats"]["n"] == len(runs["completed"]), system
@@ -484,13 +654,104 @@ def _left_out_listed(cfg: dict[str, Any], lead: str, system: str) -> int:
     return listed
 
 
+def site_candidate(block: str) -> bool:
+    """While the release is a candidate, every record is named as text, never linked."""
+    return "/results/" not in "".join(re.findall(r'href="([^"]+)"', block))
+
+
+def test_run_records_link_once_published(extras: Build) -> None:
+    """S7: once a tracked file records the release's publication, each run left out links its
+    record (and the run that replaced it) at the commit the site links."""
+    build = renderer(ROOT)
+    view = json.loads(json.dumps(extras.view))
+    view["release"]["candidate"] = False
+    build.setup(view, extras.out)
+    sash = next(c for c in view["configurations"] if c["system"] == "sash")
+    block = build.draw.pages.left_out(sash)
+    for x in [*sash["runs"]["left_out"], *sash["runs"]["failed"]]:
+        assert f'href="{view["repository"]}/blob/main/{x["record"]}"' in block, x["run_id"]
+    for x in sash["runs"]["left_out"]:
+        if x["replaced_by"]:
+            assert f'/blob/main/{x["replaced_by_record"]}"' in block
+
+
+def test_unexpected_control_printed_in_full(site: Build) -> None:
+    """RFC-0008 §Reporting: every control outcome outside its expected set is printed in full
+    on its system page (control, run, outcome, expected set, side, source, each trial, the
+    record), and the release page links it; a row under a pending disclosure prints neither
+    (OVR-8, `test_pending_row_renders_no_outcome`)."""
+    release = site.pages["release.html"]
+    seen = 0
+    for cfg in provers(site.view):
+        drawn = site.view["criteria"]["rows"][cfg["system"]]["drawn"]
+        text = site.pages[f"{cfg['system']}.html"]
+        for u in cfg["unexpected"]:
+            anchor = f"unexpected-{u['control']}-{u['run_id']}"
+            if not drawn:
+                assert anchor not in text
+                assert anchor not in release
+                continue
+            block = text[text.index(f'id="{anchor}"') : text.index("</dl>", text.index(anchor))]
+            said = flat(block)
+            stored = u["stored"]
+            assert f"control{u['control']}" in said.replace(" ", "") or u["control"] in said
+            for word in (u["run_id"], stored["side"], stored["source"], u["record"]):
+                assert word in said, word
+            assert len(re.findall(r"<dt>trial</dt>", block)) == len(stored["trials"])
+            assert f'href="/{cfg["system"]}#{anchor}"' in release
+            assert text.index('id="h-tamper"') < text.index(f'id="{anchor}"')
+            seen += 1
+    if site.kind == "web":
+        assert not seen
+        assert "No control outcome fell outside its expected set." in plain(release)
+    else:
+        assert seen == 1  # FlashProve's C1; SASH's C2 is under a pending disclosure
+
+
+def test_pending_row_renders_no_outcome(site: Build) -> None:
+    """RFC-0016 OVR-8: while a disclosure of a row is pending, its system page prints its
+    stated states and quotes with the RFC-0008 notice, and no control outcome: no per-property
+    control list, no contradicting control, no unexpected outcome, no tally; the release page
+    prints the notice in place of its unexpected outcomes."""
+    pending = [rid for rid, row in site.view["criteria"]["rows"].items() if row.get("pending")]
+    if site.kind == "web":
+        assert not pending
+        pytest.skip("no criteria row of the deployed build is under a pending disclosure")
+    release = site.pages["release.html"]
+    for rid in pending:
+        text = site.pages[f"{rid}.html"]
+        claims = text[text.index('class="claims"') : text.index('id="figures"')]
+        assert 'class="ec"' not in claims
+        assert 'class="ex"' not in claims
+        assert 'class="eq"' in claims  # the quotes stay
+        assert "unexpected-" not in text
+        cfgs = [c for c in site.view["configurations"] if c["system"] == rid]
+        for c in cfgs:
+            for u in c["unexpected"]:
+                assert f"{u['control']} in run" not in plain(release)
+            for a in c["accepted"]:
+                assert a["control"] not in plain(text[text.index('id="h-tamper"') :])
+        unexpected = release[release.index('id="unexpected"') :]
+        assert "A disclosure is pending" in plain(unexpected)
+
+
 def test_table_semantics(site: Build) -> None:
     """S9: every cell of a table across systems has one column header and one row header through
     ARIA roles, a sorted column's header carries `aria-sort`, and every glyph state is a word in
     the row header's cell, read after the system's name (a row under a pending disclosure has no
-    state and no text, RFC-0016 OVR-8); the more-numbers tables use `th` with `scope`. The
-    References table's roles are an RFC-0009 §Site gap for #320."""
+    state and no text, RFC-0016 OVR-8); the References table too, through the same roles, its
+    heads not sortable; the more-numbers tables use `th` with `scope`."""
     index = site.pages["index.html"]
+    refs = index[index.index('id="references"') : index.index('id="not-yet"')]
+    assert refs.count('role="table"') == 1
+    assert refs.count('role="columnheader"') == 1 + len(COLS)
+    assert "aria-hidden" not in refs[: refs.index('<div class="row"')]
+    for ref in site.view["orders"]["reference"]:
+        row = refs[refs.index(f'<div class="row" id="{ref}" role="row">') :]
+        row = row[: row.index("\n</div>")]
+        assert row.count('role="rowheader"') == 1, ref
+        assert row.count('role="cell"') == len(COLS), ref
+        assert "data-k=" not in row, ref  # not sorted (S5)
     for sec in SECTION.findall(index):
         heads = HEAD.findall(sec)
         assert len(heads) == 1 + len(COLS)
@@ -620,7 +881,8 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
 def test_figures_link_their_own_plate(site: Build) -> None:
     """S2, S11: each overview figure of a system row links a plate on its system page, in the
     same column and of the row's own configuration (its source names the configuration's
-    position in the index); a reference row's figures link its figures block on `/reference`."""
+    position in the index); a reference row's figures link their own plates on `/reference`
+    (`<reference>-fig-<column>`)."""
     index = site.pages["index.html"]
     linked = 0
     for rid, _, _, body in ROW.findall(index):
@@ -638,12 +900,15 @@ def test_figures_link_their_own_plate(site: Build) -> None:
             linked += 1
     assert linked == len(COLS) * len(provers(site.view))
     ref = site.pages["reference.html"]
+    plates = {pid: col for pid, col, _ in PLATE.findall(ref)}
     for gid in site.view["orders"]["reference"]:
-        row = index[index.index(f'<div class="row" id="{gid}">') :]
+        row = index[index.index(f'<div class="row" id="{gid}"') :]
         row = row[: row.index("\n</div>")]
-        for href, _, _ in VAL.findall(row):
-            assert href == f"/reference#{gid}-figures"
-        assert f'id="{gid}-figures"' in ref
+        found = re.findall(r'data-col="([^"]+)"><a class="val" href="([^"]*)"', row)
+        assert [c for c, _ in found] == list(COLS)
+        for col, href in found:
+            assert href == f"/reference#{gid}-fig-{col}"
+            assert plates[f"{gid}-fig-{col}"] == col
 
 
 def test_reply_escaped() -> None:
