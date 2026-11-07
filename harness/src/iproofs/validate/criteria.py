@@ -448,6 +448,16 @@ def crit_4(row: Mapping[str, Any], where: str) -> list[Finding]:
                 )
             )
         if stated_of(cell) != "not_stated":
+            if "not_copied" in cell:
+                found.append(
+                    _config(
+                        "CRIT-4",
+                        f"not_copied on a {stated_of(cell)} cell; it marks a not_stated cell "
+                        "where nothing was read",
+                        f"{pointer}/not_copied",
+                        "drop not_copied, or set not_stated if nothing was read (Q2)",
+                    )
+                )
             continue
         if any(_map(q).get("decides") is True for q in _list(cell.get("quotes"))):
             found.append(

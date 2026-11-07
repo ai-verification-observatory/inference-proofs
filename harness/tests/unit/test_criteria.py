@@ -242,6 +242,15 @@ def test_not_copied_on_card_row_fails() -> None:
     assert "not_copied on a row that is not a public-source row" in messages
 
 
+def test_not_copied_on_stated_cell_fails() -> None:
+    """Q2: not_copied replaces sources_read on a not_stated cell only."""
+    d = doc()
+    cell(d, "verinf", "whole_output")["not_copied"] = True
+    (f,) = found(d, "CRIT-4")
+    assert f.message.startswith("not_copied on a yes cell")
+    assert f.pointer.endswith("/not_copied")
+
+
 # ---------------------------------------------------------------- CRIT-5
 
 
