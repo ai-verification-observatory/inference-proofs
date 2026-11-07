@@ -549,6 +549,20 @@ for (const w of [390, 320]) {
       return { n: els.length, small, hit };
     });
     ok(t.n > 0 && !t.small.length && !t.hit.length, `${name}-${w}: the new blocks' links and buttons 24 px tall or more, none overlapping`, t);
+    // a label wider than its column runs into its value without overflowing the page: each dt's
+    // text ends before its dd starts, when the two sit on one line
+    const lab = await p.evaluate(() => {
+      const bad = [];
+      for (const dt of document.querySelectorAll('.facts dt, .tlab dt, .cf dt, .cn dt, .plate dt')) {
+        const dd = dt.nextElementSibling;
+        if (!dd || dd.tagName !== 'DD' || !dt.getClientRects().length) continue;
+        const r = document.createRange(); r.selectNodeContents(dt);
+        const a = r.getBoundingClientRect(), b = dd.getBoundingClientRect();
+        if (a.top < b.bottom - 0.5 && b.top < a.bottom - 0.5 && a.right > b.left + 0.5) bad.push(dt.textContent.trim());
+      }
+      return bad;
+    });
+    ok(!lab.length, `${name}-${w}: no label runs into its value`, lab);
     await ctx.close();
   }
 }

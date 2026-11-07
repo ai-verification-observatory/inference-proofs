@@ -143,13 +143,13 @@ ok   sponsors-320 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties' states fit the first screen 793
+ok   flashprove: the six properties' states fit the first screen 827
 ok   flashprove: quotes only under their property; the card in full folded {"stray":0,"details":["cardfull:false"]}
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties' states fit the first screen 792
+ok   sash: the six properties' states fit the first screen 845
 ok   sash: quotes only under their property; the card in full folded {"stray":0,"details":["cardfull:false"]}
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
@@ -208,24 +208,32 @@ ok   404-390: the search field is shown, not focused {"h":44,"vis":true,"focus":
 ok   404-390: search leads on from the 404 page http://127.0.0.1:4450/sash
 ok   flashprove-390: one press opens the card in full
 ok   flashprove-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
-ok   flashprove-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":61,"small":[],"hit":[]}
+ok   flashprove-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":62,"small":[],"hit":[]}
+ok   flashprove-390: no label runs into its value []
 ok   sash-390: one press opens the card in full
 ok   sash-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
-ok   sash-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":51,"small":[],"hit":[]}
+ok   sash-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":57,"small":[],"hit":[]}
+ok   sash-390: no label runs into its value []
 ok   release-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
 ok   release-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":[],"hit":[]}
+ok   release-390: no label runs into its value []
 ok   sponsors-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
 ok   sponsors-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":1,"small":[],"hit":[]}
+ok   sponsors-390: no label runs into its value []
 ok   flashprove-320: one press opens the card in full
 ok   flashprove-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
-ok   flashprove-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":61,"small":[],"hit":[]}
+ok   flashprove-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":62,"small":[],"hit":[]}
+ok   flashprove-320: no label runs into its value []
 ok   sash-320: one press opens the card in full
 ok   sash-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
-ok   sash-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":51,"small":[],"hit":[]}
+ok   sash-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":57,"small":[],"hit":[]}
+ok   sash-320: no label runs into its value []
 ok   release-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
 ok   release-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":[],"hit":[]}
+ok   release-320: no label runs into its value []
 ok   sponsors-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
 ok   sponsors-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":1,"small":[],"hit":[]}
+ok   sponsors-320: no label runs into its value []
 ok   home: cut sentences absent
 ok   home: no placeholder marking on the page
 ok   home: no ranking words in the site's own controls
