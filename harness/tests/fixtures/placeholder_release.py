@@ -2,8 +2,8 @@
 
 `build_placeholder(root, repetitions=3, extras=False)` writes a git repository at `root` and
 returns its `releases/v0.1/release.yaml`. The tree holds copies of the real `schema/`,
-`reference/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, `web/` (less `shots/` and `.tools/`), the
-workload `fp-maverick-w1024-b24` and the system directories of `flashprove`, `sash`,
+`reference/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, the tracked files of `web/` (less
+`shots/`), the workload `fp-maverick-w1024-b24` and the system directories of `flashprove`, `sash`,
 `ref-serve` and `ref-recompute`, so the deployed pages keep the real names, pins, claim cards
 and criteria rows. Only the runs are synthetic: PLACEHOLDER records of no real run, built from
 the `run/1` and `manifest/1` shapes, with every derived metric computed by
@@ -27,7 +27,9 @@ H100); their failure records carry no invented log line.
 `extras=True` adds cases the site tests need and the deployed build must not carry (a reply
 written by no system maintainer, a target, a criteria copy naming the release with a pending
 disclosure and an override, an ineligible run, a withdrawn run, an unexpected control, a
-second workload, a second claim card, a review and a reproduction record).
+second workload, a review and a reproduction record). It holds no second claim card of one
+system: the criteria file keys its rows by system until #318 adds `card` to them, so a second
+card would have no row of its own, and `iproofs site build` refuses one (RFC-0016 SRC-1).
 
 Command (site.yml, until #146): `PYTHONPATH=harness/tests uv run python -m
 fixtures.placeholder_release --site OUT` builds the tree in a temporary directory, freezes it
@@ -40,6 +42,7 @@ import hashlib
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 from collections.abc import Iterator, Sequence
@@ -78,7 +81,7 @@ RFC_COMMIT = "39662bf6dd02b1ee8586c78f9a3b7f77b0d06ec1"
 SYSTEMS = ("flashprove", "sash", "ref-serve", "ref-recompute")
 SYSTEM_FILES = ("system.yaml", "claim.yaml", "controls.yaml", "external.yaml", "README.md")
 COPY = ("schema", "reference", "rfcs", "MAINTAINERS.md", "LICENSES", f"workloads/{WORKLOAD}.yaml")
-WEB_SKIP = ("shots", ".tools", "node_modules", "__pycache__")
+WEB_SKIP = ("shots", ".tools", "node_modules", "__pycache__", ".vercel", ".env*", ".DS_Store")
 REVIEW_WINDOW = {"opens": "2026-12-01", "closes": "2026-12-15"}
 FREEZE_DATE = "2026-12-16"
 CONTROL_SEED = "0x0123456789abcdef"
@@ -204,7 +207,28 @@ def _copy(root: Path, extras: bool) -> None:
             continue
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(src, dst) if src.is_dir() else shutil.copy(src, dst)
-    shutil.copytree(ROOT / "web", root / "web", ignore=shutil.ignore_patterns(*WEB_SKIP))
+    _copy_web(root / "web")
+
+
+def _copy_web(dst: Path) -> None:
+    """The tracked files of web/ (`git ls-files`), as they are in the working tree, so an
+    untracked or ignored file (a local `.vercel/`, an `.env` file, a stray picture) never enters
+    the tree; outside a git checkout, every file less `WEB_SKIP`."""
+    try:
+        listed = subprocess.run(["git", "-C", str(ROOT), "ls-files", "-z", "--", "web"],
+                                capture_output=True, check=True).stdout  # fmt: skip
+    except (OSError, subprocess.CalledProcessError):
+        listed = b""
+    tracked = [ROOT / p for p in listed.decode().split("\0") if p]
+    if not tracked:
+        shutil.copytree(ROOT / "web", dst, ignore=shutil.ignore_patterns(*WEB_SKIP))
+        return
+    for src in tracked:
+        rel = src.relative_to(ROOT / "web")
+        if rel.parts[0] in WEB_SKIP or not src.is_file():  # skipped, or deleted and not staged
+            continue
+        (dst / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(src, dst / rel)
 
 
 def _edit_yaml(path: Path, edit: Any) -> None:
@@ -550,13 +574,12 @@ def _prover_runs(
     adapter: str,
     repetitions: int,
     controls: Sequence[Any],
-    start: int = 0,
 ) -> Written:
     """A prover configuration's runs; SASH also gets a failed and a superseded run."""
     sash = cfg.system == "sash"
     reps = SASH if sash else FLASHPROVE
     out = Written([], [])
-    n = start
+    n = 0
 
     def add(rep: Rep | None, **kw: Any) -> tuple[str, Path]:
         nonlocal n
@@ -672,7 +695,6 @@ def _release_yaml(release: dict[str, Any]) -> str:
 # ---------------------------------------------------------------- extras (tests only)
 
 
-SECOND_CONFIGURATION = "fixture-second"
 REPLY = "systems/sash/replies/v0.1.md"
 REPLY_TEXT = (
     "Fixture text for the site tests, written by no SASH maintainer and never deployed.\n\n"
@@ -683,18 +705,7 @@ DISCLOSURE_URL = "https://example.org/placeholder/fixture-disclosure"
 
 
 def _extras_tree(root: Path) -> None:
-    """Extras committed with the systems: a second FlashProve card, a reply and a target."""
-    cards = root / "systems/flashprove/claims"
-    cards.mkdir()
-    first = cards / "exact-match-cp-verify.yaml"
-    (root / "systems/flashprove/claim.yaml").rename(first)
-    text = first.read_text().replace(
-        'configuration: "exact-match-cp-verify"', f'configuration: "{SECOND_CONFIGURATION}"'
-    )
-    head = (
-        "# FIXTURE card for the site tests: a second configuration FlashProve does not publish.\n"
-    )
-    (cards / f"{SECOND_CONFIGURATION}.yaml").write_text(head + text)
+    """Extras committed with the systems: a reply and a target."""
     (root / REPLY).parent.mkdir(parents=True)
     (root / REPLY).write_text(REPLY_TEXT)
     target = (ROOT / "schema/target/examples/valid/verify-under-60s.yaml").read_text()
@@ -727,12 +738,6 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
     second_wl = Config(fp.system, SECOND_WORKLOAD, fp.configuration, fp.card_version,
                        fp.card_digest)  # fmt: skip
     release["runs"] += _prover_runs(root, second_wl, adapter, 3, FLASHPROVE_CONTROLS).dirs
-    card = f"systems/{fp.system}/claims/{SECOND_CONFIGURATION}.yaml"
-    digest = file_digest(root / card)
-    second = Config(fp.system, WORKLOAD, SECOND_CONFIGURATION, 1, digest)
-    release["runs"] += _prover_runs(root, second, adapter, 3, FLASHPROVE_CONTROLS, start=200).dirs
-    release["claim_cards"].append({"system": fp.system, "configuration": SECOND_CONFIGURATION,
-                                   "card_version": 1, "path": card, "digest": digest})  # fmt: skip
     release["replies"] = {sash.system: REPLY}
     _records(root, fp, first)
     _criteria(root, first, sash_first)

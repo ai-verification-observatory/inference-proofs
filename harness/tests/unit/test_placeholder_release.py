@@ -197,6 +197,27 @@ def test_deployed_build_has_no_extras(tree: Path) -> None:
     assert not (tree / "web/shots").exists()
 
 
+def test_tree_copies_tracked_web_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Only web/'s tracked files enter the tree: an untracked `.vercel/` or `.env` file, or an
+    ignored picture, stays out (it would be committed into the tree's repository)."""
+    repo = tmp_path / "repo"
+    (repo / "web/og").mkdir(parents=True)
+    (repo / "web/index.html").write_text("tracked")
+    (repo / "web/shots").mkdir()
+    (repo / "web/shots/a.png").write_text("tracked, skipped")
+    subprocess.run(["git", "init", "-q", str(repo)], check=True)
+    subprocess.run(["git", "-C", str(repo), "add", "web"], check=True)
+    (repo / "web/.vercel").mkdir()
+    (repo / "web/.vercel/project.json").write_text("untracked")
+    (repo / "web/.env.local").write_text("untracked")
+    (repo / "web/og/stray.png").write_text("untracked")
+    monkeypatch.setattr(ph, "ROOT", repo)
+    ph._copy_web(tmp_path / "out")
+    got = sorted(p.relative_to(tmp_path / "out").as_posix()
+                 for p in (tmp_path / "out").rglob("*") if p.is_file())  # fmt: skip
+    assert got == ["index.html"]
+
+
 def test_extras_cases(extras: Path) -> None:
     """Every extras case of the #320 plan §4 is in the index or the tree."""
     doc = index(extras)
@@ -205,15 +226,15 @@ def test_extras_cases(extras: Path) -> None:
     assert reasons["101"] == ["harness_dirty"]
     assert reasons["102"][0].startswith("superseded: fixture")
     config(doc, "flashprove", ph.SECOND_WORKLOAD)  # a second workload on the same model
-    config(doc, "flashprove", configuration=ph.SECOND_CONFIGURATION)  # a second claim card
-    assert len([c for c in doc["claim_cards"] if c["system"] == "flashprove"]) == 2
+    # one card per system: a second card has no criteria row of its own until #318
+    assert len([c for c in doc["claim_cards"] if c["system"] == "flashprove"]) == 1
     outside = {(c["system"], o["control_id"]) for c in doc["controls"]
                for o in c["outside_expected"]}  # fmt: skip
     assert outside == {("flashprove", "C1"), ("sash", "C2")}
     assert fp["evidence"]["reviews"]
     assert fp["evidence"]["reproductions"]
     assert fp["effective_tier"] == "reproduced"
-    assert [t["target"] for t in doc["targets"]] == [ph.TARGET] * 3
+    assert [t["target"] for t in doc["targets"]] == [ph.TARGET] * 2  # the two on its workload
     release = yaml.safe_load((extras / "releases/v0.1/release.yaml").read_text())
     assert release["replies"] == {"sash": ph.REPLY}
     assert "written by no SASH maintainer" in (extras / ph.REPLY).read_text()
@@ -246,6 +267,34 @@ def test_refuses_when_a_release_is_frozen(
     assert "iproofs site build" in capsys.readouterr().err
 
 
+# The site.yml build step, `PYTHONPATH=harness/tests uv run python <SITE_ARGS> web`, which
+# test_site_command_runs runs and test_site_workflow_runs_this_command holds site.yml to.
+SITE_ARGS = ("-m", "fixtures.placeholder_release", "--site")
+# What the build reads, so a change to any of it runs site.yml: the placeholder tree's copies
+# (`COPY`, the systems, web/), the release records, the harness and its fixtures, and the
+# pytest plugin `uv run pytest web` loads (pyproject addopts).
+SITE_INPUTS = {"systems/**", "workloads/**", "releases/**", "results/**", "targets/**",
+               "harness/src/iproofs/**", "harness/tests/fixtures/**", "web/**",
+               "harness/tests/quarantine_plugin.py", "pyproject.toml", "uv.lock",
+               ".github/workflows/site.yml"}  # fmt: skip
+
+
+def test_site_workflow_runs_this_command() -> None:
+    """site.yml builds with the command test_site_command_runs runs, and runs on a change to
+    any input of the build, on pull requests and on main alike."""
+    doc = yaml.safe_load((ROOT / ".github/workflows/site.yml").read_text())
+    on = doc.get("on", doc.get(True))  # YAML 1.1 reads the key `on` as true
+    steps = doc["jobs"]["built"]["steps"]
+    build = next(s for s in steps if "fixtures.placeholder_release" in s.get("run", ""))
+    assert build["run"] == f"PYTHONPATH=harness/tests uv run python {' '.join(SITE_ARGS)} web"
+    assert on["pull_request"]["paths"] == on["push"]["paths"]
+    paths = set(on["push"]["paths"])
+    # a top-level file by its name (MAINTAINERS.md), anything else by its top folder
+    copied = {c if "/" not in c and (ROOT / c).is_file() else f"{c.split('/')[0]}/**"
+              for c in ph.COPY}  # fmt: skip
+    assert copied | SITE_INPUTS <= paths, sorted(copied | SITE_INPUTS - paths)
+
+
 @pytest.mark.skipif(
     "def render(" not in (ROOT / "web/build.py").read_text(),
     reason="iproofs site build calls the web/build.py renderer from step B2 of #320",
@@ -258,7 +307,7 @@ def test_site_command_runs(tmp_path: Path) -> None:
     )
     out = tmp_path / "site"
     done = subprocess.run(
-        [sys.executable, "-m", "fixtures.placeholder_release", "--site", str(out)],
+        [sys.executable, *SITE_ARGS, str(out)],
         cwd=ROOT, env=env, capture_output=True, text=True, check=False, timeout=600,
     )  # fmt: skip
     assert done.returncode == 0, done.stderr[-2000:]

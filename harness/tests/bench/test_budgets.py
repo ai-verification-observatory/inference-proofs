@@ -5,6 +5,7 @@ summary named by IPROOFS_BENCH_SUMMARY. A time between the target and twice the 
 passes; the summary line says so and a maintainer opens a `type:perf` issue.
 """
 
+import json
 import os
 import shutil
 import subprocess
@@ -97,9 +98,12 @@ def test_budget_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_budget_site(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """B-SITE: `iproofs site build` over the frozen placeholder release the deployed site is
     built from, scaled to 1,000 run directories (500 repetitions of each prover configuration;
-    the reference rows keep their three)."""
+    the reference rows keep their three). The criteria copy names the release, so the runs
+    RFC-0016 OVR-5 reads and the per-property control lists (OVR-7) are timed too."""
     build_placeholder(tmp_path, repetitions=500)
     assert len(list(tmp_path.glob("results/v0.1/*/*/run.json"))) >= 1000
+    criteria = tmp_path / "web/_data/criteria.json"
+    criteria.write_text(json.dumps({**json.loads(criteria.read_text()), "release": "v0.1"}))
     monkeypatch.chdir(tmp_path)
     assert cli_main(["release", "freeze", "v0.1"]) == 0
     start = time.monotonic()
