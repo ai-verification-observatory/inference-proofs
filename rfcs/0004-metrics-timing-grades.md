@@ -164,6 +164,7 @@ Inputs named `metrics.X` are recorded metrics of the same repetition. `ref.*` in
 | D-BPT | `proof_bytes_per_token` | repetition | `proof_bytes_total` / tokens_covered_total | B/token | null | tokens 0 |
 | D-VSPT | `verify_seconds_per_token` | repetition | `verify_seconds_total` / tokens_covered_total | s/token | `verify` | tokens 0 |
 | D-VSPT-1T | `verify_single_thread_seconds_per_token` | repetition | single-thread verify seconds of the first proof / tokens covered by the first proof (single-thread verify runs on the first proof only, RFC-0010) | s/token | `verify.single_thread` | as D-VSPT |
+| D-TPP | `tokens_covered_per_proof` | repetition | `tokens_covered_total` / `proofs_count` | token | null | `proofs_count` 0 (`not_applicable`) |
 | D-VERIFY-HOST | `verify_host_ratio` | configuration | mean `verify` seconds on a separate verifier host / mean `verify` seconds on the emulated verifier profile, same proofs | ratio | `verify` | null with `missing_input` unless both host kinds ran the same proofs (RFC-0006 verifier emulation check) |
 | D-STAT | any of the above, configuration level | configuration | statistics over successful repetitions (§Statistics) | as input | as input | n = 0 |
 | D-OVERHEAD-S | `overhead_vs_serving_<S>` | release | mean(ref-serve `rate_<S>`) / mean(system `rate_<S>`) | ratio | S | either mean null; ref-serve row `not_measurable_on_profile` |
@@ -178,6 +179,7 @@ Rules:
 - INV-DERIVE-3: `active_parameters_per_token` comes from the workload record (RFC-0003), as an `asserted` quantity whose source is the model's own documentation: all parameters for a dense model, the parameters used per token for a mixture of experts. D-APT-S is a rough normaliser across model sizes and MUST be displayed only together with the claim cards, never alone.
 - INV-DERIVE-4: every derived quantity's `source` is `{kind: derivation, ref: derive:<formula id>@<harness version>, inputs: [<JSON pointers>]}` (RFC-0012) and its tier is the lowest tier among its inputs (in `run.json` always `reported`).
 - INV-DERIVE-5: arithmetic is IEEE 754 binary64 in a fixed order: the formula is evaluated left to right as written in the table, sums use `math.fsum`, statistics use `statistics.mean` and `statistics.stdev`. Values are stored unrounded. `iproofs derive --check` recomputes and requires `==` equality with the stored value; any difference fails CI (RFC-0013).
+- INV-DERIVE-6: D-TPP is the number of positions one proof binds (INV-TOK-1), averaged over the repetition's proofs. It is a count, not a time or a rate, so it has no timing scope (INV-SCOPE-1 does not apply) and MUST NOT be displayed as a throughput. Its grade is `derived` and its tier follows INV-DERIVE-4 (`reported` in `run.json`). For the coverage kinds `window` and `prompt_plus_output` every proof of a repetition covers the same count c, so the value is exactly c (k × c / k is exact in binary64 for integers below 2^53); for `declared_per_proof` it is the mean of the adapter's per-proof counts. Its configuration-level value is D-STAT over successful repetitions (§Statistics), with n, n_failed, mean, stdev, min and max like every repetition-level metric; for a constant count at n >= 2, stdev is 0 and min equals max. The public site prints it as "One proof covers" (RFC-0009).
 
 ### Worked example (test fixture, not a result)
 
@@ -200,9 +202,12 @@ Inputs: one repetition, 1 GPU, `price` 3.60 USD/gpu_hour (fixture value), `activ
 | D-APT-prove.steady | 100 × 8.0e9 | 8.0e11 param_token/s |
 | D-BPT | 10,000,000 / 5,000 | 2,000 B/token |
 | D-VSPT | 25 / 5,000 | 0.005 s/token |
+| D-TPP | 5,000 / 5 | 1,000 token |
 | D-OVERHEAD-prove.steady | 10,000 / 100 | 100 ratio |
 
 Statistics fixture: four repetitions with `rate_prove.steady` 100, 110, 90 token/s and one failed repetition. Expected: n 3, n_failed 1, mean 100, stdev 10, min 90, max 110.
+
+Constant-count statistics fixture: three repetitions with `tokens_covered_per_proof` 1,000, 1,000, 1,000 token and none failed. Expected: n 3, n_failed 0, mean 1,000, stdev 0, min 1,000, max 1,000.
 
 Hand-computed tests compare with `math.isclose(rel_tol=1e-12)`, because a decimal written in this table (for example 0.01) has no exact binary64 form; `--check` on stored runs uses exact equality per INV-DERIVE-5.
 
@@ -249,9 +254,11 @@ The author's affiliations and any interest in a measured system are declared in 
 
 No results exist yet. This RFC revises the draft of 2026-11-03: adds `setup` and `verify.single_thread` scopes, fixes `whole_wall` to start at `commit` (setup excluded), fixes `prove.steady` to the first-to-last release interval, adds INV-TOK-2, and resolves the amortisation horizon question (both 1 and 1,000 requests are reported). The metric ids above are keys of `run/1` (RFC-0012). Adding a metric is additive; renaming one or changing a formula bumps `run` to a new major and relabels nothing in place: past runs keep the formula version they were produced under (RFC-0001 §Changes to methodology).
 
+The amendment of 2026-11-07 adds D-TPP (`tokens_covered_per_proof`), the figure the public site prints as "One proof covers", whose current wording RFC-0009 S2 lists as naming no RFC-0004 grade. It changes no existing metric, formula or null rule. The new key is additive to `run/1`: `iproofs.derive` (`COMPUTE`, `FORMULAS`, `derive_repetition`), the metric-id pattern of `schema/quantity/1.schema.json` and the worked-example fixture (`expected.json`, `README.md`) gain it with the code (#320). Runs stored before that code carry no `tokens_covered_per_proof` key and are not changed (APP-1, RFC-0009); they keep `tokens_covered_total` and `proofs_count`, so the value stays recomputable from recorded numbers (Q3).
+
 ## Testing Strategy
 
-Unit tests in `harness/tests/test_derive.py`:
+Unit tests in `harness/tests/unit/test_derive.py`:
 
 - TC-DERIVE-WORKED: the worked example above, every row, within `rel_tol=1e-12`.
 - TC-STAT-FAILED: the statistics fixture; asserts n 3, n_failed 1, mean 100, stdev 10, min 90, max 110.
@@ -263,6 +270,12 @@ Unit tests in `harness/tests/test_derive.py`:
 - TC-OVERHEAD-MISMATCH: reference row with a different batch size; D-OVERHEAD null with `not_applicable`.
 - TC-GRADE-2: an adapter-reported phase passed as a derivation input raises `internal`.
 - TC-SCOPE-ORDER: synthetic timeline with r_1 before `prove` start raises `internal`.
+- TC-TPP-WORKED (`test_tokens_covered_per_proof_worked_example`): the worked example's D-TPP row, 5,000 / 5 = 1,000 token within `rel_tol=1e-12`, with grade `derived`, unit `token` and scope null.
+- TC-TPP-ZERO (`test_tokens_covered_per_proof_zero_proofs_is_null`): `proofs_count` 0 gives a null value with `null_reason: not_applicable`, never 0.
+- TC-TPP-SOURCE (`test_tokens_covered_per_proof_source`): `source.ref` is `derive:D-TPP@<harness version>` and `source.inputs` points at `tokens_covered_total` then `proofs_count`, in that order (INV-DERIVE-4).
+- TC-TPP-STAT (`harness/tests/unit/test_stats.py::test_tokens_covered_per_proof_constant_statistics`): the constant-count statistics fixture; asserts n 3, n_failed 0, mean 1,000, stdev 0, min 1,000, max 1,000.
+
+The D-TPP tests land with the code in #320. TC-DERIVE-WORKED covers the D-TPP row once `expected.json` holds it.
 
 Property tests (hypothesis) in `harness/tests/test_derive_properties.py`:
 
@@ -277,10 +290,11 @@ Schema tests (RFC-0012): invalid examples for a time unit with null scope, an `e
 
 - OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-03-31 or a follow-up RFC): should per-request latency percentiles be recorded once batch and queueing workloads exist? Default until resolved: not recorded; v0.1 workloads have fixed batches and no arrival process.
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-01-31): does SASH's maintainer team want a part-granular steady scope? Default until resolved: SASH `prove.steady` is null and its `loop` figure is shown as `external`, mapping approximate.
+- OPEN QUESTION Q3 (owner: 0xchqrles, resolve by: Last call of this RFC, RFC-0001): how does a release get D-TPP for a run stored before the formula existed, given that APP-1 forbids rewriting its `run.json`? Default until resolved: the release freeze evaluates D-TPP for each such successful repetition from that run's recorded `tokens_covered_total` and `proofs_count`, with `source.inputs` pointing into the unchanged `run.json`, and D-STAT runs over those values; `iproofs derive --check` recomputes them from the same pointers. The alternative is to rerun the configuration under the new code.
 
 ## References
 
 - docs/PRD.md §1, §4 (G2), §7 (F3, F9, F10).
-- [RFC-0003](0003-workloads.md) for shapes and `active_parameters_per_token`; [RFC-0005](0005-adapter-contract.md) for proof directories and `tokens_covered`; [RFC-0006](0006-reference-hardware-and-cost.md) for `price`; [RFC-0007](0007-evidence-tiers-and-reproduction.md) for tiers; [RFC-0011](0011-measurement-and-sampling.md) for how each recorded metric is measured; [RFC-0012](0012-schemas-and-serialization.md) for the quantity schema; [RFC-0013](0013-validation-and-ci.md) for the CI gates; [RFC-0015](0015-reference-rows.md) for reference rows.
+- [RFC-0003](0003-workloads.md) for shapes and `active_parameters_per_token`; [RFC-0005](0005-adapter-contract.md) for proof directories and `tokens_covered`; [RFC-0006](0006-reference-hardware-and-cost.md) for `price`; [RFC-0007](0007-evidence-tiers-and-reproduction.md) for tiers; [RFC-0009](0009-results-and-publication.md) for the site that prints D-TPP; [RFC-0011](0011-measurement-and-sampling.md) for how each recorded metric is measured; [RFC-0012](0012-schemas-and-serialization.md) for the quantity schema; [RFC-0013](0013-validation-and-ci.md) for the CI gates; [RFC-0015](0015-reference-rows.md) for reference rows.
 - SASH results: `sg-ai-safety-hub/zk-inference-results` at `11decec3c0b62c707618aab5deb82750b355d202` (`constants.json`).
 - FlashProve: `anthropics/FlashProve` at `9e2bdd8ff5bf9c62f18263d7dac189b0400b260c` (`docs/figures.tsv`).
