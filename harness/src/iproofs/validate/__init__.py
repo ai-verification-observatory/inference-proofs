@@ -257,6 +257,7 @@ def check_derived(path: Path, root: Path) -> list[Finding]:
     metrics = doc.get("metrics")
     found: list[Finding] = []
     row_flag = _substituted_row(root, doc)
+    reference_row = doc.get("system_kind") == "reference"
     for name, q in sorted(metrics.items()) if isinstance(metrics, Mapping) else []:
         if not isinstance(q, Mapping) or q.get("grade") != "derived":
             continue
@@ -276,7 +277,7 @@ def check_derived(path: Path, root: Path) -> list[Finding]:
             )
             continue
         try:
-            fresh = recompute(q, inputs, _gpus(root, pointers, profile))
+            fresh = recompute(q, inputs, _gpus(root, pointers, profile), reference=reference_row)
         except UnknownFormula as e:
             found.append(
                 Finding("G4", rel, "DER-2", f"unknown formula {e}", ErrorKind.INTEGRITY, where)

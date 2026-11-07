@@ -212,6 +212,18 @@
       "unit": "B",
       "value": 10000000
     },
+    "proofs_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "harness/tests/fixtures/derive/worked-example/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 5
+    },
     "prove_call_seconds": {
       "grade": "measured",
       "null_reason": null,
@@ -355,6 +367,22 @@
       "tier": "reported",
       "unit": "s/token",
       "value": 0.025
+    },
+    "tokens_covered_per_proof": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/tokens_covered_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/proofs_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-TPP@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 1000.0
     },
     "tokens_covered_steady": {
       "grade": "measured",

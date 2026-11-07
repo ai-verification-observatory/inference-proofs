@@ -4,7 +4,14 @@ from pathlib import Path
 
 import pytest
 
-from iproofs.derive import QuantityTree, derive_repetition, measured, scope_seconds
+from iproofs.derive import (
+    COMPUTE,
+    FORMULAS,
+    QuantityTree,
+    derive_repetition,
+    measured,
+    scope_seconds,
+)
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
@@ -16,6 +23,7 @@ NS = 1_000_000_000
 UNITS = {
     "tokens_covered_total": Unit.TOKEN, "tokens_covered_steady": Unit.TOKEN,
     "requests_count": Unit.COUNT, "proof_bytes_total": Unit.B, "verify_seconds_total": Unit.S,
+    "proofs_count": Unit.COUNT,
 }  # fmt: skip
 
 
@@ -43,7 +51,12 @@ def worked_example() -> tuple[dict[str, QuantityTree], dict[str, QuantityTree]]:
 
 
 def derive(
-    metrics: dict[str, QuantityTree], *, price: float = 3.6, gpus: int = 1, params: float = 8e9
+    metrics: dict[str, QuantityTree],
+    *,
+    price: float = 3.6,
+    gpus: int = 1,
+    params: float = 8e9,
+    reference: bool = False,
 ) -> dict[str, QuantityTree]:
     price_ref = "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
     params_ref = "workloads/x.yaml#/model/parameters/active_per_token"
@@ -55,6 +68,7 @@ def derive(
         price=(price_ref, asserted(price, Unit.USD_PER_GPU_HOUR, price_ref)),
         active_parameters=(params_ref, asserted(params, Unit.COUNT, params_ref)),
         first_proof_tokens=(f"{RUN}#/proofs/0/tokens_covered", q("tokens_covered_total", 1000)),
+        reference=reference,
     )
 
 
@@ -95,7 +109,7 @@ def test_null_div() -> None:
     metrics["tokens_covered_total"] = q("tokens_covered_total", 0)
     out = derive(metrics)
     for name in ("rate_prove.session", "proof_bytes_per_token", "verify_seconds_per_token",
-                 "commit_seconds_per_token_h1"):  # fmt: skip
+                 "commit_seconds_per_token_h1", "tokens_covered_per_proof"):  # fmt: skip
         assert out[name]["value"] is None, name
         assert out[name]["null_reason"] == "not_applicable", name
 
@@ -141,3 +155,53 @@ def test_tier_is_lowest_input_tier() -> None:
     metrics["tokens_covered_total"] = {**metrics["tokens_covered_total"], "tier": "reproduced"}
     metrics["proof_bytes_total"] = {**metrics["proof_bytes_total"], "tier": "peer-reviewed"}
     assert derive(metrics)["proof_bytes_per_token"]["tier"] == "peer-reviewed"
+
+
+def test_tokens_covered_per_proof_worked_example() -> None:
+    """TC-TPP-WORKED: RFC-0004 worked example D-TPP row, 5,000 / 5 = 1,000 token (fixture)."""
+    _, out = worked_example()
+    tpp = out["tokens_covered_per_proof"]
+    assert isinstance(tpp["value"], float)
+    assert math.isclose(tpp["value"], 1000.0, rel_tol=1e-12)
+    assert (tpp["grade"], tpp["unit"], tpp["scope"], tpp["null_reason"]) == (
+        "derived", "token", None, None
+    )  # fmt: skip
+
+
+def test_tokens_covered_per_proof_zero_is_null() -> None:
+    """TC-TPP-ZERO: zero proofs, or zero tokens over 5 proofs, give null `not_applicable`."""
+    metrics, _ = worked_example()
+    for edit in ({"proofs_count": q("proofs_count", 0)},
+                 {"tokens_covered_total": q("tokens_covered_total", 0)}):  # fmt: skip
+        tpp = derive(metrics | edit)["tokens_covered_per_proof"]
+        assert tpp["value"] is None, edit
+        assert tpp["null_reason"] == "not_applicable", edit
+
+
+def test_tokens_covered_per_proof_reference_is_null() -> None:
+    """TC-TPP-REFERENCE: a `kind: reference` repetition (1 proof, 4,608 token; fixture values,
+    not a result) gives null `not_applicable` (INV-DERIVE-6)."""
+    metrics = {"proofs_count": q("proofs_count", 1),
+               "tokens_covered_total": q("tokens_covered_total", 4608)}  # fmt: skip
+    assert derive(metrics)["tokens_covered_per_proof"]["value"] == 4608.0  # control: a prover
+    tpp = derive(metrics, reference=True)["tokens_covered_per_proof"]
+    assert tpp["value"] is None
+    assert tpp["null_reason"] == "not_applicable"
+
+
+def test_tokens_covered_per_proof_source() -> None:
+    """TC-TPP-SOURCE: formula id and inputs in order, tokens then proofs (INV-DERIVE-4)."""
+    _, out = worked_example()
+    assert out["tokens_covered_per_proof"]["source"] == {
+        "kind": "derivation",
+        "ref": "derive:D-TPP@0.1.0",
+        "inputs": [f"{RUN}#/metrics/tokens_covered_total", f"{RUN}#/metrics/proofs_count"],
+    }
+
+
+def test_formula_registry_names_every_emitted_id() -> None:
+    """INV-QTY-6: every formula id derive emits is in FORMULAS, so a page can name it."""
+    _, out = worked_example()
+    emitted = {str(v["source"]["ref"]).split(":")[1].split("@")[0] for v in out.values()}  # type: ignore[index]
+    assert emitted | {"D-STAT", "D-OVERHEAD-S", "D-AGREE", "D-PROVIDER-SPREAD"} <= set(FORMULAS)
+    assert set(COMPUTE) <= set(FORMULAS)

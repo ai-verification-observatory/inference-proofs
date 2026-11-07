@@ -71,6 +71,22 @@ def test_derive_check_null_reason_must_match(tmp_path: Path) -> None:
     )
 
 
+def test_derive_check_reference_tokens_per_proof(tmp_path: Path) -> None:
+    """INV-DERIVE-6: in a `kind: reference` run, D-TPP recomputes as null `not_applicable`;
+    a stored count fails DER-1."""
+
+    def reference(doc: dict[str, object]) -> None:
+        doc["system_kind"] = "reference"
+
+    def reference_null(doc: dict[str, dict[str, dict[str, object]]]) -> None:
+        reference(doc)  # type: ignore[arg-type]
+        q = doc["metrics"]["tokens_covered_per_proof"]
+        q["value"], q["null_reason"] = None, "not_applicable"
+
+    assert any("tokens_covered_per_proof DER-1" in line for line in edited(tmp_path, reference))
+    assert edited(tmp_path, reference_null) == []
+
+
 def test_g4_gate_fixture_fails(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["derive", str(ROOT / "harness/tests/fixtures/gates/G4"), "--check"]) == 1
     assert "rate_prove.steady DER-1" in capsys.readouterr().out

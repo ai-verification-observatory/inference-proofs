@@ -1698,6 +1698,7 @@ class Runner:
             price=(price_ptr, price_q),
             active_parameters=(params_ptr, params_q),
             first_proof_tokens=(f"{run_json}#/proofs/0/tokens_covered", first),
+            reference=_reference(job),
         )
         if self._substituted(job):  # RFC-0015 PM-2: every quantity of the row is flagged
             for q in m.values():
