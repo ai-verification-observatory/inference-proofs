@@ -104,6 +104,9 @@ def setup(view, out):
     text = json.dumps(S.CRIT, ensure_ascii=False) + json.dumps(view["facts"], ensure_ascii=False)
     for k in draw.plates.PHRASES:
         assert k in text, f"PHRASES: {k!r} no longer in the criteria or facts file"
+    # one state vocabulary (RFC-0016 §States): the words the pages print are the file's
+    words = {k: v["word"] for k, v in S.CRIT["states"].items()}
+    assert words == draw.words.STATE_WORD, f"state words {words} differ from the pages'"
     for rid, row in S.CRIT["rows"].items():
         assert row["family"] in draw.words.FAMILY_WORD, (
             f"{rid}: no words for family {row['family']!r}"

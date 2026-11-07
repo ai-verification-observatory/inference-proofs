@@ -27,7 +27,8 @@ from .words import (
 
 def glyph(rid):
     """One criteria row as the pages draw it: six states in slot order, each with its property,
-    word, reason, quotes and the system's own statement outside the pin (never part of a state).
+    word, reason, quotes and the reason of the system's own statement outside the pin, which
+    has no state and is never part of one (RFC-0016 SRC-3).
     A row under a pending disclosure (RFC-0016 OVR-8) is not drawn: `states` are all None, and
     each cell keeps the stated state the system page prints beside the notice."""
     row = S.CRIT["rows"][rid]
@@ -35,7 +36,7 @@ def glyph(rid):
     cells = []
     for i, p in enumerate(S.PROPS):
         c = row["cells"][p["id"]]
-        outside = (c.get("outside_pin") or {}).get("state")
+        outside = (c.get("outside_pin") or {}).get("reason")
         cells.append({"n": i + 1, "prop": p["id"], "name": p["name"], "question": p["question"],
                       "state": c["state"], "word": STATE_WORD[c["state"]],
                       "reason": c.get("reason") or "", "quotes": c["quotes"],
@@ -45,13 +46,14 @@ def glyph(rid):
 
 
 def states_said(g, outside=False):
-    """The six states in words (the pie's spoken name). outside: also the system's own statement
-    outside the pin, which is never part of the state (RFC-0016 SRC-3); system pages only."""
+    """The six states in words (the pie's spoken name). outside: also what the system's own
+    statement outside the pin says, which has no state and is not counted (RFC-0016 SRC-3);
+    system pages only."""
     parts = []
     for c in g["cells"]:
         w = c["word"]
         if outside and c["outside"] is not None:
-            w += f" (its own note outside the pin says {STATE_WORD[c['outside']]})"
+            w += f" (its own note outside the pin, not counted: {c['outside'].rstrip('.')})"
         parts.append(f"{c['name']}: {w}")
     return words("; ".join(parts) + ".")
 
@@ -169,13 +171,6 @@ PHRASES = {
     # one name per reference: the pages call it a rerun
     "recompute needs them": "a rerun needs them",
     "a checker holding the weights recomputes": "a checker holding the weights reruns it",
-    # criteria.json speaks of the workflow and of text the site does not print (quotes, cards)
-    "The number itself is a quote in its card; the glyph shows only whether one is stated and proven.": "The state shows only whether a level is stated and proven.",
-    "is printed as text beside the segment (no row proves its programs)": "is not shown: no row proves its programs",
-    "it is printed as text beside the glyph, not coloured.": "it does not change the state.",
-    "no row claims it; it is printed as text.": "no row claims it.",
-    "; printed as text.": ".",
-    " (hiding from a host operator is another property)": "",
     "or not copied yet": "or we have not recorded it yet",
 }
 

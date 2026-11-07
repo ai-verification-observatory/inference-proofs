@@ -5,7 +5,7 @@
       "kind": "system",
       "meta": "Proved · Llama 4 Maverick",
       "name": "FlashProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 yes\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 yes\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "flashprove proved · llama 4 maverick proved: hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside anthropics/flashprove zk proof cryptographic",
       "tier": 0,
       "url": "/flashprove"
@@ -15,7 +15,7 @@
       "kind": "system",
       "meta": "Proved · Llama 4 Maverick",
       "name": "SASH",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "sash proved · llama 4 maverick proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover zk proof cryptographic",
       "tier": 0,
       "url": "/sash"
@@ -125,7 +125,7 @@
       "kind": "unbenchmarked",
       "meta": "Attested · Model not named in the README",
       "name": "Private ML SDK",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "private ml sdk attested · model not named in the readme attested · archived not named in the readme open licence tee enclave hardware attestation confidential not benchmarked",
       "tier": 3,
       "url": "/#nb-private-ml-sdk"
@@ -175,7 +175,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · Llama 4 Maverick (400B-parameter mixture of experts); Llama-2-7B",
       "name": "VerInf",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "verinf proved · llama 4 maverick (400b-parameter mixture of experts); llama-2-7b proved · active llama 4 maverick (400b-parameter mixture of experts) llama-2-7b open licence hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-verinf"
@@ -215,7 +215,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · Llama-3 (8B parameters); VGG-16",
       "name": "zkPyTorch",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "zkpytorch proved · llama-3 (8b parameters); vgg-16 proved · no repository llama-3 (8b parameters) vgg-16 no public code closed source zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-zkpytorch"
@@ -254,29 +254,29 @@
       "badge": "Property",
       "kind": "property",
       "meta": "Does one check cover every output token of a request?",
-      "name": "Whole output proved",
+      "name": "Whole output checked",
       "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"on\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "whole output proved does one check cover every output token of a request? property",
+      "terms": "whole output checked does one check cover every output token of a request? property",
       "tier": 1,
       "url": "/criteria#whole_output"
     },
     {
       "badge": "Property",
       "kind": "property",
-      "meta": "Is the security argument checked by a proof assistant?",
+      "meta": "Is the security argument for this configuration checked by a proof assistant?",
       "name": "Formally verified",
       "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"on\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "formally verified is the security argument checked by a proof assistant? property",
+      "terms": "formally verified is the security argument for this configuration checked by a proof assistant? property",
       "tier": 1,
       "url": "/criteria#formally_verified"
     },
     {
       "badge": "Property",
       "kind": "property",
-      "meta": "Is a soundness level stated, and proven?",
+      "meta": "Is a soundness level stated for this configuration, and proven?",
       "name": "Security level",
       "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"on\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "security level is a soundness level stated, and proven? property",
+      "terms": "security level is a soundness level stated for this configuration, and proven? property",
       "tier": 1,
       "url": "/criteria#security_level"
     },
