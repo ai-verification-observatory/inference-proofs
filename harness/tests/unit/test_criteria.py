@@ -89,6 +89,21 @@ def test_criteria_file_is_a_g2_input() -> None:
     assert COMMITTED["schema"] == "criteria/1"
 
 
+def test_check_reads_only_a_parsed_criteria_mapping(tmp_path: Path) -> None:
+    """The rules run when the criteria file is among the files and parses to a mapping; a file
+    that does not parse is G2 SCHEMA's finding, not a CRIT one."""
+    assert crit.check(tmp_path, ["web/_data/other.json"]) == []
+    assert crit.check(tmp_path, [crit.PATH]) == []  # listed, not on disk
+    path = tmp_path / crit.PATH
+    path.parent.mkdir(parents=True)
+    path.write_text("{not json")
+    assert crit.check(tmp_path, [crit.PATH]) == []
+    path.write_text("[]")
+    assert crit.check(tmp_path, [crit.PATH]) == []
+    path.write_text(json.dumps({"order": []}))
+    assert [f.pointer for f in crit.check(tmp_path, [crit.PATH])] == ["/order", "/properties"]
+
+
 # ---------------------------------------------------------------- CRIT-1
 
 
@@ -130,6 +145,11 @@ def test_conflict_cell_follows_table() -> None:
     assert "a conflict of no and yes is no" in found(d, "CRIT-1")[0].message
     c["state"] = "no"
     assert found(d, "CRIT-1") == []
+    c["quotes"] = [yes | {"decides": True}, yes | {"decides": False}]
+    assert [f.message for f in found(d, "CRIT-1")] == [
+        "a conflict cell's quotes do not meet two of yes, partly and no"
+    ]
+    c["quotes"] = [no | {"decides": True}, yes | {"decides": False}]
     del c["conflict"]
     assert "only for the quotes of a conflict cell" in found(d, "CRIT-1")[0].message
 
@@ -177,6 +197,17 @@ def test_web_quote_without_archive_or_copy_fails() -> None:
     assert "after the file's date" in found(d, "CRIT-3")[0].message
 
 
+def test_web_quote_not_https_or_undated_fails() -> None:
+    d = doc()
+    q = cell(d, "nanozk", "weights_hidden")["quotes"][0]
+    q["url"] = q["url"].replace("https://", "http://")
+    del q["retrieved"]
+    pointer = f"/rows/{d['rows'].index(row(d, 'nanozk'))}/cells/weights_hidden/quotes/0"
+    got = {(f.message, f.pointer) for f in found(d, "CRIT-3")}
+    assert ("a web quote's url is not https", f"{pointer}/url") in got
+    assert ("a web quote has no retrieved date", f"{pointer}/retrieved") in got
+
+
 def test_web_copy_hash_mismatch_fails(tmp_path: Path) -> None:
     root = tree(tmp_path)
     (root / "web/_data/copies").mkdir(parents=True)
@@ -210,6 +241,14 @@ def test_deciding_web_quote_not_own_source_fails() -> None:
     assert found(d, "CRIT-3") == []
     row(d, "nanozk")["own_sources"] = [{"repo": "example/nanozk", "how": "fixture"}]
     assert len(found(d, "CRIT-3")) == 1
+
+
+def test_own_source_only_repository_or_web() -> None:
+    """SRC-8 names repository and web quotes; any other kind is never a row's own source."""
+    own: list[Any] = [{"repo": "ai-verification-observatory/inference-proofs", "how": "fixture"}]
+    q = {"kind": "this_repository", "repo": "ai-verification-observatory/inference-proofs"}
+    assert crit.own_source(q, own) is False
+    assert crit.own_source(q | {"kind": "repository"}, own) is True
 
 
 # ---------------------------------------------------------------- CRIT-4
@@ -327,6 +366,14 @@ def test_card_configuration_mismatch_fails(tmp_path: Path) -> None:
     assert found(d, "CRIT-5", root) == []
 
 
+def test_card_naming_another_system_fails(tmp_path: Path) -> None:
+    root = tree(tmp_path)
+    path = root / "systems/flashprove/claim.yaml"
+    path.write_text(path.read_text().replace('system: "flashprove"', 'system: "other"'))
+    (f,) = found(doc(), "CRIT-5", root)
+    assert (f.message, f.pointer) == ("the card names another system", "/rows/0/card/system")
+
+
 # ---------------------------------------------------------------- CRIT-6
 
 
@@ -421,6 +468,14 @@ def test_reference_substitution_sets_partly() -> None:
     assert any("workload no-such-workload is not in" in f.message for f in found(d, "CRIT-7"))
 
 
+def test_reference_row_without_reference_system_fails() -> None:
+    d = doc()
+    row(d, "ref-serve")["id"] = "ref-gone"
+    assert [f.message for f in found(d, "CRIT-7")] == [
+        "no reference system ref-gone with a role of the reference table"
+    ]
+
+
 def test_reference_quote_absent_from_current_rfc_fails(tmp_path: Path) -> None:
     root = tree(tmp_path)
     rfc = root / crit.RFC_0015
@@ -494,6 +549,27 @@ def test_missing_commit_is_environment_error(tmp_path: Path) -> None:
     assert "not in the local object store" in f.message
 
 
+def test_git_not_runnable_is_environment_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No git on the machine reads as a missing object, never as a pass."""
+    root, rev = this_repo(tmp_path)
+
+    def no_git(*args: object, **kwargs: object) -> None:
+        raise FileNotFoundError("git")
+
+    monkeypatch.setattr(subprocess, "run", no_git)
+    assert crit.git_show(root, rev, "notes.md") is None
+    (f,) = found(quoted(rev, "L2"), "CRIT-8", root)
+    assert f.kind is ErrorKind.ENVIRONMENT
+
+
+def test_malformed_lines_left_to_schema(tmp_path: Path) -> None:
+    """A `lines` value the schema rejects is not read again by CRIT-8."""
+    root, rev = this_repo(tmp_path)
+    assert found(quoted(rev, "2"), "CRIT-8", root) == []
+
+
 # ---------------------------------------------------------------- CRIT-9 to CRIT-12
 
 
@@ -524,6 +600,9 @@ def test_order_differs_fails() -> None:
     d = doc()
     d["order"] = list(reversed(d["order"]))
     assert [f.pointer for f in found(d, "CRIT-9")] == ["/order"]
+    d = doc()
+    d["properties"].reverse()
+    assert [f.pointer for f in found(d, "CRIT-9")] == ["/properties"]
     d = doc()
     del row(d, "ezkl")["cells"]["security_level"]
     d["rows"].append(copy.deepcopy(row(d, "zkml")))
@@ -926,6 +1005,24 @@ def test_missing_controls_file_is_environment_error(rel: Release) -> None:
     (rel.root / listed / "controls.json").write_text("{not json")
     (f,) = found(sash_doc(), "CRIT-13", rel.root)
     assert f.kind is ErrorKind.ENVIRONMENT
+
+
+def test_controls_file_of_another_run_fails(rel: Release) -> None:
+    listed = rel.run(1, controls=[], pending=False)
+    rel.freeze("v0.1", [listed])
+    (rel.root / listed / "controls.json").write_text(json.dumps({"run_id": run_id(2)}))
+    (f,) = found(sash_doc(), "CRIT-13", rel.root)
+    assert f.kind is ErrorKind.INTEGRITY
+    assert f.message.endswith(f"controls.json does not name run {run_id(1)}")
+
+
+def test_unreadable_release_is_environment_error(rel: Release) -> None:
+    rel.freeze("v0.1", [rel.run(1, controls=[], pending=False)])
+    path = rel.root / "releases/v0.1/release.yaml"
+    path.write_text(path.read_text().replace("freeze_date:", "frozen:"))
+    (f,) = found(sash_doc(), "CRIT-13", rel.root)
+    assert (f.kind, f.pointer) == (ErrorKind.ENVIRONMENT, "/release")
+    assert f.message.startswith("cannot read the releases:")
 
 
 # ---------------------------------------------------------------- CRIT-14

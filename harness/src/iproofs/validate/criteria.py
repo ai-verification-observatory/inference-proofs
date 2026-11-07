@@ -902,14 +902,13 @@ def contradictions(
 ) -> tuple[dict[str, set[tuple[str, str]]], set[str]]:
     """OVR-3 over the runs read: property -> {(control, run id)} of contradicting outcomes of
     mapped controls, and the run ids whose controls.json has `disclosure_pending: true`.
-    Raises IProofsError(environment) on a run directory or controls.json it cannot read."""
+    `run_dirs` come from `runs_read`, which has read each one's run.json. Raises
+    IProofsError(environment) on a controls.json it cannot read."""
     out: dict[str, set[tuple[str, str]]] = {p: set() for p in PROPERTIES}
     pending: set[str] = set()
     for run_dir in run_dirs:
         name = run_dir.rstrip("/").rsplit("/", 1)[-1]
         path = root / run_dir / "controls.json"
-        if not (root / run_dir).is_dir():
-            raise IProofsError(ErrorKind.ENVIRONMENT, f"CRIT-13: no run directory {run_dir}")
         if not path.is_file():
             continue  # not run: never raises or lowers a state
         try:
