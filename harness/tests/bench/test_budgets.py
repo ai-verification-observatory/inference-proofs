@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from fixtures.placeholder_release import build_placeholder
 from fixtures.release_tree import build as build_release
 from fixtures.synthetic_tree import generate
 from iproofs.cli import main as cli_main
@@ -94,8 +95,11 @@ def test_budget_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_budget_site(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """B-SITE: `iproofs site build` over a frozen fixture release of 1,000 runs."""
-    build_release(tmp_path, runs=1000)
+    """B-SITE: `iproofs site build` over the frozen placeholder release the deployed site is
+    built from, scaled to 1,000 run directories (500 repetitions of each prover configuration;
+    the reference rows keep their three)."""
+    build_placeholder(tmp_path, repetitions=500)
+    assert len(list(tmp_path.glob("results/v0.1/*/*/run.json"))) >= 1000
     monkeypatch.chdir(tmp_path)
     assert cli_main(["release", "freeze", "v0.1"]) == 0
     start = time.monotonic()

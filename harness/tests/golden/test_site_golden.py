@@ -1,43 +1,51 @@
-"""RFC-0009 §Site: every page of the fixture release, byte for byte (S1 to S9 regressions)."""
+"""RFC-0009 §Site: every generated file of the placeholder release with its test cases, byte
+for byte (S1 to S9 regressions), and the same bytes from a second build (CLI-4).
+
+The golden holds the files `iproofs site build` writes from the release (pages, search index,
+`vercel.json`, preview-card sources), not the static assets it copies (`words.css`, `words.js`,
+fonts, pictures), so a font or picture change does not force a golden update.
+"""
 
 import shutil
 from pathlib import Path
 
 import pytest
 
-from fixtures.release_tree import build_rich
-from iproofs import cli
+from fixtures.placeholder_release import build_site
 
 GOLDEN = Path(__file__).resolve().parent / "site"
+GENERATED = ("*.html", "search.json", "vercel.json", "og/*.html", "og/icon.svg")
+
+
+def generated(root: Path) -> dict[str, bytes]:
+    return {p.relative_to(root).as_posix(): p.read_bytes()
+            for pattern in GENERATED for p in sorted(root.glob(pattern))}  # fmt: skip
 
 
 @pytest.fixture(scope="module")
 def site(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """The rich fixture release, frozen, then built into a site."""
-    root = tmp_path_factory.mktemp("repo")
-    build_rich(root)
-    with pytest.MonkeyPatch.context() as mp:
-        mp.chdir(root)
-        assert cli.main(["release", "freeze", "v0.1"]) == 0
-        assert cli.main(["site", "build", "--out", str(root / "out")]) == 0
-    return root / "out"
-
-
-def pages(root: Path) -> dict[str, bytes]:
-    return {p.relative_to(root).as_posix(): p.read_bytes()
-            for p in sorted(root.rglob("*")) if p.is_file()}  # fmt: skip
+    """The placeholder release with every test-only case (`extras=True`), frozen and built."""
+    root = tmp_path_factory.mktemp("site")
+    return build_site(root / "repo", root / "out", extras=True)
 
 
 def test_site_matches_golden(site: Path, update_golden: bool) -> None:
+    built = generated(site)
     if update_golden:
         shutil.rmtree(GOLDEN, ignore_errors=True)
-        shutil.copytree(site, GOLDEN)
-    built, golden = pages(site), pages(GOLDEN)
+        for rel, data in built.items():
+            (GOLDEN / rel).parent.mkdir(parents=True, exist_ok=True)
+            (GOLDEN / rel).write_bytes(data)
+    golden = generated(GOLDEN)
     assert sorted(built) == sorted(golden)
     for rel in built:
         assert built[rel] == golden[rel], rel
-    kinds = {"index.html", "v0.1/index.html", "v0.1/methodology.html",
-             "v0.1/systems/fake.html", "v0.1/workloads/fake-tiny-ci.html",
-             "v0.1/divisions/open.html", "v0.1/controls.html", "v0.1/targets.html",
-             "sponsors.html"}  # fmt: skip
-    assert kinds <= set(built)  # every RFC-0009 page type
+    pages = {"index.html", "flashprove.html", "sash.html", "reference.html", "criteria.html",
+             "404.html"}  # fmt: skip
+    assert pages <= set(built)  # every page type the site writes today
+
+
+def test_two_builds_same_bytes(site: Path, tmp_path: Path) -> None:
+    """CLI-4: the same inputs give the same bytes."""
+    again = build_site(tmp_path / "repo", tmp_path / "out", extras=True)
+    assert generated(again) == generated(site)

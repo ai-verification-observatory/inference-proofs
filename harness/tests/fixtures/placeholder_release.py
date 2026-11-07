@@ -813,6 +813,20 @@ def freeze_tree(root: Path) -> int:
         return cli.main(["release", "freeze", RELEASE])
 
 
+def build_site(root: Path, out: Path, *, extras: bool = False) -> Path:
+    """Build the placeholder tree at `root`, freeze it and run `iproofs site build --out out`
+    there, as the site.yml command does; returns `out`. For tests."""
+    from iproofs import cli  # noqa: PLC0415
+
+    build_placeholder(root, extras=extras)
+    if code := freeze_tree(root):
+        raise RuntimeError(f"iproofs release freeze exited {code}")
+    with _cwd(root):
+        if code := cli.main(["site", "build", "--out", str(out)]):
+            raise RuntimeError(f"iproofs site build exited {code}")
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m fixtures.placeholder_release")
     group = parser.add_mutually_exclusive_group(required=True)

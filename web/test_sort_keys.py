@@ -1,132 +1,160 @@
-"""Sort keys of the home figures against hand-computed cases from _data/site.json.
+"""Sort keys and figures of the overview, against hand-computed cases from the placeholder release.
 
-The site shows only the benchmark's own runs (MOCK until a release exists), so every key is a run value.
-Run: python3 -m pytest test_sort_keys.py   (or: python3 test_sort_keys.py)
+Until v0.1 the runs are placeholders (harness/tests/fixtures/placeholder_release.py): every key is
+the value the placeholder index stores. Run from the repository root: uv run pytest web -q
 """
 
-import pathlib
-import sys
+import html
+import json
+import re
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import build
+import pytest
 
-ROWS = {r["system"]: r for r in build.PROVERS}
-K = {sid: build.row_keys(r) for sid, r in ROWS.items()}
+from iproofs.quantity import Grade, NullReason, Scope, Tier
+from iproofs.site import inputs
+
+ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" data-k="([^"]+)">')
+
+
+@pytest.fixture(scope="module")
+def keys(site):
+    """{system: {column: key}} as the committed overview prints them."""
+    text = (site.web / "index.html").read_text()
+    return {rid: json.loads(html.unescape(k)) for rid, k in ROW.findall(text)}
 
 
 def close(a, b):
     return abs(a - b) <= 1e-9 * max(1.0, abs(b))
 
 
-def test_proof_size_in_bytes():
+def test_keys_are_the_stored_values(site, keys):
+    # S4: the key is the value the index stores, in its base unit, never a printed figure
+    for cfg in site.view["configurations"]:
+        if cfg["kind"] != "prover":
+            continue
+        for col, metric in site.build.METRIC.items():
+            assert keys[cfg["system"]][col] == cfg["figures"][metric]["value"], (cfg["system"], col)
+
+
+def test_proof_size_in_bytes(keys):
     # printed "18.78 MB" and "19.80 GB": 18.78 x 10^6 B and 19.80 x 10^9 B, so MB sorts before GB
-    assert abs(K["flashprove"]["proof_size"] - 18.78e6) <= 0.005e6
-    assert close(K["sash"]["proof_size"], 19_800_000_000)
-    assert K["flashprove"]["proof_size"] < K["sash"]["proof_size"]
+    assert abs(keys["flashprove"]["proof_size"] - 18.78e6) <= 0.005e6
+    assert close(keys["sash"]["proof_size"], 19_800_000_000)
+    assert keys["flashprove"]["proof_size"] < keys["sash"]["proof_size"]
 
 
-def test_check_time_in_seconds():
+def test_check_time_in_seconds(keys):
     # 3.120 s against 121.3 s
-    assert close(K["flashprove"]["check_time"], 3.12)
-    assert abs(K["sash"]["check_time"] - 121.3) <= 0.05
+    assert close(keys["flashprove"]["check_time"], 3.12)
+    assert abs(keys["sash"]["check_time"] - 121.3) <= 0.05
 
 
-def test_covers_in_positions():
-    # positions one proof covers, by the workload record both systems run: a 1,024-token prompt
-    w = build.site["workloads"]["fp-maverick-w1024-b24"]
-    assert (
-        K["flashprove"]["covers"]
-        == K["sash"]["covers"]
-        == w["one_proof_covers"]["tokens_counted"]
-        == 1024
-    )
+def test_covers_in_positions(site, keys):
+    # D-TPP, positions one proof covers: FlashProve proves the 1,024-token window; SASH's rule
+    # counts the prompt and the output (1,024 + 1), on the same workload record
+    shape = site.view["configurations"][0]["workload"]["shape"]
+    assert keys["flashprove"]["covers"] == shape["context_window"] == 1024
+    assert keys["sash"]["covers"] == shape["prompt_tokens"] + shape["output_tokens"] == 1025
 
 
-def test_overhead_ratio_and_missing():
-    # the reference could not run Llama 4 Maverick on one H100: no overhead for either system
-    assert K["flashprove"]["overhead"] is None
-    assert K["sash"]["overhead"] is None
+def test_overhead_missing(site, keys):
+    # plain serving could not run Llama 4 Maverick on one H100 (RFC-0015 NM-1): no overhead
+    assert keys["flashprove"]["overhead"] is None
+    assert keys["sash"]["overhead"] is None
+    for cfg in site.view["configurations"]:
+        if cfg["kind"] == "prover":
+            f = cfg["figures"]["overhead_vs_serving_prove.session"]
+            assert f["null_reason"] == "not_measurable_on_profile"
 
 
-def test_units_normalise():
-    assert build.UNIT["GB"] / build.UNIT["MB"] == 1000
-    assert build.UNIT["min"] == 60 * build.UNIT["s"]
-    n, half = build.shown_number("19.83 GB")
-    assert close(n, 19.83e9)
-    assert close(half, 0.005e9)
-    n, half = build.shown_number("1,583×")
-    assert n == 1583
-    assert half == 0.5
-    assert build.shown_number("Not published") is None
+def test_units_normalise(site):
+    b = site.build
+    assert b.amount(19.83e9, "B") == ("19.83", "GB")
+    assert b.amount(5023.08, "B") == ("5.023", "kB")
+    assert b.amount(2410.5333, "s") == ("40.18", "min")
+    assert b.amount(64.3667, "s") == ("64.37", "s")
+    assert b.amount(0.03, "s") == ("30.00", "ms")
+    assert b.shown(1583, "ratio") == "1,583×"
+    assert b.shown(1024.0, "token") == "1,024 positions"
+    assert b.shown(0.0114974, "USD/1k_token") == "0.01150 USD / 1k positions"
+    assert (b.sig4(3.12), b.sig4(121.2667), b.sig4(0.851061), b.sig4(0)) == ("3.120", "121.3", "0.8511", "0")
 
 
-def test_sort_words():
-    w = build.sort_words()
+def test_sort_words(site):
+    w = site.build.SORT_WORDS
     assert w["system"]["asc"] == "A to Z"
     assert w["proof_size"]["asc"] == "small to large"
     assert w["check_time"]["desc"] == "long to short"
-    assert set(w) == {"system", *build.COLS}
+    assert set(w) == {"system", *site.build.COLS}
 
 
-def test_one_model():
-    # only systems run on Llama 4 Maverick are shown; the references are those on it
-    assert [build.MODEL_NAME[d] for d in build.MODELS] == [build.TARGET_MODEL]
-    assert {r["workload"] for r in build.H5["rows"]} == {"fp-maverick-w1024-b24"}
-    refs = sorted(r["id"].split("--")[0] for r in build.H5["rows"] if r["kind"] == "reference")
-    assert refs == ["ref-recompute", "ref-serve"]
+def test_one_model(site):
+    # one table, Llama 4 Maverick, every benchmarked system in it; the two references
+    tables = site.build.tables()
+    assert [(site.build.MODEL_NAME[d], [c["system"] for c in rows]) for d, _, rows in tables] == [
+        ("Llama 4 Maverick", ["flashprove", "sash"])
+    ]
+    assert site.view["orders"]["reference"] == ["ref-serve", "ref-recompute"]
 
 
-def test_sorted_orders():
+def test_sorted_orders(keys):
     # hand-computed from the printed figures: 18.78 MB < 19.80 GB, 3.120 s < 121.3 s
-    by = lambda col: sorted(K, key=lambda s: K[s][col])  # noqa: E731
+    by = lambda col: sorted(("flashprove", "sash"), key=lambda s: keys[s][col])  # noqa: E731
     assert by("proof_size") == ["flashprove", "sash"]
     assert by("check_time") == ["flashprove", "sash"]
 
 
-def test_ref_summary():
-    # one row per reference: covers follows the system, a proof's figures do not apply, and plain
-    # serving's overhead is 1x by definition (run or not), the rerun's does not apply
-    got = {
-        gid: {
-            c: (x["run"].get("value"), (x["run"].get("absent") or {}).get("text"))
-            for c, x in build.ref_summary(gid)["cells"].items()
-        }
-        for gid in build.G["orders"]["reference"]
-    }
+def test_reference_cells(site):
+    # a reference makes no proof (RFC-0015 REF-2): covers follows the system, a proof's figures do
+    # not apply, plain serving is the baseline of the overhead, the rerun's overhead does not apply
+    got = {}
+    for gid in site.view["orders"]["reference"]:
+        cfg = site.build.first_config(gid)
+        got[gid] = {c: re.sub(r"<[^>]+>", "", site.build.cell_words(cfg, c)[0]) for c in site.build.COLS}
     for gid in got:
-        assert got[gid]["covers"] == (None, "Same as the system")
-        assert got[gid]["proof_size"] == (None, "No proof")
-        assert got[gid]["check_time"] == (None, "Does not apply")
-    assert got["ref-serve"]["overhead"][0].startswith("1×")
-    assert got["ref-recompute"]["overhead"] == (None, "Does not apply")
+        assert got[gid]["covers"] == "Same as the system"
+        assert got[gid]["proof_size"] == "No proof"
+        assert got[gid]["check_time"] == "Does not apply"
+    assert got["ref-serve"]["overhead"] == "Baseline"
+    assert got["ref-recompute"]["overhead"] == "Does not apply"
 
 
-def test_readable_labels():
-    nb = "\u00a0"  # a number keeps its word on its line
-    assert build.readable("n = 3 runs, n_failed = 0") == f"3{nb}completed, 0{nb}failed"
-    assert build.readable("1 proof") == "per proof"
-    assert build.readable("18.77 MB to 18.78 MB") == "18.77\u00a0MB to 18.78\u00a0MB"
-    assert build.no_rule("one H100 (RFC-0015 NM-1).") == "one H100."
+def test_reference_runs_all_failed(site):
+    # every reference run failed with kind resource: counts, below the minimum, NM-1 (S3, S7)
+    for gid in site.view["orders"]["reference"]:
+        line = site.build.runs_counts(site.build.first_config(gid))
+        assert line == "0 completed, 3 failed · below minimum repetitions · not measurable on one H100 (RFC-0015 NM-1)"
 
 
-def test_home_figures_show_spread():
-    # every figure whose data holds a SPREAD line shows its sample size and range first
+def test_readable_labels(site):
+    nb = " "  # a number keeps its word on its line
+    assert site.build.readable("3 completed, 0 failed") == f"3{nb}completed, 0{nb}failed"
+    assert site.build.readable("18.77 MB to 18.78 MB") == f"18.77{nb}MB to 18.78{nb}MB"
+    assert site.build.no_rule("one H100 (RFC-0015 NM-1).") == "one H100."
+
+
+def test_home_figures_show_spread(site):
+    # every measured figure shows its sample size and range first (S3), One proof covers included
     seen = 0
-    for r in ROWS.values():
-        for col in build.COLS:
-            x = r["cells"][col][build.VIEW]
-            sp = build.card_line(x, "SPREAD")
-            if not sp or not x.get("value"):
+    for cfg in site.build.PROVERS:
+        for col in site.build.COLS:
+            f = cfg["figures"][site.build.METRIC[col]]
+            if f["value"] is None:
                 continue
-            lines = build.fallback_lines(x)
-            n, rng = sp["v"].split(" · ")[:2]
-            assert lines[:2] == [n, rng], (r["id"], col, lines)
+            lines = site.build.cell_words(cfg, col)[1]
+            st = f["stats"]
+            assert lines[0] == f"{st['n']} completed, {st['n_failed']} failed", (cfg["system"], col)
+            assert " to " in lines[1]
             seen += 1
-    assert seen == 4
+    assert seen == 6
 
 
-if __name__ == "__main__":
-    for name, f in list(globals().items()):
-        if name.startswith("test_"):
-            f()
-            print("ok", name)
+def test_every_stored_id_has_words(site):
+    # a stored id with no words would stop the build; each vocabulary is covered in full
+    b = site.build
+    assert set(inputs.STATES) <= set(b.STATE_WORD) and set(inputs.STATES) <= set(b.STATE_CLS)
+    assert set(inputs.FAMILIES) == set(b.FAMILY_WORD)
+    assert {s.value for s in Scope} | {None} == set(b.SCOPE_WORD)
+    assert {g.value for g in Grade} == set(b.GRADE_WORD)
+    assert {t.value for t in Tier} == set(b.TIER_WORD)
+    assert {n.value for n in NullReason} == set(b.NULL_WORD)

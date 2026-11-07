@@ -1,17 +1,18 @@
-"""MADE OF WORDS: build the public site from the data in _data/.
+"""MADE OF WORDS: the renderer of the public site (RFC-0009 §Site).
 
-Run: python3 -I build.py
-Reads _data/site.json and _data/criteria.json, the fonts in fonts/ and words.css / words.js (next to
-this file), and the RFC file names in ../rfcs to link rule codes. Types no number: every value,
-label, pin and hash comes from the data. The site shows only the benchmark's own runs, on one
-model. The pages carry no marking of placeholder data: the README says which numbers are
-placeholders.
+`iproofs site build` computes every value the pages print into a view
+(`iproofs.site.view.site_view`, from the newest frozen release, the claim cards, the criteria
+file and `_data/facts.json`) and calls `render(view, out, write_json=..., write_text=...)`. This
+module opens no data file and types no number: every value, label, pin and hash comes from the
+view. It holds the drawing and the fixed words the pages print for stored values (scope, grade,
+tier, null reasons, units, states, families), as RFC-0009 S2 allows. Standard library only.
 
-Writes the pages (index, one per system, reference, criteria, 404), the preview-card sources and
-icon in og/, the @font-face block in words.css, vercel.json (headers with the inline script's
-hash, redirects, cache rules) and the contrast table in README.md. It computes pie geometry, the
-sort keys of the home figures (raw values from the data, units normalised), the contrast of each
-ink, and the content hashes that version words.css, words.js and the pictures.
+`render` writes into `out`: the pages (index, one per system, reference, criteria, 404),
+search.json, the preview-card sources and icon in og/, the @font-face block in words.css,
+vercel.json (headers with the inline script's hash, redirects, cache rules) and the contrast
+table in README.md when `out` holds one. The static assets (words.css, words.js, fonts/,
+og/*.png, og/cards.json) are in `out` before it runs. It computes pie geometry, the contrast of
+each ink and the content hashes that version words.css, words.js and the pictures.
 """
 
 import base64
@@ -22,91 +23,124 @@ import math
 import pathlib
 import re
 
-HERE = pathlib.Path(__file__).resolve().parent
-DATA = HERE / "_data"
-site = json.loads((DATA / "site.json").read_bytes())
-crit = json.loads((DATA / "criteria.json").read_bytes())
-G, H5, OV = site["glyph"], site["home5"], site["overview"]
-VIEW = "run"  # the benchmark's own runs; the systems' published figures are not shown
+# Set by render(): the output folder, the view and what is read from it. Nothing is read when
+# the module is imported.
+HERE = OG = pathlib.Path()
+V: dict = {}
+CRIT: dict = {}
+PROPS: list = []
+CONFIGS: list = []
+PROVERS: list = []
+PAGE: dict = {}
+MODELS: list = []
+MODEL_NAME: dict = {}
+INK: dict = {}
+FACES: list = []
+RFC_FILES: dict = {}
+REPO_URL = LINK_REF = crit_sha = ""
+ladder: list = []
+pairs: list = []
+WRITE_TEXT = WRITE_JSON = None
 
 
 def e(s):
     return html.escape(str(s), quote=True)
 
 
-# ------------------------------------------------------------------ consistency checks
-# The footer pins the committed criteria.json by its sha256. The data pipeline read an earlier
-# copy (site.json glyph.input); the content checks below tie the committed file to it.
-crit_sha = hashlib.sha256((DATA / "criteria.json").read_bytes()).hexdigest()
-assert G["order"] == crit["order"]
-for rid, states in crit["test_mapping"].items():
-    if rid in G["rows"]:
-        assert G["rows"][rid]["states"] == states, f"states differ for {rid}"
-
-# ------------------------------------------------------------------ models
-# The site compares systems on one model, Llama 4 Maverick (400B parameters): only systems run on
-# it are shown (the data puts every benchmarked system there, _data/maverick_only.py). Rows are set
-# side by side only within one model, biggest first, should the data ever hold more than one.
-TARGET_MODEL = "Llama 4 Maverick"
-
-
-def model_name(row):
-    return (row.get("model") or "").split(" · ")[0]
-
-
-def wl_model(wid):
-    return site["workloads"][wid]["model"]
-
-
-PROVERS = [r for r in H5["rows"] if r["kind"] == "prover"]
-
-
-for _r in PROVERS:
-    assert model_name(_r) == TARGET_MODEL, f"{_r['id']} is not on {TARGET_MODEL}"
-
-
-def model_of(row):
-    """The model a row ran, by the content hash its workload records."""
-    return wl_model(row["workload"])["digest"]
-
-
-MODELS = sorted(
-    {model_of(r) for r in PROVERS},
-    key=lambda d: (
-        -next(wl_model(r["workload"])["parameters_total"] for r in PROVERS if model_of(r) == d)
-    ),
-)
-MODEL_NAME = {d: model_name(next(r for r in PROVERS if model_of(r) == d)) for d in MODELS}
-assert len(set(MODEL_NAME.values())) == len(MODELS)
-
-
 def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+
+
+# ------------------------------------------------------------------ words
+# The fixed words a stored value prints as (RFC-0009 S2: the generator may word a stored value;
+# it never changes it). Keyed by the stored ids, so an id with no words stops the build.
+STATE_WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated",
+              None: "No state shown"}  # fmt: skip
+STATE_CLS = {"yes": "yes", "partly": "partly", "no": "no", "not_stated": "unstated", None: "none"}
+STATE_ORDER = ("yes", "partly", "no", "not_stated")  # the legend's order, display only
+FAMILY_WORD = {"proved": "Proved", "attested": "Attested", "re_executed": "Re-executed",
+               "fingerprinted": "Fingerprinted", "unchecked": "Unchecked"}  # fmt: skip
+STATUS_WORD = {"active": "active", "unmaintained": "unmaintained", "archived": "archived",
+               "no_repository": "no repository"}  # fmt: skip
+SCOPE_WORD = {
+    None: "none (not a timed number)",
+    "setup": "setting up",
+    "commit": "preparing the model",
+    "prove.steady": "proving, steady state",
+    "prove.session": "proving session",
+    "whole_wall": "the whole run, wall clock",
+    "verify": "checking ({cpus} CPU threads)",
+    "verify.single_thread": "checking (one CPU thread)",
+    "primitive": "one primitive",
+}
+GRADE_WORD = {
+    "measured": "recorded by our harness",
+    "derived": "calculated from recorded numbers",
+    "projected": "projected, not measured",
+    "external": "as the system publishes it",
+    "asserted": "set in the reference file",
+}
+TIER_WORD = {
+    "reported": "one runner, not yet checked",
+    "peer-reviewed": "reviewed, not yet rerun",
+    "reproduced": "rerun by an unaffiliated runner",
+}
+NULL_WORD = {
+    "not_externally_observable": "The harness cannot observe this number from outside the system.",
+    "fewer_than_two_proofs": "Fewer than two proofs in a run, so there is no per-proof figure.",
+    "not_applicable": "Does not apply to this setup.",
+    "step_failed": "The step that records this number failed in these runs.",
+    "not_measurable_on_profile": "Not measurable on {gpu} (RFC-0015 NM-1).",
+    "missing_input": "A number this one is calculated from is missing.",
+}
+# A missing overhead names its baseline: overhead divides by plain serving's time (D-OVERHEAD-S).
+NM1_OVERHEAD = "Plain serving could not run this model on {gpu}, so there is no baseline to divide by (RFC-0015 NM-1)."
+NOT_RECORDED = "Not recorded in these runs."
+FAIL_KIND = {
+    "config": "a configuration error",
+    "environment": "a fault on the runner's machine",
+    "integrity": "an integrity check failed",
+    "fetch": "a download failed",
+    "adapter": "the adapter failed",
+    "timeout": "the run ran out of time",
+    "resource": "the machine ran out of resources",
+    "policy": "a policy check stopped it",
+    "internal": "an error in our harness",
+}
+FAIL_STEP = {
+    "setup": "while setting up",
+    "commit": "while preparing the model",
+    "prove": "while proving",
+    "verify": "while checking",
+    "upload": "while uploading its proofs",
+    "fetch": "while fetching",
+}
+# RFC-0008 outcomes, each count as stored; zero counts are left out, and no total is printed
+OUTCOME_WORDS = (
+    ("rejected", "the checker rejected {n}"),
+    ("invalid_call", "it refused {n} as malformed input"),
+    ("accepted", "it accepted {n}"),
+    ("no_verdict", "{n} ended with no verdict"),
+    ("prover_failed", "in {n} the prover would not build the tampered proof"),
+    ("error", "{n} ended in an error"),
+    ("void", "{n} were void"),
+    ("not_applicable", "{n} do not apply to this setup"),
+)
+OUTCOME_VERB = {"accepted": "accepted", "rejected": "rejected", "invalid_call": "refused",
+                "no_verdict": "gave no verdict on", "error": "failed on"}  # fmt: skip
+COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
+              8: "eight", 9: "nine", 10: "ten"}  # fmt: skip
+REF_LEAD = "The same model, task and GPU without a proof: plain serving checks nothing, a rerun needs the weights; they are baselines, not systems."
+
+
+def count_word(n):
+    return COUNT_WORD.get(n, f"{n:,}")
 
 
 # ------------------------------------------------------------------ inks
 GROUND, PAPER, MUTED, RULE = "#0b0b0c", "#f1efe9", "#9b978e", "#6f6a62"
 VIOLET = "#c45cff"
 UNSTATED = "#67635c"  # Not stated: a filled slot in a grey of its own, never a fourth hue
-INK = {k: v["ink"] for k, v in G["states"].items() if k != "grey"}
-# words.css renders these inks; its :root must hold the same values the checks below compute on
-_CSS_INKS = dict(re.findall(r"--(\w+):\s*(#[0-9a-f]{6})", (HERE / "words.css").read_text()))
-for _k, _v in {
-    "ground": GROUND,
-    "paper": PAPER,
-    "muted": MUTED,
-    "rule": RULE,
-    "violet": VIOLET,
-    "unstated": UNSTATED,
-    "yes": INK["green"],
-    "partly": INK["amber"],
-    "no": INK["red"],
-}.items():
-    assert _CSS_INKS.get(_k) == _v, (
-        f"words.css --{_k} is {_CSS_INKS.get(_k)}, the build checks {_v}"
-    )
-CLS = {k: v["cls"] for k, v in G["states"].items()}
-WORD = {k: v["word"] for k, v in G["states"].items()}
 
 
 def lum(h):
@@ -121,140 +155,110 @@ def ratio(a, b):
     return (x + 0.05) / (y + 0.05)
 
 
-ladder, prev = [], UNSTATED
-ladder.append(
-    (
-        "Not stated",
-        f"`{UNSTATED}` (a grey, no hue)",
-        f"{lum(UNSTATED):.3f}",
-        f"{ratio(UNSTATED, GROUND):.2f}:1",
-        "",
+def check_inks():
+    """words.css renders the inks: the states' inks are read from its :root, the chrome's must
+    equal the values the checks below compute on, and every pair keeps its contrast."""
+    global INK, ladder, pairs
+    css = dict(re.findall(r"--(\w+):\s*(#[0-9a-f]{6})", (HERE / "words.css").read_text()))
+    INK = {s: css[s] for s in ("yes", "partly", "no")}
+    for k, v in {"ground": GROUND, "paper": PAPER, "muted": MUTED, "rule": RULE,
+                 "violet": VIOLET, "unstated": UNSTATED}.items():  # fmt: skip
+        assert css.get(k) == v, f"words.css --{k} is {css.get(k)}, the build checks {v}"
+    ladder, prev = [], UNSTATED
+    ladder.append(("Not stated", f"`{UNSTATED}` (a grey, no hue)", f"{lum(UNSTATED):.3f}",
+                   f"{ratio(UNSTATED, GROUND):.2f}:1", ""))  # fmt: skip
+    for st in ("no", "partly", "yes"):
+        step = ratio(INK[st], prev)
+        # grey to red is told apart by hue, not lightness; the colour steps are told apart by both
+        assert step >= 1.7 or prev == UNSTATED, st
+        ladder.append((STATE_WORD[st], f"`{INK[st]}`", f"{lum(INK[st]):.3f}",
+                       f"{ratio(INK[st], GROUND):.2f}:1", f"{step:.2f}:1"))  # fmt: skip
+        prev = INK[st]
+    pairs = [
+        ("paper text on ground", PAPER, GROUND),
+        ("muted text on ground", MUTED, GROUND),
+        ("black text on violet", GROUND, VIOLET),
+        ("violet text on ground", VIOLET, GROUND),
+    ]
+    pairs += [(f"ground text on {STATE_WORD[s]}", GROUND, INK[s]) for s in ("yes", "partly", "no")]
+    for name, a, b in pairs:
+        assert ratio(a, b) >= 4.5, name
+    assert ratio(UNSTATED, GROUND) >= 3, (
+        "a Not stated slot must stand off the ground (3:1 for shapes)"
     )
-)
-for st, word in (("red", "No"), ("amber", "Partly"), ("green", "Yes")):
-    step = ratio(INK[st], prev)
-    # grey to red is told apart by hue, not lightness; the colour steps are told apart by both
-    assert step >= 1.7 or prev == UNSTATED, word
-    ladder.append(
-        (
-            word,
-            f"`{INK[st]}`",
-            f"{lum(INK[st]):.3f}",
-            f"{ratio(INK[st], GROUND):.2f}:1",
-            f"{step:.2f}:1",
-        )
-    )
-    prev = INK[st]
-pairs = [
-    ("paper text on ground", PAPER, GROUND),
-    ("muted text on ground", MUTED, GROUND),
-    ("black text on violet", GROUND, VIOLET),
-    ("violet text on ground", VIOLET, GROUND),
-]
-pairs += [(f"ground text on {WORD[s]}", GROUND, INK[s]) for s in ("green", "amber", "red")]
-for name, a, b in pairs:
-    assert ratio(a, b) >= 4.5, name
-assert ratio(UNSTATED, GROUND) >= 3, "a Not stated slot must stand off the ground (3:1 for shapes)"
-
-# ------------------------------------------------------------------ sort keys (computed, never typed)
-# Each home figure column sorts on the raw number the data stores for it, in the axis chart that
-# plots it (site.json: axes.<axis>.charts[<chart>].views.run.rows[].value), multiplied into one base
-# unit per column by the chart's declared unit. A unit not in UNIT stops the build.
-SORT_AXIS = {
-    "covers": ("one-proof-covers", "positions"),
-    "proof_size": ("proof-size", "per-proof"),
-    "check_time": ("check-time", "per-proof"),
-    "overhead": ("overhead", "ratio"),
-}
-UNIT = {
-    "token positions": 1,
-    "B": 1,
-    "kB": 1e3,
-    "MB": 1e6,
-    "GB": 1e9,
-    "TB": 1e12,
-    "s": 1,
-    "ms": 1e-3,
-    "min": 60,
-    "h": 3600,
-    "ratio": 1,
-}
-# the words a figure prints after its number, for the build's own cross-check only (never a key)
-SHOWN_UNIT = {
-    "positions": 1,
-    "B": 1,
-    "kB": 1e3,
-    "MB": 1e6,
-    "GB": 1e9,
-    "s": 1,
-    "ms": 1e-3,
-    "min": 60,
-    "×": 1,
-}
-SORT_WORDS = {
-    "covers": "covers",
-    "proof_size": "proof-size-per-proof",
-    "check_time": "check-time-per-proof",
-    "overhead": "overhead",
-}
 
 
-def chart(col):
-    axis, cid = SORT_AXIS[col]
-    return next(c for c in site["axes"][axis]["charts"] if c["id"] == cid)
+# ------------------------------------------------------------------ numbers (display only)
+# A stored value prints at four significant digits in a unit chosen for reading (S4); the sort key
+# and the record keep the stored value in its base unit.
+def sig4(v):
+    if v == 0:
+        return "0"
+    return f"{v:,.{max(0, 3 - math.floor(math.log10(abs(v))))}f}"
 
 
-def sort_key(row_id, col):
-    """The raw number behind one home figure, in the column's base unit; None when the data has none."""
-    ch = chart(col)
-    factor = UNIT[ch["unit"]]
-    r = next((x for x in ch["views"][VIEW]["rows"] if x["row"] == row_id), None)
-    if r is None or r.get("value") is None:
-        return None
-    return r["value"] * factor
+def amount(v, unit):
+    """(number, unit words) for a stored value in its stored unit."""
+    if unit == "B":
+        f, u = next(((f, u) for f, u in ((1e12, "TB"), (1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
+                     if abs(v) >= f), (1, "B"))  # fmt: skip
+        return sig4(v / f), u
+    if unit == "s":
+        if v and abs(v) < 1:
+            return sig4(v * 1e3), "ms"
+        if abs(v) < 1e3:
+            return sig4(v), "s"
+        return (sig4(v / 60), "min") if abs(v) < 6e4 else (sig4(v / 3600), "h")
+    words = {"token": "positions", "token/s": "positions/s", "USD/1k_token": "USD / 1k positions"}
+    return sig4(v), words.get(unit, unit)
 
 
-def shown_number(text):
-    """A printed figure ("18.78 MB", "1,583×") as a number and the half step of its last digit, in base units."""
-    m = re.match(r"^([\d,]+)(?:\.(\d+))?\s*(\S+)", text or "")
-    if not m or m.group(3) not in SHOWN_UNIT:
-        return None
-    f = SHOWN_UNIT[m.group(3)]
-    dec = len(m.group(2) or "")
-    return float(
-        m.group(1).replace(",", "") + ("." + m.group(2) if m.group(2) else "")
-    ) * f, 0.5 * 10**-dec * f
+def shown(v, unit):
+    n, u = amount(v, unit)
+    return f"{n}×" if unit == "ratio" else f"{n} {u}"
 
 
-def row_keys(row):
-    """{col: key or None} for one home row, checked against the figure the row prints."""
-    out = {}
-    for col in SORT_AXIS:
-        k = sort_key(row["id"], col)
-        cell = row["cells"][col][VIEW]
-        shown = shown_number(cell.get("value")) if cell.get("value") else None
-        if k is None:
-            assert shown is None or row["kind"] != "prover", (
-                f"{row['id']} {col}: printed number with no raw value"
-            )
-        else:
-            assert shown is not None, f"{row['id']} {col}: raw value but no printed number"
-            assert abs(k - shown[0]) <= shown[1] * 1.0001, (
-                f"{row['id']} {col}: raw {k} vs printed {cell['value']}"
-            )
-        out[col] = k
-    return out
+def spread_parts(f):
+    """The sample size and the range, the two parts the overview shows (S3)."""
+    st = f.get("stats")
+    if not st:
+        return []
+    lo, hi = (shown(st[k], f["unit"]) for k in ("min", "max"))
+    if f["unit"] == "token":  # the figure above names the unit
+        lo, hi = (x.rsplit(" ", 1)[0] for x in (lo, hi))
+    return [f"{st['n']} completed, {st['n_failed']} failed", f"{lo} to {hi}"]
 
 
-def sort_words():
-    """{col: {dir: words}}: how each order reads aloud, from the data's own direction words."""
-    sk = {s["key"]: s for s in OV["sort_keys"]}
-    out = {"system": {"asc": "A to Z", "desc": "Z to A"}}
-    for col in SORT_AXIS:
-        w = sk[SORT_WORDS[col]]
-        assert w["column"] == HEAD[col], col
-        out[col] = dict(w["dir_words"])
-    return out
+def spread_line(f):
+    """The whole spread as a plate prints it: sample size, range, mean and sd (S3)."""
+    st = f["stats"]
+    parts = [*spread_parts(f), f"mean {shown(st['mean'], f['unit'])}"]
+    if st.get("stdev") is not None:
+        parts.append("sd 0" if st["stdev"] == 0 else f"sd {shown(st['stdev'], f['unit'])}")
+    return " · ".join(parts)
+
+
+def gpu_words(cfg):
+    g = cfg["gpu"]
+    return f"{count_word(g['count'])} {g['short'] or g['model']}"
+
+
+def scope_words(f, cfg):
+    return SCOPE_WORD[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"])
+
+
+def why_words(f, cfg):
+    """Why a figure has no value, from its stored null reason (or its absence from the runs)."""
+    if not f["recorded"]:
+        return NOT_RECORDED
+    if f["null_reason"] == "not_measurable_on_profile" and f["metric"].startswith("overhead_"):
+        return NM1_OVERHEAD.format(gpu=gpu_words(cfg))
+    return NULL_WORD[f["null_reason"]].format(gpu=gpu_words(cfg))
+
+
+def labels(f, cfg):
+    return [("scope", scope_words(f, cfg)), ("grade", GRADE_WORD[f["grade"]]),
+            ("checked", TIER_WORD[f["tier"]])]  # fmt: skip
 
 
 # ------------------------------------------------------------------ the glyph: the hex asterisk
@@ -372,12 +376,13 @@ def _names_svg(names, c, R):
 def hex_svg(
     size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg", names=None
 ):
-    """The glyph: six filled triangles, always. states: six state keys, inked by words.css
-    (.sl.yes ... .sl.unstated, a grey of its own). key: n, the legend key (slot n in full ink, the
-    other five faint). mono: every slot in currentColor (the logo). cells: each slot carries its
-    property's name and state word (read by words.js). hit: a still copy of the six triangles on
-    top takes the pointer, so a lifted slot never slips from under it. names: each slot's property
-    name set in it (shown on phone system pages only)."""
+    """The glyph: six filled triangles, always. states: six RFC-0016 state ids, inked by words.css
+    (.sl.yes ... .sl.unstated, a grey of its own; None, a row under a pending disclosure, draws
+    none of the four). key: n, the legend key (slot n in full ink, the other five faint). mono:
+    every slot in currentColor (the logo). cells: each slot carries its property's name and state
+    word (read by words.js). hit: a still copy of the six triangles on top takes the pointer, so a
+    lifted slot never slips from under it. names: each slot's property name set in it (shown on
+    phone system pages only)."""
     c, R = _frame(size)
     wr, wc = (
         (max(1.0, size * 0.016), max(3.0, size * 0.10))
@@ -396,7 +401,7 @@ def hex_svg(
             if cells:
                 extra = f' data-name="{e(cells[i]["name"])}" data-word="{e(cells[i]["word"])}"'
             parts.append(
-                f'<path class="sl s{i + 1} {CLS[states[i]]}" data-n="{i + 1}"{extra} d="{d}"/>'
+                f'<path class="sl s{i + 1} {STATE_CLS[states[i]]}" data-n="{i + 1}"{extra} d="{d}"/>'
             )
     if names:
         parts.append(_names_svg(names, c, R))
@@ -432,46 +437,56 @@ def mark_svg(size, cls="lm"):
 # The direction each slot steps out along when lifted (the bisector of slot i). words.css holds
 # them as --dx/--dy on .s1 to .s6, so the pages carry no inline style; the build checks they agree.
 LIFT = {i + 1: pt(1, 60 * i + 30) for i in range(6)}
-_css = (HERE / "words.css").read_text()
-for _n, (_dx, _dy) in LIFT.items():
-    _m = re.search(rf"\.s{_n} {{ --dx: (-?[\d.]+); --dy: (-?[\d.]+); }}", _css)
-    assert _m, f"words.css lacks the .s{_n} lift"
-    assert abs(float(_m[1]) - _dx) < 1e-3, f".s{_n} --dx"
-    assert abs(float(_m[2]) - _dy) < 1e-3, f".s{_n} --dy"
+
+
+def check_lifts():
+    css = (HERE / "words.css").read_text()
+    for n, (dx, dy) in LIFT.items():
+        m = re.search(rf"\.s{n} {{ --dx: (-?[\d.]+); --dy: (-?[\d.]+); }}", css)
+        assert m, f"words.css lacks the .s{n} lift"
+        assert abs(float(m[1]) - dx) < 1e-3, f".s{n} --dx"
+        assert abs(float(m[2]) - dy) < 1e-3, f".s{n} --dy"
+
+
+# ------------------------------------------------------------------ the criteria's rows as glyphs
+
+
+def glyph(rid):
+    """One criteria row as the pages draw it: six states in slot order, each with its property,
+    word, reason, quotes and the system's own statement outside the pin (never part of a state)."""
+    row = CRIT["rows"][rid]
+    cells = []
+    for i, p in enumerate(PROPS):
+        c = row["cells"][p["id"]]
+        outside = (c.get("outside_pin") or {}).get("state")
+        cells.append({"n": i + 1, "prop": p["id"], "name": p["name"], "question": p["question"],
+                      "state": c["state"], "word": STATE_WORD[c["state"]],
+                      "reason": c.get("reason") or "", "quotes": c["quotes"],
+                      "outside": outside})  # fmt: skip
+    return {"states": [c["state"] for c in cells], "cells": cells}
+
+
+def states_said(g, outside=False):
+    """The six states in words (the pie's spoken name). outside: also the system's own statement
+    outside the pin, which is never part of the state (RFC-0016 SRC-3); system pages only."""
+    parts = []
+    for c in g["cells"]:
+        w = c["word"]
+        if outside and c["outside"] is not None:
+            w += f" (its own note outside the pin says {STATE_WORD[c['outside']]})"
+        parts.append(f"{c['name']}: {w}")
+    return words("; ".join(parts) + ".")
+
+
+def aria(g, name, outside=False):
+    return f"{name}: {states_said(g, outside)}"
 
 
 # ------------------------------------------------------------------ words and labels
 
 
-CUT = (" These tests show only what happened to these attempts, nothing more.", " Printed as text.")
-
-
-def cut(text):
-    """Data sentences the site does not print."""
-    for c in CUT:
-        text = text.replace(c, "").replace(c.strip(), "")
-    return text.strip()
-
-
-KNOWN = ("scope", "grade", "checked", "source", "workload", "grade, step")
-
-
-def parse_title(t):
-    parts = t.split(" · ")
-    head, kv = parts[0], []
-    for p in parts[1:]:
-        k = p.split(": ", 1)[0]
-        if ": " in p and k in KNOWN:
-            kv.append([k, p.split(": ", 1)[1]])
-        elif kv:
-            kv[-1][1] += " · " + p
-        else:
-            head += " · " + p
-    return head, kv
-
-
 def split_value(v):
-    """Number, its unit (the next word), and any words after it, as stored."""
+    """Number, its unit (the next word), and any words after it."""
     m = re.match(r"^([\d,.]+)\s*(\S*)\s*(.*)$", v)
     return (m.group(1), m.group(2), m.group(3)) if m else (None, None, v)
 
@@ -495,17 +510,52 @@ HEAD = {
     "check_time": "Check time",
     "overhead": "Overhead",
 }
-# Placeholder markings in the data's own label text ("· MOCK ·", "MOCK fixture", warnings about mock
-# values, "in the fixture") are dropped: the site prints figures and their labels as a release would.
-MOCKY = re.compile(r"\bmock\b", re.I)
-FIXTURE = re.compile(r"\s+in the fixture(?=[.;,]|$)", re.I)
+# the stored statistic behind each overview column (iproofs.site.view.FIGURES)
+METRIC = {
+    "covers": "tokens_covered_per_proof",
+    "proof_size": "proof_bytes",
+    "check_time": "verify_seconds",
+    "overhead": "overhead_vs_serving_prove.session",
+}
+# how each order reads aloud
+SORT_WORDS = {
+    "system": {"asc": "A to Z", "desc": "Z to A"},
+    "covers": {"asc": "fewer positions first", "desc": "more positions first"},
+    "proof_size": {"asc": "small to large", "desc": "large to small"},
+    "check_time": {"asc": "short to long", "desc": "long to short"},
+    "overhead": {
+        "asc": "closer to plain serving first",
+        "desc": "further from plain serving first",
+    },
+}
+# More numbers on a system page, in this order: the stored statistic and its row label
+MORE = [
+    ("rate_prove.session", "Proving rate"),
+    ("cost_per_1k_tokens_prove.session", "GPU cost per 1,000 positions"),
+    ("commit_seconds", "Commit once"),
+    ("verify_host_memory_peak_anon", "Checker memory"),
+    ("prove_gpu_memory_peak", "GPU memory"),
+]
+# A reference row makes no proof (RFC-0015 REF-2): its cells say so, in these words
+REF_CELLS = {
+    "covers": (
+        "Same as the system",
+        "Same token count as the system it runs beside (RFC-0015 REF-3).",
+    ),
+    "proof_size": ("No proof", "This row makes no proof (RFC-0015 REF-2)."),
+    "check_time": ("Does not apply", "This row makes no proof (RFC-0015 REF-2)."),
+}
+REF_OVERHEAD = {
+    "serve": (
+        "Baseline",
+        "Plain serving is the baseline of the overhead ratio, whether or not it has run.",
+    ),
+    "recompute": ("Does not apply", "A rerun is not the baseline."),
+}
 
-# Data phrases the site words differently, for a reader who has not read the RFCs. Each must still
-# occur in the data, so a change there shows up here.
+# Criteria phrases the site words differently, for a reader who has not read the RFCs. Each must
+# still occur in the criteria or facts file, so a change there shows up here.
 PHRASES = {
-    # overhead divides by plain serving's time; the reason names that reference and the consequence
-    "The reference could not run this model on one H100": "Plain serving could not run this model on one H100, so there is no baseline to divide by",
-    "the reference could not run this model on one H100": "Plain serving could not run this model on one H100, so there is no baseline to divide by",
     # one name per reference: the pages call it a rerun
     "recompute needs them": "a rerun needs them",
     "a checker holding the weights recomputes": "a checker holding the weights reruns it",
@@ -518,17 +568,13 @@ PHRASES = {
     " (hiding from a host operator is another property)": "",
     "or not copied yet": "or we have not recorded it yet",
 }
-_data_text = json.dumps(site, ensure_ascii=False) + json.dumps(crit, ensure_ascii=False)
-for _k in PHRASES:
-    assert _k in _data_text, f"PHRASES: {_k!r} no longer in the data"
 
-# RFC rule codes ("(RFC-0015 NM-1)") in data text: a link to the RFC on the page, never the bare code
+# RFC rule codes ("(RFC-0015 NM-1)") in text: a link to the RFC on the page, never the bare code
 RFC_RULE = re.compile(r"\s*\((RFC-(\d{4})(?:\s[A-Z]+-\d+)?)\)")
-RFC_FILES = {f.name[:4]: f.name for f in (HERE.parent / "rfcs").glob("[0-9][0-9][0-9][0-9]-*.md")}
 
 
 def sentence_case(text):
-    """Each sentence starts with a capital, as data fragments joined with ". " sometimes do not.
+    """Each sentence starts with a capital, as fragments joined with ". " sometimes do not.
     Only prose: a short label ("per proof", "1 token checked") or an id keeps its own case."""
     if len(text.split()) < 4 or not text[:1].islower():
         return re.sub(r"(\. )([a-z])", lambda m: m[1] + m[2].upper(), text)
@@ -537,26 +583,11 @@ def sentence_case(text):
 
 
 def words(text):
-    """Data text as the site prints it: placeholder words dropped, phrases reworded."""
-    text = FIXTURE.sub("", str(text))
+    """Criteria and facts text as the site prints it: phrases reworded."""
+    text = str(text)
     for k, v in PHRASES.items():
         text = text.replace(k, v)
     return text
-
-
-def clean(text):
-    """A label without its placeholder parts: " · "-separated segments that mention mock are dropped."""
-    return " · ".join(s for s in words(text).split(" · ") if not MOCKY.search(s))
-
-
-def clean_prose(text):
-    """A sentence without the clauses (split at "; ") that speak of placeholder records."""
-    out = []
-    for s in words(text).split(". "):
-        keep = "; ".join(c for c in s.rstrip(".").split("; ") if not MOCKY.search(c))
-        if keep:
-            out.append(keep)
-    return sentence_case(". ".join(out) + ".") if out else ""
 
 
 def no_rule(text):
@@ -589,103 +620,14 @@ def with_rule(text):
 
 def readable(text):
     """A printed figure label: whole numbers stay with their units, the spread reads in words."""
-    # n counts the completed runs only; the failed ones are not counted in the figure
-    text = re.sub(
-        r"\bn = (\d+) runs?, n_failed = (\d+)", r"\1 completed, \2 failed", text, flags=re.I
-    )
-    text = re.sub(r"^1 (proof|check)$", r"per \1", text)
     text = text.replace(" · ", "\u00a0· ")  # a separator never starts a line
     # a count word stays with what it counts ("one H100"), a statistic with its number ("sd 0")
     text = re.sub(r"\b(one|two|three|four|five|six|seven|eight|nine|ten) (?=\w)", "\\1\u00a0", text)
     text = re.sub(r"\b(mean|sd) (?=[\d.])", "\\1\u00a0", text)
-    return re.sub(r"(\d) (?=[A-Za-zµ%×])", "\\1\u00a0", text)
+    # a number stays with its unit, not with the "to" of a range
+    return re.sub(r"(\d) (?=(?!to )[A-Za-zµ%×])", "\\1\u00a0", text)
 
 
-def card_line(x, k):
-    return next((ln for ln in (x.get("card") or {}).get("lines", []) if ln["k"] == k), None)
-
-
-def spread_parts(x):
-    """A run's spread as stored: the sample size and the range, the two parts the home shows."""
-    sp = card_line(x, "SPREAD")
-    return sp["v"].split(" · ")[:2] if sp else []
-
-
-def fallback_lines(x):
-    """The label lines under a figure. A cell with no value shows only why (the card's WHY line)."""
-    if not x.get("value"):
-        why = card_line(x, "WHY")
-        if why:
-            return [why["v"]]
-    sp = spread_parts(
-        x
-    )  # sample size and range first, whatever else the cell stores (AGENTS.md rule 5)
-    if x.get("lines"):
-        return sp + x["lines"]
-    head, kv = parse_title(x["title"])
-    if kv:
-        return sp + [f"{k}: {v}" for k, v in kv if k in ("scope", "grade", "grade, step")]
-    word = (x.get("absent") or {}).get("text", "")
-    if word and head.startswith(word + ": "):
-        head = head[len(word) + 2 :]
-    return (
-        [t + ("." if not t.endswith(".") else "") for t in head.split(". ") if t]
-        if ". " in head
-        else [head]
-    )
-
-
-def cell(row, col):
-    return row["cells"][col][VIEW]
-
-
-RAW = re.compile(r" \([\d.]+ [^)]*\)")  # the raw float the data adds after a printed figure
-
-
-def value_link(row, col, href, who=""):
-    """A figure on the home row: a link to the figures on the row's own page; its labels ride in the
-    title. The lines under it are plain text (a link cannot hold the rule links the plates carry)."""
-    x = cell(row, col)
-    inner = (
-        fig(x["value"]) if x.get("value") else f'<span class="na">{e(x["absent"]["text"])}</span>'
-    )
-    shown = [sentence_case(readable(no_rule(clean(ln)))) for ln in fallback_lines(x)]
-    if "by definition" in (x.get("value") or ""):
-        shown = []  # "1× by definition" says it; the data's sentence would say it twice more
-    lines = "".join(f"<span>{e(ln)}</span>" for ln in shown if ln)
-    sp = card_line(x, "SPREAD")
-    if x.get("value"):
-        spread = f" · spread: {sp['v']}" if sp else ""
-        title = sentence_case(readable(no_rule(clean(RAW.sub("", x["title"], count=1) + spread))))
-    else:  # only why it is missing: a missing number has no grade
-        why = card_line(x, "WHY")
-        title = sentence_case(no_rule(words(why["v"]))) if why else x["absent"]["text"]
-    name = f'<span class="sr">, {e(who)}</span>' if who else ""
-    return (
-        f'<a class="val" href="{e(href)}" title="{e(title)}">'
-        f'<span class="lbl">{e(HEAD[col])}{name}</span><span class="vm">{inner}</span>'
-        f'<span class="sub">{lines}</span></a>'
-    )
-
-
-# the label rows of a plate, in this order; "note" is the title's own sentence when no label is stored
-PLATE_ORDER = [
-    "spread",
-    "scope",
-    "grade",
-    "grade, step",
-    "checked",
-    "workload",
-    "why",
-    "warning",
-    "source",
-    "note",
-]
-NO_VALUE_DROPS = (
-    "grade",
-    "grade, step",
-    "checked",
-)  # a grade or check of a number that does not exist
 EXT = '<span aria-hidden="true">\u00a0↗</span>'  # an outside link's arrow: not read aloud, never alone on a line
 
 
@@ -721,64 +663,155 @@ def keep(text):
 
 
 def link_or_text(text, href):
-    """A source as a link only when it resolves (a root-relative path is text); rule codes as links."""
-    text = text.replace(" ↗", "")
-    if href and not href.startswith("/"):
+    """A source as a link when it has one; otherwise text, its rule codes as links."""
+    if href:
         return f'<a href="{e(href)}">{path_html(no_rule(text))}{EXT}</a>'
     return with_rule(text)
 
 
-def plate(row, col, pid=""):
-    """One figure's plate; pid: an id prefix, so a home figure can link to its own plate."""
-    x = cell(row, col)
-    head, kv = parse_title(x["title"])
-    kv = [[k, v, None] for k, v in kv]
-    card = x.get("card") or {}
-    if not kv and not card.get("lines"):
-        kv = [["note", head, None]]  # no labels stored apart from the title's sentence
-    have = {k for k, _, _ in kv}
-    for ln in card.get("lines", []):
-        k = ln["k"].lower()
-        if k == "source":
-            for p in kv:
-                if p[0] == "source":
-                    p[2] = ln.get("href")
-            continue
-        if k in have or (k in ("grade, step",) and "grade" in have):
-            continue
-        kv.append([k, ln["v"], ln.get("href")])
-    if "workload" not in {k for k, _, _ in kv} and not row.get("summary"):
-        kv.append(["workload", row["workload"], None])
-    kv.sort(key=lambda p: PLATE_ORDER.index(p[0]) if p[0] in PLATE_ORDER else 99)
-    if not x.get("value"):
-        kv = [p for p in kv if p[0] not in NO_VALUE_DROPS]
-    prose = (
-        "note",
-        "why",
-        "warning",
-    )  # sentences; the other labels are values and ids, kept as stored
-    kv = [
-        [k, sentence_case(clean(v)) if k in prose else clean(v), href]
-        for k, v, href in kv
-        if clean(v)
-    ]
-    dl = "".join(
-        f"<div><dt>{e(k)}</dt><dd>{link_or_text(readable(v), href)}</dd></div>" for k, v, href in kv
+def blob(path):
+    """A file of this repository, at the commit the site links (RFC-0009 S1, #320 plan §1.1)."""
+    return f"{REPO_URL}/blob/{LINK_REF}/{path}"
+
+
+# ------------------------------------------------------------------ one configuration's figures
+
+
+def cell_words(cfg, col):
+    """(value html, lines, title, measured) for one overview figure of a configuration."""
+    if cfg["kind"] == "reference":
+        word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
+                      else REF_CELLS[col])  # fmt: skip
+        if col == "overhead" and cfg["reference_role"] == "serve":  # the word says it all
+            return f'<span class="na">{e(word)}</span>', [], no_rule(line), False
+        return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False
+    f = cfg["figures"][METRIC[col]]
+    if f["value"] is None:
+        why = why_words(f, cfg)
+        return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False
+    value = shown(f["value"], f["unit"])
+    unit_line = {"covers": "{n} token{s} checked", "proof_size": "per proof",
+                 "check_time": "per check"}.get(col)  # fmt: skip
+    out_tokens = cfg["workload"]["shape"]["output_tokens"]
+    tail = (
+        [unit_line.format(n=f"{out_tokens:,}", s="" if out_tokens == 1 else "s")]
+        if unit_line
+        else []
     )
-    val = fig(x["value"]) if x.get("value") else f'<span class="na">{e(x["absent"]["text"])}</span>'
+    title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
+                        f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
+                       else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
+                             f"source: {f['source']}"])  # fmt: skip
+    return fig(value), [*spread_parts(f), *tail], title, True
+
+
+def value_link(cfg, col, href, who=""):
+    """A figure on the overview row: a link to the figure's own plate; its labels ride in the
+    title. The lines under it are plain text (a link cannot hold the rule links the plates carry)."""
+    inner, shown_lines, title, measured = cell_words(cfg, col)
+    title = sentence_case(readable(title) if measured else title)
+    lines = "".join(f"<span>{e(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
+    name = f'<span class="sr">, {e(who)}</span>' if who else ""
+    return (
+        f'<a class="val" href="{e(href)}" title="{e(title)}">'
+        f'<span class="lbl">{e(HEAD[col])}{name}</span><span class="vm">{inner}</span>'
+        f'<span class="sub">{lines}</span></a>'
+    )
+
+
+def workload_link(cfg):
+    return cfg["workload"]["id"], blob(cfg["workload"]["record"])
+
+
+def plate(cfg, col, pid=""):
+    """One figure's plate, every label in view (S2, S3); pid: an id prefix, so an overview
+    figure can link to its own plate."""
+    kv = []
+    if cfg["kind"] == "reference":
+        word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
+                      else REF_CELLS[col])  # fmt: skip
+        val = f'<span class="na">{e(word)}</span>'
+        kv.append(("note", line, None))
+    else:
+        f = cfg["figures"][METRIC[col]]
+        if f["value"] is None:
+            val = '<span class="na">No value</span>'
+            kv += [("workload", *workload_link(cfg)), ("why", why_words(f, cfg), None)]
+        else:
+            val = fig(shown(f["value"], f["unit"]))
+            if f.get("stats"):
+                kv.append(("spread", spread_line(f), None))
+            kv += [(k, v, None) for k, v in labels(f, cfg)]
+            kv.append(("workload", *workload_link(cfg)))
+        if f["recorded"]:
+            kv.append(("source", f["source"], None))
+    dl = "".join(
+        f"<div><dt>{e(k)}</dt><dd>{source_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
+        for k, v, href in kv
+    )
     return (
         f'<div class="plate"{f' id="{e(pid)}{col}"' if pid else ""} data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
         f'<p class="pv">{val}</p><dl>{dl}</dl></div>'
     )
 
 
+def source_html(pointer):
+    """A figure's record in the release index, as text until the index is published (#146)."""
+    file, _, frag = pointer.partition("#")
+    return path_html(file) + "<wbr>" + path_html("#" + frag)
+
+
+def has_figures(cfg):
+    """False for a configuration whose kept runs all failed: it holds no statistic."""
+    return any(f["recorded"] for f in cfg["figures"].values())
+
+
+def runs_counts(cfg):
+    """A configuration whose kept runs all failed holds no statistic: its counts, whether it has
+    fewer completed runs than a release needs, and RFC-0015 NM-1 when it applies (S3, S7)."""
+    runs = cfg["runs"]
+    parts = [f"{len(runs['completed'])} completed, {len(runs['failed'])} failed"]
+    if cfg["insufficient_repetitions"]:
+        parts.append("below minimum repetitions")
+    if runs["not_measurable"]:
+        parts.append(f"not measurable on {gpu_words(cfg)} (RFC-0015 NM-1)")
+    return " · ".join(parts)
+
+
+def runs_line(cfg):
+    """S7: what the figures are over, and every kept run not counted, with its failure record."""
+    runs = cfg["runs"]
+    out = [f"Runs of this setup: {len(runs['completed'])} completed"]
+    if runs["failed"]:
+        n = len(runs["failed"])
+        said = []
+        for f in runs["failed"]:
+            parts = [
+                FAIL_KIND[f["kind"]]
+                + (f" {FAIL_STEP[f['step']]}" if f["step"] in FAIL_STEP else "")
+            ]
+            if f["exit_code"] is not None:
+                parts.append(f"exit code {f['exit_code']}")
+            if f["last_line"]:
+                parts.append(f'last line: "{f["last_line"]}"')
+            said.append("; ".join(parts))
+        out.append(f"{n} failed and {'is' if n == 1 else 'are'} not counted ({'; '.join(said)})")
+    superseded = [x for x in runs["left_out"] if x["replaced_by"]]
+    other = [x for x in runs["left_out"] if not x["replaced_by"]]
+    if superseded:
+        why = "; ".join(r.split(": ", 1)[1] if ": " in r else r
+                        for x in superseded for r in x["reasons"])  # fmt: skip
+        out.append(f"{len(superseded)} superseded and replaced ({why})")
+    if other:
+        out.append(f"{len(other)} left out ({'; '.join(r for x in other for r in x['reasons'])})")
+    return "; ".join(out) + ". Each number below is over the completed runs."
+
+
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
-PAGE = {sid: f"/{sid}" for sid in G["orders"]["benchmarked"]}  # one page per benchmarked system
 REF_PAGE = "/reference"  # one page for the reference systems
-CRIT_PAGE = "/criteria"  # the draft criteria behind the six states (G["legend"]["href"] names it)
-assert G["legend"]["href"].rstrip("/") == CRIT_PAGE, G["legend"]["href"]
+CRIT_PAGE = "/criteria"  # the criteria behind the six states
 
 
 def file_of(path):
@@ -789,12 +822,16 @@ def file_of(path):
 # fonts/faces.json lists each woff2 file (named with its own hash, so it can be cached for good)
 # with the family, weights, widths and unicode range Google Fonts gives it. The arrows subset comes
 # last, so its glyphs win where ranges overlap.
-FACES = json.loads((HERE / "fonts" / "faces.json").read_text())["faces"]
-for _f in FACES:
-    _h = hashlib.sha256((HERE / "fonts" / _f["file"]).read_bytes()).hexdigest()[:10]
-    assert _f["file"].endswith(f".{_h}.woff2"), f"fonts/{_f['file']} does not carry its hash"
-FACES.sort(key=lambda f: f["subset"] == "arrows")
 PRELOAD = ("archivo-latin.", "plex-mono-400-latin.", "plex-mono-500-latin.")
+
+
+def load_faces():
+    global FACES
+    FACES = json.loads((HERE / "fonts" / "faces.json").read_text())["faces"]
+    for f in FACES:
+        h = hashlib.sha256((HERE / "fonts" / f["file"]).read_bytes()).hexdigest()[:10]
+        assert f["file"].endswith(f".{h}.woff2"), f"fonts/{f['file']} does not carry its hash"
+    FACES.sort(key=lambda f: f["subset"] == "arrows")
 
 
 def font_faces(base):
@@ -830,15 +867,6 @@ HEAD_SCRIPT = (
     'try{if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("anim")}catch(_){}'
 )
 
-
-# The project's repository, as the data's own links name it (every workload and source link
-# points into it); the header links to it.
-REPOS = {
-    "/".join(w["href"].split("github.com/", 1)[1].split("/")[:2])
-    for w in site["workloads"].values()
-}
-assert len(REPOS) == 1, REPOS
-REPO_URL = f"https://github.com/{REPOS.pop()}"
 # GitHub's mark (Octicons mark-github, 16 px, MIT licence)
 GITHUB_MARK = (
     '<svg class="gh" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false"><path fill="currentColor" d="'
@@ -898,19 +926,28 @@ def search_box(here):
     )
 
 
+def criteria_label():
+    """The criteria's standing, from RFC-0016's own status line: (label, short label, RFC the
+    label cites). The label changes only once the RFC is Accepted."""
+    rfc = CRIT["rfc"]
+    if rfc["status"].startswith(("Accepted", "Final")):
+        return "Criteria", "Criteria", rfc["file"][:4]
+    return "Draft criteria, prototype only, needs an RFC", "Draft criteria, needs an RFC", "0001"
+
+
 def footer():
-    label = G["label"]
-    rfc = re.search(r"\(RFC-(\d{4})\)", label)
-    head = label[: rfc.start()].rstrip() if rfc else label
+    head, _, rfc = criteria_label()
+    rel = V["release"]
+    line = (
+        f"Release {rel['id']}"
+        + (" (candidate)" if rel["candidate"] else "")
+        + f" · licence {rel['licence']}"
+    )
     return (
         f'<footer class="foot"><p><a href="{CRIT_PAGE}">{e(head)}</a>'
-        + (
-            f' (<a class="nw" href="{e(REPO_URL)}/blob/main/rfcs/{RFC_FILES[rfc[1]]}">RFC-{rfc[1]}</a>)'
-            if rfc
-            else ""
-        )
-        + f'\u00a0· <a href="{e(REPO_URL)}/blob/main/web/_data/criteria.json">criteria.json</a> sha256 <code>{crit_sha[:12]}</code></p>'
-        f"<p>{e(readable(site['release']['footer_line']).replace('CC BY 4.0', 'CC\u00a0BY\u00a04.0'))}</p></footer>"
+        f' (<a class="nw" href="{e(REPO_URL)}/blob/main/rfcs/{RFC_FILES[rfc]}">RFC-{rfc}</a>)'
+        f'\u00a0· <a href="{e(REPO_URL)}/blob/main/{e(CRIT["path"])}">criteria.json</a> sha256 <code>{crit_sha[:12]}</code></p>'
+        f"<p>{e(readable(line).replace('CC BY 4.0', 'CC\u00a0BY\u00a04.0'))}</p></footer>"
     )
 
 
@@ -935,20 +972,20 @@ def page(title, desc, body, cls, path, card):
 
 def states_key():
     return "".join(
-        f'<span class="chip"><i class="sw {CLS[s]}"></i>{e(WORD[s])}</span>'
-        for s in G["state_order"]
+        f'<span class="chip"><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</span>'
+        for s in STATE_ORDER
     )
 
 
 def keyline():
-    return f'<p class="keyline">{states_key()}<a class="draft" href="{CRIT_PAGE}">{e(G["legend"]["draft_short"])}<span aria-hidden="true">\u00a0→</span></a></p>'
+    return f'<p class="keyline">{states_key()}<a class="draft" href="{CRIT_PAGE}">{e(criteria_label()[1])}<span aria-hidden="true">\u00a0→</span></a></p>'
 
 
 def masthead():
     """A plain legend: nothing in it can be pointed at or pressed."""
     items = "".join(
-        f'<li class="q">{key_mini(p["n"])}<span class="qw">{e(p["name"])}</span><span class="qq">{e(p["question"])}</span></li>'
-        for p in G["properties"]
+        f'<li class="q">{key_mini(i + 1)}<span class="qw">{e(p["name"])}</span><span class="qq">{e(p["question"])}</span></li>'
+        for i, p in enumerate(PROPS)
     )
     return f"""
 <section class="mast" aria-labelledby="h-mast">
@@ -963,65 +1000,75 @@ def masthead():
 # ------------------------------------------------------------------ home rows
 
 
-def aria(g, name=None):
-    """The data's spoken summary, without the slice numbers and the count before the names; with
-    name, it starts with the name the page shows (the data's own may differ, e.g. "Recompute")."""
-    text = words(re.sub(r"(: |; )\d (?=[A-Z])", r"\1", g["aria"]).replace(", six properties:", ":"))
-    return f"{name}: {states_said(g)}" if name else text
-
-
-def states_said(g):
-    """The six states in words, as the page's own reasons say them (for the pie's spoken name)."""
-    return words(aria(g).split(": ", 1)[1])
-
-
 def size_words(n):
-    """A parameter count from the data as the site prints it: 400000000000 is 400B, 8030261248 8.03B."""
+    """A parameter count as the site prints it: 400000000000 is 400B, 8030261248 8.03B."""
     return f"{n / 1e9:.3g}B"
 
 
-def pin_link(sid):
-    up = site["systems"][sid]["upstream"]
-    return f'<a class="pin" href="{e(up["href"])}" title="Pinned upstream commit {e(up["commit"])}">@{e(up["commit_short"])}</a>'
+def name_of(rid):
+    return V["facts"]["rows"][rid]["name"]
 
 
-def row_html(row, g, href, right, table=False):
+def upstream(cfg):
+    """RFC-0009 S1: the pin is `upstream.commit` of the configuration's claim card."""
+    return cfg["card"]["upstream"]
+
+
+def pin_link(cfg):
+    up = upstream(cfg)
+    href = f"https://github.com/{up['repo']}/tree/{up['commit']}"
+    return f'<a class="pin" href="{e(href)}" title="Pinned upstream commit {e(up["commit"])}">@{e(up["commit"][:8])}</a>'
+
+
+def kind_words(rid):
+    """A reference's role, as its facts word it, without the name it repeats."""
+    kt = words(V["facts"]["rows"][rid]["kind_words"])
+    name = name_of(rid)
+    return sentence_case(kt[len(name) + 2 :]) if kt.startswith(name + ": ") else kt
+
+
+def row_id(cfg):
+    """The row's id: the system's id, unless the system has more than one configuration."""
+    same = [c for c in CONFIGS if c["system"] == cfg["system"]]
+    if len(same) == 1:
+        return cfg["system"]
+    return f"{cfg['system']}--{cfg['configuration']}--{cfg['workload']['id']}"
+
+
+def row_keys(cfg):
+    """{col: the stored value in its base unit, or None}: the sort keys of one row (S4)."""
+    return {col: cfg["figures"][METRIC[col]]["sort_key"] for col in COLS}
+
+
+def row_html(rid, name, g, href, idle, right, table=False, keys=None):
     """One home row: pie, name and its pin (or a reference's kind), then `right`, the four figures.
     The model is the section's own heading, so a system row does not repeat it."""
-    rid = row["id"].split("--")[0] if row["kind"] == "prover" else row["id"]
     # the row header is named by the system's name alone, not by the six states and pin it also holds
     cell = f' role="rowheader" aria-labelledby="{e(rid)}-name"' if table else ""
     hid = f' id="{e(rid)}-name"' if table else ""
-    if row["kind"] == "prover":
-        idle = pin_link(row["system"])
-    else:
-        # "Plain serving: the baseline ..." reads without the name it repeats
-        kt = words(row["kind_title"])
-        kt = kt[len(row["name"]) + 2 :] if kt.startswith(row["name"] + ": ") else kt
-        idle = f"<span>{e(sentence_case(kt))}</span>"
     attrs = ""
     if table:
-        attrs = f' role="row" data-name="{e(row["name"].lower())}" data-k="{e(json.dumps(row_keys(row), separators=(",", ":")))}"'
+        attrs = f' role="row" data-name="{e(name.lower())}" data-k="{e(json.dumps(keys, separators=(",", ":")))}"'
     return f'''
 <div class="row" id="{e(rid)}"{attrs}>
   <div class="r-main">
     <div class="sysc"{cell}>
       <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=g["cells"], hit=True)}<span class="tip"></span></a>
-      <div class="who"><h3 class="name"{hid}><a href="{e(href)}">{e(row["name"])}</a></h3><p class="sr">{e(states_said(g))}</p><p class="wl">{idle}</p></div>
+      <div class="who"><h3 class="name"{hid}><a href="{e(href)}">{e(name)}</a></h3><p class="sr">{e(states_said(g))}</p>{idle}</div>
     </div>
     {right}
   </div>
 </div>'''
 
 
-def figures(row, base, table, block=None):
+def figures(cfg, base, table, block=None, who=""):
     """The four figures of a home row; each links to its own plate, at base + "-" + its column, or
     all to one block (a reference's figures, short enough to show whole with its name)."""
     cell = ' role="cell"' if table else ""
     return (
         '<div class="vals">'
         + "".join(
-            f'<div class="vc"{cell} data-col="{c}">{value_link(row, c, block or f"{base}-{c}", row["name"])}</div>'
+            f'<div class="vc"{cell} data-col="{c}">{value_link(cfg, c, block or f"{base}-{c}", who)}</div>'
             for c in COLS
         )
         + "</div>"
@@ -1030,11 +1077,10 @@ def figures(row, base, table, block=None):
 
 def sort_heads():
     """The column heads of the sortable table: each one a button with its sort glyph."""
-    words = sort_words()
 
     def head(col, label, cls=""):
         on = col == "system"
-        w = words[col]
+        w = SORT_WORDS[col]
         return (
             f'<div class="hc{cls}" role="columnheader" data-col="{col}"'
             + (' aria-sort="ascending"' if on else "")
@@ -1048,9 +1094,6 @@ def sort_heads():
         + "".join(head(c, e(HEAD[c])) for c in COLS)
         + "</div>"
     )
-
-
-NB_SAID = {"no adapter yet"}  # true of every row under "Not benchmarked yet": the heading says it
 
 
 def nb_models(r):
@@ -1068,87 +1111,56 @@ def nb_models(r):
     return "; ".join(out)
 
 
-def nb_meta(r):
-    """Family and status, then the chips that add something (no repeat of the status or heading)."""
-    seen = {r["status_label"].lower(), *NB_SAID}
-    if r["status_label"].lower() == "no repository":
-        seen.add("no public code")
-    chips = [c.lower() for c in r["chips"] if c.lower() not in seen]
-    return " · ".join(dict.fromkeys([r["family_label"], r["status_label"], *chips]))
+def nb_meta(rid):
+    """Family and repository status (the heading says no adapter runs them yet)."""
+    status = V["facts"]["rows"][rid]["status"]["state"]
+    return " · ".join([FAMILY_WORD[CRIT["rows"][rid]["family"]], STATUS_WORD[status]])
 
 
 def nb_grid():
-    rows = {r["id"]: r for r in OV["not_benchmarked"]["rows"]}
     out = ""
-    for rid in sorted(G["orders"]["not_benchmarked"], key=lambda k: rows[k]["name"].lower()):
-        r, g = rows[rid], G["rows"][rid]
+    for rid in V["orders"]["not_benchmarked"]:
+        r, g = V["facts"]["rows"][rid], glyph(rid)
         out += (
             f'<li class="nb" id="nb-{e(rid)}"><span class="nbpie" role="img" aria-label="{e(aria(g, r["name"]))}">{pie_svg(g["states"], 56)}</span>'
-            f'<div><h3 class="nbn">{e(r["name"])}</h3><p class="nbm">{keep(nb_models(r))}</p><p class="nbm">{keep(nb_meta(r))}</p></div></li>'
+            f'<div><h3 class="nbn">{e(r["name"])}</h3><p class="nbm">{keep(nb_models(r))}</p><p class="nbm">{keep(nb_meta(rid))}</p></div></li>'
         )
     return f'<ul class="nbgrid">{out}</ul>'
 
 
-def workload_line(row):
-    """What the row ran, as the data says it, without the model name the section already prints."""
-    sys_row = next(r for r in PROVERS if r["workload"] == row["workload"])
-    line = site["systems"][sys_row["system"]]["home_line"]
-    name = model_name(sys_row)
-    return line.split(" · ", 1)[1] if line.startswith(name + " · ") else line
+def shape_words(cfg):
+    """What the configuration ran, from its workload record and reference profile, without the
+    model name the section already prints."""
+    sh = cfg["workload"]["shape"]
+    out = sh["output_tokens"]
+    tail = "the next token" if out == 1 else f"{out:,} output tokens"
+    batch = sh["batch_size"]
+    gpus = cfg["gpu"]["count"]
+    return " · ".join([
+        f"{sh['prompt_tokens']:,}-token prompt, {tail}",
+        f"{batch:,} request{'s' if batch != 1 else ''} per batch",
+        f"{gpu_words(cfg)} GPU{'s' if gpus != 1 else ''}",
+    ])  # fmt: skip
 
 
-def model_sizes(row):
+def model_sizes(cfg):
     """The model's size from its workload record, so a row never reads as a 17B model."""
-    m = wl_model(row["workload"])
-    total, active = m["parameters_total"], m["parameters_active_per_token"]
+    p = cfg["workload"]["model"]["parameters"]
+    total, active = p["total"], p["active_per_token"]
     if total == active:
         return f"{size_words(total)} parameters"
     return f"{size_words(total)} parameters, {size_words(active)} active per token"
 
 
-def plain_heads(first):
-    """Column heads for a block that does not sort: the same columns, for the eye only."""
-    return (
-        f'<div class="heads plain" aria-hidden="true"><span class="hsys">{e(first)}</span>'
-        + "".join(f"<span>{e(HEAD[c])}</span>" for c in COLS)
-        + "</div>"
-    )
-
-
-def by_name(rows):
-    return sorted(rows, key=lambda r: site["systems"][r["system"]]["name"].lower())
-
-
-def ref_summary(gid):
-    """One home row per reference, whatever the model: each figure as the models share it. Where they
-    differ, the one that holds a value (plain serving's overhead is 1x by definition, run or not);
-    what one proof covers follows the system the reference runs beside, so it says so."""
-    rows = sorted(
-        (x for x in H5["rows"] if x["kind"] == "reference" and x["id"].split("--")[0] == gid),
-        key=lambda x: MODELS.index(model_of(x)),
-    )
-    cells = {}
-    for c in COLS:
-        xs = [x["cells"][c][VIEW] for x in rows]
-        if all(x.get("value") == "same as above" for x in xs):
-            cells[c] = {
-                "value": None,
-                "absent": {"text": "Same as the system"},
-                # a sentence: its rule link then follows the full stop
-                "title": xs[0]["title"]
-                .replace("the row it serves", "the system it runs beside")
-                .rstrip(".")
-                + ".",
-                "lines": [],
-            }
-        else:
-            cells[c] = next((x for x in xs if x.get("value")), xs[0])
-    return {
-        **rows[0],
-        "id": gid,
-        "summary": True,
-        "cells": {c: {VIEW: x} for c, x in cells.items()},
-    }
+def model_line(cfg):
+    """The model fact of a system page: name, size and the precision proved."""
+    m = cfg["workload"]["model"]
+    p = m["parameters"]
+    size = (f"{size_words(p['total'])} parameters (dense)" if p["total"] == p["active_per_token"]
+            else f"{size_words(p['total'])} total, {size_words(p['active_per_token'])} active per token")  # fmt: skip
+    prec = cfg["workload"]["precision"]["proved"]
+    said = V["facts"]["models"][m["digest"]]["precision_words"].get(prec)
+    return f"{MODEL_NAME[m['digest']]}, {size}, {prec}" + (f" ({said})" if said else "")
 
 
 def facts_line(text):
@@ -1159,40 +1171,80 @@ def facts_line(text):
     )
 
 
-def build_index():
-    first = f"System, {sort_words()['system']['asc']}"
-    secs = ""
+def by_name(cfgs):
+    return sorted(cfgs, key=lambda c: (name_of(c["system"]).lower(), c["position"]))
+
+
+def tables():
+    """S6: one table per model, largest first, then one per workload of that model."""
+    out = []
     for d in MODELS:
-        name, sid_ = MODEL_NAME[d], slug(MODEL_NAME[d])
-        rows = by_name(r for r in PROVERS if model_of(r) == d)
+        wls = sorted(
+            {c["workload"]["id"] for c in PROVERS if c["workload"]["model"]["digest"] == d}
+        )
+        for wid in wls:
+            rows = by_name(c for c in PROVERS if c["workload"]["id"] == wid)
+            sid = slug(MODEL_NAME[d]) if len(wls) == 1 else f"{slug(MODEL_NAME[d])}-{slug(wid)}"
+            out.append((d, sid, rows))
+    return out
+
+
+def first_config(sid):
+    return next(c for c in CONFIGS if c["system"] == sid)
+
+
+def fig_href(cfg, col):
+    """An overview figure's plate on the system page (the system's first configuration has
+    plates today; another configuration links to the page)."""
+    page_ = PAGE[cfg["system"]]
+    return f"{page_}#fig-{col}" if cfg is first_config(cfg["system"]) else page_
+
+
+def build_index():
+    first = f"System, {SORT_WORDS['system']['asc']}"
+    secs = ""
+    for d, sid_, rows in tables():
+        name = MODEL_NAME[d]
         body_rows = "".join(
             row_html(
-                r,
-                G["rows"][r["system"]],
+                row_id(r),
+                name_of(r["system"]),
+                glyph(r["system"]),
                 PAGE[r["system"]],
-                figures(r, f"{PAGE[r['system']]}#fig", True),
+                f'<p class="wl">{pin_link(r)}</p>',
+                '<div class="vals">'
+                + "".join(
+                    f'<div class="vc" role="cell" data-col="{c}">{value_link(r, c, fig_href(r, c), name_of(r["system"]))}</div>'
+                    for c in COLS
+                )
+                + "</div>",
                 True,
+                row_keys(r),
             )
             for r in rows
         )
         secs += f"""
   <section class="sec bench" id="{sid_}" aria-labelledby="h-{sid_}">
-    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + workload_line(rows[0])))}</p></div>
+    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + shape_words(rows[0])))}</p></div>
     <div class="tbl" role="table" aria-labelledby="h-{sid_}" aria-describedby="sort-now" data-col="system" data-dir="asc">
       {sort_heads()}
       <div class="rows" role="rowgroup">{body_rows}</div>
     </div>
   </section>"""
-    refs = "".join(
-        row_html(
-            r,
-            G["rows"][r["id"]],
-            f"{REF_PAGE}#{r['id']}",
-            figures(r, "", False, block=f"{REF_PAGE}#{r['id']}-figures"),
+    refs = ""
+    for rid in V["orders"]["reference"]:
+        cfg = first_config(rid)
+        counts = "".join(f'<p class="wl">{with_rule(readable(runs_counts(c)))}</p>'
+                         for c in CONFIGS if c["system"] == rid and not has_figures(c))  # fmt: skip
+        refs += row_html(
+            rid,
+            name_of(rid),
+            glyph(rid),
+            f"{REF_PAGE}#{rid}",
+            f'<p class="wl"><span>{e(kind_words(rid))}</span></p>{counts}',
+            figures(cfg, "", False, block=f"{REF_PAGE}#{rid}-figures", who=name_of(rid)),
         )
-        for r in (ref_summary(gid) for gid in G["orders"]["reference"])
-    )
-    nb_count = len(G["orders"]["not_benchmarked"])
+    nb_count = len(V["orders"]["not_benchmarked"])
     body = f"""
 {header("home")}
 <main id="main">
@@ -1206,7 +1258,7 @@ def build_index():
     {refs}
   </section>
   <section class="sec" id="not-yet" aria-labelledby="h-nb">
-    <div class="sec-h"><h2 id="h-nb" class="sect">{e(next(t["label"] for t in OV["tabs"] if t["id"] == "not_benchmarked"))}<sup aria-hidden="true">{nb_count}</sup><span class="sr">, {nb_count} systems</span></h2></div>
+    <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet<sup aria-hidden="true">{nb_count}</sup><span class="sr">, {nb_count} systems</span></h2></div>
     {nb_grid()}
   </section>
 </div>
@@ -1222,6 +1274,15 @@ def build_index():
     )
 
 
+def plain_heads(first):
+    """Column heads for a block that does not sort: the same columns, for the eye only."""
+    return (
+        f'<div class="heads plain" aria-hidden="true"><span class="hsys">{e(first)}</span>'
+        + "".join(f"<span>{e(HEAD[c])}</span>" for c in COLS)
+        + "</div>"
+    )
+
+
 # ------------------------------------------------------------------ system page: the pie with its six properties around it
 
 
@@ -1232,13 +1293,14 @@ SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 def rose_item(c, pre):
     """One property beside its slice: its name (a link to what its states mean), its question for
     screen readers, the state, and our short reason (left out when it only repeats Not stated)."""
-    st = c["state"]
-    generic = st == "grey" and c["reason_short"].startswith("Not stated") and not c.get("source")
-    reason = "" if generic else f'<p class="rr">{e(words(c["reason_short"]))}</p>'
+    generic = (
+        c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
+    )
+    reason = "" if generic else f'<p class="rr">{e(words(c["reason"]))}</p>'
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
         f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
-        f'<p class="rs"><i class="sw {CLS[st]}"></i>{e(c["word"])}</p>{reason}</li>'
+        f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p>{reason}</li>'
     )
 
 
@@ -1247,7 +1309,7 @@ def rose(g, hid, name, level=2, pre=""):
     under the page's own; pre: an id prefix when one page holds several roses."""
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
-        f'<div class="rpie" role="img" aria-label="{e(aria(g, name))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in sorted(g["cells"], key=lambda c: c["n"])])}</div>'
+        f'<div class="rpie" role="img" aria-label="{e(aria(g, name, outside=True))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in g["cells"]])}</div>'
         f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre) for c in g["cells"])}</ol></div>'
     )
 
@@ -1260,105 +1322,151 @@ def facts_dl(items):
     )
 
 
-def more_table(row, caption):
+def more_table(cfg, caption):
     more = ""
-    for m in row["more"][VIEW]:
-        head, kv = parse_title(RAW.sub("", m["title"], count=1))
-        if m.get("value"):
-            lab = " · ".join(f"{k}: {val}" for k, val in kv) if kv else head
-            lab = with_rule(readable(clean(lab)))
-            n, u, rest = split_value(m["value"])
+    for metric, label in MORE:
+        f = cfg["figures"][metric]
+        if f["value"] is not None:
+            lab = with_rule(readable(" · ".join(f"{k}: {v}" for k, v in labels(f, cfg))))
+            n, _ = amount(f["value"], f["unit"])
             # "GPU cost per 1,000 positions": the row names the basis, so the value drops its own
-            basis = re.search(r"per ([\d,]+) (\w+)$", m["label"])
-            val = fig(f"{n} {u}" if basis and rest and basis[2] in rest else m["value"])
+            val = fig(f"{n} USD" if f["unit"] == "USD/1k_token" else shown(f["value"], f["unit"]))
         else:
             # only why it is missing: the value cell says "No value", and a missing number has no grade
-            why = head.split(". ")[0] if head.startswith(m["absent"] + ": ") else head
-            why = why[len(m["absent"]) + 2 :] if why.startswith(m["absent"] + ": ") else why
-            lab = with_rule(clean_prose(why))
-            val = f'<span class="na">{e(m["absent"])}</span>'
-        more += f'<tr><th scope="row">{e(readable(m["label"]))}</th><td class="mv">{val}</td><td class="ml">{lab}</td></tr>'
+            lab = with_rule(why_words(f, cfg))
+            val = '<span class="na">No value</span>'
+        more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv">{val}</td><td class="ml">{lab}</td></tr>'
     return (
         f'<table class="mtab"><caption class="sr">{e(caption)}</caption>'
         f'<thead><tr><th scope="col">Figure</th><th scope="col">Value</th><th scope="col">Labels</th></tr></thead><tbody>{more}</tbody></table>'
     )
 
 
-def control(t):
-    """The control test: run (filled) or documented but not run yet; either way the page says so."""
-    c = t.get("control_test")
-    if not c or c.get("state") not in ("filled", "documented_not_run"):
-        return ""
-    link = (
-        f' <a class="qs" href="{e(c["href"])}">{e(c["link_text"])}{EXT}</a>'
-        if c.get("href")
-        else ""
+def tamper_words(cfg):
+    """Each stored outcome count of the configuration's controls (RFC-0008), zero counts left
+    out; no sum or difference of them (AGENTS.md rule 3)."""
+    counts = cfg["controls"]["counts"]
+    said = [w.format(n=counts[k]) for k, w in OUTCOME_WORDS if counts.get(k)]
+    return (
+        ("Tampering tests on this setup, by outcome: " + "; ".join(said) + ".")
+        if said
+        else "No tampering test ran on this setup."
     )
-    return f'<p class="ctl">{e(clean_prose(c["text"]))}{link}</p>'
 
 
-def card_fact(lines, k):
-    return next((ln["v"] for ln in lines if ln["k"] == k), "")
+def source_label(url):
+    """A link's words: the file path and lines a GitHub blob URL names."""
+    m = re.match(
+        r"https://github\.com/[^/]+/[^/]+/blob/[0-9a-f]+/([^#?]+)(?:\?[^#]*)?(?:#(L\d+(?:-L\d+)?))?",
+        url,
+    )
+    return f"{m[1]} {m[2]}" if m and m[2] else (m[1] if m else url)
 
 
-def status_words(v):
-    """A status fact in one form for every system: the state, then its date and source if stored.
-    'active (last push 2026-10-19; archived on GitHub: no (GitHub API, retrieved 2026-11-05))' reads
-    'active · last push 2026-10-19 (GitHub API, retrieved 2026-11-05)'; the system's own words go."""
-    state = v.split(': "')[0].split(" (")[0]
-    push = re.search(r"last push (\d{4}-\d{2}-\d{2})", v)
-    src = re.search(r"\(([^()]*retrieved [^()]*)\)", v)
-    return state + (f" · last push {push[1]}" + (f" ({src[1]})" if src else "") if push else "")
+def control_tests(cfg):
+    """The system's own registered controls (RFC-0008 §System-specific controls) and what the
+    checker did with each in the runs, as stored."""
+    out = ""
+    for sc in cfg["system_controls"]:
+        outcomes = {o["outcome"] for o in sc["outcomes"]}
+        if sc["kind"] == "weakened_prover":
+            text = f"Control test: we turned off one check on purpose, with a switch {name_of(cfg['system'])} documents for this."
+        else:
+            text = f"Control test {sc['id']}."
+        if len(outcomes) == 1:
+            o = outcomes.pop()
+            text += (
+                f" The checker {OUTCOME_VERB[o]} the proof."
+                if o in OUTCOME_VERB
+                else f" Outcome: {o}."
+            )
+        else:
+            text += (
+                " Outcomes by run: "
+                + "; ".join(f"{x['run_id']}: {x['outcome']}" for x in sc["outcomes"])
+                + "."
+            )
+        link = (
+            f' <a class="qs" href="{e(sc["source"])}">{e(source_label(sc["source"]))}{EXT}</a>'
+            if sc["source"]
+            else ""
+        )
+        out += f'<p class="ctl">{e(text)}{link}</p>'
+    return out
+
+
+def status_words(st):
+    """A status fact in one form for every system: the state, then its date and source if stored."""
+    out = STATUS_WORD[st["state"]]
+    if st.get("last_push"):
+        src = f" ({st['source']}, retrieved {st['retrieved']})" if st.get("source") else ""
+        out += f" · last push {st['last_push']}{src}"
+    return out
+
+
+def pinned(cfg):
+    """The card's repository at its pin first (RFC-0016 SRC-2: only it decides), then every other
+    repository the row's sources read cite, at the commit the criteria file read it."""
+    up = upstream(cfg)
+    repos = [(up["repo"], up["commit"])]
+    pins = CRIT["pins"]
+    cited = set()
+    for c in CRIT["rows"][cfg["system"]]["cells"].values():
+        for q in [*c["quotes"], *((c.get("outside_pin") or {}).get("quotes") or [])]:
+            cited.add(q.get("repo"))
+        cited |= {s.split("@", 1)[0] for s in c["sources_read"] if "@" in s}
+    repos += [(r, pins[r]) for r in pins if r in cited and r != up["repo"]]
+    return "".join(
+        f'<a href="https://github.com/{e(r)}/tree/{e(c)}">{path_html(r)}<span class="nw"> @{e(c[:8])}</span>{EXT}</a>'
+        for r, c in repos
+    )
 
 
 def build_system(sid):
-    s = site["systems"][sid]
-    g = G["rows"][sid]
-    row = next(r for r in PROVERS if r["system"] == sid)
-    ovr = next(r for r in OV["rows"] if r["kind"] == "prover" and r["system"] == sid)
-    lines = ovr["cells"]["system"]["published"]["card"]["lines"]
-    repos = "".join(
-        f'<a href="{e(r["href"])}">{path_html(r["repo"])}<span class="nw"> @{e(r["commit_short"])}</span>{EXT}</a>'
-        for r in s["about"]["repos"]
-    )
+    name = name_of(sid)
+    cfg = first_config(sid)
+    g = glyph(sid)
+    row = V["facts"]["rows"][sid]
     facts = [
-        ("kind", keep(words(row["kind_title"]))),
-        ("model", keep(card_fact(lines, "MODEL"))),
-        ("pinned", f'<span class="links">{repos}</span>'),
-        ("licence", e(card_fact(lines, "LICENCE"))),
-        ("status", keep(status_words(card_fact(lines, "STATUS")))),
-        ("adapter", f'<a href="{e(s["adapter_readme"])}">systems/{e(sid)}/README.md{EXT}</a>'),
+        ("kind", keep(words(f"{FAMILY_WORD[CRIT['rows'][sid]['family']]}: {row['technique']}"))),
+        ("model", keep(model_line(cfg))),
+        ("pinned", f'<span class="links">{pinned(cfg)}</span>'),
+        ("licence", e(row["licence"]["name"])),
+        ("status", keep(status_words(row["status"]))),
+        ("adapter", f'<a href="{e(cfg["adapter_readme"])}">systems/{e(sid)}/README.md{EXT}</a>'),
     ]
-    t = s["tamper"]
-    plates = "".join(plate(row, c, "fig-") for c in COLS)
+    plates = "".join(plate(cfg, c, "fig-") for c in COLS)
+    where = " · ".join(
+        [cfg["configuration"], cfg["workload"]["id"], cfg["workload"]["division"], cfg["profile"]]
+    )
     body = f'''
 {header(sid)}
 <main id="main" class="sys">
   <section class="mast mast-sys" aria-labelledby="h-name">
-    <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(s["name"])}</span></h1></div>
+    <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(name)}</span></h1></div>
   </section>
   <div class="wrap">
-    <section class="over" id="properties" aria-label="{e(s["name"])}: properties and facts">
-      {rose(g, "h-props", s["name"])}
+    <section class="over" id="properties" aria-label="{e(name)}: properties and facts">
+      {rose(g, "h-props", name)}
       {facts_dl(facts)}
     </section>
     <section class="blk" id="figures" aria-labelledby="h-figs">
-      <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2><p class="sec-l">{e(readable(s["home_line"]))}</p></div>
-      <p class="lead">{e(s["runs_line"])}</p>
+      <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2><p class="sec-l">{e(readable(MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p></div>
+      <p class="lead">{e(runs_line(cfg))}</p>
       <div class="plates plates-sys">{plates}</div>
-      {more_table(row, f"More numbers for {s['name']}, with scope, grade, checked step and source")}
+      {more_table(cfg, f"More numbers for {name}, with scope, grade, checked step and source")}
     </section>
     <section class="blk" id="tamper" aria-labelledby="h-tamper">
       <h2 id="h-tamper" class="sect">Tamper tests</h2>
-      <p class="tamper">{e(clean_prose(cut(t["sentence"])))}</p>
-      <dl class="tlab"><div><dt>configuration</dt><dd>{e(t["config_id"])}</dd></div></dl>
-      {control(t)}
+      <p class="tamper">{e(tamper_words(cfg))}</p>
+      <dl class="tlab"><div><dt>configuration</dt><dd>{keep(where)}</dd></div></dl>
+      {control_tests(cfg)}
     </section>
   </div>
 </main>
 {footer()}'''
     return page(
-        s["name"],
+        name,
         system_desc(sid),
         body,
         "system",
@@ -1369,31 +1477,27 @@ def build_system(sid):
 
 def build_reference():
     """One page for the reference systems: each one's six properties, then its one set of figures."""
-    tab = next(t for t in OV["tabs"] if t["id"] == "reference")
     secs = ""
-    for gid in G["orders"]["reference"]:
-        g = G["rows"][gid]
-        rows = sorted(
-            (x for x in H5["rows"] if x["kind"] == "reference" and x["id"].split("--")[0] == gid),
-            key=lambda x: MODELS.index(model_of(x)),
-        )
-        r0 = rows[0]
+    for gid in V["orders"]["reference"]:
+        g = glyph(gid)
+        name = name_of(gid)
+        cfgs = [c for c in CONFIGS if c["system"] == gid]
+        models = list(dict.fromkeys(MODEL_NAME[c["workload"]["model"]["digest"]] for c in cfgs))
         facts = [
-            ("kind", e(words(r0["kind_title"]))),
-            (
-                "model" if len(rows) == 1 else "models",
-                e(" · ".join(MODEL_NAME[model_of(x)] for x in rows)),
-            ),
+            ("kind", e(words(V["facts"]["rows"][gid]["kind_words"]))),
+            ("model" if len(models) == 1 else "models", e(" · ".join(models))),
         ]
-        r = ref_summary(gid)
+        cfg = cfgs[0]
+        counts = "".join(f'<p class="lead">{with_rule(readable(runs_counts(c)))}</p>'
+                         for c in cfgs if not has_figures(c))  # fmt: skip
         figs = (
-            f'<div class="reffigs" id="{e(gid)}-figures"><h3 class="sect sm">Figures<span class="of"> · {e(r0["name"])}</span></h3>'
-            f'<div class="plates plates-sys">{"".join(plate(r, c, f"{gid}-fig-") for c in COLS)}</div></div>'
+            f'<div class="reffigs" id="{e(gid)}-figures"><h3 class="sect sm">Figures<span class="of"> · {e(name)}</span></h3>'
+            f'{counts}<div class="plates plates-sys">{"".join(plate(cfg, c, f"{gid}-fig-") for c in COLS)}</div></div>'
         )
         secs += f'''
     <section class="refsys" id="{e(gid)}" aria-labelledby="h-{e(gid)}">
-      <h2 id="h-{e(gid)}" class="refh">{e(r0["name"])}</h2>
-      <div class="over">{rose(g, f"h-{gid}-props", r0["name"], level=3, pre=f"{gid}-")}{facts_dl(facts)}</div>
+      <h2 id="h-{e(gid)}" class="refh">{e(name)}</h2>
+      <div class="over">{rose(g, f"h-{gid}-props", name, level=3, pre=f"{gid}-")}{facts_dl(facts)}</div>
       {figs}
     </section>'''
     body = f"""
@@ -1403,7 +1507,7 @@ def build_reference():
     <div class="mast-in"><h1 id="h-name" class="sysname refname"><span class="lt">References</span></h1></div>
   </section>
   <div class="wrap">
-    <p class="reflead">{e(tab["sentence"])}</p>
+    <p class="reflead">{e(REF_LEAD)}</p>
     {secs}
   </div>
 </main>
@@ -1431,14 +1535,10 @@ TERMS = {
     "re-executed": "rerun re-execution recompute optimistic dispute",
     "fingerprinted": "fingerprint",
 }
-# words for what the data's code field says about a system's source
+# words for what the facts' code field says about a system's source
 CODE_TERMS = {"no_public_code": "closed source"}
 TIER = {"system": 0, "property": 1, "reference": 2, "unbenchmarked": 3}
 BADGE = {"reference": "Reference", "unbenchmarked": "Not benchmarked", "property": "Property"}
-
-
-def family(text):
-    return text.split(":", 1)[0].strip().lower()
 
 
 def search_entries():
@@ -1459,54 +1559,51 @@ def search_entries():
             }
         )
 
-    for r in PROVERS:
-        s, g = site["systems"][r["system"]], G["rows"][r["system"]]
+    for sid in V["orders"]["benchmarked"]:
+        cfg = first_config(sid)
+        fam = FAMILY_WORD[CRIT["rows"][sid]["family"]]
+        kind_title = f"{fam}: {V['facts']['rows'][sid]['technique']}"
         add(
             "system",
-            s["name"],
-            PAGE[r["system"]],
-            f"{family(r['kind_title']).capitalize()} · {model_name(r)}",
-            pie_svg(g["states"], 28),
-            f"{r['kind_title']} {s['upstream']['repo']}",
-            family(r["kind_title"]),
+            name_of(sid),
+            PAGE[sid],
+            f"{fam} · {MODEL_NAME[cfg['workload']['model']['digest']]}",
+            pie_svg(glyph(sid)["states"], 28),
+            f"{kind_title} {upstream(cfg)['repo']}",
+            fam.lower(),
         )
-    for gid in G["orders"]["reference"]:
-        r = ref_summary(gid)
+    for gid in V["orders"]["reference"]:
         add(
             "reference",
-            r["name"],
+            name_of(gid),
             f"{REF_PAGE}#{gid}",
-            sentence_case(words(r["kind_title"])[len(r["name"]) + 2 :])
-            if r["kind_title"].startswith(r["name"] + ": ")
-            else words(r["kind_title"]),
-            pie_svg(G["rows"][gid]["states"], 28),
+            kind_words(gid),
+            pie_svg(glyph(gid)["states"], 28),
             "reference baseline",
         )
-    nb = {r["id"]: r for r in OV["not_benchmarked"]["rows"]}
-    for rid in G["orders"]["not_benchmarked"]:
-        r = nb[rid]
+    for rid in V["orders"]["not_benchmarked"]:
+        r = V["facts"]["rows"][rid]
+        fam = FAMILY_WORD[CRIT["rows"][rid]["family"]]
         add(
             "unbenchmarked",
             r["name"],
             f"/#nb-{rid}",
-            f"{r['family_label']} · {nb_models(r)}",
-            pie_svg(G["rows"][rid]["states"], 28),
-            # status, models, source and stated technique; not the "by" field, which names people
+            f"{fam} · {nb_models(r)}",
+            pie_svg(glyph(rid)["states"], 28),
+            # status, models, source and stated technique; not the people behind it
             " ".join(
                 [
-                    nb_meta(r),
+                    nb_meta(rid),
                     *r["models"],
-                    r.get("code_label") or "",
+                    (r.get("code") or "").replace("_", " "),
                     CODE_TERMS.get(r.get("code"), ""),
-                    r["technique_words"] if r.get("technique") not in (None, "not_stated") else "",
+                    r.get("technique") or "",
                 ]
             ),
-            r["family_label"].lower(),
+            fam.lower(),
         )
-    for p in G["properties"]:
-        add(
-            "property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(p["n"], 28), ""
-        )
+    for i, p in enumerate(PROPS):
+        add("property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(i + 1, 28), "")
     return out
 
 
@@ -1514,24 +1611,22 @@ def search_entries():
 
 
 def build_criteria():
-    """What each state means for each property, from criteria.json: the draft the pies are coloured by."""
-    props = {p["id"]: p for p in crit["properties"]}
+    """What each state means for each property, from the criteria file: the rules the glyphs are drawn by."""
     # a jump index of the six properties, shown on phones (words.css), names only
     idx = "".join(
-        f'<li><a href="#{e(gp["id"])}">{key_mini(gp["n"], 22)}<span>{e(props[gp["id"]]["name"])}</span></a></li>'
-        for gp in G["properties"]
+        f'<li><a href="#{e(p["id"])}">{key_mini(i + 1, 22)}<span>{e(p["name"])}</span></a></li>'
+        for i, p in enumerate(PROPS)
     )
     secs = ""
-    for gp in G["properties"]:
-        p = props[gp["id"]]
+    for i, p in enumerate(PROPS):
         states = "".join(
-            f'<div><dt><i class="sw {CLS[s]}"></i>{e(WORD[s])}</dt><dd>{e(words(p[s]))}</dd></div>'
-            for s in G["state_order"]
+            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</dt><dd>{e(words(p["rules"][s]))}</dd></div>'
+            for s in STATE_ORDER
         )
         note = f'<p class="cnote">{e(words(p["not_here"]))}</p>' if p.get("not_here") else ""
         secs += (
             f'<section class="crit" id="{e(p["id"])}" aria-labelledby="h-{e(p["id"])}">'
-            f'<div class="ch">{key_mini(gp["n"])}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
+            f'<div class="ch">{key_mini(i + 1)}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
             f'<p class="cq">{e(p["question"])}</p></div><dl class="cs">{states}</dl>{note}</section>'
         )
     body = f"""
@@ -1589,7 +1684,7 @@ def vercel_json():
         ]
     )
     forever = [{"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}]
-    first = PAGE[G["orders"]["benchmarked"][0]]
+    first = PAGE[V["orders"]["benchmarked"][0]]
     return {
         "$schema": "https://openapi.vercel.sh/vercel.json",
         "buildCommand": "rm -rf public && mkdir -p public/og public/fonts && cp *.html words.css words.js search.json public/ && cp og/*.png og/*.svg public/og/ && cp fonts/*.woff2 public/fonts/",
@@ -1627,19 +1722,18 @@ def vercel_json():
 
 
 # ------------------------------------------------------------------ preview cards
-# What a shared link shows: Open Graph and X tags on every page, and one picture per card. build.py
-# writes each picture's source, og/<card>.html (CARD_W x CARD_H CSS px, the data's own words and
-# pies); og.mjs renders it to og/<card>.png at CARD_SCALE and records both sha256 in og/cards.json.
-# The pages name each picture with its hash, so a new picture is a new URL for link caches, and
-# test_cards.py fails when a committed picture was not rendered from its committed source.
+# What a shared link shows: Open Graph and X tags on every page, and one picture per card. The
+# renderer writes each picture's source, og/<card>.html (CARD_W x CARD_H CSS px, the view's own
+# words and pies); og.mjs renders it to og/<card>.png at CARD_SCALE and records both sha256 in
+# og/cards.json. The pages name each picture with its hash, so a new picture is a new URL for link
+# caches, and test_cards.py fails when a committed picture was not rendered from its committed source.
 SITE_URL = "https://www.inferenceproofs.ai"
 CARD_W, CARD_H, CARD_SCALE = 1200, 630, 2
-OG = HERE / "og"
 HOME_DESC = "Six properties of one proof per system (draft criteria), and the benchmark's own figures per model, sortable by column."
 
 
 def system_desc(sid):
-    return f"{site['systems'][sid]['name']}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels."
+    return f"{name_of(sid)}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels."
 
 
 def icon_links():
@@ -1658,13 +1752,13 @@ def cards_record():
 
 def card_alt(card):
     """The picture in words, from the same data the picture draws."""
-    draft = G["legend"]["draft_short"]
+    draft = criteria_label()[1]
     if card == "home":
-        return "Inference proofs: " + ", ".join(p["name"] for p in G["properties"]) + "."
-    s, g = site["systems"][card], G["rows"][card]
-    row = next(r for r in PROVERS if r["system"] == card)
-    states = "; ".join(f"{c['name']}: {c['word']}" for c in g["cells"])
-    return f"{s['name']} on {model_name(row)} @{s['upstream']['commit_short']}. {states}. {draft}."
+        return "Inference proofs: " + ", ".join(p["name"] for p in PROPS) + "."
+    cfg = first_config(card)
+    states = "; ".join(f"{c['name']}: {c['word']}" for c in glyph(card)["cells"])
+    model = MODEL_NAME[cfg["workload"]["model"]["digest"]]
+    return f"{name_of(card)} on {model} @{upstream(cfg)['commit'][:8]}. {states}. {draft}."
 
 
 def share_meta(title, desc, path, card):
@@ -1695,24 +1789,25 @@ def share_meta(title, desc, path, card):
     )
 
 
-CARD_CSS = f"""
+def card_css():
+    return f"""
 *{{box-sizing:border-box;margin:0;padding:0}}
 html,body{{width:{CARD_W}px;height:{CARD_H}px;overflow:hidden;background:{GROUND};color:{PAPER};-webkit-font-smoothing:antialiased}}
 .mono{{font-family:"IBM Plex Mono",monospace}}
 .disp{{font-family:"Archivo",sans-serif;font-stretch:66%;font-weight:900}}
-.sl.yes{{fill:{INK["green"]}}}.sl.partly{{fill:{INK["amber"]}}}.sl.no{{fill:{INK["red"]}}}
+.sl.yes{{fill:{INK["yes"]}}}.sl.partly{{fill:{INK["partly"]}}}.sl.no{{fill:{INK["no"]}}}
 .sl.unstated{{fill:{UNSTATED}}}
 .pie-svg{{display:block;overflow:visible}}
 .kmini .on{{fill:{GROUND}}}.kmini .off{{fill:{GROUND};opacity:.2}}
 .sw{{display:inline-block;width:.62em;height:.62em;margin-right:.32em;vertical-align:.02em}}
-.sw.yes{{background:{INK["green"]}}}.sw.partly{{background:{INK["amber"]}}}.sw.no{{background:{INK["red"]}}}.sw.unstated{{background:{UNSTATED}}}
+.sw.yes{{background:{INK["yes"]}}}.sw.partly{{background:{INK["partly"]}}}.sw.no{{background:{INK["no"]}}}.sw.unstated{{background:{UNSTATED}}}
 """
 
 
 def card_page(card, body, css):
     return (
         f'<!doctype html><html lang="en"><head><meta charset="utf-8"><title>{e(card)} card</title>'
-        f"<style>{font_faces('../fonts/')}\n{CARD_CSS}{css}</style></head><body>{body}</body></html>\n"
+        f"<style>{font_faces('../fonts/')}\n{card_css()}{css}</style></head><body>{body}</body></html>\n"
     )
 
 
@@ -1720,8 +1815,8 @@ def home_card():
     """Only what does not change with the systems benchmarked, since link previews stay cached:
     violet, the six properties, each beside its place in the glyph; black, the site's mark and name."""
     props = "".join(
-        f'<li>{key_mini(p["n"], 52)}<span class="disp">{e(p["name"])}</span></li>'
-        for p in G["properties"]
+        f'<li>{key_mini(i + 1, 52)}<span class="disp">{e(p["name"])}</span></li>'
+        for i, p in enumerate(PROPS)
     )
     css = f"""
 .l{{position:absolute;left:0;top:0;width:690px;height:{CARD_H}px;background:{VIOLET};color:{GROUND};padding:50px 56px}}
@@ -1744,11 +1839,11 @@ li .disp{{font-size:58px;line-height:1;letter-spacing:-.004em}}
 
 def system_card(sid):
     """The system page's first screen: its name on the violet band, then its pie with each property beside its slice."""
-    s, g = site["systems"][sid], G["rows"][sid]
-    row = next(r for r in PROVERS if r["system"] == sid)
+    g = glyph(sid)
+    cfg = first_config(sid)
     items = "".join(
         f'<li class="p{c["n"]} {SIDE[c["n"]]}"><p class="mono pn">{e(c["name"])}</p>'
-        f'<p class="disp pw"><i class="sw {CLS[c["state"]]}"></i>{e(c["word"])}</p></li>'
+        f'<p class="disp pw"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p></li>'
         for c in g["cells"]
     )
     css = f"""
@@ -1767,10 +1862,10 @@ ol{{display:contents;list-style:none}}
 .draft{{position:absolute;right:56px;bottom:24px;font-size:16px;color:{MUTED}}}
 """
     body = (
-        f'<div class="band"><h1 class="disp name">{e(s["name"])}</h1>'
-        f'<p class="mono meta"><b>Inference proofs</b>{e(model_name(row))}<br>@{e(s["upstream"]["commit_short"])}</p></div>'
+        f'<div class="band"><h1 class="disp name">{e(name_of(sid))}</h1>'
+        f'<p class="mono meta"><b>Inference proofs</b>{e(MODEL_NAME[cfg["workload"]["model"]["digest"]])}<br>@{e(upstream(cfg)["commit"][:8])}</p></div>'
         f'<div class="rose">{pie_svg(g["states"], 330)}<ol>{items}</ol></div>'
-        f'<p class="mono draft">{e(G["legend"]["draft_short"])}</p>'
+        f'<p class="mono draft">{e(criteria_label()[1])}</p>'
     )
     return card_page(sid, body, css)
 
@@ -1800,11 +1895,11 @@ def icon_card():
 
 def write_cards():
     OG.mkdir(exist_ok=True)
-    (OG / "icon.svg").write_text(icon_svg())
-    (OG / "icon.html").write_text(icon_card())
-    (OG / "home.html").write_text(home_card())
+    WRITE_TEXT(OG / "icon.svg", icon_svg())
+    WRITE_TEXT(OG / "icon.html", icon_card())
+    WRITE_TEXT(OG / "home.html", home_card())
     for sid in PAGE:
-        (OG / f"{sid}.html").write_text(system_card(sid))
+        WRITE_TEXT(OG / f"{sid}.html", system_card(sid))
 
 
 def write_font_faces():
@@ -1815,58 +1910,87 @@ def write_font_faces():
         r"/\* fonts: written by build.py \*/.*?/\* /fonts \*/", lambda _: block, css, flags=re.S
     )
     assert new != css or block in css, "words.css lacks the fonts markers"
-    (HERE / "words.css").write_text(new)
+    WRITE_TEXT(HERE / "words.css", new)
 
 
-def main():
+def write_readme():
+    readme = HERE / "README.md"
+    if not readme.exists():
+        return
+    table = (
+        "| Word | Ink | Luminance | Contrast on the ground `"
+        + GROUND
+        + "` | Step from the state below |\n|---|---|---|---|---|\n"
+        + "\n".join(f"| {a} | {b} | {c} | {d} | {f} |" for a, b, c, d, f in ladder)
+        + "\n\n| Pair | Contrast |\n|---|---|\n"
+        + "\n".join(f"| {n} (`{a}` on `{b}`) | {ratio(a, b):.2f}:1 |" for n, a, b in pairs)
+    )
+    txt = re.sub(
+        r"<!-- ladder -->.*<!-- /ladder -->",
+        "<!-- ladder -->\n" + table + "\n<!-- /ladder -->",
+        readme.read_text(),
+        flags=re.S,
+    )
+    WRITE_TEXT(readme, txt)
+
+
+# ------------------------------------------------------------------ render
+
+
+def setup(view, out):
+    """Read the view into the module's globals and run the checks the drawing rests on."""
+    global HERE, OG, V, CRIT, PROPS, CONFIGS, PROVERS, PAGE, MODELS, MODEL_NAME
+    global RFC_FILES, REPO_URL, LINK_REF, crit_sha
+    HERE = pathlib.Path(out)
+    OG = HERE / "og"
+    V = view
+    CRIT = view["criteria"]
+    PROPS = [p for pid in CRIT["order"] for p in CRIT["properties"] if p["id"] == pid]
+    CONFIGS = view["configurations"]
+    PROVERS = [c for c in CONFIGS if c["kind"] == "prover"]
+    PAGE = {sid: f"/{sid}" for sid in view["orders"]["benchmarked"]}
+    REPO_URL, LINK_REF = view["repository"], view["link_ref"]
+    RFC_FILES = {f[:4]: f for f in view["rfcs"] if re.match(r"\d{4}-", f)}
+    crit_sha = CRIT["sha256"].removeprefix("sha256:")
+    models = {c["workload"]["model"]["digest"]: c["workload"]["model"]["parameters"]["total"]
+              for c in CONFIGS}  # fmt: skip
+    MODEL_NAME = {d: view["facts"]["models"][d]["name"] for d in models}
+    assert len(set(MODEL_NAME.values())) == len(MODEL_NAME), "two models share a name"
+    MODELS = sorted((d for d in models if any(c["workload"]["model"]["digest"] == d for c in PROVERS)),
+                    key=lambda d: (-models[d], MODEL_NAME[d]))  # fmt: skip
+    text = json.dumps(CRIT, ensure_ascii=False) + json.dumps(view["facts"], ensure_ascii=False)
+    for k in PHRASES:
+        assert k in text, f"PHRASES: {k!r} no longer in the criteria or facts file"
+    for rid, row in CRIT["rows"].items():
+        assert row["family"] in FAMILY_WORD, f"{rid}: no words for family {row['family']!r}"
+    check_inks()
+    check_lifts()
+    load_faces()
+
+
+def render(view, out, *, write_json, write_text):
+    """Write the site for `view` into `out` (module docstring); returns the pages written."""
+    global WRITE_TEXT, WRITE_JSON
+    WRITE_TEXT, WRITE_JSON = write_text, write_json
+    setup(view, out)
     write_font_faces()
     write_cards()
     # before the pages: they link it by its hash
-    (HERE / "search.json").write_text(
-        json.dumps({"entries": search_entries()}, indent=2, sort_keys=True, ensure_ascii=False)
-        + "\n"
-    )
-    file_of("/").write_text(build_index())
+    write_json(HERE / "search.json", {"entries": search_entries()})
+    pages = {file_of("/"): build_index()}
     for sid, path in PAGE.items():
-        file_of(path).write_text(build_system(sid))
-    file_of(REF_PAGE).write_text(build_reference())
-    file_of(CRIT_PAGE).write_text(build_criteria())
-    (HERE / "404.html").write_text(build_404())
+        pages[file_of(path)] = build_system(sid)
+    pages[file_of(REF_PAGE)] = build_reference()
+    pages[file_of(CRIT_PAGE)] = build_criteria()
+    pages[HERE / "404.html"] = build_404()
+    for path, text in pages.items():
+        write_text(path, text)
     # the build's pages are the only pages: a page it no longer writes would still be deployed
-    pages = {
-        file_of("/"),
-        *(file_of(q) for q in PAGE.values()),
-        file_of(REF_PAGE),
-        file_of(CRIT_PAGE),
-    }
-    stale = set(HERE.glob("*.html")) - pages - {HERE / "404.html"}
+    stale = set(HERE.glob("*.html")) - set(pages)
     assert not stale, f"pages the build no longer writes: {sorted(q.name for q in stale)}"
     assert {q.stem for q in OG.glob("*.html")} == {"icon", "home", *PAGE}, (
         "stale card sources in og/"
     )
-    (HERE / "vercel.json").write_text(
-        json.dumps(vercel_json(), indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    )
-    readme = HERE / "README.md"
-    if readme.exists():
-        txt = readme.read_text()
-        table = (
-            "| Word | Ink | Luminance | Contrast on the ground `"
-            + GROUND
-            + "` | Step from the state below |\n|---|---|---|---|---|\n"
-            + "\n".join(f"| {a} | {b} | {c} | {d} | {f} |" for a, b, c, d, f in ladder)
-            + "\n\n| Pair | Contrast |\n|---|---|\n"
-            + "\n".join(f"| {n} (`{a}` on `{b}`) | {ratio(a, b):.2f}:1 |" for n, a, b in pairs)
-        )
-        txt = re.sub(
-            r"<!-- ladder -->.*<!-- /ladder -->",
-            "<!-- ladder -->\n" + table + "\n<!-- /ladder -->",
-            txt,
-            flags=re.S,
-        )
-        readme.write_text(txt)
-    print("built the pages, 404.html, vercel.json and the card sources in og/")
-
-
-if __name__ == "__main__":
-    main()
+    write_json(HERE / "vercel.json", vercel_json())
+    write_readme()
+    return sorted(pages)
