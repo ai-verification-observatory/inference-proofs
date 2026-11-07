@@ -38,7 +38,7 @@ iproofs prompts build WORKLOAD --seed SEED [--out FILE]
 iproofs reproduce compare ORIG_RUN REPRO_RUN
 iproofs release freeze RELEASE
 iproofs release plan RELEASE
-iproofs site build [--out DIR]
+iproofs site build [--out DIR]                     # writes web/ (default) from the newest frozen release (RFC-0009 §Site)
 iproofs archive upload [--results DIR] [--repo REPO]   # GPU host, before the results PR (RFC-0009 Q1)
 ```
 
