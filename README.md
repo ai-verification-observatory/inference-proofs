@@ -45,18 +45,21 @@ Optional extras are installed only where they are needed: `--extra gpu` (NVML sa
 
 ## Build the site
 
-The site is static HTML generated from frozen releases (`releases/*/index.json`, [RFC-0009 §Site](rfcs/0009-results-and-publication.md#site)); it is never committed. With the base install:
+[`web/`](web/) is the public site, deployed to www.inferenceproofs.ai by Vercel from the committed files when they change. `iproofs site build` writes its pages from the newest frozen release (`releases/*/index.json`, [RFC-0009 §Site](rfcs/0009-results-and-publication.md#site)): `iproofs.site` computes every value a page prints, and the renderer in `web/build.py` draws the pages. Every page reads in full without script.
 
 ```
-uv run iproofs site build            # writes site/_build/
-uv run iproofs site build --out DIR  # or any other directory
+uv run iproofs site build            # writes web/, from the newest frozen release
+uv run iproofs site build --out DIR  # a complete site in any other directory
 ```
 
-Open `site/_build/index.html` in a browser; no script is needed. Templates are in [`site/templates/`](site/templates/). Until a release is frozen the site has only its home page.
+Until v0.1 is frozen there is no release in the repository, and the command stops with a configuration error. The committed pages come from a placeholder release whose runs are synthetic, built in a temporary directory:
 
-### Public site
+```
+PYTHONPATH=harness/tests uv run python -m fixtures.placeholder_release --site web
+uv run pytest web -q
+```
 
-[`web/`](web/) is the public site, deployed to www.inferenceproofs.ai by Vercel when it changes: static pages built by `web/build.py` from a frozen data snapshot. Its benchmark results are placeholders until a release exists; see [web/README.md](web/README.md).
+See [web/README.md](web/README.md).
 
 ## Contributing
 
