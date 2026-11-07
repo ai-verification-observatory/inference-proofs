@@ -8,15 +8,14 @@ harness (ineligible) and the last is withdrawn in `superseded_runs`.
 """
 
 import json
-import os
 import shutil
-import subprocess
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from fixtures.repo import commit, git
 from fixtures.synthetic_tree import generate
 from iproofs.provenance import file_digest
 from iproofs.serialize import write_json
@@ -25,23 +24,7 @@ ROOT = Path(__file__).resolve().parents[3]
 COPY = ["schema", "systems/fake", "workloads/fake-tiny-ci.yaml", "reference",
         "harness/tests/fixtures/prompts", "site/templates"]  # fmt: skip
 IMAGE = "ghcr.io/ai-verification-observatory/iproofs-fake@sha256:" + "ab" * 32
-GIT_ENV = {"GIT_AUTHOR_NAME": "fixture", "GIT_AUTHOR_EMAIL": "fixture@example.invalid",
-           "GIT_COMMITTER_NAME": "fixture", "GIT_COMMITTER_EMAIL": "fixture@example.invalid",
-           "GIT_AUTHOR_DATE": "2027-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2027-01-01T00:00:00Z",
-           "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}  # fmt: skip
-
-
-def git(root: Path, *args: str) -> str:
-    env = {**os.environ, **GIT_ENV}
-    done = subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True,
-                          text=True, env=env)  # fmt: skip
-    return done.stdout.strip()
-
-
-def commit(root: Path, message: str, *paths: str) -> str:
-    git(root, "add", *(paths or ("-A",)))
-    git(root, "commit", "-qm", message, "--no-gpg-sign")
-    return git(root, "rev-parse", "HEAD")
+__all__ = ["build", "build_rich", "commit", "git"]  # tests import commit and git from here
 
 
 def build(
