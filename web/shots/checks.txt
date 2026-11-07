@@ -143,20 +143,29 @@ ok   sponsors-320 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties' states fit the first screen 728
-ok   flashprove: quotes only under their property or in how we read it; how we read it and the card in full folded {"stray":0,"details":["howread:false","cardfull:false"]}
+ok   flashprove: the six properties' states fit the first screen 536
+ok   flashprove: the rose keeps main's height, each text beside its triangle {"now":311,"main":309}
+ok   flashprove: quotes only in how we read it; how we read it and the card in full folded {"stray":0,"details":["howread:false","cardfull:false"]}
+ok   flashprove: each property's source names its own entry in how we read it {"links":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"],"entries":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"]}
+ok   flashprove: a source link opens how we read it and lands on its entry {"open":true,"focus":true,"top":16,"seen":true}
+ok   flashprove: an address naming an entry opens how we read it on it {"open":true,"focus":true,"top":16,"seen":true}
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties' states fit the first screen 752
-ok   sash: quotes only under their property or in how we read it; how we read it and the card in full folded {"stray":0,"details":["howread:false","cardfull:false"]}
+ok   sash: the six properties' states fit the first screen 549
+ok   sash: the rose keeps main's height, each text beside its triangle {"now":311,"main":309}
+ok   sash: quotes only in how we read it; how we read it and the card in full folded {"stray":0,"details":["howread:false","cardfull:false"]}
+ok   sash: each property's source names its own entry in how we read it {"links":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"],"entries":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"]}
+ok   sash: a source link opens how we read it and lands on its entry {"open":true,"focus":true,"top":16,"seen":true}
+ok   sash: an address naming an entry opens how we read it on it {"open":true,"focus":true,"top":16,"seen":true}
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
 ok   reference-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true},{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   reference: the six properties' states fit the first screen 657
-ok   reference: quotes only under their property or in how we read it; nothing folded {"stray":0,"details":[]}
+ok   reference: the six properties' states fit the first screen 649
+ok   reference: the rose keeps main's height, each text beside its triangle {"now":275,"main":275}
+ok   reference: quotes only in how we read it; nothing folded {"stray":0,"details":[]}
 ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash: no work-in-progress label; its figures name their model
 ok   /nope answers the styled 404 page 404
@@ -202,23 +211,23 @@ ok   criteria-320: every link and button 24 px tall or more, none overlapping {"
 ok   release-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   sponsors-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
-ok   sash-844x390: the whole glyph on the first screen 274
-ok   flashprove-844x390: the whole glyph on the first screen 274
+ok   sash-844x390: the whole glyph on the first screen 348
+ok   flashprove-844x390: the whole glyph on the first screen 340
 ok   404-390: the search field is shown, not focused {"h":44,"vis":true,"focus":"BODY"}
 ok   404-390: search leads on from the 404 page http://127.0.0.1:4450/sash
-sash-390 Figures heading at 2382 px
-flashprove-390 Figures heading at 3554 px
-sash-1440 Figures heading at 1214 px
-flashprove-1440 Figures heading at 1820 px
+sash-390 Figures heading at 1907 px
+flashprove-390 Figures heading at 3090 px
+sash-1440 Figures heading at 1137 px
+flashprove-1440 Figures heading at 1617 px
 ok   flashprove-390: one press opens how we read it
 ok   flashprove-390: one press opens the card in full
 ok   flashprove-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   flashprove-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":64,"small":[],"hit":[]}
+ok   flashprove-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":70,"small":[],"hit":[]}
 ok   flashprove-390: no label runs into its value []
 ok   sash-390: one press opens how we read it
 ok   sash-390: one press opens the card in full
 ok   sash-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   sash-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":60,"small":[],"hit":[]}
+ok   sash-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":66,"small":[],"hit":[]}
 ok   sash-390: no label runs into its value []
 ok   release-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
 ok   release-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":[],"hit":[]}
@@ -229,12 +238,12 @@ ok   sponsors-390: no label runs into its value []
 ok   flashprove-320: one press opens how we read it
 ok   flashprove-320: one press opens the card in full
 ok   flashprove-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   flashprove-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":64,"small":[],"hit":[]}
+ok   flashprove-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":70,"small":[],"hit":[]}
 ok   flashprove-320: no label runs into its value []
 ok   sash-320: one press opens how we read it
 ok   sash-320: one press opens the card in full
 ok   sash-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   sash-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":60,"small":[],"hit":[]}
+ok   sash-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":66,"small":[],"hit":[]}
 ok   sash-320: no label runs into its value []
 ok   release-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
 ok   release-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":[],"hit":[]}
