@@ -381,8 +381,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
    it: a rule for narrower screens comes after the rules for wider ones, so at the same
    specificity the narrower overrides the wider. Two blocks also take a min-width, one px above a width of the scale: each
    sits just above the block of that width (561 to 960 above 560; 350 to 560, above 349, last).
-   The hover, reduced-motion, forced-colours and landscape (max-height) rules are not widths and
-   keep their places. web/test_breakpoints.py checks this. */
+   The hover, reduced-motion, forced-colours and landscape (max-height) rules are not width blocks
+   and keep their places; a width inside one is still a width of the scale.
+   web/test_breakpoints.py checks this. */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
   .rose { max-width: 980px; }
@@ -554,9 +555,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .cidx + .crit { margin-top: 24px; }
   .mtab thead { display: none; }
   .mtab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; border-top: 1px solid var(--line); padding: 8px 0; }
-  .mtab th, .mtab td { border: 0; padding: 0; }
+  .mtab th { border: 0; padding: 0; text-wrap: balance; }
+  .mtab td { border: 0; padding: 0; }
   .mtab .ml { grid-column: 1 / -1; margin-top: 4px; }
-  .mtab th { text-wrap: balance; }
   /* inline links: thumb-sized hit areas, the text where it was */
   .rn a { display: inline-block; padding-block: 8px; margin-block: -8px; }
   .rule { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
