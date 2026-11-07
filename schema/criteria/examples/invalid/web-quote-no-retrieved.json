@@ -1,0 +1,257 @@
+{
+  "date": "2026-11-07",
+  "note": "The six glyph properties and their four states (RFC-0016). Our words are in reason, note, rules and not_here; quote text is the system's (or RFC-0015's) own. Nothing here adds, counts or orders states.",
+  "order": [
+    "weights_hidden",
+    "model_bound",
+    "whole_output",
+    "formally_verified",
+    "security_level",
+    "no_trusted_party"
+  ],
+  "pins": {
+    "JamesPetrie/VerInf": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
+    "Lagrange-Labs/deep-prove": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+    "ai-verification-observatory/inference-proofs": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
+    "anthropics/FlashProve": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+    "nearai/private-ml-sdk": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+    "ora-io/opml": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+    "sg-ai-safety-hub/zk-inference-prover": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+    "sg-ai-safety-hub/zk-inference-results": "11decec3c0b62c707618aab5deb82750b355d202",
+    "uiuc-kang-lab/zk-torch": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+    "zkonduit/ezkl": "e196b111c1bafaa61b92ae431cd3c3fe9371da05"
+  },
+  "properties": [
+    {
+      "card_fields": [
+        "zero_knowledge.claimed",
+        "zero_knowledge.hidden",
+        "zero_knowledge.not_hidden",
+        "zero_knowledge.status",
+        "sources.zero_knowledge*"
+      ],
+      "id": "weights_hidden",
+      "name": "Weights hidden",
+      "not_here": "Hiding the weights from the host operator (an enclave) is not this property.",
+      "question": "Does the checker learn nothing about the weights?",
+      "rules": {
+        "no": "The documentation says the checker sees the weights, or that hiding is off or not provided.",
+        "not_stated": "No statement about hiding the weights from the checker in the sources read, or not copied yet.",
+        "partly": "The documentation says they are hidden with a stated limit: a named leak, hiding shown for one policy or setting only, hiding optional per circuit, or hiding behind a commitment without the formal zero-knowledge property.",
+        "yes": "The documentation says the weights stay hidden from the checker in the default use, naming no leak beyond public settings."
+      }
+    },
+    {
+      "card_fields": [
+        "relation",
+        "coverage.policy.kind",
+        "coverage.policy.detail",
+        "binding",
+        "claim_class"
+      ],
+      "id": "model_bound",
+      "name": "Model bound",
+      "not_here": "Which real, named model the commitment is: FlashProve and SASH both say that stays outside their proof; it does not change the state.",
+      "question": "Is each checked token tied to the committed weights?",
+      "rules": {
+        "no": "The documentation says outputs are not tied to any weights, or that nothing is checked.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "Tied with a stated limit: under one of several policies only, within a tolerance or bound, or shown only in empirical tests.",
+        "yes": "The documentation says a passing check ties each checked token to the committed weights exactly, in the configuration the row reads."
+      }
+    },
+    {
+      "card_fields": [
+        "coverage.unit",
+        "coverage.tokens_covered",
+        "coverage.phase",
+        "relation"
+      ],
+      "id": "whole_output",
+      "name": "Whole output checked",
+      "not_here": "Which requests get a check (sampling, proving after the fact) is a deployment choice, not what one check covers. The text before tokenizing and after detokenizing, which FlashProve and SASH both put outside their proof, does not change the state.",
+      "question": "Does one check cover every output token of a request?",
+      "rules": {
+        "no": "The documentation says no output token is checked, or that nothing is checked.",
+        "not_stated": "Not stated, including a proved run whose output tokens the documentation does not name, or not copied yet.",
+        "partly": "One check covers a stated part: the positions the client names, one segment, or one disputed step.",
+        "yes": "The documentation says one check, or one joined set of checks, covers the prompt and every output token of a request."
+      }
+    },
+    {
+      "card_fields": [
+        "relation_formal",
+        "security.notion.kind",
+        "security.notion.verifier",
+        "sources.security.notion*"
+      ],
+      "id": "formally_verified",
+      "name": "Formally verified",
+      "not_here": "A proof that the code itself is correct: no row claims it. A statement made only for another configuration of the same system, another verifier for one, sets nothing here.",
+      "question": "Is the security argument for the row's configuration checked by a proof assistant?",
+      "rules": {
+        "no": "The documentation says the argument is not machine-checked, that a machine check is planned only, or that its soundness evidence is review or tests and nothing else; or the row is a reference, which has no security argument by definition.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "Machine-checked for a stated part only: one component, or a weaker statement than the one the system makes.",
+        "yes": "The documentation says the soundness of the configuration the row reads is proved in a proof assistant (Lean, Coq, Isabelle or similar)."
+      }
+    },
+    {
+      "card_fields": [
+        "security.level",
+        "security.notion.kind",
+        "security.notion.verifier",
+        "security.model"
+      ],
+      "id": "security_level",
+      "name": "Security level",
+      "not_here": "The level itself: the state shows only whether one is stated and proven. A level stated only for another configuration of the same system sets nothing here.",
+      "question": "Is a soundness level stated for the row's configuration, and proven?",
+      "rules": {
+        "no": "The documentation says the settings give no meaningful soundness, for example a test-only setting; or the row is a reference, which has no soundness level by definition.",
+        "not_stated": "No level stated for the configuration in the sources read, or not copied yet.",
+        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system.",
+        "yes": "The documentation states a numeric soundness bound for the configuration the row reads and says it is proven, by hand or by machine, under named assumptions."
+      }
+    },
+    {
+      "card_fields": [
+        "security.setup",
+        "assumptions",
+        "assumptions_not_stated",
+        "security.model.assumption"
+      ],
+      "id": "no_trusted_party",
+      "name": "No trusted party",
+      "not_here": "Trust every row shares does not change the state: the checker's own computer, compiler and verifier build, and where the commitment or the weights come from (see Model bound).",
+      "question": "Does a check hold without trusting a chip maker, a setup ceremony or an honest party?",
+      "rules": {
+        "no": "The documentation says the check verifies a hardware attestation against a chip maker's keys or certificate chain, or that the provider is trusted. Running in a trusted execution environment, said alone, is not such a statement.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "The documentation states a trusted input or condition that its proved statement does not cover: a setup file, public files the user must grant were fixed before the hash, or one honest party among several.",
+        "yes": "The documentation says the check rests on cryptography alone or needs no trusted setup, and names no chip maker, setup or other party to trust."
+      }
+    }
+  ],
+  "rfc": "RFC-0016",
+  "rows": [
+    {
+      "cells": {
+        "formally_verified": {
+          "quotes": [],
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
+          ],
+          "state": "not_stated"
+        },
+        "model_bound": {
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+              "decides": true,
+              "kind": "web",
+              "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
+              "text": "A proof can establish that a committed model produced a specific output from a specific input",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
+          ],
+          "reason": "A committed model produced this output from this input (blog post).",
+          "state": "yes"
+        },
+        "no_trusted_party": {
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+              "decides": true,
+              "kind": "web",
+              "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
+              "retrieved": "2026-11-07",
+              "text": "All of our results are based only on the security of cryptographic hash functions",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
+          ],
+          "reason": "Rests only on the security of hash functions (blog post).",
+          "state": "yes"
+        },
+        "security_level": {
+          "not_copied": true,
+          "quotes": [],
+          "reason": "Not copied yet.",
+          "state": "not_stated"
+        },
+        "weights_hidden": {
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+              "decides": true,
+              "kind": "web",
+              "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
+              "retrieved": "2026-11-07",
+              "text": "A proof can establish that a committed model produced a specific output from a specific input, without revealing the model’s weights or other private information.",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
+          ],
+          "reason": "Proof does not reveal the model's weights (blog post).",
+          "state": "yes"
+        },
+        "whole_output": {
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+              "decides": true,
+              "kind": "web",
+              "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
+              "retrieved": "2026-11-07",
+              "text": "Once a sequence has been decoded, the system produces one proof covering the complete benchmarked execution.",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
+          ],
+          "reason": "One proof covers the complete decoded sequence (blog post).",
+          "state": "yes"
+        }
+      },
+      "family": "proved",
+      "id": "attestable",
+      "name": "Attestable prover",
+      "own_sources": [
+        {
+          "domain": "attestable.com",
+          "how": "the company's own domain; its blog post describes \"our prover\""
+        }
+      ],
+      "source_class": "public_sources",
+      "tab": "not_benchmarked"
+    }
+  ],
+  "schema": "criteria/1",
+  "states": {
+    "no": {
+      "meaning": "The documentation says it does not hold, by the property's No rule; or it says it holds, fully or partly, and a negative control of the benchmark contradicts it.",
+      "word": "No"
+    },
+    "not_stated": {
+      "meaning": "The sources read say nothing that meets the Yes, Partly or No rule, or they have not been read yet. Silence is never No.",
+      "word": "Not stated"
+    },
+    "partly": {
+      "meaning": "The documentation says it holds with a limit it states, by the property's Partly rule, and no control of the benchmark contradicts it.",
+      "word": "Partly"
+    },
+    "yes": {
+      "meaning": "The documentation says the property holds, by the property's Yes rule, and no control of the benchmark contradicts it.",
+      "word": "Yes"
+    }
+  }
+}

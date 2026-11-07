@@ -1,0 +1,414 @@
+{
+  "date": "2026-11-07",
+  "note": "The six glyph properties and their four states (RFC-0016). Our words are in reason, note, rules and not_here; quote text is the system's (or RFC-0015's) own. Nothing here adds, counts or orders states.",
+  "order": [
+    "weights_hidden",
+    "model_bound",
+    "whole_output",
+    "formally_verified",
+    "security_level",
+    "no_trusted_party"
+  ],
+  "pins": {
+    "JamesPetrie/VerInf": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
+    "Lagrange-Labs/deep-prove": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+    "ai-verification-observatory/inference-proofs": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
+    "anthropics/FlashProve": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+    "nearai/private-ml-sdk": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+    "ora-io/opml": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+    "sg-ai-safety-hub/zk-inference-prover": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+    "sg-ai-safety-hub/zk-inference-results": "11decec3c0b62c707618aab5deb82750b355d202",
+    "uiuc-kang-lab/zk-torch": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+    "zkonduit/ezkl": "e196b111c1bafaa61b92ae431cd3c3fe9371da05"
+  },
+  "properties": [
+    {
+      "card_fields": [
+        "zero_knowledge.claimed",
+        "zero_knowledge.hidden",
+        "zero_knowledge.not_hidden",
+        "zero_knowledge.status",
+        "sources.zero_knowledge*"
+      ],
+      "id": "weights_hidden",
+      "name": "Weights hidden",
+      "not_here": "Hiding the weights from the host operator (an enclave) is not this property.",
+      "question": "Does the checker learn nothing about the weights?",
+      "rules": {
+        "no": "The documentation says the checker sees the weights, or that hiding is off or not provided.",
+        "not_stated": "No statement about hiding the weights from the checker in the sources read, or not copied yet.",
+        "partly": "The documentation says they are hidden with a stated limit: a named leak, hiding shown for one policy or setting only, hiding optional per circuit, or hiding behind a commitment without the formal zero-knowledge property.",
+        "yes": "The documentation says the weights stay hidden from the checker in the default use, naming no leak beyond public settings."
+      }
+    },
+    {
+      "card_fields": [
+        "relation",
+        "coverage.policy.kind",
+        "coverage.policy.detail",
+        "binding",
+        "claim_class"
+      ],
+      "id": "model_bound",
+      "name": "Model bound",
+      "not_here": "Which real, named model the commitment is: FlashProve and SASH both say that stays outside their proof; it does not change the state.",
+      "question": "Is each checked token tied to the committed weights?",
+      "rules": {
+        "no": "The documentation says outputs are not tied to any weights, or that nothing is checked.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "Tied with a stated limit: under one of several policies only, within a tolerance or bound, or shown only in empirical tests.",
+        "yes": "The documentation says a passing check ties each checked token to the committed weights exactly, in the configuration the row reads."
+      }
+    },
+    {
+      "card_fields": [
+        "coverage.unit",
+        "coverage.tokens_covered",
+        "coverage.phase",
+        "relation"
+      ],
+      "id": "whole_output",
+      "name": "Whole output checked",
+      "not_here": "Which requests get a check (sampling, proving after the fact) is a deployment choice, not what one check covers. The text before tokenizing and after detokenizing, which FlashProve and SASH both put outside their proof, does not change the state.",
+      "question": "Does one check cover every output token of a request?",
+      "rules": {
+        "no": "The documentation says no output token is checked, or that nothing is checked.",
+        "not_stated": "Not stated, including a proved run whose output tokens the documentation does not name, or not copied yet.",
+        "partly": "One check covers a stated part: the positions the client names, one segment, or one disputed step.",
+        "yes": "The documentation says one check, or one joined set of checks, covers the prompt and every output token of a request."
+      }
+    },
+    {
+      "card_fields": [
+        "relation_formal",
+        "security.notion.kind",
+        "security.notion.verifier",
+        "sources.security.notion*"
+      ],
+      "id": "formally_verified",
+      "name": "Formally verified",
+      "not_here": "A proof that the code itself is correct: no row claims it. A statement made only for another configuration of the same system, another verifier for one, sets nothing here.",
+      "question": "Is the security argument for the row's configuration checked by a proof assistant?",
+      "rules": {
+        "no": "The documentation says the argument is not machine-checked, that a machine check is planned only, or that its soundness evidence is review or tests and nothing else; or the row is a reference, which has no security argument by definition.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "Machine-checked for a stated part only: one component, or a weaker statement than the one the system makes.",
+        "yes": "The documentation says the soundness of the configuration the row reads is proved in a proof assistant (Lean, Coq, Isabelle or similar)."
+      }
+    },
+    {
+      "card_fields": [
+        "security.level",
+        "security.notion.kind",
+        "security.notion.verifier",
+        "security.model"
+      ],
+      "id": "security_level",
+      "name": "Security level",
+      "not_here": "The level itself: the state shows only whether one is stated and proven. A level stated only for another configuration of the same system sets nothing here.",
+      "question": "Is a soundness level stated for the row's configuration, and proven?",
+      "rules": {
+        "no": "The documentation says the settings give no meaningful soundness, for example a test-only setting; or the row is a reference, which has no soundness level by definition.",
+        "not_stated": "No level stated for the configuration in the sources read, or not copied yet.",
+        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system.",
+        "yes": "The documentation states a numeric soundness bound for the configuration the row reads and says it is proven, by hand or by machine, under named assumptions."
+      }
+    },
+    {
+      "card_fields": [
+        "security.setup",
+        "assumptions",
+        "assumptions_not_stated",
+        "security.model.assumption"
+      ],
+      "id": "no_trusted_party",
+      "name": "No trusted party",
+      "not_here": "Trust every row shares does not change the state: the checker's own computer, compiler and verifier build, and where the commitment or the weights come from (see Model bound).",
+      "question": "Does a check hold without trusting a chip maker, a setup ceremony or an honest party?",
+      "rules": {
+        "no": "The documentation says the check verifies a hardware attestation against a chip maker's keys or certificate chain, or that the provider is trusted. Running in a trusted execution environment, said alone, is not such a statement.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "The documentation states a trusted input or condition that its proved statement does not cover: a setup file, public files the user must grant were fixed before the hash, or one honest party among several.",
+        "yes": "The documentation says the check rests on cryptography alone or needs no trusted setup, and names no chip maker, setup or other party to trust."
+      }
+    }
+  ],
+  "rfc": "RFC-0016",
+  "rows": [
+    {
+      "card": {
+        "card_version": "1",
+        "configuration": "sound-defaults",
+        "system": "sash"
+      },
+      "cells": {
+        "formally_verified": {
+          "note": "Searched for: machine-checked, machine checked, formal, Lean, Coq, audit, human review, soundness. docs/statement.md argues each edge in prose; no passage says how that argument is checked.",
+          "outside_pin": {
+            "quotes": [
+              {
+                "archive_url": "https://web.archive.org/web/20261107134653/https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note",
+                "checked": true,
+                "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+                "decides": false,
+                "kind": "web",
+                "label": "SASH research note (September 2026), outside the pinned repositories",
+                "retrieved": "2026-11-07",
+                "text": "our soundness evidence is human review and negative controls.",
+                "url": "https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note"
+              }
+            ],
+            "reason": "Soundness evidence named: human review and negative controls."
+          },
+          "quotes": [],
+          "reason": "Not stated in the pinned repositories.",
+          "sources_read": [
+            {
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "paths": [
+                "**/*.md"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-prover"
+            },
+            {
+              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "paths": [
+                "**/*.md"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-results"
+            }
+          ],
+          "state": "not_stated"
+        },
+        "model_bound": {
+          "note": "Which real model: 'which model that root is, is the statement's own assertion until a published commitment is compared with it.' (zk-inference-results REPRODUCE.md L1406-L1409). Printed as text.",
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": true,
+              "kind": "repository",
+              "label": "docs/statement.md L32 · eb95bfa8",
+              "lines": "L32",
+              "path": "docs/statement.md",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "each matmul's input times the pinned weights into its accumulator | bound | nothing: it is the Freivalds check itself",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md?plain=1#L32"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": false,
+              "kind": "repository",
+              "label": "docs/statement.md L147-L149 · eb95bfa8",
+              "lines": "L147-L149",
+              "path": "docs/statement.md",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "the argmax binds the token a head segment emits to the lowest-indexed maximum of the logits it computed, which is the rule the model itself decodes by.",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md?plain=1#L147-L149"
+            }
+          ],
+          "reason": "Each matrix product checked against pinned weights; each token is the top choice.",
+          "state": "yes"
+        },
+        "no_trusted_party": {
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": true,
+              "kind": "repository",
+              "label": "prover/src/compose.rs L7-L11 · eb95bfa8",
+              "lines": "L7-L11",
+              "path": "prover/src/compose.rs",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "`Fixed` — produced at setup, trusted by the verifier: the shape and gadget parameters that determine every column size and selector, the security config, the tree column sizes, and the **pinned preprocessed root**",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/compose.rs#L7-L11"
+            }
+          ],
+          "reason": "The fixed statement, its pinned root included, is produced at setup and trusted by the verifier.",
+          "sources_read": [
+            {
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "paths": [
+                "README.md",
+                "GLOSSARY.md",
+                "CLAUDE.md",
+                "docs/statement.md",
+                "docs/decisions/*",
+                "prover/README.md",
+                "harness/README.md",
+                "prover/src/util.rs"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-prover"
+            },
+            {
+              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "paths": [
+                "README.md",
+                "CLAUDE.md",
+                "REPRODUCE.md",
+                "docs/statement-gap.md",
+                "docs/quantization.md",
+                "docs/cost-model.md",
+                "docs/decisions/*"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-results"
+            }
+          ],
+          "state": "partly"
+        },
+        "security_level": {
+          "note": "The documentation names the security block only as '`security` (the FRI parameters and the hash)' (prover/README.md L324).",
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": true,
+              "kind": "repository",
+              "label": "prover/src/util.rs L9-L12 · eb95bfa8",
+              "lines": "L9-L12",
+              "path": "prover/src/util.rs",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "stwo's own conjectured-soundness accounting is\n    security_bits = pow_bits + log_blowup_factor * n_queries\nso blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly\n100 FRI queries and no grinding.",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L9-L12"
+            }
+          ],
+          "reason": "Level stated as conjectured, in a source code comment.",
+          "state": "partly"
+        },
+        "weights_hidden": {
+          "note": "Our note: no passage says whether a proof hides the weights. Two passages come near and were not copied into this slot because neither states it: the verifier compares the model root with a published manifest because \"it commits weights the verifier does not hold\" (zk-inference-prover docs/decisions/2026-09-09-the-verifier-derives-the-shape-root.md L10-L12), and the model's shape is \"things the verifier knows rather than things the proof hides\" (zk-inference-results docs/statement-gap.md L172-L175).",
+          "outside_pin": {
+            "quotes": [
+              {
+                "archive_url": "https://web.archive.org/web/20261107134653/https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note",
+                "checked": true,
+                "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+                "decides": false,
+                "kind": "web",
+                "label": "SASH research note (September 2026), outside the pinned repositories",
+                "retrieved": "2026-11-07",
+                "text": "The proofs are not yet zero-knowledge in the formal sense: the weights are hidden behind a commitment, but the proof system adds no blinding.",
+                "url": "https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note"
+              }
+            ],
+            "reason": "Hidden behind a commitment; the proof adds no blinding.",
+            "state": "partly"
+          },
+          "quotes": [],
+          "reason": "Not stated in the pinned repositories.",
+          "sources_read": [
+            {
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "paths": [
+                "README.md",
+                "GLOSSARY.md",
+                "CLAUDE.md",
+                "docs/statement.md",
+                "docs/decisions/*",
+                "prover/README.md",
+                "harness/README.md",
+                "prover/src/util.rs"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-prover"
+            },
+            {
+              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "paths": [
+                "README.md",
+                "CLAUDE.md",
+                "REPRODUCE.md",
+                "docs/statement-gap.md",
+                "docs/quantization.md",
+                "docs/cost-model.md",
+                "docs/decisions/*"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-results"
+            }
+          ],
+          "state": "not_stated"
+        },
+        "whole_output": {
+          "note": "The request is checked as a grid of segment proofs joined by boundary-grid; the benchmark counts the grid as one proof (systems/sash/README.md).",
+          "outside_pin": {
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 11decec3",
+                "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+                "decides": false,
+                "kind": "repository",
+                "label": "docs/statement-gap.md L3-L7 · 11decec3",
+                "lines": "L3-L7",
+                "path": "docs/statement-gap.md",
+                "repo": "sg-ai-safety-hub/zk-inference-results",
+                "text": "The prover proves one end-to-end statement about one request: every position of a prompt and of a 512-token greedy continuation, from the embedding up through every layer and through the output head",
+                "url": "https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/docs/statement-gap.md?plain=1#L3-L7"
+              }
+            ],
+            "reason": "One end-to-end statement about one request, in the companion results repository."
+          },
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": true,
+              "kind": "repository",
+              "label": "prover/src/boundary.rs L1148-L1153 · eb95bfa8",
+              "lines": "L1148-L1153",
+              "path": "prover/src/boundary.rs",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "The token axis of the *sequence* -- as distinct from the K/V axis of the grid -- is checked here too, and unconditionally: every position of every block whose layer-0 chunk carries the embedding gadget is either a prompt position, whose id must equal the prompt's, or a generated one, whose id must equal the token the `lm_head` chunk proved for the position before it (within a block, and across the block seam at `t = 0`).",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1148-L1153"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": false,
+              "kind": "repository",
+              "label": "docs/statement.md L5-L7 · eb95bfa8",
+              "lines": "L5-L7",
+              "path": "docs/statement.md",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "A sequence is proved as a grid of such segments, and `boundary-grid` checks that the segments fit together.",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md?plain=1#L5-L7"
+            }
+          ],
+          "reason": "Every prompt and generated position is checked across the joined grid of segment proofs.",
+          "state": "yes"
+        }
+      },
+      "family": "proved",
+      "id": "sash",
+      "name": "SASH zk-inference-prover",
+      "source_class": "claim_card_at_pin",
+      "tab": "benchmarked"
+    }
+  ],
+  "schema": "criteria/1",
+  "states": {
+    "no": {
+      "meaning": "The documentation says it does not hold, by the property's No rule; or it says it holds, fully or partly, and a negative control of the benchmark contradicts it.",
+      "word": "No"
+    },
+    "not_stated": {
+      "meaning": "The sources read say nothing that meets the Yes, Partly or No rule, or they have not been read yet. Silence is never No.",
+      "word": "Not stated"
+    },
+    "partly": {
+      "meaning": "The documentation says it holds with a limit it states, by the property's Partly rule, and no control of the benchmark contradicts it.",
+      "word": "Partly"
+    },
+    "yes": {
+      "meaning": "The documentation says the property holds, by the property's Yes rule, and no control of the benchmark contradicts it.",
+      "word": "Yes"
+    }
+  }
+}

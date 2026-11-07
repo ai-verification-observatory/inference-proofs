@@ -1251,6 +1251,57 @@ class SiteFacts(Document):
     rows: Mapping[str, RowFacts]
 
 
+# ---------------------------------------------------------------- criteria/1 (RFC-0016)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CriteriaState(Document):
+    word: str
+    meaning: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CriteriaProperty(Document):
+    id: str
+    name: str
+    question: str
+    not_here: str
+    rules: Mapping[str, str]
+    card_fields: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CriteriaRow(Document):
+    """One row; its cells stay as validated trees (CRIT-1 to CRIT-14 read them)."""
+
+    id: str
+    name: str
+    family: str
+    tab: str
+    source_class: str
+    cells: Mapping[str, Mapping[str, object]]
+    card: Mapping[str, str] | None = None
+    disclosures: tuple[Mapping[str, str], ...] | None = None
+    workloads: tuple[str, ...] | None = None
+    own_sources: tuple[Mapping[str, str], ...] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class CriteriaFile(Document):
+    """`criteria/1`, the glyph's properties, states and rows (`web/_data/criteria.json`)."""
+
+    schema: str
+    rfc: str
+    date: str
+    note: str
+    order: tuple[str, ...]
+    states: Mapping[str, CriteriaState]
+    properties: tuple[CriteriaProperty, ...]
+    pins: Mapping[str, str]
+    rows: tuple[CriteriaRow, ...]
+    release: str | None = None
+
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
@@ -1396,6 +1447,9 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("site-facts/1", "#/$defs/row"): RowFacts,
     ("site-facts/1", "#/$defs/row/properties/licence"): LicenceFacts,
     ("site-facts/1", "#/$defs/row/properties/status"): StatusFacts,
+    ("criteria/1", "#"): CriteriaFile,
+    ("criteria/1", "#/$defs/property"): CriteriaProperty,
+    ("criteria/1", "#/$defs/row"): CriteriaRow,
 }
 
 

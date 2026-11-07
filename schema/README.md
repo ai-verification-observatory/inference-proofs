@@ -41,6 +41,7 @@ Schemas in the RFC-0012 catalogue that have landed, with their Python model in `
 | `reproduction/1` | `results/<release>/<system>/<run-id>/reproductions/<repro-run-id>.json` | `ReproductionRecord`, `ReproductionEligibility`, `Comparison`, `ComparedStats`, `DigestMatch` |
 | `perturbed-commitment/1` | `results/<release>/<system>/_controls/<workload>/perturbed.json` | `PerturbedCommitmentRecord` |
 | `site-facts/1` | `web/_data/facts.json` | `SiteFacts`, `SiteInfo`, `ModelFacts`, `RowFacts`, `LicenceFacts`, `StatusFacts` |
+| `criteria/1` | `web/_data/criteria.json` | `CriteriaFile`, `CriteriaState`, `CriteriaProperty`, `CriteriaRow` |
 
 ## Examples rule
 
