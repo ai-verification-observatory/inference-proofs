@@ -270,38 +270,45 @@ html:not(.js) .search { display: none; }
 /* how we read it follows the properties in reading order (RFC-0009 S1 item 1): under the pie and the facts, full width,
    its rule like the card in full's just below it */
 .over > .howread { grid-column: 1 / -1; grid-row: 2; }
-.over > .facts { grid-column: 2; grid-row: 1; align-self: start; }
-/* each side its own column, centred on the pie: 1 to 3 down the right, 6 to 4 down the left (4 to 6 in reading order) */
-.rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-areas: "L pie R"; column-gap: 24px; align-items: center; }
+.over > .facts { grid-column: 2; grid-row: 1; }
+.rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-rows: repeat(3, auto);
+  grid-template-areas: "p6 pie p1" "p5 pie p2" "p4 pie p3"; column-gap: 24px; row-gap: 18px; align-items: center; }
 .rpie { grid-area: pie; display: flex; justify-content: center; }
 .rpie .pie-svg { width: 200px; height: 200px; }
-.rprops { display: flex; flex-direction: column; justify-content: center; gap: 18px; min-width: 0; margin: 0; padding: 0; list-style: none; }
-.rprops.r { grid-area: R; }
-.rprops.l { grid-area: L; flex-direction: column-reverse; }
+.rprops { display: contents; list-style: none; }
 .rp { min-width: 0; }
+.rp[data-n="1"] { grid-area: p1; } .rp[data-n="2"] { grid-area: p2; } .rp[data-n="3"] { grid-area: p3; }
+.rp[data-n="4"] { grid-area: p4; } .rp[data-n="5"] { grid-area: p5; } .rp[data-n="6"] { grid-area: p6; }
 .rp.l { text-align: right; }
+.rp[data-n="1"], .rp[data-n="6"] { align-self: end; } .rp[data-n="3"], .rp[data-n="4"] { align-self: start; }
 .rn { font: 600 12px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); }
 .rn a { color: inherit; text-decoration: none; }
 .rn a:hover, .rn a:focus-visible { text-decoration: underline; }
 .rs { font: 750 22px/1.1 var(--disp); font-stretch: 84%; margin-top: 4px; }
 .rr { font: 400 12px/1.42 var(--mono); color: var(--muted); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
 .rp.l .rr { margin-left: auto; }
-/* under a property's reason, all it holds: the deciding quote (mono, muted, verbatim), its source at
-   the pin (a small underlined link) and, for an overridden cell, its stated state and what contradicts it */
-.ev { font: 400 11.5px/1.45 var(--mono); color: var(--muted); margin-top: 6px; max-width: 46ch; text-wrap: pretty; }
-.rp.l .ev { margin-left: auto; width: fit-content; text-align: left; }
-.rp.l .es { justify-content: flex-end; }
+/* after a property's reason, a quiet link to its entry in how we read it; under it, only for an overridden
+   cell, its stated state and what contradicts it */
+.psrc { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.psrc:hover { color: var(--paper); }
+.ev { font: 400 11.5px/1.45 var(--mono); color: var(--muted); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
+.rp.l .ev { margin-left: auto; }
 .eq { margin: 0; }
 .eq p { color: var(--muted); white-space: pre-line; }
 .es { display: flex; flex-wrap: wrap; column-gap: 12px; font-size: 11px; }
 .ev .ex { margin-top: 2px; }
 .ev .ex .ek { margin-right: 1ch; }
-/* how we read it: per property the sources read, a conflict's quotes, the controls, one labelled line each */
+/* how we read it: per property the deciding quote (or a conflict's quotes), the sources read, the controls,
+   one labelled line each; an entry a source link lands on clears the top of the screen */
+.hw > div { scroll-margin-top: 16px; }
+/* the entry a source link moved focus to: its name lit and underlined, no box */
+.hw > div:focus { outline: none; }
+.hw > div:focus > dt { color: var(--paper); text-decoration: underline 2px; text-underline-offset: 4px; }
 .er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 10ch minmax(0, 1fr); align-items: baseline; }
 /* a read line starts with a link padded 4 px: its label sits on the link's first line */
 .er { align-items: start; }
 .er > .ek { padding-top: 4px; line-height: 16px; }
-.hw dd > p:first-child { margin-top: 0; }
+.hw dd > :first-child { margin-top: 0; }
 .hw .eq p { color: var(--paper); }
 .eb { min-width: 0; }
 .ek { color: var(--muted); }
@@ -609,19 +616,19 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rpie .tx { display: inline; }
   .rpie .pie-svg { width: min(340px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
   .rprops { display: block; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--rule); }
-  .rprops.l { margin-top: 0; border-top-color: var(--line); }
   .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 3px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
   .rp + .rp { border-top: 1px solid var(--line); }
   .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: .05em; color: var(--paper); }
   .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
   .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
-  .rp .ev, .rp.l .ev { grid-column: 1 / -1; max-width: none; margin: 4px 0 0; font-size: 11px; text-align: left; }
+  /* a source link with no reason before it sits under the state, clear of the name's link */
+  .rp .rr.rsrc { grid-column: 2; }
+  .rp .ev, .rp.l .ev { grid-column: 1 / -1; max-width: none; margin: 2px 0 0; font-size: 11px; }
   .cf > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .cn > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .cn > div + div { margin-top: 4px; }
   .cn .cn { padding-left: 12px; border-left: 1px solid var(--line); margin-top: 2px; }
   .cardfull { margin-top: 32px; }
-  .rp.l .es { justify-content: flex-start; }
   /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
   .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
   .rose[data-hot="4"] .rp[data-n="4"], .rose[data-hot="5"] .rp[data-n="5"], .rose[data-hot="6"] .rp[data-n="6"] { background: var(--line); box-shadow: -8px 0 0 var(--line), 8px 0 0 var(--line); }
@@ -642,7 +649,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mtab .ml { grid-column: 1 / -1; margin-top: 4px; }
   /* inline links: thumb-sized hit areas, the text where it was */
   .rn a { display: inline-block; padding-block: 8px; margin-block: -8px; }
-  .rule { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
+  .rule, .psrc { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
   .ctl .qs { padding-block: 4px; margin-block: -4px; }
   .facts .links { gap: 16px; }
   .facts .links a, .facts dd > a { display: inline-block; padding-block: 4px; margin-block: -4px; }
@@ -667,7 +674,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 @media (max-width: 560px) {
   /* the system page's claims, compact so the figures come soon: the card's identity in one run of
      text, the folds and the quality gap closer together */
-  .rp, .rp.l { padding: 8px 0; }
   .facts .cardid { display: block; }
   .facts .cardid > span { display: inline; }
   .facts .cardid > span + span:before { content: " · " / ""; color: var(--muted); }
@@ -780,9 +786,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sysname { font-size: 56px; }
   .mast-sys .mast-in { padding-top: 8px; }
   .over { padding-top: 16px; }
-  .rprops { gap: 8px; }
+  .rose { row-gap: 8px; }
   .rpie .pie-svg { width: 160px; height: 160px; }
-  .rpie { align-self: start; }
   .crit { margin-top: 24px; }
 }
 /* touch: a property's name shows it is a link */

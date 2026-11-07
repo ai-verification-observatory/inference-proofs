@@ -295,6 +295,9 @@ for (const w of [390, 360, 320]) {
 }
 
 // ---------------------------------------------------------------- system pages and the reference page: the pie with its properties around it
+// each property's text beside its own triangle, as on main before #320: the rose's height at 1440 px, measured on
+// origin/main at c81832d, is the composition the system page keeps (within 10 %)
+const ROSE_MAIN = { flashprove: 309, sash: 309, reference: 275 };
 for (const name of ['flashprove', 'sash', 'reference']) {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
@@ -318,11 +321,34 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   // the six names and states on the first screen (on a system page, what each rests on follows under it)
   const firstScreen = await p.evaluate(() => Math.max(...[...document.querySelector('.rose').querySelectorAll('.rp .rs')].map((x) => Math.round(x.getBoundingClientRect().bottom))));
   ok(firstScreen <= 900, `${tagOf(name)}: the six properties' states fit the first screen`, firstScreen);
-  // quotes only under a property (its deciding quote) or in how we read it (a conflict's); the two folds,
-  // how we read it and the card in full, closed as sent
-  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.rp .ev, .howread')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
+  const roseH = await p.evaluate(() => Math.round(document.querySelector('.rose').getBoundingClientRect().height));
+  ok(Math.abs(roseH - ROSE_MAIN[name]) <= ROSE_MAIN[name] * 0.1, `${tagOf(name)}: the rose keeps main's height, each text beside its triangle`, { now: roseH, main: ROSE_MAIN[name] });
+  // quotes only in how we read it, none beside the glyph; the two folds, how we read it and the card in full,
+  // closed as sent
+  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.howread')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
   const sys = name !== 'reference';
-  ok(!fold.stray && fold.details.join() === (sys ? 'howread:false,cardfull:false' : ''), `${tagOf(name)}: quotes only under their property or in how we read it; ${sys ? 'how we read it and the card in full folded' : 'nothing folded'}`, fold);
+  ok(!fold.stray && fold.details.join() === (sys ? 'howread:false,cardfull:false' : ''), `${tagOf(name)}: quotes only in how we read it; ${sys ? 'how we read it and the card in full folded' : 'nothing folded'}`, fold);
+  if (sys) {
+    // a property's "source" opens how we read it and lands on its entry, focus on it; so does an address naming one
+    const land = (pp, id) => pp.evaluate((id) => {
+      const at = document.getElementById(id);
+      const r = at.getBoundingClientRect();
+      return { open: at.closest('details').open, focus: document.activeElement === at, top: Math.round(r.top), seen: r.top >= 0 && r.top < innerHeight / 2 };
+    }, id);
+    const links = await p.evaluate(() => [...document.querySelectorAll('.rp .psrc')].map((a) => a.getAttribute('href')));
+    const entries = await p.evaluate(() => [...document.querySelectorAll('.howread [id^="read-"]')].map((x) => `#${x.id}`));
+    ok(links.length === 6 && links.every((h) => entries.includes(h)), `${tagOf(name)}: each property's source names its own entry in how we read it`, { links, entries });
+    await p.evaluate(() => scrollTo(0, 0));
+    await p.click('.rp[data-n="3"] .psrc'); await p.waitForTimeout(400);
+    const id3 = links[2].slice(1);
+    const l3 = await land(p, id3);
+    ok(l3.open && l3.focus && l3.seen, `${tagOf(name)}: a source link opens how we read it and lands on its entry`, l3);
+    const q = await pg(1440, 900);
+    await q.p.goto(`${BASE}${name}#${id3}`, { waitUntil: 'networkidle' }); await q.p.waitForTimeout(600);
+    const l4 = await land(q.p, id3);
+    ok(l4.open && l4.focus && l4.seen, `${tagOf(name)}: an address naming an entry opens how we read it on it`, l4);
+    await q.ctx.close();
+  }
   // pointing at a property lifts its slice
   await p.hover('.rp[data-n="2"]'); await p.waitForTimeout(300);
   const lift = await p.evaluate(() => getComputedStyle(document.querySelector('.rpie .s2')).transform);
@@ -549,7 +575,7 @@ for (const w of [390, 320]) {
     const o = await overflow(p);
     ok(o.over <= 0 && !o.wide.length, `${name}-${w}: no horizontal overflow, both folds open`, o);
     const t = await p.evaluate(() => {
-      const sel = '.ev a, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
+      const sel = '.ev a, .rp .psrc, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
       const els = [...document.querySelectorAll(sel)].filter((a) => a.getClientRects().length && !a.closest('.sr, [hidden]'));
       const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
       const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));

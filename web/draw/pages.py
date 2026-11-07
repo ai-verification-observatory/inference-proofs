@@ -12,6 +12,7 @@ from .claims import (
     gap_block,
     how_we_read,
     property_controls_of,
+    read_entries,
     run_ref,
 )
 from .hexagon import hex_svg, key_mini
@@ -69,15 +70,20 @@ from .words import (
 SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 
 
-def rose_item(c, pre, drawn=True, ev=""):
+def rose_item(c, pre, drawn=True, ev="", src=""):
     """One property beside its slice: its name (a link to what its states mean), its question for
-    screen readers, the state, our short reason (left out when it only repeats Not stated) and,
-    on a system page, the deciding quote with its source and an overridden cell's one line (`ev`,
-    draw/claims.py), nothing else."""
+    screen readers, the state, and our short reason (left out when it only repeats Not stated).
+    On a system page, after the reason, a small link to the property's entry in "How we read it"
+    (`src`, its id), and, for an overridden cell, the one line that changes its state (`ev`,
+    draw/claims.py); nothing else."""
     generic = (
         c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
     )
-    reason = "" if generic else f'<p class="rr">{e(words(c["reason"]))}</p>'
+    link = (f'<a class="psrc" href="#{e(src)}">source<span class="sr">: how we read '
+            f"{e(c['name'])}</span></a>" if src else "")  # fmt: skip
+    said = [x for x in ("" if generic else e(words(c["reason"])), link) if x]
+    only = ' class="rr rsrc"' if said == [link] else ' class="rr"'  # the link alone, no reason
+    reason = f"<p{only}>{' '.join(said)}</p>" if said else ""
     if not drawn:  # RFC-0016 OVR-8: the stated state in words, beside the notice, not drawn
         state = f'<p class="rs">{e("Stated: " + c["word"])}</p>'
     else:
@@ -89,24 +95,20 @@ def rose_item(c, pre, drawn=True, ev=""):
     )
 
 
-def rose(g, hid, name, level=2, pre="", ev=None):
+def rose(g, hid, name, level=2, pre="", ev=None, src=None):
     """The pie, centred, with each property beside its own slice. level: the hidden heading's level
-    under the page's own; pre: an id prefix when one page holds several roses; ev: each
-    property's evidence by property id (system pages). The properties are two lists, 1 to 3
-    (right of the pie) then 4 to 6 (left), so each side stacks on its own and a long block on
-    one side leaves no hole on the other; read aloud, they still run 1 to 6."""
-    items = {
-        c["n"]: rose_item(c, pre, g["drawn"], (ev or {}).get(c["prop"], "")) for c in g["cells"]
-    }
-    lists = "".join(
-        f'<ol class="rprops {side}" role="list"{start} aria-labelledby="{e(hid)}">'
-        f"{''.join(items[n] for n in ns)}</ol>"
-        for side, start, ns in (("r", "", (1, 2, 3)), ("l", ' start="4"', (4, 5, 6)))
+    under the page's own; pre: an id prefix when one page holds several roses; ev and src: on a
+    system page, each property's overridden line and the id of its entry in "How we read it",
+    by property id."""
+    ev, src = ev or {}, src or {}
+    items = "".join(
+        rose_item(c, pre, g["drawn"], ev.get(c["prop"], ""), src.get(c["prop"], ""))
+        for c in g["cells"]
     )
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
         f'<div class="rpie" role="img" aria-label="{e(aria(g, name, outside=True))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in g["cells"]])}</div>'
-        f"{lists}</div>"
+        f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{items}</ol></div>'
     )
 
 
@@ -386,20 +388,23 @@ def system_desc(sid):
 
 
 def claims_section(sid, cfgs, g, facts):
-    """S1: the card's validated claims (the pie, and per property its state, reason, deciding
-    quote with its source, and an overridden cell's stated state; then, folded, how we read it:
-    sources read, both quotes of a conflict, control outcomes), its identity among the facts,
-    the card in full (folded) and its quality gap and residual beside the agreement rate; before
-    any figure. "How we read it" stays in the validated claims, before the facts in reading
-    order (S1 item 1); words.css sets it under the pie, beside the facts, on wide screens."""
+    """S1: the card's validated claims (the pie, and per property its state, reason, a link to
+    how we read it and an overridden cell's one line; then, folded, how we read it: per property
+    the deciding quote with its source, both quotes of a conflict, the sources read and the
+    control outcomes), its identity among the facts, the card in full (folded) and its quality
+    gap and residual beside the agreement rate; before any figure. "How we read it" stays in the
+    validated claims, before the facts in reading order (S1 item 1); words.css sets it under the
+    pie and the facts on wide screens."""
     cfg = cfgs[0]
     pc = property_controls_of(cfgs)
     order = [c["prop"] for c in g["cells"]]
+    entries = read_entries(sid, pc, order)
+    src = {prop: f"read-{prop}" for prop in entries}
     name = name_of(sid)
     return (
         f'<section class="claims" id="claims-{e(cfg["configuration"])}" aria-labelledby="h-props">'
-        f'<div class="over" id="properties">{rose(g, "h-props", name, ev=evidence_of(sid, pc, order))}'
-        f"{how_we_read(sid, pc, order)}{facts_dl(facts)}</div>"
+        f'<div class="over" id="properties">{rose(g, "h-props", name, ev=evidence_of(sid, pc, order), src=src)}'
+        f"{how_we_read(entries)}{facts_dl(facts)}</div>"
         f"{card_full(cfg, sid)}{gap_block(cfgs)}</section>"
     )
 

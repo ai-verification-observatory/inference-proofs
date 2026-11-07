@@ -1,9 +1,9 @@
 """A card's validated claims on its system page (RFC-0009 S1, RFC-0016 OVR-7, OVR-8): beside
-each property, its state, our reason and the deciding quote with its source at the pin, and, for
-an overridden cell, its stated state and what contradicts it; then, folded in "How we read it",
-the sources read, both quotes of a conflict and the controls the map ties to each property with
-their outcomes; then the card's identity, the card in full (folded) and its `quality_gap` and
-`residual` beside the agreement rate (RFC-0015 RC-6).
+each property, its state, our reason and a link to its entry in "How we read it", and, for an
+overridden cell, its stated state and what contradicts it; then, folded in "How we read it", per
+property the deciding quote with its source at the pin, both quotes of a conflict, the sources
+read and the controls the map ties to it with their outcomes; then the card's identity, the card
+in full (folded) and its `quality_gap` and `residual` beside the agreement rate (RFC-0015 RC-6).
 
 Every word printed here is the system's own (quotes, card fields), the criteria file's (reasons),
 a stored outcome or a fixed word for a stored id: nothing is inferred.
@@ -55,7 +55,7 @@ def source_link(url, prefix=""):
 def quote_source(q):
     """A quote's source at the pin: repository@commit, path and lines, linked at that commit. The
     words name the repository without its owner (the facts' pinned row names it in full), so the
-    link keeps to one or two lines beside the pie; the owner stays in the link and its title."""
+    link keeps to one line in the fold's text column; the owner stays in the link and its title."""
     where = " ".join(x for x in (q.get("path"), q.get("lines")) if x)
     full = f"{q['repo']}@{q['commit'][:8]} {where}".strip()
     label = f"{q['repo'].rsplit('/', 1)[-1]}@{q['commit'][:8]} {where}".strip()
@@ -86,9 +86,14 @@ def deciding_quotes(sid, prop, cell):
     return quotes
 
 
-def ev_line(cls, label, body):
-    """One line of a property's evidence: a quiet label ("read", "controls", "stated") in its own
-    column, the text beside it (words.css `.er`, `.ec`, `.ex`)."""
+def ev_line(cls, label, body, block=False):
+    """One line of a property's evidence: a quiet label ("quote", "read", "controls", "stated")
+    in its own column, the text beside it (words.css `.eqs`, `.er`, `.ec`, `.ex`). block: the
+    text holds a quote, so the line is a `div` (a `p` cannot hold a `blockquote`)."""
+    if block:
+        return (
+            f'<div class="{cls}"><span class="ek">{label}</span><div class="eb">{body}</div></div>'
+        )
     return f'<p class="{cls}"><span class="ek">{label}</span><span class="eb">{body}</span></p>'
 
 
@@ -164,8 +169,8 @@ def control_lines(pc, prop):
 
 def contradicted_line(cell, pc, prop):
     """RFC-0016 OVR-4, OVR-7: an overridden cell's stated state and each control and run that
-    contradicts it, in one line under the property: the one line beside the deciding quote that
-    changes the state."""
+    contradicts it, in one line under the property's reason: the one line of the cell's evidence
+    kept beside the glyph, since it changes the state."""
     if not cell.get("stated"):
         return ""
     found = pc["properties"][prop]["contradicted"] if pc and not pc["withheld"] else []
@@ -176,15 +181,14 @@ def contradicted_line(cell, pc, prop):
 
 
 def evidence(sid, prop, pc):
-    """What one property's block holds under its state and reason, and nothing else: the
-    deciding quote with its source at the pin, and, for an overridden cell, its stated state and
-    what contradicts it (not under a pending disclosure: OVR-8, `pc` withheld). A Not stated cell
-    with no deciding quote adds nothing."""
+    """What one property's block holds under its state and reason besides the link to how we
+    read it: for an overridden cell, its stated state and what contradicts it (not under a
+    pending disclosure: OVR-8, `pc` withheld), since that line changes the state; else nothing."""
     cell = S.CRIT["rows"][sid]["cells"][prop]
-    body = "".join(quote_html(q) for q in deciding_quotes(sid, prop, cell))
-    if pc is not None and not pc["withheld"]:
-        body += contradicted_line(cell, pc, prop)
-    return f'<div class="ev">{body}</div>' if body else ""
+    if pc is None or pc["withheld"]:
+        return ""
+    line = contradicted_line(cell, pc, prop)
+    return f'<div class="ev">{line}</div>' if line else ""
 
 
 def evidence_of(sid, pc, order):
@@ -200,38 +204,49 @@ def conflict_lines(cell):
     lines = []
     for q in cell["quotes"]:
         label = e(STATE_WORD[q["meets"]].lower()) if q.get("meets") else "quote"
-        lines.append(ev_line("eqs", label, quote_html(q)))
+        lines.append(ev_line("eqs", label, quote_html(q), block=True))
     return "".join(lines)
 
 
-def how_we_read(sid, pc, order):
-    """How we read it (RFC-0009 S1 item 1, RFC-0016 ST-2, ST-8, OVR-7), folded in a native
-    `details` that opens with one press, with or without script: per property, in `order`, the
-    sources read (one line per repository, linked at its commit, with the paths read; a list
-    equal to an earlier property's names that property), both quotes of a conflict, and the
-    controls the map ties to it with their outcome in every run read (none under a pending
-    disclosure, OVR-8). A property with none of these is left out; with none at all, so is the
-    fold."""
-    names = {p["id"]: p["name"] for p in S.PROPS}
-    rows, seen = [], {}
+def read_entries(sid, pc, order):
+    """How we read each property (RFC-0009 S1 item 1, RFC-0016 ST-2, ST-8, OVR-7), by property
+    id, in `order`: the deciding quote verbatim with its source at the pin (in a conflict, every
+    quote with the state whose rule it meets), the sources read (one line per repository, linked
+    at its commit, with the paths read; a list equal to an earlier property's names that
+    property), and the controls the map ties to it with their outcome in every run read (none
+    under a pending disclosure, OVR-8). A property with none of these has no entry."""
+    out, seen = {}, {}
     for prop in order:
         cell = S.CRIT["rows"][sid]["cells"][prop]
-        body = ""
+        quotes = deciding_quotes(sid, prop, cell)
+        body = conflict_lines(cell) or "".join(
+            ev_line("eqs", "quote", quote_html(q), block=True) for q in quotes
+        )
         if cell["sources_read"]:
             key = json.dumps(cell["sources_read"], sort_keys=True)
             body += sources_read(cell["sources_read"], seen.get(key))
             seen.setdefault(key, prop)
-        body += conflict_lines(cell)
         if pc is not None and not pc["withheld"]:
             body += control_lines(pc, prop)
         if body:
-            rows.append(f'<div id="read-{e(prop)}"><dt>{e(names[prop])}</dt><dd>{body}</dd></div>')
+            out[prop] = body
+    return out
+
+
+def how_we_read(entries):
+    """How we read it, folded in a native `details` that opens with one press, with or without
+    script: one entry per property of `read_entries`, its id `read-<property>` (the rose's
+    "source" links; words.js opens the fold when a link or the address names an entry, and moves
+    focus to it). With no entry, no fold."""
+    names = {p["id"]: p["name"] for p in S.PROPS}
+    rows = "".join(f'<div id="read-{e(prop)}" tabindex="-1"><dt>{e(names[prop])}</dt><dd>{body}</dd></div>'
+                   for prop, body in entries.items())  # fmt: skip
     if not rows:
         return ""
     return (
         '<details class="howread" id="how-we-read">'
         '<summary><span class="sect sm">How we read it</span></summary>'
-        f'<dl class="cf hw">{"".join(rows)}</dl></details>'
+        f'<dl class="cf hw">{rows}</dl></details>'
     )
 
 

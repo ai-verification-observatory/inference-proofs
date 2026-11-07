@@ -60,6 +60,29 @@
     document.addEventListener('pointerdown', (ev) => { if (!rose.contains(ev.target)) cool(); });
   });
 
+  // ------------------------------------------------------------ system pages: a link or an address naming an entry of a
+  // folded section (a property's "source", How we read it) opens the fold and moves focus to the entry. Without script
+  // the entry keeps its id and the fold opens with one press.
+  const reveal = (id, scroll) => {
+    let at = null;
+    try { at = id ? document.getElementById(decodeURIComponent(id)) : null; } catch (_) { /* a malformed escape */ }
+    const fold = at && at.closest('details');
+    if (!fold) return;
+    fold.open = true;
+    if (scroll) at.scrollIntoView({ block: 'start' });
+    if (at.tabIndex < 0 && !at.hasAttribute('tabindex')) at.setAttribute('tabindex', '-1');
+    at.focus({ preventScroll: true });
+  };
+  const fromHash = () => reveal(location.hash.slice(1), true);
+  fromHash();
+  addEventListener('hashchange', fromHash);
+  // a press opens the fold before the browser follows the link, so it lands on the entry (also when the address
+  // already names it, and no hashchange follows)
+  document.addEventListener('click', (ev) => {
+    const a = ev.target.closest && ev.target.closest('a[href^="#"]');
+    if (a) reveal(a.getAttribute('href').slice(1), false);
+  });
+
   // ------------------------------------------------------------ search: a combobox over search.json (written by build.py)
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and

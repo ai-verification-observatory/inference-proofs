@@ -391,8 +391,9 @@ def test_claim_card_before_numbers(site: Build) -> None:
 
 def _validated_claims(site: Build, system: str) -> None:
     """S1 on a system page, in DOM order: the validated claims (per property its state, reason
-    and deciding quote with its source at the pin, then, folded in "How we read it", the sources
-    read, both quotes of a conflict and each mapped control in every run read), the card's
+    and a link to how we read it, then, folded in "How we read it", the deciding quote with its
+    source at the pin, both quotes of a conflict, the sources read and each mapped control in
+    every run read), the card's
     identity with its file and digest, the card in full in a `details` element, both folds
     closed in the HTML as sent, then `quality_gap` and `residual` with the agreement rate
     outside them; all before every figure. Under a pending disclosure the stated state in words,
@@ -408,9 +409,8 @@ def _validated_claims(site: Build, system: str) -> None:
     folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
     gap = text.index('class="gapblk"')
     read = text.index('<details class="howread" id="how-we-read">')
-    assert claims < text.index('class="rprops r"') < text.index('class="rprops l"') < read
-    assert read < identity < folded < gap < first_figure
-    assert text.index('class="rprops l"') < text.index('class="fig"')
+    assert claims < text.index('class="rprops"') < read < identity < folded < gap < first_figure
+    assert text.index('class="rprops"') < text.index('class="fig"')
     assert "<details open" not in text  # folded as sent (S1 item 4)
     details = text[folded : text.index("</details>", folded)]
     for field in card["body"]:
@@ -430,14 +430,12 @@ def _validated_claims(site: Build, system: str) -> None:
 
 
 PROPERTY_BLOCK = re.compile(
-    r'<li class="rp [rl]" id="p-[a-z_]+" data-n="\d"><p class="rn">.*?</p>'
-    r'(<p class="rs">.*?</p>)(<p class="rr">[^<]*</p>)?(<div class="ev">(.*?)</div>)?</li>',
-    re.S,
-)
-EV_PARTS = re.compile(
-    r'<blockquote class="eq"><p>[^<]*</p></blockquote>'
-    r'<p class="es"><a class="qsrc" [^>]*>.*?</a></p>'
-    r'|<p class="ex"><span class="ek">stated</span><span class="eb">.*?</span></p>',
+    r'<li class="rp [rl]" id="p-[a-z_]+" data-n="\d"><p class="rn">(?:(?!</p>).)*</p>'
+    r'(<p class="rs">(?:(?!</p>).)*</p>)'
+    r'(<p class="rr( rsrc)?">([^<]*)(<a class="psrc" href="#read-([a-z_]+)">source'
+    r'<span class="sr">: how we read ([^<]*)</span></a>)?</p>)?'
+    r'(<div class="ev"><p class="ex"><span class="ek">stated</span><span class="eb">.*?</span>'
+    r"</p></div>)?</li>",
     re.S,
 )
 
@@ -445,10 +443,10 @@ EV_PARTS = re.compile(
 def _property_claims(
     site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None
 ) -> None:
-    """One property of a system page's validated claims (`_validated_claims`): its block under
-    the glyph holds its state, our reason, the deciding quote with its source and, for an
-    overridden cell, its stated state with what contradicts it, nothing else; what was read and
-    the controls are in "How we read it" (`_how_we_read`)."""
+    """One property of a system page's validated claims (`_validated_claims`): its block beside
+    the glyph holds its state, our reason, a "source" link to its entry in "How we read it" and,
+    for an overridden cell, its stated state with what contradicts it, nothing else; the quotes,
+    what was read and the controls are in the entry (`_how_we_read`)."""
     criteria = site.view["criteria"]["rows"]
     text = site.pages[f"{system}.html"]
     cells = criteria[system]["cells"]
@@ -456,9 +454,14 @@ def _property_claims(
     assert item, (system, p["id"])
     body, said = item[0], flat(item[0])
     block = PROPERTY_BLOCK.fullmatch(body)
-    assert block, (system, p["id"], body)  # name, state, reason, evidence: nothing else
-    ev = block[4] or ""
-    assert not EV_PARTS.sub("", ev), (system, p["id"], ev)  # quote, source, overridden line only
+    assert block, (system, p["id"], body)  # name, state, reason, link, overridden line only
+    assert "<blockquote" not in body, (system, p["id"])  # quotes are in the fold, not here
+    entry = re.search(rf'<div id="read-{p["id"]}" tabindex="-1">', text)
+    if entry:  # the link names this property and lands on its own entry, which exists
+        assert (block[6], block[7]) == (p["id"], p["name"]), (system, p["id"])
+        assert bool(block[3]) == (block[4] == ""), (system, p["id"])  # rsrc: the link alone
+    else:
+        assert block[5] is None, (system, p["id"])
     cell = cells[p["id"]]
     state = cell["state"]
     if criteria[system]["drawn"]:
@@ -467,7 +470,6 @@ def _property_claims(
     else:  # OVR-8: the stated state in words, not drawn
         assert '<i class="sw ' not in body
         assert f"Stated: {WORD[state]}" in said, (system, p["id"])
-    _quotes_printed(system, p, cell, body, said)
     _how_we_read(site, system, p, pc)
     if pc is None or pc["withheld"] or not cell.get("stated"):
         assert 'class="ex"' not in body, (system, p["id"])
@@ -480,14 +482,14 @@ def _property_claims(
 def _quotes_printed(
     system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
 ) -> None:
-    """S1 item 1: the one quote marked `decides`, verbatim, with its source at the pin; a
-    stated cell always prints it; a quote that does not decide is not printed in the block (in a
-    conflict, the other quote is in "How we read it")."""
+    """S1 item 1 in the property's entry of "How we read it": the one quote marked `decides`,
+    verbatim, with its source at the pin; a stated cell always prints it; a quote that does not
+    decide is printed only in a conflict (both quotes, `conflict_lines`)."""
     deciding = [q for q in cell["quotes"] if q.get("decides")]
     if cell["state"] != "not_stated":
         assert len(deciding) == 1, (system, p["id"])  # a stated cell prints the quote it rests on
     for q in [q for q in cell["quotes"] if q not in deciding]:  # a non-deciding quote: not here
-        assert q["text"] not in html.unescape(body), (system, p["id"])
+        assert cell["conflict"] or q["text"] not in html.unescape(body), (system, p["id"])
     for q in deciding:  # verbatim, with its source at the pin
         assert q["text"] in html.unescape(body), (system, p["id"])
         assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
@@ -497,19 +499,24 @@ def _quotes_printed(
 
 
 def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
-    """RFC-0016 ST-2, ST-8, OVR-7 in the fold "How we read it": the sources read, both quotes of
-    a conflict, and each mapped control in every run read (no run read says why, never "not
-    run"); none of it under a pending disclosure but the sources and quotes (OVR-8)."""
+    """RFC-0016 ST-2, ST-8, OVR-7 in the fold "How we read it": the deciding quote with its
+    source, both quotes of a conflict, the sources read, and each mapped control in every run
+    read (no run read says why, never "not run"); none of it under a pending disclosure but the
+    sources and quotes (OVR-8). The entry takes focus (`tabindex="-1"`, words.js)."""
     text = site.pages[f"{system}.html"]
     cell = site.view["criteria"]["rows"][system]["cells"][p["id"]]
-    entry = re.search(rf'<div id="read-{p["id"]}"><dt>(.*?)</dt><dd>(.*?)</dd></div>', text, re.S)
+    entry = re.search(
+        rf'<div id="read-{p["id"]}" tabindex="-1"><dt>(.*?)</dt><dd>(.*?)</dd></div>', text, re.S
+    )
     controls = pc is not None and not pc["withheld"]
-    if not (cell["sources_read"] or cell["conflict"] or controls):
+    quoted = any(q.get("decides") for q in cell["quotes"])
+    if not (quoted or cell["sources_read"] or cell["conflict"] or controls):
         assert entry is None, (system, p["id"])
         return
     assert entry, (system, p["id"])
     assert flat(entry[1]) == p["name"]
     body, said = entry[2], flat(entry[2])
+    _quotes_printed(system, p, cell, body, said)
     if cell["sources_read"]:
         _sources_read(site, system, p, said)
     for q in cell["quotes"] if cell["conflict"] else []:  # both quotes of a conflict
@@ -535,7 +542,7 @@ def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> Non
     read; a list equal to one printed above it in the fold names that property instead."""
     cells = site.view["criteria"]["rows"][system]["cells"]
     text = site.pages[f"{system}.html"]
-    order = re.findall(r'<div id="read-([a-z_]+)">', text)
+    order = re.findall(r'<div id="read-([a-z_]+)" tabindex="-1">', text)
     mine = cells[p["id"]]["sources_read"]
     earlier = [q for q in order[: order.index(p["id"])] if cells[q]["sources_read"] == mine]
     if earlier:
@@ -580,7 +587,7 @@ def test_conflict_quotes_folded() -> None:
     yes = {**q, "text": "it holds", "meets": "yes", "decides": False}
     partly = {**q, "text": "it holds in part", "meets": "partly", "decides": True}
     out = lines({"conflict": True, "quotes": [yes, partly]})
-    line = r'<p class="eqs"><span class="ek">(\w+)</span><span class="eb">(.*?)</span></p>'
+    line = r'<div class="eqs"><span class="ek">(\w+)</span><div class="eb">(.*?)</div></div>'
     rows = re.findall(line, out, re.S)
     assert [(k, flat(v)) for k, v in rows] == [
         ("yes", "“it holds”r@aaaaaaaa README.md L1 ↗"),
@@ -600,7 +607,7 @@ def test_sources_read_as_for(monkeypatch: pytest.MonkeyPatch) -> None:
     one = [{"repo": "o/r", "commit": "a" * 40, "paths": ["README.md", "docs/cost-model.md"]}]
     same = [{"paths": ["README.md", "docs/cost-model.md"], "commit": "a" * 40, "repo": "o/r"}]
     other = [{"repo": "o/r", "commit": "a" * 40, "paths": ["docs/cost-model.md", "README.md"]}]
-    empty = {"sources_read": [], "conflict": False, "quotes": []}
+    empty = {"state": "not_stated", "sources_read": [], "conflict": False, "quotes": []}
     cells = {
         "a": {**empty, "sources_read": one},
         "b": {**empty, "sources_read": same},
@@ -610,8 +617,10 @@ def test_sources_read_as_for(monkeypatch: pytest.MonkeyPatch) -> None:
     names = {"a": "First", "b": "Second", "c": "Third", "d": "Fourth"}
     monkeypatch.setattr(state, "CRIT", {"rows": {"s": {"cells": cells}}})
     monkeypatch.setattr(state, "PROPS", [{"id": k, "name": v} for k, v in names.items()])
-    out = build.draw.claims.how_we_read("s", None, ["a", "b", "c", "d"])
-    rows = dict(re.findall(r'<div id="read-(\w)"><dt>[^<]*</dt><dd>(.*?)</dd></div>', out, re.S))
+    claims = build.draw.claims
+    out = claims.how_we_read(claims.read_entries("s", None, ["a", "b", "c", "d"]))
+    entry = r'<div id="read-(\w)" tabindex="-1"><dt>[^<]*</dt><dd>(.*?)</dd></div>'
+    rows = dict(re.findall(entry, out, re.S))
     assert set(rows) == {"a", "b", "c"}
     label = '<span class="ek">read</span>'  # the label, then the sources in their own column
     assert all(r.startswith(f'<p class="er">{label}') for r in rows.values())
