@@ -19,6 +19,6 @@ Every methodology decision (what is measured, how, and how it is published) and 
 | [0013](0013-validation-and-ci.md) | Validation pipeline and CI gates | Draft | v0.1-alpha |
 | [0014](0014-provenance-and-integrity.md) | Provenance, pinning and artifact integrity | Draft | v0.1-beta |
 | [0015](0015-reference-rows.md) | Reference rows: plain serving and recompute | Draft | v0.1-beta |
-| [0016](0016-glyph-properties-and-states.md) | Glyph properties and states | Draft | v0.1 |
+| [0016](0016-glyph-properties-and-states.md) | Glyph properties and states | Last call | v0.1 |
 
 New RFC: copy [0000-template.md](0000-template.md) to the next free number, fill every section, open a pull request, and follow RFC-0001.

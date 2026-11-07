@@ -1,6 +1,6 @@
 # RFC-0016: Glyph properties and states
 
-- Status: Draft
+- Status: Last call
 - Authors: 0xchqrles (affiliation to be declared in `MAINTAINERS.md`)
 - Created: 2026-11-07
 - Target milestone: v0.1
