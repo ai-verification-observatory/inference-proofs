@@ -1,0 +1,158 @@
+"""End to end from the placeholder release to the pages (#320): synthetic runs, `iproofs derive
+--check` on every run, `iproofs release freeze`, `iproofs site build`, through the CLI.
+
+The checks read the pages and the frozen `index.json` only, never the site view, so each figure
+is traced from the HTML to the stored field it came from (AGENTS.md rule 3: derived numbers are
+computed, not typed). CPU only, no network. Every number here is a placeholder fixture value.
+"""
+
+import contextlib
+import html
+import json
+import math
+import re
+from pathlib import Path
+from typing import Any
+
+import pytest
+
+from fixtures.placeholder_release import RELEASE, build_placeholder
+from iproofs import cli
+from iproofs.derive import FORMULAS
+
+INDEX = f"releases/{RELEASE}/index.json"
+POINTER = re.compile(rf"{re.escape(INDEX)}#(/[^\s<\"]+)")
+VAL = re.compile(r'<a class="val" href="[^"]*" title="([^"]*)">(.*?)</a>', re.S)
+ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" data-k="([^"]+)">')
+PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
+NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
+SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
+         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
+COLUMN = {
+    "covers": "tokens_covered_per_proof",
+    "proof_size": "proof_bytes",
+    "check_time": "verify_seconds",
+    "overhead": "overhead_vs_serving_prove.session",
+}
+
+
+@pytest.fixture(scope="module")
+def built(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
+    """(tree, out): the placeholder tree, its runs checked and frozen, and the site built."""
+    root = tmp_path_factory.mktemp("site-e2e")
+    tree, out = root / "repo", root / "out"
+    build_placeholder(tree)
+    runs = sorted(p.parent for p in tree.glob("results/*/*/*/run.json"))
+    assert len(runs) >= 12  # 3 + 5 prover runs, 3 + 3 reference runs
+    with contextlib.chdir(tree):
+        for run in runs:
+            assert cli.main(["derive", "--check", str(run)]) == 0, run.name
+        assert cli.main(["release", "freeze", RELEASE]) == 0
+        assert cli.main(["site", "build", "--out", str(out)]) == 0
+    return tree, out
+
+
+def index(tree: Path) -> dict[str, Any]:
+    doc: dict[str, Any] = json.loads((tree / INDEX).read_text())
+    return doc
+
+
+def resolve(doc: Any, pointer: str) -> Any:
+    """RFC 6901 JSON Pointer."""
+    for raw in pointer.lstrip("/").split("/"):
+        part = raw.replace("~1", "/").replace("~0", "~")
+        doc = doc[int(part)] if isinstance(doc, list) else doc[part]
+    return doc
+
+
+def pages(out: Path) -> dict[str, str]:
+    return {p.name: p.read_text("utf-8") for p in sorted(out.glob("*.html"))}
+
+
+def printed(number: str, unit: str) -> float:
+    return float(number.replace(",", "")) * SCALE[unit]
+
+
+def close_at_4(value: float, stored: float) -> bool:
+    """The printed value is the stored one at 4 significant digits."""
+    exponent = math.floor(math.log10(abs(stored)))
+    return abs(value - stored) <= 0.5 * 10.0 ** (exponent - 3) * 1.0001
+
+
+def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
+    tree, out = built
+    site = pages(out)
+    doc = index(tree)
+    systems = {c["system"] for c in doc["configurations"]}
+    assert systems == {"flashprove", "sash", "ref-serve", "ref-recompute"}
+    rows = {rid for rid, _ in ROW.findall(site["index.html"])}
+    for c in doc["configurations"]:
+        if c["system"].startswith("ref-"):
+            assert f'<div class="row" id="{c["system"]}">' in site["index.html"]
+            assert f'id="{c["system"]}" aria-labelledby' in site["reference.html"]
+        else:
+            assert c["system"] in rows
+            assert f"{c['system']}.html" in site
+
+
+def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
+    """Each overview figure and each plate names a statistic of the frozen index by its pointer,
+    and prints that statistic's value at 4 significant digits; each overview sort key is that
+    value as stored."""
+    tree, out = built
+    doc, site = index(tree), pages(out)
+    traced = 0
+    for title, inner in VAL.findall(site["index.html"]):
+        found = POINTER.search(html.unescape(title))
+        if not found:
+            continue
+        stat = resolve(doc, found[1])
+        number = NUMBER.search(inner)
+        assert number, title
+        assert close_at_4(printed(number[1], number[2]), stat["value"]), title
+        traced += 1
+    for name in ("flashprove.html", "sash.html"):
+        for body in PLATE.findall(site[name]):
+            source = re.sub(r"<[^>]+>", "", body)
+            found = POINTER.search(source)
+            assert found, (name, source)
+            stat = resolve(doc, found[1])
+            number = NUMBER.search(body)
+            if stat["value"] is None:
+                assert number is None
+                assert stat["null_reason"], found[1]
+                continue
+            assert number, (name, found[1])
+            assert close_at_4(printed(number[1], number[2]), stat["value"]), (name, found[1])
+            traced += 1
+    assert traced >= 12  # two systems, three measured figures, on the overview and the plates
+    for rid, keys in ROW.findall(site["index.html"]):
+        position = next(i for i, c in enumerate(doc["configurations"]) if c["system"] == rid)
+        statistics = doc["configurations"][position]["statistics"]
+        for col, key in json.loads(html.unescape(keys)).items():
+            stored = statistics.get(COLUMN[col], {}).get("value")
+            assert key == stored, (rid, col)
+
+
+def test_every_formula_is_in_derive(built: tuple[Path, Path]) -> None:
+    """Every statistic a page points at is D-STAT over repetition values, each of them the
+    output of a formula `iproofs.derive` holds (or a recorded metric); no `D-SITE-` id."""
+    tree, out = built
+    doc = index(tree)
+    text = "".join(pages(out).values())
+    assert "D-SITE-" not in text
+    pointers = set(POINTER.findall(html.unescape(text)))
+    assert pointers
+    for pointer in pointers:
+        stat = resolve(doc, pointer)
+        ref = stat["source"]["ref"]
+        formula = ref.removeprefix("derive:").split("@")[0]
+        assert formula in FORMULAS, (pointer, ref)
+        for source in stat["source"]["inputs"]:
+            path, _, inner = source.partition("#")
+            metric = resolve(json.loads((tree / path).read_text()), inner)
+            kind = metric["source"]["kind"]
+            if kind == "derivation":
+                assert metric["source"]["ref"].removeprefix("derive:").split("@")[0] in FORMULAS
+            else:
+                assert kind in {"measurement", "adapter", "harness", "workload"}, (source, kind)

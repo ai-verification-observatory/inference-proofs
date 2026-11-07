@@ -6,12 +6,15 @@ The golden holds the files `iproofs site build` writes from the release (pages, 
 fonts, pictures), so a font or picture change does not force a golden update.
 """
 
+import contextlib
 import shutil
 from pathlib import Path
 
 import pytest
 
-from fixtures.placeholder_release import build_site
+from fixtures.placeholder_release import build_placeholder, build_site, freeze_tree
+from fixtures.repo import commit, git
+from iproofs import cli
 
 GOLDEN = Path(__file__).resolve().parent / "site"
 GENERATED = ("*.html", "search.json", "vercel.json", "og/*.html", "og/icon.svg")
@@ -49,3 +52,25 @@ def test_two_builds_same_bytes(site: Path, tmp_path: Path) -> None:
     """CLI-4: the same inputs give the same bytes."""
     again = build_site(tmp_path / "repo", tmp_path / "out", extras=True)
     assert generated(again) == generated(site)
+
+
+def test_build_ignores_git(tmp_path: Path) -> None:
+    """CLI-4: the build reads no git history and no tracking state, so a full clone, a depth-1
+    clone (site.yml, Vercel) and a tree with no `.git` give the same bytes (#320 plan R4)."""
+    full = tmp_path / "full"
+    build_placeholder(full, extras=True)
+    assert freeze_tree(full) == 0
+    commit(full, "freeze v0.1")  # the index committed, as a release pull request does
+    shallow = tmp_path / "shallow"
+    git(tmp_path, "clone", "-q", "--depth", "1", full.resolve().as_uri(), str(shallow))
+    bare = tmp_path / "bare"
+    shutil.copytree(full, bare, ignore=shutil.ignore_patterns(".git"))
+    built = {}
+    for tree in (full, shallow, bare):
+        out = tmp_path / f"out-{tree.name}"
+        with contextlib.chdir(tree):
+            assert cli.main(["site", "build", "--out", str(out)]) == 0
+        built[tree.name] = generated(out)
+    assert not (bare / ".git").exists()
+    assert built["full"] == built["shallow"] == built["bare"]
+    assert set(built["full"]) == set(generated(GOLDEN))
