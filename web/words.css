@@ -194,8 +194,9 @@ html:not(.js) .search { display: none; }
 .pie .sl, .rpie .sl { pointer-events: none; }
 /* the slice under the pointer steps out with a paper edge; the others keep their ink */
 .pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-/* its name and state, under the pie, over the row's own margin: positioned, so nothing moves */
-.tip { display: none; position: absolute; left: 6px; top: calc(100% + 1px); z-index: 2; white-space: nowrap; pointer-events: none; font: 500 12px/1 var(--mono); color: var(--paper); background: var(--ground); padding: 4px 6px 4px 0; }
+/* its name and state, under the pie, over the row's own margin: positioned, so nothing moves; far
+   enough below that a lifted triangle (6 px out) never reaches it */
+.tip { display: none; position: absolute; left: 6px; top: calc(100% + 10px); z-index: 2; white-space: nowrap; pointer-events: none; font: 500 12px/1 var(--mono); color: var(--paper); background: var(--ground); padding: 4px 6px 4px 0; }
 .pie[data-hot] .tip { display: block; }
 .tip b { font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; margin-right: .8em; }
 
@@ -459,8 +460,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* ================================================================ narrower
    The scale at the top of this file, one block per width, wide to narrow, each selector once in
    it: a rule for narrower screens comes after the rules for wider ones, so at the same
-   specificity the narrower overrides the wider. Two blocks also take a min-width, one px above a width of the scale: each
-   sits just above the block of that width (561 to 960 above 560; 350 to 560, above 349, last).
+   specificity the narrower overrides the wider. One block also takes a min-width, one px above a width
+   of the scale, and sits last, just above where the block of that width would be (350 to 560, above 349).
    The hover, reduced-motion, forced-colours and landscape (max-height) rules are not width blocks
    and keep their places; a width inside one is still a width of the scale.
    web/test_breakpoints.py checks this. */
@@ -503,14 +504,14 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 @media (max-width: 960px) {
   /* the legend in two columns */
   .map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* below the width a centred field needs: the name, a search button and GitHub on the first line,
-     the pages on the second; the button opens the field over the first line */
+  /* below the width a centred field needs: one line, the logo, the pages, a search button and
+     GitHub; the button opens the field over the line */
   .tl { display: contents; }
-  .top { display: grid; grid-template-columns: 1fr auto auto; gap: 16px 18px; }
-  .top .repo { grid-row: 1; grid-column: 3; margin-left: 0; padding-block: 15px; margin-block: -15px; }
-  .top nav { grid-row: 2; grid-column: 1 / -1; flex-wrap: wrap; gap: 12px 20px; }
-  /* search: a button by GitHub; pressed, the field covers the first line and its results drop below */
-  .search { grid-row: 1; grid-column: 2; position: static; margin-left: 0; }
+  .top { display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }
+  .top .repo { grid-row: 1; grid-column: 4; margin-left: 0; padding-block: 15px; margin-block: -15px; }
+  .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; flex-wrap: nowrap; gap: 20px; }
+  /* search: a button by GitHub; pressed, the field covers the line and its results drop below */
+  .search { grid-row: 1; grid-column: 3; position: static; margin-left: 0; }
   /* 44 px to press, the same footprint on the line */
   .sopen { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -15px -6px; color: var(--muted); }
   .sopen:hover { color: var(--paper); }
@@ -528,7 +529,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .top.s-on .slist { position: fixed; }
   /* the 404 page: the field shown open under the pages, as on a wide screen (no sheet, no keyboard on load) */
   body.notfound .sopen { display: none; }
-  body.notfound .search { grid-row: 3; grid-column: 1 / -1; position: relative; width: 100%; justify-self: stretch; }
+  body.notfound .search { grid-row: 2; grid-column: 1 / -1; position: relative; width: 100%; justify-self: stretch; }
   body.notfound .sfield { display: flex; position: static; height: 44px; }
   body.notfound .slist { left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 560px); }
 }
@@ -669,14 +670,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 /* one track of not-benchmarked entries: the last entry's rule closes the grid, the footer adds none */
 @media (max-width: 635px) { .home .foot { border-top: 0; margin-top: 32px; } }
-/* tablets and phones held sideways: the pages share the logo's line */
-@media (min-width: 561px) and (max-width: 960px) {
-  .top { grid-template-columns: auto 1fr auto auto; padding-block: 16px; }
-  .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; flex-wrap: nowrap; }
-  .search { grid-column: 3; }
-  .top .repo { grid-column: 4; }
-  body.notfound .search { grid-row: 2; }
-}
 /* phones */
 @media (max-width: 560px) {
   /* the system page's claims, compact so the figures come soon: the card's identity in one run of
@@ -699,8 +692,14 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .qq { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .keyline { margin-top: 12px; gap: 6px; }
   .chip { padding: 5px 7px 5px 6px; }
-  /* the pages on their own line: taller to press, the text where it was */
-  .top nav a { padding-block: 10px; margin-block: -10px; }
+  /* the header on one line: the logo's glyph alone and GitHub's mark alone (both names still read
+     aloud), the pages taller to press with the text where it was */
+  .top { column-gap: 12px; padding-block: 14px; }
+  .top nav { margin-left: 4px; gap: 16px; }
+  .top nav a { padding-block: 10px; margin-block: -10px; letter-spacing: .05em; }
+  .brand .logo span, .top .repo span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .brand .logo { padding: 11px; margin: -11px; }
+  .top .repo { padding-inline: 5px; margin-inline: -5px; }
   /* rows: an 80 px glyph beside the name, closer rows, missing values lighter */
   .sysc { grid-template-columns: 80px minmax(0, 1fr); column-gap: 14px; }
   .row .pie { width: 80px; height: 80px; }
@@ -757,9 +756,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 @media (max-width: 400px) {
   .heads { column-gap: 12px; }
   .heads .sb { letter-spacing: .03em; }
-  .top { column-gap: 12px; }
-  .brand .logo { gap: 8px; }
-  .brand .logo span { font-size: 20px; }
 }
 /* the narrowest phones: smaller figures, closer columns on the board */
 @media (max-width: 360px) {

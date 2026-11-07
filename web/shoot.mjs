@@ -465,7 +465,7 @@ for (const w of [1440, 390]) {
 }
 {
   // the header: one line from 561 px, two lines and 44 px search and GitHub targets below
-  for (const [w, h] of [[600, 900], [768, 1024], [844, 390]]) {
+  for (const [w, h] of [[320, 640], [390, 844], [600, 900], [768, 1024], [844, 390]]) {
     const { ctx, p } = await pg(w, h, { touch: true });
     await p.goto(BASE + 'sash', { waitUntil: 'networkidle' });
     const t = await p.evaluate(() => {

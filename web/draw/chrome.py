@@ -105,7 +105,7 @@ def header(here):
         f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{LOGO_MARK}<span>Inference proofs</span></a></p>'
         f'<nav aria-label="Site">{nav}</nav></div>'
         f"{search_box(here)}"
-        f'<a class="repo" href="{e(S.REPO_URL)}">{GITHUB_MARK}GitHub</a>'
+        f'<a class="repo" href="{e(S.REPO_URL)}">{GITHUB_MARK}<span>GitHub</span></a>'
         "</header>"
     )
 
