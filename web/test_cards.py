@@ -73,7 +73,11 @@ def test_picture_size(site):
     b = site.build
     for card in RECORD:
         png = OG / f"{card}.png"
-        want = (b.ICON, b.ICON) if card == "icon" else (b.CARD_W * b.CARD_SCALE, b.CARD_H * b.CARD_SCALE)
+        want = (
+            (b.ICON, b.ICON)
+            if card == "icon"
+            else (b.CARD_W * b.CARD_SCALE, b.CARD_H * b.CARD_SCALE)
+        )
         assert png_size(png) == want, (card, png_size(png))
         assert png.stat().st_size < 1_000_000  # well under the 5 MB the platforms accept
 
@@ -107,7 +111,14 @@ def test_icon(pages):
 def test_pages_name_their_card(site, pages):
     for page in pages:
         t = meta(page)
-        for k in ("og:title", "og:description", "og:url", "og:image", "og:image:alt", "twitter:image"):
+        for k in (
+            "og:title",
+            "og:description",
+            "og:url",
+            "og:image",
+            "og:image:alt",
+            "twitter:image",
+        ):
             assert t.get(k), (page, k)
         assert t["twitter:card"] == "summary_large_image"
         assert t["og:image"] == t["twitter:image"]

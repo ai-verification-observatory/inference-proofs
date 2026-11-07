@@ -77,7 +77,12 @@ def test_units_normalise(site):
     assert b.shown(1583, "ratio") == "1,583×"
     assert b.shown(1024.0, "token") == "1,024 positions"
     assert b.shown(0.0114974, "USD/1k_token") == "0.01150 USD / 1k positions"
-    assert (b.sig4(3.12), b.sig4(121.2667), b.sig4(0.851061), b.sig4(0)) == ("3.120", "121.3", "0.8511", "0")
+    assert (b.sig4(3.12), b.sig4(121.2667), b.sig4(0.851061), b.sig4(0)) == (
+        "3.120",
+        "121.3",
+        "0.8511",
+        "0",
+    )
 
 
 def test_sort_words(site):
@@ -110,7 +115,9 @@ def test_reference_cells(site):
     got = {}
     for gid in site.view["orders"]["reference"]:
         cfg = site.build.first_config(gid)
-        got[gid] = {c: re.sub(r"<[^>]+>", "", site.build.cell_words(cfg, c)[0]) for c in site.build.COLS}
+        got[gid] = {
+            c: re.sub(r"<[^>]+>", "", site.build.cell_words(cfg, c)[0]) for c in site.build.COLS
+        }
     for gid in got:
         assert got[gid]["covers"] == "Same as the system"
         assert got[gid]["proof_size"] == "No proof"
@@ -123,11 +130,14 @@ def test_reference_runs_all_failed(site):
     # every reference run failed with kind resource: counts, below the minimum, NM-1 (S3, S7)
     for gid in site.view["orders"]["reference"]:
         line = site.build.runs_counts(site.build.first_config(gid))
-        assert line == "0 completed, 3 failed · below minimum repetitions · not measurable on one H100 (RFC-0015 NM-1)"
+        assert (
+            line
+            == "0 completed, 3 failed · below minimum repetitions · not measurable on one H100 (RFC-0015 NM-1)"
+        )
 
 
 def test_readable_labels(site):
-    nb = " "  # a number keeps its word on its line
+    nb = "\N{NO-BREAK SPACE}"  # a number keeps its word on its line
     assert site.build.readable("3 completed, 0 failed") == f"3{nb}completed, 0{nb}failed"
     assert site.build.readable("18.77 MB to 18.78 MB") == f"18.77{nb}MB to 18.78{nb}MB"
     assert site.build.no_rule("one H100 (RFC-0015 NM-1).") == "one H100."
@@ -152,7 +162,8 @@ def test_home_figures_show_spread(site):
 def test_every_stored_id_has_words(site):
     # a stored id with no words would stop the build; each vocabulary is covered in full
     b = site.build
-    assert set(inputs.STATES) <= set(b.STATE_WORD) and set(inputs.STATES) <= set(b.STATE_CLS)
+    assert set(inputs.STATES) <= set(b.STATE_WORD)
+    assert set(inputs.STATES) <= set(b.STATE_CLS)
     assert set(inputs.FAMILIES) == set(b.FAMILY_WORD)
     assert {s.value for s in Scope} | {None} == set(b.SCOPE_WORD)
     assert {g.value for g in Grade} == set(b.GRADE_WORD)
