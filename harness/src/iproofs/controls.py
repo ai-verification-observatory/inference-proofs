@@ -14,9 +14,12 @@ import shutil
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
+from typing import Any
 
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import SystemControl, Workload
+from iproofs.serialize import load_yaml
 
 CONTROL_SEED_RE = re.compile(r"^0x[0-9a-f]{16}$")
 
@@ -672,3 +675,64 @@ def system_control_record(
     if done["passed"] is True and edge and not edge_unbound(report, edge):
         done |= {"passed": False, "note": f"binding report does not mark {edge!r} unbound"}
     return done
+
+
+# ---------------------------------------------------------------- control map (RFC-0016 OVR-2)
+
+# Control id -> the one glyph property an accepted outcome can contradict, or None. A
+# system-specific control (`fixture_proof`, `weakened_prover`) is absent and maps to None (Q7).
+CONTROL_PROPERTY: Mapping[str, str | None] = MappingProxyType({
+    "C1": "whole_output",
+    "C2": "whole_output",
+    "C3": "model_bound",
+    "C4": "whole_output",
+    "C5": None,
+    "C6": None,
+    "C7": "whole_output",
+    "C8": None,
+    "P1": "model_bound",
+    "P2": "model_bound",
+})  # fmt: skip
+
+
+def runs_read(root: Path, release: str | None, system: str, configuration: str) -> list[str]:
+    """RFC-0016 OVR-5: the run directories read for one card row, as `release.yaml` lists them.
+
+    The runs listed in `releases/<release>/release.yaml` and in every release with an earlier
+    `freeze_date`, in freeze-date order then listed order, whose `run.json` `claim` names
+    `system` and `configuration`; less every run a read release supersedes and every run a
+    read run `replaces`. No release reads no run. The site and CRIT-13 both call this.
+    """
+    if release is None:
+        return []
+    named = root / "releases" / release / "release.yaml"
+    if not named.is_file():
+        raise IProofsError(ErrorKind.INTEGRITY, f"OVR-5: no releases/{release}/release.yaml")
+    cutoff = str(load_yaml(named)["freeze_date"])
+    docs = [load_yaml(path) for path in sorted((root / "releases").glob("*/release.yaml"))]
+    read = sorted(
+        (d for d in docs if d["release"] == release or str(d["freeze_date"]) < cutoff),
+        key=lambda d: (str(d["freeze_date"]), str(d["release"])),
+    )
+    dropped = {str(s["run_id"]) for d in read for s in _items(d.get("superseded_runs"))}
+    kept: list[tuple[str, str]] = []  # (run directory, run id)
+    for doc in read:
+        for run_dir in _items(doc.get("runs")):
+            path = root / str(run_dir) / "run.json"
+            try:
+                run = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError) as e:
+                raise IProofsError(ErrorKind.ENVIRONMENT, f"OVR-5: cannot read {path}: {e}") from e
+            claim = run.get("claim") or {}
+            if (claim.get("system"), claim.get("configuration")) != (system, configuration):
+                continue
+            if replaces := run.get("replaces"):
+                dropped.add(str(replaces["run_id"]))
+            if str(run_dir) not in (k for k, _ in kept):
+                kept.append((str(run_dir), str(run["run_id"])))
+    return [run_dir for run_dir, run_id in kept if run_id not in dropped]
+
+
+def _items(node: object) -> list[Any]:
+    """A YAML list, or no items when the key is absent."""
+    return node if isinstance(node, list) else []

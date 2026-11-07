@@ -1,130 +1,669 @@
-"""RFC-0009 §Site rules S1, S2, S4 to S8 and no required scripts, on the fixture release."""
+"""RFC-0009 §Testing Strategy: the §Site rules on the pages `iproofs site build` writes (#320).
 
+Page tests run over two builds: the placeholder release with every test-only case (`extras`,
+never deployed) and the committed `web/` pages (the deployed build, `extras=False`), each with
+the view it was printed from. A check that needs a test-only case skips on `web/` and says so.
+
+Where RFC-0009 §Site lists a gap for #320 that its second pull request closes (system page
+validated claims, card identity and card in full, run ids and links, per-configuration sections,
+the References table's roles, the footer links), the test says so in its docstring and checks
+what the pages hold today. Renamed tests (RFC-0009 §Testing Strategy): `test_display_rounding`
+is `test_sort_key_is_stored_value`, `test_no_aggregate_score_column` is `test_no_ranking`,
+`test_superseded_and_ineligible_struck_through` is `test_runs_left_out_listed`,
+`test_no_script_tags_required` is `test_reads_without_script`.
+
+Every number below is a placeholder fixture value, not a result.
+"""
+
+import base64
+import hashlib
+import html
 import json
+import math
 import re
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import pytest
-from markupsafe import escape
 
-from fixtures.release_tree import build_rich
-from iproofs import cli
-from iproofs.site import number, reply_html
+from fixtures.placeholder_release import build_site
+from iproofs.site import reply_html
+from iproofs.site.view import site_view
 
-CELL = re.compile(r'<td class="q">(.*?)</td>', re.S)
+ROOT = Path(__file__).resolve().parents[3]
+COLS = ("covers", "proof_size", "check_time", "overhead")
+METRIC = {
+    "covers": "tokens_covered_per_proof",
+    "proof_size": "proof_bytes",
+    "check_time": "verify_seconds",
+    "overhead": "overhead_vs_serving_prove.session",
+}
+WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}
+VAL = re.compile(r'<a class="val" href="([^"]*)" title="([^"]*)">(.*?)</a>', re.S)
+ROW = re.compile(
+    r'<div class="row" id="([^"]+)" role="row" data-name="([^"]+)" data-k="([^"]+)">'
+    r"(.*?)\n</div>",
+    re.S,
+)
+TABLE = re.compile(
+    r'<section class="sec bench" id="([^"]+)".*?<div class="tbl" role="table".*?'
+    r'<div class="rows" role="rowgroup">(.*?)</section>',
+    re.S,
+)
+SECTION = re.compile(r'<section class="sec bench" id="[^"]+".*?</section>', re.S)
+HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
+HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
+PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
+DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
+NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
+SPREAD = re.compile(
+    r"(\d+) completed, (\d+) failed · (\S+(?: \S+)?) to (\S+(?: \S+)?) · mean \S+(?: \S+)?"
+    r" · sd \S+(?: \S+)?"
+)
+# reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
+SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
+         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
+
+
+@dataclass(frozen=True)
+class Build:
+    kind: str  # "extras" or "web"
+    pages: dict[str, str]
+    view: dict[str, Any]
+    out: Path
+
+
+def plain(text: str) -> str:
+    """Text of an HTML fragment, tags dropped, entities and no-break spaces read."""
+    text = re.sub(r"<[^>]+>", " ", text)
+    return re.sub(r"\s+", " ", html.unescape(text).replace("\N{NO-BREAK SPACE}", " ")).strip()
+
+
+def _build(root: Path, *, extras: bool) -> tuple[Path, dict[str, Any]]:
+    out = build_site(root / "repo", root / "out", extras=extras)
+    return out, site_view(root / "repo")
 
 
 @pytest.fixture(scope="module")
-def site(tmp_path_factory: pytest.TempPathFactory) -> dict[str, str]:
-    root = tmp_path_factory.mktemp("repo")
-    build_rich(root)
-    with pytest.MonkeyPatch.context() as mp:
-        mp.chdir(root)
-        assert cli.main(["release", "freeze", "v0.1"]) == 0
-        assert cli.main(["site", "build", "--out", str(root / "out")]) == 0
-    out = root / "out"
-    return {p.relative_to(out).as_posix(): p.read_text() for p in out.rglob("*.html")}
+def extras(tmp_path_factory: pytest.TempPathFactory) -> Build:
+    out, view = _build(tmp_path_factory.mktemp("site-extras"), extras=True)
+    return Build("extras", {p.name: p.read_text("utf-8") for p in out.glob("*.html")}, view, out)
 
 
-def test_every_number_has_labels(site: dict[str, str]) -> None:
-    """S2: each value cell names unit, grade and tier and links its JSON Pointer; no value
-    is shown outside such a cell."""
-    cells = 0
-    for rel, text in site.items():
-        found = CELL.findall(text)
-        for cell in found:
-            for label in ('class="label unit"', 'class="label grade"', 'class="label tier"',
-                          'class="src" href="'):  # fmt: skip
-                assert label in cell, (rel, cell)
-        assert text.count('class="num"') == sum(c.count('class="num"') for c in found), rel
-        cells += len(found)
-    assert cells > 0
+@pytest.fixture(scope="module")
+def deployed(tmp_path_factory: pytest.TempPathFactory) -> Build:
+    """The committed web/ pages, with the view of the build that wrote them (web/ tests hold
+    the committed files equal to a fresh build)."""
+    _, view = _build(tmp_path_factory.mktemp("site-web"), extras=False)
+    web = ROOT / "web"
+    return Build("web", {p.name: p.read_text("utf-8") for p in web.glob("*.html")}, view, web)
 
 
-def test_claim_card_before_numbers(site: dict[str, str]) -> None:
-    """S1: on every system page the claim card comes before the first number."""
-    systems = [rel for rel in site if "/systems/" in rel]
-    assert sorted(systems) == ["v0.1/systems/fake-broken.html", "v0.1/systems/fake.html",
-                               "v0.1/systems/ref-serve.html"]  # fmt: skip
-    for rel in systems:
-        text = site[rel]
-        assert text.index('id="claim-card"') < text.index('class="num"'), rel
+@pytest.fixture(scope="module", params=["extras", "web"])
+def site(request: pytest.FixtureRequest) -> Build:
+    build = request.getfixturevalue("extras" if request.param == "extras" else "deployed")
+    assert isinstance(build, Build)
+    return build
 
 
-def test_no_script_tags_required(site: dict[str, str]) -> None:
-    assert not [rel for rel, text in site.items() if "<script" in text.lower()]
+def provers(view: dict[str, Any]) -> list[dict[str, Any]]:
+    return [c for c in view["configurations"] if c["kind"] == "prover"]
 
 
-def test_superseded_and_ineligible_struck_through(site: dict[str, str]) -> None:
-    """S7, with the reasons."""
-    text = site["v0.1/systems/fake.html"]
-    assert "<del>2026-11-07-fake-fake-tiny-ci-ci-cpu-5</del>: superseded: wrong CPU binding" in text
-    assert "<del>2026-11-06-fake-fake-tiny-ci-ci-cpu-4</del>: harness_dirty" in text
+def row_config(view: dict[str, Any], rid: str) -> dict[str, Any]:
+    """The configuration an overview row id names: `system` or `system--configuration--workload`."""
+    system, _, rest = rid.partition("--")
+    configuration, _, workload = rest.partition("--")
+    found = [c for c in provers(view) if c["system"] == system and (not configuration or (
+        c["configuration"], c["workload"]["id"]) == (configuration, workload))]  # fmt: skip
+    assert len(found) == 1, rid
+    return found[0]
 
 
-def test_display_rounding() -> None:
-    """S4: four significant digits for display only."""
-    assert (number(1.5), number(36.0), number(0.123456), number(12346.0)) == (
-        "1.500", "36.00", "0.1235", "1.235e+04")  # fmt: skip
-    assert (number(None), number(3)) == ("null", "3")
+def system_configs(build: Build, system: str) -> list[dict[str, Any]]:
+    """The configurations a system page shows, in page order: one section each, named by its
+    configuration line; every configuration of the system in the view, each once."""
+    text = build.pages[f"{system}.html"]
+    out: list[dict[str, Any]] = []
+    for named in re.findall(r"<dt>configuration</dt><dd>(.*?)</dd>", text, re.S):
+        configuration, workload, _, profile = plain(named).split(" · ")
+        found = [c for c in build.view["configurations"] if c["system"] == system
+                 and (c["configuration"], c["workload"]["id"], c["profile"])
+                 == (configuration, workload, profile)]  # fmt: skip
+        assert len(found) == 1, named
+        out.append(found[0])
+    assert [c["position"] for c in out] == [
+        c["position"] for c in build.view["configurations"] if c["system"] == system]  # fmt: skip
+    return out
+
+
+def plate_config(build: Build, system: str, pid: str) -> dict[str, Any]:
+    """The configuration a plate on a system page belongs to, by its id: `fig-<column>` when
+    the system has one configuration, else `<row id>-fig-<column>`."""
+    configs = system_configs(build, system)
+    if pid.startswith("fig-"):
+        assert len(configs) == 1, pid
+        return configs[0]
+    return row_config(build.view, pid.rsplit("-fig-", 1)[0])
+
+
+def more_rows(text: str) -> list[str]:
+    """Every row of every more-numbers table on a page."""
+    return [row for table in re.findall(r'<table class="mtab">(.*?)</table>', text, re.S)
+            for row in re.findall(r'<tr><th scope="row">.*?</tr>', table)]  # fmt: skip
+
+
+def test_page_set_and_footer(site: Build) -> None:
+    """Page table: the overview, one page per benchmarked system, the references, the criteria
+    and Not found; every footer names the release and links the criteria page. The release,
+    sponsors and conflicts and targets pages and the footer links to them and to `index.json`
+    are RFC-0009 §Site gaps for #320 (its second pull request; the index waits for #146)."""
+    want = {"index.html", "reference.html", "criteria.html", "404.html"}
+    want |= {f"{s}.html" for s in site.view["orders"]["benchmarked"]}
+    assert want <= set(site.pages)
+    release = site.view["release"]["id"]
+    for name, text in site.pages.items():
+        foot = text[text.index('<footer class="foot">') :]
+        assert f"Release {release}" in plain(foot), name
+        assert 'href="/criteria"' in foot, name
+
+
+def test_every_number_has_labels(site: Build) -> None:
+    """S2: each overview figure names its unit in view and its scope, grade, tier and record in
+    its accessible description, and links its plate; each plate holds every label in view; each
+    more-numbers row names its scope, grade and tier, or why it has no value. The record is the
+    index pointer as text until #146 publishes the index (RFC-0009 §Site gaps)."""
+    seen = 0
+    for _, title, inner in VAL.findall(site.pages["index.html"]):
+        if 'class="fig"' not in inner:
+            continue
+        assert NUMBER.search(inner), inner
+        for label in ("scope: ", "grade: ", "checked: ", "source: releases/"):
+            assert label in plain(title), (label, title)
+        seen += 1
+    assert seen >= 6  # two systems, three measured figures each
+    for system in site.view["orders"]["benchmarked"]:
+        text = site.pages[f"{system}.html"]
+        configs = system_configs(site, system)
+        plates = PLATE.findall(text)
+        assert len(plates) == len(COLS) * len(configs)
+        for pid, col, body in plates:
+            figures = plate_config(site, system, pid)["figures"]
+            dts = {dt for dt, _ in DD.findall(body)}
+            if 'class="fig"' in body:
+                assert {"spread", "scope", "grade", "checked", "workload", "source"} <= dts, pid
+            else:  # a null value names its record; a metric the runs did not record has none
+                assert "why" in dts, pid
+                assert ("source" in dts) == figures[METRIC[col]]["recorded"], pid
+        rows = more_rows(text)
+        assert len(rows) == 5 * len(configs)
+        for row in rows:  # every label a plate holds, or why there is no value
+            said = plain(row)
+            if "No value" in said:
+                continue
+            for label in ("spread: ", "scope: ", "grade: ", "checked: ", "source: releases/"):
+                assert label in said, (label, said)
+
+
+def test_glyph_before_numbers(site: Build) -> None:
+    """S1: on every page each row's header, holding its glyph, precedes the row's first figure;
+    a system row's header links its system page and a reference's glyph its entry on
+    `/reference`. The `#claims-<configuration>` target is an RFC-0009 §Site gap for #320."""
+    index = site.pages["index.html"]
+    rows = ROW.findall(index)
+    assert rows
+    for rid, _, _, body in rows:
+        system = row_config(site.view, rid)["system"]
+        assert body.index('class="pie"') < body.index('class="vc"'), rid
+        assert f'<a href="/{system}">' in body[: body.index('class="vc"')], rid
+    for ref in site.view["orders"]["reference"]:
+        row = index[index.index(f'<div class="row" id="{ref}">') :]
+        assert row.index('class="pie"') < row.index('class="vc"'), ref
+        assert f'href="/reference#{ref}"' in row[: row.index('class="vc"')], ref
+    for system in site.view["orders"]["benchmarked"]:
+        text = site.pages[f"{system}.html"]
+        assert text.index('class="rpie"') < text.index('class="plate"'), system
+    ref = site.pages["reference.html"]
+    for gid in site.view["orders"]["reference"]:
+        sec = ref[ref.index(f'id="{gid}" aria-labelledby') :]
+        assert sec.index('class="rpie"') < sec.index('class="plate"'), gid
+
+
+def test_claim_card_before_numbers(site: Build) -> None:
+    """S1, INV-CLAIM-1: in every table across systems each row's header precedes the row's first
+    figure and holds the glyph with each state as a word, the name, the pin of the row's card and,
+    where the table holds two rows of the system, the card's `configuration`, and no value of any
+    other card field; each state is the state the criteria file sets for that card (RFC-0016).
+    On system pages the validated claims precede every figure. Their quotes, sources and control
+    outcomes, the card's identity and digest, the card in full and the agreement rate are
+    RFC-0009 §Site gaps for #320 (its second pull request)."""
+    criteria, props = site.view["criteria"]["rows"], site.view["criteria"]["properties"]
+    for _, body in TABLE.findall(site.pages["index.html"]):
+        rows = ROW.findall(body)
+        for rid, _, _, row in rows:
+            cfg = row_config(site.view, rid)
+            header = HEADER.search(row)
+            assert header, rid
+            head = header[1]
+            assert row.index(head) < row.index('class="vc"')
+            assert "<svg" in head  # the glyph
+            cells = criteria[cfg["system"]]["cells"]
+            if not criteria[cfg["system"]]["drawn"]:  # a pending row: no state, no text (OVR-8)
+                assert '<p class="sr">' not in head, rid
+                assert "data-word" not in head, rid
+            else:
+                said = plain(re.search(r'<p class="sr">(.*?)</p>', head)[1])  # type: ignore[index]
+                for p in props:
+                    state = cells[p["id"]]["state"]
+                    assert f"{p['name']}: {WORD[state]}" in said, (rid, p["id"])
+            assert site.view["facts"]["rows"][cfg["system"]]["name"] in plain(head)
+            assert f"/tree/{cfg['card']['body']['upstream']['commit']}" in head
+            two = sum(row_config(site.view, r[0])["system"] == cfg["system"] for r in rows) > 1
+            assert (cfg["configuration"] in plain(head)) == two, rid
+            body_ = cfg["card"]["body"]
+            for field, value in body_.items():
+                if field in {"schema", "system", "configuration", "upstream", "card_version"}:
+                    continue
+                for text in _strings(value):
+                    if len(text) > 12:  # long enough to be card text, not a common word
+                        assert text not in plain(head), (rid, field)
+    for system in site.view["orders"]["benchmarked"]:
+        _validated_claims(site, system)
+
+
+def _validated_claims(site: Build, system: str) -> None:
+    """A system page's validated claims precede every figure, each state as its word; under a
+    pending disclosure the stated state in words, not drawn (OVR-8)."""
+    criteria, props = site.view["criteria"]["rows"], site.view["criteria"]["properties"]
+    text = site.pages[f"{system}.html"]
+    assert text.index('class="rprops"') < text.index('class="fig"'), system
+    cells = criteria[system]["cells"]
+    for p in props:
+        item = re.search(rf'<li class="rp [rl]" id="p-{p["id"]}".*?</li>', text, re.S)
+        assert item, (system, p["id"])
+        state = cells[p["id"]]["state"]
+        if criteria[system]["drawn"]:
+            assert '<p class="rs"><i class="sw ' in item[0]
+            assert WORD[state] in plain(item[0]), (system, p["id"])
+        else:  # OVR-8: the stated state in words, not drawn
+            assert '<i class="sw ' not in item[0]
+            assert f"Stated: {WORD[state]}" in plain(item[0]), (system, p["id"])
+
+
+def _strings(value: object) -> list[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        return [s for v in value.values() for s in _strings(v)]
+    if isinstance(value, list):
+        return [s for v in value for s in _strings(v)]
+    return []
+
+
+def test_statistics_shown(site: Build) -> None:
+    """S3: every statistic shows its six values (completed, failed, minimum, maximum, mean, sd)
+    on system pages, and its counts and range on the overview, equal to the stored ones; a
+    reference whose runs all failed shows its counts and "below minimum repetitions" on the
+    overview and on `/reference`; each more-numbers row shows the six values too."""
+    for _, title, inner in VAL.findall(site.pages["index.html"]):
+        if "spread: " not in html.unescape(title):
+            continue
+        assert re.search(r"\d+ completed, \d+ failed", plain(inner)), inner
+        assert " to " in plain(inner), inner
+    for system in site.view["orders"]["benchmarked"]:
+        text = site.pages[f"{system}.html"]
+        for pid, col, body in PLATE.findall(text):
+            cfg = plate_config(site, system, pid)
+            stats = cfg["figures"][METRIC[col]].get("stats")
+            if not stats:
+                continue
+            spread = dict(DD.findall(body))["spread"]
+            got = SPREAD.fullmatch(plain(spread))
+            assert got, spread
+            assert (int(got[1]), int(got[2])) == (stats["n"], stats["n_failed"])
+        for cfg, rows in zip(system_configs(site, system),
+                             _chunks(more_rows(text), 5), strict=True):  # fmt: skip
+            for (metric, _), row in zip(MORE, rows, strict=True):
+                stats = cfg["figures"][metric].get("stats")
+                if not stats or cfg["figures"][metric]["value"] is None:
+                    continue
+                got = MORE_SPREAD.search(plain(row))
+                assert got, row
+                assert (int(got[1]), int(got[2])) == (stats["n"], stats["n_failed"])
+    failed = [c for c in site.view["configurations"]
+              if c["kind"] == "reference" and c["insufficient_repetitions"]]  # fmt: skip
+    assert failed
+    for page in ("index.html", "reference.html"):
+        assert site.pages[page].count("below minimum repetitions") == len(failed), page
+        for c in failed:
+            n = f"{len(c['runs']['completed'])} completed, {len(c['runs']['failed'])} failed"
+            assert n in plain(site.pages[page]), (page, c["system"])
+
+
+def _chunks(items: list[str], n: int) -> list[list[str]]:
+    return [items[i : i + n] for i in range(0, len(items), n)]
+
+
+MORE_SPREAD = re.compile(r"spread: (\d+) completed, (\d+) failed · .+? to .+? · mean .+? · sd ")
+# the more-numbers rows, in the renderer's order (web/build.py MORE)
+MORE = (("rate_prove.session", "Proving rate"),
+        ("cost_per_1k_tokens_prove.session", "GPU cost per 1,000 positions"),
+        ("commit_seconds", "Commit once"), ("verify_host_memory_peak_anon", "Checker memory"),
+        ("prove_gpu_memory_peak", "GPU memory"))  # fmt: skip
+
+
+def _significant(number: str) -> int:
+    digits = number.replace(",", "").replace(".", "").lstrip("0")
+    return len(digits)
+
+
+def test_sort_key_is_stored_value(site: Build) -> None:
+    """S4: each sort key equals the value the index stores, in its base unit, and the printed
+    figure is that value at 4 significant digits in a reading unit (scaled back by hand here)."""
+    rows = ROW.findall(site.pages["index.html"])
+    assert rows
+    for rid, _, keys, body in rows:
+        cfg = row_config(site.view, rid)
+        got = json.loads(html.unescape(keys))
+        assert set(got) == set(COLS)
+        cells = dict(re.findall(r'data-col="([^"]+)">(<a class="val".*?</a>)</div>', body, re.S))
+        for col, metric in METRIC.items():
+            stored = cfg["figures"][metric]["value"]
+            assert got[col] == stored, (rid, col)
+            printed = NUMBER.search(cells[col])
+            if stored is None:
+                assert printed is None, (rid, col)
+                continue
+            assert printed, (rid, col)
+            number, unit = printed[1], printed[2]
+            assert _significant(number) == 4 or float(number.replace(",", "")).is_integer()
+            value = float(number.replace(",", "")) * SCALE[unit]
+            exponent = math.floor(math.log10(abs(value)))
+            assert abs(value - stored) <= 0.5 * 10 ** (exponent - 3) * 1.0001, (rid, col)
+
+
+def test_default_order_alphabetical(site: Build) -> None:
+    """S5: the HTML as sent holds every table's rows A to Z by name; other orders on request."""
+    tables = TABLE.findall(site.pages["index.html"])
+    assert tables
+    names = site.view["facts"]["rows"]
+    for _, body in tables:
+        shown = [names[row_config(site.view, rid)["system"]]["name"].lower()
+                 for rid, *_ in ROW.findall(body)]  # fmt: skip
+        assert shown == sorted(shown)
+    assert 'aria-sort="ascending"' in site.pages["index.html"]
+    nb = site.view["orders"]["not_benchmarked"]
+    assert [names[r]["name"].lower() for r in nb] == sorted(names[r]["name"].lower() for r in nb)
+
+
+def test_no_ranking(site: Build) -> None:
+    """S5: no rank number, medal, aggregate score or marked extreme value on any page."""
+    heads = [plain(h) for h in HEAD.findall(site.pages["index.html"])]
+    assert heads
+    assert not [w for w in heads if re.search(r"score|rank|total|overall|best", w, re.I)]
+    for name, text in site.pages.items():
+        assert "<strong>" not in text, name
+        assert not re.search(r'class="[^"]*\b(best|winner|rank|medal|podium|leader)\b', text), name
+        assert not re.search("[\U0001f947-\U0001f949\U0001f3c6]", text), name  # medals, cup
+        assert not re.search(r"#\s?1\b|\b1st\b", plain(text)), name
+
+
+def test_division_named(site: Build) -> None:
+    """S6: the system page names the workload, its division and the profile of the configuration
+    it shows. Table headings naming them on the overview and `/reference` are RFC-0009 §Site
+    gaps for #320 (an owner decision on the overview's look)."""
+    for system in site.view["orders"]["benchmarked"]:
+        text = plain(site.pages[f"{system}.html"])
+        for cfg in system_configs(site, system):
+            assert cfg["workload"]["division"] in {"native", "closed", "open"}
+            where = f"{cfg['workload']['id']} · {cfg['workload']['division']} · {cfg['profile']}"
+            assert where in text, system
+
+
+def test_native_workloads_header(site: Build) -> None:
+    """S6: tables of different native workloads side by side (two workloads on one model) carry
+    the header above them; a model with one workload table carries none."""
+    sections = SECTION.findall(site.pages["index.html"])
+    header = "Native workloads differ: rows are not a head-to-head comparison"
+    models: dict[str, list[str]] = {}
+    for sec in sections:
+        name = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', sec)[1])  # type: ignore[index]
+        models.setdefault(name, []).append(sec)
+    side_by_side = [secs for secs in models.values() if len(secs) > 1]
+    if site.kind == "web":
+        assert not side_by_side
+        assert header not in site.pages["index.html"]
+        pytest.skip("the deployed release has one workload per model; the extras build has two")
+    assert side_by_side
+    for secs in side_by_side:  # once, above the first table of the model
+        assert [header in plain(s) for s in secs] == [True] + [False] * (len(secs) - 1)
+    assert site.pages["index.html"].count(header) == len(side_by_side)
+
+
+def test_runs_left_out_listed(site: Build) -> None:
+    """S7: each failed repetition and each superseded or ineligible run of each configuration a
+    system page shows is listed above that configuration's figures, with its reasons, exit code
+    and last line, and is in no statistic (the completed count is over the completed runs
+    only). Run ids, links to the run record and to the replacing run are RFC-0009 §Site gaps
+    for #320 (its second pull request)."""
+    listed = 0
+    for system in site.view["orders"]["benchmarked"]:
+        text = site.pages[f"{system}.html"]
+        leads = [m.start() for m in re.finditer('<p class="lead">', text)]
+        plates = [m.start() for m in re.finditer('class="plate"', text)]
+        configs = system_configs(site, system)
+        assert len(leads) == len(configs)
+        for i, (cfg, at) in enumerate(zip(configs, leads, strict=True)):
+            # each configuration's line comes before its own plates, after the previous ones
+            assert at < plates[i * len(COLS)]
+            assert i == 0 or plates[i * len(COLS) - 1] < at
+            listed += _left_out_listed(cfg, plain(text[at : text.index("</p>", at)]), system)
+    assert listed >= 2  # SASH: one failed repetition, one superseded run
+
+
+def _left_out_listed(cfg: dict[str, Any], lead: str, system: str) -> int:
+    """One configuration's runs line holds each of its runs not counted (S7)."""
+    listed = 0
+    runs = cfg["runs"]
+    assert f"{len(runs['completed'])} completed" in lead
+    for f in runs["failed"]:
+        if f["exit_code"] is not None:
+            assert f"exit code {f['exit_code']}" in lead, system
+        if f["last_line"]:
+            assert f["last_line"] in lead, system
+        listed += 1
+    for x in runs["left_out"]:
+        for reason in x["reasons"]:
+            assert reason.split(": ", 1)[-1] in lead, (system, reason)
+        listed += 1
+    for f in cfg["figures"].values():
+        if f.get("stats"):
+            assert f["stats"]["n"] == len(runs["completed"]), system
+            assert f["stats"]["n_failed"] == len(runs["failed"]), system
+    return listed
+
+
+def test_table_semantics(site: Build) -> None:
+    """S9: every cell of a table across systems has one column header and one row header through
+    ARIA roles, a sorted column's header carries `aria-sort`, and every glyph state is a word in
+    the row header's cell, read after the system's name (a row under a pending disclosure has no
+    state and no text, RFC-0016 OVR-8); the more-numbers tables use `th` with `scope`. The
+    References table's roles are an RFC-0009 §Site gap for #320."""
+    index = site.pages["index.html"]
+    for sec in SECTION.findall(index):
+        heads = HEAD.findall(sec)
+        assert len(heads) == 1 + len(COLS)
+        assert sec.count('role="columnheader"') == len(heads)
+        assert sec.count('aria-sort="') == 1
+        for rid, _, _, row in ROW.findall(sec):
+            assert row.count('role="rowheader"') == 1, rid
+            assert row.count('role="cell"') == len(COLS), rid
+            head = HEADER.search(row)[1]  # type: ignore[index]
+            if not site.view["criteria"]["rows"][row_config(site.view, rid)["system"]]["drawn"]:
+                assert '<p class="sr">' not in head, rid
+                continue
+            assert head.index('class="name"') < head.index('<p class="sr">'), rid
+            assert re.search(r'<p class="sr">[^<]*: (Yes|Partly|No|Not stated)', head), rid
+    for system in site.view["orders"]["benchmarked"]:
+        tables = re.findall(r'<table class="mtab">(.*?)</table>', site.pages[f"{system}.html"])
+        assert tables
+        for table in tables:
+            rows = re.findall(r"<tr>(.*?)</tr>", table)
+            assert rows[0].count('<th scope="col">') == 3
+            for row in rows[1:]:
+                assert row.count('<th scope="row">') == 1
+                assert row.count("<td") == 2
+
+
+def local(url: str) -> bool:
+    """A root-relative address on the site's own origin."""
+    return url.startswith("/") and not url.startswith("//")
+
+
+def test_reads_without_script(site: Build) -> None:
+    """S10: every row, figure, label and glyph state is in the HTML as sent; every script is a
+    site file or an inline script whose hash the Content-Security-Policy lists; no page loads a
+    script, style sheet, font, image or frame from another origin (links to other sites are
+    allowed)."""
+    vercel = json.loads((site.out / "vercel.json").read_text())
+    csp = next(h["value"] for rule in vercel["headers"] for h in rule["headers"]
+               if h["key"] == "Content-Security-Policy")  # fmt: skip
+    allowed = set(re.findall(r"'(sha256-[^']+)'", csp))
+    for name, text in site.pages.items():
+        for attrs, body in re.findall(r"<script([^>]*)>(.*?)</script>", text, re.S):
+            src = re.search(r'src="([^"]+)"', attrs)
+            if src:
+                assert local(src[1]), (name, src[1])
+                assert not body.strip()
+            else:
+                digest = base64.b64encode(hashlib.sha256(body.encode()).digest()).decode()
+                assert f"sha256-{digest}" in allowed, name
+        for tag in re.findall(r"<(?:img|iframe|source|video|audio|embed|object)\b[^>]*>", text):
+            src = re.search(r'(?:src|data)="([^"]+)"', tag)
+            assert not src or local(src[1]), tag
+        for tag in re.findall(r"<link\b[^>]*>", text):
+            if re.search(r'rel="(stylesheet|preload|icon|apple-touch-icon|modulepreload)"', tag):
+                href = re.search(r'href="([^"]+)"', tag)[1]  # type: ignore[index]
+                assert local(href), tag
+        assert not re.search(r"url\(\s*['\"]?(https?:)?//", text), name
+    index = site.pages["index.html"]
+    rows = ROW.findall(index)
+    for cfg in provers(site.view):
+        assert any(row_config(site.view, rid) is cfg for rid, *_ in rows)
+    assert all(NUMBER.search(body) for *_, body in rows)  # figures are in the HTML as sent
+    for ref in site.view["orders"]["not_benchmarked"]:
+        assert site.view["facts"]["rows"][ref]["name"] in plain(index), ref
+
+
+def test_pending_row_draws_no_state(site: Build) -> None:
+    """RFC-0016 OVR-8: a row under a pending disclosure draws none of the four states and no
+    text on the overview, in search and on its preview card; its system page prints the RFC-0008
+    notice and the stated states, undrawn, and none of its control outcomes: no outcome count,
+    no accepted control, no system-specific control line."""
+    pending = [rid for rid, row in site.view["criteria"]["rows"].items() if row.get("pending")]
+    if site.kind == "web":
+        assert not pending
+        pytest.skip("no criteria row of the deployed build is under a pending disclosure")
+    assert pending
+    index = site.pages["index.html"]
+    search = json.loads((site.out / "search.json").read_text())["entries"]
+    for rid in pending:
+        row = index[index.index(f'<div class="row" id="{rid}"') :]
+        row = row[: row.index('<div class="vals">')]
+        assert len(re.findall(r'class="sl s\d none"', row)) == 6
+        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', row)
+        assert "data-word" not in row
+        assert '<p class="sr">' not in row
+        said = plain(row)
+        assert not [w for w in (*WORD.values(), "No state shown") if w in said], said
+        pie = next(e["pie"] for e in search if e["url"] == f"/{rid}")
+        assert pie.count(' none"') == 6
+        card = (site.out / f"og/{rid}.html").read_text()
+        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', card)
+        assert '<i class="sw ' not in card
+        page = site.pages[f"{rid}.html"]
+        text = plain(page)
+        assert "A disclosure is pending" in text
+        for gone in ("Tampering tests on this setup", "it accepted", "Control test",
+                     "No tampering test", "No state shown"):  # fmt: skip
+            assert gone not in text, gone
+        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', page)
+        stated = re.findall(r'<p class="rs">(.*?)</p>', page)
+        assert len(stated) == 6
+        assert all(s.startswith("Stated: ") for s in stated), stated
+
+
+def test_tally_names_each_accepted_control(site: Build) -> None:
+    """RFC-0008, AGENTS.md rule 10: an accepted outcome is never printed as a bare count. Each
+    "it accepted N" names the controls it counts and whether each one's own expected set holds
+    acceptance, so a system's weakened-prover control (which expects acceptance) never reads as
+    a tampered proof the checker took; the control line says it was expected."""
+    seen = 0
+    for system in site.view["orders"]["benchmarked"]:
+        if not site.view["criteria"]["rows"][system]["drawn"]:
+            continue  # OVR-8: no outcome printed (test_pending_row_draws_no_state)
+        text = plain(site.pages[f"{system}.html"])
+        for cfg in system_configs(site, system):
+            for a in cfg["accepted"]:
+                assert a["control"] in text, (system, a["control"])
+        for m in re.finditer(r"it accepted (\d+)", text):
+            assert text[m.end() : m.end() + 2] == " (", text[m.start() : m.end() + 40]
+            seen += 1
+        for a in (a for c in system_configs(site, system) for a in c["accepted"]):
+            if a["source"] == "system" and a["passed"]:
+                assert f"{a['control']}, the control test below, which expects acceptance" in text
+                assert "accepted the proof, as this control expects" in text
+    assert seen >= 1  # the deployed SASH's weakened-prover control; the extras FlashProve's C1
+
+
+def test_figures_link_their_own_plate(site: Build) -> None:
+    """S2, S11: each overview figure of a system row links a plate on its system page, in the
+    same column and of the row's own configuration (its source names the configuration's
+    position in the index); a reference row's figures link its figures block on `/reference`."""
+    index = site.pages["index.html"]
+    linked = 0
+    for rid, _, _, body in ROW.findall(index):
+        cfg = row_config(site.view, rid)
+        for col, href in re.findall(r'data-col="([^"]+)"><a class="val" href="([^"]*)"', body):
+            page, _, frag = href.partition("#")
+            assert page == f"/{cfg['system']}", href
+            plates = {pid: (c, b) for pid, c, b in PLATE.findall(site.pages[f"{page[1:]}.html"])}
+            assert frag in plates, href
+            assert plate_config(site, cfg["system"], frag) is cfg, href
+            assert plates[frag][0] == col, href
+            source = re.sub(r"<[^>]+>", "", plates[frag][1])
+            if cfg["figures"][METRIC[col]]["recorded"]:  # its record is this configuration's
+                assert f"#/configurations/{cfg['position']}/statistics/" in source, href
+            linked += 1
+    assert linked == len(COLS) * len(provers(site.view))
+    ref = site.pages["reference.html"]
+    for gid in site.view["orders"]["reference"]:
+        row = index[index.index(f'<div class="row" id="{gid}">') :]
+        row = row[: row.index("\n</div>")]
+        for href, _, _ in VAL.findall(row):
+            assert href == f"/reference#{gid}-figures"
+        assert f'id="{gid}-figures"' in ref
 
 
 def test_reply_escaped() -> None:
-    out = str(reply_html("We *disagree*: <script>x</script> [notes](https://example.org/n)\n\n"
-                         "- one\n- [bad](javascript:alert(1))"))  # fmt: skip
+    """§Right of reply: a reply is escaped; only http(s) links become links."""
+    out = reply_html("We *disagree*: <script>x</script> [notes](https://example.org/n)\n\n"
+                     "- one\n- [bad](javascript:alert(1))")  # fmt: skip
+    assert isinstance(out, str)
     assert "<script>" not in out
     assert "&lt;script&gt;" in out
     assert '<a href="https://example.org/n">notes</a>' in out
     assert "<em>disagree</em>" in out
-    assert 'href="javascript' not in out  # only http(s) links become links
+    assert 'href="javascript' not in out
     assert "<ul><li>one</li>" in out
 
 
-ROW_SYSTEM = re.compile(r'<th scope="row"><a href="\.\./systems/([^"]+)\.html">')
-HEADERS = re.compile(r'<th scope="col">(?:<a [^>]*>)?([^<]+)')
-
-
-def test_default_order_alphabetical(site: dict[str, str]) -> None:
-    """S5: the default division table is alphabetical; other orders only behind links."""
-    default = ROW_SYSTEM.findall(site["v0.1/divisions/open.html"])
-    assert default == sorted(default) == ["fake", "fake-broken"]
-    assert 'href="open-by-prove_session_seconds.html"' in site["v0.1/divisions/open.html"]
-    assert "v0.1/divisions/open-by-prove_session_seconds.html" in site
-    assert "Native workloads differ" not in site["v0.1/divisions/open.html"]  # S6: native only
-
-
-def test_no_aggregate_score_column(site: dict[str, str]) -> None:
-    for rel in (r for r in site if "/divisions/" in r):
-        headers = HEADERS.findall(site[rel])
-        assert headers[:4] == ["System", "Claim card summary", "Workload", "Profile"], rel
-        assert not [h for h in headers if re.search(r"score|rank|total|overall|best", h, re.I)]
-        assert "<strong>" not in site[rel].split("<table>")[1]  # no highlighted cell
-
-
-def test_generated_html_passes_g8(site: dict[str, str], tmp_path: Path) -> None:
-    """S8: the site text passes the RFC-0013 G8 word list (replies are excluded at source)."""
+def test_generated_html_passes_g8(site: Build, tmp_path: Path) -> None:
+    """S8: every page the build writes passes the RFC-0013 G8 word list (replies are excluded
+    at source, RFC-0009 §Right of reply)."""
     from iproofs.validate.tree import g8_language  # noqa: PLC0415
 
-    for rel, text in site.items():
-        (tmp_path / rel).parent.mkdir(parents=True, exist_ok=True)
-        (tmp_path / rel).write_text(text)
-    assert g8_language(tmp_path, [], named=sorted(site)) == []
-
-
-def test_unexpected_control_printed_in_full(tmp_path: Path) -> None:
-    build_rich(tmp_path)
-    with pytest.MonkeyPatch.context() as mp:
-        mp.chdir(tmp_path)
-        assert cli.main(["release", "freeze", "v0.1"]) == 0
-        index_path = tmp_path / "releases/v0.1/index.json"
-        index = json.loads(index_path.read_text())
-        stored = next((tmp_path / "results/v0.1/fake").glob("*/controls.json"))
-        record = json.loads(stored.read_text())["controls"][0]
-        index["controls"][0]["outside_expected"] = [
-            {"run_id": stored.parent.name, "control_id": record["id"], "outcome": "accepted"}
-        ]
-        index_path.write_text(json.dumps(index))
-        assert cli.main(["site", "build", "--out", str(tmp_path / "out")]) == 0
-    page = (tmp_path / "out/v0.1/controls.html").read_text()
-    assert f"{record['id']} in run {stored.parent.name}: accepted." in page
-    assert str(escape(json.dumps(record, indent=2, sort_keys=True))) in page
+    for name, text in site.pages.items():
+        (tmp_path / name).write_text(text)
+    assert g8_language(tmp_path, [], named=sorted(site.pages)) == []

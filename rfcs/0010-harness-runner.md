@@ -56,7 +56,7 @@ Scenarios:
 | `iproofs reproduce compare ORIG_RUN REPRO_RUN` | two run directories or run groups | applies the tolerance rule of [RFC-0007](0007-evidence-tiers-and-reproduction.md), writes a reproduction record |
 | `iproofs release freeze RELEASE` | release id | writes `releases/<release>/index.json` |
 | `iproofs release plan RELEASE` | release id | projects the run-campaign compute budget from external figures with the derivation code ([08](../docs/spec/08-performance-budget.md#run-campaign-compute-budget)); output is `projected`, never a result |
-| `iproofs site build [--out DIR]` | default `site/_build/` | generates the static site |
+| `iproofs site build [--out DIR]` | default the repository's `web/` | generates the public site from the newest frozen release (RFC-0009 §Site) |
 
 Global options: `--log-level {debug,info,warning}` (default `info`), `--quiet` (no progress on stderr). No option changes what is measured; anything that would is part of the workload or system file and goes through review.
 

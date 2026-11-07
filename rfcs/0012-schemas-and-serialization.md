@@ -66,6 +66,7 @@ All schemas use JSON Schema Draft 2020-12. Each lives at `schema/<name>/<major>.
 | `review` | `schema/review/1.schema.json` | generated JSON | `results/.../<run-id>/reviews/<reviewer>-<date>.json` | RFC-0007 |
 | `reproduction` | `schema/reproduction/1.schema.json` | generated JSON | `results/.../<run-id>/reproductions/<repro-run-id>.json` | RFC-0007 |
 | `perturbed-commitment` | `schema/perturbed-commitment/1.schema.json` | generated JSON | `results/<release>/<system>/_controls/<workload>/perturbed.json` | RFC-0008 |
+| `site-facts` | `schema/site-facts/1.schema.json` | authored JSON | `web/_data/facts.json` | RFC-0009 |
 
 `external/1` holds upstream figures per system as quantities with `grade: external`; `system-controls/1` registers system-specific controls. Both reuse `$defs` from `quantity/1`. A claim card carries an integer `card_version`, starting at 1 and incremented by every merged change; a system with several statement-changing configurations has one file per configuration under `systems/<name>/claims/` (RFC-0002).
 

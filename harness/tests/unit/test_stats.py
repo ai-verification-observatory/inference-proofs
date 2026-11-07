@@ -94,3 +94,16 @@ def test_formula_registry_records_statistics_choice() -> None:
 def test_no_repetition_at_all_is_internal_error() -> None:
     with pytest.raises(IProofsError, match="no repetition"):
         statistic([], [], "0.1.0")
+
+
+def test_tokens_covered_per_proof_constant_statistics() -> None:
+    """TC-TPP-STAT: RFC-0004 constant-count fixture (not a result): three repetitions of
+    1,000 token, none failed; n 3, n_failed 0, mean 1,000, stdev 0, min = max = 1,000."""
+    ref = "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-{}/run.json#/metrics/tpp"
+    inputs = [(ref.format(i), measured(1000.0, Unit.TOKEN, None, ref.format(i), None))
+              for i in (1, 2, 3)]  # fmt: skip
+    out = statistic(inputs, [], "0.1.0")
+    assert out["stats"] == {"n": 3, "n_failed": 0, "mean": 1000.0, "stdev": 0.0,
+                            "min": 1000.0, "max": 1000.0}  # fmt: skip
+    assert (out["value"], out["unit"], out["scope"]) == (1000.0, "token", None)
+    check(out)

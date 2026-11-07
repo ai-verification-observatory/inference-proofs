@@ -42,6 +42,7 @@ G2_GLOBS = (
     "results/**/_controls/*/perturbed.json",
     "results/**/reviews/*.json",
     "results/**/reproductions/*.json",
+    "web/_data/facts.json",
 )
 # Known-bad gate fixtures: checked by their own tests, never by the tree scan.
 EXCLUDED = ("harness/tests/fixtures/gates/",)
@@ -786,7 +787,7 @@ LANG_RE = re.compile(
 MENTION = re.compile(r'"[^"]*"|\u201c[^\u201d]*\u201d|`[^`]*`')  # mentions are not uses
 LANG_ALLOW = re.compile(r"<!--\s*lang-allow:\s*(\S+)\s*(.*?)\s*-->")
 LANG_SCOPE = (
-    "docs/**", "rfcs/**", "reports/**", "site/**", "systems/*/README.md",
+    "docs/**", "rfcs/**", "reports/**", "systems/*/README.md",
     "systems/*/claims/*.yaml", "README.md", "web/README.md", "web/*.html",
 )  # fmt: skip
 LANG_SKIP = ("AGENTS.md", "docs/spec/10-glossary.md", "rfcs/0013-validation-and-ci.md")

@@ -1,0 +1,46 @@
+{
+  "gpus": {
+    "Example GPU 80GB": "Example GPU"
+  },
+  "models": {
+    "sha256:abababababababababababababababababababababababababababababababab": {
+      "name": "Example Model",
+      "precision_words": {
+        "int4": "4-bit"
+      }
+    }
+  },
+  "rows": {
+    "fake": {
+      "licence": {
+        "name": "Apache-2.0",
+        "url": "https://example.org/LICENSE"
+      },
+      "name": "Fake system",
+      "status": {
+        "last_push": "2026-10-19",
+        "retrieved": "2026-11-05",
+        "state": "active"
+      },
+      "technique": "example technique words (fixture, describes no system)"
+    },
+    "listed": {
+      "code": "no_public_code",
+      "models": [
+        "not named in the source read"
+      ],
+      "name": "Listed system",
+      "status": {
+        "state": "no_repository"
+      }
+    },
+    "ref-serve": {
+      "kind_words": "Plain serving: the baseline with no check.",
+      "name": "Plain serving"
+    }
+  },
+  "schema": "site-facts/1",
+  "site": {
+    "licence": "CC BY 4.0"
+  }
+}

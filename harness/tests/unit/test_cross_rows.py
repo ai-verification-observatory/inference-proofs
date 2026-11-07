@@ -11,8 +11,10 @@ import pytest
 from iproofs.derive import agreement_rate, overhead, provider_spread
 from iproofs.quantity import Scope, Tier
 from iproofs.release import RunView, _Context, _release_rows
+from iproofs.schema import SchemaRegistry
 
 ROLES = {"ref-serve": "serve", "ref-recompute": "recompute"}
+REGISTRY = SchemaRegistry.from_tree(Path(__file__).resolve().parents[3] / "schema")
 WL = {"id": "sash-l31-8b-c1024", "version": 1}
 
 
@@ -123,6 +125,21 @@ def test_nm1_nulls_dependants(kind: str) -> None:
     stats = found[0].statistics
     for metric in ("overhead_vs_serving_prove.steady", "agreement_rate"):
         assert stats[metric]["null_reason"] == "not_measurable_on_profile"  # type: ignore[index]
+    # with no completed paired run, D-AGREE points at the failure records (quantity/1)
+    assert stats["agreement_rate"]["source"]["inputs"] == [  # type: ignore[index]
+        "results/v0.1/ref-recompute/c-1/run.json#/failure"
+    ]
+    agree = stats["agreement_rate"]
+    assert isinstance(agree, dict)
+    assert REGISTRY.errors("quantity/1", agree, def_name="quantity") == []
+
+
+def test_agreement_all_paired_failed_other_kind() -> None:
+    """Every paired run failed, not under NM-1: D-AGREE is null `step_failed` (INV-QTY-8)."""
+    found = contexts(ref_failure="internal")
+    _release_rows("v0.1", found, ROLES)
+    out = found[0].statistics["agreement_rate"]
+    assert (out["value"], out["null_reason"]) == (None, "step_failed")  # type: ignore[index]
 
 
 def test_other_failure_is_not_nm1() -> None:

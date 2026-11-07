@@ -10,6 +10,7 @@
   "gpus": 1,
   "metrics": {
     "proof_bytes_total": 10000000,
+    "proofs_count": 5,
     "requests_count": 5,
     "tokens_covered_steady": 4000,
     "tokens_covered_total": 5000,

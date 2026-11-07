@@ -1,5 +1,5 @@
 // MADE OF WORDS: behaviour only. No value, label or quote is typed here: everything printed
-// comes from the page, which build.py wrote from site.json (sort keys included, in data-k).
+// comes from the page, which iproofs site build wrote (sort keys included, in data-k).
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -21,7 +21,8 @@
       if (!n) { delete pie.dataset.hot; return; }
       pie.dataset.hot = n;
       const sl = $(`.sl.s${n}`, pie);
-      if (tip && sl) {
+      // a row drawn with no state carries no words on its slices (RFC-0016 OVR-8): no tip
+      if (tip && sl && sl.dataset.word) {
         const b = document.createElement('b');
         b.textContent = sl.dataset.name;
         const sw = document.createElement('i');

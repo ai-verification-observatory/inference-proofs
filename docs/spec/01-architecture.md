@@ -31,10 +31,10 @@ The benchmark has four kinds of component: authored inputs (workloads, systems, 
                         releases/<release>/release.yaml  -> iproofs release freeze -> index.json
                                                                     |
                                                                     v
-                              iproofs site build -> site/_build/     reports/<release>.md
+                              iproofs site build -> web/ (committed)  reports/<release>.md
 ```
 
-The same in prose. Authored inputs live in git and change only by reviewed pull request. A runner invokes `iproofs run` on a host that meets a prover profile ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md)). The runner resolves the workload (fetching weights from their public source and checking every file hash), checks the adapter image by digest, records the machine, and drives the adapter container through its five subcommands while measuring from outside the container. Optionally it runs the negative-control suite against the honest proofs. It writes one run directory per job under `results/`. The runner opens a pull request with those directories; CI validates them and recomputes every derived number. A maintainer cuts a release by authoring `releases/<release>/release.yaml`; `iproofs release freeze` computes effective evidence tiers and target evaluations into `index.json`; `iproofs site build` renders the static site from the frozen release. Reports are written by people from the frozen data.
+The same in prose. Authored inputs live in git and change only by reviewed pull request. A runner invokes `iproofs run` on a host that meets a prover profile ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md)). The runner resolves the workload (fetching weights from their public source and checking every file hash), checks the adapter image by digest, records the machine, and drives the adapter container through its five subcommands while measuring from outside the container. Optionally it runs the negative-control suite against the honest proofs. It writes one run directory per job under `results/`. The runner opens a pull request with those directories; CI validates them and recomputes every derived number. A maintainer cuts a release by authoring `releases/<release>/release.yaml`; `iproofs release freeze` computes effective evidence tiers and target evaluations into `index.json`; `iproofs site build` renders the static site in `web/` from the frozen release. Reports are written by people from the frozen data.
 
 ## Components and responsibilities
 
@@ -52,7 +52,7 @@ The same in prose. Authored inputs live in git and change only by reviewed pull 
 | Releases | `releases/<release>/` | frozen set of runs and their effective tiers | [RFC-0009](../../rfcs/0009-results-and-publication.md), [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md) |
 | Targets | `targets/<author>/<id>.yaml` | thresholds published by relying parties | [RFC-0009](../../rfcs/0009-results-and-publication.md#targets) |
 | CI | `.github/workflows/` | the gates of RFC-0013 | [RFC-0013](../../rfcs/0013-validation-and-ci.md) |
-| Site and reports | `site/`, `reports/` | publication | [RFC-0009](../../rfcs/0009-results-and-publication.md) |
+| Site and reports | `web/` (pages written by `iproofs site build`, renderer `web/build.py`), `reports/` | publication | [RFC-0009](../../rfcs/0009-results-and-publication.md) |
 
 ## Module boundaries
 
@@ -98,7 +98,7 @@ Boundary rules:
 4. **Controls.** `iproofs.controls` mutates copies of honest proofs and requests and runs `verify` on each with its honest twin ([RFC-0008](../../rfcs/0008-negative-controls.md)).
 5. **Recording.** The runner turns raw observations into labelled quantities (`grade: measured`, `tier: reported`), calls `iproofs.derive` on the stored values, validates, and renames the staging dir into the run dir ([RFC-0010](../../rfcs/0010-harness-runner.md#writing-the-run-directory)).
 6. **Review.** CI runs `iproofs validate` and `iproofs derive --check` on every changed run dir. Review and reproduction records are added as new files ([RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md)).
-7. **Release.** `iproofs release freeze` reads `release.yaml`, collects the listed runs, computes effective tiers and target evaluations, and writes `index.json`. `iproofs site build` renders the site from it ([RFC-0009](../../rfcs/0009-results-and-publication.md)).
+7. **Release.** `iproofs release freeze` reads `release.yaml`, collects the listed runs, computes effective tiers and target evaluations, and writes `index.json`. `iproofs site build` renders the public site into `web/` from it, the claim cards and run records it names, the criteria file and `web/_data/facts.json`; the committed pages are what Vercel serves ([RFC-0009](../../rfcs/0009-results-and-publication.md#site)).
 
 Data never flows backwards: nothing downstream of a run dir edits it (INV-ARCH-7, append-only `results/`).
 

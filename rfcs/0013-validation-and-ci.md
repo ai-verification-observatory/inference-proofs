@@ -79,7 +79,7 @@ Failures are sorted by gate, then path bytes, then pointer. After the list, a su
 
 Rule: every document in the tree that has a schema validates against the schema its `schema` field names (RFC-0012). Every `schema/*/examples/valid/*` validates; every `schema/*/examples/invalid/*` fails, and the failure text contains the content of its `.reason` file.
 
-Inputs: files matching `systems/*/claim.yaml`, `systems/*/claims/*.yaml`, `systems/*/{system,external,controls}.yaml`, `workloads/**/*.yaml`, `reference/*.yaml`, `targets/**/*.yaml`, `releases/*/release.yaml`, `releases/*/index.json`, `results/**/{run,manifest,controls}.json`, `results/**/reviews/*.json`, `results/**/reproductions/*.json`, `schema/*/examples/**`.
+Inputs: files matching `systems/*/claim.yaml`, `systems/*/claims/*.yaml`, `systems/*/{system,external,controls}.yaml`, `workloads/**/*.yaml`, `reference/*.yaml`, `targets/**/*.yaml`, `releases/*/release.yaml`, `releases/*/index.json`, `results/**/{run,manifest,controls}.json`, `results/**/reviews/*.json`, `results/**/reproductions/*.json`, `web/_data/facts.json`, `schema/*/examples/**`.
 
 Cross-document checks (also G2, rule ids `XREF-n`):
 
@@ -137,7 +137,7 @@ Rule: no measured run uses a weakening configuration.
 
 ### G8 Neutral-language lint
 
-Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, `site/` templates, the public site (`web/README.md` and its pages, `web/*.html`), `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
+Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, the public site (`web/README.md` and the pages `iproofs site build` writes, `web/*.html`), `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
 
 ```
 fastest, slowest, best, worst, winner, wins, beats, beat, crushes, outperforms,

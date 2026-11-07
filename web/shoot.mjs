@@ -120,7 +120,8 @@ const sortBy = async (p, col, dir) => {
   await p.mouse.move(0, 0);
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: /.test(a.title))
     .map((a) => /\d+\s+completed, \d+\s+failed/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
-  ok(spreads.length === 4 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);
+  // two systems, three measured figures each: One proof covers carries its spread too (D-TPP, #320)
+  ok(spreads.length === 6 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);
   await ctx.close();
 }
 

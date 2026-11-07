@@ -23,7 +23,7 @@ from iproofs.derive import agreement_rate, overhead, provider_spread, statistic
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import ReferenceFile, Release, load
 from iproofs.provenance import file_digest
-from iproofs.quantity import Scope, Tier, claim_class_matches, lowest_tier
+from iproofs.quantity import NullReason, Scope, Tier, claim_class_matches, lowest_tier
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -868,13 +868,20 @@ def _reference_roles(root: Path) -> dict[str, str]:
     return roles
 
 
+NM1_KINDS = ("resource", "adapter")
+
+
+def not_measurable_on_profile(attempts: Sequence[tuple[bool, object]]) -> bool:
+    """RFC-0015 NM-1 over a configuration's kept attempts, each (completed, failure kind): true
+    when there is at least one and every one failed with `resource` or `adapter`. The freeze
+    and the site (`iproofs.site.view`) both call it, so the rule has one copy."""
+    return bool(attempts) and all(not ok and kind in NM1_KINDS for ok, kind in attempts)
+
+
 def _measurable(ctx: "_Context") -> bool:
     """RFC-0015 NM-1: not measurable when every attempt failed with `resource` or `adapter`."""
-    failures = [r.get("run", "failure", "kind") for r in ctx.kept]
-    return (
-        any(r.ok for r in ctx.kept)
-        or not failures
-        or any(f not in ("resource", "adapter") for f in failures)
+    return not not_measurable_on_profile(
+        [(r.ok, r.get("run", "failure", "kind")) for r in ctx.kept]
     )
 
 
@@ -942,6 +949,12 @@ def _agreement(ctx: "_Context", contexts: Sequence["_Context"], roles: Mapping[s
         runs = [r for r in c.kept if r.ok and r.get("manifest", "prompts_from") in mine]
         agree += _metric_inputs(runs, "agreement_positions", c.tiers)
         disagree += _metric_inputs(runs, "disagreement_positions", c.tiers)
-    ctx.statistics["agreement_rate"] = agreement_rate(
+    if not agree:  # every paired run failed: the inputs are their failure records (INV-QTY-8)
+        agree = [(f"{_rel(r)}/run.json#/failure", None) for c in paired for r in c.kept
+                 if not r.ok and r.get("manifest", "prompts_from") in mine]  # fmt: skip
+    out = agreement_rate(
         agree, disagree, measurable=all(_measurable(c) for c in paired), version=__version__
     )
+    if out["null_reason"] == NullReason.MISSING_INPUT and not disagree:
+        out["null_reason"] = str(NullReason.STEP_FAILED)
+    ctx.statistics["agreement_rate"] = out

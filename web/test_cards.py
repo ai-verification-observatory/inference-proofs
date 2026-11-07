@@ -1,23 +1,21 @@
-"""Preview cards: each committed picture was rendered from its committed source, and every page names one.
+"""Preview cards: each committed picture was rendered from its committed source, the build writes
+that source, and every page names one.
 
-Run: python3 -m pytest test_cards.py   (or: python3 test_cards.py)
+Run from the repository root: uv run pytest web -q
 """
 
 import hashlib
+import html
 import html.parser
 import json
-import pathlib
 import struct
-import sys
+from pathlib import Path
 
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-import build
+import pytest
 
-OG = build.OG
+WEB = Path(__file__).resolve().parent
+OG = WEB / "og"
 RECORD = json.loads((OG / "cards.json").read_text())
-PAGES = [
-    build.file_of(p).name for p in ["/", *build.PAGE.values(), build.REF_PAGE, build.CRIT_PAGE]
-]
 
 
 def sha(path):
@@ -46,8 +44,14 @@ class Meta(html.parser.HTMLParser):
 
 def meta(page):
     m = Meta()
-    m.feed((build.HERE / page).read_text())
+    m.feed((WEB / page).read_text())
     return m.tags
+
+
+@pytest.fixture(scope="module")
+def pages(site):
+    b = site.build
+    return [b.file_of(p).name for p in ["/", *b.PAGE.values(), b.REF_PAGE, b.CRIT_PAGE]]
 
 
 def test_every_source_has_its_picture():
@@ -58,46 +62,54 @@ def test_every_source_has_its_picture():
         assert sha(OG / f"{card}.png") == rec["png"], f"og/{card}.png is not the rendered one"
 
 
-def test_picture_size():
+def test_sources_are_the_built_ones(site):
+    built = sorted(p.name for p in (site.out / "og").glob("*.html"))
+    assert built == sorted(p.name for p in OG.glob("*.html"))
+    for name in built:
+        assert (site.out / "og" / name).read_bytes() == (OG / name).read_bytes(), name
+
+
+def test_picture_size(site):
+    b = site.build
     for card in RECORD:
         png = OG / f"{card}.png"
         want = (
-            (build.ICON, build.ICON)
+            (b.ICON, b.ICON)
             if card == "icon"
-            else (build.CARD_W * build.CARD_SCALE, build.CARD_H * build.CARD_SCALE)
+            else (b.CARD_W * b.CARD_SCALE, b.CARD_H * b.CARD_SCALE)
         )
         assert png_size(png) == want, (card, png_size(png))
         assert png.stat().st_size < 1_000_000  # well under the 5 MB the platforms accept
 
 
-def test_system_cards_carry_the_draft_label():
+def test_system_cards_carry_the_draft_label(site):
     # the states are draft criteria; a picture travels without the page around it, so it says so
-    draft = build.html.escape(build.G["legend"]["draft_short"])
-    for sid in build.PAGE:
+    draft = html.escape(site.build.criteria_label()[1])
+    for sid in site.build.PAGE:
         assert draft in (OG / f"{sid}.html").read_text(), sid
 
 
-def test_home_card_holds_nothing_that_changes():
+def test_home_card_holds_nothing_that_changes(site):
     # link previews stay cached in message apps: the home picture names no system and no model
     src = (OG / "home.html").read_text()
-    for sid, sys_ in build.site["systems"].items():
-        assert sys_["name"] not in src, sid
-    for name in build.MODEL_NAME.values():
+    for sid in [*site.view["orders"]["benchmarked"], *site.view["orders"]["reference"]]:
+        assert site.view["facts"]["rows"][sid]["name"] not in src, sid
+    for name in site.build.MODEL_NAME.values():
         assert name not in src, name
     assert 'class="sl ' not in src  # no system's pie
-    assert build.card_alt("home").count(":") == 1  # the alt names the properties only
+    assert site.build.card_alt("home").count(":") == 1  # the alt names the properties only
 
 
-def test_icon():
+def test_icon(pages):
     assert (OG / "icon.svg").read_text().startswith("<svg")
-    for page in PAGES:
+    for page in pages:
         t = meta(page)
         assert t.get("icon") == "/og/icon.svg", page
         assert t.get("apple-touch-icon", "").startswith("/og/icon.png?v="), page
 
 
-def test_pages_name_their_card():
-    for page in PAGES:
+def test_pages_name_their_card(site, pages):
+    for page in pages:
         t = meta(page)
         for k in (
             "og:title",
@@ -111,7 +123,7 @@ def test_pages_name_their_card():
         assert t["twitter:card"] == "summary_large_image"
         assert t["og:image"] == t["twitter:image"]
         assert t["og:url"] == t["canonical"]
-        assert t["og:url"].startswith(build.SITE_URL + "/")
+        assert t["og:url"].startswith(site.build.SITE_URL + "/")
         url, v = t["og:image"].split("?v=")
         card = url.rsplit("/", 1)[1].removesuffix(".png")
         assert card in RECORD, (page, t["og:image"])
@@ -119,9 +131,9 @@ def test_pages_name_their_card():
         assert t["og:description"] == t["description"]
 
 
-def test_each_system_has_its_own_card():
-    for sid, path in build.PAGE.items():
-        assert f"/og/{sid}.png?" in meta(build.file_of(path).name)["og:image"]
+def test_each_system_has_its_own_card(site):
+    for sid, path in site.build.PAGE.items():
+        assert f"/og/{sid}.png?" in meta(site.build.file_of(path).name)["og:image"]
 
 
 def test_card_styles_are_css():
@@ -137,10 +149,3 @@ def test_404_is_never_shared():
     assert t.get("robots") == "noindex"
     assert "og:image" not in t
     assert "canonical" not in t
-
-
-if __name__ == "__main__":
-    for name, f in list(globals().items()):
-        if name.startswith("test_"):
-            f()
-            print("ok", name)

@@ -196,7 +196,8 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     site = sub.add_parser("site", help="static site (RFC-0009)")
     site_sub = site.add_subparsers(dest="site_command", required=True, metavar="ACTION")
     p = command("build", "generate the static site", site_sub, "site build")
-    p.add_argument("--out", type=Path, default=Path("site/_build"))
+    p.add_argument("--out", type=Path, default=None,
+                   help="output folder (default: the repository's web/)")  # fmt: skip
     p.set_defaults(handler=site_build)
 
     archive = sub.add_parser("archive", help="proof archive (RFC-0014, RFC-0009 Q1)")
@@ -555,15 +556,19 @@ GATES_G2_G7 = {"G2", "G3", "G4", "G5", "G6", "G7"}
 
 
 def site_build(args: argparse.Namespace) -> int:
-    """`iproofs site build [--out DIR]`: the static site of every frozen release (RFC-0009);
-    prints the number of pages written."""
+    """`iproofs site build [--out DIR]`: the public site of the newest frozen release
+    (RFC-0009 §Site), into the repository's `web/` unless `--out` names another folder; prints
+    the number of pages written."""
     from iproofs.site import build  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
-    out = args.out if args.out.is_absolute() else Path.cwd() / args.out
+    if args.out is None:
+        out = root / "web"
+    else:
+        out = args.out if args.out.is_absolute() else Path.cwd() / args.out
     pages = build(root, out)
-    print(f"{len(pages)} pages in {args.out}")
+    print(f"{len(pages)} pages in {out}")
     return 0
 
 

@@ -11,12 +11,12 @@ ok   row slice hover shows its name and state Model boundPartly
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
 ok   a Not stated slot is filled in its own grey and lifts like the others {"hot":"1","unstated":true,"fill":"#67635c","grey":"#67635c","moved":true,"loose":0}
-ok   figures with a spread show sample size and range [true,true,true,true]
+ok   figures with a spread show sample size and range [true,true,true,true,true,true]
 ok   default: System A to Z in the table, empty hash {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
 ok   sort system asc {"got":[["flashprove","sash"]],"hash":"","glyphs":"↑↕↕↕↕"}
 ok   sort system desc {"got":[["sash","flashprove"]],"hash":"#sort=system-desc","glyphs":"↓↕↕↕↕"}
 ok   sort covers asc {"got":[["flashprove","sash"]],"hash":"#sort=covers-asc","glyphs":"↕↑↕↕↕"}
-ok   sort covers desc {"got":[["flashprove","sash"]],"hash":"#sort=covers-desc","glyphs":"↕↓↕↕↕"}
+ok   sort covers desc {"got":[["sash","flashprove"]],"hash":"#sort=covers-desc","glyphs":"↕↓↕↕↕"}
 ok   sort proof_size asc {"got":[["flashprove","sash"]],"hash":"#sort=proof_size-asc","glyphs":"↕↕↑↕↕"}
 ok   sort proof_size desc {"got":[["sash","flashprove"]],"hash":"#sort=proof_size-desc","glyphs":"↕↕↓↕↕"}
 ok   sort check_time asc {"got":[["flashprove","sash"]],"hash":"#sort=check_time-asc","glyphs":"↕↕↕↑↕"}
@@ -29,10 +29,10 @@ ok   hash round-trip {"aria":["check_time:descending"],"heads":1,"glyphs":"↕�
 ok   CLS on load with a sort hash is 0
 ok   hashchange applies a new order
 ok   Back to no hash restores the default order {"aria":["system:ascending"],"heads":1,"glyphs":"↑↕↕↕↕","hash":""}
-ok   sort with missing values: covers asc {"got":["zz-a","flashprove","sash","zz-b"],"keys":[512,1024,1024,2048]}
-ok   sort with missing values: covers desc {"got":["zz-b","flashprove","sash","zz-a"],"keys":[2048,1024,1024,512]}
-ok   sort with missing values: proof_size asc {"got":["zz-b","flashprove","sash","zz-a"],"keys":[1,18779444.444444444,19800000000,null]}
-ok   sort with missing values: proof_size desc {"got":["sash","flashprove","zz-b","zz-a"],"keys":[19800000000,18779444.444444444,1,null]}
+ok   sort with missing values: covers asc {"got":["zz-a","flashprove","sash","zz-b"],"keys":[512,1024,1025,2048]}
+ok   sort with missing values: covers desc {"got":["zz-b","sash","flashprove","zz-a"],"keys":[2048,1025,1024,512]}
+ok   sort with missing values: proof_size asc {"got":["zz-b","flashprove","sash","zz-a"],"keys":[1,18779444.666666668,19800000000,null]}
+ok   sort with missing values: proof_size desc {"got":["sash","flashprove","zz-b","zz-a"],"keys":[19800000000,18779444.666666668,1,null]}
 ok   sort with missing values: check_time asc {"got":["flashprove","zz-a","sash","zz-b"],"keys":[3.12,9,121.26666666666667,null]}
 ok   sort with missing values: check_time desc {"got":["sash","zz-a","flashprove","zz-b"],"keys":[121.26666666666667,9,3.12,null]}
 ok   sort with missing values: overhead asc {"got":["zz-a","zz-b","flashprove","sash"],"keys":[3,7,null,null]}
@@ -54,9 +54,9 @@ ok   "llama4" finds FlashProve first ["FlashProve","SASH","VerInf"]
 ok   an exact word brings no typo noise ("sash" finds SASH only) ["SASH"]
 ok   "stark" finds only the systems whose stated technique is one
 ok   one letter still lists the not-benchmarked names that start with it
-ok   Enter goes to the first result of a typed search http://127.0.0.1:4440/criteria#weights_hidden
-ok   the arrows choose another result http://127.0.0.1:4440/reference#ref-recompute
-ok   Enter in an empty field picks nothing http://127.0.0.1:4440/
+ok   Enter goes to the first result of a typed search http://127.0.0.1:4450/criteria#weights_hidden
+ok   the arrows choose another result http://127.0.0.1:4450/reference#ref-recompute
+ok   Enter in an empty field picks nothing http://127.0.0.1:4450/
 ok   phone: a search button, the field hidden
 ok   phone: the button opens the field and its results, nothing overflows {"over":0,"wide":[],"clipped":[]}
 ok   Enter on Proof size sorts ascending {"aria":["proof_size:ascending"],"heads":1,"glyphs":"↕↕↑↕↕","hash":"#sort=proof_size-asc"}
@@ -123,7 +123,7 @@ ok   criteria-320 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties fit the first screen 501
+ok   flashprove: the six properties fit the first screen 493
 ok   flashprove: no quotes, nothing folded
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
@@ -141,8 +141,8 @@ ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash: no work-in-progress label; its figures name their model
 ok   /nope answers the styled 404 page 404
 ok   /a/b/c answers the styled 404 page 404
-ok   /system redirects to /flashprove http://127.0.0.1:4440/flashprove
-ok   /system.html redirects to /flashprove http://127.0.0.1:4440/flashprove
+ok   /system redirects to /flashprove http://127.0.0.1:4450/flashprove
+ok   /system.html redirects to /flashprove http://127.0.0.1:4450/flashprove
 ok   a malformed hash does not stop hash sorting
 ok   landscape phone: the model heading shows on landing 261
 ok   phone: the search field is set at 16 px or more, so focusing it does not zoom 16
@@ -152,7 +152,7 @@ ok   phone: a 44 px close button closes search and returns focus to the search b
 ok   phone: the open sheet stays on screen, the page under it is locked and inert {"field":4,"lock":"hidden","main":true,"repo":true,"search":false}
 ok   phone: closing the sheet gives the page back
 ok   phone: the results end above the keyboard (390 x 500 visible) 488
-ok   phone: a tap on a result opens it http://127.0.0.1:4440/flashprove
+ok   phone: a tap on a result opens it http://127.0.0.1:4450/flashprove
 ok   header-600x900: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-768x1024: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-844x390: the pages share the logo's line {"h":45,"dy":[1,1]}
@@ -163,7 +163,7 @@ ok   home-320x568: the legend in two columns, the first system on landing, the q
 ok   home-320: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less {"sysAlone":true,"bottoms":1,"aligned":true,"h":36,"rowH":117,"lefts":[16,90,164,238],"cols":[16,90,164,238]}
 ok   home-390: the sorted column is in paper in every row, the others muted ["covers:off","proof_size:off","check_time:on","overhead:off","covers:off","proof_size:off","check_time:on","overhead:off"]
 ok   touch: a first tap on a triangle names it and stays on the page {"path":"/","hot":"2","shown":true,"text":"Model boundPartly","sw":true}
-ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4440/flashprove
+ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4450/flashprove
 ok   flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs {"wide":340,"inside":true,"out":[],"names":["WEIGHTS HIDDEN","MODEL BOUND","WHOLE OUTPUT PROVED","FORMALLY VERIFIED","SECURITY LEVEL","NO TRUSTED PARTY"],"stateless":true,"order":"123456","below":true,"col":1,"keys":0}
 ok   touch: a tap on a slice lifts it and marks its property {"s2":"matrix(1, 0, 0, 1, 6, 0)","rn":"rgb(241, 239, 233)","path":"/flashprove"}
 ok   home-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
@@ -179,9 +179,9 @@ ok   reference-320: every link and button 24 px tall or more, none overlapping {
 ok   criteria-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   sash-844x390: the whole glyph on the first screen 312
-ok   flashprove-844x390: the whole glyph on the first screen 330
+ok   flashprove-844x390: the whole glyph on the first screen 322
 ok   404-390: the search field is shown, not focused {"h":44,"vis":true,"focus":"BODY"}
-ok   404-390: search leads on from the 404 page http://127.0.0.1:4440/sash
+ok   404-390: search leads on from the 404 page http://127.0.0.1:4450/sash
 ok   home: cut sentences absent
 ok   home: no placeholder marking on the page
 ok   home: no ranking words in the site's own controls

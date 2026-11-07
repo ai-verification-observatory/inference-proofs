@@ -1,6 +1,6 @@
-// Preview cards: PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs && python3 -I build.py
-// Renders each og/<card>.html that build.py wrote to og/<card>.png and records the sha256 of both in
-// og/cards.json; build.py then names each picture in the pages. A card is 1200 x 630 CSS px at 2x
+// Preview cards: PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs, then rebuild the site
+// (README §Build and check). Renders each og/<card>.html that the build wrote to og/<card>.png and
+// records the sha256 of both in og/cards.json; the build then names each picture in the pages. A card is 1200 x 630 CSS px at 2x
 // unless its <html> sets data-w, data-h and data-scale (the 180 px touch icon). test_cards.py
 // checks the record against the files. Fonts load from ../fonts/, so it needs no network.
 import crypto from 'node:crypto';
@@ -11,7 +11,7 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const DIR = fileURLToPath(new URL('./og/', import.meta.url));
 const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const cards = fs.readdirSync(DIR).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5)).sort();
-if (!cards.length) throw new Error('no card sources in og/: run python3 -I build.py first');
+if (!cards.length) throw new Error('no card sources in og/: build the site first (README §Build and check)');
 
 const b = await chromium.launch();
 const record = {};

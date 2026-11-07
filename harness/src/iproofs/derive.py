@@ -203,6 +203,7 @@ COMPUTE: dict[str, Callable[[list[float], int], float]] = {
     "D-BPT": _over,
     "D-VSPT": _over,
     "D-VSPT-1T": _over,
+    "D-TPP": _ratio,
 }
 
 
@@ -215,12 +216,14 @@ def derive_repetition(
     price: Input,
     active_parameters: Input,
     first_proof_tokens: Input,
+    reference: bool = False,
 ) -> dict[str, QuantityTree]:
     """Every repetition-level formula of RFC-0004 over one repetition's recorded metrics.
 
     `price`, `active_parameters` and `first_proof_tokens` are (pointer, quantity) pairs from
     the reference file, the workload record and run.json `proofs[0]`. Each formula is
-    evaluated left to right as written in the RFC table (INV-DERIVE-5).
+    evaluated left to right as written in the RFC table (INV-DERIVE-5). `reference` is true
+    for a `kind: reference` system (RFC-0015), whose D-TPP is null (INV-DERIVE-6).
     """
     out: dict[str, QuantityTree] = {}
 
@@ -285,6 +288,11 @@ def derive_repetition(
         Scope.VERIFY_SINGLE_THREAD,
         [metric("verify_single_thread_seconds"), first_proof_tokens],
     )
+    put("tokens_covered_per_proof", "D-TPP", Unit.TOKEN, None, [total, metric("proofs_count")])
+    if reference:  # INV-DERIVE-6: a reference row proves nothing (RFC-0015 REF-2)
+        out["tokens_covered_per_proof"] = _nulled(
+            out["tokens_covered_per_proof"], NullReason.NOT_APPLICABLE
+        )
     return out
 
 
@@ -303,8 +311,13 @@ FORMULAS = {
     "D-BPT": "proof_bytes_total / tokens_covered_total",
     "D-VSPT": "verify_seconds_total / tokens_covered_total",
     "D-VSPT-1T": "first-proof single-thread verify seconds / first-proof tokens",
+    "D-TPP": "tokens_covered_total / proofs_count",
     "D-STAT": "over successful repetitions in repetition order: statistics.mean, "
     "statistics.stdev (n - 1, null when n < 2), min, max",
+    "D-OVERHEAD-S": "mean(ref-serve rate_<S>) / mean(system rate_<S>)",
+    "D-AGREE": "agreement_positions / (agreement_positions + disagreement_positions), "
+    "summed over paired ref-recompute runs",
+    "D-PROVIDER-SPREAD": "largest provider mean rate_<S> / smallest provider mean rate_<S>",
 }
 
 
@@ -443,8 +456,11 @@ def formula_of(q: Mapping[str, object]) -> tuple[str, str]:
     return formula, version
 
 
-def recompute(q: Mapping[str, object], inputs: Sequence[Input], gpus: int) -> QuantityTree:
-    """Re-evaluate a stored derived quantity from its resolved inputs, in stored order."""
+def recompute(
+    q: Mapping[str, object], inputs: Sequence[Input], gpus: int, *, reference: bool = False
+) -> QuantityTree:
+    """Re-evaluate a stored derived quantity from its resolved inputs, in stored order.
+    `reference` is true for a run of a `kind: reference` system (INV-DERIVE-6)."""
     formula, version = formula_of(q)
     scope = None if q["scope"] is None else Scope(str(q["scope"]))
     if formula == "D-STAT":
@@ -456,9 +472,10 @@ def recompute(q: Mapping[str, object], inputs: Sequence[Input], gpus: int) -> Qu
     if formula not in COMPUTE:
         raise UnknownFormula(formula)
     compute = COMPUTE[formula]
-    return derived(
-        formula, version, Unit(str(q["unit"])), scope, inputs, lambda x: compute(x, gpus)
-    )
+    out = derived(formula, version, Unit(str(q["unit"])), scope, inputs, lambda x: compute(x, gpus))
+    if reference and formula == "D-TPP":  # INV-DERIVE-6
+        return _nulled(out, NullReason.NOT_APPLICABLE)
+    return out
 
 
 # ---------------------------------------------------------------- run-campaign budget (spec 08)

@@ -102,7 +102,7 @@ def test_optional_extras_not_imported_on_help() -> None:
     code = (
         "import sys\nfrom iproofs import cli\n"
         "try:\n    cli.main(['--help'])\nexcept SystemExit:\n    pass\n"
-        "extras = ('pynvml', 'huggingface_hub', 'tokenizers', 'jinja2')\n"
+        "extras = ('pynvml', 'huggingface_hub', 'tokenizers')\n"
         "bad = [m for m in extras if m in sys.modules]\n"
         "assert not bad, bad\n"
     )

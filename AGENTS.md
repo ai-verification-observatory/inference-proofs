@@ -51,6 +51,6 @@ Plain, dense, active voice, short sentences. Define a term once (`docs/spec/10-g
 | `rfcs/` | normative decisions; `0000-template.md` for new ones |
 | `schema/` | JSON Schemas (to come, RFC-0012 catalogue) |
 | `harness/` | the `iproofs` package and its tests (to come, RFC-0010) |
-| `web/` | the public site (static pages from a frozen data snapshot, deployed by Vercel; placeholder results until a release exists) |
+| `web/` | the public site: static pages written by `iproofs site build` from the frozen release (from a placeholder release until v0.1), committed and deployed by Vercel |
 | `systems/<name>/` | one adapter per system (to come: `sash`, `flashprove`) |
-| `workloads/`, `reference/`, `results/`, `site/`, `reports/` | as SPEC Section 2 |
+| `workloads/`, `reference/`, `results/`, `reports/` | as SPEC Section 2 |
