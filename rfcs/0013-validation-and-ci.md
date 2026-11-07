@@ -137,7 +137,7 @@ Rule: no measured run uses a weakening configuration.
 
 ### G8 Neutral-language lint
 
-Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, `site/` templates, the public site (`web/README.md` and its pages, `web/*.html`), `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
+Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, the public site (`web/README.md` and the pages `iproofs site build` writes, `web/*.html`), `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
 
 ```
 fastest, slowest, best, worst, winner, wins, beats, beat, crushes, outperforms,
