@@ -19,6 +19,7 @@ from iproofs.validate import (
     check_controls_summary,
     check_derived,
     cost,
+    criteria,
     governance,
     links,
     precision,
@@ -43,6 +44,7 @@ G2_GLOBS = (
     "results/**/reviews/*.json",
     "results/**/reproductions/*.json",
     "web/_data/facts.json",
+    "web/_data/criteria.json",
 )
 # Known-bad gate fixtures: checked by their own tests, never by the tree scan.
 EXCLUDED = ("harness/tests/fixtures/gates/",)
@@ -524,7 +526,7 @@ def validate_tree(
         files = [f for f in files if any(f == w or f.startswith(w + "/") for w in wanted)]
     named = [f for f in files if f.startswith(EXCLUDED)]
     found = g2_schema(root, files, registry) + g2_xref(root, files) + g2_size(root, files)
-    found += g2_replies(root, files)
+    found += g2_replies(root, files) + criteria.check(root, files)
     if base_ref:
         found += g2_append_only(root, base_ref) + g2_card_edits(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
