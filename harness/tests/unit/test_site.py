@@ -408,8 +408,9 @@ def _validated_claims(site: Build, system: str) -> None:
     folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
     gap = text.index('class="gapblk"')
     read = text.index('<details class="howread" id="how-we-read">')
-    assert claims < text.index('class="rprops"') < read < identity < folded < gap < first_figure
-    assert text.index('class="rprops"') < text.index('class="fig"')
+    assert claims < text.index('class="rprops r"') < text.index('class="rprops l"') < read
+    assert read < identity < folded < gap < first_figure
+    assert text.index('class="rprops l"') < text.index('class="fig"')
     assert "<details open" not in text  # folded as sent (S1 item 4)
     details = text[folded : text.index("</details>", folded)]
     for field in card["body"]:
@@ -490,7 +491,9 @@ def _quotes_printed(
     for q in deciding:  # verbatim, with its source at the pin
         assert q["text"] in html.unescape(body), (system, p["id"])
         assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
-        assert f"{q['repo']}@{q['commit'][:8]} {q['path']} {q['lines']}" in said, (system, p["id"])
+        where = f"@{q['commit'][:8]} {q['path']} {q['lines']}"
+        assert f"{q['repo'].rsplit('/', 1)[-1]}{where}" in said, (system, p["id"])
+        assert f'title="{html.escape(q["repo"] + where)}"' in body, (system, p["id"])
 
 
 def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
@@ -580,11 +583,44 @@ def test_conflict_quotes_folded() -> None:
     line = r'<p class="eqs"><span class="ek">(\w+)</span><span class="eb">(.*?)</span></p>'
     rows = re.findall(line, out, re.S)
     assert [(k, flat(v)) for k, v in rows] == [
-        ("yes", "“it holds”o/r@aaaaaaaa README.md L1 ↗"),
-        ("partly", "“it holds in part”o/r@aaaaaaaa README.md L1 ↗"),
+        ("yes", "“it holds”r@aaaaaaaa README.md L1 ↗"),
+        ("partly", "“it holds in part”r@aaaaaaaa README.md L1 ↗"),
     ]
     assert out.count(f'href="{q["url"]}"') == 2
     assert lines({"conflict": False, "quotes": [yes, partly]}) == ""
+
+
+def test_sources_read_as_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RFC-0016 ST-2 in "How we read it": a property whose sources read equal an earlier
+    property's, whatever the order of each entry's keys, reads "as for" that property, linked to
+    its row; the same entries with their paths in another order are another list, printed in
+    full; a property with nothing to show has no row."""
+    build = renderer(ROOT)
+    state = build.draw.state
+    one = [{"repo": "o/r", "commit": "a" * 40, "paths": ["README.md", "docs/cost-model.md"]}]
+    same = [{"paths": ["README.md", "docs/cost-model.md"], "commit": "a" * 40, "repo": "o/r"}]
+    other = [{"repo": "o/r", "commit": "a" * 40, "paths": ["docs/cost-model.md", "README.md"]}]
+    empty = {"sources_read": [], "conflict": False, "quotes": []}
+    cells = {
+        "a": {**empty, "sources_read": one},
+        "b": {**empty, "sources_read": same},
+        "c": {**empty, "sources_read": other},
+        "d": empty,
+    }
+    names = {"a": "First", "b": "Second", "c": "Third", "d": "Fourth"}
+    monkeypatch.setattr(state, "CRIT", {"rows": {"s": {"cells": cells}}})
+    monkeypatch.setattr(state, "PROPS", [{"id": k, "name": v} for k, v in names.items()])
+    out = build.draw.claims.how_we_read("s", None, ["a", "b", "c", "d"])
+    rows = dict(re.findall(r'<div id="read-(\w)"><dt>[^<]*</dt><dd>(.*?)</dd></div>', out, re.S))
+    assert set(rows) == {"a", "b", "c"}
+    label = '<span class="ek">read</span>'  # the label, then the sources in their own column
+    assert all(r.startswith(f'<p class="er">{label}') for r in rows.values())
+    rows = {k: v.replace(label, "") for k, v in rows.items()}
+    assert flat(rows["a"]) == "o/r@aaaaaaaa ↗ README.md, docs/cost-model.md"
+    assert flat(rows["b"]) == "as for First"
+    assert 'href="#read-a"' in rows["b"]
+    assert flat(rows["c"]) == "o/r@aaaaaaaa ↗ docs/cost-model.md, README.md"
+    assert '<span class="nw">docs/cost-model.md</span>' in rows["c"]  # never breaks inside
 
 
 def _strings(value: object) -> list[str]:

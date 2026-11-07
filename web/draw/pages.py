@@ -92,11 +92,21 @@ def rose_item(c, pre, drawn=True, ev=""):
 def rose(g, hid, name, level=2, pre="", ev=None):
     """The pie, centred, with each property beside its own slice. level: the hidden heading's level
     under the page's own; pre: an id prefix when one page holds several roses; ev: each
-    property's evidence by property id (system pages)."""
+    property's evidence by property id (system pages). The properties are two lists, 1 to 3
+    (right of the pie) then 4 to 6 (left), so each side stacks on its own and a long block on
+    one side leaves no hole on the other; read aloud, they still run 1 to 6."""
+    items = {
+        c["n"]: rose_item(c, pre, g["drawn"], (ev or {}).get(c["prop"], "")) for c in g["cells"]
+    }
+    lists = "".join(
+        f'<ol class="rprops {side}" role="list"{start} aria-labelledby="{e(hid)}">'
+        f"{''.join(items[n] for n in ns)}</ol>"
+        for side, start, ns in (("r", "", (1, 2, 3)), ("l", ' start="4"', (4, 5, 6)))
+    )
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
         f'<div class="rpie" role="img" aria-label="{e(aria(g, name, outside=True))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in g["cells"]])}</div>'
-        f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre, g["drawn"], (ev or {}).get(c["prop"], "")) for c in g["cells"])}</ol></div>'
+        f"{lists}</div>"
     )
 
 

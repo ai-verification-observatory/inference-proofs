@@ -237,9 +237,10 @@ def readable(text):
 EXT = '<span aria-hidden="true">\u00a0↗</span>'  # an outside link's arrow: not read aloud, never alone on a line
 
 
-def path_html(text):
+def path_html(text, ext=False):
     """A source path that breaks only after a "/" or a " · ", never inside a part, and whose
-    separator ends a line rather than starts one."""
+    separator ends a line rather than starts one. ext: end it with the outside link's arrow,
+    held to the last part so the arrow never wraps onto a line of its own."""
     segs = re.split("\u00a0· | · ", text)
     out = []
     for i, sg in enumerate(segs):
@@ -251,7 +252,11 @@ def path_html(text):
                 for j, s in enumerate(subs)
             )
         )
-    return " ".join(out)
+    html = " ".join(out)
+    if ext:
+        head, _, last = html.rpartition('<span class="seg">')
+        html = f'{head}<span class="nw"><span class="seg">{last}{EXT}</span>'
+    return html
 
 
 def keep(text):

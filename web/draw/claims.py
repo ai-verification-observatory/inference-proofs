@@ -14,7 +14,6 @@ import re
 
 from . import state as S
 from .plates import (
-    EXT,
     path_html,
     readable,
     record_html,
@@ -50,14 +49,19 @@ def pin_label(url):
 
 def source_link(url, prefix=""):
     """A small underlined link to a source at its pin (`.qsrc`)."""
-    return f'<a class="qsrc" href="{e(url)}">{path_html(prefix + pin_label(url))}{EXT}</a>'
+    return f'<a class="qsrc" href="{e(url)}">{path_html(prefix + pin_label(url), ext=True)}</a>'
 
 
 def quote_source(q):
-    """A quote's source at the pin: repository@commit, path and lines, linked at that commit."""
+    """A quote's source at the pin: repository@commit, path and lines, linked at that commit. The
+    words name the repository without its owner (the facts' pinned row names it in full), so the
+    link keeps to one or two lines beside the pie; the owner stays in the link and its title."""
     where = " ".join(x for x in (q.get("path"), q.get("lines")) if x)
-    label = f"{q['repo']}@{q['commit'][:8]} {where}".strip()
-    return f'<a class="qsrc" href="{e(q["url"])}">{path_html(label)}{EXT}</a>'
+    full = f"{q['repo']}@{q['commit'][:8]} {where}".strip()
+    label = f"{q['repo'].rsplit('/', 1)[-1]}@{q['commit'][:8]} {where}".strip()
+    return (
+        f'<a class="qsrc" href="{e(q["url"])}" title="{e(full)}">{path_html(label, ext=True)}</a>'
+    )
 
 
 def quote_html(q):
@@ -99,10 +103,12 @@ def sources_read(items, same_as=None):
     parts = []
     for s in items:  # criteria/1: a repository at a full commit with its paths, or a web page
         if "repo" in s:
-            head = path_html(f"{s['repo']}@{s['commit'][:8]}")
+            head = path_html(f"{s['repo']}@{s['commit'][:8]}", ext=True)
             url = f"https://github.com/{s['repo']}/tree/{s['commit']}"
-            parts.append(f'<span class="rd"><a class="qsrc" href="{e(url)}">{head}{EXT}</a> '
-                         f'{e(", ".join(s["paths"]))}</span>')  # fmt: skip
+            names = ", ".join(f'<span class="nw">{e(x)}</span>' for x in s["paths"])
+            parts.append(
+                f'<span class="rd"><a class="qsrc" href="{e(url)}">{head}</a> {names}</span>'
+            )
         else:
             parts.append(f'<span class="rd">{source_link(s["url"])} retrieved '
                          f"{e(s['retrieved'])}</span>")  # fmt: skip
@@ -239,7 +245,7 @@ def card_fact(cfg):
     digest = str(card["digest"]).removeprefix("sha256:")
     lines = [
         f'<span class="nw">{e(card["configuration"])}</span> · version {e(card["card_version"])}',
-        f'<a href="{e(card["link"])}">{path_html(card["path"])}{EXT}</a>',
+        f'<a href="{e(card["link"])}">{path_html(card["path"], ext=True)}</a>',
         f"sha256 <code>{e(digest[:12])}</code>",
     ]
     if not card["reviewed"]:

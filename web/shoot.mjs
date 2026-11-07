@@ -523,6 +523,15 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   await ctx.close();
 }
 
+// where the figures start on a system page, as a number to read against the owner's target (the Figures heading
+// within about 1,600 px on /sash at 390 px): recorded, not checked, since the claims before it are S1's to set
+for (const [name, w] of [['sash', 390], ['flashprove', 390], ['sash', 1440], ['flashprove', 1440]]) {
+  const { ctx, p } = await pg(w, 844, { touch: w < 1000 });
+  await p.goto(BASE + name, { waitUntil: 'networkidle' });
+  log(`${name}-${w} Figures heading at ${await p.evaluate(() => Math.round(document.getElementById('h-figs').getBoundingClientRect().top + scrollY))} px`);
+  await ctx.close();
+}
+
 // ---------------------------------------------------------------- the validated claims, the card in full and the release's pages (#320)
 // at 390 and 320 px: one press opens how we read it and the card in full; with both open, nothing overflows, and every
 // link and button of the new blocks (quotes' sources, control lines, card fields, runs left out,

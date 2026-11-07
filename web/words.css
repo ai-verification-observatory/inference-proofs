@@ -242,6 +242,8 @@ html:not(.js) .search { display: none; }
 .plate dd a:hover .seg, .facts dd a:hover .seg { text-decoration-thickness: 2px; }
 /* an id, a date or a model name that never breaks at its hyphen */
 .nw { white-space: nowrap; }
+/* a link's last part held to its arrow still wraps inside itself when it must */
+.nw > .seg { white-space: normal; }
 .tlab { margin: 14px 0 0; font: 400 12px/1.45 var(--mono); max-width: 80ch; }
 .tlab > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
 .tlab dt { color: var(--muted); }
@@ -265,19 +267,19 @@ html:not(.js) .search { display: none; }
 .blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 /* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
 .over { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 56px; align-items: center; padding-top: 32px; }
-/* how we read it follows the properties in reading order (RFC-0009 S1 item 1): under the pie, the facts beside both */
-.over > .howread { grid-column: 1; grid-row: 2; margin-top: 36px; align-self: start; }
-.over > .facts { grid-column: 2; grid-row: 1 / span 2; }
-.rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-rows: repeat(3, auto);
-  grid-template-areas: "p6 pie p1" "p5 pie p2" "p4 pie p3"; column-gap: 24px; row-gap: 18px; align-items: center; }
+/* how we read it follows the properties in reading order (RFC-0009 S1 item 1): under the pie and the facts, full width,
+   its rule like the card in full's just below it */
+.over > .howread { grid-column: 1 / -1; grid-row: 2; }
+.over > .facts { grid-column: 2; grid-row: 1; align-self: start; }
+/* each side its own column, centred on the pie: 1 to 3 down the right, 6 to 4 down the left (4 to 6 in reading order) */
+.rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-areas: "L pie R"; column-gap: 24px; align-items: center; }
 .rpie { grid-area: pie; display: flex; justify-content: center; }
 .rpie .pie-svg { width: 200px; height: 200px; }
-.rprops { display: contents; list-style: none; }
+.rprops { display: flex; flex-direction: column; justify-content: center; gap: 18px; min-width: 0; margin: 0; padding: 0; list-style: none; }
+.rprops.r { grid-area: R; }
+.rprops.l { grid-area: L; flex-direction: column-reverse; }
 .rp { min-width: 0; }
-.rp[data-n="1"] { grid-area: p1; } .rp[data-n="2"] { grid-area: p2; } .rp[data-n="3"] { grid-area: p3; }
-.rp[data-n="4"] { grid-area: p4; } .rp[data-n="5"] { grid-area: p5; } .rp[data-n="6"] { grid-area: p6; }
 .rp.l { text-align: right; }
-.rp[data-n="1"], .rp[data-n="6"] { align-self: end; } .rp[data-n="3"], .rp[data-n="4"] { align-self: start; }
 .rn { font: 600 12px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); }
 .rn a { color: inherit; text-decoration: none; }
 .rn a:hover, .rn a:focus-visible { text-decoration: underline; }
@@ -287,7 +289,7 @@ html:not(.js) .search { display: none; }
 /* under a property's reason, all it holds: the deciding quote (mono, muted, verbatim), its source at
    the pin (a small underlined link) and, for an overridden cell, its stated state and what contradicts it */
 .ev { font: 400 11.5px/1.45 var(--mono); color: var(--muted); margin-top: 6px; max-width: 46ch; text-wrap: pretty; }
-.rp.l .ev { margin-left: auto; text-align: right; }
+.rp.l .ev { margin-left: auto; width: fit-content; text-align: left; }
 .rp.l .es { justify-content: flex-end; }
 .eq { margin: 0; }
 .eq p { color: var(--muted); white-space: pre-line; }
@@ -296,6 +298,9 @@ html:not(.js) .search { display: none; }
 .ev .ex .ek { margin-right: 1ch; }
 /* how we read it: per property the sources read, a conflict's quotes, the controls, one labelled line each */
 .er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 10ch minmax(0, 1fr); align-items: baseline; }
+/* a read line starts with a link padded 4 px: its label sits on the link's first line */
+.er { align-items: start; }
+.er > .ek { padding-top: 4px; line-height: 16px; }
 .hw dd > p:first-child { margin-top: 0; }
 .hw .eq p { color: var(--paper); }
 .eb { min-width: 0; }
@@ -308,6 +313,8 @@ html:not(.js) .search { display: none; }
 .rec .seg, .er .seg { display: inline-block; max-width: 100%; }
 /* the card in full, folded; open, its quality gap and residual beside the agreement rate */
 .cardfull, .howread { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); }
+/* on wide screens the two folds are a pair, one band under the other */
+:where(.over:has(> .howread)) + .cardfull { margin-top: 12px; }
 .cardfull summary, .howread summary { display: flex; align-items: baseline; gap: 12px; min-height: 32px; cursor: pointer; list-style: none; }
 .cardfull summary::-webkit-details-marker, .howread summary::-webkit-details-marker { display: none; }
 .cardfull summary .sect.sm, .howread summary .sect.sm { margin: 0; }
@@ -445,8 +452,10 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
    web/test_breakpoints.py checks this. */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
-  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; }
+  /* how we read it, closed or open, is one band between two rules, so the facts after it start a block of their own */
+  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
   .over > .facts { grid-column: auto; grid-row: auto; }
+  .cardfull { margin-top: 44px; }
   .rose { max-width: 980px; }
   .facts { columns: 2; column-gap: 32px; }
   .facts div { break-inside: avoid; }
@@ -600,6 +609,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rpie .tx { display: inline; }
   .rpie .pie-svg { width: min(340px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
   .rprops { display: block; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--rule); }
+  .rprops.l { margin-top: 0; border-top-color: var(--line); }
   .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 3px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
   .rp + .rp { border-top: 1px solid var(--line); }
   .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: .05em; color: var(--paper); }
@@ -770,7 +780,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sysname { font-size: 56px; }
   .mast-sys .mast-in { padding-top: 8px; }
   .over { padding-top: 16px; }
-  .rose { row-gap: 8px; }
+  .rprops { gap: 8px; }
   .rpie .pie-svg { width: 160px; height: 160px; }
   .rpie { align-self: start; }
   .crit { margin-top: 24px; }
