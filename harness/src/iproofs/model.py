@@ -1200,6 +1200,57 @@ class PerturbedCommitmentRecord(Document):
     harness_version: str
 
 
+# ---------------------------------------------------------------- site-facts/1 (RFC-0009 §Site)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SiteInfo(Document):
+    licence: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ModelFacts(Document):
+    name: str
+    precision_words: Mapping[str, str] | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class LicenceFacts(Document):
+    name: str
+    url: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class StatusFacts(Document):
+    state: str
+    last_push: str | None = None
+    source: str | None = None
+    retrieved: str | None = None
+    quote: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RowFacts(Document):
+    name: str
+    technique: str | None = None
+    kind_words: str | None = None
+    models: tuple[str, ...] | None = None
+    code: str | None = None
+    licence: LicenceFacts | None = None
+    status: StatusFacts | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class SiteFacts(Document):
+    """`site-facts/1`, the display facts no harness record holds (`web/_data/facts.json`)."""
+
+    schema: str
+    site: SiteInfo
+    gpus: Mapping[str, str]
+    models: Mapping[str, ModelFacts]
+    rows: Mapping[str, RowFacts]
+
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
@@ -1339,6 +1390,12 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reproduction/1", "#/$defs/stats"): ComparedStats,
     ("reproduction/1", "#/properties/digests"): DigestMatch,
     ("perturbed-commitment/1", "#"): PerturbedCommitmentRecord,
+    ("site-facts/1", "#"): SiteFacts,
+    ("site-facts/1", "#/properties/site"): SiteInfo,
+    ("site-facts/1", "#/$defs/model"): ModelFacts,
+    ("site-facts/1", "#/$defs/row"): RowFacts,
+    ("site-facts/1", "#/$defs/row/properties/licence"): LicenceFacts,
+    ("site-facts/1", "#/$defs/row/properties/status"): StatusFacts,
 }
 
 

@@ -20,6 +20,10 @@ Every pull request that changes the public API, a schema or the methodology adds
 
 ### Added
 
+- `tokens_covered_per_proof` (RFC-0004 D-TPP, `tokens_covered_total` / `proofs_count`, unit token, scope null, grade derived): emitted by `derive_repetition` for every repetition, null `not_applicable` for a zero count and for every `kind: reference` row; additive to `run/1` and to the `quantity/1` metric-id pattern (#320).
+- `schema/site-facts/1` and `web/_data/facts.json`: the display facts the site prints and no harness record holds (names, techniques, licences, repository status, the models a not-benchmarked system's sources name, model display names), copied from `web/_data/site.json`; checked by G2 (#320).
+- `iproofs.controls.CONTROL_PROPERTY` and `runs_read`: the RFC-0016 OVR-2 control map and OVR-5 run selection, shared by the site and CRIT-13 (#320).
+
 - `systems/sash/controls.yaml`: the six SASH soundness switches (`--unsound-skip-residual-stream`, `-layer-boundary`, `-kv-boundary`, `-argmax`, `-embedding` and `--unsound-argmax-lax`) as `weakened_prover` controls, expected `accepted`, each with `requires_unbound_edge` naming a claim-card edge and a source at `eb95bfa`. The SASH binding report now names edges as the claim card does (#66).
 - `systems/flashprove/README.md` §Upstream's rejected proofs: FlashProve's `examples/rejected-proofs` at `9e2bdd8` listed row by row, and why none is registered as a system control (#70): upstream stores no altered proof (a script makes them from the synthetic `accepted-proof` examples), each set is checked against the example's own commitment ID, which the harness cannot regenerate (INV-CTRL-6, RFC-0008 Q4 default), and the examples' requests (r = 60, e = 64; r = 15, e = 47) and the clipped-gap `-policy` are not what the adapter's `verify` writes. No `controls.yaml` is added.
 - GPU fixtures for `sash` and `flashprove` (`tests/fixtures/gpu/`): one commit, prove and verify of each on an H100, both verdicts `accept`; the two INV-ADAPTER-9 fixture tests run on them.

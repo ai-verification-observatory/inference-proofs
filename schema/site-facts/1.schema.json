@@ -1,0 +1,184 @@
+{
+  "$defs": {
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "model": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "precision_words": {
+          "additionalProperties": {
+            "$ref": "#/$defs/text"
+          },
+          "description": "workload precision id -> its plain words",
+          "minProperties": 1,
+          "type": "object"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "row": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "open_licence",
+            "restricted_licence",
+            "no_licence_file",
+            "no_public_code"
+          ]
+        },
+        "kind_words": {
+          "$ref": "#/$defs/text",
+          "description": "a reference row's role, in plain words (RFC-0015)"
+        },
+        "licence": {
+          "additionalProperties": false,
+          "properties": {
+            "name": {
+              "$ref": "#/$defs/text"
+            },
+            "url": {
+              "$ref": "#/$defs/url"
+            }
+          },
+          "required": [
+            "name",
+            "url"
+          ],
+          "type": "object"
+        },
+        "models": {
+          "description": "the models the system's sources name, as they name them",
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "status": {
+          "additionalProperties": false,
+          "dependentRequired": {
+            "last_push": [
+              "source",
+              "retrieved"
+            ]
+          },
+          "properties": {
+            "last_push": {
+              "$ref": "#/$defs/date"
+            },
+            "quote": {
+              "$ref": "#/$defs/text",
+              "description": "the system's own words for its status, verbatim"
+            },
+            "retrieved": {
+              "$ref": "#/$defs/date"
+            },
+            "source": {
+              "$ref": "#/$defs/text"
+            },
+            "state": {
+              "enum": [
+                "active",
+                "unmaintained",
+                "archived",
+                "no_repository"
+              ]
+            }
+          },
+          "required": [
+            "state"
+          ],
+          "type": "object"
+        },
+        "technique": {
+          "$ref": "#/$defs/text",
+          "description": "how the system proves, attests or checks, in the words of its own sources; absent when they do not state it"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "type": "object"
+    },
+    "text": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "url": {
+      "format": "uri",
+      "pattern": "^https://",
+      "type": "string"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/site-facts/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "gpus": {
+      "additionalProperties": {
+        "$ref": "#/$defs/text"
+      },
+      "description": "reference file profile GPU model -> the short name the pages print",
+      "minProperties": 1,
+      "type": "object"
+    },
+    "models": {
+      "additionalProperties": {
+        "$ref": "#/$defs/model"
+      },
+      "description": "workload model digest -> its display name and precision words",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^sha256:[0-9a-f]{64}$"
+      },
+      "type": "object"
+    },
+    "rows": {
+      "additionalProperties": {
+        "$ref": "#/$defs/row"
+      },
+      "description": "criteria row id -> the facts printed for that row",
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "type": "object"
+    },
+    "schema": {
+      "const": "site-facts/1"
+    },
+    "site": {
+      "additionalProperties": false,
+      "properties": {
+        "licence": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "required": [
+        "licence"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "site",
+    "gpus",
+    "models",
+    "rows"
+  ],
+  "title": "Display facts the site prints and no harness record holds: web/_data/facts.json (RFC-0009 §Site). Every value is text.",
+  "type": "object"
+}

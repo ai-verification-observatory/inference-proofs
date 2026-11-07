@@ -1,0 +1,257 @@
+{
+  "gpus": {
+    "NVIDIA H100 80GB HBM3": "H100"
+  },
+  "models": {
+    "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114": {
+      "name": "Llama 4 Maverick",
+      "precision_words": {
+        "UD-Q4_K_XL": "4-bit"
+      }
+    }
+  },
+  "rows": {
+    "attestable": {
+      "code": "no_public_code",
+      "models": [
+        "Gemma 4 31B"
+      ],
+      "name": "Attestable prover",
+      "status": {
+        "state": "no_repository"
+      }
+    },
+    "deepprove": {
+      "code": "restricted_licence",
+      "models": [
+        "GPT-2, Gemma 3, Llama 2",
+        "google/gemma-3-1b-it (model id as given)",
+        "meta-llama/Llama-2-7b-hf (model id as given)"
+      ],
+      "name": "DeepProve",
+      "status": {
+        "state": "active"
+      },
+      "technique": "sumcheck / GKR interactive proofs"
+    },
+    "ezkl": {
+      "code": "no_licence_file",
+      "models": [
+        "nanoGPT example (size not stated)"
+      ],
+      "name": "EZKL",
+      "status": {
+        "state": "active"
+      },
+      "technique": "circuit compiled to a PLONKish SNARK (Halo2)"
+    },
+    "flashprove": {
+      "licence": {
+        "name": "Apache-2.0",
+        "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/LICENSE"
+      },
+      "name": "FlashProve",
+      "status": {
+        "quote": "A research artifact: not maintained, not accepting contributions.",
+        "state": "unmaintained"
+      },
+      "technique": "hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside"
+    },
+    "jolt-atlas": {
+      "code": "restricted_licence",
+      "models": [
+        "GPT-2 (125M)",
+        "Qwen/Qwen2-0.5B (model id as given)"
+      ],
+      "name": "JOLT Atlas",
+      "status": {
+        "state": "active"
+      },
+      "technique": "lookup-centric (Jolt-style) with sumcheck"
+    },
+    "jstprove": {
+      "code": "restricted_licence",
+      "models": [
+        "LeNet demo (README quickstart); no LLM"
+      ],
+      "name": "JSTprove",
+      "status": {
+        "state": "active"
+      },
+      "technique": "sumcheck / GKR interactive proofs"
+    },
+    "luminair": {
+      "code": "open_licence",
+      "models": [
+        "no LLM named in the README"
+      ],
+      "name": "LuminAIR",
+      "status": {
+        "state": "active"
+      },
+      "technique": "STARK over an execution trace (Circle STARK)"
+    },
+    "nanozk": {
+      "code": "no_public_code",
+      "models": [
+        "not named in the abstract"
+      ],
+      "name": "NanoZK",
+      "status": {
+        "state": "no_repository"
+      }
+    },
+    "opml": {
+      "code": "open_licence",
+      "models": [
+        "LLaMA (branch \"llama\"), size not stated"
+      ],
+      "name": "opML",
+      "status": {
+        "state": "unmaintained"
+      }
+    },
+    "private-ml-sdk": {
+      "code": "open_licence",
+      "models": [
+        "not named in the README"
+      ],
+      "name": "Private ML SDK",
+      "status": {
+        "state": "archived"
+      }
+    },
+    "ref-recompute": {
+      "kind_words": "Someone reruns the work: a referee settles a dispute between providers, or a checker holding the weights recomputes.",
+      "name": "Rerun by a weights holder"
+    },
+    "ref-serve": {
+      "kind_words": "Plain serving: the baseline with no check, for cost comparison.",
+      "name": "Plain serving"
+    },
+    "remainder": {
+      "code": "open_licence",
+      "models": [
+        "no LLM named in the README"
+      ],
+      "name": "Remainder (Community Edition)",
+      "status": {
+        "state": "active"
+      },
+      "technique": "sumcheck / GKR interactive proofs"
+    },
+    "sash": {
+      "licence": {
+        "name": "Apache-2.0",
+        "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/LICENSE"
+      },
+      "name": "SASH",
+      "status": {
+        "last_push": "2026-10-19",
+        "retrieved": "2026-11-05",
+        "source": "GitHub API",
+        "state": "active"
+      },
+      "technique": "STARK over an execution trace (Circle STARK)"
+    },
+    "tinfoil": {
+      "code": "open_licence",
+      "models": [
+        "not named on the page read"
+      ],
+      "name": "Tinfoil",
+      "status": {
+        "state": "active"
+      }
+    },
+    "toploc": {
+      "code": "open_licence",
+      "models": [
+        "Llama 3.1-8B-Instruct (named in the abstract)"
+      ],
+      "name": "TOPLOC",
+      "status": {
+        "state": "active"
+      }
+    },
+    "verde": {
+      "code": "no_public_code",
+      "models": [
+        "not named in the abstract"
+      ],
+      "name": "Verde (with RepOps)",
+      "status": {
+        "state": "no_repository"
+      }
+    },
+    "verinf": {
+      "code": "open_licence",
+      "models": [
+        "Llama 4 Maverick (400B-parameter mixture of experts)",
+        "Llama-2-7B"
+      ],
+      "name": "VerInf",
+      "status": {
+        "state": "active"
+      },
+      "technique": "hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside"
+    },
+    "zkgpt": {
+      "code": "no_public_code",
+      "models": [
+        "GPT-2"
+      ],
+      "name": "zkGPT",
+      "status": {
+        "state": "no_repository"
+      }
+    },
+    "zkllm": {
+      "code": "open_licence",
+      "models": [
+        "Llama-2-7B and Llama-2-13B"
+      ],
+      "name": "zkLLM",
+      "status": {
+        "state": "archived"
+      }
+    },
+    "zkml": {
+      "code": "open_licence",
+      "models": [
+        "a distilled GPT-2"
+      ],
+      "name": "ZKML",
+      "status": {
+        "state": "unmaintained"
+      },
+      "technique": "circuit compiled to a PLONKish SNARK (Halo2)"
+    },
+    "zkpytorch": {
+      "code": "no_public_code",
+      "models": [
+        "Llama-3 (8B parameters)",
+        "VGG-16"
+      ],
+      "name": "zkPyTorch",
+      "status": {
+        "state": "no_repository"
+      }
+    },
+    "zktorch": {
+      "code": "open_licence",
+      "models": [
+        "MLPerf Edge Inference v4.1 models, LLMs included; no LLM named in the README"
+      ],
+      "name": "ZKTorch",
+      "status": {
+        "state": "active"
+      },
+      "technique": "accumulation / folding of repeated blocks"
+    }
+  },
+  "schema": "site-facts/1",
+  "site": {
+    "licence": "CC BY 4.0"
+  }
+}

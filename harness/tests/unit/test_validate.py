@@ -93,6 +93,18 @@ def test_g2_claim_card_and_failing_example(repo: Path) -> None:
     ]
 
 
+def test_g2_site_facts(repo: Path) -> None:
+    """RFC-0013 §G2 input: web/_data/facts.json validates against site-facts/1."""
+    facts = "web/_data/facts.json"
+    doc = json.loads((ROOT / "schema/site-facts/examples/valid/facts.json").read_text())
+    write(repo, facts, doc)
+    registry = SchemaRegistry.from_tree(repo / "schema")
+    assert g2_schema(repo, [facts], registry) == []
+    doc["rows"]["fake"]["name"] = 1
+    write(repo, facts, doc)
+    assert [(f.path, f.rule) for f in g2_schema(repo, [facts], registry)] == [(facts, "SCHEMA")]
+
+
 def test_g2_xref_rules(repo: Path) -> None:
     run = "results/v0.1/fake/r"
     files = [
