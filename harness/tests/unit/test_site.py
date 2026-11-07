@@ -354,9 +354,7 @@ def test_claim_card_before_numbers(site: Build) -> None:
     figure and holds the glyph with each state as a word, the name, the pin of the row's card and,
     where the table holds two rows of the system, the card's `configuration`, and no value of any
     other card field; each state is the state the criteria file sets for that card (RFC-0016).
-    On system pages the validated claims precede every figure. Their quotes, sources and control
-    outcomes, the card's identity and digest, the card in full and the agreement rate are
-    RFC-0009 §Site gaps for #320 (its second pull request)."""
+    On system pages the validated claims precede every figure (`_validated_claims`)."""
     criteria, props = site.view["criteria"]["rows"], site.view["criteria"]["properties"]
     for _, body in TABLE.findall(site.pages["index.html"]):
         rows = ROW.findall(body)
@@ -392,12 +390,13 @@ def test_claim_card_before_numbers(site: Build) -> None:
 
 
 def _validated_claims(site: Build, system: str) -> None:
-    """S1 on a system page, in DOM order: the validated claims (per property its state, reason,
-    deciding quote with its source at the pin, or the sources read; both quotes of a conflict;
-    each mapped control in every run read, or "not run"), the card's identity with its file
-    and digest, the card in full in a `details` element folded in the HTML as sent, then
-    `quality_gap` and `residual` with the agreement rate outside it; all before every figure.
-    Under a pending disclosure the stated state in words, not drawn, and no control (OVR-8)."""
+    """S1 on a system page, in DOM order: the validated claims (per property its state, reason
+    and deciding quote with its source at the pin, then, folded in "How we read it", the sources
+    read, both quotes of a conflict and each mapped control in every run read), the card's
+    identity with its file and digest, the card in full in a `details` element, both folds
+    closed in the HTML as sent, then `quality_gap` and `residual` with the agreement rate
+    outside them; all before every figure. Under a pending disclosure the stated state in words,
+    not drawn, and no control (OVR-8)."""
     props = site.view["criteria"]["properties"]
     text = site.pages[f"{system}.html"]
     configs = system_configs(site, system)
@@ -408,7 +407,8 @@ def _validated_claims(site: Build, system: str) -> None:
     identity = text.index(f'href="{card["link"]}"')
     folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
     gap = text.index('class="gapblk"')
-    assert claims < text.index('class="rprops"') < identity < folded < gap < first_figure
+    read = text.index('<details class="howread" id="how-we-read">')
+    assert claims < text.index('class="rprops"') < read < identity < folded < gap < first_figure
     assert text.index('class="rprops"') < text.index('class="fig"')
     assert "<details open" not in text  # folded as sent (S1 item 4)
     details = text[folded : text.index("</details>", folded)]
@@ -428,16 +428,36 @@ def _validated_claims(site: Build, system: str) -> None:
         _property_claims(site, system, p, pc)
 
 
+PROPERTY_BLOCK = re.compile(
+    r'<li class="rp [rl]" id="p-[a-z_]+" data-n="\d"><p class="rn">.*?</p>'
+    r'(<p class="rs">.*?</p>)(<p class="rr">[^<]*</p>)?(<div class="ev">(.*?)</div>)?</li>',
+    re.S,
+)
+EV_PARTS = re.compile(
+    r'<blockquote class="eq"><p>[^<]*</p></blockquote>'
+    r'<p class="es"><a class="qsrc" [^>]*>.*?</a></p>'
+    r'|<p class="ex"><span class="ek">stated</span><span class="eb">.*?</span></p>',
+    re.S,
+)
+
+
 def _property_claims(
     site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None
 ) -> None:
-    """One property of a system page's validated claims (`_validated_claims`)."""
+    """One property of a system page's validated claims (`_validated_claims`): its block under
+    the glyph holds its state, our reason, the deciding quote with its source and, for an
+    overridden cell, its stated state with what contradicts it, nothing else; what was read and
+    the controls are in "How we read it" (`_how_we_read`)."""
     criteria = site.view["criteria"]["rows"]
     text = site.pages[f"{system}.html"]
     cells = criteria[system]["cells"]
     item = re.search(rf'<li class="rp [rl]" id="p-{p["id"]}".*?</li>', text, re.S)
     assert item, (system, p["id"])
     body, said = item[0], flat(item[0])
+    block = PROPERTY_BLOCK.fullmatch(body)
+    assert block, (system, p["id"], body)  # name, state, reason, evidence: nothing else
+    ev = block[4] or ""
+    assert not EV_PARTS.sub("", ev), (system, p["id"], ev)  # quote, source, overridden line only
     cell = cells[p["id"]]
     state = cell["state"]
     if criteria[system]["drawn"]:
@@ -447,12 +467,54 @@ def _property_claims(
         assert '<i class="sw ' not in body
         assert f"Stated: {WORD[state]}" in said, (system, p["id"])
     _quotes_printed(system, p, cell, body, said)
-    if not cell["quotes"] and cell["sources_read"]:
-        _sources_read(site, system, p, said)
-    if pc is None or pc["withheld"]:
-        assert 'class="ec"' not in body, (system, p["id"])
+    _how_we_read(site, system, p, pc)
+    if pc is None or pc["withheld"] or not cell.get("stated"):
         assert 'class="ex"' not in body, (system, p["id"])
         return
+    assert f"stated {WORD[cell['stated']]}" in plain(body)
+    for x in cell["contradicted_by"]:
+        assert f"{x['control']} accepted in run {x['run_id']}" in said
+
+
+def _quotes_printed(
+    system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
+) -> None:
+    """S1 item 1: the one quote marked `decides`, verbatim, with its source at the pin; a
+    stated cell always prints it; a quote that does not decide is not printed in the block (in a
+    conflict, the other quote is in "How we read it")."""
+    deciding = [q for q in cell["quotes"] if q.get("decides")]
+    if cell["state"] != "not_stated":
+        assert len(deciding) == 1, (system, p["id"])  # a stated cell prints the quote it rests on
+    for q in [q for q in cell["quotes"] if q not in deciding]:  # a non-deciding quote: not here
+        assert q["text"] not in html.unescape(body), (system, p["id"])
+    for q in deciding:  # verbatim, with its source at the pin
+        assert q["text"] in html.unescape(body), (system, p["id"])
+        assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
+        assert f"{q['repo']}@{q['commit'][:8]} {q['path']} {q['lines']}" in said, (system, p["id"])
+
+
+def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
+    """RFC-0016 ST-2, ST-8, OVR-7 in the fold "How we read it": the sources read, both quotes of
+    a conflict, and each mapped control in every run read (no run read says why, never "not
+    run"); none of it under a pending disclosure but the sources and quotes (OVR-8)."""
+    text = site.pages[f"{system}.html"]
+    cell = site.view["criteria"]["rows"][system]["cells"][p["id"]]
+    entry = re.search(rf'<div id="read-{p["id"]}"><dt>(.*?)</dt><dd>(.*?)</dd></div>', text, re.S)
+    controls = pc is not None and not pc["withheld"]
+    if not (cell["sources_read"] or cell["conflict"] or controls):
+        assert entry is None, (system, p["id"])
+        return
+    assert entry, (system, p["id"])
+    assert flat(entry[1]) == p["name"]
+    body, said = entry[2], flat(entry[2])
+    if cell["sources_read"]:
+        _sources_read(site, system, p, said)
+    for q in cell["quotes"] if cell["conflict"] else []:  # both quotes of a conflict
+        assert q["text"] in html.unescape(body), (system, p["id"])
+    if not controls:
+        assert 'class="ec"' not in body, (system, p["id"])
+        return
+    assert pc is not None
     mapped = pc["properties"][p["id"]]["mapped"]
     if not mapped:  # OVR-7: the page says no RFC-0008 control tests the property
         assert "controls none rule" in plain(body), (system, p["id"])
@@ -463,44 +525,20 @@ def _property_claims(
     if not pc["runs"] and mapped:  # no run read says why, never "not run" (OVR-5)
         assert f"{', '.join(mapped)}: no run read, since " in said, (system, p["id"])
         assert "not run" not in said, (system, p["id"])
-    if cell.get("stated"):
-        assert f"stated {WORD[cell['stated']]}" in plain(body)
-        for x in cell["contradicted_by"]:
-            assert f"{x['control']} accepted in run {x['run_id']}" in said
-
-
-def _quotes_printed(
-    system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
-) -> None:
-    """S1 item 1: the quote marked `decides` (every quote of a conflict), verbatim, with its
-    source at the pin; a stated cell always prints one; a quote that does not decide is not
-    printed."""
-    state = cell["state"]
-    deciding = [q for q in cell["quotes"] if q.get("decides")]
-    quotes = cell["quotes"] if cell["conflict"] else deciding
-    if state != "not_stated":
-        assert quotes, (system, p["id"])  # a stated cell prints the quote it rests on
-    for q in [q for q in cell["quotes"] if q not in quotes]:  # a non-deciding quote: not printed
-        assert q["text"] not in html.unescape(body), (system, p["id"])
-    for q in quotes:  # verbatim, with its source at the pin
-        assert q["text"] in html.unescape(body), (system, p["id"])
-        assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
-        assert f"{q['repo']}@{q['commit'][:8]}" in said, (system, p["id"])
 
 
 def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> None:
-    """RFC-0016 ST-2: a Not stated cell lists what was read, each repository linked at its
-    commit; a list equal to one printed above it on the page names that property instead."""
+    """RFC-0016 ST-2: what was read, one line per repository linked at its commit with the paths
+    read; a list equal to one printed above it in the fold names that property instead."""
     cells = site.view["criteria"]["rows"][system]["cells"]
     text = site.pages[f"{system}.html"]
-    order = re.findall(r'<li class="rp [rl]" id="p-([a-z_]+)"', text)
+    order = re.findall(r'<div id="read-([a-z_]+)">', text)
     mine = cells[p["id"]]["sources_read"]
-    earlier = [q for q in order[: order.index(p["id"])]
-               if not cells[q]["quotes"] and cells[q]["sources_read"] == mine]  # fmt: skip
+    earlier = [q for q in order[: order.index(p["id"])] if cells[q]["sources_read"] == mine]
     if earlier:
         name = next(x["name"] for x in site.view["criteria"]["properties"] if x["id"] == earlier[0])
-        assert f"as for {name}" in said, (system, p["id"])
-        assert f'href="#p-{earlier[0]}"' in text
+        assert said.startswith(f"read as for {name}"), (system, p["id"])
+        assert f'href="#read-{earlier[0]}"' in text
         return
     for source in mine:  # criteria/1: a repository at a full commit, or a web page
         if "repo" in source:
@@ -513,18 +551,40 @@ def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> Non
 
 def test_stated_cell_needs_its_deciding_quote() -> None:
     """S1 item 1, AGENTS.md rule 9: the quote printed is the one marked `decides`, wherever it
-    sits in the cell; a stated cell with none, or a printed quote with no repo, commit or url,
-    stops the build instead of printing a state with nothing under it."""
-    shown = renderer(ROOT).draw.claims.shown_quotes
+    sits in the cell, also in a conflict (RFC-0016 ST-8: the quote of the stated state); a
+    stated cell with none, or a deciding quote with no repo, commit or url, stops the build
+    instead of printing a state with nothing under it."""
+    deciding = renderer(ROOT).draw.claims.deciding_quotes
     q = {"repo": "o/r", "commit": "a" * 40, "url": "https://github.com/o/r", "text": "t"}
     other = {**q, "text": "u", "decides": False}
     cell = {"state": "yes", "conflict": False, "quotes": [other, {**q, "decides": True}]}
-    assert shown("s", "p", cell) == [{**q, "decides": True}]
+    assert deciding("s", "p", cell) == [{**q, "decides": True}]
+    assert deciding("s", "p", {**cell, "conflict": True}) == [{**q, "decides": True}]
     with pytest.raises(RuntimeError, match="no deciding quote"):
-        shown("s", "p", {**cell, "quotes": [other]})
+        deciding("s", "p", {**cell, "quotes": [other]})
     with pytest.raises(RuntimeError, match="no repo, commit or url"):
-        shown("s", "p", {**cell, "quotes": [{"text": "t", "decides": True}]})
-    assert shown("s", "p", {"state": "not_stated", "conflict": False, "quotes": []}) == []
+        deciding("s", "p", {**cell, "quotes": [{"text": "t", "decides": True}]})
+    assert deciding("s", "p", {"state": "not_stated", "conflict": False, "quotes": []}) == []
+
+
+def test_conflict_quotes_folded() -> None:
+    """RFC-0016 ST-8 in "How we read it": every quote of a conflicting cell, verbatim, each with
+    the state whose rule it meets and its source at the pin; a cell with no conflict adds none
+    (no criteria cell conflicts yet, so the case is built here)."""
+    lines = renderer(ROOT).draw.claims.conflict_lines
+    q = {"repo": "o/r", "commit": "a" * 40, "path": "README.md", "lines": "L1",
+         "url": "https://github.com/o/r/blob/" + "a" * 40 + "/README.md#L1"}  # fmt: skip
+    yes = {**q, "text": "it holds", "meets": "yes", "decides": False}
+    partly = {**q, "text": "it holds in part", "meets": "partly", "decides": True}
+    out = lines({"conflict": True, "quotes": [yes, partly]})
+    line = r'<p class="eqs"><span class="ek">(\w+)</span><span class="eb">(.*?)</span></p>'
+    rows = re.findall(line, out, re.S)
+    assert [(k, flat(v)) for k, v in rows] == [
+        ("yes", "“it holds”o/r@aaaaaaaa README.md L1 ↗"),
+        ("partly", "“it holds in part”o/r@aaaaaaaa README.md L1 ↗"),
+    ]
+    assert out.count(f'href="{q["url"]}"') == 2
+    assert lines({"conflict": False, "quotes": [yes, partly]}) == ""
 
 
 def _strings(value: object) -> list[str]:

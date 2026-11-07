@@ -10,6 +10,7 @@ from .claims import (
     card_value,
     evidence_of,
     gap_block,
+    how_we_read,
     property_controls_of,
     run_ref,
 )
@@ -71,7 +72,8 @@ SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 def rose_item(c, pre, drawn=True, ev=""):
     """One property beside its slice: its name (a link to what its states mean), its question for
     screen readers, the state, our short reason (left out when it only repeats Not stated) and,
-    on a system page, what the state rests on (`ev`, draw/claims.py)."""
+    on a system page, the deciding quote with its source and an overridden cell's one line (`ev`,
+    draw/claims.py), nothing else."""
     generic = (
         c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
     )
@@ -374,16 +376,20 @@ def system_desc(sid):
 
 
 def claims_section(sid, cfgs, g, facts):
-    """S1: the card's validated claims (the pie, and per property its state, reason, quote or
-    sources read, and control outcomes), its identity among the facts, the card in full
-    (folded) and its quality gap and residual beside the agreement rate; before any figure."""
+    """S1: the card's validated claims (the pie, and per property its state, reason, deciding
+    quote with its source, and an overridden cell's stated state; then, folded, how we read it:
+    sources read, both quotes of a conflict, control outcomes), its identity among the facts,
+    the card in full (folded) and its quality gap and residual beside the agreement rate; before
+    any figure. "How we read it" stays in the validated claims, before the facts in reading
+    order (S1 item 1); words.css sets it under the pie, beside the facts, on wide screens."""
     cfg = cfgs[0]
     pc = property_controls_of(cfgs)
-    ev = evidence_of(sid, pc, [c["prop"] for c in g["cells"]])
+    order = [c["prop"] for c in g["cells"]]
     name = name_of(sid)
     return (
         f'<section class="claims" id="claims-{e(cfg["configuration"])}" aria-labelledby="h-props">'
-        f'<div class="over" id="properties">{rose(g, "h-props", name, ev=ev)}{facts_dl(facts)}</div>'
+        f'<div class="over" id="properties">{rose(g, "h-props", name, ev=evidence_of(sid, pc, order))}'
+        f"{how_we_read(sid, pc, order)}{facts_dl(facts)}</div>"
         f"{card_full(cfg, sid)}{gap_block(cfgs)}</section>"
     )
 

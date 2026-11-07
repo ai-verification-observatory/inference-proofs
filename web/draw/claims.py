@@ -1,8 +1,9 @@
-"""A card's validated claims on its system page (RFC-0009 S1, RFC-0016 OVR-7, OVR-8): per
-property the deciding quote with its source at the pin, the sources read when Not stated, both
-quotes of a conflict, the controls the map ties to the property and their outcomes; then the
-card's identity, the card in full (folded) and its `quality_gap` and `residual` beside the
-agreement rate (RFC-0015 RC-6).
+"""A card's validated claims on its system page (RFC-0009 S1, RFC-0016 OVR-7, OVR-8): beside
+each property, its state, our reason and the deciding quote with its source at the pin, and, for
+an overridden cell, its stated state and what contradicts it; then, folded in "How we read it",
+the sources read, both quotes of a conflict and the controls the map ties to each property with
+their outcomes; then the card's identity, the card in full (folded) and its `quality_gap` and
+`residual` beside the agreement rate (RFC-0015 RC-6).
 
 Every word printed here is the system's own (quotes, card fields), the criteria file's (reasons),
 a stored outcome or a fixed word for a stored id: nothing is inferred.
@@ -67,12 +68,12 @@ def quote_html(q):
     )
 
 
-def shown_quotes(sid, prop, cell):
-    """S1 item 1: the quote the state rests on (`decides: true`), or every quote of a conflicting
-    cell (RFC-0016 ST-8). A stated cell with no deciding quote, or a printed quote with no
-    repository, commit or link, stops the build: a state is never printed without its source
+def deciding_quotes(sid, prop, cell):
+    """S1 item 1: the quote the state rests on (`decides: true`; in a conflict, the quote of the
+    stated state, RFC-0016 ST-8). A stated cell with no deciding quote, or a deciding quote with
+    no repository, commit or link, stops the build: a state is never printed without its source
     (AGENTS.md rule 9)."""
-    quotes = cell["quotes"] if cell["conflict"] else [q for q in cell["quotes"] if q.get("decides")]
+    quotes = [q for q in cell["quotes"] if q.get("decides")]
     if cell["state"] != "not_stated" and not quotes:
         raise RuntimeError(f"criteria {sid}/{prop}: state {cell['state']} with no deciding quote")
     for q in quotes:
@@ -93,7 +94,7 @@ def sources_read(items, same_as=None):
     property instead of printing it twice."""
     if same_as:
         prop = next(p for p in S.PROPS if p["id"] == same_as)
-        return ev_line("er", "read", f'as for <a class="qsrc" href="#p-{e(same_as)}">'
+        return ev_line("er", "read", f'as for <a class="qsrc" href="#read-{e(same_as)}">'
                                      f'<span class="seg">{e(prop["name"])}</span></a>')  # fmt: skip
     parts = []
     for s in items:  # criteria/1: a repository at a full commit with its paths, or a web page
@@ -155,9 +156,10 @@ def control_lines(pc, prop):
     return "".join(out)
 
 
-def contradicted_lines(cell, pc, prop):
-    """RFC-0016 OVR-4, OVR-7: an overridden cell's stated state, then each control and run that
-    contradicts it."""
+def contradicted_line(cell, pc, prop):
+    """RFC-0016 OVR-4, OVR-7: an overridden cell's stated state and each control and run that
+    contradicts it, in one line under the property: the one line beside the deciding quote that
+    changes the state."""
     if not cell.get("stated"):
         return ""
     found = pc["properties"][prop]["contradicted"] if pc and not pc["withheld"] else []
@@ -167,32 +169,64 @@ def contradicted_lines(cell, pc, prop):
                    + ("; contradicted by " + runs if runs else ""))  # fmt: skip
 
 
-def evidence(sid, prop, pc, same_as=None):
-    """What one property's state rests on, under its reason: the deciding quote (every quote, in
-    a conflict), or the sources read (`same_as`: an earlier property that read the same); the
-    stated state of an overridden cell and what contradicts it; the mapped controls' outcomes.
-    Under a pending disclosure (OVR-8, `pc` withheld) the quotes only."""
+def evidence(sid, prop, pc):
+    """What one property's block holds under its state and reason, and nothing else: the
+    deciding quote with its source at the pin, and, for an overridden cell, its stated state and
+    what contradicts it (not under a pending disclosure: OVR-8, `pc` withheld). A Not stated cell
+    with no deciding quote adds nothing."""
     cell = S.CRIT["rows"][sid]["cells"][prop]
-    body = "".join(quote_html(q) for q in shown_quotes(sid, prop, cell))
-    if not cell["quotes"] and cell["sources_read"]:
-        body += sources_read(cell["sources_read"], same_as)
+    body = "".join(quote_html(q) for q in deciding_quotes(sid, prop, cell))
     if pc is not None and not pc["withheld"]:
-        body += contradicted_lines(cell, pc, prop) + control_lines(pc, prop)
+        body += contradicted_line(cell, pc, prop)
     return f'<div class="ev">{body}</div>' if body else ""
 
 
 def evidence_of(sid, pc, order):
-    """Each property's evidence (`evidence`), by property id; `order`: the property ids in the
-    order the page prints them, so a Not stated cell whose sources read equal an earlier one's
-    names the one printed above it."""
-    out, seen = {}, {}
+    """Each property's block evidence (`evidence`), by property id, in `order`."""
+    return {prop: evidence(sid, prop, pc) for prop in order}
+
+
+def conflict_lines(cell):
+    """RFC-0016 ST-8: every quote of a conflicting cell, each with the state whose rule it meets
+    and its source at the pin."""
+    if not cell["conflict"]:
+        return ""
+    lines = []
+    for q in cell["quotes"]:
+        label = e(STATE_WORD[q["meets"]].lower()) if q.get("meets") else "quote"
+        lines.append(ev_line("eqs", label, quote_html(q)))
+    return "".join(lines)
+
+
+def how_we_read(sid, pc, order):
+    """How we read it (RFC-0009 S1 item 1, RFC-0016 ST-2, ST-8, OVR-7), folded in a native
+    `details` that opens with one press, with or without script: per property, in `order`, the
+    sources read (one line per repository, linked at its commit, with the paths read; a list
+    equal to an earlier property's names that property), both quotes of a conflict, and the
+    controls the map ties to it with their outcome in every run read (none under a pending
+    disclosure, OVR-8). A property with none of these is left out; with none at all, so is the
+    fold."""
+    names = {p["id"]: p["name"] for p in S.PROPS}
+    rows, seen = [], {}
     for prop in order:
         cell = S.CRIT["rows"][sid]["cells"][prop]
-        key = json.dumps(cell["sources_read"], sort_keys=True) if not cell["quotes"] else None
-        out[prop] = evidence(sid, prop, pc, seen.get(key) if key else None)
-        if key:
+        body = ""
+        if cell["sources_read"]:
+            key = json.dumps(cell["sources_read"], sort_keys=True)
+            body += sources_read(cell["sources_read"], seen.get(key))
             seen.setdefault(key, prop)
-    return out
+        body += conflict_lines(cell)
+        if pc is not None and not pc["withheld"]:
+            body += control_lines(pc, prop)
+        if body:
+            rows.append(f'<div id="read-{e(prop)}"><dt>{e(names[prop])}</dt><dd>{body}</dd></div>')
+    if not rows:
+        return ""
+    return (
+        '<details class="howread" id="how-we-read">'
+        '<summary><span class="sect sm">How we read it</span></summary>'
+        f'<dl class="cf hw">{"".join(rows)}</dl></details>'
+    )
 
 
 # ------------------------------------------------------------------ the card: identity, in full, gap
@@ -210,7 +244,7 @@ def card_fact(cfg):
     ]
     if not card["reviewed"]:
         lines.append("card not reviewed by system maintainers")
-    return '<span class="links">' + "".join(f"<span>{x}</span>" for x in lines) + "</span>"
+    return '<span class="links cardid">' + "".join(f"<span>{x}</span>" for x in lines) + "</span>"
 
 
 SCALAR = {None: "null", True: "true", False: "false"}

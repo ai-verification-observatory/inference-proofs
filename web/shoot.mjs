@@ -318,10 +318,11 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   // the six names and states on the first screen (on a system page, what each rests on follows under it)
   const firstScreen = await p.evaluate(() => Math.max(...[...document.querySelector('.rose').querySelectorAll('.rp .rs')].map((x) => Math.round(x.getBoundingClientRect().bottom))));
   ok(firstScreen <= 900, `${tagOf(name)}: the six properties' states fit the first screen`, firstScreen);
-  // quotes only under a property, as what its state rests on; the one fold is the card in full, folded as sent
-  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.rp .ev')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
+  // quotes only under a property (its deciding quote) or in how we read it (a conflict's); the two folds,
+  // how we read it and the card in full, closed as sent
+  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.rp .ev, .howread')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
   const sys = name !== 'reference';
-  ok(!fold.stray && fold.details.join() === (sys ? 'cardfull:false' : ''), `${tagOf(name)}: quotes only under their property; ${sys ? 'the card in full folded' : 'nothing folded'}`, fold);
+  ok(!fold.stray && fold.details.join() === (sys ? 'howread:false,cardfull:false' : ''), `${tagOf(name)}: quotes only under their property or in how we read it; ${sys ? 'how we read it and the card in full folded' : 'nothing folded'}`, fold);
   // pointing at a property lifts its slice
   await p.hover('.rp[data-n="2"]'); await p.waitForTimeout(300);
   const lift = await p.evaluate(() => getComputedStyle(document.querySelector('.rpie .s2')).transform);
@@ -523,21 +524,23 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
 }
 
 // ---------------------------------------------------------------- the validated claims, the card in full and the release's pages (#320)
-// at 390 and 320 px: one press opens the card in full; with it open, nothing overflows, and every
+// at 390 and 320 px: one press opens how we read it and the card in full; with both open, nothing overflows, and every
 // link and button of the new blocks (quotes' sources, control lines, card fields, runs left out,
 // unexpected outcomes, the release record) is 24 px tall or more, none overlapping another
 for (const w of [390, 320]) {
   for (const name of ['flashprove', 'sash', 'release', 'sponsors']) {
     const { ctx, p } = await pg(w, 844, { touch: true });
     await p.goto(BASE + name, { waitUntil: 'networkidle' });
-    if (await p.locator('details.cardfull summary').count()) {
-      await p.tap('details.cardfull summary'); await p.waitForTimeout(200);
-      ok(await p.evaluate(() => document.querySelector('details.cardfull').open), `${name}-${w}: one press opens the card in full`);
+    for (const [cls, what] of [['howread', 'how we read it'], ['cardfull', 'the card in full']]) {
+      if (await p.locator(`details.${cls} summary`).count()) {
+        await p.tap(`details.${cls} summary`); await p.waitForTimeout(200);
+        ok(await p.evaluate((c) => document.querySelector(`details.${c}`).open, cls), `${name}-${w}: one press opens ${what}`);
+      }
     }
     const o = await overflow(p);
-    ok(o.over <= 0 && !o.wide.length, `${name}-${w}: no horizontal overflow, the card in full open`, o);
+    ok(o.over <= 0 && !o.wide.length, `${name}-${w}: no horizontal overflow, both folds open`, o);
     const t = await p.evaluate(() => {
-      const sel = '.ev a, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
+      const sel = '.ev a, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
       const els = [...document.querySelectorAll(sel)].filter((a) => a.getClientRects().length && !a.closest('.sr, [hidden]'));
       const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
       const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));
