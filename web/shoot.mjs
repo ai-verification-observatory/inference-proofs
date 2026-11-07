@@ -535,10 +535,10 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
     ok(!/These tests show only what happened|Printed as text/.test(t.all), `${tagOf(name)}: cut sentences absent`);
     ok(!/\bmock\b/i.test(t.all), `${tagOf(name)}: no placeholder marking on the page`);
     ok(!/\b(best|top|fastest|leader|leaderboard|winner|rank(ed|ing)?)\b|#\s?1\b|🥇/i.test(t.chrome), `${tagOf(name)}: no ranking words in the site's own controls`);
-    ok(!/\d\s*(Weights hidden|Model bound|Whole output proved|Formally verified|Security level|No trusted party)/.test(t.all), `${tagOf(name)}: no numbered property names`);
+    ok(!/\d\s*(Weights hidden|Model bound|Whole output checked|Formally verified|Security level|No trusted party)/.test(t.all), `${tagOf(name)}: no numbered property names`);
     ok(!/step \d of \d/i.test(t.all), `${tagOf(name)}: no "step N of M"`);
     ok(!t.dup.length, `${tagOf(name)}: no duplicate ids`, t.dup);
-    ok(!/\bfixture\b|n_failed|RFC-\d{4} [A-Z]+-\d/.test(t.vis), `${tagOf(name)}: no placeholder words, field names or bare rule codes in visible text`);
+    ok(!/\bfixture\b|n_failed|the row reads|RFC-\d{4} [A-Z]+-\d/.test(t.vis), `${tagOf(name)}: no placeholder words, field names or bare rule codes in visible text`);
     // every local link resolves, and its #fragment names exactly one element on the target page
     const local = await p.evaluate(() => [...new Set([...document.querySelectorAll('a[href]')].map((a) => a.href).filter((h) => h.startsWith(location.origin)))]);
     for (const u of local) {

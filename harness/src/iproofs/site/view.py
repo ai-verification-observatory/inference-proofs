@@ -140,7 +140,7 @@ def property_controls(
     again from disk."""
     if row["pending"]:
         return {"withheld": True, "properties": {}}
-    read = runs_read(root, criteria.release, row["id"], configuration)
+    read = runs_read(root, criteria.release, str(row["card"]["system"]), configuration)
     held = {rec["dir"]: rec["controls"] for rec in records.values()}
     controls: dict[str, dict[str, Any]] = {}
     for run_dir in read:
@@ -365,6 +365,7 @@ def site_view(root: Path) -> dict[str, Any]:
             "release": criteria.release,
             "rfc": inputs.rfc_status(root, "0016"),
             "order": list(criteria.order),
+            "states": criteria.states,
             "properties": list(criteria.properties),
             "rows": criteria.rows,
             "pins": criteria.pins,
@@ -384,14 +385,15 @@ def site_view(root: Path) -> dict[str, Any]:
 
 
 def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[str, Any]]) -> None:
-    """What the site checks of the criteria file against the rendered release, until CRIT-13
-    (#318) recomputes the override in the validator:
+    """What the site checks of the criteria file against the rendered release (CRIT-13 in the
+    validator recomputes the override from the stored files; these checks keep a stale file
+    from being drawn):
 
     - the file names no release, or the rendered one (OVR-5: a file built for another release
       reads other runs);
-    - each benchmarked system has one card configuration, since rows are keyed by system until
-      #318 adds `card` to them (SRC-1: one card row per card), so no configuration borrows the
-      row of another card;
+    - each benchmarked configuration has the card row its card names (SRC-1), and that row is
+      the system's (the renderer draws one glyph per system page), so a system runs one card
+      configuration;
     - no state is drawn that a stored outcome contradicts (OVR-3, OVR-4): an `accepted` control
       outside its expected set (`index.controls[].outside_expected`), mapped to a property
       (OVR-2), on a configuration whose row is drawn and whose cell for that property is `yes`
@@ -408,9 +410,15 @@ def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[st
             cards.setdefault(c["system"], set()).add(str(c["configuration"]))
     for system, names in sorted(cards.items()):
         if len(names) > 1:
-            raise _config(f"{system} runs {len(names)} card configurations {sorted(names)}; "
-                          f"{criteria.path} keys rows by system, so they would share one row "
-                          "(RFC-0016 SRC-1, #318)")  # fmt: skip
+            raise _config(f"{system} runs {len(names)} card configurations {sorted(names)}; the "
+                          "renderer draws one glyph per system page (RFC-0016 SRC-1)")  # fmt: skip
+        (name,) = names
+        rid = criteria.cards.get((system, name))
+        if rid is None:
+            raise _config(f"{criteria.path} has no card row for {system}/{name} (RFC-0016 SRC-1)")
+        if rid != system:
+            raise _config(f"{criteria.path} row {rid!r} holds the card of {system}; the renderer "
+                          "keys a card row by its system")  # fmt: skip
     for c in configs:
         row = criteria.rows.get(c["system"])
         if c["kind"] != "prover" or row is None or not row["drawn"]:

@@ -1,0 +1,850 @@
+{
+  "$defs": {
+    "cell": {
+      "additionalProperties": false,
+      "dependentRequired": {
+        "contradicted_by": [
+          "stated"
+        ],
+        "stated": [
+          "contradicted_by"
+        ]
+      },
+      "properties": {
+        "aside": {
+          "additionalProperties": false,
+          "properties": {
+            "quotes": {
+              "items": {
+                "$ref": "#/$defs/quote"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "words": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "words",
+            "quotes"
+          ],
+          "type": "object"
+        },
+        "conflict": {
+          "const": true,
+          "description": "ST-8; absent otherwise"
+        },
+        "contradicted_by": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "control": {
+                "$ref": "../quantity/1.schema.json#/$defs/controlId"
+              },
+              "run_id": {
+                "$ref": "../quantity/1.schema.json#/$defs/runId"
+              }
+            },
+            "required": [
+              "control",
+              "run_id"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "not_copied": {
+          "const": true,
+          "description": "Q2: a public-source not_stated cell where nothing was read yet"
+        },
+        "note": {
+          "$ref": "#/$defs/text"
+        },
+        "outside_pin": {
+          "additionalProperties": false,
+          "properties": {
+            "quotes": {
+              "items": {
+                "$ref": "#/$defs/quote"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "reason": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "reason",
+            "quotes"
+          ],
+          "type": "object"
+        },
+        "quotes": {
+          "items": {
+            "$ref": "#/$defs/quote"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "$ref": "#/$defs/text"
+        },
+        "sources_read": {
+          "items": {
+            "$ref": "#/$defs/source_read"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "state": {
+          "$ref": "#/$defs/state"
+        },
+        "stated": {
+          "description": "OVR-4: the stated state of an overridden cell",
+          "enum": [
+            "yes",
+            "partly"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "reason",
+        "quotes"
+      ],
+      "type": "object"
+    },
+    "date": {
+      "format": "date",
+      "type": "string"
+    },
+    "disclosure": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "date"
+                  ]
+                },
+                {
+                  "required": [
+                    "url"
+                  ]
+                }
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "const": "published"
+              }
+            },
+            "required": [
+              "state"
+            ]
+          },
+          "then": {
+            "required": [
+              "date",
+              "url"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "run_id": {
+          "$ref": "../quantity/1.schema.json#/$defs/runId"
+        },
+        "state": {
+          "enum": [
+            "pending",
+            "published"
+          ]
+        },
+        "url": {
+          "pattern": "^https://\\S+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "state"
+      ],
+      "type": "object"
+    },
+    "own_source": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "how": {
+              "$ref": "#/$defs/text"
+            },
+            "repo": {
+              "$ref": "#/$defs/repo"
+            }
+          },
+          "required": [
+            "repo",
+            "how"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "domain": {
+              "pattern": "^[a-z0-9.-]+\\.[a-z]{2,}$",
+              "type": "string"
+            },
+            "how": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "domain",
+            "how"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "how": {
+              "$ref": "#/$defs/text"
+            },
+            "url": {
+              "$ref": "#/$defs/url"
+            }
+          },
+          "required": [
+            "url",
+            "how"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "SRC-8: a repository, domain or page of the system's own authors, with how it was identified"
+    },
+    "property": {
+      "additionalProperties": false,
+      "properties": {
+        "card_fields": {
+          "items": {
+            "$ref": "#/$defs/text"
+          },
+          "type": "array"
+        },
+        "id": {
+          "$ref": "#/$defs/property_id"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "not_here": {
+          "$ref": "#/$defs/text"
+        },
+        "question": {
+          "$ref": "#/$defs/text"
+        },
+        "rules": {
+          "additionalProperties": false,
+          "properties": {
+            "no": {
+              "$ref": "#/$defs/text"
+            },
+            "not_stated": {
+              "$ref": "#/$defs/text"
+            },
+            "partly": {
+              "$ref": "#/$defs/text"
+            },
+            "yes": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "yes",
+            "partly",
+            "no",
+            "not_stated"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "question",
+        "not_here",
+        "rules",
+        "card_fields"
+      ],
+      "type": "object"
+    },
+    "property_id": {
+      "enum": [
+        "weights_hidden",
+        "model_bound",
+        "whole_output",
+        "formally_verified",
+        "security_level",
+        "no_trusted_party"
+      ]
+    },
+    "quote": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "retrieved"
+                  ]
+                },
+                {
+                  "required": [
+                    "archive_url"
+                  ]
+                },
+                {
+                  "required": [
+                    "copy"
+                  ]
+                }
+              ]
+            },
+            "required": [
+              "repo",
+              "commit",
+              "path",
+              "lines"
+            ]
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "web"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": [
+                    "repo"
+                  ]
+                },
+                {
+                  "required": [
+                    "commit"
+                  ]
+                },
+                {
+                  "required": [
+                    "path"
+                  ]
+                },
+                {
+                  "required": [
+                    "lines"
+                  ]
+                }
+              ]
+            },
+            "oneOf": [
+              {
+                "required": [
+                  "archive_url"
+                ]
+              },
+              {
+                "required": [
+                  "copy"
+                ]
+              }
+            ],
+            "required": [
+              "retrieved"
+            ]
+          }
+        }
+      ],
+      "description": "A verbatim quote (RFC-0016 §Criteria file contract). A web quote carries url, retrieved and an archive_url or a copy, and no repo, commit, path or lines (SRC-9).",
+      "properties": {
+        "archive_url": {
+          "$ref": "#/$defs/url"
+        },
+        "checked": {
+          "const": true
+        },
+        "checked_how": {
+          "$ref": "#/$defs/text"
+        },
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "copy": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "$ref": "#/$defs/text"
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "path",
+            "sha256"
+          ],
+          "type": "object"
+        },
+        "decides": {
+          "type": "boolean"
+        },
+        "kind": {
+          "enum": [
+            "repository",
+            "this_repository",
+            "web"
+          ]
+        },
+        "label": {
+          "$ref": "#/$defs/text"
+        },
+        "lines": {
+          "pattern": "^L[0-9]+(-L[0-9]+)?$",
+          "type": "string"
+        },
+        "meets": {
+          "$ref": "#/$defs/state",
+          "description": "ST-8: on a conflict cell only, the state whose rule this quote meets"
+        },
+        "path": {
+          "$ref": "#/$defs/text"
+        },
+        "repo": {
+          "$ref": "#/$defs/repo"
+        },
+        "retrieved": {
+          "$ref": "#/$defs/date"
+        },
+        "text": {
+          "$ref": "#/$defs/text"
+        },
+        "url": {
+          "$ref": "#/$defs/url"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "label",
+        "decides",
+        "checked",
+        "checked_how",
+        "url"
+      ],
+      "type": "object"
+    },
+    "repo": {
+      "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+      "type": "string"
+    },
+    "row": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "const": "claim_card_at_pin"
+              }
+            },
+            "required": [
+              "source_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "card"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "const": "reference_rfc_0015"
+              }
+            },
+            "required": [
+              "source_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "workloads"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "source_class": {
+                "const": "public_sources"
+              }
+            },
+            "required": [
+              "source_class"
+            ]
+          },
+          "then": {
+            "required": [
+              "own_sources"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "card": {
+          "additionalProperties": false,
+          "properties": {
+            "card_version": {
+              "pattern": "^[1-9][0-9]*$",
+              "type": "string"
+            },
+            "configuration": {
+              "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+            },
+            "system": {
+              "$ref": "../quantity/1.schema.json#/$defs/systemId"
+            }
+          },
+          "required": [
+            "system",
+            "configuration",
+            "card_version"
+          ],
+          "type": "object"
+        },
+        "cells": {
+          "additionalProperties": false,
+          "properties": {
+            "formally_verified": {
+              "$ref": "#/$defs/cell"
+            },
+            "model_bound": {
+              "$ref": "#/$defs/cell"
+            },
+            "no_trusted_party": {
+              "$ref": "#/$defs/cell"
+            },
+            "security_level": {
+              "$ref": "#/$defs/cell"
+            },
+            "weights_hidden": {
+              "$ref": "#/$defs/cell"
+            },
+            "whole_output": {
+              "$ref": "#/$defs/cell"
+            }
+          },
+          "required": [
+            "weights_hidden",
+            "model_bound",
+            "whole_output",
+            "formally_verified",
+            "security_level",
+            "no_trusted_party"
+          ],
+          "type": "object"
+        },
+        "disclosures": {
+          "items": {
+            "$ref": "#/$defs/disclosure"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "family": {
+          "enum": [
+            "proved",
+            "re_executed",
+            "attested",
+            "fingerprinted",
+            "unchecked"
+          ]
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "own_sources": {
+          "items": {
+            "$ref": "#/$defs/own_source"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "source_class": {
+          "enum": [
+            "claim_card_at_pin",
+            "reference_rfc_0015",
+            "public_sources"
+          ]
+        },
+        "tab": {
+          "enum": [
+            "benchmarked",
+            "not_benchmarked",
+            "archived"
+          ]
+        },
+        "workloads": {
+          "items": {
+            "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "family",
+        "tab",
+        "source_class",
+        "cells"
+      ],
+      "type": "object"
+    },
+    "source_read": {
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "$ref": "../quantity/1.schema.json#/$defs/commit"
+            },
+            "paths": {
+              "items": {
+                "$ref": "#/$defs/text"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "repo": {
+              "$ref": "#/$defs/repo"
+            }
+          },
+          "required": [
+            "repo",
+            "commit",
+            "paths"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "retrieved": {
+              "$ref": "#/$defs/date"
+            },
+            "url": {
+              "$ref": "#/$defs/url"
+            }
+          },
+          "required": [
+            "url",
+            "retrieved"
+          ],
+          "type": "object"
+        }
+      ],
+      "description": "a repository at a full commit (paths or globs read) or a web page with its retrieval date"
+    },
+    "state": {
+      "enum": [
+        "yes",
+        "partly",
+        "no",
+        "not_stated"
+      ]
+    },
+    "text": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "type": "string"
+    },
+    "url": {
+      "pattern": "^https?://\\S+$",
+      "type": "string"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/criteria/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authored JSON at web/_data/criteria.json. Every object is closed and the file holds no number (INV-GLYPH-2); the semantic rules CRIT-1 to CRIT-14 are G2 checks in iproofs.validate.criteria.",
+  "properties": {
+    "date": {
+      "$ref": "#/$defs/date"
+    },
+    "note": {
+      "$ref": "#/$defs/text"
+    },
+    "order": {
+      "items": {
+        "$ref": "#/$defs/property_id"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "pins": {
+      "additionalProperties": {
+        "$ref": "../quantity/1.schema.json#/$defs/commit"
+      },
+      "propertyNames": {
+        "$ref": "#/$defs/repo"
+      },
+      "type": "object"
+    },
+    "properties": {
+      "items": {
+        "$ref": "#/$defs/property"
+      },
+      "maxItems": 6,
+      "minItems": 6,
+      "type": "array"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "rfc": {
+      "const": "RFC-0016"
+    },
+    "rows": {
+      "items": {
+        "$ref": "#/$defs/row"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "criteria/1"
+    },
+    "states": {
+      "additionalProperties": false,
+      "properties": {
+        "no": {
+          "additionalProperties": false,
+          "properties": {
+            "meaning": {
+              "$ref": "#/$defs/text"
+            },
+            "word": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "word",
+            "meaning"
+          ],
+          "type": "object"
+        },
+        "not_stated": {
+          "additionalProperties": false,
+          "properties": {
+            "meaning": {
+              "$ref": "#/$defs/text"
+            },
+            "word": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "word",
+            "meaning"
+          ],
+          "type": "object"
+        },
+        "partly": {
+          "additionalProperties": false,
+          "properties": {
+            "meaning": {
+              "$ref": "#/$defs/text"
+            },
+            "word": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "word",
+            "meaning"
+          ],
+          "type": "object"
+        },
+        "yes": {
+          "additionalProperties": false,
+          "properties": {
+            "meaning": {
+              "$ref": "#/$defs/text"
+            },
+            "word": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "required": [
+            "word",
+            "meaning"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "yes",
+        "partly",
+        "no",
+        "not_stated"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "rfc",
+    "date",
+    "note",
+    "order",
+    "states",
+    "properties",
+    "pins",
+    "rows"
+  ],
+  "title": "criteria/1: the six glyph properties, their four states and the rows (RFC-0016)",
+  "type": "object"
+}

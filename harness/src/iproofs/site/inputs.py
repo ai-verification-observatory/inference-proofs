@@ -20,15 +20,14 @@ from iproofs.serialize import load_yaml
 REPOSITORY = "https://github.com/ai-verification-observatory/inference-proofs"
 CRITERIA = "web/_data/criteria.json"
 FACTS = "web/_data/facts.json"
-# RFC-0016 §States: the prototype criteria file's colour ids and the state ids they stand for.
-STATE_OF = {"green": "yes", "amber": "partly", "red": "no", "grey": "not_stated"}
+SCHEMA = "criteria/1"  # RFC-0016 §Criteria file contract
 STATES = ("yes", "partly", "no", "not_stated")
 FAMILIES = ("proved", "attested", "re_executed", "fingerprinted", "unchecked")
 SOURCE_CLASSES = ("claim_card_at_pin", "reference_rfc_0015", "public_sources")
-ROW_KEYS = {"id", "name", "family", "source_class", "tab", "pencil", "states", "cells", "card",
-            "disclosures"}  # fmt: skip
-CELL_KEYS = {"state", "reason", "quotes", "searched", "aside", "note", "outside_pin",
-             "conflict", "stated", "contradicted_by"}  # fmt: skip
+ROW_KEYS = {"id", "name", "family", "source_class", "tab", "cells", "card", "disclosures",
+            "workloads", "own_sources"}  # fmt: skip
+CELL_KEYS = {"state", "stated", "reason", "quotes", "sources_read", "not_copied", "note",
+             "conflict", "aside", "outside_pin", "contradicted_by"}  # fmt: skip
 STATUS_LINE = re.compile(r"^- Status: (.+)$", re.M)
 
 
@@ -39,56 +38,50 @@ def _config(message: str) -> IProofsError:
 def _state(value: object, where: str) -> str | None:
     if value is None:
         return None
-    state = STATE_OF.get(str(value), str(value))
-    if state not in STATES:
+    if value not in STATES:
         raise _config(f"{where}: unknown state {value!r}")
-    return state
+    return str(value)
 
 
 # ---------------------------------------------------------------- criteria (RFC-0016)
 
 
-def _outside(statement: object, where: str) -> dict[str, Any] | None:
-    """SRC-3: a system's own statement outside the pin, its state in RFC-0016 ids; never
-    part of the cell's state."""
-    if not isinstance(statement, Mapping):
-        return None
-    return {**statement, "state": _state(statement.get("state"), where)}
-
-
 @dataclass(frozen=True)
 class Criteria:
-    """The criteria file in RFC-0016 vocabulary: state ids, sources read, the release it names."""
+    """The criteria file (`criteria/1`): state ids and words, sources read, the release it names."""
 
     path: str
     sha256: str
     release: str | None
     order: tuple[str, ...]
+    states: dict[str, dict[str, str]]  # state id -> {word, meaning}
     properties: tuple[dict[str, Any], ...]
     rows: dict[str, dict[str, Any]]
-    pins: dict[str, str]  # repository -> the commit the sources read were read at
+    pins: dict[str, str]  # repository -> the commit its quotes and sources read are at
+    cards: dict[tuple[str, str], str]  # (system, configuration) of a card row -> its row id
 
 
 def load_criteria(root: Path) -> Criteria:
-    """Read `web/_data/criteria.json`. Prototype colour ids map to RFC-0016 state ids; the
-    derived copies the prototype still holds (`test_mapping`, `rows[].states`) must equal the
-    cells; an unknown row or cell key, state, family or source class raises. Each cell keeps the
+    """Read `web/_data/criteria.json` (`criteria/1`; G2 validates it, CRIT-1 to CRIT-14). An
+    unknown schema, row or cell key, state, family or source class raises. Each cell keeps the
     state the file sets; a card row with a `pending` disclosure gets `drawn: False` (OVR-8: the
     glyph draws no state, and the system page prints the stated states beside the RFC-0008
     notice, undrawn). Under a pending disclosure no cell carries `stated` or `contradicted_by`
-    (OVR-8), so each cell's state is its stated state."""
+    (OVR-8), so each cell's state is its stated state. Card rows are also keyed by their card's
+    system and configuration (SRC-1: one row per card)."""
     path = root / CRITERIA
     doc = json.loads(path.read_text("utf-8"))
+    if doc.get("schema") != SCHEMA:
+        raise _config(f"{CRITERIA}: schema {doc.get('schema')!r}, the site reads {SCHEMA!r}")
     order = tuple(str(p) for p in doc["order"])
-    # each property's rule per state, keyed by RFC-0016 state id (the prototype keys colours)
-    properties = tuple(
-        {**p, "rules": {state: p[colour] for colour, state in STATE_OF.items() if colour in p}}
-        for p in doc["properties"]
-    )
+    properties = tuple(dict(p) for p in doc["properties"])
     if [p["id"] for p in properties] != list(order):
         raise _config(f"{CRITERIA}: properties are not in `order`")
-    mapping = doc.get("test_mapping") or {}
+    states = {str(k): dict(v) for k, v in doc["states"].items()}
+    if set(states) != set(STATES):
+        raise _config(f"{CRITERIA}: states {sorted(states)} are not {list(STATES)}")
     rows: dict[str, dict[str, Any]] = {}
+    cards: dict[tuple[str, str], str] = {}
     for raw in doc["rows"]:
         rid = str(raw["id"])
         if unknown := set(raw) - ROW_KEYS:
@@ -111,32 +104,32 @@ def load_criteria(root: Path) -> Criteria:
                 "stated": _state(cell.get("stated"), f"{rid}/{prop} stated"),
                 "reason": cell.get("reason"),
                 "quotes": list(cell.get("quotes") or []),
-                "sources_read": list(cell.get("searched") or []),
+                "sources_read": list(cell.get("sources_read") or []),
+                "not_copied": bool(cell.get("not_copied")),
                 "aside": cell.get("aside"),
                 "note": cell.get("note"),
-                "outside_pin": _outside(cell.get("outside_pin"), f"{rid}/{prop} outside_pin"),
+                "outside_pin": cell.get("outside_pin"),
                 "conflict": bool(cell.get("conflict")),
                 "contradicted_by": list(cell.get("contradicted_by") or []),
             }
-        stored = [_state(s, f"{rid} states") for s in raw.get("states") or []]
-        derived = [_state(s, f"{rid} test_mapping") for s in mapping.get(rid) or []]
-        actual = [_state(raw["cells"][p]["state"], rid) for p in order]
-        for name, copy in (("states", stored), ("test_mapping", derived)):
-            if copy and copy != actual:
-                raise _config(f"{CRITERIA} row {rid}: {name} {copy} disagrees with its cells")
+        card = dict(raw["card"]) if "card" in raw else None
+        if card is not None:
+            cards[(str(card["system"]), str(card["configuration"]))] = rid
         rows[rid] = {
             "id": rid,
             "name": raw["name"],
             "family": raw["family"],
             "source_class": raw["source_class"],
             "tab": raw["tab"],
+            "card": card,
             "pending": pending,
             "drawn": not pending,
             "disclosures": list(raw.get("disclosures") or []),
             "cells": cells,
         }
     pins = {str(k): str(v) for k, v in (doc.get("pins") or {}).items()}
-    return Criteria(CRITERIA, file_digest(path), doc.get("release"), order, properties, rows, pins)
+    return Criteria(CRITERIA, file_digest(path), doc.get("release"), order, states, properties,
+                    rows, pins, cards)  # fmt: skip
 
 
 def rfc_status(root: Path, number: str) -> dict[str, str]:

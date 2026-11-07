@@ -243,7 +243,7 @@ def test_extras_cases(extras: Path) -> None:
     rows = {r["id"]: r for r in criteria["rows"]}
     assert rows["sash"]["disclosures"][0]["state"] == "pending"
     cell = rows["flashprove"]["cells"]["whole_output"]
-    assert (cell["stated"], cell["state"]) == ("partly", "red")
+    assert (cell["stated"], cell["state"]) == ("partly", "no")
     assert cell["contradicted_by"] == [{"control": "C1", "run_id": ph.run_id(
         "flashprove", ph.WORKLOAD, 1)}]  # fmt: skip
 

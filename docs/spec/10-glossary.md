@@ -34,6 +34,8 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="corpus"></a>**Corpus (prompt corpus).** The fixed set of public-domain texts from which prompt sets are drawn, listed with source and digest in `workloads/prompts/corpus.yaml`. [RFC-0003](../../rfcs/0003-workloads.md).
 
+<a id="criteria-file"></a>**Criteria file.** `web/_data/criteria.json` (schema `criteria/1`): the six [glyph properties](#glyph-property), the four [glyph states](#glyph-state) and one row per system, reference and public-source system, each cell with its state, our short reason and the quotes or sources read behind it. Checked under G2 by the rules `CRIT-1` to `CRIT-14`. [RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#criteria-file-contract).
+
 <a id="derived-metric"></a>**Derived metric.** A number computed by the derivation code from stored raw numbers by a formula with a stable identifier (for example `D-RATE-S`). Never typed by hand. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 
 <a id="digest"></a>**Digest.** A SHA-256 value written `sha256:<64 lowercase hex>`. Model, proof, corpus, prompt-set and image digests have exact byte definitions in [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
@@ -49,6 +51,12 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 <a id="fake-system"></a>**Fake system.** `systems/fake/`, a CPU-only toy prover and verifier implementing the adapter contract, with a verifier that rejects every shared control. Its twin `systems/fake-broken/` accepts everything; CI asserts the control suite flags it. Used for end-to-end tests without a GPU. [RFC-0005](../../rfcs/0005-adapter-contract.md), [07](07-testing-strategy.md).
 
 <a id="forbidden-flag"></a>**Forbidden flag.** A command-line option listed in `system.yaml` `forbidden_flags` because it weakens the system's statement (for example SASH's `--unsound-skip-*` family). Allowed only in control jobs; CI fails any measured run that used one. [RFC-0005](../../rfcs/0005-adapter-contract.md), [RFC-0013](../../rfcs/0013-validation-and-ci.md).
+
+<a id="glyph"></a>**Glyph.** The six-part figure the site draws for one row, one part per [glyph property](#glyph-property), each in one [glyph state](#glyph-state). There is no total, score, count or order over states, and properties carry no numbers. [RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#what-the-glyph-is-not).
+
+<a id="glyph-property"></a>**Glyph property.** One of six questions a glyph answers, in display order: Weights hidden (`weights_hidden`: does the checker learn nothing about the weights?), Model bound (`model_bound`: is each checked token tied to the committed weights?), Whole output checked (`whole_output`: does one check cover every output token of a request?), Formally verified (`formally_verified`: is the security argument for this configuration checked by a proof assistant?), Security level (`security_level`: is a soundness level stated for this configuration, and proven?) and No trusted party (`no_trusted_party`: does a check hold without trusting a chip maker, a setup ceremony or an honest party?). [RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#properties).
+
+<a id="glyph-state"></a>**Glyph state.** The answer a glyph gives to one property, one of four, unordered: `yes` (printed Yes), `partly` (Partly), `no` (No) and `not_stated` (Not stated). On a claim card row a state is stated by the system at its pin, read for the configuration the benchmark runs and not contradicted by the benchmark's negative controls; a recorded control the verifier accepted where RFC-0008 expects rejection sets `no` on the property the control map gives it. Silence is `not_stated`, never `no`. A state is a validated claim, not an audit result. [RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#states).
 
 <a id="grade"></a>**Grade.** How a number was obtained: `measured` (read by the harness from an artifact of this project's run), `derived` (computed by CI by a named formula), `projected` (from a named cost model), `external` (read from a public source at a pin), `asserted` (an input such as a price, with source and date). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 

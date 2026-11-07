@@ -28,8 +28,8 @@ H100); their failure records carry no invented log line.
 written by no system maintainer, a target, a criteria copy naming the release with a pending
 disclosure and an override, an ineligible run, a withdrawn run, an unexpected control, a
 second workload, a review and a reproduction record). It holds no second claim card of one
-system: the criteria file keys its rows by system until #318 adds `card` to them, so a second
-card would have no row of its own, and `iproofs site build` refuses one (RFC-0016 SRC-1).
+system: the renderer draws one glyph per system page, so `iproofs site build` refuses a system
+with two card configurations (RFC-0016 SRC-1).
 
 Command (site.yml, until #146): `PYTHONPATH=harness/tests uv run python -m
 fixtures.placeholder_release --site OUT` builds the tree in a temporary directory, freezes it
@@ -782,14 +782,11 @@ def _criteria(root: Path, first: str, sash_first: str) -> None:
     path = root / "web/_data/criteria.json"
     crit = json.loads(path.read_text())
     crit["release"] = RELEASE
-    slot = crit["order"].index("whole_output")
     for row in crit["rows"]:
         if row["id"] == "flashprove":
             cell = row["cells"]["whole_output"]
-            cell |= {"stated": "partly", "state": "red",
+            cell |= {"stated": "partly", "state": "no",
                      "contradicted_by": [{"control": "C1", "run_id": first}]}  # fmt: skip
-            row["states"][slot] = "red"
-            crit["test_mapping"]["flashprove"][slot] = "red"
             row["disclosures"] = [{"run_id": first, "state": "published", "date": "2026-12-10",
                                    "url": DISCLOSURE_URL}]  # fmt: skip
         if row["id"] == "sash":

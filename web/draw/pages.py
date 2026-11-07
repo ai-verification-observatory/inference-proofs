@@ -212,7 +212,7 @@ def pinned(cfg):
     for c in S.CRIT["rows"][cfg["system"]]["cells"].values():
         for q in [*c["quotes"], *((c.get("outside_pin") or {}).get("quotes") or [])]:
             cited.add(q.get("repo"))
-        cited |= {s.split("@", 1)[0] for s in c["sources_read"] if "@" in s}
+        cited |= {s["repo"] for s in c["sources_read"] if "repo" in s}
     repos += [(r, pins[r]) for r in pins if r in cited and r != up["repo"]]
     return "".join(
         f'<a href="https://github.com/{e(r)}/tree/{e(c)}">{path_html(r)}<span class="nw"> @{e(c[:8])}</span>{EXT}</a>'

@@ -231,5 +231,24 @@ def test_fmt_is_hidden(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_repository_validates() -> None:
-    """The repository itself passes every tree gate (warnings do not fail a gate)."""
-    assert [f.line() for f in validate_tree(ROOT) if not f.warning] == []
+    """The repository itself passes every tree gate (warnings do not fail a gate). CRIT-8 needs
+    the git objects of the commits the criteria file's reference quotes cite: a shallow clone
+    reports them as environment errors, which this test sets apart and skips on, with the reason
+    printed, once every other finding is checked (RFC-0016 §Testing Strategy). The validate CI
+    jobs fetch full history, so there CRIT-8 runs."""
+    shallow = subprocess.run(
+        ["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    failing = [f for f in validate_tree(ROOT) if not f.warning]
+    missing = [
+        f
+        for f in failing
+        if shallow == "true" and f.rule == "CRIT-8" and f.kind is ErrorKind.ENVIRONMENT
+    ]
+    assert [f.line() for f in failing if f not in missing] == []
+    if missing:
+        pytest.skip(f"shallow clone: {len(missing)} CRIT-8 quotes cite commits not in this clone "
+                    "(fetch-depth: 0 runs them)")  # fmt: skip

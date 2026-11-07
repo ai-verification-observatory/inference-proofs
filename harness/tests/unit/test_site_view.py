@@ -185,7 +185,7 @@ def test_pending_row_draws_no_state(extras: dict[str, Any], extras_tree: Path) -
     raw = next(r for r in json.loads((extras_tree / inputs.CRITERIA).read_text())["rows"]
                if r["id"] == "sash")  # fmt: skip
     for prop, cell in row["cells"].items():
-        assert cell["state"] == inputs.STATE_OF[raw["cells"][prop]["state"]], prop
+        assert cell["state"] == raw["cells"][prop]["state"], prop
         assert "stated" not in raw["cells"][prop]
     assert extras["criteria"]["rows"]["flashprove"]["drawn"] is True
     assert configuration(extras, "sash")["property_controls"] == {"withheld": True,
@@ -244,13 +244,11 @@ def _edited_tree(src: Path, dst: Path, edit: Any) -> Path:
 
 def _drop_override(doc: dict[str, Any]) -> None:
     """The extras criteria copy without FlashProve's override: Whole output back to Partly."""
-    slot = doc["order"].index("whole_output")
     row = next(r for r in doc["rows"] if r["id"] == "flashprove")
     cell = row["cells"]["whole_output"]
     del cell["stated"]
-    cell["state"] = "amber"
+    cell["state"] = "partly"
     del cell["contradicted_by"]
-    row["states"][slot] = doc["test_mapping"]["flashprove"][slot] = "amber"
 
 
 @pytest.mark.parametrize(("edit", "message"), [
@@ -260,8 +258,8 @@ def _drop_override(doc: dict[str, Any]) -> None:
 def test_criteria_must_agree_with_the_release(
     extras_tree: Path, tmp_path: Path, edit: Any, message: str
 ) -> None:
-    """Until CRIT-13 (#318): a criteria file built for another release, or one that draws a
-    state a stored outcome contradicts (OVR-3, OVR-4), stops the build."""
+    """A criteria file built for another release, or one that draws a state a stored outcome
+    contradicts (OVR-3, OVR-4), stops the build as well as failing CRIT-13."""
     root = _edited_tree(extras_tree, tmp_path / "tree", edit)
     with pytest.raises(IProofsError, match=message) as e:
         site_view(root)
@@ -269,8 +267,8 @@ def test_criteria_must_agree_with_the_release(
 
 
 def test_one_card_configuration_per_system() -> None:
-    """SRC-1: rows are keyed by system until #318 adds `card`, so a second card of a system
-    would borrow the first card's row: refused."""
+    """SRC-1: one card row per card; the renderer draws one glyph per system page, so a second
+    card configuration of a system, or a configuration no card row names, is refused."""
     crit = inputs.load_criteria(ROOT)
     empty: dict[str, list[Any]] = {"outside_expected": []}
     configs = [{"kind": "prover", "system": "flashprove", "configuration": name,
@@ -278,7 +276,10 @@ def test_one_card_configuration_per_system() -> None:
     with pytest.raises(IProofsError, match="2 card configurations") as e:
         check_rows(crit, "v0.1", configs)
     assert e.value.kind is ErrorKind.CONFIG
+    with pytest.raises(IProofsError, match="no card row for flashprove/second"):
+        check_rows(crit, "v0.1", configs[1:])
     check_rows(crit, "v0.1", configs[:1])
+    assert crit.cards[("flashprove", "exact-match-cp-verify")] == "flashprove"
 
 
 def test_override_cell_keeps_stated(extras: dict[str, Any]) -> None:
@@ -324,7 +325,8 @@ def test_every_family_is_known() -> None:
     (lambda d: d["rows"][0].update(family="guessed"), "unknown family"),
     (lambda d: d["rows"][0]["cells"]["model_bound"].update(score="1"), "unknown keys"),
     (lambda d: d["rows"][0].update(source_class="hearsay"), "unknown source class"),
-    (lambda d: d["test_mapping"]["flashprove"].reverse(), "disagrees with its cells"),
+    (lambda d: d.update(schema="criteria/0"), "the site reads 'criteria/1'"),
+    (lambda d: d["rows"][0]["cells"]["model_bound"].update(stated="green"), "unknown state"),
 ])  # fmt: skip
 def test_criteria_loader_refuses(tmp_path: Path, edit: Any, message: str) -> None:
     root = edited(tmp_path, inputs.CRITERIA, edit)
@@ -333,13 +335,18 @@ def test_criteria_loader_refuses(tmp_path: Path, edit: Any, message: str) -> Non
     assert e.value.kind is ErrorKind.CONFIG
 
 
-def test_criteria_states_mapped() -> None:
+def test_criteria_states_read() -> None:
+    """One vocabulary (RFC-0016 §States): state ids in the cells, one word for each."""
     crit = inputs.load_criteria(ROOT)
     assert crit.release is None
+    assert {k: v["word"] for k, v in crit.states.items()} == {
+        "yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}  # fmt: skip
     cells = crit.rows["sash"]["cells"]
     assert cells["weights_hidden"]["state"] == "not_stated"
     assert cells["model_bound"]["state"] == "yes"
-    assert cells["weights_hidden"]["sources_read"]
+    assert (
+        cells["weights_hidden"]["sources_read"][0]["repo"] == "sg-ai-safety-hub/zk-inference-prover"
+    )
     assert {c["state"] for r in crit.rows.values() for c in r["cells"].values()} <= set(
         inputs.STATES)  # fmt: skip
 

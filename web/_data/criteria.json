@@ -1,28 +1,6 @@
 {
-  "contrast": {
-    "amber": {
-      "ink_on_it": 10.11,
-      "on_dark_paper": 10.27,
-      "on_light_paper": 1.61
-    },
-    "green": {
-      "ink_on_it": 3.43,
-      "on_dark_paper": 3.48,
-      "on_light_paper": 4.76
-    },
-    "grey": {
-      "ink_on_it": 11.95,
-      "on_dark_paper": 1.91,
-      "on_light_paper": 1.36
-    },
-    "red": {
-      "ink_on_it": 6.01,
-      "on_dark_paper": 6.11,
-      "on_light_paper": 2.71
-    }
-  },
-  "date": "2026-11-05",
-  "note": "Draft methodology for the v6 glyph (round 7). Our words are in reason, note, criteria and rules; quote text is the system's (or RFC-0015's) own. No field here is a score: there is no total, count or order over states.",
+  "date": "2026-11-07",
+  "note": "The six glyph properties and their four states (RFC-0016). Our words are in reason, note, rules and not_here; quote text is the system's (or RFC-0015's) own. Nothing here adds, counts or orders states.",
   "order": [
     "weights_hidden",
     "model_bound",
@@ -32,167 +10,156 @@
     "no_trusted_party"
   ],
   "pins": {
+    "JamesPetrie/VerInf": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
+    "Lagrange-Labs/deep-prove": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+    "ai-verification-observatory/inference-proofs": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
     "anthropics/FlashProve": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+    "nearai/private-ml-sdk": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+    "ora-io/opml": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
     "sg-ai-safety-hub/zk-inference-prover": "eb95bfa887299d1637550228d42086c27cbb2b3b",
-    "sg-ai-safety-hub/zk-inference-results": "11decec3c0b62c707618aab5deb82750b355d202"
+    "sg-ai-safety-hub/zk-inference-results": "11decec3c0b62c707618aab5deb82750b355d202",
+    "uiuc-kang-lab/zk-torch": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+    "zkonduit/ezkl": "e196b111c1bafaa61b92ae431cd3c3fe9371da05"
   },
   "properties": [
     {
-      "amber": "Hidden with a stated limit: a named leak, hiding shown only for one policy or setting, or hiding optional per circuit.",
-      "green": "The documentation says the weights stay hidden from the checker in the default use, naming no leak beyond public settings.",
-      "grey": "No statement about hiding the weights from the checker (hiding from a host operator is another property), or not copied yet.",
+      "card_fields": [
+        "zero_knowledge.claimed",
+        "zero_knowledge.hidden",
+        "zero_knowledge.not_hidden",
+        "zero_knowledge.status",
+        "sources.zero_knowledge*"
+      ],
       "id": "weights_hidden",
       "name": "Weights hidden",
-      "not_here": "Hiding from the host operator (an enclave) is not this property.",
+      "not_here": "Hiding the weights from the host operator (an enclave) is not this property.",
       "question": "Does the checker learn nothing about the weights?",
-      "red": "The documentation says the checker sees the weights or hiding is off, or the design gives the checker the weights."
+      "rules": {
+        "no": "The documentation says the checker sees the weights, or that hiding is off or not provided.",
+        "not_stated": "No statement about hiding the weights from the checker in the sources read, or not copied yet.",
+        "partly": "The documentation says they are hidden with a stated limit: a named leak, hiding shown for one policy or setting only, hiding optional per circuit, or hiding behind a commitment without the formal zero-knowledge property.",
+        "yes": "The documentation says the weights stay hidden from the checker in the default use, naming no leak beyond public settings."
+      }
     },
     {
-      "amber": "Tied with a stated limit: only under one of several policies, within a tolerance or bound, or shown only in empirical tests.",
-      "green": "The documentation says a passing check ties each checked token to the committed weights exactly, in the default or expected use.",
-      "grey": "Not stated, or not copied yet.",
+      "card_fields": [
+        "relation",
+        "coverage.policy.kind",
+        "coverage.policy.detail",
+        "binding",
+        "claim_class"
+      ],
       "id": "model_bound",
       "name": "Model bound",
-      "not_here": "Which real, named model the commitment is: FlashProve and SASH both say that stays outside their proof; it is printed as text beside the glyph, not coloured.",
+      "not_here": "Which real, named model the commitment is: FlashProve and SASH both say that stays outside their proof; it does not change the state.",
       "question": "Is each checked token tied to the committed weights?",
-      "red": "The documentation says outputs are not tied to any weights, or nothing is checked."
+      "rules": {
+        "no": "The documentation says outputs are not tied to any weights, or that nothing is checked.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "Tied with a stated limit: under one of several policies only, within a tolerance or bound, or shown only in empirical tests.",
+        "yes": "The documentation says a passing check ties each checked token to the committed weights exactly, in the configuration the row reads."
+      }
     },
     {
-      "amber": "One check covers a stated part: the positions the client names, one segment, or one disputed step.",
-      "green": "The documentation says one check, or one joined set of checks, covers the prompt and every output token of a request.",
-      "grey": "Not stated (for example a graph run whose output tokens are not named), or not copied yet.",
+      "card_fields": [
+        "coverage.unit",
+        "coverage.tokens_covered",
+        "coverage.phase",
+        "relation"
+      ],
       "id": "whole_output",
-      "name": "Whole output proved",
-      "not_here": "Which requests get a proof (sampling, post-hoc proving) is a deployment choice, not what one check covers. The text before tokenizing and after detokenizing: FlashProve and SASH both say it is outside their proof; printed as text.",
+      "name": "Whole output checked",
+      "not_here": "Which requests get a check (sampling, proving after the fact) is a deployment choice, not what one check covers. The text before tokenizing and after detokenizing, which FlashProve and SASH both put outside their proof, does not change the state.",
       "question": "Does one check cover every output token of a request?",
-      "red": "The documentation says no output token is checked, or nothing is checked."
+      "rules": {
+        "no": "The documentation says no output token is checked, or that nothing is checked.",
+        "not_stated": "Not stated, including a proved run whose output tokens the documentation does not name, or not copied yet.",
+        "partly": "One check covers a stated part: the positions the client names, one segment, or one disputed step.",
+        "yes": "The documentation says one check, or one joined set of checks, covers the prompt and every output token of a request."
+      }
     },
     {
-      "amber": "Machine-checked for a stated part only: one component, or a weaker statement than the one the system makes.",
-      "green": "The documentation says the protocol's soundness is proved in a proof assistant (Lean, Coq, Isabelle or similar).",
-      "grey": "Not stated, or not copied yet.",
+      "card_fields": [
+        "relation_formal",
+        "security.notion.kind",
+        "security.notion.verifier",
+        "sources.security.notion*"
+      ],
       "id": "formally_verified",
       "name": "Formally verified",
-      "not_here": "Whether the programs users run are proved: no row claims it; it is printed as text.",
-      "question": "Is the security argument checked by a proof assistant?",
-      "red": "The documentation says it is not machine-checked: planned only, or the evidence named is review and tests."
+      "not_here": "A proof that the code itself is correct: no row claims it. A statement made only for another configuration of the same system, another verifier for one, sets nothing here.",
+      "question": "Is the security argument for this configuration checked by a proof assistant?",
+      "rules": {
+        "no": "The documentation says the argument is not machine-checked, that a machine check is planned only, or that its soundness evidence is review or tests and nothing else; or the row is a reference, which has no security argument by definition.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "Machine-checked for a stated part only: one component, or a weaker statement than the one the system makes.",
+        "yes": "The documentation says the soundness of the configuration the row reads is proved in a proof assistant (Lean, Coq, Isabelle or similar)."
+      }
     },
     {
-      "amber": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system.",
-      "green": "The documentation states a numeric soundness bound and says it is proven, by hand or by machine, under named assumptions.",
-      "grey": "No level stated, or not copied yet.",
+      "card_fields": [
+        "security.level",
+        "security.notion.kind",
+        "security.notion.verifier",
+        "security.model"
+      ],
       "id": "security_level",
       "name": "Security level",
-      "not_here": "The number itself is a quote in its card; the glyph shows only whether one is stated and proven. The level is judged for the protocol, as the documentation states it; whether the programs a checker runs meet it is printed as text beside the segment (no row proves its programs).",
-      "question": "Is a soundness level stated, and proven?",
-      "red": "The documentation says the settings give no meaningful soundness, for example a test-only setting."
+      "not_here": "The level itself: the state shows only whether one is stated and proven. A level stated only for another configuration of the same system sets nothing here.",
+      "question": "Is a soundness level stated for this configuration, and proven?",
+      "rules": {
+        "no": "The documentation says the settings give no meaningful soundness, for example a test-only setting; or the row is a reference, which has no soundness level by definition.",
+        "not_stated": "No level stated for the configuration in the sources read, or not copied yet.",
+        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system.",
+        "yes": "The documentation states a numeric soundness bound for the configuration the row reads and says it is proven, by hand or by machine, under named assumptions."
+      }
     },
     {
-      "amber": "The documentation states a trusted input or condition that its proved statement does not cover: a setup file, public files the user must grant were fixed before the hash (a provider who tuned them is outside the statement), or one honest party among several.",
-      "green": "The documentation says a check rests on cryptography alone or needs no trusted setup, and names no chip or party to trust.",
-      "grey": "Not stated, or not copied yet.",
+      "card_fields": [
+        "security.setup",
+        "assumptions",
+        "assumptions_not_stated",
+        "security.model.assumption"
+      ],
       "id": "no_trusted_party",
       "name": "No trusted party",
-      "not_here": "Trust every row shares is not counted: the checker's own computer, compiler and verifier build, and where the commitment or the weights come from (see Model bound).",
+      "not_here": "Trust every row shares does not change the state: the checker's own computer, compiler and verifier build, and where the commitment or the weights come from (see Model bound).",
       "question": "Does a check hold without trusting a chip maker, a setup ceremony or an honest party?",
-      "red": "The check is a hardware attestation verified against a chip maker's keys, or nothing is checked and the provider is trusted."
+      "rules": {
+        "no": "The documentation says the check verifies a hardware attestation against a chip maker's keys or certificate chain, or that the provider is trusted. Running in a trusted execution environment, said alone, is not such a statement.",
+        "not_stated": "Not stated in the sources read, or not copied yet.",
+        "partly": "The documentation states a trusted input or condition that its proved statement does not cover: a setup file, public files the user must grant were fixed before the hash, or one honest party among several.",
+        "yes": "The documentation says the check rests on cryptography alone or needs no trusted setup, and names no chip maker, setup or other party to trust."
+      }
     }
   ],
-  "quote_check": {
-    "checked": 77,
-    "quotes": 77,
-    "unchecked": []
-  },
-  "risks": [
-    {
-      "fix": "Grey is drawn as a pale solid wedge and labelled 'not stated', never 'no'. Public-source rows are drawn in pencil with 'from public sources, limits not copied' and are never set in the same table as card rows. Before a public-source row sits beside a benchmarked row, copy its claim card. Optional switch for the RFC: cap public-source rows at amber.",
-      "id": "R1",
-      "what": "Thoroughness penalty. FlashProve states its limits at length and collects amber; SASH's silence at the pin gives grey; rows from one public sentence can show green (Attestable: four green from one blog post). A reader may think the less documented system covers more."
-    },
-    {
-      "fix": "Owner decision for the RFC: may a system's own dated publication outside the pin set a colour? Until then mark the segment with a dot in the outside_pin statement's colour, print the quote beside it, and ask SASH to state it in the repository.",
-      "id": "R2",
-      "what": "Pin rule for SASH. Its own research note (outside the pin) says the proofs are not yet zero knowledge and that its soundness evidence is human review and negative controls. Counted, SASH would read amber for Weights hidden and red for Formally verified; at the pin both are grey, which a FlashProve reader may call favourable to SASH."
-    },
-    {
-      "fix": "Colour per benchmark configuration once the FlashProve policy mapping (issue #69) is fixed.",
-      "id": "R3",
-      "what": "FlashProve Model bound is amber because its expected use is the clipped-gap policy; exact match, which FlashProve also ships and proves, would be green."
-    },
-    {
-      "fix": "Kept: the criteria differ (a hand-proved bound is green for Security level and not for Formally verified). Say so on the reading page.",
-      "id": "R4",
-      "what": "FlashProve's Formally verified and Security level are both green from the same Lean work: one fact, two segments."
-    },
-    {
-      "fix": "None: the word is SASH's own and the reason quotes it.",
-      "id": "R5",
-      "what": "SASH Security level is amber for 'conjectured' FRI soundness, the usual accounting of STARK systems."
-    },
-    {
-      "fix": "Round 7 applies option (b): the amber criterion names a condition the documentation puts outside its proved statement, and the shared-caveat rule says when fixed parameters count. Option (a), a shared caveat printed as text, would turn FlashProve grey or green; owner decision for the RFC. Invite the SASH team to state its assumptions.",
-      "id": "R6",
-      "what": "FlashProve No trusted party is amber for a condition it names ('that you grant'): its public files must be fixed before the hash, and a provider who tuned them is outside the statement. Every non-interactive proof fixes public parameters before the hash (VerInf says its seeds come from sequential Fiat-Shamir), so the FlashProve team may call this a disclosure penalty. SASH's verifier also takes a calibration manifest and model roots as given but does not call them assumptions, so it is grey."
-    },
-    {
-      "fix": "Reason says 'no checker, so nothing to hide from'; reference rows carry a REF stamp, sit apart from system rows and are drawn as a ring.",
-      "id": "R7",
-      "what": "Plain serving is red on Weights hidden, which can read as 'the weights leak'."
-    },
-    {
-      "fix": "Colour per configuration: amber with the substitution flag, grey with 'not measurable on profile'.",
-      "id": "R8",
-      "what": "Recompute Model bound is green only where no precision substitution is declared (RFC-0015 PM-2); the Maverick reference may be not measurable on the profile (NM-1)."
-    },
-    {
-      "fix": "Reason names the limit; no change.",
-      "id": "R9",
-      "what": "FlashProve Whole output is amber partly because it states that a reply cut short verifies as shorter; SASH's statement fixes the continuation length, so the question does not arise in the same words."
-    },
-    {
-      "fix": "Review: grey unless the paper states hiding from the verifier.",
-      "id": "R10",
-      "what": "zkPyTorch's green rests on a product page ('Protect proprietary AI models and user data'), the weakest source here."
-    },
-    {
-      "fix": "That is the honest state. The legend says 'not stated is not no'.",
-      "id": "R11",
-      "what": "Most public-source rows are four or five grey segments and will look empty."
-    },
-    {
-      "fix": "Round 7: green #007a4c and red #ff5a4a differ in grey value (0.144 and 0.291), and shape still carries the state in grayscale (full wedge, inner half, full wedge with a cross, pale grey wedge). Family stamps beside the glyph print in ink, not in their family colour.",
-      "id": "R12",
-      "what": "Round 6 inks: green #00965a and red #e8382d had almost the same grey value (relative luminance 0.226 and 0.202); amber #ffb000 is close to the site's attested and prompt yellows."
-    },
-    {
-      "fix": "Re-read paper.md's soundness section before VerInf appears on any page; grey if it is unclear.",
-      "id": "R13",
-      "what": "VerInf's red for Formally verified rests on what its repository names as evidence today (a hand-proven lemma; a machine check planned in a strategy document); its green for Whole output proved rests on 'certifies an observed output stream', a single sentence."
-    },
-    {
-      "fix": "Round 7: both reference rows are red on these two segments, from RFC-0015 L45 ('they prove nothing'). An RFC could add a fifth mark for 'does not apply'; the owner asked for four states, so it is not used here.",
-      "id": "R14",
-      "what": "Recompute has no security argument: a rerun, not a proof. Round 6 drew it grey on Formally verified and Security level while plain serving was red on both."
-    }
-  ],
+  "rfc": "RFC-0016",
   "rows": [
     {
+      "card": {
+        "card_version": "1",
+        "configuration": "exact-match-cp-verify",
+        "system": "flashprove"
+      },
       "cells": {
         "formally_verified": {
           "aside": {
-            "quote": {
-              "checked": true,
-              "checked_how": "pinned clone at 9e2bdd8f",
-              "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
-              "kind": "repository",
-              "label": "guide/what-is-proved.md L7-L8 · 9e2bdd8f",
-              "lines": "L7-L8",
-              "path": "guide/what-is-proved.md",
-              "repo": "anthropics/FlashProve",
-              "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md?plain=1#L7-L8"
-            },
-            "words": "Shared by every row and printed as text (programs tested, not proved):"
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 9e2bdd8f",
+                "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+                "decides": false,
+                "kind": "repository",
+                "label": "README.md L26 · 9e2bdd8f",
+                "lines": "L26",
+                "path": "README.md",
+                "repo": "anthropics/FlashProve",
+                "text": "The protocol's soundness is proved in Lean 4.",
+                "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md?plain=1#L26"
+              }
+            ],
+            "words": "Stated for the Lean verifier verify, another configuration, and not counted here:"
           },
           "quotes": [
             {
@@ -201,32 +168,12 @@
               "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
               "decides": true,
               "kind": "repository",
-              "label": "README.md L26 · 9e2bdd8f",
-              "lines": "L26",
-              "path": "README.md",
+              "label": "guide/what-is-proved.md L272-L274 · 9e2bdd8f",
+              "lines": "L272-L274",
+              "path": "guide/what-is-proved.md",
               "repo": "anthropics/FlashProve",
-              "text": "The protocol's soundness is proved in Lean 4.",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md?plain=1#L26"
-            }
-          ],
-          "reason": "Soundness and zero knowledge proved in Lean.",
-          "state": "green"
-        },
-        "model_bound": {
-          "note": "Which real model: 'A yes does not say whose weights they are, that the shipped committer made the commitment, or which real model it is.' (guide/known-limits.md L29-L30). Printed as text. If the benchmark's FlashProve configuration fixes exact match (issue #69), this segment would be green for that configuration.",
-          "quotes": [
-            {
-              "checked": true,
-              "checked_how": "pinned clone at 9e2bdd8f",
-              "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
-              "decides": true,
-              "kind": "repository",
-              "label": "guide/how-it-works.md L72-L73 · 9e2bdd8f",
-              "lines": "L72-L73",
-              "path": "guide/how-it-works.md",
-              "repo": "anthropics/FlashProve",
-              "text": "`WITHIN LIMITS` says only that the checked tokens' costs together meet the limits that the client named, not that the reply is the model's.",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md?plain=1#L72-L73"
+              "text": "Nothing is proved of the C++ verifier that the examples and most users run, of the CUDA prover, or of the committer, and no theorem says that they run the protocol the Lean verifier checks: that rests on tests.",
+              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md?plain=1#L272-L274"
             },
             {
               "checked": true,
@@ -234,12 +181,63 @@
               "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
               "decides": false,
               "kind": "repository",
-              "label": "guide/how-it-works.md L3-L5 · 9e2bdd8f",
-              "lines": "L3-L5",
-              "path": "guide/how-it-works.md",
+              "label": "guide/what-is-proved.md L7-L8 · 9e2bdd8f",
+              "lines": "L7-L8",
+              "path": "guide/what-is-proved.md",
               "repo": "anthropics/FlashProve",
-              "text": "In the expected use, an accepting check ends in `WITHIN LIMITS`, which says much less than `YES`.",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md?plain=1#L3-L5"
+              "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
+              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md?plain=1#L7-L8"
+            }
+          ],
+          "reason": "Nothing is proved of cp_verify, the verifier this setup runs; that rests on tests.",
+          "state": "no"
+        },
+        "model_bound": {
+          "aside": {
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 9e2bdd8f",
+                "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+                "decides": false,
+                "kind": "repository",
+                "label": "guide/how-it-works.md L72-L73 · 9e2bdd8f",
+                "lines": "L72-L73",
+                "path": "guide/how-it-works.md",
+                "repo": "anthropics/FlashProve",
+                "text": "`WITHIN LIMITS` says only that the checked tokens' costs together meet the limits that the client named, not that the reply is the model's.",
+                "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md?plain=1#L72-L73"
+              },
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 9e2bdd8f",
+                "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+                "decides": false,
+                "kind": "repository",
+                "label": "guide/how-it-works.md L3-L5 · 9e2bdd8f",
+                "lines": "L3-L5",
+                "path": "guide/how-it-works.md",
+                "repo": "anthropics/FlashProve",
+                "text": "In the expected use, an accepting check ends in `WITHIN LIMITS`, which says much less than `YES`.",
+                "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md?plain=1#L3-L5"
+              }
+            ],
+            "words": "Under the clipped-gap policy, another configuration, and not counted here:"
+          },
+          "note": "Which real model: 'A yes does not say whose weights they are, that the shipped committer made the commitment, or which real model it is.' (guide/known-limits.md L29-L30). It does not change the state.",
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 9e2bdd8f",
+              "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+              "decides": true,
+              "kind": "repository",
+              "label": "docs/limits.md L213-L217 · 9e2bdd8f",
+              "lines": "L213-L217",
+              "path": "docs/limits.md",
+              "repo": "anthropics/FlashProve",
+              "text": "Under exact match, a `YES` is meant to show that each of these tokens is the top choice of one exact integer program, given every token before it, up to the error bound. For the programs, the step from the conditions that a proof establishes to the model's reply has not been shown",
+              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/limits.md?plain=1#L213-L217"
             },
             {
               "checked": true,
@@ -255,8 +253,8 @@
               "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md?plain=1#L57-L59"
             }
           ],
-          "reason": "Only under exact match; the expected use checks just the client's limits.",
-          "state": "amber"
+          "reason": "Under exact match each checked token is meant to be the top choice; for the programs that step is not shown.",
+          "state": "partly"
         },
         "no_trusted_party": {
           "note": "Also stated and not counted here (shared by every row): 'The client must trust what no call checks: the commitment ID, the expected policy and its numbers, the tokenizer and chat template, and `cp_verify` itself.' (guide/how-it-works.md L39-L40); 'compilers and hardware are trusted' (guide/what-is-proved.md L277).",
@@ -302,26 +300,33 @@
             }
           ],
           "reason": "You must grant its public files were fixed before the hash.",
-          "state": "amber"
+          "state": "partly"
         },
         "security_level": {
           "aside": {
-            "also": {
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 9e2bdd8f",
+                "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+                "decides": false,
+                "kind": "repository",
+                "label": "README.md L26-L28 · 9e2bdd8f",
+                "lines": "L26-L28",
+                "path": "README.md",
+                "repo": "anthropics/FlashProve",
+                "text": "The protocol's soundness is proved in Lean 4. A provider that tries to pass off output that is not the committed model's is caught, except with probability about q/2^124 + 2^-101 after q hash queries.",
+                "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md?plain=1#L26-L28"
+              }
+            ],
+            "words": "Stated for the Lean verifier verify, another configuration, and not counted here:"
+          },
+          "quotes": [
+            {
               "checked": true,
               "checked_how": "pinned clone at 9e2bdd8f",
               "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
-              "kind": "repository",
-              "label": "guide/known-limits.md L65-L66 · 9e2bdd8f",
-              "lines": "L65-L66",
-              "path": "guide/known-limits.md",
-              "repo": "anthropics/FlashProve",
-              "text": "The C++ programs' printed \"bits\" are their own accounting, not a theorem",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md?plain=1#L65-L66"
-            },
-            "quote": {
-              "checked": true,
-              "checked_how": "pinned clone at 9e2bdd8f",
-              "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+              "decides": false,
               "kind": "repository",
               "label": "guide/what-is-proved.md L70 · 9e2bdd8f",
               "lines": "L70",
@@ -330,41 +335,52 @@
               "text": "Neither figure, 124 bits per query or 128 bits per round, is claimed for the C++ programs.",
               "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md?plain=1#L70"
             },
-            "words": "For the programs the benchmark runs, FlashProve states:"
-          },
-          "note": "The bound is stated for exact-match claims and one proof; the clipped-gap limit is counted under Model bound only.",
-          "quotes": [
             {
               "checked": true,
               "checked_how": "pinned clone at 9e2bdd8f",
               "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
-              "decides": true,
+              "decides": false,
               "kind": "repository",
-              "label": "README.md L26-L28 · 9e2bdd8f",
-              "lines": "L26-L28",
-              "path": "README.md",
+              "label": "guide/known-limits.md L65-L66 · 9e2bdd8f",
+              "lines": "L65-L66",
+              "path": "guide/known-limits.md",
               "repo": "anthropics/FlashProve",
-              "text": "The protocol's soundness is proved in Lean 4. A provider that tries to pass off output that is not the committed model's is caught, except with probability about q/2^124 + 2^-101 after q hash queries.",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md?plain=1#L26-L28"
+              "text": "The C++ programs' printed \"bits\" are their own accounting, not a theorem",
+              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md?plain=1#L65-L66"
             }
           ],
-          "reason": "Bound stated and proved in Lean for the protocol, in the random-oracle model.",
-          "state": "green"
+          "reason": "No level is claimed for cp_verify; its printed bits are its own accounting, not a theorem.",
+          "sources_read": [
+            {
+              "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+              "paths": [
+                "README.md",
+                "guide/what-is-proved.md",
+                "guide/known-limits.md",
+                "docs/limits.md"
+              ],
+              "repo": "anthropics/FlashProve"
+            }
+          ],
+          "state": "not_stated"
         },
         "weights_hidden": {
           "aside": {
-            "quote": {
-              "checked": true,
-              "checked_how": "pinned clone at 9e2bdd8f",
-              "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
-              "kind": "repository",
-              "label": "guide/weight-hiding.md L41 · 9e2bdd8f",
-              "lines": "L41",
-              "path": "guide/weight-hiding.md",
-              "repo": "anthropics/FlashProve",
-              "text": "Lean's theorem on zero knowledge is for exact match: under a clipped-gap policy no Lean theorem covers what a whole proof reveals",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md?plain=1#L41"
-            },
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 9e2bdd8f",
+                "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+                "decides": false,
+                "kind": "repository",
+                "label": "guide/weight-hiding.md L41 · 9e2bdd8f",
+                "lines": "L41",
+                "path": "guide/weight-hiding.md",
+                "repo": "anthropics/FlashProve",
+                "text": "Lean's theorem on zero knowledge is for exact match: under a clipped-gap policy no Lean theorem covers what a whole proof reveals",
+                "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md?plain=1#L41"
+              }
+            ],
             "words": "Also stated, and counted under Model bound only (the clipped-gap policy):"
           },
           "quotes": [
@@ -396,7 +412,7 @@
             }
           ],
           "reason": "Hidden by design, but one bit per request leaks.",
-          "state": "amber"
+          "state": "partly"
         },
         "whole_output": {
           "note": "The benchmark's FlashProve workloads prove the next token after a 1,024-token window (workloads/fp-maverick-w1024-b24.yaml).",
@@ -429,53 +445,59 @@
             }
           ],
           "reason": "Covers the positions the client names; completeness of the reply not shown.",
-          "state": "amber"
+          "state": "partly"
         }
       },
       "family": "proved",
       "id": "flashprove",
       "name": "FlashProve",
-      "pencil": false,
       "source_class": "claim_card_at_pin",
-      "states": [
-        "amber",
-        "amber",
-        "amber",
-        "green",
-        "green",
-        "amber"
-      ],
       "tab": "benchmarked"
     },
     {
+      "card": {
+        "card_version": "1",
+        "configuration": "sound-defaults",
+        "system": "sash"
+      },
       "cells": {
         "formally_verified": {
           "note": "Searched for: machine-checked, machine checked, formal, Lean, Coq, audit, human review, soundness. docs/statement.md argues each edge in prose; no passage says how that argument is checked.",
           "outside_pin": {
             "quotes": [
               {
+                "archive_url": "https://web.archive.org/web/20261107134653/https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note",
                 "checked": true,
-                "checked_how": "downloaded text sash_note.html.txt",
-                "commit": null,
+                "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+                "decides": false,
                 "kind": "web",
                 "label": "SASH research note (September 2026), outside the pinned repositories",
-                "lines": null,
-                "path": null,
-                "repo": null,
+                "retrieved": "2026-11-07",
                 "text": "our soundness evidence is human review and negative controls.",
                 "url": "https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note"
               }
             ],
-            "reason": "Soundness evidence named: human review and negative controls.",
-            "state": "red"
+            "reason": "Soundness evidence named: human review and negative controls."
           },
           "quotes": [],
           "reason": "Not stated in the pinned repositories.",
-          "searched": [
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: every .md file",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: every .md file"
+          "sources_read": [
+            {
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "paths": [
+                "**/*.md"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-prover"
+            },
+            {
+              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "paths": [
+                "**/*.md"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-results"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
           "note": "Which real model: 'which model that root is, is the statement's own assertion until a published commitment is compared with it.' (zk-inference-results REPRODUCE.md L1406-L1409). Printed as text.",
@@ -508,30 +530,56 @@
             }
           ],
           "reason": "Each matrix product checked against pinned weights; each token is the top choice.",
-          "state": "green"
+          "state": "yes"
         },
         "no_trusted_party": {
-          "note": "Our note: SASH uses \"assumption\" only for cost-model inputs, never for what a proof rests on. Passages that name what the verifier takes as input were not copied here, because calling them assumptions would be our inference: `boundary-grid --verify` demands the calibration manifest and `--prompt` (prover/README.md L49-L52), and the model root \"stays a comparison against the same manifest\" (prover/README.md L56-L59). The source comment under the security notion speaks of \"conjectured\" soundness.",
-          "quotes": [],
-          "reason": "Not stated in the pinned repositories.",
-          "searched": [
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: README.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: GLOSSARY.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: CLAUDE.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: docs/statement.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: docs/decisions/ (all five files)",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: prover/README.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: harness/README.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: prover/src/util.rs (security parameters)",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: README.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: CLAUDE.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: REPRODUCE.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/statement-gap.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/quantization.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/cost-model.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/decisions/ (all seven files)"
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "decides": true,
+              "kind": "repository",
+              "label": "prover/src/compose.rs L7-L11 · eb95bfa8",
+              "lines": "L7-L11",
+              "path": "prover/src/compose.rs",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "`Fixed` — produced at setup, trusted by the verifier: the shape and gadget parameters that determine every column size and selector, the security config, the tree column sizes, and the **pinned preprocessed root**",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/compose.rs#L7-L11"
+            }
           ],
-          "state": "grey"
+          "reason": "The fixed statement is produced at setup and trusted by the verifier.",
+          "sources_read": [
+            {
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "paths": [
+                "README.md",
+                "GLOSSARY.md",
+                "CLAUDE.md",
+                "docs/statement.md",
+                "docs/decisions/*",
+                "prover/README.md",
+                "harness/README.md",
+                "prover/src/util.rs",
+                "prover/src/compose.rs"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-prover"
+            },
+            {
+              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "paths": [
+                "README.md",
+                "CLAUDE.md",
+                "REPRODUCE.md",
+                "docs/statement-gap.md",
+                "docs/quantization.md",
+                "docs/cost-model.md",
+                "docs/decisions/*"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-results"
+            }
+          ],
+          "state": "partly"
         },
         "security_level": {
           "note": "The documentation names the security block only as '`security` (the FRI parameters and the hash)' (prover/README.md L324).",
@@ -551,64 +599,92 @@
             }
           ],
           "reason": "Level stated as conjectured, in a source code comment.",
-          "state": "amber"
+          "state": "partly"
         },
         "weights_hidden": {
           "note": "Our note: no passage says whether a proof hides the weights. Two passages come near and were not copied into this slot because neither states it: the verifier compares the model root with a published manifest because \"it commits weights the verifier does not hold\" (zk-inference-prover docs/decisions/2026-09-09-the-verifier-derives-the-shape-root.md L10-L12), and the model's shape is \"things the verifier knows rather than things the proof hides\" (zk-inference-results docs/statement-gap.md L172-L175).",
           "outside_pin": {
             "quotes": [
               {
+                "archive_url": "https://web.archive.org/web/20261107134653/https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note",
                 "checked": true,
-                "checked_how": "downloaded text sash_note.html.txt",
-                "commit": null,
+                "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
+                "decides": false,
                 "kind": "web",
                 "label": "SASH research note (September 2026), outside the pinned repositories",
-                "lines": null,
-                "path": null,
-                "repo": null,
+                "retrieved": "2026-11-07",
                 "text": "The proofs are not yet zero-knowledge in the formal sense: the weights are hidden behind a commitment, but the proof system adds no blinding.",
                 "url": "https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note"
               }
             ],
-            "reason": "Hidden behind a commitment; the proof adds no blinding.",
-            "state": "amber"
+            "reason": "Hidden behind a commitment; the proof adds no blinding."
           },
           "quotes": [],
           "reason": "Not stated in the pinned repositories.",
-          "searched": [
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: README.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: GLOSSARY.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: CLAUDE.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: docs/statement.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: docs/decisions/ (all five files)",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: prover/README.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: harness/README.md",
-            "sg-ai-safety-hub/zk-inference-prover@eb95bfa887299d1637550228d42086c27cbb2b3b: prover/src/util.rs (security parameters)",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: README.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: CLAUDE.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: REPRODUCE.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/statement-gap.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/quantization.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/cost-model.md",
-            "sg-ai-safety-hub/zk-inference-results@11decec3c0b62c707618aab5deb82750b355d202: docs/decisions/ (all seven files)"
+          "sources_read": [
+            {
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "paths": [
+                "README.md",
+                "GLOSSARY.md",
+                "CLAUDE.md",
+                "docs/statement.md",
+                "docs/decisions/*",
+                "prover/README.md",
+                "harness/README.md",
+                "prover/src/util.rs"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-prover"
+            },
+            {
+              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "paths": [
+                "README.md",
+                "CLAUDE.md",
+                "REPRODUCE.md",
+                "docs/statement-gap.md",
+                "docs/quantization.md",
+                "docs/cost-model.md",
+                "docs/decisions/*"
+              ],
+              "repo": "sg-ai-safety-hub/zk-inference-results"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "note": "The request is checked as a grid of segment proofs joined by boundary-grid; the benchmark counts the grid as one proof (systems/sash/README.md).",
+          "outside_pin": {
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 11decec3",
+                "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+                "decides": false,
+                "kind": "repository",
+                "label": "docs/statement-gap.md L3-L7 · 11decec3",
+                "lines": "L3-L7",
+                "path": "docs/statement-gap.md",
+                "repo": "sg-ai-safety-hub/zk-inference-results",
+                "text": "The prover proves one end-to-end statement about one request: every position of a prompt and of a 512-token greedy continuation, from the embedding up through every layer and through the output head",
+                "url": "https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/docs/statement-gap.md?plain=1#L3-L7"
+              }
+            ],
+            "reason": "One end-to-end statement about one request, in the companion results repository."
+          },
           "quotes": [
             {
               "checked": true,
-              "checked_how": "pinned clone at 11decec3",
-              "commit": "11decec3c0b62c707618aab5deb82750b355d202",
+              "checked_how": "pinned clone at eb95bfa8",
+              "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
               "decides": true,
               "kind": "repository",
-              "label": "docs/statement-gap.md L3-L7 · 11decec3",
-              "lines": "L3-L7",
-              "path": "docs/statement-gap.md",
-              "repo": "sg-ai-safety-hub/zk-inference-results",
-              "text": "The prover proves one end-to-end statement about one request: every position of a prompt and of a 512-token greedy continuation, from the embedding up through every layer and through the output head",
-              "url": "https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/docs/statement-gap.md?plain=1#L3-L7"
+              "label": "prover/src/boundary.rs L1148-L1153 · eb95bfa8",
+              "lines": "L1148-L1153",
+              "path": "prover/src/boundary.rs",
+              "repo": "sg-ai-safety-hub/zk-inference-prover",
+              "text": "The token axis of the *sequence* -- as distinct from the K/V axis of the grid -- is checked here too, and unconditionally: every position of every block whose layer-0 chunk carries the embedding gadget is either a prompt position, whose id must equal the prompt's, or a generated one, whose id must equal the token the `lm_head` chunk proved for the position before it (within a block, and across the block seam at `t = 0`).",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1148-L1153"
             },
             {
               "checked": true,
@@ -624,23 +700,14 @@
               "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md?plain=1#L5-L7"
             }
           ],
-          "reason": "One statement per request: every prompt position and the whole continuation.",
-          "state": "green"
+          "reason": "Every prompt and generated position is checked across the joined grid of segment proofs.",
+          "state": "yes"
         }
       },
       "family": "proved",
       "id": "sash",
       "name": "SASH zk-inference-prover",
-      "pencil": false,
       "source_class": "claim_card_at_pin",
-      "states": [
-        "grey",
-        "green",
-        "green",
-        "grey",
-        "amber",
-        "grey"
-      ],
       "tab": "benchmarked"
     },
     {
@@ -652,7 +719,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -665,7 +732,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L13 · fbe1f9c7 · this repository",
               "lines": "L13",
               "path": "rfcs/0015-reference-rows.md",
@@ -674,8 +741,8 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L13"
             }
           ],
-          "reason": "Plain serving proves nothing: no assurance, by definition.",
-          "state": "red"
+          "reason": "By definition: nothing is checked, so there is no security argument.",
+          "state": "no"
         },
         "model_bound": {
           "quotes": [
@@ -684,7 +751,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -697,7 +764,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L77 · fbe1f9c7 · this repository",
               "lines": "L77",
               "path": "rfcs/0015-reference-rows.md",
@@ -706,8 +773,8 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L77"
             }
           ],
-          "reason": "Outputs are recorded, never compared with anything.",
-          "state": "red"
+          "reason": "By definition: nothing is checked; outputs are recorded, never compared.",
+          "state": "no"
         },
         "no_trusted_party": {
           "quotes": [
@@ -716,7 +783,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -729,7 +796,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L13 · fbe1f9c7 · this repository",
               "lines": "L13",
               "path": "rfcs/0015-reference-rows.md",
@@ -738,8 +805,8 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L13"
             }
           ],
-          "reason": "Nothing is checked; the reader trusts the provider.",
-          "state": "red"
+          "reason": "By definition: nothing is checked; the reader trusts the provider.",
+          "state": "no"
         },
         "security_level": {
           "quotes": [
@@ -748,7 +815,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -761,7 +828,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L13 · fbe1f9c7 · this repository",
               "lines": "L13",
               "path": "rfcs/0015-reference-rows.md",
@@ -770,18 +837,18 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L13"
             }
           ],
-          "reason": "Plain serving proves nothing: no assurance, by definition.",
-          "state": "red"
+          "reason": "By definition: nothing is checked, so there is no soundness level.",
+          "state": "no"
         },
         "weights_hidden": {
-          "note": "Red here means 'no assurance', not 'the weights leak'.",
+          "note": "No here means 'no assurance', not 'the weights leak'.",
           "quotes": [
             {
               "checked": true,
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -794,7 +861,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L13 · fbe1f9c7 · this repository",
               "lines": "L13",
               "path": "rfcs/0015-reference-rows.md",
@@ -803,8 +870,8 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L13"
             }
           ],
-          "reason": "No checker, so nothing to hide from: no assurance, by definition.",
-          "state": "red"
+          "reason": "By definition: nothing is checked, so there is no checker to hide from.",
+          "state": "no"
         },
         "whole_output": {
           "quotes": [
@@ -813,7 +880,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -826,7 +893,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L13 · fbe1f9c7 · this repository",
               "lines": "L13",
               "path": "rfcs/0015-reference-rows.md",
@@ -835,24 +902,19 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L13"
             }
           ],
-          "reason": "Plain serving proves nothing: no assurance, by definition.",
-          "state": "red"
+          "reason": "By definition: nothing is checked.",
+          "state": "no"
         }
       },
       "family": "unchecked",
       "id": "ref-serve",
       "name": "Plain serving (reference)",
-      "pencil": false,
       "source_class": "reference_rfc_0015",
-      "states": [
-        "red",
-        "red",
-        "red",
-        "red",
-        "red",
-        "red"
-      ],
-      "tab": "benchmarked"
+      "tab": "benchmarked",
+      "workloads": [
+        "fp-maverick-w1024-b1",
+        "fp-maverick-w1024-b24"
+      ]
     },
     {
       "cells": {
@@ -863,7 +925,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -872,18 +934,18 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L45"
             }
           ],
-          "reason": "A rerun, not a proof: no security argument, by definition.",
-          "state": "red"
+          "reason": "By definition: a rerun, not a proof, so there is no security argument.",
+          "state": "no"
         },
         "model_bound": {
-          "note": "Amber for a configuration that declares a precision substitution (PM-2, RFC-0015 L104); agreement is reported and changes no verdict (RC-6).",
+          "note": "Partly for a configuration that declares a precision substitution (PM-2, RFC-0015 L104); agreement is reported and changes no verdict (RC-6).",
           "quotes": [
             {
               "checked": true,
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L102 · fbe1f9c7 · this repository",
               "lines": "L102",
               "path": "rfcs/0015-reference-rows.md",
@@ -896,7 +958,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L86 · fbe1f9c7 · this repository",
               "lines": "L86",
               "path": "rfcs/0015-reference-rows.md",
@@ -906,7 +968,7 @@
             }
           ],
           "reason": "Reruns the pinned model files and compares every claimed token.",
-          "state": "green"
+          "state": "yes"
         },
         "no_trusted_party": {
           "note": "Trust in the checker's own engine and GPU is shared by every row and not counted.",
@@ -916,7 +978,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L82 · fbe1f9c7 · this repository",
               "lines": "L82",
               "path": "rfcs/0015-reference-rows.md",
@@ -925,8 +987,8 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L82"
             }
           ],
-          "reason": "The checker holds the weights and reruns the model itself.",
-          "state": "green"
+          "reason": "By definition: the checker reruns the model itself and trusts no other party.",
+          "state": "yes"
         },
         "security_level": {
           "quotes": [
@@ -935,7 +997,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L45 · fbe1f9c7 · this repository",
               "lines": "L45",
               "path": "rfcs/0015-reference-rows.md",
@@ -944,8 +1006,8 @@
               "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/fbe1f9c798ac9a2865dca086954de5e8a20c91d7/rfcs/0015-reference-rows.md?plain=1#L45"
             }
           ],
-          "reason": "A rerun, not a proof: no soundness level, by definition.",
-          "state": "red"
+          "reason": "By definition: a rerun, not a proof, so there is no soundness level.",
+          "state": "no"
         },
         "weights_hidden": {
           "quotes": [
@@ -954,7 +1016,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L82 · fbe1f9c7 · this repository",
               "lines": "L82",
               "path": "rfcs/0015-reference-rows.md",
@@ -964,7 +1026,7 @@
             }
           ],
           "reason": "The checker holds the weights: recompute needs them.",
-          "state": "red"
+          "state": "no"
         },
         "whole_output": {
           "quotes": [
@@ -973,7 +1035,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": true,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L86 · fbe1f9c7 · this repository",
               "lines": "L86",
               "path": "rfcs/0015-reference-rows.md",
@@ -986,7 +1048,7 @@
               "checked_how": "git show fbe1f9c7:rfcs/0015-reference-rows.md",
               "commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
               "decides": false,
-              "kind": "ours",
+              "kind": "this_repository",
               "label": "rfcs/0015-reference-rows.md L98 · fbe1f9c7 · this repository",
               "lines": "L98",
               "path": "rfcs/0015-reference-rows.md",
@@ -996,166 +1058,173 @@
             }
           ],
           "reason": "One forward pass over prompt plus every claimed output token.",
-          "state": "green"
+          "state": "yes"
         }
       },
       "family": "re_executed",
       "id": "ref-recompute",
       "name": "Recompute (reference)",
-      "pencil": false,
       "source_class": "reference_rfc_0015",
-      "states": [
-        "red",
-        "green",
-        "green",
-        "red",
-        "red",
-        "green"
-      ],
-      "tab": "benchmarked"
+      "tab": "benchmarked",
+      "workloads": [
+        "fp-maverick-w1024-b1",
+        "fp-maverick-w1024-b24"
+      ]
     },
     {
       "cells": {
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://attestable.com/blog/proving-llms-scale"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
               "checked": true,
-              "checked_how": "downloaded text attestable.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "A proof can establish that a committed model produced a specific output from a specific input",
               "url": "https://attestable.com/blog/proving-llms-scale"
             }
           ],
           "reason": "A committed model produced this output from this input (blog post).",
-          "state": "green"
+          "state": "yes"
         },
         "no_trusted_party": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
               "checked": true,
-              "checked_how": "downloaded text attestable.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "All of our results are based only on the security of cryptographic hash functions",
               "url": "https://attestable.com/blog/proving-llms-scale"
             }
           ],
           "reason": "Rests only on the security of hash functions (blog post).",
-          "state": "green"
+          "state": "yes"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
               "checked": true,
-              "checked_how": "downloaded text attestable.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "A proof can establish that a committed model produced a specific output from a specific input, without revealing the model’s weights or other private information.",
               "url": "https://attestable.com/blog/proving-llms-scale"
             }
           ],
           "reason": "Proof does not reveal the model's weights (blog post).",
-          "state": "green"
+          "state": "yes"
         },
         "whole_output": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134107/https://attestable.com/blog/proving-llms-scale",
               "checked": true,
-              "checked_how": "downloaded text attestable.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "Attestable blog, \"Proving LLMs at Scale\" (no date on the page)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "Once a sequence has been decoded, the system produces one proof covering the complete benchmarked execution.",
               "url": "https://attestable.com/blog/proving-llms-scale"
             }
           ],
           "reason": "One proof covers the complete decoded sequence (blog post).",
-          "state": "green"
+          "state": "yes"
         }
       },
       "family": "proved",
       "id": "attestable",
       "name": "Attestable prover",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "green",
-        "green",
-        "grey",
-        "grey",
-        "green"
+      "own_sources": [
+        {
+          "domain": "attestable.com",
+          "how": "the company's own domain; its blog post describes \"our prover\""
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
       "cells": {
         "formally_verified": {
+          "note": "Searched for all .md files, terms: Lean, Coq, formal verification.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/Lagrange-Labs/deep-prove/tree/9d1a53e2ef49ffa2c902b8689cd3c58057a4e662 (all .md files, terms: Lean, Coq, formal verification)"
+          "sources_read": [
+            {
+              "commit": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+              "paths": [
+                "**/*.md"
+              ],
+              "repo": "Lagrange-Labs/deep-prove"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "note": "The polynomial commitment named is HyperKZG; whether a setup must be trusted is not stated in the sources read.",
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
-          "note": "The project calls itself a zero-knowledge proof system; no passage read says the weights are hidden from the verifier.",
+          "note": "The project calls itself a zero-knowledge proof system; no passage read says the weights are hidden from the verifier. Searched for all .md files, terms: hiding, blinding, privacy, weights hidden, zero knowledge.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/Lagrange-Labs/deep-prove/tree/9d1a53e2ef49ffa2c902b8689cd3c58057a4e662 (all .md files, terms: hiding, blinding, privacy, weights hidden, zero knowledge)",
-            "https://eprint.iacr.org/2026/1112"
+          "sources_read": [
+            {
+              "commit": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+              "paths": [
+                "**/*.md"
+              ],
+              "repo": "Lagrange-Labs/deep-prove"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://eprint.iacr.org/2026/1112"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "quotes": [
@@ -1173,36 +1242,35 @@
               "url": "https://github.com/Lagrange-Labs/deep-prove/blob/9d1a53e2ef49ffa2c902b8689cd3c58057a4e662/zkml/README.md?plain=1#L21"
             },
             {
+              "archive_url": "https://web.archive.org/web/20261107134134/https://eprint.iacr.org/2026/1112",
               "checked": true,
-              "checked_how": "downloaded text eprint_2026_1112.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": false,
               "kind": "web",
               "label": "DeepProve paper abstract, IACR ePrint 2026/1112",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "end-to-end verification of full LLM inference (i.e., for all generated tokens of a prompt)",
               "url": "https://eprint.iacr.org/2026/1112"
             }
           ],
           "reason": "Prompt and claimed output tokens proved as one sequence.",
-          "state": "green"
+          "state": "yes"
         }
       },
       "family": "proved",
       "id": "deepprove",
       "name": "DeepProve",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "green",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents DeepProve",
+          "repo": "Lagrange-Labs/deep-prove"
+        },
+        {
+          "how": "the paper whose title names DeepProve, by the system's authors",
+          "url": "https://eprint.iacr.org/2026/1112"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1210,25 +1278,34 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/zkonduit/ezkl/blob/e196b111c1bafaa61b92ae431cd3c3fe9371da05/README.md"
+          "sources_read": [
+            {
+              "commit": "e196b111c1bafaa61b92ae431cd3c3fe9371da05",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "zkonduit/ezkl"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
@@ -1247,84 +1324,115 @@
             }
           ],
           "reason": "A private network is one statement among three; chosen per circuit.",
-          "state": "amber"
+          "state": "partly"
         },
         "whole_output": {
           "quotes": [],
           "reason": "Proves a graph run; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "e196b111c1bafaa61b92ae431cd3c3fe9371da05",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "zkonduit/ezkl"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "ezkl",
       "name": "EZKL",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "amber",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents EZKL",
+          "repo": "zkonduit/ezkl"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
       "cells": {
         "formally_verified": {
+          "note": "Searched for no .lean files; terms Lean, Coq, formal.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/ICME-Lab/jolt-atlas/tree/329b21efa6f6a74355e6096cf27c3e0cc7dfc226 (no .lean files; terms Lean, Coq, formal)"
+          "sources_read": [
+            {
+              "commit": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
+              "paths": [
+                "**/*.lean",
+                "**/*.md"
+              ],
+              "repo": "ICME-Lab/jolt-atlas"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "note": "Default commitment HyperKZG (README L33); setup trust not stated.",
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "note": "An optional `zk` build feature exists; the repository's own spec says CI does not build it.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/ICME-Lab/jolt-atlas/tree/329b21efa6f6a74355e6096cf27c3e0cc7dfc226 (README.md, specs/, docs/)"
+          "sources_read": [
+            {
+              "commit": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
+              "paths": [
+                "README.md",
+                "specs/**",
+                "docs/**"
+              ],
+              "repo": "ICME-Lab/jolt-atlas"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "note": "landscape.json covers_note: whether that run is one next token or a generation is not stated.",
           "quotes": [],
           "reason": "Proves one graph run; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "ICME-Lab/jolt-atlas"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "jolt-atlas",
       "name": "JOLT Atlas",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents JOLT Atlas",
+          "repo": "ICME-Lab/jolt-atlas"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1332,55 +1440,83 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/inference-labs-inc/JSTprove/blob/7c3cbbee83aaa01adde700673f00e317a4e902f9/README.md"
+          "sources_read": [
+            {
+              "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "note": "The paper abstract speaks of not exposing sensitive data; it does not say model weights.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/inference-labs-inc/JSTprove/blob/7c3cbbee83aaa01adde700673f00e317a4e902f9/README.md",
-            "https://arxiv.org/abs/2510.21024"
+          "sources_read": [
+            {
+              "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2510.21024"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "quotes": [],
           "reason": "Proves a graph run; no LLM operators listed.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "jstprove",
       "name": "JSTprove",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents JSTprove",
+          "repo": "inference-labs-inc/JSTprove"
+        },
+        {
+          "how": "the paper whose title names JSTprove, by the system's authors",
+          "url": "https://arxiv.org/abs/2510.21024"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1388,53 +1524,74 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/gizatechxyz/LuminAIR/blob/9026bd3d0934a35479e6b3b76353a6ac5facd9e8/README.md"
+          "sources_read": [
+            {
+              "commit": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "gizatechxyz/LuminAIR"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/gizatechxyz/LuminAIR/blob/9026bd3d0934a35479e6b3b76353a6ac5facd9e8/README.md"
+          "sources_read": [
+            {
+              "commit": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "gizatechxyz/LuminAIR"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "quotes": [],
           "reason": "Proves a graph run; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "gizatechxyz/LuminAIR"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "luminair",
       "name": "LuminAIR",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents LuminAIR",
+          "repo": "gizatechxyz/LuminAIR"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1442,89 +1599,95 @@
         "formally_verified": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134152/https://arxiv.org/abs/2603.18046",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2603.18046.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": false,
               "kind": "web",
               "label": "arXiv 2603.18046 (NanoZK abstract)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "We prove compositional soundness and zero-knowledge under standard assumptions",
               "url": "https://arxiv.org/abs/2603.18046"
             }
           ],
           "reason": "Soundness proved on paper; machine-checking not stated.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2603.18046"
+            }
+          ],
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134152/https://arxiv.org/abs/2603.18046",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2603.18046.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "NanoZK paper abstract, arXiv 2603.18046",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "NanoZK hides weights and activations from verifiers and auditors but does not hide the prompt from the prover",
               "url": "https://arxiv.org/abs/2603.18046"
             }
           ],
           "reason": "Hides weights and activations from verifiers (paper).",
-          "state": "green"
+          "state": "yes"
         },
         "whole_output": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134152/https://arxiv.org/abs/2603.18046",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2603.18046.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": false,
               "kind": "web",
               "label": "NanoZK paper abstract, arXiv 2603.18046",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "decomposes transformer inference into independently provable layers linked by a SHA-256 commitment chain",
               "url": "https://arxiv.org/abs/2603.18046"
             }
           ],
           "reason": "Layers proved separately, chained; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2603.18046"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "nanozk",
       "name": "NanoZK",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the paper whose title names NanoZK, by the system's authors",
+          "url": "https://arxiv.org/abs/2603.18046"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1532,33 +1695,48 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/ora-io/opml/blob/2fa43311a4a95bcd96f5092d0a3b34e84da49eb0/README.md"
+          "sources_read": [
+            {
+              "commit": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "ora-io/opml"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/ora-io/opml/blob/2fa43311a4a95bcd96f5092d0a3b34e84da49eb0/README.md"
+          "sources_read": [
+            {
+              "commit": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "ora-io/opml"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "quotes": [
@@ -1577,22 +1755,19 @@
             }
           ],
           "reason": "Only a disputed step is checked, in a challenge game.",
-          "state": "amber"
+          "state": "partly"
         }
       },
       "family": "re_executed",
       "id": "opml",
       "name": "opML",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "amber",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents opML",
+          "repo": "ora-io/opml"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1600,15 +1775,22 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/README.md"
+          "sources_read": [
+            {
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "nearai/private-ml-sdk"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
           "quotes": [
@@ -1616,7 +1798,7 @@
               "checked": true,
               "checked_how": "downloaded copy used by make_landscape.py",
               "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
-              "decides": true,
+              "decides": false,
               "kind": "repository",
               "label": "README.md L3 · 25c25025",
               "lines": "L3",
@@ -1626,13 +1808,23 @@
               "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/README.md?plain=1#L3"
             }
           ],
-          "reason": "Rests on trusted execution hardware (GPU and CPU enclaves).",
-          "state": "red"
+          "reason": "Runs in TEEs with remote attestation; no passage read says whose keys the check trusts.",
+          "sources_read": [
+            {
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "nearai/private-ml-sdk"
+            }
+          ],
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
@@ -1651,27 +1843,34 @@
             }
           ],
           "reason": "Hidden from the host in an enclave; the checker not addressed.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "nearai/private-ml-sdk"
+            }
+          ],
+          "state": "not_stated"
         },
         "whole_output": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         }
       },
       "family": "attested",
       "id": "private-ml-sdk",
       "name": "Private ML SDK",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "red"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents Private ML SDK",
+          "repo": "nearai/private-ml-sdk"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "archived"
     },
     {
@@ -1679,54 +1878,67 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/worldcoin/Remainder_CE/blob/5687fe7f3a077c75c374422ef79f22e3860de9c1/README.md"
+          "sources_read": [
+            {
+              "commit": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "worldcoin/Remainder_CE"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "note": "A zero-knowledge wrapper is stated for the proof system; no LLM circuit or statement about model weights is in the README.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/worldcoin/Remainder_CE/blob/5687fe7f3a077c75c374422ef79f22e3860de9c1/README.md"
+          "sources_read": [
+            {
+              "commit": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "worldcoin/Remainder_CE"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "remainder",
       "name": "Remainder (Community Edition)",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents Remainder",
+          "repo": "worldcoin/Remainder_CE"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1734,65 +1946,72 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://docs.tinfoil.sh/verification/attestation-architecture"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://docs.tinfoil.sh/verification/attestation-architecture"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "note": "The page binds weight volumes with a dm-verity commitment; that passage is not copied verbatim yet (landscape.json note).",
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134633/https://docs.tinfoil.sh/verification/attestation-architecture",
               "checked": true,
-              "checked_how": "downloaded text tinfoil_attest.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "Tinfoil documentation, Attestation architecture",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "verifies the hardware quote (AMD SEV-SNP or Intel TDX) against the vendor’s certificate chain.",
               "url": "https://docs.tinfoil.sh/verification/attestation-architecture"
             }
           ],
           "reason": "Checks a hardware quote against the vendor's certificate chain.",
-          "state": "red"
+          "state": "no"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://docs.tinfoil.sh/verification/attestation-architecture"
+            }
+          ],
+          "state": "not_stated"
         },
         "whole_output": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         }
       },
       "family": "attested",
       "id": "tinfoil",
       "name": "Tinfoil",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "red"
+      "own_sources": [
+        {
+          "domain": "docs.tinfoil.sh",
+          "how": "the documentation site of Tinfoil, which its pages name"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1800,68 +2019,85 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/PrimeIntellect-ai/toploc/blob/7ab7bcd6a4459ba4400fd41e4636bbeed7438997/README.md"
+          "sources_read": [
+            {
+              "commit": "7ab7bcd6a4459ba4400fd41e4636bbeed7438997",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "PrimeIntellect-ai/toploc"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134211/https://arxiv.org/abs/2501.16007",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2501.16007.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "TOPLOC paper abstract, arXiv 2501.16007",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "can detect unauthorized modifications to models, prompts, or precision with 100% accuracy, achieving no false positives or negatives in our empirical evaluations.",
               "url": "https://arxiv.org/abs/2501.16007"
             }
           ],
           "reason": "Detects model changes in empirical tests; a fingerprint, not a proof.",
-          "state": "amber"
+          "state": "partly"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/PrimeIntellect-ai/toploc/blob/7ab7bcd6a4459ba4400fd41e4636bbeed7438997/README.md",
-            "https://arxiv.org/abs/2501.16007"
+          "sources_read": [
+            {
+              "commit": "7ab7bcd6a4459ba4400fd41e4636bbeed7438997",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "PrimeIntellect-ai/toploc"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2501.16007"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         }
       },
       "family": "fingerprinted",
       "id": "toploc",
       "name": "TOPLOC",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "amber",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents TOPLOC",
+          "repo": "PrimeIntellect-ai/toploc"
+        },
+        {
+          "how": "the paper whose title names TOPLOC, by the system's authors",
+          "url": "https://arxiv.org/abs/2501.16007"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1869,81 +2105,88 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://arxiv.org/abs/2502.19405"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2502.19405"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134229/https://arxiv.org/abs/2502.19405",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2502.19405.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "Verde paper abstract, arXiv 2502.19405",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "with a guarantee of obtaining the correct result if at least one of them is honest.",
               "url": "https://arxiv.org/abs/2502.19405"
             }
           ],
           "reason": "Correct result if at least one provider is honest.",
-          "state": "amber"
+          "state": "partly"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://arxiv.org/abs/2502.19405"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2502.19405"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "whole_output": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134229/https://arxiv.org/abs/2502.19405",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2502.19405.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": false,
               "kind": "web",
               "label": "Verde paper abstract, arXiv 2502.19405",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "we design Verde, a dispute arbitration protocol",
               "url": "https://arxiv.org/abs/2502.19405"
             }
           ],
           "reason": "A dispute arbitration protocol; what one check covers not copied.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2502.19405"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "re_executed",
       "id": "verde",
       "name": "Verde (with RepOps)",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "amber"
+      "own_sources": [
+        {
+          "how": "the paper whose title names Verde, by the system's authors",
+          "url": "https://arxiv.org/abs/2502.19405"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -1955,6 +2198,19 @@
               "checked_how": "pinned clone at 7947bb9a",
               "commit": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
               "decides": true,
+              "kind": "repository",
+              "label": "analysis/claim-uniqueness-verification.md L182 · 7947bb9a",
+              "lines": "L182",
+              "path": "analysis/claim-uniqueness-verification.md",
+              "repo": "JamesPetrie/VerInf",
+              "text": "Proven by hand once, ever (candidates for later Lean mechanization):",
+              "url": "https://github.com/JamesPetrie/VerInf/blob/7947bb9a6c7ec86ea97927c76370b3920b6269f6/analysis/claim-uniqueness-verification.md?plain=1#L182"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 7947bb9a",
+              "commit": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
+              "decides": false,
               "kind": "repository",
               "label": "analysis/claim-uniqueness-verification.md L32 · 7947bb9a",
               "lines": "L32",
@@ -1990,8 +2246,8 @@
               "url": "https://github.com/JamesPetrie/VerInf/blob/7947bb9a6c7ec86ea97927c76370b3920b6269f6/README.md?plain=1#L19"
             }
           ],
-          "reason": "Today a hand-proven lemma; a machine check is planned only.",
-          "state": "red"
+          "reason": "Hand-proven lemmas; a machine check is planned only.",
+          "state": "no"
         },
         "model_bound": {
           "quotes": [
@@ -2023,7 +2279,7 @@
             }
           ],
           "reason": "Bounds how far a committed model explains the output; not exact.",
-          "state": "amber"
+          "state": "partly"
         },
         "no_trusted_party": {
           "quotes": [
@@ -2042,7 +2298,7 @@
             }
           ],
           "reason": "Hash-based commitments only, so no trusted setup.",
-          "state": "green"
+          "state": "yes"
         },
         "security_level": {
           "quotes": [
@@ -2074,7 +2330,7 @@
             }
           ],
           "reason": "Set in configuration as opened columns; Fiat-Shamir grinding not yet sized.",
-          "state": "amber"
+          "state": "partly"
         },
         "weights_hidden": {
           "quotes": [
@@ -2093,7 +2349,7 @@
             }
           ],
           "reason": "Reveals the bound and claim list, not the weights.",
-          "state": "green"
+          "state": "yes"
         },
         "whole_output": {
           "note": "Which requests are proved is sampled ('Only randomly sampled outputs are proven', paper.md L19): a deployment choice, not counted here.",
@@ -2113,22 +2369,19 @@
             }
           ],
           "reason": "Certifies the observed output stream.",
-          "state": "green"
+          "state": "yes"
         }
       },
       "family": "proved",
       "id": "verinf",
       "name": "VerInf",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "amber",
-        "green",
-        "red",
-        "amber",
-        "green"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents VerInf",
+          "repo": "JamesPetrie/VerInf"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -2136,64 +2389,66 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://eprint.iacr.org/2025/1184"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://eprint.iacr.org/2025/1184"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134248/https://eprint.iacr.org/2025/1184",
               "checked": true,
-              "checked_how": "downloaded text eprint_2025_1184.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "zkGPT paper abstract, IACR ePrint 2025/1184 (USENIX Security 2025)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "without compromising the privacy of model parameters",
               "url": "https://eprint.iacr.org/2025/1184"
             }
           ],
           "reason": "Proves inference without compromising parameter privacy (paper).",
-          "state": "green"
+          "state": "yes"
         },
         "whole_output": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "zkgpt",
       "name": "zkGPT",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the paper whose title names zkGPT, by the system's authors",
+          "url": "https://eprint.iacr.org/2025/1184"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -2201,145 +2456,181 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/jvhs0706/zkllm-ccs2024/blob/993311ea8e2346b90efacb35337b2e3cfe0d6f8d/README.md",
-            "https://arxiv.org/abs/2404.16109"
+          "sources_read": [
+            {
+              "commit": "993311ea8e2346b90efacb35337b2e3cfe0d6f8d",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "jvhs0706/zkllm-ccs2024"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2404.16109"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134307/https://arxiv.org/abs/2404.16109",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2404.16109.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "zkLLM paper abstract, arXiv 2404.16109 (ACM CCS 2024)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "is designed to uphold the privacy of the model parameters, ensuring no inadvertent information leakage.",
               "url": "https://arxiv.org/abs/2404.16109"
             }
           ],
           "reason": "Designed to keep the model parameters private (paper abstract).",
-          "state": "green"
+          "state": "yes"
         },
         "whole_output": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134307/https://arxiv.org/abs/2404.16109",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2404.16109.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": false,
               "kind": "web",
               "label": "zkLLM paper abstract, arXiv 2404.16109 (ACM CCS 2024)",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "the generation of a correctness proof for the entire inference process",
               "url": "https://arxiv.org/abs/2404.16109"
             }
           ],
           "reason": "Proves the entire inference process; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2404.16109"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "zkllm",
       "name": "zkLLM",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents zkLLM",
+          "repo": "jvhs0706/zkllm-ccs2024"
+        },
+        {
+          "how": "the paper whose title names zkLLM, by the system's authors",
+          "url": "https://arxiv.org/abs/2404.16109"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "archived"
     },
     {
       "cells": {
         "formally_verified": {
+          "note": "Searched for page 1.",
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/ddkang/zkml/blob/43789582671f16148dd02cbac5654f462d4fe3e4/README.md",
-            "https://ddkang.github.io/papers/2024/zkml-eurosys.pdf (page 1)"
+          "sources_read": [
+            {
+              "commit": "43789582671f16148dd02cbac5654f462d4fe3e4",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "ddkang/zkml"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://ddkang.github.io/papers/2024/zkml-eurosys.pdf"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134323/https://ddkang.github.io/papers/2024/zkml-eurosys.pdf",
               "checked": true,
-              "checked_how": "downloaded text zkml_eurosys.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "ZKML paper, EuroSys 2024, page 1",
-              "lines": null,
-              "path": null,
-              "repo": null,
-              "text": "for certifying computation with private models",
+              "retrieved": "2026-11-07",
+              "text": "ZKML requires that the model architecture (but not weights) is revealed.",
               "url": "https://ddkang.github.io/papers/2024/zkml-eurosys.pdf"
             }
           ],
-          "reason": "Certifies computation with private models (paper).",
-          "state": "green"
+          "reason": "Reveals the model architecture, not the weights (paper).",
+          "state": "yes"
         },
         "whole_output": {
           "quotes": [],
           "reason": "Proves a model run; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "43789582671f16148dd02cbac5654f462d4fe3e4",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "ddkang/zkml"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "zkml",
       "name": "ZKML",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents ZKML",
+          "repo": "ddkang/zkml"
+        },
+        {
+          "how": "the paper that presents ZKML (\"we present the first framework, ZKML\"), on the site of the ddkang/zkml repository's owner",
+          "url": "https://ddkang.github.io/papers/2024/zkml-eurosys.pdf"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -2347,66 +2638,72 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://eprint.iacr.org/2025/535",
-            "https://polyhedra.network/zkPyTorch"
-          ],
-          "state": "grey"
-        },
-        "model_bound": {
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "grey"
-        },
-        "no_trusted_party": {
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "grey"
-        },
-        "security_level": {
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "grey"
-        },
-        "weights_hidden": {
-          "note": "Weakest source in the table: a product claim. Candidate for grey on review.",
-          "quotes": [
+          "sources_read": [
             {
-              "checked": true,
-              "checked_how": "downloaded text polyhedra_zkpytorch.txt",
-              "commit": null,
-              "decides": true,
-              "kind": "web",
-              "label": "Polyhedra zkPyTorch product page",
-              "lines": null,
-              "path": null,
-              "repo": null,
-              "text": "Protect proprietary AI models and user data",
+              "retrieved": "2026-11-07",
+              "url": "https://eprint.iacr.org/2025/535"
+            },
+            {
+              "retrieved": "2026-11-07",
               "url": "https://polyhedra.network/zkPyTorch"
             }
           ],
-          "reason": "Product page: protects proprietary models; how is not stated.",
-          "state": "green"
+          "state": "not_stated"
         },
-        "whole_output": {
+        "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
+        },
+        "no_trusted_party": {
+          "not_copied": true,
+          "quotes": [],
+          "reason": "Not copied yet.",
+          "state": "not_stated"
+        },
+        "security_level": {
+          "not_copied": true,
+          "quotes": [],
+          "reason": "Not copied yet.",
+          "state": "not_stated"
+        },
+        "weights_hidden": {
+          "quotes": [],
+          "reason": "No passage read says the weights are hidden from the checker.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://polyhedra.network/zkPyTorch"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://eprint.iacr.org/2025/535"
+            }
+          ],
+          "state": "not_stated"
+        },
+        "whole_output": {
+          "not_copied": true,
+          "quotes": [],
+          "reason": "Not copied yet.",
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "zkpytorch",
       "name": "zkPyTorch",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "grey"
+      "own_sources": [
+        {
+          "domain": "polyhedra.network",
+          "how": "the ePrint paper that introduces zkPyTorch gives its authors' addresses at this domain"
+        },
+        {
+          "how": "the paper whose title names zkPyTorch, by the system's authors",
+          "url": "https://eprint.iacr.org/2025/535"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     },
     {
@@ -2414,16 +2711,26 @@
         "formally_verified": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
-          "searched": [
-            "https://github.com/uiuc-kang-lab/zk-torch/blob/63b9c68960f3ca84026d89428dd6d8129e930d53/README.md",
-            "https://arxiv.org/abs/2507.07031"
+          "sources_read": [
+            {
+              "commit": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "uiuc-kang-lab/zk-torch"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2507.07031"
+            }
           ],
-          "state": "grey"
+          "state": "not_stated"
         },
         "model_bound": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "no_trusted_party": {
           "note": "The file is named; who made it and how far it must be trusted is not stated in the sources read.",
@@ -2443,294 +2750,80 @@
             }
           ],
           "reason": "Needs a powers-of-tau setup file.",
-          "state": "amber"
+          "state": "partly"
         },
         "security_level": {
+          "not_copied": true,
           "quotes": [],
           "reason": "Not copied yet.",
-          "state": "grey"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "quotes": [
             {
+              "archive_url": "https://web.archive.org/web/20261107134614/https://arxiv.org/abs/2507.07031",
               "checked": true,
-              "checked_how": "downloaded text arxiv_2507.07031.txt",
-              "commit": null,
+              "checked_how": "retrieved 2026-11-07; the text read again in the archived copy",
               "decides": true,
               "kind": "web",
               "label": "ZKTorch paper abstract, arXiv 2507.07031",
-              "lines": null,
-              "path": null,
-              "repo": null,
+              "retrieved": "2026-11-07",
               "text": "These proofs convince the user that the ML model output is correct, without revealing the weights of the model to the user.",
               "url": "https://arxiv.org/abs/2507.07031"
             }
           ],
           "reason": "Output shown correct without revealing the weights (paper).",
-          "state": "green"
+          "state": "yes"
         },
         "whole_output": {
           "quotes": [],
           "reason": "Proves a model run; output tokens not named.",
-          "state": "grey"
+          "sources_read": [
+            {
+              "commit": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+              "paths": [
+                "README.md"
+              ],
+              "repo": "uiuc-kang-lab/zk-torch"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "proved",
       "id": "zktorch",
       "name": "ZKTorch",
-      "pencil": true,
-      "source_class": "public_sources",
-      "states": [
-        "green",
-        "grey",
-        "grey",
-        "grey",
-        "grey",
-        "amber"
+      "own_sources": [
+        {
+          "how": "the repository whose README presents ZKTorch",
+          "repo": "uiuc-kang-lab/zk-torch"
+        },
+        {
+          "how": "the paper whose title names ZKTorch, by the system's authors",
+          "url": "https://arxiv.org/abs/2507.07031"
+        }
       ],
+      "source_class": "public_sources",
       "tab": "not_benchmarked"
     }
   ],
-  "rules": [
-    "No total, no score, no rank. Segments are never summed, counted or averaged; rows stay A to Z.",
-    "Each colour comes from the written criterion above and at least one verbatim quote with its source, except grey, which carries the list of sources read or the words 'not copied yet'.",
-    "Never infer. If the sources read are silent, the segment is grey. Grey is drawn as a pale solid wedge so it reads as unknown, never as empty, good or bad.",
-    "Rows with a claim card (FlashProve, SASH): the state comes from the pinned repositories only. A system's own statement outside the pin is shown beside the segment (outside_pin), marked by a small dot on the rim in that statement's colour, and does not set the segment's colour.",
-    "Rows not benchmarked yet: the state comes from the quotes in landscape.json (public sources, no claim card). Their glyph is drawn in pencil and says 'from public sources, limits not copied'.",
-    "Reference rows (RFC-0015) prove nothing (RFC-0015 L45). Both are red on Formally verified and Security level, meaning 'no security argument, by definition', not a fault. Plain serving is red on every segment; Recompute's other segments are coloured from what RFC-0015 says it does. Reference rows are drawn as a ring, not a disc.",
-    "Each stated limit is counted in one segment only (FlashProve's clipped-gap policy: Model bound; its one-bit leak: Weights hidden). A limit counted elsewhere is printed beside the segment (aside).",
-    "Caveats every row shares do not change a colour (programs tested, not proved; compilers and hardware of the checker trusted; which real model a commitment is). They are printed as text. Public parameters fixed before the hash are shared by every non-interactive proof; they set amber only where the documentation says its proved statement excludes a provider who tuned them.",
-    "Colour is never the only signal: green is a full wedge, amber fills the inner half of its wedge (by area) and leaves the outer half empty, red is a full wedge with an ink cross, grey is a pale solid wedge; ink spokes and an ink rim bound every wedge.",
-    "The first quote of a coloured segment is the one that sets its state; further quotes support it."
-  ],
+  "schema": "criteria/1",
   "states": {
-    "amber": {
-      "fill": "half wedge (inner half by area, outer half empty)",
-      "ink": {
-        "dark": "#ffb000",
-        "light": "#ffb000"
-      },
-      "label": "partly",
-      "mark": "none",
-      "meaning": "It holds partly, or with a limit the system states."
+    "no": {
+      "meaning": "The documentation says it does not hold, by the property's No rule; or it says it holds, fully or partly, and a negative control of the benchmark contradicts it.",
+      "word": "No"
     },
-    "green": {
-      "fill": "full wedge",
-      "ink": {
-        "dark": "#007a4c",
-        "light": "#007a4c"
-      },
-      "label": "holds",
-      "mark": "none",
-      "meaning": "The property holds, per the system's own documentation."
+    "not_stated": {
+      "meaning": "The sources read say nothing that meets the Yes, Partly or No rule, or they have not been read yet. Silence is never No.",
+      "word": "Not stated"
     },
-    "grey": {
-      "fill": "pale grey wedge",
-      "ink": {
-        "dark": "#46433d",
-        "light": "#d6cfc1"
-      },
-      "label": "not stated",
-      "mark": "none",
-      "meaning": "Not stated in the sources read, or not copied by us yet. Silence is never red."
+    "partly": {
+      "meaning": "The documentation says it holds with a limit it states, by the property's Partly rule, and no control of the benchmark contradicts it.",
+      "word": "Partly"
     },
-    "red": {
-      "fill": "full wedge",
-      "ink": {
-        "dark": "#ff5a4a",
-        "light": "#ff5a4a"
-      },
-      "label": "does not hold",
-      "mark": "cross",
-      "meaning": "The system's documentation says it does not hold, or the design rules it out."
+    "yes": {
+      "meaning": "The documentation says the property holds, by the property's Yes rule, and no control of the benchmark contradicts it.",
+      "word": "Yes"
     }
-  },
-  "status": "draft criteria, prototype only, needs an RFC (RFC-0001)",
-  "test_mapping": {
-    "attestable": [
-      "green",
-      "green",
-      "green",
-      "grey",
-      "grey",
-      "green"
-    ],
-    "deepprove": [
-      "grey",
-      "grey",
-      "green",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "ezkl": [
-      "amber",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "flashprove": [
-      "amber",
-      "amber",
-      "amber",
-      "green",
-      "green",
-      "amber"
-    ],
-    "jolt-atlas": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "jstprove": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "luminair": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "nanozk": [
-      "green",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "opml": [
-      "grey",
-      "grey",
-      "amber",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "private-ml-sdk": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "red"
-    ],
-    "ref-recompute": [
-      "red",
-      "green",
-      "green",
-      "red",
-      "red",
-      "green"
-    ],
-    "ref-serve": [
-      "red",
-      "red",
-      "red",
-      "red",
-      "red",
-      "red"
-    ],
-    "remainder": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "sash": [
-      "grey",
-      "green",
-      "green",
-      "grey",
-      "amber",
-      "grey"
-    ],
-    "tinfoil": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "red"
-    ],
-    "toploc": [
-      "grey",
-      "amber",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "verde": [
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "amber"
-    ],
-    "verinf": [
-      "green",
-      "amber",
-      "green",
-      "red",
-      "amber",
-      "green"
-    ],
-    "zkgpt": [
-      "green",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "zkllm": [
-      "green",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "zkml": [
-      "green",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "zkpytorch": [
-      "green",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "grey"
-    ],
-    "zktorch": [
-      "green",
-      "grey",
-      "grey",
-      "grey",
-      "grey",
-      "amber"
-    ]
-  },
-  "this_repository_commit": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7"
+  }
 }
