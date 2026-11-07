@@ -1,21 +1,25 @@
 # The public site
 
-The public site at www.inferenceproofs.ai, its design named "Made of words". Draft criteria, needs an RFC (RFC-0001). The site shows only the benchmark's own runs. **Every benchmark result in this prototype is a placeholder** from the data fixture; the pages do not mark them, because the published site will only ever show real runs. Model sizes, pins and workloads come from the data and are real.
+The public site at www.inferenceproofs.ai, its design named "Made of words". Draft criteria, needs an RFC (RFC-0001). The site shows only the benchmark's own runs. **Every benchmark result on it is a placeholder until v0.1 is frozen (#146)**: the pages are built from a placeholder release of synthetic runs, no real measurement (see Models), and served with `noindex`. The pages do not mark them, because the published site will only ever show real runs. Names, pins, claim cards, criteria rows, model sizes and workloads are the real ones.
 
 The rules the site follows (pages, order, labels, script, narrow screens) and where it does not meet them yet are in [RFC-0009 §Site](../rfcs/0009-results-and-publication.md#site).
 
-Static pages built from two data files, served at clean addresses: `/` (the overview, `index.html`), `/flashprove` and `/sash` (one page per benchmarked system), `/reference` (the two references), `/criteria` (what each state means for each property) and the 404 page.
+Static pages written by `iproofs site build` from the newest frozen release (see Data), served at clean addresses: `/` (the overview, `index.html`), `/flashprove` and `/sash` (one page per benchmarked system), `/reference` (the two references), `/criteria` (what each state means for each property) and the 404 page.
 
 ## Build and check
 
-From this folder:
+From the repository root:
 
 ```
-python3 -I build.py                      # the pages, 404.html, vercel.json, the card sources in og/, the fonts block in words.css, the contrast table below
-PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs && python3 -I build.py   # when a card source changed
-python3 -I test_sort_keys.py             # or: python3 -m pytest test_sort_keys.py
-python3 -I test_cards.py                 # each picture rendered from its committed source; every page names one
-python3 -I test_search.py                # the search index
+PYTHONPATH=harness/tests uv run python -m fixtures.placeholder_release --site web   # until v0.1 (#146): the placeholder release, frozen in a temporary tree, then `iproofs site build --out web` there
+uv run iproofs site build                # from v0.1 on: the pages from releases/*/index.json into web/ (until then it stops with a configuration error)
+uv run pytest web -q                     # sort keys, preview cards, search: the committed files against a fresh build and hand-computed cases
+```
+
+The build writes the pages, 404.html, search.json, vercel.json, the card sources in og/, the fonts block in words.css and the contrast table below; `--out DIR` writes a complete site elsewhere (static assets copied). It never deletes a file: a page it no longer writes stops the build. From this folder:
+
+```
+PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs   # when a card source changed; then rebuild, so the pages name the new pictures
 python3 -I serve.py                      # http://127.0.0.1:4440/ as on Vercel: the deployed files only, clean addresses, redirects, headers (CSP included), 404
 PLAYWRIGHT_MODULE=<path to playwright/index.mjs> \
 AXE_MODULE=<path to @axe-core/playwright/dist/index.mjs> \
@@ -26,7 +30,7 @@ BASE=http://127.0.0.1:4440/ node shoot.mjs    # screenshots and checks into shot
 
 ## Deploy
 
-www.inferenceproofs.ai serves this folder from Vercel's Git integration (the Vercel project's Root Directory is `web`). `build.py` writes `vercel.json`, since parts of it come from the build:
+www.inferenceproofs.ai serves this folder from Vercel's Git integration (the Vercel project's Root Directory is `web`). The build writes `vercel.json`, since parts of it come from the build:
 
 - `ignoreCommand`: `git diff --quiet HEAD^ HEAD -- .` skips a deployment when the commit (on main, the merge commit against its first parent) does not change this folder.
 - `buildCommand`: no build on Vercel; it copies the committed pages, `words.css`, `words.js`, the pictures and icon in `og/` and the fonts in `fonts/` into `public/`, the only folder served. The data, scripts, card sources, screenshots and README are not.
@@ -34,7 +38,7 @@ www.inferenceproofs.ai serves this folder from Vercel's Git integration (the Ver
 - Headers on every response: `noindex` while the results are placeholders, a Content-Security-Policy that allows only this site's own files plus the one inline script by its sha256 (computed by the build), `X-Frame-Options: DENY`, a Permissions-Policy, `nosniff` and a referrer policy.
 - Caching: `words.css` and `words.js` are linked with `?v=` and the first 12 hex of their sha256, the pictures likewise, and each font file carries its hash in its name; all four get a one-year immutable cache. Pages revalidate on every visit.
 
-The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request that touches this folder it runs `build.py`, `test_sort_keys.py`, `test_cards.py` and `test_search.py` and fails if any file differs from what the build writes, new files included.
+The pages are served as committed, so `.github/workflows/site.yml` holds them to the build: on every pull request and push to main that touches an input of the build (`releases/`, `systems/`, `workloads/`, `targets/`, `results/`, `reference/`, `schema/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, the harness and its test fixtures, `pyproject.toml`, `uv.lock` or this folder) it rebuilds them with the placeholder command above (`uv run iproofs site build` once v0.1 is frozen), runs `uv run pytest web -q` and fails if any file under `web/` differs from what the build writes, new files included.
 
 ## Fonts
 
@@ -42,25 +46,26 @@ Archivo (variable width and weight) and IBM Plex Mono 400, 500 and 600 are serve
 
 ## Data
 
-`build.py` reads `_data/site.json`, `_data/criteria.json`, `fonts/faces.json`, `words.css` (for its inks and slice lifts) and the RFC file names in `../rfcs`. It stops if a pie's states differ from `criteria.json`, if a state ink steps less than 1.7:1 from the one below, if a text pair falls under 4.5:1, if `words.css` holds different inks or slice lifts than the ones the build computes with, if a home figure's sort key disagrees with the number the figure prints, if a benchmarked row is not on `TARGET_MODEL`, if a font file's name does not carry its hash, if a reworded phrase is no longer in the data, or if a rule code names an RFC that does not exist. Every value, label, pin and hash on the pages comes from the data. The footer pins the committed `criteria.json` by its sha256.
+`iproofs site build` reads the newest frozen `releases/*/index.json` and its `release.yaml`, the claim cards, run records (`run.json`, `controls.json`) and replies they name, `systems/*/system.yaml` and `controls.yaml`, `workloads/`, `reference/`, `targets/`, `MAINTAINERS.md`, the RFC file names in `rfcs/`, the criteria file `_data/criteria.json` (RFC-0016) and the display facts `_data/facts.json` (schema `site-facts/1`: names, techniques, licences, repository status, model display names, the models a not-benchmarked system's sources name). `iproofs.site` turns them into one view, with no git call and no clock, so the same files give the same bytes; `build.py`, the renderer, draws that view and opens no data file. Every number on the pages is a value the index stores, printed at 4 significant digits in a reading unit; the renderer words the stored ids (scope, grade, tier, null reasons, failure kinds, units, states, families) through fixed tables and types no number. It stops if a state ink steps less than 1.7:1 from the one below, if a text pair falls under 4.5:1, if `words.css` holds different inks or slice lifts than the ones the build computes with, if a font file's name does not carry its hash, if a reworded phrase is no longer in the criteria or facts file, if a criteria family has no words, if a rule code names an RFC that does not exist, or if `out` holds a page or card source the build no longer writes. The footer pins the committed `criteria.json` by its sha256.
 
 What the pages leave out of the data, or say differently, on purpose:
 
-- The systems' own published figures and every quote. The benchmark measures; who said what is not shown. The glyph's states and our short reasons stay. Where a reason left out a limit the system's own source states, the reason says it (FlashProve, Formally verified: "proved in Lean for the protocol; the C++ verifier and CUDA prover are tested, not proved").
-- Every placeholder marking: MOCK chips, the placeholder banner, and the parts of the data's label text that speak of mock values or "the fixture" (`words`, `clean` and `clean_prose` in `build.py`). A label left empty by that is not printed.
+- The systems' own published figures and every quote. The benchmark measures; who said what is not shown yet (the quotes come with #320's second pull request, RFC-0009 §Site gaps). The glyph's states and the criteria file's short reasons stay.
+- Every placeholder marking: no MOCK chips and no banner. The placeholder runs are marked by this README, the `noindex` header and "(candidate)" in the footer, which stays until a tracked file records the release's publication.
 - RFC rule codes ("RFC-0015 NM-1") never print bare: on plates and in the more-numbers table they become a small "rule ↗" link to the RFC after the sentence's full stop, its code read to screen readers; in home cells and titles they are left out.
-- A few data phrases are worded for a reader who has not read the RFCs (`PHRASES` in `build.py`): the overhead's missing value reads "Plain serving could not run this model on one H100, so there is no baseline to divide by"; the rerun reference is never called "recompute"; the criteria page does not speak of quotes, cards, glyphs or "not copied yet", which the site does not show. A row that names its own basis ("GPU cost per 1,000 positions") prints its value without repeating it.
+- A few criteria phrases are worded for a reader who has not read the RFCs (`PHRASES` in `build.py`, each checked still to be in the criteria or facts file): the rerun reference is never called "recompute"; the criteria page does not speak of quotes, cards, glyphs or "not copied yet", which the site does not show. An overhead stored as null with `not_measurable_on_profile` reads "Plain serving could not run this model on one H100, so there is no baseline to divide by". A row that names its own basis ("GPU cost per 1,000 positions") prints its value without repeating it.
 - Spreads read in words ("3 completed, 1 failed", not "n = 3 runs, n_failed = 1": n counts the completed runs, the failed ones are not in the figure), a per-unit line reads "per proof", raw floats are dropped from titles, a number never wraps away from its unit (nor a count word or a statistic from what it counts), an id, date or model name never breaks at a hyphen, and a "·" separator never starts a line. A missing number's title gives only why it is missing.
 - A missing number carries no grade or check: its plate shows why it is missing and where that is recorded, its more-numbers row only why.
-- The references' rows per model. Each reference is one row (`ref_summary` in `build.py`): a figure the models share is printed once; where they differ, the one that holds a value (plain serving's overhead is 1× by definition, run or not); what one proof covers, stored as "same as above", reads "Same as the system".
+- The references: one row per reference on the overview, from its own configurations. What one proof covers reads "Same as the system" (a reference record is an output, not a proof, RFC-0015 REF-2); plain serving's overhead reads "Baseline", the denominator of the ratio, never a typed 1×. A reference whose kept runs all failed shows its counts, "below minimum repetitions" and, where RFC-0015 NM-1 applies, that it is not measurable on the profile's GPU.
 - Not benchmarked yet: each system's models in full (never cut mid-phrase), and its status without repeating what the heading or the status already says ("no adapter yet", a second "archived").
-- Two data sentences: "These tests show only what happened to these attempts, nothing more." and "Printed as text.".
 
 ## Models
 
-The site compares systems on one model, Llama 4 Maverick (400B parameters, 17B active per token), and shows only systems run on it: `TARGET_MODEL` in `build.py`. The code still sets rows side by side per model, biggest first, should the data ever hold more than one.
+The overview sets one table per model, largest first, then one per workload of that model (RFC-0009 S6), from the workloads the release's configurations ran. Two workloads on one model carry the header "Native workloads differ: rows are not a head-to-head comparison" above their tables, and a table holding two rows of one system names each row's configuration beside its pin. The placeholder release holds one table: Llama 4 Maverick (400B parameters, 17B active per token), workload `fp-maverick-w1024-b24` on `prover-h100`.
 
-**SASH's figures on Llama 4 Maverick are placeholders placed there for layout.** SASH's pinned code runs Llama 3.1 8B only (RFC-0003). `_data/maverick_only.py` moved its placeholder row from Llama 3.1 8B onto FlashProve's workload: what one proof covers, the overhead and the per-unit lines are the workload's, taken from FlashProve's cells; proof size, check time and the more-numbers keep SASH's placeholder values. It also removed the reference rows on Llama 3.1 8B. The script edits only what `build.py` reads and does nothing when run again; the rest of `site.json` (configurations, the overview's precomputed orders) still describes the earlier snapshot.
+**The placeholder release (until v0.1, #146).** `harness/tests/fixtures/placeholder_release.py` builds it in a temporary git tree from copies of the real `schema/`, `reference/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, this folder (less `shots/` and `.tools/`), the workload and the system directories of FlashProve, SASH and the two references. The runs are synthetic records of no real run: raw values chosen so the figures keep the digits the site printed before #320, every derived metric computed by `iproofs.derive`, so `iproofs release freeze` passes the real gates G2 to G7 on them. SASH has one failed and one superseded run; both references fail every run with kind `resource` (RFC-0015 NM-1), so the overhead and the agreement rate are null. One proof covers is each system's own count (`tokens_covered_per_proof`, D-TPP): FlashProve's window, 1,024 positions, and SASH's prompt and output, 1,025 (placeholder values).
+
+**SASH's row on Llama 4 Maverick is a placeholder placed there for layout.** SASH's pinned code runs Llama 3.1 8B only (RFC-0003). The fixture adds SASH to its copy of the workload and the workload to its copy of `systems/sash/system.yaml`; the real tree is never changed. The fixture's test-only cases (`extras=True`: a reply written by no system maintainer, a target, a pending disclosure, an override, a second workload and card, more runs left out, an unexpected control) build the golden pages under `harness/tests/golden/site/` and never reach this folder.
 
 ## Design
 
@@ -99,20 +104,20 @@ Below 920 px both tables become a board: each row is two lines, the glyph (52 px
 
 ### Sorting
 
-The column heads are the only sort control, and one order applies to every model's table. Each head is a button with a glyph: ↕ idle, ↑ or ↓ when it sorts, a second press reverses. The sorting head is in paper with a rule under it and its cell has `aria-sort`; the order is also named for screen readers ("Proof size, large to small", from the data's direction words). Below 920 px the heads sit over the board: System on its own line, then the four figure heads, each above its own column, buttons 32 px tall or more. When a figure column sorts, its figures stay in paper and the other three turn muted, so the sorted column reads down the board. A head that wraps keeps its glyph beside its last word (a no-break space). Without script the heads do not look pressable.
+The column heads are the only sort control, and one order applies to every model's table. Each head is a button with a glyph: ↕ idle, ↑ or ↓ when it sorts, a second press reverses. The sorting head is in paper with a rule under it and its cell has `aria-sort`; the order is also named for screen readers ("Proof size, large to small", from the direction words in `build.py`). Below 920 px the heads sit over the board: System on its own line, then the four figure heads, each above its own column, buttons 32 px tall or more. When a figure column sorts, its figures stay in paper and the other three turn muted, so the sorted column reads down the board. A head that wraps keeps its glyph beside its last word (a no-break space). Without script the heads do not look pressable.
 
 - The order is kept in the hash: `#sort=proof_size-desc`. The default (System, A to Z) has no hash; an unknown order falls back to it, and so does going Back to the page without a hash.
 - A figure with no number goes last in both directions. Ties fall back to the name.
 - Rows move in 200 ms (FLIP), at once under reduced motion.
 - Neutral: no rank numbers, medals or ranking words.
 
-Sort keys are computed, never typed: for each row and column, `build.py` takes the raw number from the axis chart that plots that figure (`axes.<axis>.charts[<chart>].views.run.rows[].value`) and multiplies it into one base unit by the chart's declared unit. The printed figure is parsed only to check that the raw number rounds to it. `test_sort_keys.py` checks the keys against hand-computed cases, the unit table, the single model, the reference rows (`ref_summary`) and the label rewrites.
+Sort keys are the stored values, never typed or parsed back from a printed figure: each row's `data-k` holds, per column, the value the release's `index.json` stores for that statistic in its base unit (token, B, s, ratio), or null. The printed figure is that value at 4 significant digits, scaled for reading (MB, ms, min). `test_sort_keys.py` checks the keys against the stored values and hand-computed cases from the placeholder release.
 
 ### System pages
 
 The violet band holds the name. Below it, one screen: the pie (200 px) in the middle with each property beside its own slice, slices 1 to 3 on its right and 4 to 6 on its left, top to bottom. Each property shows its name (a link to what its states mean), state and our short reason (left out when it only repeats Not stated); its question is read to screen readers. Pointing at a property lifts its slice; pointing at a slice marks its property. Beside the pie, the facts: kind, model, pinned repositories, licence, status (one form for every system: the state, then its last push and source when stored), adapter notes. Below 1240 px the facts move under the pie. At 760 px and below the glyph appears once, as wide as the page allows (up to 340 px), and each triangle carries its property's name in ground ink (never its state: the ink says it). A slanted side carries its name along it, the longer line nearer the side; an upright side, level, against it (`_names_svg` in `build.py`). Under it, one ruled row per property, clockwise from twelve: the name as a quiet label, the state with its square in one column, the reason as a muted second line. A tapped triangle lifts with its name, and its row takes a ground of its own. On a touch screen a tap on a slice or on a property (not its link) lifts the slice and marks the property, as pointing does; the property names are underlined there. On a phone held sideways the band is shorter and the pie 160 px, so the whole glyph and the first property show on landing.
 
-Then the figures (four plates, each with its own id, `fig-<column>`, with every label: spread, scope, grade, checked, workload, why, source; their rules line up across the plates) with more numbers in a table, and the tamper tests with the control test, run or documented and not yet run. The reference page uses the same layout for each reference, with one set of figures, headed with the reference's name ("Figures · Plain serving") since a figure link lands away from it. On phones a plate's label sits beside its value from 375 px (stacked below, where a source path's parts no longer fit), plates are parted by one rule, and the reference page pairs its plates. Links on these pages and in the footer have hit areas 24 px tall or more that move no text.
+Then the figures (four plates, each with its own id, `fig-<column>`, with every label: spread, scope, grade, checked, workload, why, source; their rules line up across the plates) with more numbers in a table, and the tamper tests: each stored outcome count of the configuration, named by its configuration, workload, division and profile, then the control tests the system registers (`systems/<system>/controls.yaml`) with their outcome. The reference page uses the same layout for each reference, with one set of figures, headed with the reference's name ("Figures · Plain serving") since a figure link lands away from it. On phones a plate's label sits beside its value from 375 px (stacked below, where a source path's parts no longer fit), plates are parted by one rule, and the reference page pairs its plates. Links on these pages and in the footer have hit areas 24 px tall or more that move no text.
 
 ### Criteria page
 
@@ -120,14 +125,14 @@ Then the figures (four plates, each with its own id, `fig-<column>`, with every 
 
 ### Preview cards
 
-What a shared link shows (Open Graph and X `summary_large_image`): every page carries its title, description, canonical URL and a picture with its alt text, all from the data. The pictures are 1200 x 630 at 2x (2400 x 1260 PNG) and drawn in the site's own type and inks:
+What a shared link shows (Open Graph and X `summary_large_image`): every page carries its title, description, canonical URL and a picture with its alt text, all from the view. The pictures are 1200 x 630 at 2x (2400 x 1260 PNG) and drawn in the site's own type and inks:
 
 - `og/home.png` (the home, the reference and the criteria page): only what does not change with the systems benchmarked, since link previews stay cached in message apps for as long as the message lives: the six property names on the violet field, each beside its place in the pie, and the site's mark and name. No system, model or state.
 - `og/<system>.png`: the system page's first screen: the name on the violet band with its model and pin, then its pie with each property's state beside its own slice.
-- A system card says "Draft criteria, needs an RFC" (the data's label), since a picture travels without the page around it. The alt text says what the picture draws.
+- A system card says "Draft criteria, needs an RFC" (the criteria label), since a picture travels without the page around it. The alt text says what the picture draws.
 - `og/icon.svg` (the favicon) and `og/icon.png` (the 180 px touch icon, rendered from `og/icon.html`): the hex asterisk in ground ink on the violet field.
 
-No figures are drawn: results are placeholders until a release exists, and a picture travels without its labels. `build.py` writes each picture's source (`og/<card>.html`); `og.mjs` renders it with the same Playwright as `shoot.mjs`, with the fonts from `fonts/` (no network), refuses a card whose fonts did not load, whose content spills past its edges or whose system name runs into the band's corner text, and records the sha256 of source and picture in `og/cards.json`. The pages name each picture with `?v=` and the first 12 hex of its hash, so a new picture is a new URL for link-preview caches. `test_cards.py` fails when a committed picture was not rendered from its committed source.
+No figures are drawn: results are placeholders until a release exists, and a picture travels without its labels. The build writes each picture's source (`og/<card>.html`); `og.mjs` renders it with the same Playwright as `shoot.mjs`, with the fonts from `fonts/` (no network), refuses a card whose fonts did not load, whose content spills past its edges or whose system name runs into the band's corner text, and records the sha256 of source and picture in `og/cards.json`. The pages name each picture with `?v=` and the first 12 hex of its hash, so a new picture is a new URL for link-preview caches. `test_cards.py` fails when a committed picture was not rendered from its committed source.
 
 ### 404
 
@@ -160,19 +165,19 @@ axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practic
 
 ## Files
 
-- `build.py`: the pages, `vercel.json`, the card sources, the fonts block, the sort keys and the contrast table. `serve.py`: the local preview, run under `vercel.json`'s own rules.
-- `test_sort_keys.py`: the sort keys, the single model, the reference rows and the label rewrites. `test_cards.py`: the preview cards, the share tags, the icon and the 404.
+- `build.py`: the renderer: the pages, `vercel.json`, the card sources, the fonts block and the contrast table, from the view `iproofs site build` hands it. `serve.py`: the local preview, run under `vercel.json`'s own rules.
+- `conftest.py`: builds the placeholder site once per test session. `test_sort_keys.py`: the sort keys and figures against the stored values and hand-computed cases. `test_cards.py`: the preview cards, the share tags, the icon and the 404. All run from the repository root: `uv run pytest web -q`.
 - `words.css`, `words.js`: style and behaviour, no data (the fonts block in `words.css` is written by the build).
 - `fonts/`: the font files, `faces.json` and their licences.
 - `shoot.mjs`: screenshots and checks: no sort control, toggle, tabs, quotes or placeholder marking; one table, Llama 4 Maverick, references after it; a static header; row hover without shift; sort order for every column and direction from the heads, also on rows that differ in every column with missing values among them, the hash round-trip, Back to the default and keyboard sorting; overflow at 320 to 1100 px on every page; `/system` redirects; a malformed hash breaks nothing; search (the shortcut, order, typos, the not-benchmarked badge and landing, Enter and arrows, the phone button); on phones the search sheet (16 px field, a tap on the sheet activates nothing, results kept when the keyboard hides, a 44 px close button, results above the keyboard), the header on one line from 561 px and its target sizes, the 2 x 3 legend, the board (System on its own line, each figure head above its own column, rows 140 px or less) and the sorted column in paper with the others muted, tap to name a triangle and tap again to follow it, the system page's glyph with each name inside its own triangle (every corner of every line in its triangle's fill) and no state word, and the six rows under it with the states in one column and no key glyphs, every link and button 24 px tall or more with no overlap at 390 and 320 px, the whole glyph on a phone held sideways and the 404 search field; every local link and its #fragment resolve; CLS; the first system name on landing at 390 px and the model heading on a phone held sideways; on each system and reference page, a small pie with slices 1 to 3 described on its right and 4 to 6 on its left within the first screen; the styled 404 at any depth; no duplicate ids, no placeholder words, field names or bare rule codes; the cut sentences, ranking words, numbered property names, dead local links, console errors, and axe on every page at 1440 and 390 px.
-- `search.json` (written by `build.py`) and `test_search.py`: the search index and its check.
+- `search.json` (written by the build) and `test_search.py`: the search index and its check.
 - `og.mjs`, `og/`: the preview cards (sources, pictures, `cards.json`).
-- `_data/`: `site.json`, `criteria.json` and `maverick_only.py`.
+- `_data/`: `criteria.json` (the criteria the glyph states come from, RFC-0016; its prototype form until #318) and `facts.json` (the display facts, `site-facts/1`).
 - `shots/`: screenshots and `checks.txt`.
 
 ## Open
 
 - SASH's row on Llama 4 Maverick is a layout placeholder (see Models); the table needs a second real system on the model before sorting compares measured runs.
 - The pie's states still come from reading each system's documentation (the criteria in `criteria.json`). Showing them as measured needs checks of our own per property; until then the reason line is ours and the quotes are left out.
-- The direction words come from the data generator, which is not in this repository (`_data/site.json` is a frozen snapshot of its output), and mix two patterns ("small to large", "fewer positions first").
-- The tamper tests print their tally and the control test; the per-attempt records are in the data but not listed, and SASH's records still describe its Llama 3.1 8B setup.
+- The direction words (`SORT_WORDS` in `build.py`) mix two patterns ("small to large", "fewer positions first").
+- The tamper tests print each outcome count; the per-attempt records, every unexpected outcome in full and the per-property control lists come with #320's second pull request, with the rest of the RFC-0009 §Site gaps it names. The release's `index.json` is not published until #146, so each figure names its record as a pointer in text, not a link.

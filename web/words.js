@@ -1,5 +1,5 @@
 // MADE OF WORDS: behaviour only. No value, label or quote is typed here: everything printed
-// comes from the page, which build.py wrote from site.json (sort keys included, in data-k).
+// comes from the page, which iproofs site build wrote (sort keys included, in data-k).
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
