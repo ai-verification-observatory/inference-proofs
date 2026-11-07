@@ -17,6 +17,7 @@ from iproofs.provenance import file_digest
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import load_yaml
 
+REPOSITORY = "https://github.com/ai-verification-observatory/inference-proofs"
 CRITERIA = "web/_data/criteria.json"
 FACTS = "web/_data/facts.json"
 # RFC-0016 §States: the prototype criteria file's colour ids and the state ids they stand for.
@@ -47,6 +48,14 @@ def _state(value: object, where: str) -> str | None:
 # ---------------------------------------------------------------- criteria (RFC-0016)
 
 
+def _outside(statement: object, where: str) -> dict[str, Any] | None:
+    """SRC-3: a system's own statement outside the pin, its state in RFC-0016 ids; never
+    part of the cell's state."""
+    if not isinstance(statement, Mapping):
+        return None
+    return {**statement, "state": _state(statement.get("state"), where)}
+
+
 @dataclass(frozen=True)
 class Criteria:
     """The criteria file in RFC-0016 vocabulary: state ids, sources read, the release it names."""
@@ -57,6 +66,7 @@ class Criteria:
     order: tuple[str, ...]
     properties: tuple[dict[str, Any], ...]
     rows: dict[str, dict[str, Any]]
+    pins: dict[str, str]  # repository -> the commit the sources read were read at
 
 
 def load_criteria(root: Path) -> Criteria:
@@ -67,7 +77,11 @@ def load_criteria(root: Path) -> Criteria:
     path = root / CRITERIA
     doc = json.loads(path.read_text("utf-8"))
     order = tuple(str(p) for p in doc["order"])
-    properties = tuple(dict(p) for p in doc["properties"])
+    # each property's rule per state, keyed by RFC-0016 state id (the prototype keys colours)
+    properties = tuple(
+        {**p, "rules": {state: p[colour] for colour, state in STATE_OF.items() if colour in p}}
+        for p in doc["properties"]
+    )
     if [p["id"] for p in properties] != list(order):
         raise _config(f"{CRITERIA}: properties are not in `order`")
     mapping = doc.get("test_mapping") or {}
@@ -95,7 +109,7 @@ def load_criteria(root: Path) -> Criteria:
                 "sources_read": list(cell.get("searched") or []),
                 "aside": cell.get("aside"),
                 "note": cell.get("note"),
-                "outside_pin": cell.get("outside_pin"),
+                "outside_pin": _outside(cell.get("outside_pin"), f"{rid}/{prop} outside_pin"),
                 "conflict": bool(cell.get("conflict")),
                 "contradicted_by": list(cell.get("contradicted_by") or []),
             }
@@ -115,7 +129,8 @@ def load_criteria(root: Path) -> Criteria:
             "disclosures": list(raw.get("disclosures") or []),
             "cells": cells,
         }
-    return Criteria(CRITERIA, file_digest(path), doc.get("release"), order, properties, rows)
+    pins = {str(k): str(v) for k, v in (doc.get("pins") or {}).items()}
+    return Criteria(CRITERIA, file_digest(path), doc.get("release"), order, properties, rows, pins)
 
 
 def rfc_status(root: Path, number: str) -> dict[str, str]:
@@ -201,6 +216,22 @@ def run_records(root: Path, run_dirs: list[str]) -> dict[str, dict[str, Any]]:
             "controls": read_json(controls) if controls.is_file() else None,
         }
     return out
+
+
+def maintainer_rows(path: Path) -> list[dict[str, str]]:
+    """The MAINTAINERS.md tables (RFC-0001 §Roles) as rows; the site may not import the
+    validator (docs/spec/01 layers), so it reads the six columns itself."""
+    columns = ("handle", "role", "organisation", "systems", "interests", "since")
+    rows, inside = [], False
+    for line in path.read_text("utf-8").splitlines() if path.is_file() else []:
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if line.lstrip().startswith("|") and cells[0] == "Handle":
+            inside = True
+        elif inside and line.lstrip().startswith("|") and not set(cells[0]) <= {"-"}:
+            rows.append(dict(zip(columns, cells + [""] * 6, strict=False)))
+        elif not line.lstrip().startswith("|"):
+            inside = False
+    return rows
 
 
 def maybe(mapping: Mapping[str, Any], *keys: str) -> Any:

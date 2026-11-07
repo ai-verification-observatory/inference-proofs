@@ -15,7 +15,8 @@ from iproofs.derive import formula_of
 from iproofs.model import SiteFacts
 from iproofs.schema import SchemaRegistry
 from iproofs.site import inputs
-from iproofs.site.legacy import REPOSITORY, maintainer_rows, reply_html
+from iproofs.site.inputs import REPOSITORY, maintainer_rows
+from iproofs.site.reply import reply_html
 
 # The figures each configuration prints: the overview columns, then More numbers (#320 §1).
 FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
@@ -146,6 +147,38 @@ def property_controls(
     return {"withheld": False, "properties": out}
 
 
+def _system_controls(
+    root: Path, config: dict[str, Any], records: dict[str, dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """RFC-0008 §System-specific controls the system registers (`controls.yaml`), each with
+    its outcome in every completed kept run that recorded it, as stored."""
+    path = root / "systems" / config["system"] / "controls.yaml"
+    registered = inputs.read_yaml(path).get("controls") or [] if path.is_file() else []
+    out = []
+    for control in registered:
+        outcomes = []
+        for rid in config["runs"]:
+            found = records[rid]["controls"] or {"controls": []}
+            rec = next((c for c in found["controls"] if c["id"] == control["id"]), None)
+            if rec is not None:
+                outcomes.append({"run_id": rid, "outcome": rec["outcome"],
+                                 "expected": rec["expected"], "passed": rec["passed"]})  # fmt: skip
+        if outcomes:
+            out.append({"id": control["id"], "kind": control["kind"],
+                        "source": control.get("source"),
+                        "flags": list(control.get("control_flags") or []),
+                        "outcomes": outcomes})  # fmt: skip
+    return out
+
+
+def _verifier(reference: dict[str, Any]) -> dict[str, Any]:
+    """The reference verifier profile (RFC-0006): the CPU count the `verify` scope ran on."""
+    profiles = reference.get("profiles") or {}
+    name = next((n for n in sorted(profiles) if profiles[n].get("kind") == "verifier"), None)
+    cpu = inputs.maybe(profiles, name, "cpu", "logical_cpus") if name else None
+    return {"profile": name, "logical_cpus": cpu}
+
+
 def _card(root: Path, index: dict[str, Any], system: str, configuration: str | None) -> Any:
     """S1 item 2: the card the index names for the configuration, its digest and body."""
     found = [c for c in index["claim_cards"]
@@ -206,6 +239,8 @@ def _configuration(
         "effective_tier": config["effective_tier"],
         "evidence": config["evidence"],
         "controls": index["controls"][position],
+        "system_controls": _system_controls(root, config, records),
+        "verifier": _verifier(reference),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
 
@@ -243,7 +278,7 @@ def site_view(root: Path) -> dict[str, Any]:
         if c["kind"] == "prover" and row and row["source_class"] == "claim_card_at_pin":
             c["property_controls"] = property_controls(root, criteria, row, c["configuration"])
     replies = {
-        str(system): str(reply_html((root / str(path)).read_text("utf-8")))
+        str(system): reply_html((root / str(path)).read_text("utf-8"))
         for system, path in sorted((release.get("replies") or {}).items())
     }
     rfcs = sorted(p.name for p in (root / "rfcs").glob("*.md"))
@@ -271,6 +306,7 @@ def site_view(root: Path) -> dict[str, Any]:
             "order": list(criteria.order),
             "properties": list(criteria.properties),
             "rows": criteria.rows,
+            "pins": criteria.pins,
         },
         "facts": {
             "rows": {k: _facts_row(v) for k, v in facts.rows.items()},
