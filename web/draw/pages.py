@@ -1,0 +1,413 @@
+"""The other pages: one per benchmarked system (its glyph with each property beside its slice,
+facts, figures and tamper tests), the reference page, the criteria page and the 404 page.
+"""
+
+import re
+
+from . import state as S
+from .chrome import CRIT_PAGE, footer, header, page
+from .hexagon import hex_svg, key_mini
+from .overview import model_line, plate_prefix, shape_words
+from .plates import (
+    COLS,
+    EXT,
+    MORE,
+    aria,
+    configs_of,
+    fig,
+    glyph,
+    has_figures,
+    keep,
+    name_of,
+    path_html,
+    plate,
+    readable,
+    row_id,
+    runs_counts,
+    runs_line,
+    source_html,
+    upstream,
+    with_rule,
+    words,
+)
+from .words import (
+    ACCEPTED_WHY,
+    FAMILY_WORD,
+    OUTCOME_VERB,
+    OUTCOME_WORDS,
+    PENDING,
+    PENDING_TAMPER,
+    REF_LEAD,
+    STATE_CLS,
+    STATE_ORDER,
+    STATE_WORD,
+    STATUS_WORD,
+    amount,
+    e,
+    labels,
+    shown,
+    spread_line,
+    why_words,
+)
+
+# ------------------------------------------------------------------ system page: the pie with its six properties around it
+
+
+# Clockwise from twelve, slices 1 to 3 face right and 4 to 6 face left; each property sits on its slice's side.
+SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
+
+
+def rose_item(c, pre, drawn=True):
+    """One property beside its slice: its name (a link to what its states mean), its question for
+    screen readers, the state, and our short reason (left out when it only repeats Not stated)."""
+    generic = (
+        c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
+    )
+    reason = "" if generic else f'<p class="rr">{e(words(c["reason"]))}</p>'
+    if not drawn:  # RFC-0016 OVR-8: the stated state in words, beside the notice, not drawn
+        state = f'<p class="rs">{e("Stated: " + c["word"])}</p>'
+    else:
+        state = f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p>'
+    return (
+        f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
+        f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
+        f"{state}{reason}</li>"
+    )
+
+
+def rose(g, hid, name, level=2, pre=""):
+    """The pie, centred, with each property beside its own slice. level: the hidden heading's level
+    under the page's own; pre: an id prefix when one page holds several roses."""
+    return (
+        f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
+        f'<div class="rpie" role="img" aria-label="{e(aria(g, name, outside=True))}">{hex_svg(184, states=g["states"], hit=True, names=[c["name"] for c in g["cells"]])}</div>'
+        f'<ol class="rprops" role="list" aria-labelledby="{e(hid)}">{"".join(rose_item(c, pre, g["drawn"]) for c in g["cells"])}</ol></div>'
+    )
+
+
+def facts_dl(items):
+    return (
+        '<dl class="facts">'
+        + "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in items)
+        + "</dl>"
+    )
+
+
+def more_table(cfg, caption):
+    """The other figures, each with every label a plate holds (S2, S3): the spread, scope, grade,
+    tier and the record in the release index; a missing one says why, and names its record when
+    the runs recorded the metric."""
+    more = ""
+    for metric, label in MORE:
+        f = cfg["figures"][metric]
+        if f["value"] is not None:
+            parts = [*([f"spread: {spread_line(f)}"] if f.get("stats") else []),
+                     *(f"{k}: {v}" for k, v in labels(f, cfg))]  # fmt: skip
+            lab = with_rule(readable(" · ".join(parts)))
+            n, _ = amount(f["value"], f["unit"])
+            # "GPU cost per 1,000 positions": the row names the basis, so the value drops its own
+            val = fig(f"{n} USD" if f["unit"] == "USD/1k_token" else shown(f["value"], f["unit"]))
+        else:
+            # only why it is missing: the value cell says "No value", and a missing number has no grade
+            lab = with_rule(why_words(f, cfg))
+            val = '<span class="na">No value</span>'
+        if f["recorded"]:
+            lab += f'\u00a0· <span class="src">source: {source_html(f["source"])}</span>'
+        more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv">{val}</td><td class="ml">{lab}</td></tr>'
+    return (
+        f'<table class="mtab"><caption class="sr">{e(caption)}</caption>'
+        f'<thead><tr><th scope="col">Figure</th><th scope="col">Value</th><th scope="col">Labels</th></tr></thead><tbody>{more}</tbody></table>'
+    )
+
+
+def accepted_words(cfg):
+    """Which control each stored `accepted` outcome is, and whether its own expected set holds
+    acceptance: a system's weakened-prover control expects it, a tampered proof does not
+    (RFC-0008). Listed from the records, never counted here."""
+    return ", and ".join(ACCEPTED_WHY[(a["source"], a["passed"] is True)].format(id=a["control"])
+                         for a in cfg["accepted"])  # fmt: skip
+
+
+def tamper_words(cfg):
+    """Each stored outcome count of the configuration's controls (RFC-0008), zero counts left
+    out; no sum or difference of them (AGENTS.md rule 3). The accepted count names each
+    accepted control, so a control that expects acceptance never reads as a tampered proof
+    the checker took."""
+    counts = cfg["controls"]["counts"]
+    said = []
+    for k, w in OUTCOME_WORDS:
+        if counts.get(k):
+            said.append(w.format(n=counts[k]) + (f" ({accepted_words(cfg)})" if k == "accepted"
+                                                 else ""))  # fmt: skip
+    return (
+        ("Tampering tests on this setup, by outcome: " + "; ".join(said) + ".")
+        if said
+        else "No tampering test ran on this setup."
+    )
+
+
+def source_label(url):
+    """A link's words: the file path and lines a GitHub blob URL names."""
+    m = re.match(
+        r"https://github\.com/[^/]+/[^/]+/blob/[0-9a-f]+/([^#?]+)(?:\?[^#]*)?(?:#(L\d+(?:-L\d+)?))?",
+        url,
+    )
+    return f"{m[1]} {m[2]}" if m and m[2] else (m[1] if m else url)
+
+
+def control_tests(cfg):
+    """The system's own registered controls (RFC-0008 §System-specific controls) and what the
+    checker did with each in the runs, as stored."""
+    out = ""
+    for sc in cfg["system_controls"]:
+        outcomes = {o["outcome"] for o in sc["outcomes"]}
+        if sc["kind"] == "weakened_prover":
+            text = f"Control test: we turned off one check on purpose, with a switch {name_of(cfg['system'])} documents for this."
+        else:
+            text = f"Control test {sc['id']}."
+        passed = {o["passed"] for o in sc["outcomes"]}
+        expect = ""
+        if passed == {True}:
+            expect = ", as this control expects"
+        elif passed == {False}:
+            expect = ", outside what this control expects"
+        if len(outcomes) == 1:
+            o = outcomes.pop()
+            text += (
+                f" The checker {OUTCOME_VERB[o]} the proof{expect}."
+                if o in OUTCOME_VERB
+                else f" Outcome: {o}{expect}."
+            )
+        else:
+            text += (
+                " Outcomes by run: "
+                + "; ".join(f"{x['run_id']}: {x['outcome']}" for x in sc["outcomes"])
+                + "."
+            )
+        link = (
+            f' <a class="qs" href="{e(sc["source"])}">{e(source_label(sc["source"]))}{EXT}</a>'
+            if sc["source"]
+            else ""
+        )
+        out += f'<p class="ctl">{e(text)}{link}</p>'
+    return out
+
+
+def status_words(st):
+    """A status fact in one form for every system: the state, then its date and source if stored."""
+    out = STATUS_WORD[st["state"]]
+    if st.get("last_push"):
+        src = f" ({st['source']}, retrieved {st['retrieved']})" if st.get("source") else ""
+        out += f" · last push {st['last_push']}{src}"
+    return out
+
+
+def pinned(cfg):
+    """The card's repository at its pin first (RFC-0016 SRC-2: only it decides), then every other
+    repository the row's sources read cite, at the commit the criteria file read it."""
+    up = upstream(cfg)
+    repos = [(up["repo"], up["commit"])]
+    pins = S.CRIT["pins"]
+    cited = set()
+    for c in S.CRIT["rows"][cfg["system"]]["cells"].values():
+        for q in [*c["quotes"], *((c.get("outside_pin") or {}).get("quotes") or [])]:
+            cited.add(q.get("repo"))
+        cited |= {s.split("@", 1)[0] for s in c["sources_read"] if "@" in s}
+    repos += [(r, pins[r]) for r in pins if r in cited and r != up["repo"]]
+    return "".join(
+        f'<a href="https://github.com/{e(r)}/tree/{e(c)}">{path_html(r)}<span class="nw"> @{e(c[:8])}</span>{EXT}</a>'
+        for r, c in repos
+    )
+
+
+def config_where(cfg):
+    return " · ".join(
+        [cfg["configuration"], cfg["workload"]["id"], cfg["workload"]["division"], cfg["profile"]]
+    )
+
+
+def config_figures(cfg, name, one):
+    """One configuration's figures: what they are over, a plate per overview column, the other
+    figures in a table. one: the system has one configuration, so the section heading already
+    names the model and shape; otherwise a heading names the configuration first."""
+    head = ""
+    if not one:
+        rid = row_id(cfg)
+        head = (f'<div class="sec-h"><h3 id="h-{e(rid)}" class="sect sm">{keep(config_where(cfg))}</h3>'
+                f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p></div>')  # fmt: skip
+    plates = "".join(plate(cfg, c, plate_prefix(cfg)) for c in COLS)
+    body = (
+        f'{head}<p class="lead">{e(runs_line(cfg))}</p>'
+        f'<div class="plates plates-sys">{plates}</div>'
+        f"{more_table(cfg, f'More numbers for {name}, with spread, scope, grade, checked step and source')}"
+    )
+    return body if one else f'<div class="cfgfigs" id="{e(row_id(cfg))}">{body}</div>'
+
+
+def config_tamper(cfg, drawn):
+    """One configuration's controls: each stored outcome count, then the system's own controls;
+    under a pending disclosure only the RFC-0008 notice (RFC-0016 OVR-8)."""
+    where = (
+        f'<dl class="tlab"><div><dt>configuration</dt><dd>{keep(config_where(cfg))}</dd></div></dl>'
+    )
+    if not drawn:
+        return f'<p class="tamper">{with_rule(PENDING_TAMPER)}</p>{where}'
+    return f'<p class="tamper">{e(tamper_words(cfg))}</p>{where}{control_tests(cfg)}'
+
+
+def system_desc(sid):
+    return f"{name_of(sid)}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels."
+
+
+def build_system(sid):
+    name = name_of(sid)
+    cfgs = configs_of(sid)
+    cfg = cfgs[0]
+    one = len(cfgs) == 1
+    g = glyph(sid)
+    row = S.V["facts"]["rows"][sid]
+    models = list(dict.fromkeys(model_line(c) for c in cfgs))
+    facts = [
+        ("kind", keep(words(f"{FAMILY_WORD[S.CRIT['rows'][sid]['family']]}: {row['technique']}"))),
+        ("model" if len(models) == 1 else "models", keep(" · ".join(models))),
+        ("pinned", f'<span class="links">{pinned(cfg)}</span>'),
+        ("licence", e(row["licence"]["name"])),
+        ("status", keep(status_words(row["status"]))),
+        ("adapter", f'<a href="{e(cfg["adapter_readme"])}">systems/{e(sid)}/README.md{EXT}</a>'),
+    ]
+    shape = (f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p>'
+             if one else "")  # fmt: skip
+    notice = "" if g["drawn"] else f'<p class="lead notice">{with_rule(PENDING)}</p>'
+    body = f'''
+{header(sid)}
+<main id="main" class="sys">
+  <section class="mast mast-sys" aria-labelledby="h-name">
+    <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(name)}</span></h1></div>
+  </section>
+  <div class="wrap">
+    {notice}<section class="over" id="properties" aria-label="{e(name)}: properties and facts">
+      {rose(g, "h-props", name)}
+      {facts_dl(facts)}
+    </section>
+    <section class="blk" id="figures" aria-labelledby="h-figs">
+      <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2>{shape}</div>
+      {"".join(config_figures(c, name, one) for c in cfgs)}
+    </section>
+    <section class="blk" id="tamper" aria-labelledby="h-tamper">
+      <h2 id="h-tamper" class="sect">Tamper tests</h2>
+      {"".join(config_tamper(c, g["drawn"]) for c in cfgs)}
+    </section>
+  </div>
+</main>
+{footer()}'''
+    return page(
+        name,
+        system_desc(sid),
+        body,
+        "system",
+        sid,
+        sid,
+    )
+
+
+def build_reference():
+    """One page for the reference systems: each one's six properties, then its one set of figures."""
+    secs = ""
+    for gid in S.V["orders"]["reference"]:
+        g = glyph(gid)
+        name = name_of(gid)
+        cfgs = [c for c in S.CONFIGS if c["system"] == gid]
+        models = list(dict.fromkeys(S.MODEL_NAME[c["workload"]["model"]["digest"]] for c in cfgs))
+        facts = [
+            ("kind", e(words(S.V["facts"]["rows"][gid]["kind_words"]))),
+            ("model" if len(models) == 1 else "models", e(" · ".join(models))),
+        ]
+        cfg = cfgs[0]
+        counts = "".join(f'<p class="lead">{with_rule(readable(runs_counts(c)))}</p>'
+                         for c in cfgs if not has_figures(c))  # fmt: skip
+        figs = (
+            f'<div class="reffigs" id="{e(gid)}-figures"><h3 class="sect sm">Figures<span class="of"> · {e(name)}</span></h3>'
+            f'{counts}<div class="plates plates-sys">{"".join(plate(cfg, c, f"{gid}-fig-") for c in COLS)}</div></div>'
+        )
+        secs += f'''
+    <section class="refsys" id="{e(gid)}" aria-labelledby="h-{e(gid)}">
+      <h2 id="h-{e(gid)}" class="refh">{e(name)}</h2>
+      <div class="over">{rose(g, f"h-{gid}-props", name, level=3, pre=f"{gid}-")}{facts_dl(facts)}</div>
+      {figs}
+    </section>'''
+    body = f"""
+{header("reference")}
+<main id="main" class="sys refpage">
+  <section class="mast mast-sys" aria-labelledby="h-name">
+    <div class="mast-in"><h1 id="h-name" class="sysname refname"><span class="lt">References</span></h1></div>
+  </section>
+  <div class="wrap">
+    <p class="reflead">{e(REF_LEAD)}</p>
+    {secs}
+  </div>
+</main>
+{footer()}"""
+    return page(
+        "References",
+        "The references: plain serving and a rerun by a weights holder, their six properties and their figures.",
+        body,
+        "system reference",
+        "reference",
+        "home",
+    )
+
+
+# ------------------------------------------------------------------ the criteria and the 404
+
+
+def build_criteria():
+    """What each state means for each property, from the criteria file: the rules the glyphs are drawn by."""
+    # a jump index of the six properties, shown on phones (words.css), names only
+    idx = "".join(
+        f'<li><a href="#{e(p["id"])}">{key_mini(i + 1, 22)}<span>{e(p["name"])}</span></a></li>'
+        for i, p in enumerate(S.PROPS)
+    )
+    secs = ""
+    for i, p in enumerate(S.PROPS):
+        states = "".join(
+            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</dt><dd>{e(words(p["rules"][s]))}</dd></div>'
+            for s in STATE_ORDER
+        )
+        note = f'<p class="cnote">{e(words(p["not_here"]))}</p>' if p.get("not_here") else ""
+        secs += (
+            f'<section class="crit" id="{e(p["id"])}" aria-labelledby="h-{e(p["id"])}">'
+            f'<div class="ch">{key_mini(i + 1)}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
+            f'<p class="cq">{e(p["question"])}</p></div><dl class="cs">{states}</dl>{note}</section>'
+        )
+    body = f"""
+{header("criteria")}
+<main id="main" class="sys critpage">
+  <section class="mast mast-sys" aria-labelledby="h-name">
+    <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Criteria</span></h1></div>
+  </section>
+  <div class="wrap">
+    <ul class="cidx" aria-label="Properties">{idx}</ul>
+    {secs}
+  </div>
+</main>
+{footer()}"""
+    return page(
+        "Criteria",
+        "What Yes, Partly, No and Not stated mean for each of the six properties of one proof (draft criteria).",
+        body,
+        "system criteria",
+        CRIT_PAGE.strip("/"),
+        "home",
+    )
+
+
+def build_404():
+    body = f"""
+{header(None)}
+<main id="main" class="sys">
+  <section class="mast mast-sys" aria-labelledby="h-name">
+    <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Not found</span></h1></div>
+  </section>
+</main>
+{footer()}"""
+    return page("Not found", "No page at this address.", body, "system notfound", "404", None)

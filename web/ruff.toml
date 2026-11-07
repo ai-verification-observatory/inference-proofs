@@ -2,8 +2,6 @@
 extend = "../pyproject.toml"
 
 [lint]
-# render() keeps one build's view in module globals: iproofs.site.build loads a fresh module for
-# every build, so they never outlive it.
-extend-ignore = ["E501", "PLW0603"]
+extend-ignore = ["E501"]
 # Figures print the multiplication sign (1,583×), and the build parses it back.
 allowed-confusables = ["×"]
