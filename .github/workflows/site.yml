@@ -1,16 +1,49 @@
 # The public site, web/. Vercel deploys it to www.inferenceproofs.ai on every commit to
 # main that changes this folder (web/vercel.json: ignoreCommand). It serves the pages
-# as committed, so this check holds them to what build.py writes from _data/: a pull request whose
-# pages are stale, whose sort keys fail their test, or whose preview pictures were not rendered
-# from their committed sources (og/cards.json), does not pass. No secrets, no upload.
+# as committed, so this check holds them to what `iproofs site build` writes from the frozen
+# release (RFC-0009 §Site): a pull request whose pages are stale, whose tests fail, or whose
+# preview pictures were not rendered from their committed sources (og/cards.json), does not
+# pass. Until v0.1 is frozen (#146) the release is the placeholder one in
+# harness/tests/fixtures/placeholder_release.py, built in a temporary tree; from then on the
+# step is `uv run iproofs site build`. No secrets, no upload.
 name: site
 
 on:
   pull_request:
-    paths: ["web/**", ".github/workflows/site.yml"]
+    paths:
+      - "web/**"
+      - "releases/**"
+      - "systems/**"
+      - "workloads/**"
+      - "targets/**"
+      - "results/**"
+      - "reference/**"
+      - "schema/**"
+      - "rfcs/**"
+      - "MAINTAINERS.md"
+      - "harness/src/iproofs/**"
+      - "harness/tests/fixtures/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/site.yml"
   push:
     branches: [main]
-    paths: ["web/**", ".github/workflows/site.yml"]
+    paths:
+      - "web/**"
+      - "releases/**"
+      - "systems/**"
+      - "workloads/**"
+      - "targets/**"
+      - "results/**"
+      - "reference/**"
+      - "schema/**"
+      - "rfcs/**"
+      - "MAINTAINERS.md"
+      - "harness/src/iproofs/**"
+      - "harness/tests/fixtures/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/site.yml"
 
 permissions:
   contents: read
@@ -18,17 +51,15 @@ permissions:
 jobs:
   built:
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: the build and its tests
-        working-directory: web
-        run: |
-          python3 --version
-          python3 -I build.py
-          python3 -I test_sort_keys.py
-          python3 -I test_cards.py
-          python3 -I test_search.py
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - run: uv sync --frozen
+      - name: the build (placeholder release until v0.1, #146)
+        run: PYTHONPATH=harness/tests uv run python -m fixtures.placeholder_release --site web
+      - name: the site's tests
+        run: uv run pytest web -q
       - name: the committed files are the built files (new files included)
         run: |
           git status --porcelain -- web
