@@ -23,7 +23,7 @@ from iproofs.derive import agreement_rate, overhead, provider_spread, statistic
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import ReferenceFile, Release, load
 from iproofs.provenance import file_digest
-from iproofs.quantity import Scope, Tier, claim_class_matches, lowest_tier
+from iproofs.quantity import NullReason, Scope, Tier, claim_class_matches, lowest_tier
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 
@@ -942,6 +942,12 @@ def _agreement(ctx: "_Context", contexts: Sequence["_Context"], roles: Mapping[s
         runs = [r for r in c.kept if r.ok and r.get("manifest", "prompts_from") in mine]
         agree += _metric_inputs(runs, "agreement_positions", c.tiers)
         disagree += _metric_inputs(runs, "disagreement_positions", c.tiers)
-    ctx.statistics["agreement_rate"] = agreement_rate(
+    if not agree:  # every paired run failed: the inputs are their failure records (INV-QTY-8)
+        agree = [(f"{_rel(r)}/run.json#/failure", None) for c in paired for r in c.kept
+                 if not r.ok and r.get("manifest", "prompts_from") in mine]  # fmt: skip
+    out = agreement_rate(
         agree, disagree, measurable=all(_measurable(c) for c in paired), version=__version__
     )
+    if out["null_reason"] == NullReason.MISSING_INPUT and not disagree:
+        out["null_reason"] = str(NullReason.STEP_FAILED)
+    ctx.statistics["agreement_rate"] = out
