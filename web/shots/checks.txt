@@ -82,8 +82,8 @@ ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped"
 ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 567 px
-ok   home-390 first system name shows on landing 567
+home-390 first system name bottom 553 px
+ok   home-390 first system name shows on landing 553
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -129,7 +129,7 @@ ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties fit the first screen 548
+ok   sash: the six properties fit the first screen 540
 ok   sash: no quotes, nothing folded
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
@@ -157,7 +157,7 @@ ok   header-600x900: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-768x1024: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-844x390: the pages share the logo's line {"h":45,"dy":[1,1]}
 ok   header-390: search and GitHub 44 px to press, the pages 32 px {"sopen":44,"repo":44,"nav":[32,32]}
-ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":573,"cols":2,"qq":true}
+ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":559,"cols":2,"qq":true}
 ok   home-375: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less {"sysAlone":true,"bottoms":1,"aligned":true,"h":36,"rowH":119,"lefts":[16,104,193,281],"cols":[16,104,193,281]}
 ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":538,"cols":2,"qq":true}
 ok   home-320: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less {"sysAlone":true,"bottoms":1,"aligned":true,"h":36,"rowH":117,"lefts":[16,90,164,238],"cols":[16,90,164,238]}
@@ -178,7 +178,7 @@ ok   sash-320: every link and button 24 px tall or more, none overlapping {"smal
 ok   reference-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   criteria-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
-ok   sash-844x390: the whole glyph on the first screen 347
+ok   sash-844x390: the whole glyph on the first screen 339
 ok   flashprove-844x390: the whole glyph on the first screen 339
 ok   404-390: the search field is shown, not focused {"h":44,"vis":true,"focus":"BODY"}
 ok   404-390: search leads on from the 404 page http://127.0.0.1:4450/sash

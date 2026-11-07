@@ -138,7 +138,7 @@ def criteria_label():
     rfc = S.CRIT["rfc"]
     if rfc["status"].startswith(("Accepted", "Final")):
         return "Criteria", "Criteria", rfc["file"][:4]
-    return "Draft criteria, prototype only, needs an RFC", "Draft criteria, needs an RFC", "0001"
+    return "Draft criteria, needs an RFC", "Draft criteria, needs an RFC", "0001"
 
 
 def footer():

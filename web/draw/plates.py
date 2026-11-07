@@ -172,6 +172,8 @@ PHRASES = {
     "recompute needs them": "a rerun needs them",
     "a checker holding the weights recomputes": "a checker holding the weights reruns it",
     "or not copied yet": "or we have not recorded it yet",
+    # the criteria page speaks of the configuration, not of the file's rows
+    "the configuration the row reads": "the configuration run",
 }
 
 # RFC rule codes ("(RFC-0015 NM-1)") in text: a link to the RFC on the page, never the bare code
