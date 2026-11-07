@@ -9,7 +9,7 @@ try { AxeBuilder = (await import(process.env.AXE_MODULE || '@axe-core/playwright
 const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
-const PAGES = ['', 'flashprove', 'sash', 'reference', 'criteria'];  // clean addresses, as on the site
+const PAGES = ['', 'flashprove', 'sash', 'reference', 'criteria', 'release', 'sponsors'];  // clean addresses, as on the site
 const tagOf = (name) => name || 'home';
 const b = await chromium.launch();
 const errs = [];
@@ -315,9 +315,13 @@ for (const name of ['flashprove', 'sash', 'reference']) {
     };
   }));
   ok(v.length >= 1 && v.every((x) => x.pie <= 220 && x.n === 6 && x.sides && x.downward && x.facts), `${tagOf(name)}: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside`, v);
-  const firstScreen = await p.evaluate(() => Math.round(document.querySelector('.rose').getBoundingClientRect().bottom));
-  ok(firstScreen <= 900, `${tagOf(name)}: the six properties fit the first screen`, firstScreen);
-  ok(await p.evaluate(() => document.querySelectorAll('blockquote, details').length === 0), `${tagOf(name)}: no quotes, nothing folded`);
+  // the six names and states on the first screen (on a system page, what each rests on follows under it)
+  const firstScreen = await p.evaluate(() => Math.max(...[...document.querySelector('.rose').querySelectorAll('.rp .rs')].map((x) => Math.round(x.getBoundingClientRect().bottom))));
+  ok(firstScreen <= 900, `${tagOf(name)}: the six properties' states fit the first screen`, firstScreen);
+  // quotes only under a property, as what its state rests on; the one fold is the card in full, folded as sent
+  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.rp .ev')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
+  const sys = name !== 'reference';
+  ok(!fold.stray && fold.details.join() === (sys ? 'cardfull:false' : ''), `${tagOf(name)}: quotes only under their property; ${sys ? 'the card in full folded' : 'nothing folded'}`, fold);
   // pointing at a property lifts its slice
   await p.hover('.rp[data-n="2"]'); await p.waitForTimeout(300);
   const lift = await p.evaluate(() => getComputedStyle(document.querySelector('.rpie .s2')).transform);
@@ -484,7 +488,7 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
       const { ctx, p } = await pg(w, 844, { touch: true });
       await p.goto(BASE + name, { waitUntil: 'networkidle' });
       const t = await p.evaluate(() => {
-        const els = [...document.querySelectorAll('a, button')].filter((a) => a.getClientRects().length && getComputedStyle(a).visibility !== 'hidden' && !a.closest('.sr, [hidden]'));
+        const els = [...document.querySelectorAll('a, button')].filter((a) => a.getClientRects().length && getComputedStyle(a).visibility !== 'hidden' && !a.closest('.sr, [hidden]') && !a.closest('details:not([open]) > :not(summary)'));
         const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
         const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));
         const hit = [];
@@ -516,6 +520,37 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   await p.tap('#q'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   ok(new URL(p.url()).pathname === '/sash', '404-390: search leads on from the 404 page', p.url());
   await ctx.close();
+}
+
+// ---------------------------------------------------------------- the validated claims, the card in full and the release's pages (#320)
+// at 390 and 320 px: one press opens the card in full; with it open, nothing overflows, and every
+// link and button of the new blocks (quotes' sources, control lines, card fields, runs left out,
+// unexpected outcomes, the release record) is 24 px tall or more, none overlapping another
+for (const w of [390, 320]) {
+  for (const name of ['flashprove', 'sash', 'release', 'sponsors']) {
+    const { ctx, p } = await pg(w, 844, { touch: true });
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    if (await p.locator('details.cardfull summary').count()) {
+      await p.tap('details.cardfull summary'); await p.waitForTimeout(200);
+      ok(await p.evaluate(() => document.querySelector('details.cardfull').open), `${name}-${w}: one press opens the card in full`);
+    }
+    const o = await overflow(p);
+    ok(o.over <= 0 && !o.wide.length, `${name}-${w}: no horizontal overflow, the card in full open`, o);
+    const t = await p.evaluate(() => {
+      const sel = '.ev a, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
+      const els = [...document.querySelectorAll(sel)].filter((a) => a.getClientRects().length && !a.closest('.sr, [hidden]'));
+      const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
+      const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));
+      const hit = [];
+      for (let i = 0; i < bx.length; i++) for (let j = i + 1; j < bx.length; j++) {
+        if (bx[i].a.contains(bx[j].a) || bx[j].a.contains(bx[i].a)) continue;
+        if (bx[i].rs.some((r1) => bx[j].rs.some((r2) => r1.left < r2.right - 0.5 && r2.left < r1.right - 0.5 && r1.top < r2.bottom - 0.5 && r2.top < r1.bottom - 0.5))) hit.push(`${bx[i].a.textContent.trim().slice(0, 16)} x ${bx[j].a.textContent.trim().slice(0, 16)}`);
+      }
+      return { n: els.length, small, hit };
+    });
+    ok(t.n > 0 && !t.small.length && !t.hit.length, `${name}-${w}: the new blocks' links and buttons 24 px tall or more, none overlapping`, t);
+    await ctx.close();
+  }
 }
 
 // ---------------------------------------------------------------- words: cut sentences, neutrality, numbered names, links

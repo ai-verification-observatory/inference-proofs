@@ -67,21 +67,29 @@ ok   flashprove-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped
 ok   sash-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   release-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   home-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   flashprove-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   release-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   home-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   flashprove-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   release-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   home-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   release-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 home-390 first system name bottom 553 px
 ok   home-390 first system name shows on landing 553
 ok   home-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
@@ -96,6 +104,10 @@ ok   reference-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference-390 CLS 0
 ok   criteria-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   criteria-390 CLS 0
+ok   release-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   release-390 CLS 0
+ok   sponsors-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-390 CLS 0
 ok   home-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-360 CLS 0
 ok   home-360 the column heads stay as sort buttons
@@ -108,6 +120,10 @@ ok   reference-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference-360 CLS 0
 ok   criteria-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   criteria-360 CLS 0
+ok   release-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   release-360 CLS 0
+ok   sponsors-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-360 CLS 0
 ok   home-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   home-320 CLS 0
 ok   home-320 the column heads stay as sort buttons
@@ -120,23 +136,27 @@ ok   reference-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference-320 CLS 0
 ok   criteria-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   criteria-320 CLS 0
+ok   release-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   release-320 CLS 0
+ok   sponsors-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-320 CLS 0
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties fit the first screen 510
-ok   flashprove: no quotes, nothing folded
+ok   flashprove: the six properties' states fit the first screen 793
+ok   flashprove: quotes only under their property; the card in full folded {"stray":0,"details":["cardfull:false"]}
 ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties fit the first screen 540
-ok   sash: no quotes, nothing folded
+ok   sash: the six properties' states fit the first screen 792
+ok   sash: quotes only under their property; the card in full folded {"stray":0,"details":["cardfull:false"]}
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   reference-1440 CLS 0
 ok   reference-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   reference: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true},{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   reference: the six properties fit the first screen 686
-ok   reference: no quotes, nothing folded
+ok   reference: the six properties' states fit the first screen 649
+ok   reference: quotes only under their property; nothing folded {"stray":0,"details":[]}
 ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash: no work-in-progress label; its figures name their model
 ok   /nope answers the styled 404 page 404
@@ -163,7 +183,7 @@ ok   home-320x568: the legend in two columns, the first system on landing, the q
 ok   home-320: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less {"sysAlone":true,"bottoms":1,"aligned":true,"h":36,"rowH":117,"lefts":[16,90,164,238],"cols":[16,90,164,238]}
 ok   home-390: the sorted column is in paper in every row, the others muted ["covers:off","proof_size:off","check_time:on","overhead:off","covers:off","proof_size:off","check_time:on","overhead:off"]
 ok   touch: a first tap on a triangle names it and stays on the page {"path":"/","hot":"2","shown":true,"text":"Model boundPartly","sw":true}
-ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4450/flashprove
+ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4450/flashprove#claims-exact-match-cp-verify
 ok   flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs {"wide":340,"inside":true,"out":[],"names":["WEIGHTS HIDDEN","MODEL BOUND","WHOLE OUTPUT CHECKED","FORMALLY VERIFIED","SECURITY LEVEL","NO TRUSTED PARTY"],"stateless":true,"order":"123456","below":true,"col":1,"keys":0}
 ok   touch: a tap on a slice lifts it and marks its property {"s2":"matrix(1, 0, 0, 1, 6, 0)","rn":"rgb(241, 239, 233)","path":"/flashprove"}
 ok   home-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
@@ -171,17 +191,41 @@ ok   flashprove-390: every link and button 24 px tall or more, none overlapping 
 ok   sash-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   reference-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   criteria-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
+ok   release-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
+ok   sponsors-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   home-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   flashprove-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   sash-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   reference-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   criteria-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
+ok   release-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
+ok   sponsors-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
-ok   sash-844x390: the whole glyph on the first screen 339
-ok   flashprove-844x390: the whole glyph on the first screen 339
+ok   sash-844x390: the whole glyph on the first screen 298
+ok   flashprove-844x390: the whole glyph on the first screen 298
 ok   404-390: the search field is shown, not focused {"h":44,"vis":true,"focus":"BODY"}
 ok   404-390: search leads on from the 404 page http://127.0.0.1:4450/sash
+ok   flashprove-390: one press opens the card in full
+ok   flashprove-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":61,"small":[],"hit":[]}
+ok   sash-390: one press opens the card in full
+ok   sash-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   sash-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":51,"small":[],"hit":[]}
+ok   release-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   release-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":[],"hit":[]}
+ok   sponsors-390: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":1,"small":[],"hit":[]}
+ok   flashprove-320: one press opens the card in full
+ok   flashprove-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   flashprove-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":61,"small":[],"hit":[]}
+ok   sash-320: one press opens the card in full
+ok   sash-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   sash-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":51,"small":[],"hit":[]}
+ok   release-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   release-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":[],"hit":[]}
+ok   sponsors-320: no horizontal overflow, the card in full open {"over":0,"wide":[],"clipped":[]}
+ok   sponsors-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":1,"small":[],"hit":[]}
 ok   home: cut sentences absent
 ok   home: no placeholder marking on the page
 ok   home: no ranking words in the site's own controls
@@ -217,12 +261,28 @@ ok   criteria: no numbered property names
 ok   criteria: no "step N of M"
 ok   criteria: no duplicate ids []
 ok   criteria: no placeholder words, field names or bare rule codes in visible text
+ok   release: cut sentences absent
+ok   release: no placeholder marking on the page
+ok   release: no ranking words in the site's own controls
+ok   release: no numbered property names
+ok   release: no "step N of M"
+ok   release: no duplicate ids []
+ok   release: no placeholder words, field names or bare rule codes in visible text
+ok   sponsors: cut sentences absent
+ok   sponsors: no placeholder marking on the page
+ok   sponsors: no ranking words in the site's own controls
+ok   sponsors: no numbered property names
+ok   sponsors: no "step N of M"
+ok   sponsors: no duplicate ids []
+ok   sponsors: no placeholder words, field names or bare rule codes in visible text
 ok   no dead local links []
 ok   axe 1440  []
 ok   axe 1440 flashprove []
 ok   axe 1440 sash []
 ok   axe 1440 reference []
 ok   axe 1440 criteria []
+ok   axe 1440 release []
+ok   axe 1440 sponsors []
 ok   axe 1440 #sort=overhead-desc []
 ok   axe 1440 nope []
 ok   axe 1440  search []
@@ -231,6 +291,8 @@ ok   axe 390 flashprove []
 ok   axe 390 sash []
 ok   axe 390 reference []
 ok   axe 390 criteria []
+ok   axe 390 release []
+ok   axe 390 sponsors []
 ok   axe 390 #sort=overhead-desc []
 ok   axe 390 nope []
 ok   axe 390  search []
