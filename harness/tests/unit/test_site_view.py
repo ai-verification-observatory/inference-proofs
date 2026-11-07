@@ -13,9 +13,11 @@ import pytest
 
 from fixtures import placeholder_release as ph
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.release import not_measurable_on_profile
 from iproofs.schema import SchemaRegistry
-from iproofs.site import inputs
-from iproofs.site.view import FIGURES, MORE, site_view
+from iproofs.site import build, inputs
+from iproofs.site import view as site_view_module
+from iproofs.site.view import FIGURES, MORE, check_rows, site_view
 from iproofs.validate import resolve
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -38,8 +40,13 @@ def view(tree: Path) -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def extras(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
-    return site_view(frozen(tmp_path_factory.mktemp("view-extras"), extras=True))
+def extras_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return frozen(tmp_path_factory.mktemp("view-extras"), extras=True)
+
+
+@pytest.fixture(scope="module")
+def extras(extras_tree: Path) -> dict[str, Any]:
+    return site_view(extras_tree)
 
 
 def configuration(view: dict[str, Any], system: str, configuration: str | None = None,
@@ -169,13 +176,109 @@ def test_property_controls_with_release(extras: dict[str, Any]) -> None:
     assert ph.run_id("flashprove", ph.WORKLOAD, 102) not in c1  # withdrawn: not read
 
 
-def test_pending_row_draws_no_state(extras: dict[str, Any]) -> None:
-    """OVR-8: a row under a pending disclosure draws no state and lists no outcome."""
+def test_pending_row_draws_no_state(extras: dict[str, Any], extras_tree: Path) -> None:
+    """OVR-8: a row under a pending disclosure is not drawn and lists no outcome; its cells
+    keep the states the criteria file sets (the stated states, since no cell of the row carries
+    `stated`), which the system page prints beside the notice."""
     row = extras["criteria"]["rows"]["sash"]
-    assert row["pending"] is True
-    assert {cell["state"] for cell in row["cells"].values()} == {None}
+    assert (row["pending"], row["drawn"]) == (True, False)
+    raw = next(r for r in json.loads((extras_tree / inputs.CRITERIA).read_text())["rows"]
+               if r["id"] == "sash")  # fmt: skip
+    for prop, cell in row["cells"].items():
+        assert cell["state"] == inputs.STATE_OF[raw["cells"][prop]["state"]], prop
+        assert "stated" not in raw["cells"][prop]
+    assert extras["criteria"]["rows"]["flashprove"]["drawn"] is True
     assert configuration(extras, "sash")["property_controls"] == {"withheld": True,
                                                                   "properties": {}}  # fmt: skip
+
+
+def test_accepted_records_listed(view: dict[str, Any], extras: dict[str, Any]) -> None:
+    """RFC-0008 §Reporting: each stored `accepted` outcome is listed with its control, source
+    and expected set, as many as the index counts, so the tally can name it."""
+    sash = configuration(view, "sash")
+    assert [(a["control"], a["source"], a["passed"]) for a in sash["accepted"]] == [
+        ("sash-unsound-skip-residual-stream", "system", True)]  # fmt: skip
+    assert len(sash["accepted"]) == sash["controls"]["counts"]["accepted"]
+    got = {(a["control"], a["passed"]) for a in configuration(extras, "sash")["accepted"]}
+    assert got == {("C2", False), ("sash-unsound-skip-residual-stream", True)}
+    assert configuration(view, "flashprove")["accepted"] == []
+
+
+def test_controls_and_verifier_per_configuration(view: dict[str, Any], tree: Path) -> None:
+    """Each configuration's controls entry is the one with its system, workload and profile,
+    and its verifier profile is the one its runs' manifests name (RFC-0006 verifier-cpu)."""
+    doc = json.loads((tree / "releases/v0.1/index.json").read_text())
+    for c in view["configurations"]:
+        stored = doc["configurations"][c["position"]]
+        key = (stored["system"], stored["workload"], stored["profile"])
+        found = [x for x in doc["controls"] if (x["system"], x["workload"], x["profile"]) == key]
+        assert found == [c["controls"]]
+        assert c["verifier"] == {"profile": ph.VERIFIER, "logical_cpus": 8}, c["system"]
+
+
+def test_verifier_profiles_must_agree() -> None:
+    config = {"system": "x", "workload": {"id": "w"}, "runs": ["a", "b"]}
+    records = {r: {"manifest": {"profile": {"verifier": v}}}
+               for r, v in (("a", "verifier-cpu"), ("b", "verifier-other"))}  # fmt: skip
+    with pytest.raises(IProofsError, match="verifier profiles") as e:
+        site_view_module._verifier({"profiles": {}}, config, records)
+    assert e.value.kind is ErrorKind.CONFIG
+
+
+def test_nm1_one_rule() -> None:
+    """RFC-0015 NM-1, the freeze's rule the site calls too, on hand-made attempts."""
+    assert not_measurable_on_profile([(False, "resource"), (False, "adapter")])
+    assert not not_measurable_on_profile([])
+    assert not not_measurable_on_profile([(False, "resource"), (True, None)])
+    assert not not_measurable_on_profile([(False, "resource"), (False, "timeout")])
+
+
+def _edited_tree(src: Path, dst: Path, edit: Any) -> Path:
+    shutil.copytree(src, dst)
+    path = dst / inputs.CRITERIA
+    doc = json.loads(path.read_text())
+    edit(doc)
+    path.write_text(json.dumps(doc))
+    return dst
+
+
+def _drop_override(doc: dict[str, Any]) -> None:
+    """The extras criteria copy without FlashProve's override: Whole output back to Partly."""
+    slot = doc["order"].index("whole_output")
+    row = next(r for r in doc["rows"] if r["id"] == "flashprove")
+    cell = row["cells"]["whole_output"]
+    del cell["stated"]
+    cell["state"] = "amber"
+    del cell["contradicted_by"]
+    row["states"][slot] = doc["test_mapping"]["flashprove"][slot] = "amber"
+
+
+@pytest.mark.parametrize(("edit", "message"), [
+    (lambda d: d.update(release="v0.0"), "built for release 'v0.0'"),
+    (_drop_override, "C1 was accepted outside its expected set"),
+])  # fmt: skip
+def test_criteria_must_agree_with_the_release(
+    extras_tree: Path, tmp_path: Path, edit: Any, message: str
+) -> None:
+    """Until CRIT-13 (#318): a criteria file built for another release, or one that draws a
+    state a stored outcome contradicts (OVR-3, OVR-4), stops the build."""
+    root = _edited_tree(extras_tree, tmp_path / "tree", edit)
+    with pytest.raises(IProofsError, match=message) as e:
+        site_view(root)
+    assert e.value.kind is ErrorKind.CONFIG
+
+
+def test_one_card_configuration_per_system() -> None:
+    """SRC-1: rows are keyed by system until #318 adds `card`, so a second card of a system
+    would borrow the first card's row: refused."""
+    crit = inputs.load_criteria(ROOT)
+    empty: dict[str, list[Any]] = {"outside_expected": []}
+    configs = [{"kind": "prover", "system": "flashprove", "configuration": name,
+                "controls": empty} for name in ("exact-match-cp-verify", "second")]  # fmt: skip
+    with pytest.raises(IProofsError, match="2 card configurations") as e:
+        check_rows(crit, "v0.1", configs)
+    assert e.value.kind is ErrorKind.CONFIG
+    check_rows(crit, "v0.1", configs[:1])
 
 
 def test_override_cell_keeps_stated(extras: dict[str, Any]) -> None:
@@ -254,6 +357,19 @@ def test_facts_checks(tmp_path: Path) -> None:
         state="active"))  # fmt: skip
     with pytest.raises(IProofsError, match="disagrees with facts status"):
         inputs.check_facts(inputs.load_facts(root, registry), crit, [], [])
+
+
+@pytest.mark.parametrize("stale", ["old.html", "og/old.html"])
+def test_stale_output_is_config_error(tree: Path, tmp_path: Path, stale: str) -> None:
+    """A page or card source the build no longer writes stops it as a config error (not an
+    assert, which `python -O` drops), before any page is written."""
+    out = tmp_path / "out"
+    (out / stale).parent.mkdir(parents=True, exist_ok=True)
+    (out / stale).write_text("stale")
+    with pytest.raises(IProofsError, match="no longer writes") as e:
+        build(tree, out)
+    assert e.value.kind is ErrorKind.CONFIG
+    assert not (out / "index.html").exists()
 
 
 def test_no_release_is_config_error(tmp_path: Path) -> None:

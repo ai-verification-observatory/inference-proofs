@@ -49,14 +49,18 @@ def copy_assets(web: Path, out: Path) -> None:
 
 def build(root: Path, out: Path) -> list[Path]:
     """Write the site of the newest frozen release under `root` into `out`; returns the pages
-    written, sorted. Never removes `out` or a file in it: the renderer fails on a page it no
-    longer writes, so a stale page stops the build instead of being deployed."""
+    written, sorted. Never removes `out` or a file in it: the renderer fails, before it writes
+    anything, on a page or card source it no longer writes, so a stale page stops the build
+    (a config error) instead of being deployed."""
     from iproofs.site.view import site_view  # noqa: PLC0415 (view reads the release tree)
 
     view = site_view(root)
     out.mkdir(parents=True, exist_ok=True)
     if out.resolve() != (root / "web").resolve():
         copy_assets(root / "web", out)
-    pages: list[Path] = renderer(root).render(view, out, write_json=write_json,
-                                              write_text=write_text)  # fmt: skip
+    try:
+        pages: list[Path] = renderer(root).render(view, out, write_json=write_json,
+                                                  write_text=write_text)  # fmt: skip
+    except RuntimeError as e:  # the renderer's own checks (stale pages and card sources)
+        raise IProofsError(ErrorKind.CONFIG, f"site: {e}") from e
     return pages

@@ -12,7 +12,9 @@ from typing import Any
 
 from iproofs.controls import CONTROL_PROPERTY, runs_read
 from iproofs.derive import formula_of
+from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import SiteFacts
+from iproofs.release import not_measurable_on_profile
 from iproofs.schema import SchemaRegistry
 from iproofs.site import inputs
 from iproofs.site.inputs import REPOSITORY, maintainer_rows
@@ -24,8 +26,13 @@ FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
-NM1_KINDS = ("resource", "adapter")  # RFC-0015 NM-1, as `release._measurable` tests
+# RFC-0016 §States: the states a contradicting outcome turns to `no` (OVR-4)
+CONTRADICTABLE = ("yes", "partly")
 LINK_REF = "main"  # #320 plan §1.1: no tracked file records the commit that merged index.json
+
+
+def _config(message: str) -> IProofsError:
+    return IProofsError(ErrorKind.CONFIG, f"site: {message}")
 
 
 def _escape(part: str) -> str:
@@ -106,7 +113,10 @@ def _runs(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> dict[st
             "last_line": lines[-1] if lines else None,
             "record": f"{rec['dir']}/run.json",
         })  # fmt: skip
-    nm1 = not completed and bool(failed) and all(f["kind"] in NM1_KINDS for f in failed)
+    # RFC-0015 NM-1, by the freeze's own rule; the index does not mark it yet (#320 PR notes)
+    nm1 = not_measurable_on_profile([(records[rid]["run"]["status"] == "completed",
+                                      (records[rid]["run"]["failure"] or {}).get("kind"))
+                                     for rid in config["runs"]])  # fmt: skip
     return {
         "completed": completed,
         "failed": failed,
@@ -117,18 +127,28 @@ def _runs(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> dict[st
 
 
 def property_controls(
-    root: Path, criteria: inputs.Criteria, row: dict[str, Any], configuration: str
+    root: Path,
+    criteria: inputs.Criteria,
+    row: dict[str, Any],
+    configuration: str,
+    records: dict[str, dict[str, Any]],
 ) -> dict[str, Any]:
     """OVR-7: per property, each mapped control's outcome in every run OVR-5 reads; the site
     lists, it never sets a state. With no criteria `release` no run is read (OVR-5); "not run"
-    is a mapped control absent from a read run's controls.json. OVR-8 withholds the lists."""
+    is a mapped control absent from a read run's controls.json. OVR-8 withholds the lists. A run
+    of the rendered release is read from `records`; only a run of an earlier release is read
+    again from disk."""
     if row["pending"]:
         return {"withheld": True, "properties": {}}
     read = runs_read(root, criteria.release, row["id"], configuration)
+    held = {rec["dir"]: rec["controls"] for rec in records.values()}
     controls: dict[str, dict[str, Any]] = {}
     for run_dir in read:
         path = root / run_dir / "controls.json"
-        doc = inputs.read_json(path) if path.is_file() else {"controls": []}
+        if run_dir in held:
+            doc = held[run_dir] or {"controls": []}
+        else:
+            doc = inputs.read_json(path) if path.is_file() else {"controls": []}
         controls[run_dir.rsplit("/", 1)[1]] = {str(c["id"]): c for c in doc["controls"]}
     out: dict[str, Any] = {}
     for prop in criteria.order:
@@ -171,12 +191,44 @@ def _system_controls(
     return out
 
 
-def _verifier(reference: dict[str, Any]) -> dict[str, Any]:
-    """The reference verifier profile (RFC-0006): the CPU count the `verify` scope ran on."""
-    profiles = reference.get("profiles") or {}
-    name = next((n for n in sorted(profiles) if profiles[n].get("kind") == "verifier"), None)
-    cpu = inputs.maybe(profiles, name, "cpu", "logical_cpus") if name else None
+def _verifier(
+    reference: dict[str, Any], config: dict[str, Any], records: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """The verifier profile the configuration's kept runs recorded (`manifest.json`
+    `profile.verifier`, RFC-0006): the CPU count the `verify` scope ran on. Kept runs that
+    name different verifier profiles stop the build: one CPU count could not label them."""
+    named = {inputs.maybe(records[r]["manifest"], "profile", "verifier") for r in config["runs"]}
+    if len(named) > 1:
+        raise _config(f"{config['system']} on {config['workload']['id']}: kept runs name "
+                      f"verifier profiles {sorted(map(str, named))}")  # fmt: skip
+    name = next(iter(named), None)
+    cpu = inputs.maybe(reference, "profiles", name, "cpu", "logical_cpus") if name else None
     return {"profile": name, "logical_cpus": cpu}
+
+
+def _controls_of(index: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
+    """The configuration's `index.controls[]` entry, by system, workload and profile (the entry
+    names no configuration, RFC-0009 §Release record); exactly one must match."""
+    key = (config["system"], config["workload"], config["profile"])
+    found = [c for c in index["controls"] if (c["system"], c["workload"], c["profile"]) == key]
+    if len(found) != 1:
+        raise _config(f"{len(found)} controls entries for {config['system']} on "
+                      f"{config['workload']['id']} ({config['profile']}); the index names no "
+                      "configuration in `controls[]`")  # fmt: skip
+    entry: dict[str, Any] = found[0]
+    return entry
+
+
+def _accepted(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every `accepted` control record of the kept runs, as stored, so the tally can say which
+    control each accepted outcome is and against which expected set (RFC-0008 §Reporting)."""
+    out = []
+    for rid in config["runs"]:
+        for rec in (records[rid]["controls"] or {"controls": []})["controls"]:
+            if rec["outcome"] == "accepted":
+                out.append({"control": rec["id"], "run_id": rid, "source": rec["source"],
+                            "expected": rec["expected"], "passed": rec["passed"]})  # fmt: skip
+    return out
 
 
 def _card(root: Path, index: dict[str, Any], system: str, configuration: str | None) -> Any:
@@ -215,6 +267,12 @@ def _configuration(
     index_path = f"releases/{index['release']}/index.json"
     digest = wl["model"]["digest"]
     model = facts.models.get(digest)
+    controls = _controls_of(index, config)
+    accepted = _accepted(config, records)
+    if len(accepted) != controls["counts"]["accepted"]:  # the index and its runs disagree
+        raise _config(f"{config['system']} on {wl['id']}: the index counts "
+                      f"{controls['counts']['accepted']} accepted controls, its runs record "
+                      f"{len(accepted)}")  # fmt: skip
     return {
         "position": position,
         "system": config["system"],
@@ -238,9 +296,10 @@ def _configuration(
         "insufficient_repetitions": config["insufficient_repetitions"],
         "effective_tier": config["effective_tier"],
         "evidence": config["evidence"],
-        "controls": index["controls"][position],
+        "controls": controls,
+        "accepted": accepted,
         "system_controls": _system_controls(root, config, records),
-        "verifier": _verifier(reference),
+        "verifier": _verifier(reference, config, records),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
 
@@ -273,10 +332,12 @@ def site_view(root: Path) -> dict[str, Any]:
     listed = sorted((r for r in public if r not in present), key=name)
     inputs.check_facts(facts, criteria, [*benchmarked, *reference, *listed],
                        sorted({c["workload"]["model"]["digest"] for c in configs}))  # fmt: skip
+    check_rows(criteria, release_id, configs)
     for c in configs:
         row = criteria.rows.get(c["system"])
         if c["kind"] == "prover" and row and row["source_class"] == "claim_card_at_pin":
-            c["property_controls"] = property_controls(root, criteria, row, c["configuration"])
+            c["property_controls"] = property_controls(root, criteria, row, c["configuration"],
+                                                       records)  # fmt: skip
     replies = {
         str(system): reply_html((root / str(path)).read_text("utf-8"))
         for system, path in sorted((release.get("replies") or {}).items())
@@ -320,6 +381,52 @@ def site_view(root: Path) -> dict[str, Any]:
         "targets": index["targets"],
         "maintainers": maintainer_rows(root / "MAINTAINERS.md"),
     }
+
+
+def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[str, Any]]) -> None:
+    """What the site checks of the criteria file against the rendered release, until CRIT-13
+    (#318) recomputes the override in the validator:
+
+    - the file names no release, or the rendered one (OVR-5: a file built for another release
+      reads other runs);
+    - each benchmarked system has one card configuration, since rows are keyed by system until
+      #318 adds `card` to them (SRC-1: one card row per card), so no configuration borrows the
+      row of another card;
+    - no state is drawn that a stored outcome contradicts (OVR-3, OVR-4): an `accepted` control
+      outside its expected set (`index.controls[].outside_expected`), mapped to a property
+      (OVR-2), on a configuration whose row is drawn and whose cell for that property is `yes`
+      or `partly`, needs that control and run in the cell's `contradicted_by`. A file with no
+      `release` reads no run (OVR-5), so it can name none: such an outcome stops the build until
+      the file names the release.
+    """
+    if criteria.release is not None and criteria.release != release_id:
+        raise _config(f"{criteria.path} is built for release {criteria.release!r}, the site "
+                      f"renders {release_id!r} (RFC-0016 OVR-5)")  # fmt: skip
+    cards: dict[str, set[str]] = {}
+    for c in configs:
+        if c["kind"] == "prover":
+            cards.setdefault(c["system"], set()).add(str(c["configuration"]))
+    for system, names in sorted(cards.items()):
+        if len(names) > 1:
+            raise _config(f"{system} runs {len(names)} card configurations {sorted(names)}; "
+                          f"{criteria.path} keys rows by system, so they would share one row "
+                          "(RFC-0016 SRC-1, #318)")  # fmt: skip
+    for c in configs:
+        row = criteria.rows.get(c["system"])
+        if c["kind"] != "prover" or row is None or not row["drawn"]:
+            continue
+        for entry in c["controls"]["outside_expected"]:
+            prop = CONTROL_PROPERTY.get(str(entry["control_id"]))
+            if entry["outcome"] != "accepted" or prop is None:
+                continue
+            cell = row["cells"][prop]
+            named = {(str(x["control"]), str(x["run_id"])) for x in cell["contradicted_by"]}
+            if cell["state"] in CONTRADICTABLE and (entry["control_id"],
+                                                    entry["run_id"]) not in named:  # fmt: skip
+                raise _config(f"{c['system']}/{prop} is drawn {cell['state']!r}, but "
+                              f"{entry['control_id']} was accepted outside its expected set in "
+                              f"{entry['run_id']} and the cell's `contradicted_by` does not name "
+                              "it (RFC-0016 OVR-4)")  # fmt: skip
 
 
 def _facts_row(row: Any) -> dict[str, Any]:

@@ -72,8 +72,11 @@ class Criteria:
 def load_criteria(root: Path) -> Criteria:
     """Read `web/_data/criteria.json`. Prototype colour ids map to RFC-0016 state ids; the
     derived copies the prototype still holds (`test_mapping`, `rows[].states`) must equal the
-    cells; an unknown row or cell key, state, family or source class raises. A card row with a
-    `pending` disclosure gets `state: None` on every cell (OVR-8: drawn as no state)."""
+    cells; an unknown row or cell key, state, family or source class raises. Each cell keeps the
+    state the file sets; a card row with a `pending` disclosure gets `drawn: False` (OVR-8: the
+    glyph draws no state, and the system page prints the stated states beside the RFC-0008
+    notice, undrawn). Under a pending disclosure no cell carries `stated` or `contradicted_by`
+    (OVR-8), so each cell's state is its stated state."""
     path = root / CRITERIA
     doc = json.loads(path.read_text("utf-8"))
     order = tuple(str(p) for p in doc["order"])
@@ -95,14 +98,16 @@ def load_criteria(root: Path) -> Criteria:
         if raw["source_class"] not in SOURCE_CLASSES:
             raise _config(f"{CRITERIA} row {rid}: unknown source class {raw['source_class']!r}")
         pending = any(d.get("state") == "pending" for d in raw.get("disclosures") or [])
-        cells = {}
+        cells: dict[str, dict[str, Any]] = {}
         for prop in order:
             cell = raw["cells"][prop]
             if unknown := set(cell) - CELL_KEYS:
                 raise _config(f"{CRITERIA} {rid}/{prop}: unknown keys {sorted(unknown)}")
-            state = _state(cell["state"], f"{rid}/{prop}")
+            if pending and ("stated" in cell or "contradicted_by" in cell):
+                raise _config(f"{CRITERIA} {rid}/{prop}: `stated` under a pending disclosure "
+                              "(RFC-0016 OVR-8)")  # fmt: skip
             cells[prop] = {
-                "state": None if pending else state,
+                "state": _state(cell["state"], f"{rid}/{prop}"),
                 "stated": _state(cell.get("stated"), f"{rid}/{prop} stated"),
                 "reason": cell.get("reason"),
                 "quotes": list(cell.get("quotes") or []),
@@ -126,6 +131,7 @@ def load_criteria(root: Path) -> Criteria:
             "source_class": raw["source_class"],
             "tab": raw["tab"],
             "pending": pending,
+            "drawn": not pending,
             "disclosures": list(raw.get("disclosures") or []),
             "cells": cells,
         }
@@ -205,7 +211,8 @@ def systems(root: Path) -> dict[str, dict[str, Any]]:
 
 
 def run_records(root: Path, run_dirs: list[str]) -> dict[str, dict[str, Any]]:
-    """run id -> {run, controls} for every listed run directory, each file read once."""
+    """run id -> {dir, run, manifest, controls} for every listed run directory, each file read
+    once."""
     out = {}
     for rel in run_dirs:
         run = read_json(root / rel / "run.json")
@@ -213,6 +220,7 @@ def run_records(root: Path, run_dirs: list[str]) -> dict[str, dict[str, Any]]:
         out[str(run["run_id"])] = {
             "dir": rel,
             "run": run,
+            "manifest": read_json(root / rel / "manifest.json"),
             "controls": read_json(controls) if controls.is_file() else None,
         }
     return out

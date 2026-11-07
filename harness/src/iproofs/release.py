@@ -868,13 +868,20 @@ def _reference_roles(root: Path) -> dict[str, str]:
     return roles
 
 
+NM1_KINDS = ("resource", "adapter")
+
+
+def not_measurable_on_profile(attempts: Sequence[tuple[bool, object]]) -> bool:
+    """RFC-0015 NM-1 over a configuration's kept attempts, each (completed, failure kind): true
+    when there is at least one and every one failed with `resource` or `adapter`. The freeze
+    and the site (`iproofs.site.view`) both call it, so the rule has one copy."""
+    return bool(attempts) and all(not ok and kind in NM1_KINDS for ok, kind in attempts)
+
+
 def _measurable(ctx: "_Context") -> bool:
     """RFC-0015 NM-1: not measurable when every attempt failed with `resource` or `adapter`."""
-    failures = [r.get("run", "failure", "kind") for r in ctx.kept]
-    return (
-        any(r.ok for r in ctx.kept)
-        or not failures
-        or any(f not in ("resource", "adapter") for f in failures)
+    return not not_measurable_on_profile(
+        [(r.ok, r.get("run", "failure", "kind")) for r in ctx.kept]
     )
 
 
