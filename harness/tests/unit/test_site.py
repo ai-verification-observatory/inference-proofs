@@ -346,7 +346,7 @@ def _chunks(items: list[str], n: int) -> list[list[str]]:
 
 
 MORE_SPREAD = re.compile(r"spread: (\d+) completed, (\d+) failed · .+? to .+? · mean .+? · sd ")
-# the more-numbers rows, in the renderer's order (web/build.py MORE)
+# the more-numbers rows, in the renderer's order (web/draw/plates.py MORE)
 MORE = (("rate_prove.session", "Proving rate"),
         ("cost_per_1k_tokens_prove.session", "GPU cost per 1,000 positions"),
         ("commit_seconds", "Commit once"), ("verify_host_memory_peak_anon", "Checker memory"),

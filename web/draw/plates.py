@@ -1,0 +1,417 @@
+"""Criteria rows as glyphs, the view's rows, words and labels, and one configuration's figures.
+
+`glyph` turns a criteria row into the six cells the pages draw. The text helpers reword criteria
+phrases (`PHRASES`), keep numbers with their units (`readable`) and turn RFC rule codes into links
+(`with_rule`, which stops the build on a code that names no RFC). `cell_words` and `plate` print
+one figure with every label (S2, S3); `runs_line` says what the figures are over (S7).
+"""
+
+import re
+
+from . import state as S
+from .words import (
+    FAIL_KIND,
+    FAIL_STEP,
+    STATE_WORD,
+    e,
+    gpu_words,
+    labels,
+    shown,
+    spread_line,
+    spread_parts,
+    why_words,
+)
+
+# ------------------------------------------------------------------ the criteria's rows as glyphs
+
+
+def glyph(rid):
+    """One criteria row as the pages draw it: six states in slot order, each with its property,
+    word, reason, quotes and the system's own statement outside the pin (never part of a state).
+    A row under a pending disclosure (RFC-0016 OVR-8) is not drawn: `states` are all None, and
+    each cell keeps the stated state the system page prints beside the notice."""
+    row = S.CRIT["rows"][rid]
+    drawn = row["drawn"]
+    cells = []
+    for i, p in enumerate(S.PROPS):
+        c = row["cells"][p["id"]]
+        outside = (c.get("outside_pin") or {}).get("state")
+        cells.append({"n": i + 1, "prop": p["id"], "name": p["name"], "question": p["question"],
+                      "state": c["state"], "word": STATE_WORD[c["state"]],
+                      "reason": c.get("reason") or "", "quotes": c["quotes"],
+                      "outside": outside})  # fmt: skip
+    return {"states": [c["state"] if drawn else None for c in cells], "cells": cells,
+            "drawn": drawn}  # fmt: skip
+
+
+def states_said(g, outside=False):
+    """The six states in words (the pie's spoken name). outside: also the system's own statement
+    outside the pin, which is never part of the state (RFC-0016 SRC-3); system pages only."""
+    parts = []
+    for c in g["cells"]:
+        w = c["word"]
+        if outside and c["outside"] is not None:
+            w += f" (its own note outside the pin says {STATE_WORD[c['outside']]})"
+        parts.append(f"{c['name']}: {w}")
+    return words("; ".join(parts) + ".")
+
+
+def aria(g, name, outside=False):
+    if not g["drawn"]:
+        return f"{name}: no state is drawn while a disclosure is pending."
+    return f"{name}: {states_said(g, outside)}"
+
+
+# ------------------------------------------------------------------ the view's rows
+
+
+def name_of(rid):
+    return S.V["facts"]["rows"][rid]["name"]
+
+
+def upstream(cfg):
+    """RFC-0009 S1: the pin is `upstream.commit` of the configuration's claim card."""
+    return cfg["card"]["upstream"]
+
+
+def row_id(cfg):
+    """The row's id: the system's id, unless the system has more than one configuration."""
+    same = [c for c in S.CONFIGS if c["system"] == cfg["system"]]
+    if len(same) == 1:
+        return cfg["system"]
+    return f"{cfg['system']}--{cfg['configuration']}--{cfg['workload']['id']}"
+
+
+def first_config(sid):
+    return next(c for c in S.CONFIGS if c["system"] == sid)
+
+
+def configs_of(sid):
+    """The system's configurations in index order: one section each on its page."""
+    return [c for c in S.CONFIGS if c["system"] == sid]
+
+
+# ------------------------------------------------------------------ words and labels
+
+
+def split_value(v):
+    """Number, its unit (the next word), and any words after it."""
+    m = re.match(r"^([\d,.]+)\s*(\S*)\s*(.*)$", v)
+    return (m.group(1), m.group(2), m.group(3)) if m else (None, None, v)
+
+
+def fig(v):
+    n, u, rest = split_value(v)
+    if n is None:
+        return f'<span class="na word">{e(rest)}</span>'
+    return (
+        f'<span class="fig"><span class="n">{e(n)}</span>'
+        + (f'<span class="u">{e(u)}</span>' if u else "")
+        + (f'<span class="ux">{e(rest)}</span>' if rest else "")
+        + "</span>"
+    )
+
+
+COLS = ["covers", "proof_size", "check_time", "overhead"]
+HEAD = {
+    "covers": "One proof covers",
+    "proof_size": "Proof size",
+    "check_time": "Check time",
+    "overhead": "Overhead",
+}
+# the stored statistic behind each overview column (iproofs.site.view.FIGURES)
+METRIC = {
+    "covers": "tokens_covered_per_proof",
+    "proof_size": "proof_bytes",
+    "check_time": "verify_seconds",
+    "overhead": "overhead_vs_serving_prove.session",
+}
+# how each order reads aloud
+SORT_WORDS = {
+    "system": {"asc": "A to Z", "desc": "Z to A"},
+    "covers": {"asc": "fewer positions first", "desc": "more positions first"},
+    "proof_size": {"asc": "small to large", "desc": "large to small"},
+    "check_time": {"asc": "short to long", "desc": "long to short"},
+    "overhead": {
+        "asc": "closer to plain serving first",
+        "desc": "further from plain serving first",
+    },
+}
+# More numbers on a system page, in this order: the stored statistic and its row label
+MORE = [
+    ("rate_prove.session", "Proving rate"),
+    ("cost_per_1k_tokens_prove.session", "GPU cost per 1,000 positions"),
+    ("commit_seconds", "Commit once"),
+    ("verify_host_memory_peak_anon", "Checker memory"),
+    ("prove_gpu_memory_peak", "GPU memory"),
+]
+# A reference row makes no proof (RFC-0015 REF-2): its cells say so, in these words
+REF_CELLS = {
+    "covers": (
+        "Same as the system",
+        "Same token count as the system it runs beside (RFC-0015 REF-3).",
+    ),
+    "proof_size": ("No proof", "This row makes no proof (RFC-0015 REF-2)."),
+    "check_time": ("Does not apply", "This row makes no proof (RFC-0015 REF-2)."),
+}
+REF_OVERHEAD = {
+    "serve": (
+        "Baseline",
+        "Plain serving is the baseline of the overhead ratio, whether or not it has run.",
+    ),
+    "recompute": ("Does not apply", "A rerun is not the baseline."),
+}
+REF_BASELINE = "by definition"  # the line under plain serving's Baseline, as its sibling cells have
+
+# Criteria phrases the site words differently, for a reader who has not read the RFCs. Each must
+# still occur in the criteria or facts file, so a change there shows up here.
+PHRASES = {
+    # one name per reference: the pages call it a rerun
+    "recompute needs them": "a rerun needs them",
+    "a checker holding the weights recomputes": "a checker holding the weights reruns it",
+    # criteria.json speaks of the workflow and of text the site does not print (quotes, cards)
+    "The number itself is a quote in its card; the glyph shows only whether one is stated and proven.": "The state shows only whether a level is stated and proven.",
+    "is printed as text beside the segment (no row proves its programs)": "is not shown: no row proves its programs",
+    "it is printed as text beside the glyph, not coloured.": "it does not change the state.",
+    "no row claims it; it is printed as text.": "no row claims it.",
+    "; printed as text.": ".",
+    " (hiding from a host operator is another property)": "",
+    "or not copied yet": "or we have not recorded it yet",
+}
+
+# RFC rule codes ("(RFC-0015 NM-1)") in text: a link to the RFC on the page, never the bare code
+RFC_RULE = re.compile(r"\s*\((RFC-(\d{4})(?:\s[A-Z]+-\d+)?)\)")
+
+
+def sentence_case(text):
+    """Each sentence starts with a capital, as fragments joined with ". " sometimes do not.
+    Only prose: a short label ("per proof", "1 token checked") or an id keeps its own case."""
+    if len(text.split()) < 4 or not text[:1].islower():
+        return re.sub(r"(\. )([a-z])", lambda m: m[1] + m[2].upper(), text)
+    text = text[:1].upper() + text[1:]
+    return re.sub(r"(\. )([a-z])", lambda m: m[1] + m[2].upper(), text)
+
+
+def words(text):
+    """Criteria and facts text as the site prints it: phrases reworded."""
+    text = str(text)
+    for k, v in PHRASES.items():
+        text = text.replace(k, v)
+    return text
+
+
+def no_rule(text):
+    """Text without its RFC rule codes (where a link cannot go, as inside another link or a title)."""
+    return RFC_RULE.sub("", text)
+
+
+def with_rule(text):
+    """Escaped text whose RFC rule codes become a small link to the RFC."""
+    out, last = [], 0
+    for m in RFC_RULE.finditer(text):
+        out.append(e(text[last : m.start()]))
+        f = S.RFC_FILES.get(m[2])
+        assert f, f"no rfcs/{m[2]}-*.md for {m[1]}"
+        end = m.end()
+        if text[end : end + 1] in (
+            ".",
+            ";",
+            ",",
+        ):  # the sentence ends before the link, not after it
+            out.append(text[end])
+            end += 1
+        out.append(
+            f' <a class="rule" href="{e(S.REPO_URL)}/blob/{S.RFC_REF}/rfcs/{f}" title="{e(m[1])}">rule<span class="sr"> {e(m[1])}</span>{EXT}</a>'
+        )
+        last = end
+    out.append(e(text[last:]))
+    return "".join(out)
+
+
+def readable(text):
+    """A printed figure label: whole numbers stay with their units, the spread reads in words."""
+    text = text.replace(" · ", "\u00a0· ")  # a separator never starts a line
+    # a count word stays with what it counts ("one H100"), a statistic with its number ("sd 0")
+    text = re.sub(r"\b(one|two|three|four|five|six|seven|eight|nine|ten) (?=\w)", "\\1\u00a0", text)
+    text = re.sub(r"\b(mean|sd) (?=[\d.])", "\\1\u00a0", text)
+    # a number stays with its unit, not with the "to" of a range
+    return re.sub(r"(\d) (?=(?!to )[A-Za-zµ%×])", "\\1\u00a0", text)
+
+
+EXT = '<span aria-hidden="true">\u00a0↗</span>'  # an outside link's arrow: not read aloud, never alone on a line
+
+
+def path_html(text):
+    """A source path that breaks only after a "/" or a " · ", never inside a part, and whose
+    separator ends a line rather than starts one."""
+    segs = re.split("\u00a0· | · ", text)
+    out = []
+    for i, sg in enumerate(segs):
+        subs = re.split(r"(?<=/)", sg)
+        sep = "\u00a0·" if i < len(segs) - 1 else ""
+        out.append(
+            "<wbr>".join(
+                f'<span class="seg">{e(s)}{sep if j == len(subs) - 1 else ""}</span>'
+                for j, s in enumerate(subs)
+            )
+        )
+    return " ".join(out)
+
+
+def keep(text):
+    """Escaped text whose hyphenated words (ids, dates, model names) never break at a hyphen; a
+    "/" inside one may still break."""
+    out, last = [], 0
+    for m in re.finditer(r"\S*\w-\w\S*", text):
+        out.append(e(text[last : m.start()]))
+        out.append(
+            "<wbr>".join(f'<span class="nw">{e(s)}</span>' for s in re.split(r"(?<=/)", m[0]))
+        )
+        last = m.end()
+    out.append(e(text[last:]))
+    return "".join(out)
+
+
+def link_or_text(text, href):
+    """A source as a link when it has one; otherwise text, its rule codes as links."""
+    if href:
+        return f'<a href="{e(href)}">{path_html(no_rule(text))}{EXT}</a>'
+    return with_rule(text)
+
+
+def blob(path):
+    """A file of this repository, at the commit the site links (RFC-0009 S1, #320 plan §1.1)."""
+    return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
+
+
+# ------------------------------------------------------------------ one configuration's figures
+
+
+def cell_words(cfg, col):
+    """(value html, lines, title, measured) for one overview figure of a configuration."""
+    if cfg["kind"] == "reference":
+        word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
+                      else REF_CELLS[col])  # fmt: skip
+        if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
+            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
+        return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False
+    f = cfg["figures"][METRIC[col]]
+    if f["value"] is None:
+        why = why_words(f, cfg)
+        return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False
+    value = shown(f["value"], f["unit"])
+    unit_line = {"covers": "{n} token{s} checked", "proof_size": "per proof",
+                 "check_time": "per check"}.get(col)  # fmt: skip
+    out_tokens = cfg["workload"]["shape"]["output_tokens"]
+    tail = (
+        [unit_line.format(n=f"{out_tokens:,}", s="" if out_tokens == 1 else "s")]
+        if unit_line
+        else []
+    )
+    title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
+                        f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
+                       else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
+                             f"source: {f['source']}"])  # fmt: skip
+    return fig(value), [*spread_parts(f), *tail], title, True
+
+
+def value_link(cfg, col, href, who=""):
+    """A figure on the overview row: a link to the figure's own plate; its labels ride in the
+    title. The lines under it are plain text (a link cannot hold the rule links the plates carry)."""
+    inner, shown_lines, title, measured = cell_words(cfg, col)
+    title = sentence_case(readable(title) if measured else title)
+    lines = "".join(f"<span>{e(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
+    name = f'<span class="sr">, {e(who)}</span>' if who else ""
+    return (
+        f'<a class="val" href="{e(href)}" title="{e(title)}">'
+        f'<span class="lbl">{e(HEAD[col])}{name}</span><span class="vm">{inner}</span>'
+        f'<span class="sub">{lines}</span></a>'
+    )
+
+
+def workload_link(cfg):
+    return cfg["workload"]["id"], blob(cfg["workload"]["record"])
+
+
+def plate(cfg, col, pid=""):
+    """One figure's plate, every label in view (S2, S3); pid: an id prefix, so an overview
+    figure can link to its own plate."""
+    kv = []
+    if cfg["kind"] == "reference":
+        word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
+                      else REF_CELLS[col])  # fmt: skip
+        val = f'<span class="na">{e(word)}</span>'
+        kv.append(("note", line, None))
+    else:
+        f = cfg["figures"][METRIC[col]]
+        if f["value"] is None:
+            val = '<span class="na">No value</span>'
+            kv += [("workload", *workload_link(cfg)), ("why", why_words(f, cfg), None)]
+        else:
+            val = fig(shown(f["value"], f["unit"]))
+            if f.get("stats"):
+                kv.append(("spread", spread_line(f), None))
+            kv += [(k, v, None) for k, v in labels(f, cfg)]
+            kv.append(("workload", *workload_link(cfg)))
+        if f["recorded"]:
+            kv.append(("source", f["source"], None))
+    dl = "".join(
+        f"<div><dt>{e(k)}</dt><dd>{source_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
+        for k, v, href in kv
+    )
+    return (
+        f'<div class="plate"{f' id="{e(pid)}{col}"' if pid else ""} data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
+        f'<p class="pv">{val}</p><dl>{dl}</dl></div>'
+    )
+
+
+def source_html(pointer):
+    """A figure's record in the release index, as text until the index is published (#146)."""
+    file, _, frag = pointer.partition("#")
+    return path_html(file) + "<wbr>" + path_html("#" + frag)
+
+
+def has_figures(cfg):
+    """False for a configuration whose kept runs all failed: it holds no statistic."""
+    return any(f["recorded"] for f in cfg["figures"].values())
+
+
+def runs_counts(cfg):
+    """A configuration whose kept runs all failed holds no statistic: its counts, whether it has
+    fewer completed runs than a release needs, and RFC-0015 NM-1 when it applies (S3, S7)."""
+    runs = cfg["runs"]
+    parts = [f"{len(runs['completed'])} completed, {len(runs['failed'])} failed"]
+    if cfg["insufficient_repetitions"]:
+        parts.append("below minimum repetitions")
+    if runs["not_measurable"]:
+        parts.append(f"not measurable on {gpu_words(cfg)} (RFC-0015 NM-1)")
+    return " · ".join(parts)
+
+
+def runs_line(cfg):
+    """S7: what the figures are over, and every kept run not counted, with its failure record."""
+    runs = cfg["runs"]
+    out = [f"Runs of this setup: {len(runs['completed'])} completed"]
+    if runs["failed"]:
+        n = len(runs["failed"])
+        said = []
+        for f in runs["failed"]:
+            parts = [
+                FAIL_KIND[f["kind"]]
+                + (f" {FAIL_STEP[f['step']]}" if f["step"] in FAIL_STEP else "")
+            ]
+            if f["exit_code"] is not None:
+                parts.append(f"exit code {f['exit_code']}")
+            if f["last_line"]:
+                parts.append(f'last line: "{f["last_line"]}"')
+            said.append("; ".join(parts))
+        out.append(f"{n} failed and {'is' if n == 1 else 'are'} not counted ({'; '.join(said)})")
+    superseded = [x for x in runs["left_out"] if x["replaced_by"]]
+    other = [x for x in runs["left_out"] if not x["replaced_by"]]
+    if superseded:
+        why = "; ".join(r.split(": ", 1)[1] if ": " in r else r
+                        for x in superseded for r in x["reasons"])  # fmt: skip
+        out.append(f"{len(superseded)} superseded and replaced ({why})")
+    if other:
+        out.append(f"{len(other)} left out ({'; '.join(r for x in other for r in x['reasons'])})")
+    return "; ".join(out) + ". Each number below is over the completed runs."
