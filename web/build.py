@@ -130,6 +130,8 @@ OUTCOME_VERB = {"accepted": "accepted", "rejected": "rejected", "invalid_call": 
                 "no_verdict": "gave no verdict on", "error": "failed on"}  # fmt: skip
 COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
               8: "eight", 9: "nine", 10: "ten"}  # fmt: skip
+# RFC-0009 S6: above tables of different native workloads side by side (two workloads on one model)
+NATIVE_HEADER = "Native workloads differ: rows are not a head-to-head comparison"
 REF_LEAD = "The same model, task and GPU without a proof: plain serving checks nothing, a rerun needs the weights; they are baselines, not systems."
 
 
@@ -1200,18 +1202,32 @@ def fig_href(cfg, col):
     return f"{page_}#fig-{col}" if cfg is first_config(cfg["system"]) else page_
 
 
+def pin_line(r, rows):
+    """A row header's pin, and the card's `configuration` where the table holds two rows of the
+    system (RFC-0009 S1): the card's identity, no claim text."""
+    two = sum(x["system"] == r["system"] for x in rows) > 1
+    cfg = f'<span class="nw"> · {e(r["configuration"])}</span>' if two else ""
+    return f'<p class="wl">{pin_link(r)}{cfg}</p>'
+
+
 def build_index():
     first = f"System, {SORT_WORDS['system']['asc']}"
     secs = ""
-    for d, sid_, rows in tables():
+    seen = set()
+    all_tables = tables()
+    for d, sid_, rows in all_tables:
         name = MODEL_NAME[d]
+        native = ""
+        if d not in seen and sum(x[0] == d for x in all_tables) > 1:
+            native = f'<p class="sec-l">{e(NATIVE_HEADER)}</p>'
+        seen.add(d)
         body_rows = "".join(
             row_html(
                 row_id(r),
                 name_of(r["system"]),
                 glyph(r["system"]),
                 PAGE[r["system"]],
-                f'<p class="wl">{pin_link(r)}</p>',
+                pin_line(r, rows),
                 '<div class="vals">'
                 + "".join(
                     f'<div class="vc" role="cell" data-col="{c}">{value_link(r, c, fig_href(r, c), name_of(r["system"]))}</div>'
@@ -1225,7 +1241,7 @@ def build_index():
         )
         secs += f"""
   <section class="sec bench" id="{sid_}" aria-labelledby="h-{sid_}">
-    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + shape_words(rows[0])))}</p></div>
+    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + shape_words(rows[0])))}</p>{native}</div>
     <div class="tbl" role="table" aria-labelledby="h-{sid_}" aria-describedby="sort-now" data-col="system" data-dir="asc">
       {sort_heads()}
       <div class="rows" role="rowgroup">{body_rows}</div>
