@@ -255,7 +255,7 @@ Where the public site at `web/` does not yet meet these rules, after #320's seco
 - S5: the site publishes no `index.json`; every footer names its path, and links it once #146 publishes it.
 - S6: overview tables are headed by model only; no heading names its workload id, division or profile, and none links the workload record (an owner decision on the overview's look).
 - S9: a glyph state is not shown as a word on keyboard focus.
-- Pages: the criteria page does not open with what the benchmark measures and does not; system pages print no reference rows (they are on `/reference`); `/reference` has no per-workload headings and no table of other figures, and heads each reference's glyph "What one proof establishes" (RFC-0015 REF-2).
+- Pages: the criteria page does not open with what the benchmark measures and does not; system pages print no reference rows (they are on `/reference`); a system with one configuration has no heading naming its workload, division and profile above its figures (the Figures heading names the model and shape; the division is named under Tamper tests); the system maintainers' reply is printed once, after the tamper tests, not beside every overridden cell (RFC-0016 OVR-6), and never carries the words "not reviewed by system maintainers" (RFC-0001 §Failure modes); `/release` links the `rfcs/` tree at the RFC commit, not each RFC, and, while the release is a candidate, prints its freeze date, review window and sponsors as not set, since until #146 they are the placeholder fixture's; `/reference` has no per-workload headings and no table of other figures, and heads each reference's glyph "What one proof establishes" (RFC-0015 REF-2).
 
 ### Targets
 
