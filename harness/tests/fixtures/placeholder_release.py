@@ -15,14 +15,14 @@ and the copy of `systems/sash/system.yaml` `workloads`), so SASH has a placehold
 Llama 4 Maverick. SASH's real code runs Llama 3.1 8B only (RFC-0003); the real tree is never
 changed.
 
-Placeholder raw values (no measurement; chosen so the figures the site printed from
-`web/_data/site.json` before #320 keep their digits where the stored metric is the same one):
-three repetitions per prover configuration, the minimum, the middle and the maximum of that
-file's statistics (the middle is 3 x mean - min - max). SASH's proving session is scaled by its
-tokens on this shape over the 4,608 tokens of its earlier placeholder, so its rate and cost per
-1,000 tokens keep their digits. Both reference rows fail every repetition with kind `resource`
-(RFC-0015 NM-1, as the site said: plain serving could not run this model on one H100); their
-failure records carry no invented log line.
+Placeholder raw values (no measurement; chosen so the figures the site printed from its data
+snapshot before #320, `web/_data/` at 39662bf, keep their digits where the stored metric is the
+same one): three repetitions per prover configuration, the minimum, the middle and the maximum
+of that file's statistics (the middle is 3 x mean - min - max). SASH's proving session is scaled
+by its tokens on this shape over the 4,608 tokens of its earlier placeholder, so its rate and
+cost per 1,000 tokens keep their digits. Both reference rows fail every repetition with kind
+`resource` (RFC-0015 NM-1, as the site said: plain serving could not run this model on one
+H100); their failure records carry no invented log line.
 
 `extras=True` adds cases the site tests need and the deployed build must not carry (a reply
 written by no system maintainer, a target, a criteria copy naming the release with a pending
@@ -119,7 +119,7 @@ def _reps(
     )  # fmt: skip
 
 
-# FlashProve: web/_data/site.json configurations["flashprove--fp-maverick-w1024-b24--..."].
+# FlashProve: the snapshot's configurations["flashprove--fp-maverick-w1024-b24--..."].
 FLASHPROVE = _reps(
     _three(119.9, 120.66666666666667, 121.4),
     _three(2398.2, 2410.5333333333333, 2422.9),
@@ -130,7 +130,7 @@ FLASHPROVE = _reps(
     # proof_bytes_total 2,252,900,000 / 2,253,600,000 / 2,254,100,000 B over 120 proofs
     (18774167, 18780000, 18784167),
 )
-# SASH: web/_data/site.json configurations["sash--sash-l31-8b-c4096--..."] (4,608 tokens).
+# SASH: the snapshot's configurations["sash--sash-l31-8b-c4096--..."] (4,608 tokens).
 SASH_EARLIER_TOKENS = 4608
 SASH = _reps(
     _three(40.9, 41.4, 42.0),
@@ -141,7 +141,7 @@ SASH = _reps(
     _three(799.1, 802.6333333333333, 806.3),
     (19800000000, 19800000000, 19800000000),
 )
-FLASHPROVE_CONTROLS = (  # (id, outcome, note), as site.json printed them
+FLASHPROVE_CONTROLS = (  # (id, outcome, note), as the snapshot printed them
     ("C1", "rejected", None),
     ("C2", "rejected", None),
     ("C3", "not_applicable", "perturbed commitment not created within the release budget "

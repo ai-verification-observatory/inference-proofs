@@ -136,11 +136,13 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
 
 def test_every_formula_is_in_derive(built: tuple[Path, Path]) -> None:
     """Every statistic a page points at is D-STAT over repetition values, each of them the
-    output of a formula `iproofs.derive` holds (or a recorded metric); no `D-SITE-` id."""
+    output of a formula `iproofs.derive` holds (or a recorded metric); every formula id a page
+    names is one `iproofs.derive` holds (#320: no site-only formula ids)."""
     tree, out = built
     doc = index(tree)
     text = "".join(pages(out).values())
-    assert "D-SITE-" not in text
+    named = set(re.findall(r"\bD-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*\b", re.sub(r"<[^>]+>", " ", text)))
+    assert named <= set(FORMULAS), named - set(FORMULAS)
     pointers = set(POINTER.findall(html.unescape(text)))
     assert pointers
     for pointer in pointers:

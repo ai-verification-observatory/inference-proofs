@@ -1,8 +1,8 @@
 """The placeholder frozen release the site is built from until v0.1 (fixtures/placeholder_release).
 
 Every number below is a placeholder fixture value, not a result: the expected digits are the
-ones web/_data/site.json printed before #320, recomputed here by hand from the fixture's raw
-values (module docstring of the fixture).
+ones the site's data snapshot printed before #320 (`web/_data/` at 39662bf), recomputed here by
+hand from the fixture's raw values (module docstring of the fixture).
 """
 
 import json
