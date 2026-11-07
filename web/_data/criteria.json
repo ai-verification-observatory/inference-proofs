@@ -341,15 +341,15 @@
               "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
               "decides": false,
               "kind": "repository",
-              "label": "guide/what-is-proved.md L70 · 9e2bdd8f",
-              "lines": "L70",
-              "path": "guide/what-is-proved.md",
+              "label": "guide/known-limits.md L65-L66 · 9e2bdd8f",
+              "lines": "L65-L66",
+              "path": "guide/known-limits.md",
               "repo": "anthropics/FlashProve",
-              "text": "Neither figure, 124 bits per query or 128 bits per round, is claimed for the C++ programs.",
-              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md?plain=1#L70"
+              "text": "The C++ programs' printed \"bits\" are their own accounting, not a theorem",
+              "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md?plain=1#L65-L66"
             }
           ],
-          "reason": "No level is claimed for cp_verify; its printed bits are not a security level.",
+          "reason": "No level is claimed for cp_verify; its printed bits are its own accounting, not a theorem.",
           "sources_read": [
             {
               "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
@@ -548,7 +548,7 @@
               "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/compose.rs#L7-L11"
             }
           ],
-          "reason": "The fixed statement, its pinned root included, is produced at setup and trusted by the verifier.",
+          "reason": "The fixed statement is produced at setup and trusted by the verifier.",
           "sources_read": [
             {
               "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
@@ -560,7 +560,8 @@
                 "docs/decisions/*",
                 "prover/README.md",
                 "harness/README.md",
-                "prover/src/util.rs"
+                "prover/src/util.rs",
+                "prover/src/compose.rs"
               ],
               "repo": "sg-ai-safety-hub/zk-inference-prover"
             },
@@ -840,7 +841,7 @@
           "state": "no"
         },
         "weights_hidden": {
-          "note": "Red here means 'no assurance', not 'the weights leak'.",
+          "note": "No here means 'no assurance', not 'the weights leak'.",
           "quotes": [
             {
               "checked": true,
@@ -937,7 +938,7 @@
           "state": "no"
         },
         "model_bound": {
-          "note": "Amber for a configuration that declares a precision substitution (PM-2, RFC-0015 L104); agreement is reported and changes no verdict (RC-6).",
+          "note": "Partly for a configuration that declares a precision substitution (PM-2, RFC-0015 L104); agreement is reported and changes no verdict (RC-6).",
           "quotes": [
             {
               "checked": true,
@@ -1261,11 +1262,11 @@
       "name": "DeepProve",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents DeepProve",
           "repo": "Lagrange-Labs/deep-prove"
         },
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names DeepProve, by the system's authors",
           "url": "https://eprint.iacr.org/2026/1112"
         }
       ],
@@ -1345,7 +1346,7 @@
       "name": "EZKL",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents EZKL",
           "repo": "zkonduit/ezkl"
         }
       ],
@@ -1427,7 +1428,7 @@
       "name": "JOLT Atlas",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents JOLT Atlas",
           "repo": "ICME-Lab/jolt-atlas"
         }
       ],
@@ -1507,11 +1508,11 @@
       "name": "JSTprove",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents JSTprove",
           "repo": "inference-labs-inc/JSTprove"
         },
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names JSTprove, by the system's authors",
           "url": "https://arxiv.org/abs/2510.21024"
         }
       ],
@@ -1586,7 +1587,7 @@
       "name": "LuminAIR",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents LuminAIR",
           "repo": "gizatechxyz/LuminAIR"
         }
       ],
@@ -1682,7 +1683,7 @@
       "name": "NanoZK",
       "own_sources": [
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names NanoZK, by the system's authors",
           "url": "https://arxiv.org/abs/2603.18046"
         }
       ],
@@ -1762,7 +1763,7 @@
       "name": "opML",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents opML",
           "repo": "ora-io/opml"
         }
       ],
@@ -1865,7 +1866,7 @@
       "name": "Private ML SDK",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents Private ML SDK",
           "repo": "nearai/private-ml-sdk"
         }
       ],
@@ -1933,7 +1934,7 @@
       "name": "Remainder (Community Edition)",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents Remainder",
           "repo": "worldcoin/Remainder_CE"
         }
       ],
@@ -2088,11 +2089,11 @@
       "name": "TOPLOC",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents TOPLOC",
           "repo": "PrimeIntellect-ai/toploc"
         },
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names TOPLOC, by the system's authors",
           "url": "https://arxiv.org/abs/2501.16007"
         }
       ],
@@ -2181,7 +2182,7 @@
       "name": "Verde (with RepOps)",
       "own_sources": [
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names Verde, by the system's authors",
           "url": "https://arxiv.org/abs/2502.19405"
         }
       ],
@@ -2192,6 +2193,19 @@
       "cells": {
         "formally_verified": {
           "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 7947bb9a",
+              "commit": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
+              "decides": true,
+              "kind": "repository",
+              "label": "analysis/claim-uniqueness-verification.md L182 · 7947bb9a",
+              "lines": "L182",
+              "path": "analysis/claim-uniqueness-verification.md",
+              "repo": "JamesPetrie/VerInf",
+              "text": "Proven by hand once, ever (candidates for later Lean mechanization):",
+              "url": "https://github.com/JamesPetrie/VerInf/blob/7947bb9a6c7ec86ea97927c76370b3920b6269f6/analysis/claim-uniqueness-verification.md?plain=1#L182"
+            },
             {
               "checked": true,
               "checked_how": "pinned clone at 7947bb9a",
@@ -2232,19 +2246,8 @@
               "url": "https://github.com/JamesPetrie/VerInf/blob/7947bb9a6c7ec86ea97927c76370b3920b6269f6/README.md?plain=1#L19"
             }
           ],
-          "reason": "Soundness lemmas are proved by hand; no passage read says whether a proof assistant checks them.",
-          "sources_read": [
-            {
-              "commit": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
-              "paths": [
-                "README.md",
-                "paper.md",
-                "analysis/claim-uniqueness-verification.md"
-              ],
-              "repo": "JamesPetrie/VerInf"
-            }
-          ],
-          "state": "not_stated"
+          "reason": "Hand-proven lemmas; a machine check is planned only.",
+          "state": "no"
         },
         "model_bound": {
           "quotes": [
@@ -2374,7 +2377,7 @@
       "name": "VerInf",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents VerInf",
           "repo": "JamesPetrie/VerInf"
         }
       ],
@@ -2441,7 +2444,7 @@
       "name": "zkGPT",
       "own_sources": [
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names zkGPT, by the system's authors",
           "url": "https://eprint.iacr.org/2025/1184"
         }
       ],
@@ -2532,11 +2535,11 @@
       "name": "zkLLM",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents zkLLM",
           "repo": "jvhs0706/zkllm-ccs2024"
         },
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names zkLLM, by the system's authors",
           "url": "https://arxiv.org/abs/2404.16109"
         }
       ],
@@ -2619,7 +2622,7 @@
       "name": "ZKML",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents ZKML",
           "repo": "ddkang/zkml"
         },
         {
@@ -2696,7 +2699,7 @@
           "how": "the ePrint paper that introduces zkPyTorch gives its authors' addresses at this domain"
         },
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names zkPyTorch, by the system's authors",
           "url": "https://eprint.iacr.org/2025/535"
         }
       ],
@@ -2792,11 +2795,11 @@
       "name": "ZKTorch",
       "own_sources": [
         {
-          "how": "the repository whose README presents {name}",
+          "how": "the repository whose README presents ZKTorch",
           "repo": "uiuc-kang-lab/zk-torch"
         },
         {
-          "how": "the paper whose title names {name}, by the system's authors",
+          "how": "the paper whose title names ZKTorch, by the system's authors",
           "url": "https://arxiv.org/abs/2507.07031"
         }
       ],

@@ -251,6 +251,32 @@ def test_not_copied_on_stated_cell_fails() -> None:
     assert f.pointer.endswith("/not_copied")
 
 
+def test_own_sources_record_how_without_template_words() -> None:
+    """SRC-8: each own source says how it was identified, for its row, in full words."""
+    left = [
+        (r["id"], s["how"])
+        for r in COMMITTED["rows"]
+        for s in r.get("own_sources", [])
+        if re.search(r"[{}]", s["how"])
+    ]
+    assert left == []
+
+
+def test_no_duplicate_quote_in_a_cell() -> None:
+    """A quote is listed once per cell (same source, lines and text)."""
+    twice = []
+    for r in COMMITTED["rows"]:
+        for prop, c in r["cells"].items():
+            seen = set()
+            for part in (c, c.get("aside") or {}, c.get("outside_pin") or {}):
+                for q in part.get("quotes", []):
+                    key = (q.get("repo"), q.get("path"), q.get("url"), q.get("lines"), q["text"])
+                    if key in seen:
+                        twice.append((r["id"], prop, q["label"]))
+                    seen.add(key)
+    assert twice == []
+
+
 # ---------------------------------------------------------------- CRIT-5
 
 
