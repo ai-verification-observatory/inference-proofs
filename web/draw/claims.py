@@ -160,24 +160,33 @@ def control_lines(pc, prop):
             said.append(f'<span class="nw">{e(o["control"])}</span> {e(w)}')
         out.append(ev_line("ec", "controls", f"{', '.join(said)} in run "
                                              f"{run_ref(run['run_id'], run['controls'])}"))  # fmt: skip
-    if silent:
-        runs = ", ".join(run_ref(r["run_id"], r["record"]) for r in silent)
+    if silent:  # one run per line, as the read lines, so no comma wraps alone after a long id
+        runs = "".join(
+            f'<span class="rd">{run_ref(r["run_id"], r["record"])}</span>' for r in silent
+        )
         word = "run" if len(silent) == 1 else "runs"
-        out.append(ev_line("ec", "controls", f"{e(ids)}: not run in {word} {runs}"))
+        out.append(ev_line("ec", "controls", f"{e(ids)}: not run in {word}{runs}"))
     return "".join(out)
 
 
 def contradicted_line(cell, pc, prop):
-    """RFC-0016 OVR-4, OVR-7: an overridden cell's stated state and each control and run that
-    contradicts it, in one line under the property's reason: the one line of the cell's evidence
-    kept beside the glyph, since it changes the state."""
+    """RFC-0016 OVR-4, OVR-7: an overridden cell's stated state and each control that
+    contradicts it, in one short line under the property's reason: the one line of the cell's
+    evidence kept beside the glyph, since it changes the state. The run is a link to the
+    property's entry in "How we read it", whose control line prints its id and record: a run id
+    (RFC-0010) is longer than the column beside a triangle, and wrapped it would push the other
+    properties off their triangles. A screen reader hears the id in the link."""
     if not cell.get("stated"):
         return ""
     found = pc["properties"][prop]["contradicted"] if pc and not pc["withheld"] else []
-    runs = "; ".join(f'<span class="nw">{e(x["control"])}</span> accepted in run '
-                     f"{run_ref(x['run_id'], x['record'])}" for x in found)  # fmt: skip
-    return ev_line("ex", "stated", e(STATE_WORD[cell["stated"]])
-                   + ("; contradicted by " + runs if runs else ""))  # fmt: skip
+    said = e(STATE_WORD[cell["stated"]])
+    if found:
+        controls = ", ".join(dict.fromkeys(x["control"] for x in found))
+        runs = list(dict.fromkeys(x["run_id"] for x in found))
+        word = "run" if len(runs) == 1 else "runs"
+        said += (f'; <span class="nw">{e(controls)}</span> accepted in <a class="psrc" '
+                 f'href="#read-{e(prop)}">{word}<span class="sr"> {e(", ".join(runs))}</span></a>')  # fmt: skip
+    return ev_line("ex", "stated", said)
 
 
 def evidence(sid, prop, pc):

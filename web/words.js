@@ -77,8 +77,9 @@
   fromHash();
   addEventListener('hashchange', fromHash);
   // a press opens the fold before the browser follows the link, so it lands on the entry (also when the address
-  // already names it, and no hashchange follows)
+  // already names it, and no hashchange follows); a press that opens a new tab or window leaves this page as it is
   document.addEventListener('click', (ev) => {
+    if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
     const a = ev.target.closest && ev.target.closest('a[href^="#"]');
     if (a) reveal(a.getAttribute('href').slice(1), false);
   });

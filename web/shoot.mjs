@@ -348,11 +348,58 @@ for (const name of ['flashprove', 'sash', 'reference']) {
     const l4 = await land(q.p, id3);
     ok(l4.open && l4.focus && l4.seen, `${tagOf(name)}: an address naming an entry opens how we read it on it`, l4);
     await q.ctx.close();
+    // a press that opens a new tab or window (Cmd, Ctrl, Shift) leaves this page as it was: fold closed, no focus moved
+    const m = await pg(1440, 900);
+    await m.p.goto(BASE + name, { waitUntil: 'networkidle' });
+    for (const k of ['Meta', 'Control', 'Shift']) {
+      await m.p.evaluate(() => document.addEventListener('click', (ev) => { if (ev.target.closest('.psrc')) ev.preventDefault(); }, { once: true }));
+      await m.p.click('.rp[data-n="3"] .psrc', { modifiers: [k] }); await m.p.waitForTimeout(150);
+    }
+    const kept = await m.p.evaluate(() => ({ open: document.querySelector('.howread').open, focus: document.activeElement.closest('.howread') !== null }));
+    ok(!kept.open && !kept.focus, `${tagOf(name)}: a modified press on a source link changes nothing in the page`, kept);
+    await m.ctx.close();
   }
   // pointing at a property lifts its slice
   await p.hover('.rp[data-n="2"]'); await p.waitForTimeout(300);
   const lift = await p.evaluate(() => getComputedStyle(document.querySelector('.rpie .s2')).transform);
   ok(lift !== 'none', `${tagOf(name)}: pointing at a property lifts its slice`, lift);
+  await ctx.close();
+}
+// each property beside its own triangle at 1000 to 1440 px: its middle within 40 px of the pie's top and bottom, also
+// with an overridden cell's line (RFC-0016 OVR-7) added where the extras golden page prints one (the deployed release
+// has none), so a long line never pushes the other properties off their triangles
+{
+  const golden = fs.readFileSync(new URL('../harness/tests/golden/site/flashprove.html', import.meta.url), 'utf8');
+  const ov = golden.match(/<li class="rp [rl]" id="p-[a-z_]+" data-n="(\d)">(?:(?!<\/li>).)*?(<div class="ev">(?:(?!<\/li>).)*?<\/div>)<\/li>/s);
+  ok(!!ov, 'the extras golden page prints an overridden cell\'s line beside the glyph');
+  for (const name of ['flashprove', 'sash']) for (const w of [1000, 1240, 1440]) {
+    const { ctx, p } = await pg(w, 900);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const beside = () => p.evaluate(() => {
+      const pie = document.querySelector('.rose .rpie .pie-svg').getBoundingClientRect();
+      const off = [...document.querySelectorAll('.rose .rp')].map((li) => { const r = li.getBoundingClientRect(); return { n: +li.dataset.n, mid: Math.round((r.top + r.bottom) / 2 - pie.top), h: Math.round(r.height) }; })
+        .filter((x) => x.mid < -40 || x.mid > pie.height + 40);
+      return { pie: Math.round(pie.height), off, rose: Math.round(document.querySelector('.rose').getBoundingClientRect().height) };
+    });
+    const a = await beside();
+    ok(!a.off.length, `${tagOf(name)}-${w}: each property beside its own triangle`, a);
+    if (ov) {
+      await p.evaluate(([n, html]) => { document.querySelector(`.rose .rp[data-n="${n}"]`).insertAdjacentHTML('beforeend', html); }, [ov[1], ov[2]]);
+      const c = await beside();
+      const line = await p.evaluate(() => Math.round(document.querySelector('.rose .ev').getBoundingClientRect().height));
+      ok(!c.off.length && line <= 20, `${tagOf(name)}-${w}: with an overridden cell's line (one line), each property still beside its triangle`, { ...c, line });
+    }
+    await ctx.close();
+  }
+}
+// a row header's link (#claims-<configuration>) shows the system page from its top, the name in view
+for (const w of [1440, 390]) {
+  const { ctx, p } = await pg(w, 900);
+  await p.goto(BASE, { waitUntil: 'networkidle' });
+  const href = await p.evaluate(() => document.querySelector('a[href^="/sash#claims-"]')?.getAttribute('href'));
+  await p.goto(BASE + (href || '/sash').slice(1), { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
+  const at = await p.evaluate(() => { const r = document.querySelector('.sysname').getBoundingClientRect(); return { y: Math.round(scrollY), name: r.top >= 0 && r.bottom <= innerHeight }; });
+  ok(!!href && at.name, `overview-${w}: following a row header's link leaves the system's name in view`, { href, ...at });
   await ctx.close();
 }
 {

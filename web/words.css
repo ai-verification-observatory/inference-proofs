@@ -271,6 +271,12 @@ html:not(.js) .search { display: none; }
    its rule like the card in full's just below it */
 .over > .howread { grid-column: 1 / -1; grid-row: 2; }
 .over > .facts { grid-column: 2; grid-row: 1; }
+/* the card's identity makes the facts taller than the pie: the pie keeps to their top, where main drew it, rather
+   than sinking to their middle */
+.claims .over > .rose { align-self: start; }
+/* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
+   from its top */
+.wrap > .claims:first-child { scroll-margin-top: 100vh; }
 .rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-rows: repeat(3, auto);
   grid-template-areas: "p6 pie p1" "p5 pie p2" "p4 pie p3"; column-gap: 24px; row-gap: 18px; align-items: center; }
 .rpie { grid-area: pie; display: flex; justify-content: center; }
@@ -301,9 +307,10 @@ html:not(.js) .search { display: none; }
 /* how we read it: per property the deciding quote (or a conflict's quotes), the sources read, the controls,
    one labelled line each; an entry a source link lands on clears the top of the screen */
 .hw > div { scroll-margin-top: 16px; }
-/* the entry a source link moved focus to: its name lit and underlined, no box */
+/* the entry the address names (a source link, with or without script): its name lit and underlined, no box; the
+   focus words.js moves there draws nothing of its own, so a click inside an entry marks nothing */
 .hw > div:focus { outline: none; }
-.hw > div:focus > dt { color: var(--paper); text-decoration: underline 2px; text-underline-offset: 4px; }
+.hw > div:target > dt { color: var(--paper); text-decoration: underline 2px; text-underline-offset: 4px; }
 .er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 10ch minmax(0, 1fr); align-items: baseline; }
 /* a read line starts with a link padded 4 px: its label sits on the link's first line */
 .er { align-items: start; }
@@ -459,8 +466,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
    web/test_breakpoints.py checks this. */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
-  /* how we read it, closed or open, is one band between two rules, so the facts after it start a block of their own */
-  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+  /* how we read it, closed or open, opens on its rule; the facts' first rule closes it */
+  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; }
   .over > .facts { grid-column: auto; grid-row: auto; }
   .cardfull { margin-top: 44px; }
   .rose { max-width: 980px; }

@@ -474,9 +474,24 @@ def _property_claims(
     if pc is None or pc["withheld"] or not cell.get("stated"):
         assert 'class="ex"' not in body, (system, p["id"])
         return
-    assert f"stated {WORD[cell['stated']]}" in plain(body)
+    line = re.search(r'<p class="ex">.*?</p>', body, re.S)
+    assert line, (system, p["id"])
+    assert f"stated {WORD[cell['stated']]}" in plain(line[0])
+    if not cell["contradicted_by"]:
+        return
+    # one short line: the controls, then the run as a link to the entry, whose control line
+    # prints the full id (a screen reader hears it in the link)
+    controls = ", ".join(dict.fromkeys(x["control"] for x in cell["contradicted_by"]))
+    runs = list(dict.fromkeys(x["run_id"] for x in cell["contradicted_by"]))
+    shown = re.sub(r'<span class="sr">.*?</span>', "", line[0])
+    word = "run" if len(runs) == 1 else "runs"
+    assert flat(shown).endswith(f"{controls} accepted in {word}"), (system, p["id"], line[0])
+    assert f'<a class="psrc" href="#read-{p["id"]}">{word}<span class="sr"> ' in line[0]
+    assert f"accepted in {word} {', '.join(runs)}" in flat(line[0]), (system, p["id"])
+    entry = re.search(rf'<div id="read-{p["id"]}" tabindex="-1">.*?</dd></div>', text, re.S)
+    assert entry, (system, p["id"])
     for x in cell["contradicted_by"]:
-        assert f"{x['control']} accepted in run {x['run_id']}" in said
+        assert x["run_id"] in flat(entry[0]), (system, p["id"], x["run_id"])
 
 
 def _quotes_printed(
@@ -532,6 +547,10 @@ def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any]
         assert cid in said, (system, cid)
     for run in pc["runs"] if mapped else []:  # every run read, under every mapped property
         assert run["run_id"] in said, (system, p["id"], run["run_id"])
+    for silent in re.findall(r": not run in runs?(.*?)</span></p>", body, re.S):
+        # the runs that recorded none, one per line, no separator left to wrap alone
+        assert silent.startswith('<span class="rd">'), (system, p["id"])
+        assert ", " not in flat(silent), (system, p["id"])
     if not pc["runs"] and mapped:  # no run read says why, never "not run" (OVR-5)
         assert f"{', '.join(mapped)}: no run read, since " in said, (system, p["id"])
         assert "not run" not in said, (system, p["id"])
