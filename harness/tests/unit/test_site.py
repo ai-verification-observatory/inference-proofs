@@ -771,24 +771,56 @@ def test_no_ranking(site: Build) -> None:
 
 def test_division_named(site: Build) -> None:
     """S6: the system page names the workload, its division and the profile of the configuration
-    it shows. Table headings naming them on the overview and `/reference` are RFC-0009 §Site
-    gaps for #320 (an owner decision on the overview's look)."""
+    it shows; on the overview a closed or open table sits after the model's native tables, under
+    a heading naming its workload, division and profile, and holds that workload's rows only
+    (RFC-0003 §Divisions, #334). Headings naming them on native tables and on `/reference` are
+    RFC-0009 §Site gaps (an owner decision on the overview's look)."""
     for system in site.view["orders"]["benchmarked"]:
         text = plain(site.pages[f"{system}.html"])
         for cfg in system_configs(site, system):
             assert cfg["workload"]["division"] in {"native", "closed", "open"}
             where = f"{cfg['workload']['id']} · {cfg['workload']['division']} · {cfg['profile']}"
             assert where in text, system
+    seen: dict[str, list[str]] = {}  # model name -> its tables' divisions, in page order
+    for sid, body in TABLE.findall(site.pages["index.html"]):
+        section = re.search(rf'<section class="sec bench" id="{sid}".*?</section>',
+                            site.pages["index.html"], re.S)[0]  # type: ignore[index]  # fmt: skip
+        head = re.search(r'<div class="sec-h">(.*?)</div>', section, re.S)[1]  # type: ignore[index]
+        model = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', head)[1])  # type: ignore[index]
+        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
+        assert len({c["workload"]["id"] for c in cfgs}) == 1, sid  # one workload per table
+        wl = cfgs[0]["workload"]
+        seen.setdefault(model, []).append(wl["division"])
+        profiles = ", ".join(sorted({c["profile"] for c in cfgs}))
+        where = f"{wl['id']} · {wl['division']} division · {profiles}"
+        assert (where in plain(head)) == (wl["division"] != "native"), sid
+    for model, divisions in seen.items():  # native tables first, then closed, then open
+        order = ["native", "closed", "open"]
+        assert divisions == sorted(divisions, key=order.index), model
+    if site.kind == "web":
+        pytest.skip(
+            "the deployed release has native workloads only; the extras build, a closed one"
+        )
+    closed = [m for m, d in seen.items() if "closed" in d]
+    assert closed
+    for sid, body in TABLE.findall(site.pages["index.html"]):  # two systems of its class
+        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
+        if cfgs[0]["workload"]["division"] == "closed":
+            assert len({c["system"] for c in cfgs}) >= 2, sid  # RFC-0003 Q7
 
 
 def test_native_workloads_header(site: Build) -> None:
     """S6: tables of different native workloads side by side (two workloads on one model) carry
-    the header above them; a model with one workload table carries none."""
+    the header above them; a model with one native table carries none, and a closed or open
+    table never does (it compares directly within its workload, RFC-0003 §Divisions)."""
     sections = SECTION.findall(site.pages["index.html"])
     header = "Native workloads differ: rows are not a head-to-head comparison"
     models: dict[str, list[str]] = {}
     for sec in sections:
         name = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', sec)[1])  # type: ignore[index]
+        if re.search(r" (closed|open) division · ", plain(sec)):  # a closed or open table
+            assert header not in plain(sec)
+            continue
         models.setdefault(name, []).append(sec)
     side_by_side = [secs for secs in models.values() if len(secs) > 1]
     if site.kind == "web":
@@ -1041,14 +1073,17 @@ def test_pending_row_draws_no_state(site: Build) -> None:
     index = site.pages["index.html"]
     search = json.loads((site.out / "search.json").read_text())["entries"]
     for rid in pending:
-        row = index[index.index(f'<div class="row" id="{rid}"') :]
-        row = row[: row.index('<div class="vals">')]
-        assert len(re.findall(r'class="sl s\d none"', row)) == 6
-        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', row)
-        assert "data-word" not in row
-        assert '<p class="sr">' not in row
-        said = plain(row)
-        assert not [w for w in (*WORD.values(), "No state shown") if w in said], said
+        starts = [m.start() for m in re.finditer(f'<div class="row" id="{rid}(--[^"]*)?"', index)]
+        assert starts, rid  # one row per configuration of the system
+        for start in starts:
+            row = index[start:]
+            row = row[: row.index('<div class="vals">')]
+            assert len(re.findall(r'class="sl s\d none"', row)) == 6
+            assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', row)
+            assert "data-word" not in row
+            assert '<p class="sr">' not in row
+            said = plain(row)
+            assert not [w for w in (*WORD.values(), "No state shown") if w in said], said
         pie = next(e["pie"] for e in search if e["url"] == f"/{rid}")
         assert pie.count(' none"') == 6
         card = (site.out / f"og/{rid}.html").read_text()

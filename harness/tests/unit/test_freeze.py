@@ -251,3 +251,54 @@ def test_freeze_stops_on_different_workload_inputs() -> None:
             stored_run(2, late_keys=True, inputs=worked)]  # fmt: skip
     with pytest.raises(IProofsError, match="WB-4"):
         late_statistics(runs)
+
+
+CLOSED = "greedy-continuation/exact-match/committed-weights"
+
+
+@pytest.mark.parametrize(
+    ("rows", "failing"),
+    [
+        ([("c", "a", CLOSED), ("c", "b", CLOSED)], []),  # two systems of the class
+        ([("c", "a", CLOSED), ("c", "a", CLOSED)], ["of 1 proving system(s)"]),  # one, twice
+        ([("c", "a", CLOSED)], ["of 1 proving system(s)"]),
+        ([], ["of 0 proving system(s)"]),  # every run of the workload failed
+        (
+            [("c", "a", CLOSED), ("c", "b", "next-token/exact-match/committed-weights")],
+            ["b on closed workload c has claim class", "of 1 proving system(s)"],
+        ),
+        ([("c", "a", CLOSED), ("c", "b", None)], ["has claim class None", "of 1"]),  # no card
+        ([("n", "a", CLOSED)], ["of 0 proving system(s)"]),  # a native workload is not counted
+    ],
+)
+def test_closed_workload_needs_two_systems(
+    rows: list[tuple[str, str, str | None]], failing: list[str]
+) -> None:
+    """RFC-0003 Q7 (default): a closed workload's rows enter a release only when two distinct
+    proving systems with a card of its exact class completed runs of it."""
+    from iproofs.release import closed_workload_failures  # noqa: PLC0415
+
+    found = closed_workload_failures({"c": CLOSED}, rows)
+    assert len(found) == len(failing), found
+    for line, words in zip(found, failing, strict=True):
+        assert words in line
+
+
+def test_closed_workload_of_one_system_stops_freeze(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The extras placeholder release freezes with two provers on `l31-8b-c1024`; without the
+    second prover's runs the freeze stops and names the workload (RFC-0003 Q7)."""
+    from fixtures.placeholder_release import FIXTURE, build_placeholder  # noqa: PLC0415
+
+    path = build_placeholder(tmp_path, extras=True)
+    doc = yaml.safe_load(path.read_text())
+    doc["runs"] = [r for r in doc["runs"] if f"/{FIXTURE}/" not in r]
+    path.write_text(yaml.safe_dump(doc, sort_keys=False))
+    commit(tmp_path, "drop the second prover's runs")
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["release", "freeze", "v0.1"]) == 1
+    err = capsys.readouterr().err
+    assert "closed workload l31-8b-c1024 has completed runs of 1 proving system(s)" in err
+    assert "(sash)" in err
+    assert not (tmp_path / "releases/v0.1/index.json").exists()

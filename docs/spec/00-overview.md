@@ -55,7 +55,7 @@ Cross-cutting support: labelled quantities and serialization ([RFC-0012](../../r
 
 ## v0.1 scope
 
-Two systems, unchanged at the pins above, on one prover profile (`prover-h100`: one NVIDIA H100 80 GB SXM) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division only.
+Two systems, unchanged at the pins above, on one prover profile (`prover-h100`: one NVIDIA H100 80 GB SXM) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division, plus one closed workload on Llama 3.1 8B (`l31-8b-c1024`) whose rows publish once a second system with its claim class runs it (Q7, default) ([RFC-0003 §Closed workloads](../../rfcs/0003-workloads.md#closed-workloads)).
 
 Run matrix. Each cell is a configuration measured with at least 3 repetitions (RFC-0004); the first successful repetition of each configuration is followed by the shared and system-specific controls (RFC-0008).
 

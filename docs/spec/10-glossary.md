@@ -40,7 +40,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="digest"></a>**Digest.** A SHA-256 value written `sha256:<64 lowercase hex>`. Model, proof, corpus, prompt-set and image digests have exact byte definitions in [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
-<a id="division"></a>**Division.** The comparability class of a row: `native` (a system's own workload; side by side, never head to head), `closed` (a common workload and a fixed claim class; rows compare directly), `open` (anything declared; shown separately). v0.1 has native rows only. [RFC-0003](../../rfcs/0003-workloads.md).
+<a id="division"></a>**Division.** The comparability class of a row: `native` (a system's own workload; side by side, never head to head), `closed` (a common workload and a fixed claim class; rows compare directly), `open` (anything declared; shown separately). v0.1 has native workloads and one closed workload, `l31-8b-c1024` on Llama 3.1 8B, whose rows publish once two systems with its claim class run it (RFC-0003 Q7, default). [RFC-0003](../../rfcs/0003-workloads.md).
 
 <a id="effective-tier"></a>**Effective tier.** The evidence tier of a run as computed at release freeze from its review and reproduction records, written to `releases/<release>/index.json`. The tier stored in `run.json` is always `reported`. [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md).
 

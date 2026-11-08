@@ -31,7 +31,14 @@ from iproofs.derive import (
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import ReferenceFile, Release, Workload, load
 from iproofs.provenance import file_digest
-from iproofs.quantity import NullReason, Scope, Tier, claim_class_matches, lowest_tier
+from iproofs.quantity import (
+    NullReason,
+    Scope,
+    Tier,
+    claim_class_matches,
+    lowest_tier,
+    parse_claim_class,
+)
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
 from iproofs.workloads import asserted_inputs, workload_file
@@ -548,6 +555,7 @@ def freeze(
     excluded = _excluded(release, runs, root, registry)  # step 4
     late = _Late(root, registry, release.release)
     configurations, controls, contexts = _configurations(runs, excluded, maintainers or {}, late)
+    _require_closed(root, release, contexts)
     _release_rows(release.release, contexts, _reference_roles(root))  # step 5, release rows
     targets = _targets(root, registry, release, contexts, read)  # step 8
     digests = sorted(file_digest(p) for p in read)
@@ -598,6 +606,73 @@ def _excluded(
         if not ok:
             out.setdefault(run_id, []).extend(reasons)
     return out
+
+
+MIN_CLOSED_SYSTEMS = 2  # RFC-0003 §Choosing common workloads and Q7 (default)
+
+
+def closed_workload_failures(
+    classes: Mapping[str, str | None], rows: Iterable[tuple[str, str, str | None]]
+) -> list[str]:
+    """RFC-0003 §Choosing common workloads and Q7 (default): a closed workload's rows enter a
+    release only when at least `MIN_CLOSED_SYSTEMS` distinct proving systems run it under a
+    claim card of its exact class. `classes` maps each closed workload a proving configuration
+    of the release ran to its `claim_class`; `rows` holds (workload id, proving system, its
+    card's `claim_class`, None without a card) per proving configuration with at least one
+    kept completed run. Returns the failing lines, a card of another class first, then each
+    workload short of systems, in workload id order."""
+    systems: dict[str, set[str]] = {wid: set() for wid in classes}
+    out = []
+    for wid, system, card_class in sorted(rows, key=lambda r: (r[0], r[1])):
+        if wid not in classes:
+            continue
+        if card_class is None or str(parse_claim_class(card_class)) != classes[wid]:
+            out.append(f"{system} on closed workload {wid} has claim class {card_class!r}, "
+                       f"not {classes[wid]!r} (RFC-0003 §Divisions)")  # fmt: skip
+            continue
+        systems[wid].add(system)
+    for wid in sorted(classes):
+        if len(systems[wid]) < MIN_CLOSED_SYSTEMS:
+            ran = ", ".join(sorted(systems[wid])) or "none"
+            out.append(f"closed workload {wid} has completed runs of {len(systems[wid])} proving "
+                       f"system(s) with claim class {classes[wid]!r} ({ran}); its rows enter "
+                       f"a release once {MIN_CLOSED_SYSTEMS} do (RFC-0003 Q7)")  # fmt: skip
+    return out
+
+
+def _closed_inputs(
+    root: Path, release: Release, contexts: Sequence["_Context"]
+) -> tuple[dict[str, str | None], list[tuple[str, str, str | None]]]:
+    """The inputs of `closed_workload_failures` from the workload files, the release's claim
+    cards and the configurations' kept runs."""
+    import yaml  # noqa: PLC0415
+
+    cards = {(c.system, c.configuration): root / c.path for c in release.claim_cards}
+    classes: dict[str, str | None] = {}
+    rows = []
+    for ctx in contexts:
+        if not ctx.kept or any(r.run.get("system_kind") != "prover" for r in ctx.kept):
+            continue
+        wid = str(ctx.where["workload"]["id"])  # type: ignore[index]
+        path = root / "workloads" / f"{wid}.yaml"
+        wl = yaml.safe_load(path.read_text()) if path.is_file() else None
+        if not isinstance(wl, dict) or wl.get("division") != "closed":
+            continue
+        classes[wid] = wl.get("claim_class")
+        if not any(r.ok for r in ctx.kept):
+            continue
+        card_path = cards.get((str(ctx.where["system"]), str(ctx.configuration)))
+        card = yaml.safe_load(card_path.read_text()) if card_path else None
+        card_class = card.get("claim_class") if isinstance(card, dict) else None
+        rows.append((wid, str(ctx.where["system"]), str(card_class) if card_class else None))
+    return classes, rows
+
+
+def _require_closed(root: Path, release: Release, contexts: Sequence["_Context"]) -> None:
+    """Stops the freeze on the first line `closed_workload_failures` returns (RFC-0003 Q7)."""
+    closed = closed_workload_failures(*_closed_inputs(root, release, contexts))
+    if closed:
+        raise _fail(closed[0])
 
 
 def _repetition_order(run: RunView) -> tuple[str, int]:
