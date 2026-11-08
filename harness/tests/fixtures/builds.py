@@ -9,8 +9,10 @@ Under xdist each worker builds the ones its tests ask for, once.
 Both are shared, so no test may change them: their files and directories are made read-only
 while the session runs, and at its end the fixture fails if any file under `repo` or `out`
 differs from what the build wrote (the digest also catches a write by root, which ignores the
-modes). A test that edits a tree works on `writable_copy` of it. Bytecode caches
-(`__pycache__/`, written when a test loads the tree's `web/build.py`) are left out of the digest.
+modes) or any of their modes differs from the read-only one it was given (a chmod would
+otherwise be undone silently when the modes are put back). A test that edits a tree works on
+`writable_copy` of it. Bytecode caches (`__pycache__/`, written when a test loads the tree's
+`web/build.py`) are left out of both checks.
 """
 
 import contextlib
@@ -81,17 +83,25 @@ def writable_copy(src: Path, dst: Path) -> Path:
 def kept_unchanged(*roots: Path) -> Iterator[None]:
     """Every write bit under `roots` cleared inside the block and put back after it; on leaving,
     AssertionError if any path under them (bytecode caches left out) was added, removed or
-    changed in the block."""
+    changed in the block, or if a path's mode is no longer the read-only one it was given."""
     before = [tree_digest(r) for r in roots]
     modes = {k: v for r in roots for k, v in _read_only(r).items()}
+    chmodded: list[str] = []
     try:
         yield
     finally:
         for path, mode in modes.items():
             with contextlib.suppress(FileNotFoundError):  # a removed path: the digest tells
+                if os.lstat(path).st_mode != mode & ~WRITE:
+                    chmodded.append(str(path))
                 path.chmod(mode)
     changed = [str(r) for r, b in zip(roots, before, strict=True) if tree_digest(r) != b]
-    assert not changed, f"a test changed a shared build: {changed}"
+    problems = []
+    if changed:
+        problems.append(f"contents of {changed}")
+    if chmodded:
+        problems.append(f"modes of {chmodded}")
+    assert not problems, f"a test changed a shared build: {'; '.join(problems)}"
 
 
 def _shared(factory: pytest.TempPathFactory, name: str, *, extras: bool) -> Iterator[SiteBuild]:

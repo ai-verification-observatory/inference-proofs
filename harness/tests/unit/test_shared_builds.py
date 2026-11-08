@@ -30,22 +30,34 @@ def test_read_only_inside_and_restored_after(tmp_path: Path) -> None:
 
 def changed_in_block(tree: Path, change: str) -> None:
     with kept_unchanged(tree):
-        for p in (tree, tree / "a/b", tree / "a/b/c.json"):
+        dirs = (tree, tree / "a/b")
+        for p in (*dirs, tree / "a/b/c.json"):
             p.chmod(p.stat().st_mode | stat.S_IWUSR)  # as root could write anyway
         if change == "edit":
             (tree / "a/b/c.json").write_text("[]\n")
         elif change == "add":
             (tree / "a/b/new").write_text("")
-        else:
+        elif change == "remove":
             (tree / "a/b/c.json").unlink()
+        for p in (*dirs, tree / "a/b/c.json"):  # read-only again: only the digest can tell
+            if p.exists():
+                p.chmod(p.stat().st_mode & ~WRITE)
+        if change == "chmod":
+            (tree / "a/b/c.json").chmod(0o500)  # bytes unchanged: only the mode check can tell
 
 
-@pytest.mark.parametrize("change", ["edit", "add", "remove"])
-def test_change_fails_on_leaving(tmp_path: Path, change: str) -> None:
-    """A change slips past the modes when they do not bind (root); the digest still sees it."""
+@pytest.mark.parametrize(
+    ("change", "seen_in"),
+    [("edit", "contents"), ("add", "contents"), ("remove", "contents"), ("chmod", "modes")],
+)
+def test_change_fails_on_leaving(tmp_path: Path, change: str, seen_in: str) -> None:
+    """A change slips past the modes when they do not bind (root); the digest still sees it.
+    A chmod leaves the bytes alone, and would be undone silently when the modes are put back;
+    the mode check sees it."""
     tree = small_tree(tmp_path / "t")
-    with pytest.raises(AssertionError, match="changed a shared build"):
+    with pytest.raises(AssertionError, match="changed a shared build") as caught:
         changed_in_block(tree, change)
+    assert [k for k in ("contents", "modes") if f"{k} of" in str(caught.value)] == [seen_in]
 
 
 def test_bytecode_cache_left_out(tmp_path: Path) -> None:
