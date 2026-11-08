@@ -57,7 +57,8 @@ const expected = (p, col, dir) => p.evaluate(([col, dir]) => [...document.queryS
 // and every system a row header links; a sort reorders rows within a table and never moves a table or a row
 const layout = (p) => p.evaluate(() => [...document.querySelectorAll('.bench')].map((s) => ({
   model: s.querySelector('h2').textContent,
-  size: (([, n, u]) => Math.round(+n * { B: 1e9, M: 1e6 }[u]))(s.querySelector('.sec-l').textContent.match(/([\d.]+)([BM]) parameters/)),
+  // NaN when no size is printed or its unit is unknown, so the order check fails and prints the tables
+  size: ((m) => (m ? Math.round(+m[1] * { T: 1e12, B: 1e9, M: 1e6, K: 1e3 }[m[2]]) : NaN))((s.querySelector('.sec-l')?.textContent ?? '').match(/([\d.]+)([TBMK]) parameters/)),
   rows: [...s.querySelectorAll('.tbl .rows > .row')].map((r) => r.id).sort(),
   systems: [...s.querySelectorAll('.tbl .rows > .row .name a')].map((a) => new URL(a.href).pathname),
 })));

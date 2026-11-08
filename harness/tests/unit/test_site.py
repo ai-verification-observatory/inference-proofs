@@ -787,7 +787,8 @@ def test_tables_by_model_size(site: Build) -> None:
 
 def test_models_by_size_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
     """S6 on a hand-made case: 400B before 8.03B whatever the order of the rows or the names,
-    two models of one size by name, and a model with no system row has no table."""
+    two models of one size by name, a model with no system row has no table, and two workloads
+    of one model that state different totals stop the build."""
     draw = renderer(ROOT).draw
 
     def cfg(digest: str, total: int) -> dict[str, Any]:
@@ -800,25 +801,42 @@ def test_models_by_size_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
     )
     assert got == ["d400", "d8", "e8"]
     assert draw.overview.models_by_size([cfg("d8", 8_030_261_248)], names) == ["d8"]
+    with pytest.raises(AssertionError, match=r"d8: workloads disagree on parameters\.total"):
+        draw.overview.models_by_size([cfg("d8", 8_030_261_248), cfg("d8", 8_000_000_000)], names)
+
+
+def test_rows_by_name_then_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S5 on a hand-made table: rows A to Z by system name whatever its case, then profile id,
+    then the configuration's position in the release's `index.json`, whatever order they come
+    in."""
+    draw = renderer(ROOT).draw
+    rows = {"a": {"name": "alpha"}, "b": {"name": "Beta"}}
+    monkeypatch.setattr(draw.state, "V", {"facts": {"rows": rows}})
+
+    def cfg(system: str, profile: str, position: int) -> dict[str, Any]:
+        return {"system": system, "profile": profile, "position": position}
+
+    given = [cfg("b", "p-a", 0), cfg("a", "p-z", 1), cfg("a", "p-a", 4), cfg("a", "p-a", 2)]
+    got = [(c["system"], c["profile"], c["position"]) for c in draw.overview.by_name(given)]
+    assert got == [("a", "p-a", 2), ("a", "p-a", 4), ("a", "p-z", 1), ("b", "p-a", 0)]
 
 
 def test_each_row_once(site: Build) -> None:
-    """S6: the overview has no table across models, so no row is repeated: each system row is in
-    its workload's table and in no other. In the deployed build each benchmarked system runs one
-    workload, so it has one row and its glyph is on the overview once; the extras build runs
-    FlashProve on two Maverick workloads and SASH on its native and the closed workload, one row
-    in each workload's table."""
+    """S6: the overview has no table across models, so no row is repeated: each (system,
+    configuration, workload, profile) has exactly one row, in its workload's table, however
+    RFC-0009 Q5 is resolved. In the deployed build each benchmarked system has one such row, so
+    its glyph is on the overview once."""
     index = site.pages["index.html"]
     rows = [rid for _, body in TABLE.findall(index) for rid, *_ in ROW.findall(body)]
     assert len(rows) == len(set(rows))
 
-    def key(c: dict[str, Any]) -> tuple[str, str, str]:
-        return c["system"], c["configuration"], c["workload"]["id"]
+    def key(c: dict[str, Any]) -> tuple[str, str, str, str]:
+        return c["system"], c["configuration"], c["workload"]["id"], c["profile"]
 
     shown = [key(row_config(site.view, r)) for r in rows]
+    assert len(shown) == len(set(shown))
     assert sorted(shown) == sorted(map(key, provers(site.view)))
     if site.kind == "extras":
-        assert len(rows) > len(site.view["orders"]["benchmarked"])
         return
     for system in site.view["orders"]["benchmarked"]:
         assert [row_config(site.view, r)["system"] for r in rows].count(system) == 1, system
@@ -909,7 +927,7 @@ def test_native_workloads_header(site: Build) -> None:
 
 def _prover(system: str, workload: str, division: str, model: str) -> dict[str, Any]:
     wl = {"id": workload, "division": division, "model": {"digest": model}}
-    return {"system": system, "position": 0, "workload": wl}
+    return {"system": system, "position": 0, "profile": "prover-h100", "workload": wl}
 
 
 @pytest.mark.parametrize(
