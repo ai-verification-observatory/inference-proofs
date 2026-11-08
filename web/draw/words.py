@@ -96,6 +96,14 @@ OUTCOME_WORDS = (
 )
 OUTCOME_VERB = {"accepted": "accepted", "rejected": "rejected", "invalid_call": "refused",
                 "no_verdict": "gave no verdict on", "error": "failed on"}  # fmt: skip
+# one control's outcome in a run, as a property's list on the system page prints it (RFC-0016 OVR-7)
+OUTCOME_SHORT = {
+    "rejected": "rejected", "accepted": "accepted", "invalid_call": "refused as malformed",
+    "no_verdict": "no verdict", "prover_failed": "the prover would not build it",
+    "error": "error", "void": "void", "not_applicable": "does not apply", "not_run": "not run",
+}  # fmt: skip
+# a listed run's status on the release page
+RUN_STATUS = {"completed": "completed", "failed": "failed"}
 # an accepted control record, by whether its own expected set holds the outcome (`passed`)
 ACCEPTED_WHY = {
     ("system", True): "{id}, the control test below, which expects acceptance",

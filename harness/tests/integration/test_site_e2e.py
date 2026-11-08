@@ -91,7 +91,7 @@ def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
     rows = {rid for rid, _ in ROW.findall(site["index.html"])}
     for c in doc["configurations"]:
         if c["system"].startswith("ref-"):
-            assert f'<div class="row" id="{c["system"]}">' in site["index.html"]
+            assert f'<div class="row" id="{c["system"]}" role="row">' in site["index.html"]
             assert f'id="{c["system"]}" aria-labelledby' in site["reference.html"]
         else:
             assert c["system"] in rows

@@ -14,7 +14,7 @@ from iproofs.controls import CONTROL_PROPERTY, runs_read
 from iproofs.derive import formula_of
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import SiteFacts
-from iproofs.release import not_measurable_on_profile
+from iproofs.release import REASONS, not_measurable_on_profile
 from iproofs.schema import SchemaRegistry
 from iproofs.site import inputs
 from iproofs.site.inputs import REPOSITORY, maintainer_rows
@@ -82,14 +82,24 @@ def _repetition_formula(q: dict[str, Any], records: dict[str, dict[str, Any]]) -
     return None
 
 
-def _left_out(config: dict[str, Any]) -> list[dict[str, Any]]:
-    """S7: every listed run not counted, with its reasons and the run that replaced it."""
+def _record(records: dict[str, dict[str, Any]], rid: str | None, name: str) -> str | None:
+    """A listed run's record file (`run.json` or `controls.json`), as a path in the tree."""
+    rec = records.get(str(rid)) if rid is not None else None
+    return None if rec is None else f"{rec['dir']}/{name}"
+
+
+def _left_out(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """S7: every listed run not counted, with its reasons, its record and the run that replaced
+    it (with that run's record)."""
     out = []
     for entry in config["ineligible"]:
         reasons = [str(r) for r in entry["reasons"]]
         by = next((r.split(":", 1)[0].removeprefix("superseded by ") for r in reasons
                    if r.startswith("superseded by ")), None)  # fmt: skip
-        out.append({"run_id": entry["run_id"], "reasons": reasons, "replaced_by": by})
+        out.append({"run_id": entry["run_id"], "reasons": reasons, "replaced_by": by,
+                    "reason_words": [REASONS.get(r, r) for r in reasons],
+                    "record": _record(records, entry["run_id"], "run.json"),
+                    "replaced_by_record": _record(records, by, "run.json")})  # fmt: skip
     return out
 
 
@@ -120,7 +130,7 @@ def _runs(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> dict[st
     return {
         "completed": completed,
         "failed": failed,
-        "left_out": _left_out(config),
+        "left_out": _left_out(config, records),
         "not_measurable": nm1,
         "records": {rid: f"{records[rid]['dir']}/run.json" for rid in config["runs"]},
     }
@@ -135,20 +145,27 @@ def property_controls(
 ) -> dict[str, Any]:
     """OVR-7: per property, each mapped control's outcome in every run OVR-5 reads; the site
     lists, it never sets a state. With no criteria `release` no run is read (OVR-5); "not run"
-    is a mapped control absent from a read run's controls.json. OVR-8 withholds the lists. A run
-    of the rendered release is read from `records`; only a run of an earlier release is read
-    again from disk."""
+    is a mapped control absent from a read run's controls.json, or a read run with none. Each
+    run read carries its `run.json` and, when it has one, its `controls.json`. OVR-8 withholds
+    the lists. A run of the rendered release is read from `records`; only a run of an earlier
+    release is read again from disk."""
     if row["pending"]:
-        return {"withheld": True, "properties": {}}
+        return {"withheld": True, "properties": {}, "runs": []}
     read = runs_read(root, criteria.release, str(row["card"]["system"]), configuration)
     held = {rec["dir"]: rec["controls"] for rec in records.values()}
     controls: dict[str, dict[str, Any]] = {}
+    where: dict[str, str] = {}  # run id -> its controls.json, for a run that has one
+    dirs: dict[str, str] = {}
     for run_dir in read:
+        dirs[run_dir.rsplit("/", 1)[1]] = run_dir
         path = root / run_dir / "controls.json"
         if run_dir in held:
-            doc = held[run_dir] or {"controls": []}
+            doc = held[run_dir]
         else:
-            doc = inputs.read_json(path) if path.is_file() else {"controls": []}
+            doc = inputs.read_json(path) if path.is_file() else None
+        if doc is not None:
+            where[run_dir.rsplit("/", 1)[1]] = f"{run_dir}/controls.json"
+        doc = doc or {"controls": []}
         controls[run_dir.rsplit("/", 1)[1]] = {str(c["id"]): c for c in doc["controls"]}
     out: dict[str, Any] = {}
     for prop in criteria.order:
@@ -162,9 +179,16 @@ def property_controls(
                 entries.append({"control": cid, "run_id": rid,
                                 "outcome": "not_run" if rec is None else rec["outcome"],
                                 "expected": None if rec is None else rec["expected"],
-                                "passed": None if rec is None else rec["passed"]})  # fmt: skip
-        out[prop] = {"mapped": mapped, "outcomes": entries}
-    return {"withheld": False, "properties": out}
+                                "passed": None if rec is None else rec["passed"],
+                                "note": None if rec is None else rec.get("note"),
+                                "record": None if rec is None else where[rid]})  # fmt: skip
+        contradicted = [{"control": str(x["control"]), "run_id": str(x["run_id"]),
+                         "record": where.get(str(x["run_id"]))}
+                        for x in row["cells"][prop]["contradicted_by"]]  # fmt: skip
+        out[prop] = {"mapped": mapped, "outcomes": entries, "contradicted": contradicted}
+    runs = [{"run_id": rid, "record": f"{d}/run.json", "controls": where.get(rid)}
+            for rid, d in dirs.items()]  # fmt: skip
+    return {"withheld": False, "properties": out, "runs": runs}
 
 
 def _system_controls(
@@ -228,6 +252,21 @@ def _accepted(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> lis
             if rec["outcome"] == "accepted":
                 out.append({"control": rec["id"], "run_id": rid, "source": rec["source"],
                             "expected": rec["expected"], "passed": rec["passed"]})  # fmt: skip
+    return out
+
+
+def _unexpected(entry: dict[str, Any], records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+    """RFC-0008 §Reporting: every outcome outside its control's expected set
+    (`index.controls[].outside_expected`), with the control's stored record in full and the path
+    of the `controls.json` that holds it."""
+    out = []
+    for x in entry["outside_expected"]:
+        rid = str(x["run_id"])
+        found = (records[rid]["controls"] or {"controls": []}) if rid in records else None
+        rec = next((c for c in (found or {"controls": []})["controls"]
+                    if c["id"] == x["control_id"]), None)  # fmt: skip
+        out.append({"control": x["control_id"], "run_id": rid, "outcome": x["outcome"],
+                    "record": _record(records, rid, "controls.json"), "stored": rec})  # fmt: skip
     return out
 
 
@@ -298,6 +337,7 @@ def _configuration(
         "evidence": config["evidence"],
         "controls": controls,
         "accepted": accepted,
+        "unexpected": _unexpected(controls, records),
         "system_controls": _system_controls(root, config, records),
         "verifier": _verifier(reference, config, records),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
@@ -350,6 +390,11 @@ def site_view(root: Path) -> dict[str, Any]:
             "id": release_id,
             "candidate": True,  # #320 plan §1.1: no tracked file records the publication yet
             "rfc_commit": release["rfc_commit"],
+            "harness_version": release["harness_version"],
+            "reference_file": release["reference_file"],
+            "runs": [_listed(records[rid], rid) for rid in records],
+            "superseded_runs": [dict(x) for x in release.get("superseded_runs") or []],
+            "claim_cards": [dict(c) for c in index["claim_cards"]],
             "review_window": release["review_window"],
             "freeze_date": release["freeze_date"],
             "sponsors": release.get("sponsors") or [],
@@ -379,9 +424,35 @@ def site_view(root: Path) -> dict[str, Any]:
         },
         "orders": {"benchmarked": benchmarked, "reference": reference, "not_benchmarked": listed},
         "configurations": configs,
-        "targets": index["targets"],
+        "targets": _targets(root, index),
         "maintainers": maintainer_rows(root / "MAINTAINERS.md"),
     }
+
+
+def _listed(rec: dict[str, Any], rid: str) -> dict[str, Any]:
+    """One run the release lists, as the release page names it: id, system, workload, status,
+    failure kind and record."""
+    run = rec["run"]
+    return {"run_id": rid, "system": run["system"], "workload": run["workload"]["id"],
+            "profile": run["profile"], "status": run["status"],
+            "failure": (run["failure"] or {}).get("kind"),
+            "record": f"{rec['dir']}/run.json"}  # fmt: skip
+
+
+def _targets(root: Path, index: dict[str, Any]) -> list[dict[str, Any]]:
+    """§Targets: each target file the index evaluated, with its author and its results, in the
+    index's order of results, grouped by file."""
+    out: dict[str, dict[str, Any]] = {}
+    for position, result in enumerate(index["targets"]):
+        path = str(result["target"])
+        if path not in out:
+            doc = inputs.read_yaml(root / path)
+            out[path] = {"path": path, "id": doc["id"], "author": doc["author"],
+                         "date": doc["date"], "metric": doc["metric"],
+                         "comparator": doc["comparator"], "threshold": doc["threshold"],
+                         "rationale": doc.get("rationale"), "results": []}  # fmt: skip
+        out[path]["results"].append({**result, "position": position})
+    return list(out.values())
 
 
 def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[str, Any]]) -> None:

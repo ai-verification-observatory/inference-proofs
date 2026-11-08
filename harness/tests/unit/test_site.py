@@ -4,11 +4,11 @@ Page tests run over two builds: the placeholder release with every test-only cas
 never deployed) and the committed `web/` pages (the deployed build, `extras=False`), each with
 the view it was printed from. A check that needs a test-only case skips on `web/` and says so.
 
-Where RFC-0009 §Site lists a gap for #320 that its second pull request closes (system page
-validated claims, card identity and card in full, run ids and links, per-configuration sections,
-the References table's roles, the footer links), the test says so in its docstring and checks
-what the pages hold today. Renamed tests (RFC-0009 §Testing Strategy): `test_display_rounding`
-is `test_sort_key_is_stored_value`, `test_no_aggregate_score_column` is `test_no_ranking`,
+Gaps RFC-0009 §Site still lists (S6 table headings on the overview and the Not benchmarked yet
+note, which wait for the owner's sign-off on the overview's look; links to records once #146
+publishes the release) are named in the docstring of the test they touch. Renamed tests
+(RFC-0009 §Testing Strategy): `test_display_rounding` is `test_sort_key_is_stored_value`,
+`test_no_aggregate_score_column` is `test_no_ranking`,
 `test_superseded_and_ineligible_struck_through` is `test_runs_left_out_listed`,
 `test_no_script_tags_required` is `test_reads_without_script`.
 
@@ -27,8 +27,8 @@ from typing import Any
 
 import pytest
 
-from fixtures.placeholder_release import build_site
-from iproofs.site import reply_html
+from fixtures.placeholder_release import FREEZE_DATE, REVIEW_WINDOW, build_site
+from iproofs.site import renderer, reply_html
 from iproofs.site.view import site_view
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -80,6 +80,13 @@ def plain(text: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(text).replace("\N{NO-BREAK SPACE}", " ")).strip()
 
 
+def flat(text: str) -> str:
+    """Text of an HTML fragment with its tags dropped in place, so a path split into parts for
+    line breaks reads whole."""
+    text = re.sub(r"<[^>]+>", "", text)
+    return re.sub(r"\s+", " ", html.unescape(text).replace("\N{NO-BREAK SPACE}", " ")).strip()
+
+
 def _build(root: Path, *, extras: bool) -> tuple[Path, dict[str, Any]]:
     out = build_site(root / "repo", root / "out", extras=extras)
     return out, site_view(root / "repo")
@@ -126,7 +133,8 @@ def system_configs(build: Build, system: str) -> list[dict[str, Any]]:
     configuration line; every configuration of the system in the view, each once."""
     text = build.pages[f"{system}.html"]
     out: list[dict[str, Any]] = []
-    for named in re.findall(r"<dt>configuration</dt><dd>(.*?)</dd>", text, re.S):
+    where = r'<dl class="tlab"><div><dt>configuration</dt><dd>(.*?)</dd>'
+    for named in re.findall(where, text, re.S):
         configuration, workload, _, profile = plain(named).split(" · ")
         found = [c for c in build.view["configurations"] if c["system"] == system
                  and (c["configuration"], c["workload"]["id"], c["profile"])
@@ -155,18 +163,124 @@ def more_rows(text: str) -> list[str]:
 
 
 def test_page_set_and_footer(site: Build) -> None:
-    """Page table: the overview, one page per benchmarked system, the references, the criteria
-    and Not found; every footer names the release and links the criteria page. The release,
-    sponsors and conflicts and targets pages and the footer links to them and to `index.json`
-    are RFC-0009 §Site gaps for #320 (its second pull request; the index waits for #146)."""
-    want = {"index.html", "reference.html", "criteria.html", "404.html"}
+    """Page table: the overview, one page per benchmarked system, the references, the criteria,
+    the release, sponsors and conflicts, Targets only when the release evaluates a target, and
+    Not found; every footer names the release and links the release page, the sponsors and
+    conflicts page and the criteria page, and names the release's `index.json`: as text while
+    the release is a candidate (no tracked file records its publication, #146), else a link."""
+    want = {"index.html", "reference.html", "criteria.html", "release.html", "sponsors.html",
+            "404.html"}  # fmt: skip
     want |= {f"{s}.html" for s in site.view["orders"]["benchmarked"]}
-    assert want <= set(site.pages)
-    release = site.view["release"]["id"]
+    if site.view["targets"]:
+        want.add("targets.html")
+    assert set(site.pages) == want
+    assert bool(site.view["targets"]) == (site.kind == "extras")
+    release = site.view["release"]
     for name, text in site.pages.items():
         foot = text[text.index('<footer class="foot">') :]
-        assert f"Release {release}" in plain(foot), name
-        assert 'href="/criteria"' in foot, name
+        assert f"Release {release['id']}" in plain(foot), name
+        for href in ("/criteria", "/release", "/sponsors"):
+            assert f'href="{href}"' in foot, (name, href)
+        assert release["index"] in plain(foot), name
+        assert release["candidate"]  # until #146 the index is named, not linked
+        assert f"/{release['index']}" not in foot, name
+    if site.kind == "web":
+        vercel = json.loads((site.out / "vercel.json").read_text())
+        assert vercel["cleanUrls"] is True
+        assert "*.html" in vercel["buildCommand"]
+
+
+def test_release_page(site: Build) -> None:
+    """Page table, Release: every run the release lists, by id, with its status; the superseded
+    and withdrawn runs with their reasons; the review window, freeze date, RFC commit, reference
+    file, claim cards with their digests, and replies."""
+    text = site.pages["release.html"]
+    said = flat(text)
+    release = site.view["release"]
+    for run in release["runs"]:
+        assert run["run_id"] in said, run["run_id"]
+    for x in release["superseded_runs"]:
+        assert x["run_id"] in said
+        assert x["reason"] in said
+    _release_dates(release, said)
+    assert f"/tree/{release['rfc_commit']}/rfcs" in text
+    assert release["reference_file"] in said
+    for card in release["claim_cards"]:
+        assert card["path"] in said
+        assert card["digest"].removeprefix("sha256:")[:12] in said
+    for system in release["replies"]:
+        assert f'href="/{system}#reply"' in text
+    assert ('href="/targets"' in text) == bool(site.view["targets"])
+
+
+def _release_dates(release: dict[str, Any], said: str) -> None:
+    """While the release is a candidate its dates are the placeholder fixture's, not the
+    release's, so the page says they are not set and prints none of them (AGENTS.md rule 5);
+    once it is published, the review window and the freeze date `release.yaml` sets."""
+    window = release["review_window"]
+    if release["candidate"]:
+        assert f"not set: {release['id']} is not frozen (#146)" in said
+        for value in (FREEZE_DATE, *REVIEW_WINDOW.values(), release["freeze_date"],
+                      window["opens"], window["closes"]):  # fmt: skip
+            assert value not in said, value
+    else:
+        assert f"{window['opens']} to {window['closes']}" in said
+        assert release["freeze_date"] in said
+
+
+def test_release_dates_once_published(extras: Build) -> None:
+    """Once a tracked file records the release's publication, `/release` prints its review
+    window and freeze date, and `/sponsors` its sponsor list, from `release.yaml`."""
+    build = renderer(ROOT)
+    view = json.loads(json.dumps(extras.view))
+    view["release"]["candidate"] = False
+    build.setup(view, extras.out)
+    _release_dates(view["release"], flat(build.draw.release.build_release()))
+    sponsors = plain(build.draw.release.build_sponsors())
+    assert "not frozen" not in sponsors
+    if not view["release"]["sponsors"]:
+        assert f"No sponsor is listed for release {view['release']['id']}." in sponsors
+
+
+def test_sponsors_and_conflicts(site: Build) -> None:
+    """Page table, Sponsors and conflicts: the sponsors `release.yaml` lists, then every row of
+    `MAINTAINERS.md` with its organisation and declared interests, in separate sections."""
+    text = site.pages["sponsors.html"]
+    assert text.index('id="sponsors"') < text.index('id="conflicts"')
+    said = plain(text[text.index('id="conflicts"') :])
+    assert site.view["maintainers"]
+    for m in site.view["maintainers"]:
+        assert m["handle"] in said
+        assert f"organisation: {m['organisation']}" in said
+        assert f"declared interests: {m['interests']}" in said
+    sponsors = plain(text[text.index('id="sponsors"') : text.index('id="conflicts"')])
+    release = site.view["release"]
+    if release["candidate"]:  # the placeholder's list is a fixture's, not the release's
+        assert f"No sponsor list yet: {release['id']} is not frozen (#146)." in sponsors
+        return
+    for x in release["sponsors"]:
+        assert x["name"] in sponsors
+    if not release["sponsors"]:
+        assert "No sponsor is listed" in sponsors
+
+
+def test_targets_page(site: Build) -> None:
+    """Page table, Targets (only when the release evaluates one): each target with its author,
+    and each row it was evaluated against with its result, mean and least favourable value,
+    each value with its labels and its record in the index."""
+    if not site.view["targets"]:
+        assert "targets.html" not in site.pages
+        pytest.skip("the deployed release evaluates no target")
+    text = site.pages["targets.html"]
+    said = flat(text)
+    for t in site.view["targets"]:
+        assert t["author"]["name"] in said
+        assert t["id"] in said
+        for r in t["results"]:
+            for key in ("mean", "least_favourable"):
+                assert f"#/targets/{r['position']}/{key}" in said
+    for label in ("scope: ", "grade: ", "checked: ", "spread: "):
+        assert label in said
 
 
 def test_every_number_has_labels(site: Build) -> None:
@@ -208,17 +322,22 @@ def test_every_number_has_labels(site: Build) -> None:
 
 def test_glyph_before_numbers(site: Build) -> None:
     """S1: on every page each row's header, holding its glyph, precedes the row's first figure;
-    a system row's header links its system page and a reference's glyph its entry on
-    `/reference`. The `#claims-<configuration>` target is an RFC-0009 §Site gap for #320."""
+    a system row's header links the validated claims of its card on the system page
+    (`/<system>#claims-<configuration>`, an anchor that page holds once) and a reference's glyph
+    its entry on `/reference`."""
     index = site.pages["index.html"]
     rows = ROW.findall(index)
     assert rows
     for rid, _, _, body in rows:
-        system = row_config(site.view, rid)["system"]
+        cfg = row_config(site.view, rid)
+        system, anchor = cfg["system"], f"claims-{cfg['configuration']}"
         assert body.index('class="pie"') < body.index('class="vc"'), rid
-        assert f'<a href="/{system}">' in body[: body.index('class="vc"')], rid
+        head = body[: body.index('class="vc"')]
+        assert f'<a href="/{system}#{anchor}">' in head, rid
+        assert f'<a class="pie" href="/{system}#{anchor}"' in head, rid
+        assert site.pages[f"{system}.html"].count(f'id="{anchor}"') == 1, rid
     for ref in site.view["orders"]["reference"]:
-        row = index[index.index(f'<div class="row" id="{ref}">') :]
+        row = index[index.index(f'<div class="row" id="{ref}"') :]
         assert row.index('class="pie"') < row.index('class="vc"'), ref
         assert f'href="/reference#{ref}"' in row[: row.index('class="vc"')], ref
     for system in site.view["orders"]["benchmarked"]:
@@ -235,9 +354,7 @@ def test_claim_card_before_numbers(site: Build) -> None:
     figure and holds the glyph with each state as a word, the name, the pin of the row's card and,
     where the table holds two rows of the system, the card's `configuration`, and no value of any
     other card field; each state is the state the criteria file sets for that card (RFC-0016).
-    On system pages the validated claims precede every figure. Their quotes, sources and control
-    outcomes, the card's identity and digest, the card in full and the agreement rate are
-    RFC-0009 §Site gaps for #320 (its second pull request)."""
+    On system pages the validated claims precede every figure (`_validated_claims`)."""
     criteria, props = site.view["criteria"]["rows"], site.view["criteria"]["properties"]
     for _, body in TABLE.findall(site.pages["index.html"]):
         rows = ROW.findall(body)
@@ -273,22 +390,265 @@ def test_claim_card_before_numbers(site: Build) -> None:
 
 
 def _validated_claims(site: Build, system: str) -> None:
-    """A system page's validated claims precede every figure, each state as its word; under a
-    pending disclosure the stated state in words, not drawn (OVR-8)."""
-    criteria, props = site.view["criteria"]["rows"], site.view["criteria"]["properties"]
+    """S1 on a system page, in DOM order: the validated claims (per property its state, reason
+    and a link to how we read it, then, folded in "How we read it", the deciding quote with its
+    source at the pin, both quotes of a conflict, the sources read and each mapped control in
+    every run read), the card's
+    identity with its file and digest, the card in full in a `details` element, both folds
+    closed in the HTML as sent, then `quality_gap` and `residual` with the agreement rate
+    outside them; all before every figure. Under a pending disclosure the stated state in words,
+    not drawn, and no control (OVR-8)."""
+    props = site.view["criteria"]["properties"]
     text = site.pages[f"{system}.html"]
-    assert text.index('class="rprops"') < text.index('class="fig"'), system
-    cells = criteria[system]["cells"]
+    configs = system_configs(site, system)
+    cfg = configs[0]
+    card = cfg["card"]
+    first_figure = re.search(r'class="plate" id="[^"]*fig-', text).start()  # type: ignore[union-attr]
+    claims = text.index(f'id="claims-{cfg["configuration"]}"')
+    identity = text.index(f'href="{card["link"]}"')
+    folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
+    gap = text.index('class="gapblk"')
+    read = text.index('<details class="howread" id="how-we-read">')
+    assert claims < text.index('class="rprops"') < read < identity < folded < gap < first_figure
+    assert text.index('class="rprops"') < text.index('class="fig"')
+    assert "<details open" not in text  # folded as sent (S1 item 4)
+    details = text[folded : text.index("</details>", folded)]
+    for field in card["body"]:
+        if field != "sources":
+            assert f"<dt>{field}</dt>" in details, field
+    assert card["digest"].removeprefix("sha256:")[:12] in plain(text[identity:folded])
+    assert ("card not reviewed by system maintainers" in plain(text[identity:folded])) == (
+        not card["reviewed"])  # fmt: skip
+    after = plain(text[gap:first_figure])
+    assert "quality gap" in after
+    assert "residual" in after
+    if cfg["agreement"]["recorded"]:  # RFC-0015 RC-6: the rate beside them, outside the fold
+        assert 'class="plate" id="agree-' in text[gap:first_figure]
+    pc = next((c["property_controls"] for c in configs if c.get("property_controls")), None)
     for p in props:
-        item = re.search(rf'<li class="rp [rl]" id="p-{p["id"]}".*?</li>', text, re.S)
-        assert item, (system, p["id"])
-        state = cells[p["id"]]["state"]
-        if criteria[system]["drawn"]:
-            assert '<p class="rs"><i class="sw ' in item[0]
-            assert WORD[state] in plain(item[0]), (system, p["id"])
-        else:  # OVR-8: the stated state in words, not drawn
-            assert '<i class="sw ' not in item[0]
-            assert f"Stated: {WORD[state]}" in plain(item[0]), (system, p["id"])
+        _property_claims(site, system, p, pc)
+
+
+PROPERTY_BLOCK = re.compile(
+    r'<li class="rp [rl]" id="p-[a-z_]+" data-n="\d"><p class="rn">(?:(?!</p>).)*</p>'
+    r'(<p class="rs">(?:(?!</p>).)*</p>)'
+    r'(<p class="rr( rsrc)?">([^<]*)(<a class="psrc" href="#read-([a-z_]+)">source'
+    r'<span class="sr">: how we read ([^<]*)</span></a>)?</p>)?'
+    r'(<div class="ev"><p class="ex"><span class="ek">stated</span><span class="eb">.*?</span>'
+    r"</p></div>)?</li>",
+    re.S,
+)
+
+
+def _property_claims(
+    site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None
+) -> None:
+    """One property of a system page's validated claims (`_validated_claims`): its block beside
+    the glyph holds its state, our reason, a "source" link to its entry in "How we read it" and,
+    for an overridden cell, its stated state with what contradicts it, nothing else; the quotes,
+    what was read and the controls are in the entry (`_how_we_read`)."""
+    criteria = site.view["criteria"]["rows"]
+    text = site.pages[f"{system}.html"]
+    cells = criteria[system]["cells"]
+    item = re.search(rf'<li class="rp [rl]" id="p-{p["id"]}".*?</li>', text, re.S)
+    assert item, (system, p["id"])
+    body, said = item[0], flat(item[0])
+    block = PROPERTY_BLOCK.fullmatch(body)
+    assert block, (system, p["id"], body)  # name, state, reason, link, overridden line only
+    assert "<blockquote" not in body, (system, p["id"])  # quotes are in the fold, not here
+    entry = re.search(rf'<div id="read-{p["id"]}" tabindex="-1">', text)
+    if entry:  # the link names this property and lands on its own entry, which exists
+        assert (block[6], block[7]) == (p["id"], p["name"]), (system, p["id"])
+        assert bool(block[3]) == (block[4] == ""), (system, p["id"])  # rsrc: the link alone
+    else:
+        assert block[5] is None, (system, p["id"])
+    cell = cells[p["id"]]
+    state = cell["state"]
+    if criteria[system]["drawn"]:
+        assert '<p class="rs"><i class="sw ' in body
+        assert WORD[state] in said, (system, p["id"])
+    else:  # OVR-8: the stated state in words, not drawn
+        assert '<i class="sw ' not in body
+        assert f"Stated: {WORD[state]}" in said, (system, p["id"])
+    _how_we_read(site, system, p, pc)
+    if pc is None or pc["withheld"] or not cell.get("stated"):
+        assert 'class="ex"' not in body, (system, p["id"])
+        return
+    line = re.search(r'<p class="ex">.*?</p>', body, re.S)
+    assert line, (system, p["id"])
+    assert f"stated {WORD[cell['stated']]}" in plain(line[0])
+    if not cell["contradicted_by"]:
+        return
+    # one short line: the controls, then the run as a link to the entry, whose control line
+    # prints the full id (a screen reader hears it in the link)
+    controls = ", ".join(dict.fromkeys(x["control"] for x in cell["contradicted_by"]))
+    runs = list(dict.fromkeys(x["run_id"] for x in cell["contradicted_by"]))
+    shown = re.sub(r'<span class="sr">.*?</span>', "", line[0])
+    word = "run" if len(runs) == 1 else "runs"
+    assert flat(shown).endswith(f"{controls} accepted in {word}"), (system, p["id"], line[0])
+    assert f'<a class="psrc" href="#read-{p["id"]}">{word}<span class="sr"> ' in line[0]
+    assert f"accepted in {word} {', '.join(runs)}" in flat(line[0]), (system, p["id"])
+    entry = re.search(rf'<div id="read-{p["id"]}" tabindex="-1">.*?</dd></div>', text, re.S)
+    assert entry, (system, p["id"])
+    for x in cell["contradicted_by"]:
+        assert x["run_id"] in flat(entry[0]), (system, p["id"], x["run_id"])
+
+
+def _quotes_printed(
+    system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
+) -> None:
+    """S1 item 1 in the property's entry of "How we read it": the one quote marked `decides`,
+    verbatim, with its source at the pin; a stated cell always prints it; a quote that does not
+    decide is printed only in a conflict (both quotes, `conflict_lines`)."""
+    deciding = [q for q in cell["quotes"] if q.get("decides")]
+    if cell["state"] != "not_stated":
+        assert len(deciding) == 1, (system, p["id"])  # a stated cell prints the quote it rests on
+    for q in [q for q in cell["quotes"] if q not in deciding]:  # a non-deciding quote: not here
+        assert cell["conflict"] or q["text"] not in html.unescape(body), (system, p["id"])
+    for q in deciding:  # verbatim, with its source at the pin
+        assert q["text"] in html.unescape(body), (system, p["id"])
+        assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
+        where = f"@{q['commit'][:8]} {q['path']} {q['lines']}"
+        assert f"{q['repo'].rsplit('/', 1)[-1]}{where}" in said, (system, p["id"])
+        assert f'title="{html.escape(q["repo"] + where)}"' in body, (system, p["id"])
+
+
+def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
+    """RFC-0016 ST-2, ST-8, OVR-7 in the fold "How we read it": the deciding quote with its
+    source, both quotes of a conflict, the sources read, and each mapped control in every run
+    read (no run read says why, never "not run"); none of it under a pending disclosure but the
+    sources and quotes (OVR-8). The entry takes focus (`tabindex="-1"`, words.js)."""
+    text = site.pages[f"{system}.html"]
+    cell = site.view["criteria"]["rows"][system]["cells"][p["id"]]
+    entry = re.search(
+        rf'<div id="read-{p["id"]}" tabindex="-1"><dt>(.*?)</dt><dd>(.*?)</dd></div>', text, re.S
+    )
+    controls = pc is not None and not pc["withheld"]
+    quoted = any(q.get("decides") for q in cell["quotes"])
+    if not (quoted or cell["sources_read"] or cell["conflict"] or controls):
+        assert entry is None, (system, p["id"])
+        return
+    assert entry, (system, p["id"])
+    assert flat(entry[1]) == p["name"]
+    body, said = entry[2], flat(entry[2])
+    _quotes_printed(system, p, cell, body, said)
+    if cell["sources_read"]:
+        _sources_read(site, system, p, said)
+    for q in cell["quotes"] if cell["conflict"] else []:  # both quotes of a conflict
+        assert q["text"] in html.unescape(body), (system, p["id"])
+    if not controls:
+        assert 'class="ec"' not in body, (system, p["id"])
+        return
+    assert pc is not None
+    mapped = pc["properties"][p["id"]]["mapped"]
+    if not mapped:  # OVR-7: the page says no RFC-0008 control tests the property
+        assert "controls none rule" in plain(body), (system, p["id"])
+    for cid in mapped:
+        assert cid in said, (system, cid)
+    for run in pc["runs"] if mapped else []:  # every run read, under every mapped property
+        assert run["run_id"] in said, (system, p["id"], run["run_id"])
+    for silent in re.findall(r": not run in runs?(.*?)</span></p>", body, re.S):
+        # the runs that recorded none, one per line, no separator left to wrap alone
+        assert silent.startswith('<span class="rd">'), (system, p["id"])
+        assert ", " not in flat(silent), (system, p["id"])
+    if not pc["runs"] and mapped:  # no run read says why, never "not run" (OVR-5)
+        assert f"{', '.join(mapped)}: no run read, since " in said, (system, p["id"])
+        assert "not run" not in said, (system, p["id"])
+
+
+def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> None:
+    """RFC-0016 ST-2: what was read, one line per repository linked at its commit with the paths
+    read; a list equal to one printed above it in the fold names that property instead."""
+    cells = site.view["criteria"]["rows"][system]["cells"]
+    text = site.pages[f"{system}.html"]
+    order = re.findall(r'<div id="read-([a-z_]+)" tabindex="-1">', text)
+    mine = cells[p["id"]]["sources_read"]
+    earlier = [q for q in order[: order.index(p["id"])] if cells[q]["sources_read"] == mine]
+    if earlier:
+        name = next(x["name"] for x in site.view["criteria"]["properties"] if x["id"] == earlier[0])
+        assert said.startswith(f"read as for {name}"), (system, p["id"])
+        assert f'href="#read-{earlier[0]}"' in text
+        return
+    for source in mine:  # criteria/1: a repository at a full commit, or a web page
+        if "repo" in source:
+            assert ", ".join(source["paths"]) in said, (system, source)
+            tree = f"https://github.com/{source['repo']}/tree/{source['commit']}"
+            assert tree in text, (system, source)
+        else:
+            assert f"retrieved {source['retrieved']}" in said, (system, source)
+
+
+def test_stated_cell_needs_its_deciding_quote() -> None:
+    """S1 item 1, AGENTS.md rule 9: the quote printed is the one marked `decides`, wherever it
+    sits in the cell, also in a conflict (RFC-0016 ST-8: the quote of the stated state); a
+    stated cell with none, or a deciding quote with no repo, commit or url, stops the build
+    instead of printing a state with nothing under it."""
+    deciding = renderer(ROOT).draw.claims.deciding_quotes
+    q = {"repo": "o/r", "commit": "a" * 40, "url": "https://github.com/o/r", "text": "t"}
+    other = {**q, "text": "u", "decides": False}
+    cell = {"state": "yes", "conflict": False, "quotes": [other, {**q, "decides": True}]}
+    assert deciding("s", "p", cell) == [{**q, "decides": True}]
+    assert deciding("s", "p", {**cell, "conflict": True}) == [{**q, "decides": True}]
+    with pytest.raises(RuntimeError, match="no deciding quote"):
+        deciding("s", "p", {**cell, "quotes": [other]})
+    with pytest.raises(RuntimeError, match="no repo, commit or url"):
+        deciding("s", "p", {**cell, "quotes": [{"text": "t", "decides": True}]})
+    assert deciding("s", "p", {"state": "not_stated", "conflict": False, "quotes": []}) == []
+
+
+def test_conflict_quotes_folded() -> None:
+    """RFC-0016 ST-8 in "How we read it": every quote of a conflicting cell, verbatim, each with
+    the state whose rule it meets and its source at the pin; a cell with no conflict adds none
+    (no criteria cell conflicts yet, so the case is built here)."""
+    lines = renderer(ROOT).draw.claims.conflict_lines
+    q = {"repo": "o/r", "commit": "a" * 40, "path": "README.md", "lines": "L1",
+         "url": "https://github.com/o/r/blob/" + "a" * 40 + "/README.md#L1"}  # fmt: skip
+    yes = {**q, "text": "it holds", "meets": "yes", "decides": False}
+    partly = {**q, "text": "it holds in part", "meets": "partly", "decides": True}
+    out = lines({"conflict": True, "quotes": [yes, partly]})
+    line = r'<div class="eqs"><span class="ek">(\w+)</span><div class="eb">(.*?)</div></div>'
+    rows = re.findall(line, out, re.S)
+    assert [(k, flat(v)) for k, v in rows] == [
+        ("yes", "“it holds”r@aaaaaaaa README.md L1 ↗"),
+        ("partly", "“it holds in part”r@aaaaaaaa README.md L1 ↗"),
+    ]
+    assert out.count(f'href="{q["url"]}"') == 2
+    assert lines({"conflict": False, "quotes": [yes, partly]}) == ""
+
+
+def test_sources_read_as_for(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RFC-0016 ST-2 in "How we read it": a property whose sources read equal an earlier
+    property's, whatever the order of each entry's keys, reads "as for" that property, linked to
+    its row; the same entries with their paths in another order are another list, printed in
+    full; a property with nothing to show has no row."""
+    build = renderer(ROOT)
+    state = build.draw.state
+    one = [{"repo": "o/r", "commit": "a" * 40, "paths": ["README.md", "docs/cost-model.md"]}]
+    same = [{"paths": ["README.md", "docs/cost-model.md"], "commit": "a" * 40, "repo": "o/r"}]
+    other = [{"repo": "o/r", "commit": "a" * 40, "paths": ["docs/cost-model.md", "README.md"]}]
+    empty = {"state": "not_stated", "sources_read": [], "conflict": False, "quotes": []}
+    cells = {
+        "a": {**empty, "sources_read": one},
+        "b": {**empty, "sources_read": same},
+        "c": {**empty, "sources_read": other},
+        "d": empty,
+    }
+    names = {"a": "First", "b": "Second", "c": "Third", "d": "Fourth"}
+    monkeypatch.setattr(state, "CRIT", {"rows": {"s": {"cells": cells}}})
+    monkeypatch.setattr(state, "PROPS", [{"id": k, "name": v} for k, v in names.items()])
+    claims = build.draw.claims
+    out = claims.how_we_read(claims.read_entries("s", None, ["a", "b", "c", "d"]))
+    entry = r'<div id="read-(\w)" tabindex="-1"><dt>[^<]*</dt><dd>(.*?)</dd></div>'
+    rows = dict(re.findall(entry, out, re.S))
+    assert set(rows) == {"a", "b", "c"}
+    label = '<span class="ek">read</span>'  # the label, then the sources in their own column
+    assert all(r.startswith(f'<p class="er">{label}') for r in rows.values())
+    rows = {k: v.replace(label, "") for k, v in rows.items()}
+    assert flat(rows["a"]) == "o/r@aaaaaaaa ↗ README.md, docs/cost-model.md"
+    assert flat(rows["b"]) == "as for First"
+    assert 'href="#read-a"' in rows["b"]
+    assert flat(rows["c"]) == "o/r@aaaaaaaa ↗ docs/cost-model.md, README.md"
+    assert '<span class="nw">docs/cost-model.md</span>' in rows["c"]  # never breaks inside
 
 
 def _strings(value: object) -> list[str]:
@@ -443,40 +803,49 @@ def test_native_workloads_header(site: Build) -> None:
 
 def test_runs_left_out_listed(site: Build) -> None:
     """S7: each failed repetition and each superseded or ineligible run of each configuration a
-    system page shows is listed above that configuration's figures, with its reasons, exit code
-    and last line, and is in no statistic (the completed count is over the completed runs
-    only). Run ids, links to the run record and to the replacing run are RFC-0009 §Site gaps
-    for #320 (its second pull request)."""
+    system page shows is listed above that configuration's figures, by its run id, with its
+    reasons (a failure's exit code and last line; a superseded run's replacing run), and is in
+    no statistic (the completed count is over the completed runs only). Each run's record is
+    named by its path while the release is a candidate (#146), and linked once it is published
+    (`test_run_records_link_once_published`)."""
     listed = 0
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         leads = [m.start() for m in re.finditer('<p class="lead">', text)]
-        plates = [m.start() for m in re.finditer('class="plate"', text)]
+        plates = [m.start() for m in re.finditer('class="plate" id="[^"]*fig-', text)]
         configs = system_configs(site, system)
         assert len(leads) == len(configs)
         for i, (cfg, at) in enumerate(zip(configs, leads, strict=True)):
-            # each configuration's line comes before its own plates, after the previous ones
+            # each configuration's runs come before its own plates, after the previous ones
             assert at < plates[i * len(COLS)]
             assert i == 0 or plates[i * len(COLS) - 1] < at
-            listed += _left_out_listed(cfg, plain(text[at : text.index("</p>", at)]), system)
+            block = text[at : plates[i * len(COLS)]]
+            listed += _left_out_listed(cfg, flat(block), block, system)
     assert listed >= 2  # SASH: one failed repetition, one superseded run
 
 
-def _left_out_listed(cfg: dict[str, Any], lead: str, system: str) -> int:
-    """One configuration's runs line holds each of its runs not counted (S7)."""
+def _left_out_listed(cfg: dict[str, Any], said: str, block: str, system: str) -> int:
+    """One configuration's runs line and list hold each of its runs not counted (S7)."""
     listed = 0
     runs = cfg["runs"]
-    assert f"{len(runs['completed'])} completed" in lead
+    assert f"{len(runs['completed'])} completed" in said
     for f in runs["failed"]:
+        assert f["run_id"] in said, system
         if f["exit_code"] is not None:
-            assert f"exit code {f['exit_code']}" in lead, system
+            assert f"exit code {f['exit_code']}" in said, system
         if f["last_line"]:
-            assert f["last_line"] in lead, system
+            assert f["last_line"] in said, system
         listed += 1
     for x in runs["left_out"]:
-        for reason in x["reasons"]:
-            assert reason.split(": ", 1)[-1] in lead, (system, reason)
+        assert x["run_id"] in said, system
+        if x["replaced_by"]:
+            assert f"replaced by {x['replaced_by']}" in said, system
+        for reason in x["reason_words"]:
+            assert reason.split(": ", 1)[-1] in said, (system, reason)
         listed += 1
+    if runs["failed"] or runs["left_out"]:
+        assert 'class="tlab runs"' in block
+        assert ('<span class="rec">' in block) == site_candidate(block)
     for f in cfg["figures"].values():
         if f.get("stats"):
             assert f["stats"]["n"] == len(runs["completed"]), system
@@ -484,13 +853,116 @@ def _left_out_listed(cfg: dict[str, Any], lead: str, system: str) -> int:
     return listed
 
 
+def site_candidate(block: str) -> bool:
+    """While the release is a candidate, every record is named as text, never linked."""
+    return "/results/" not in "".join(re.findall(r'href="([^"]+)"', block))
+
+
+def test_run_records_link_once_published(extras: Build) -> None:
+    """S7: once a tracked file records the release's publication, each run left out links its
+    record (and the run that replaced it) at the commit the site links."""
+    build = renderer(ROOT)
+    view = json.loads(json.dumps(extras.view))
+    view["release"]["candidate"] = False
+    build.setup(view, extras.out)
+    sash = next(c for c in view["configurations"] if c["system"] == "sash")
+    block = build.draw.pages.left_out(sash)
+    for x in [*sash["runs"]["left_out"], *sash["runs"]["failed"]]:
+        assert f'href="{view["repository"]}/blob/main/{x["record"]}"' in block, x["run_id"]
+    for x in sash["runs"]["left_out"]:
+        if x["replaced_by"]:
+            assert f'/blob/main/{x["replaced_by_record"]}"' in block
+
+
+def test_unexpected_control_printed_in_full(site: Build) -> None:
+    """RFC-0008 §Reporting: every control outcome outside its expected set is printed in full
+    on its system page (control, run, outcome, expected set, side, source, each trial, the
+    record), and the release page links it; a row under a pending disclosure prints neither
+    (OVR-8, `test_pending_row_renders_no_outcome`)."""
+    release = site.pages["release.html"]
+    seen = 0
+    for cfg in provers(site.view):
+        drawn = site.view["criteria"]["rows"][cfg["system"]]["drawn"]
+        text = site.pages[f"{cfg['system']}.html"]
+        for u in cfg["unexpected"]:
+            anchor = f"unexpected-{u['control']}-{u['run_id']}"
+            if not drawn:
+                assert anchor not in text
+                assert anchor not in release
+                continue
+            start = text.index(f'id="{anchor}"')
+            block = text[start : text.index("</dl>", text.index("<dt>record</dt>", start))]
+            said = flat(block)
+            stored = u["stored"]
+            assert f"control{u['control']}" in said.replace(" ", "") or u["control"] in said
+            for word in (u["run_id"], stored["side"], stored["source"], u["record"]):
+                assert word in said, word
+            assert len(re.findall(r"<dt>trial</dt>", block)) == len(stored["trials"])
+            for t in stored["trials"]:  # every field of each trial, the mutation included
+                for key in t:
+                    assert f"<dt>{key}</dt>" in block, key
+                assert t["raw_last_line"] in html.unescape(block)
+                for k, v in t["mutation"].items():
+                    assert f"<dt>{k}</dt>" in block, k
+                    assert str(v) in said, (k, v)
+                if not t["mutation"]:
+                    assert "<dt>mutation</dt><dd>none</dd>" in block
+            for key in set(stored) - {"id", "trials", "twin", "expected"}:
+                assert f"<dt>{key}</dt>" in block, key
+            assert f'href="/{cfg["system"]}#{anchor}"' in release
+            assert text.index('id="h-tamper"') < text.index(f'id="{anchor}"')
+            seen += 1
+    if site.kind == "web":
+        assert not seen
+        assert "No control outcome fell outside its expected set." in plain(release)
+    else:
+        assert seen == 1  # FlashProve's C1; SASH's C2 is under a pending disclosure
+
+
+def test_pending_row_renders_no_outcome(site: Build) -> None:
+    """RFC-0016 OVR-8: while a disclosure of a row is pending, its system page prints its
+    stated states and quotes with the RFC-0008 notice, and no control outcome: no per-property
+    control list, no contradicting control, no unexpected outcome, no tally; the release page
+    prints the notice in place of its unexpected outcomes."""
+    pending = [rid for rid, row in site.view["criteria"]["rows"].items() if row.get("pending")]
+    if site.kind == "web":
+        assert not pending
+        pytest.skip("no criteria row of the deployed build is under a pending disclosure")
+    release = site.pages["release.html"]
+    for rid in pending:
+        text = site.pages[f"{rid}.html"]
+        claims = text[text.index('class="claims"') : text.index('id="figures"')]
+        assert 'class="ec"' not in claims
+        assert 'class="ex"' not in claims
+        assert 'class="eq"' in claims  # the quotes stay
+        assert "unexpected-" not in text
+        cfgs = [c for c in site.view["configurations"] if c["system"] == rid]
+        for c in cfgs:
+            for u in c["unexpected"]:
+                assert f"{u['control']} in run" not in plain(release)
+            for a in c["accepted"]:
+                assert a["control"] not in plain(text[text.index('id="h-tamper"') :])
+        unexpected = release[release.index('id="unexpected"') :]
+        assert "A disclosure is pending" in plain(unexpected)
+
+
 def test_table_semantics(site: Build) -> None:
     """S9: every cell of a table across systems has one column header and one row header through
     ARIA roles, a sorted column's header carries `aria-sort`, and every glyph state is a word in
     the row header's cell, read after the system's name (a row under a pending disclosure has no
-    state and no text, RFC-0016 OVR-8); the more-numbers tables use `th` with `scope`. The
-    References table's roles are an RFC-0009 §Site gap for #320."""
+    state and no text, RFC-0016 OVR-8); the References table too, through the same roles, its
+    heads not sortable; the more-numbers tables use `th` with `scope`."""
     index = site.pages["index.html"]
+    refs = index[index.index('id="references"') : index.index('id="not-yet"')]
+    assert refs.count('role="table"') == 1
+    assert refs.count('role="columnheader"') == 1 + len(COLS)
+    assert "aria-hidden" not in refs[: refs.index('<div class="row"')]
+    for ref in site.view["orders"]["reference"]:
+        row = refs[refs.index(f'<div class="row" id="{ref}" role="row">') :]
+        row = row[: row.index("\n</div>")]
+        assert row.count('role="rowheader"') == 1, ref
+        assert row.count('role="cell"') == len(COLS), ref
+        assert "data-k=" not in row, ref  # not sorted (S5)
     for sec in SECTION.findall(index):
         heads = HEAD.findall(sec)
         assert len(heads) == 1 + len(COLS)
@@ -620,7 +1092,8 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
 def test_figures_link_their_own_plate(site: Build) -> None:
     """S2, S11: each overview figure of a system row links a plate on its system page, in the
     same column and of the row's own configuration (its source names the configuration's
-    position in the index); a reference row's figures link its figures block on `/reference`."""
+    position in the index); a reference row's figures link their own plates on `/reference`
+    (`<reference>-fig-<column>`)."""
     index = site.pages["index.html"]
     linked = 0
     for rid, _, _, body in ROW.findall(index):
@@ -638,12 +1111,15 @@ def test_figures_link_their_own_plate(site: Build) -> None:
             linked += 1
     assert linked == len(COLS) * len(provers(site.view))
     ref = site.pages["reference.html"]
+    plates = {pid: col for pid, col, _ in PLATE.findall(ref)}
     for gid in site.view["orders"]["reference"]:
-        row = index[index.index(f'<div class="row" id="{gid}">') :]
+        row = index[index.index(f'<div class="row" id="{gid}"') :]
         row = row[: row.index("\n</div>")]
-        for href, _, _ in VAL.findall(row):
-            assert href == f"/reference#{gid}-figures"
-        assert f'id="{gid}-figures"' in ref
+        found = re.findall(r'data-col="([^"]+)"><a class="val" href="([^"]*)"', row)
+        assert [c for c, _ in found] == list(COLS)
+        for col, href in found:
+            assert href == f"/reference#{gid}-fig-{col}"
+            assert plates[f"{gid}-fig-{col}"] == col
 
 
 def test_reply_escaped() -> None:

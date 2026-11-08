@@ -108,12 +108,17 @@ def test_absent_metric_not_recorded(view: dict[str, Any]) -> None:
 
 
 def test_runs_left_out_listed(view: dict[str, Any]) -> None:
-    """S7: run ids, reasons, the replacing run, and a failure's exit code and last line."""
+    """S7: run ids, reasons, the replacing run, each run's record, and a failure's exit code and
+    last line."""
     runs = configuration(view, "sash")["runs"]
     rid = ph.run_id
-    assert runs["left_out"] == [{"run_id": rid("sash", ph.WORKLOAD, 1), "reasons": [
-        f"superseded by {rid('sash', ph.WORKLOAD, 5)}: {ph.SASH_CORRECTION}"],
-        "replaced_by": rid("sash", ph.WORKLOAD, 5)}]  # fmt: skip
+    reason = f"superseded by {rid('sash', ph.WORKLOAD, 5)}: {ph.SASH_CORRECTION}"
+    record = f"results/{ph.RELEASE}/sash/{{}}/run.json"
+    assert runs["left_out"] == [{
+        "run_id": rid("sash", ph.WORKLOAD, 1), "reasons": [reason], "reason_words": [reason],
+        "replaced_by": rid("sash", ph.WORKLOAD, 5),
+        "record": record.format(rid("sash", ph.WORKLOAD, 1)),
+        "replaced_by_record": record.format(rid("sash", ph.WORKLOAD, 5))}]  # fmt: skip
     assert [(f["run_id"], f["exit_code"], f["last_line"]) for f in runs["failed"]] == [
         (rid("sash", ph.WORKLOAD, 2), 1, ph.SASH_FAILURE["message"])]  # fmt: skip
     assert runs["completed"] == [rid("sash", ph.WORKLOAD, n) for n in (3, 4, 5)]
@@ -174,6 +179,35 @@ def test_property_controls_with_release(extras: dict[str, Any]) -> None:
     # the card row is the configuration on every workload it runs (OVR-5): b1 is read too
     assert c1[ph.run_id("flashprove", ph.SECOND_WORKLOAD, 1)] == "rejected"
     assert ph.run_id("flashprove", ph.WORKLOAD, 102) not in c1  # withdrawn: not read
+    # each run read names its run.json, and its controls.json only when it has one
+    runs = {r["run_id"]: r for r in c["property_controls"]["runs"]}
+    assert runs[first]["controls"] == f"results/{ph.RELEASE}/flashprove/{first}/controls.json"
+    assert runs[ph.run_id("flashprove", ph.WORKLOAD, 2)]["controls"] is None
+    assert all(r["record"].endswith(f"/{i}/run.json") for i, r in runs.items())
+    # the contradicting control of the overridden cell, with its record
+    assert c["property_controls"]["properties"]["whole_output"]["contradicted"] == [
+        {"control": "C1", "run_id": first, "record": runs[first]["controls"]}]  # fmt: skip
+
+
+def test_release_record_listed(extras: dict[str, Any]) -> None:
+    """Release page: every listed run with its status and record, the withdrawn runs, the
+    claim cards; the unexpected outcomes with their stored records; the targets by file."""
+    release = extras["release"]
+    assert len(release["runs"]) == len(set(r["run_id"] for r in release["runs"]))
+    failed = {r["run_id"] for r in release["runs"] if r["status"] == "failed"}
+    assert ph.run_id("sash", ph.WORKLOAD, 2) in failed
+    assert [x["run_id"] for x in release["superseded_runs"]] == [
+        ph.run_id("flashprove", ph.WORKLOAD, 102)]  # fmt: skip
+    fp = configuration(extras, "flashprove", "exact-match-cp-verify")
+    first = ph.run_id("flashprove", ph.WORKLOAD, 1)
+    [u] = fp["unexpected"]
+    assert (u["control"], u["run_id"], u["outcome"]) == ("C1", first, "accepted")
+    assert u["stored"]["expected"] == ["rejected"]
+    assert u["stored"]["trials"]
+    [t] = extras["targets"]
+    assert t["path"] == ph.TARGET
+    assert t["author"]["name"]
+    assert [r["position"] for r in t["results"]] == list(range(len(t["results"])))
 
 
 def test_pending_row_draws_no_state(extras: dict[str, Any], extras_tree: Path) -> None:
@@ -189,7 +223,8 @@ def test_pending_row_draws_no_state(extras: dict[str, Any], extras_tree: Path) -
         assert "stated" not in raw["cells"][prop]
     assert extras["criteria"]["rows"]["flashprove"]["drawn"] is True
     assert configuration(extras, "sash")["property_controls"] == {"withheld": True,
-                                                                  "properties": {}}  # fmt: skip
+                                                                  "properties": {},
+                                                                  "runs": []}  # fmt: skip
 
 
 def test_accepted_records_listed(view: dict[str, Any], extras: dict[str, Any]) -> None:

@@ -194,8 +194,9 @@ html:not(.js) .search { display: none; }
 .pie .sl, .rpie .sl { pointer-events: none; }
 /* the slice under the pointer steps out with a paper edge; the others keep their ink */
 .pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-/* its name and state, under the pie, over the row's own margin: positioned, so nothing moves */
-.tip { display: none; position: absolute; left: 6px; top: calc(100% + 1px); z-index: 2; white-space: nowrap; pointer-events: none; font: 500 12px/1 var(--mono); color: var(--paper); background: var(--ground); padding: 4px 6px 4px 0; }
+/* its name and state, under the pie, over the row's own margin: positioned, so nothing moves; far
+   enough below that a lifted triangle (6 px out) never reaches it */
+.tip { display: none; position: absolute; left: 6px; top: calc(100% + 10px); z-index: 2; white-space: nowrap; pointer-events: none; font: 500 12px/1 var(--mono); color: var(--paper); background: var(--ground); padding: 4px 6px 4px 0; }
 .pie[data-hot] .tip { display: block; }
 .tip b { font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; margin-right: .8em; }
 
@@ -242,8 +243,10 @@ html:not(.js) .search { display: none; }
 .plate dd a:hover .seg, .facts dd a:hover .seg { text-decoration-thickness: 2px; }
 /* an id, a date or a model name that never breaks at its hyphen */
 .nw { white-space: nowrap; }
+/* a link's last part held to its arrow still wraps inside itself when it must */
+.nw > .seg { white-space: normal; }
 .tlab { margin: 14px 0 0; font: 400 12px/1.45 var(--mono); max-width: 80ch; }
-.tlab div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
+.tlab > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
 .tlab dt { color: var(--muted); }
 .tlab dd { margin: 0; overflow-wrap: anywhere; }
 .ctl { font: 400 14px/1.45 var(--mono); max-width: 80ch; margin-top: 16px; }
@@ -265,6 +268,16 @@ html:not(.js) .search { display: none; }
 .blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 /* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
 .over { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 56px; align-items: center; padding-top: 32px; }
+/* how we read it follows the properties in reading order (RFC-0009 S1 item 1): under the pie and the facts, full width,
+   its rule like the card in full's just below it */
+.over > .howread { grid-column: 1 / -1; grid-row: 2; }
+.over > .facts { grid-column: 2; grid-row: 1; }
+/* the card's identity makes the facts taller than the pie: the pie keeps to their top, where main drew it, rather
+   than sinking to their middle */
+.claims .over > .rose { align-self: start; }
+/* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
+   from its top */
+.wrap > .claims:first-child { scroll-margin-top: 100vh; }
 .rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-rows: repeat(3, auto);
   grid-template-areas: "p6 pie p1" "p5 pie p2" "p4 pie p3"; column-gap: 24px; row-gap: 18px; align-items: center; }
 .rpie { grid-area: pie; display: flex; justify-content: center; }
@@ -281,6 +294,74 @@ html:not(.js) .search { display: none; }
 .rs { font: 750 22px/1.1 var(--disp); font-stretch: 84%; margin-top: 4px; }
 .rr { font: 400 12px/1.42 var(--mono); color: var(--muted); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
 .rp.l .rr { margin-left: auto; }
+/* after a property's reason, a quiet link to its entry in how we read it; under it, only for an overridden
+   cell, its stated state and what contradicts it */
+.psrc { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.psrc:hover { color: var(--paper); }
+.ev { font: 400 11.5px/1.45 var(--mono); color: var(--muted); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
+.rp.l .ev { margin-left: auto; }
+.eq { margin: 0; }
+.eq p { color: var(--muted); white-space: pre-line; }
+.es { display: flex; flex-wrap: wrap; column-gap: 12px; font-size: 11px; }
+.ev .ex { margin-top: 2px; }
+.ev .ex .ek { margin-right: 1ch; }
+/* how we read it: per property the deciding quote (or a conflict's quotes), the sources read, the controls,
+   one labelled line each; an entry a source link lands on clears the top of the screen */
+.hw > div { scroll-margin-top: 16px; }
+/* the entry the address names (a source link, with or without script): its name lit and underlined, no box; the
+   focus words.js moves there draws nothing of its own, so a click inside an entry marks nothing */
+.hw > div:focus { outline: none; }
+.hw > div:target > dt { color: var(--paper); text-decoration: underline 2px; text-underline-offset: 4px; }
+.er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 10ch minmax(0, 1fr); align-items: baseline; }
+/* a read line starts with a link padded 4 px: its label sits on the link's first line */
+.er { align-items: start; }
+.er > .ek { padding-top: 4px; line-height: 16px; }
+.hw dd > :first-child { margin-top: 0; }
+.hw .eq p { color: var(--paper); }
+.eb { min-width: 0; }
+.ek { color: var(--muted); }
+.rd { display: block; }
+.qsrc { display: inline-block; padding-block: 4px; line-height: 16px; color: var(--muted); text-decoration: none; }
+.qsrc .seg { display: inline-block; max-width: 100%; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.qsrc:hover { color: var(--paper); }
+.qsrc:hover .seg { text-decoration-thickness: 2px; }
+.rec .seg, .er .seg { display: inline-block; max-width: 100%; }
+/* the card in full, folded; open, its quality gap and residual beside the agreement rate */
+.cardfull, .howread { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); }
+/* on wide screens the two folds are a pair, one band under the other */
+:where(.over:has(> .howread)) + .cardfull { margin-top: 12px; }
+.cardfull summary, .howread summary { display: flex; align-items: baseline; gap: 12px; min-height: 32px; cursor: pointer; list-style: none; }
+.cardfull summary::-webkit-details-marker, .howread summary::-webkit-details-marker { display: none; }
+.cardfull summary .sect.sm, .howread summary .sect.sm { margin: 0; }
+.cardfull summary:after, .howread summary:after { content: "+" / ""; font: 500 18px/1 var(--mono); color: var(--muted); }
+.cardfull[open] summary:after, .howread[open] summary:after { content: "\2212" / ""; }
+.cardfull summary:hover .sect, .howread summary:hover .sect { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
+.cf { margin: 16px 0 0; font: 400 12px/1.45 var(--mono); }
+.cf > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
+.cf dt { color: var(--muted); }
+.cf dd { margin: 0; overflow-wrap: anywhere; max-width: 110ch; }
+.cn { margin: 0; }
+.cn > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; }
+.cn dt { color: var(--muted); }
+.cn dd { margin: 0; }
+.cl { list-style: none; margin: 0; padding: 0; }
+.cl > li + li { margin-top: 6px; }
+.gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 56px; align-items: start; margin-top: 32px; }
+.gapc { min-width: 0; }
+.gapc .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+.gapf dd { max-width: 100ch; color: var(--muted); font-size: 11.5px; }
+.agree { display: grid; row-gap: 24px; }
+/* runs left out of the figures, and the release's runs: each id over its status */
+.runs .rid, .runs .rw { display: block; }
+.runs .rw { color: var(--muted); }
+.rgh { font: 500 12px/1.4 var(--mono); margin-top: 26px; }
+.rgh:first-of-type { margin-top: 16px; }
+.rgh + .tlab { margin-top: 6px; }
+.relpage .blk > .sect.sm { margin-top: 0; }
+.unexp { margin-top: 18px; }
+.facts.relf { max-width: 880px; margin-top: 32px; }
+.replyb { font: 400 14px/1.5 var(--mono); max-width: 70ch; margin-top: 16px; }
+.replyb p + p, .replyb ul { margin-top: 10px; }
 /* each property's own key glyph, its slot in its state's ink: shown only where the properties stack */
 /* each property's name in its own triangle: drawn by build.py, shown on phones only (760 px and below) */
 .rpie .tx { display: none; }
@@ -379,17 +460,25 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* ================================================================ narrower
    The scale at the top of this file, one block per width, wide to narrow, each selector once in
    it: a rule for narrower screens comes after the rules for wider ones, so at the same
-   specificity the narrower overrides the wider. Two blocks also take a min-width, one px above a width of the scale: each
-   sits just above the block of that width (561 to 960 above 560; 350 to 560, above 349, last).
+   specificity the narrower overrides the wider. One block also takes a min-width, one px above a width
+   of the scale, and sits last, just above where the block of that width would be (350 to 560, above 349).
    The hover, reduced-motion, forced-colours and landscape (max-height) rules are not width blocks
    and keep their places; a width inside one is still a width of the scale.
    web/test_breakpoints.py checks this. */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
+  /* how we read it, closed or open, opens on its rule; the facts' first rule closes it */
+  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; }
+  .over > .facts { grid-column: auto; grid-row: auto; }
+  .cardfull { margin-top: 44px; }
   .rose { max-width: 980px; }
   .facts { columns: 2; column-gap: 32px; }
   .facts div { break-inside: avoid; }
   .facts div:last-child { border-bottom: 0; }
+  .facts.gapf, .facts.relf { columns: auto; }
+  .facts.gapf > div:last-child, .facts.relf > div:last-child { border-bottom: 1px solid var(--line); }
+  .gapblk { grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
+  .agree { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
 }
 @media (max-width: 1180px) {
   .heads, .r-main { grid-template-columns: 358px repeat(4, minmax(0, 1fr)); column-gap: 18px; }
@@ -415,14 +504,14 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 @media (max-width: 960px) {
   /* the legend in two columns */
   .map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* below the width a centred field needs: the name, a search button and GitHub on the first line,
-     the pages on the second; the button opens the field over the first line */
+  /* below the width a centred field needs: one line, the logo, the pages, a search button and
+     GitHub; the button opens the field over the line */
   .tl { display: contents; }
-  .top { display: grid; grid-template-columns: 1fr auto auto; gap: 16px 18px; }
-  .top .repo { grid-row: 1; grid-column: 3; margin-left: 0; padding-block: 15px; margin-block: -15px; }
-  .top nav { grid-row: 2; grid-column: 1 / -1; flex-wrap: wrap; gap: 12px 20px; }
-  /* search: a button by GitHub; pressed, the field covers the first line and its results drop below */
-  .search { grid-row: 1; grid-column: 2; position: static; margin-left: 0; }
+  .top { display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }
+  .top .repo { grid-row: 1; grid-column: 4; margin-left: 0; padding-block: 15px; margin-block: -15px; }
+  .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; flex-wrap: nowrap; gap: 20px; }
+  /* search: a button by GitHub; pressed, the field covers the line and its results drop below */
+  .search { grid-row: 1; grid-column: 3; position: static; margin-left: 0; }
   /* 44 px to press, the same footprint on the line */
   .sopen { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -15px -6px; color: var(--muted); }
   .sopen:hover { color: var(--paper); }
@@ -440,7 +529,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .top.s-on .slist { position: fixed; }
   /* the 404 page: the field shown open under the pages, as on a wide screen (no sheet, no keyboard on load) */
   body.notfound .sopen { display: none; }
-  body.notfound .search { grid-row: 3; grid-column: 1 / -1; position: relative; width: 100%; justify-self: stretch; }
+  body.notfound .search { grid-row: 2; grid-column: 1 / -1; position: relative; width: 100%; justify-self: stretch; }
   body.notfound .sfield { display: flex; position: static; height: 44px; }
   body.notfound .slist { left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 560px); }
 }
@@ -522,7 +611,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mtab .mv .fig { justify-content: flex-end; }
   .sec { padding-top: 28px; }
   .vals { grid-template-columns: 1fr 1fr; }
-  .tlab div { grid-template-columns: 1fr; gap: 2px; }
+  .tlab > div { grid-template-columns: 1fr; gap: 2px; }
   .sysname { font-size: min(72px, 18vw); }
   .sect { font-size: 34px; }
   .refh { font-size: 44px; }
@@ -540,6 +629,14 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: .05em; color: var(--paper); }
   .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
   .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
+  /* a source link with no reason before it sits under the state, clear of the name's link */
+  .rp .rr.rsrc { grid-column: 2; }
+  .rp .ev, .rp.l .ev { grid-column: 1 / -1; max-width: none; margin: 2px 0 0; font-size: 11px; }
+  .cf > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .cn > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .cn > div + div { margin-top: 4px; }
+  .cn .cn { padding-left: 12px; border-left: 1px solid var(--line); margin-top: 2px; }
+  .cardfull { margin-top: 32px; }
   /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
   .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
   .rose[data-hot="4"] .rp[data-n="4"], .rose[data-hot="5"] .rp[data-n="5"], .rose[data-hot="6"] .rp[data-n="6"] { background: var(--line); box-shadow: -8px 0 0 var(--line), 8px 0 0 var(--line); }
@@ -560,7 +657,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mtab .ml { grid-column: 1 / -1; margin-top: 4px; }
   /* inline links: thumb-sized hit areas, the text where it was */
   .rn a { display: inline-block; padding-block: 8px; margin-block: -8px; }
-  .rule { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
+  .rule, .psrc { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
   .ctl .qs { padding-block: 4px; margin-block: -4px; }
   .facts .links { gap: 16px; }
   .facts .links a, .facts dd > a { display: inline-block; padding-block: 4px; margin-block: -4px; }
@@ -573,16 +670,17 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 /* one track of not-benchmarked entries: the last entry's rule closes the grid, the footer adds none */
 @media (max-width: 635px) { .home .foot { border-top: 0; margin-top: 32px; } }
-/* tablets and phones held sideways: the pages share the logo's line */
-@media (min-width: 561px) and (max-width: 960px) {
-  .top { grid-template-columns: auto 1fr auto auto; padding-block: 16px; }
-  .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; flex-wrap: nowrap; }
-  .search { grid-column: 3; }
-  .top .repo { grid-column: 4; }
-  body.notfound .search { grid-row: 2; }
-}
 /* phones */
 @media (max-width: 560px) {
+  /* the system page's claims, compact so the figures come soon: the card's identity in one run of
+     text, the folds and the quality gap closer together */
+  .facts .cardid { display: block; }
+  .facts .cardid > span { display: inline; }
+  .facts .cardid > span + span:before { content: " · " / ""; color: var(--muted); }
+  .facts .cardid a { display: inline-block; padding-block: 4px; }
+  .cardfull { margin-top: 24px; padding-top: 14px; }
+  .howread { padding-top: 14px; }
+  .gapblk { margin-top: 20px; row-gap: 20px; }
   /* the legend: a 2 x 3 key of glyph and name, so the first system shows on landing; the questions
      are read aloud here and shown on the criteria page. Columns sized by their names, so each name
      keeps one line where both fit (390 px up) and wraps below */
@@ -594,8 +692,14 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .qq { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .keyline { margin-top: 12px; gap: 6px; }
   .chip { padding: 5px 7px 5px 6px; }
-  /* the pages on their own line: taller to press, the text where it was */
-  .top nav a { padding-block: 10px; margin-block: -10px; }
+  /* the header on one line: the logo's glyph alone and GitHub's mark alone (both names still read
+     aloud), the pages taller to press with the text where it was */
+  .top { column-gap: 12px; padding-block: 14px; }
+  .top nav { margin-left: 4px; gap: 16px; }
+  .top nav a { padding-block: 10px; margin-block: -10px; letter-spacing: .05em; }
+  .brand .logo span, .top .repo span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .brand .logo { padding: 11px; margin: -11px; }
+  .top .repo { padding-inline: 5px; margin-inline: -5px; }
   /* rows: an 80 px glyph beside the name, closer rows, missing values lighter */
   .sysc { grid-template-columns: 80px minmax(0, 1fr); column-gap: 14px; }
   .row .pie { width: 80px; height: 80px; }
@@ -652,9 +756,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 @media (max-width: 400px) {
   .heads { column-gap: 12px; }
   .heads .sb { letter-spacing: .03em; }
-  .top { column-gap: 12px; }
-  .brand .logo { gap: 8px; }
-  .brand .logo span { font-size: 20px; }
 }
 /* the narrowest phones: smaller figures, closer columns on the board */
 @media (max-width: 360px) {
