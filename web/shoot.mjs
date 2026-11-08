@@ -53,6 +53,14 @@ const expected = (p, col, dir) => p.evaluate(([col, dir]) => [...document.queryS
   const none = rows.filter((r) => r.k == null).sort(byName);
   return [...have, ...none].map((r) => r.id);
 }), [col, dir]);
+// the tables as sorted sets: each model's heading, its size as printed (400B is 4e11) and its rows A to Z,
+// and every system a row header links; a sort reorders rows within a table and never moves a table or a row
+const layout = (p) => p.evaluate(() => [...document.querySelectorAll('.bench')].map((s) => ({
+  model: s.querySelector('h2').textContent,
+  size: (([, n, u]) => Math.round(+n * { B: 1e9, M: 1e6 }[u]))(s.querySelector('.sec-l').textContent.match(/([\d.]+)([BM]) parameters/)),
+  rows: [...s.querySelectorAll('.tbl .rows > .row')].map((r) => r.id).sort(),
+  systems: [...s.querySelectorAll('.tbl .rows > .row .name a')].map((a) => new URL(a.href).pathname),
+})));
 const sortState = (p) => p.evaluate(() => ({
   aria: [...new Set([...document.querySelectorAll('.hc[aria-sort]')].map((h) => `${h.dataset.col}:${h.getAttribute('aria-sort')}`))],
   heads: document.querySelectorAll('.hc[aria-sort]').length,
@@ -97,6 +105,12 @@ const sortBy = async (p, col, dir) => {
   ok(shape.select === 0 && shape.toggles === 0, 'no sort control, no view toggle, no tabs', shape);
   ok(shape.quotes === 0, 'no quotes on the home');
   ok(shape.tables.join() === 'Llama 4 Maverick:flashprove,Llama 3.1 8B:sash' && shape.wip === 0, 'two tables, Llama 4 Maverick (FlashProve) then Llama 3.1 8B (SASH); no work-in-progress label', shape.tables);
+  const lay = await layout(p);
+  const sizes = lay.map((t) => t.size);
+  ok(sizes.length === 2 && sizes.every((n, i) => n > 0 && (i === 0 || n < sizes[i - 1])), 'tables by model size, largest first, from the sizes they print', lay.map((t) => `${t.model} ${t.size}`));
+  const systems = lay.flatMap((t) => t.systems);
+  const pies = await p.evaluate(() => [...document.querySelectorAll('main .pie[href]')].map((a) => new URL(a.href).pathname).filter((x) => x !== '/reference'));
+  ok(systems.length === 2 && new Set(systems).size === systems.length && JSON.stringify(pies) === JSON.stringify(systems), 'no table across models: each system once on the overview, its glyph once', { systems, pies });
   ok(shape.refs.join() === 'ref-serve,ref-recompute' && !shape.sameAsAbove, 'two reference rows after the models, no "same as above"', shape.refs);
   ok(shape.sections.join() === 'llama-4-maverick,llama-3-1-8b,references,not-yet' && shape.nb === 19 && /Native workloads differ/.test(await p.locator('.nat').innerText()), 'sections in order, largest model first, under the native workloads header; 19 not benchmarked yet', shape.sections);
   // row slice hover: lift and a positioned label; no row moves; the other slices keep their ink
@@ -131,6 +145,7 @@ const sortBy = async (p, col, dir) => {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const st0 = await sortState(p);
+  const lay0 = JSON.stringify(await layout(p));
   ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === st0.tables && st0.hash === '', 'default: System A to Z in every table, one sorted head per table, empty hash', st0);
   for (const col of ['system', 'covers', 'proof_size', 'check_time', 'overhead']) {
     for (const dir of ['asc', 'desc']) {
@@ -138,7 +153,7 @@ const sortBy = async (p, col, dir) => {
       const got = await order(p);
       const st = await sortState(p);
       ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === st.tables && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
-        && (col === 'system' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`), `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
+        && (col === 'system' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`) && JSON.stringify(await layout(p)) === lay0, `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
     }
   }
   await sortBy(p, 'proof_size', 'desc');
@@ -150,6 +165,7 @@ const sortBy = async (p, col, dir) => {
   await r.p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
   const st2 = await sortState(r.p);
   ok(st2.aria.join() === 'check_time:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'check_time', 'desc')), 'hash round-trip', st2);
+  ok(JSON.stringify(await layout(r.p)) === lay0, 'a sort from the hash keeps the tables in model-size order, each with its own rows');
   ok(await cls(r.p) === 0, 'CLS on load with a sort hash is 0');
   await r.p.evaluate(() => { location.hash = 'sort=overhead-desc'; }); await r.p.waitForTimeout(400);
   ok((await sortState(r.p)).aria.join() === 'overhead:descending', 'hashchange applies a new order');

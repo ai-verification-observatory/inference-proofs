@@ -1,5 +1,6 @@
-"""The overview page (index.html): one sortable table per model and workload (S6), the
-references and the systems not benchmarked yet, and the helpers the other pages share with it
+"""The overview page (index.html): one sortable table per model and workload (S6), the models
+largest first and no table across models, so each row is on the page once; the references and
+the systems not benchmarked yet, and the helpers the other pages share with it
 (model sizes, shapes, pins).
 """
 
@@ -195,6 +196,16 @@ def facts_line(text):
     )
 
 
+def models_by_size(provers, names):
+    """S6: the models of the system rows, in the order of their tables: total parameters as the
+    workload record states them (`workload.model.parameters.total`), largest first, then name. A
+    size of the model proved, read from stored values, never a figure or a glyph state: no
+    system's result moves its table (S5)."""
+    size = {c["workload"]["model"]["digest"]: c["workload"]["model"]["parameters"]["total"]
+            for c in provers}  # fmt: skip
+    return sorted(size, key=lambda d: (-size[d], names[d]))
+
+
 def by_name(cfgs):
     return sorted(cfgs, key=lambda c: (name_of(c["system"]).lower(), c["position"]))
 
@@ -204,8 +215,10 @@ DIVISIONS = ("native", "closed", "open")
 
 
 def tables():
-    """S6: one table per model, largest first, then one per workload of that model: its native
-    workloads by id, then its closed ones, then its open ones (RFC-0003 §Divisions)."""
+    """S6: one table per model, largest first (`models_by_size`), then one per workload of that
+    model: its native workloads by id, then its closed ones, then its open ones (RFC-0003
+    §Divisions). Each system row is in the table of its workload and in no other: there is no
+    table across models, so no row is repeated (owner decision of 2026-11-08, #333)."""
     out = []
     for d in S.MODELS:
         division = {c["workload"]["id"]: c["workload"]["division"]
