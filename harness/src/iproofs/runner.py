@@ -98,6 +98,7 @@ from iproofs.provenance import (
     model_digest,
     proof_digest,
     select_cpus,
+    select_verifier_cpus,
     usable_topology,
 )
 from iproofs.quantity import NullReason, Scope, Unit, check_closed_division
@@ -215,6 +216,31 @@ class CpuOnlyEnvironment:
         host has nowhere else to put the verifier and is refused by the overlap check."""
         verifier = "1" if (os.cpu_count() or 1) > 1 else "0"
         return ("0" if role == "prover" else verifier), "0"
+
+
+class VerifierEnvironment:
+    """A host without a GPU that runs only the verifier-side controls of a stored run
+    (RFC-0008 §Split suites): the verifier profile's `n_verifier` CPUs from those this process
+    may use (`usable_topology`); it binds no prover, so no prove step runs on it."""
+
+    def __init__(self, host: Host, n_verifier: int) -> None:
+        topology = usable_topology(host)
+        self._host = host
+        self._cpus = select_verifier_cpus(topology, n_verifier)
+        node = {c.id: c.node for c in topology.cpus}
+        self._mems = ",".join(map(str, sorted({node[c] for c in self._cpus})))
+
+    def host(self) -> Host:
+        return self._host
+
+    def gpu(self) -> int | None:
+        return None
+
+    def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]:
+        if role == "prover":
+            raise IProofsError(ErrorKind.CONFIG, "a verifier host binds no prover CPUs")
+        cpus = self._cpus if role == "verifier" else self._cpus[:1]
+        return ",".join(map(str, cpus)), self._mems
 
 
 def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, Path]:
@@ -1882,7 +1908,8 @@ def controls_for_run(
     were kept (`--keep-io`); adds `controls.json` to the run directory (append-only). With
     `seed` the suite uses it instead of a fresh one; with `only` it runs those controls and
     writes a part for `--merge` instead (RFC-0008 §Split suites). The weights are resolved only
-    when a prover-side control runs."""
+    when a prover-side control runs, and a prover-side control of a GPU profile needs the
+    runner's GPU."""
     io = run_dir / "io"
     if not (io / "proofs").is_dir() or not (io / "prove.out.json").is_file():
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no proofs; rerun with --keep-io")
@@ -1913,6 +1940,17 @@ def controls_for_run(
     )
     job = Job(spec, doc["run_id"], run_dir, log_prefix="controls-")
     runner._resolve_inputs(job, models=bool(prover))
+    assert job.reference is not None
+    profile = job.reference.profiles[spec.profile]
+    gpu_profile = isinstance(profile, ProverProfile) and profile.gpu is not None
+    no_gpu = gpu_profile and runner.env.gpu() is None  # GPU index 0 is a GPU
+    no_prover = isinstance(runner.env, VerifierEnvironment) or no_gpu
+    if prover and no_prover:  # a prove that cannot run here must not read as prover_failed
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"prover-side controls {', '.join(prover)} prove on a host of {spec.profile}: give "
+            "--gpu on such a host, or --only verifier-side controls",
+        )
     manifest = json.loads((run_dir / "manifest.json").read_text())
     job.image = manifest["system"]["image"]["ref"]
     job.commitment_record = manifest["commitment"]  # digests rechecked before every verify

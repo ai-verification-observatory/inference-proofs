@@ -16,9 +16,11 @@ from test_prover_side import repo as perturbable_repo
 from iproofs import cli
 from iproofs.adapter import InProcessRunner
 from iproofs.errors import IProofsError
+from iproofs.provenance import Host, select_verifier_cpus, usable_topology
 from iproofs.runner import (
     JobSpec,
     Runner,
+    VerifierEnvironment,
     control_suite,
     controls_for_run,
     merge_controls,
@@ -28,6 +30,7 @@ from iproofs.schema import SchemaRegistry
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
+FIXTURE_HOST = ROOT / "harness/tests/fixtures/host"
 ENV = {"IPROOFS_FAKE_UPSTREAM": "64168df9fd0706dfd955b6795fa6f535872dff78",
        "IPROOFS_FAKE_DELAY_S": "0"}  # fmt: skip
 IMAGE = "local/in-process@sha256:" + "0" * 64
@@ -144,6 +147,41 @@ def test_verifier_part_needs_no_weights(
         controls_for_run(runner(r), run_dir, seed=SEED, only=["P2"])
 
 
+class OneCpuVerifier(VerifierEnvironment):
+    def __init__(self) -> None:
+        super().__init__(Host(FIXTURE_HOST, run=lambda _: None, hosted=True), 1)
+
+
+def test_prover_side_refused_where_no_prove_can_run(kept: tuple[Path, Path]) -> None:
+    """A prove that cannot run on this host must stop the job, not read as `prover_failed`."""
+    r, run_dir = kept
+    on_gpu = twin_of(run_dir, "gpu-profile")
+    with pytest.raises(IProofsError, match="prover-side controls P1, fake-unsound-skip-tag"):
+        controls_for_run(
+            runner(r, env=OneCpuVerifier()), run_dir, only=["C1,P1,fake-unsound-skip-tag"]
+        )
+    part = controls_for_run(runner(r, env=OneCpuVerifier()), run_dir, seed=SEED, only=["C1"])
+    assert json.loads(part.read_text())["verifier_cpus"] == 1
+    run = json.loads((on_gpu / "run.json").read_text())
+    (on_gpu / "run.json").write_text(json.dumps(run | {"profile": "prover-h200-hosted"}))
+    with pytest.raises(IProofsError, match="give --gpu"):
+        controls_for_run(runner(r), on_gpu, only=["P2"])
+    assert not list(on_gpu.glob("controls-part-*"))
+
+
+def test_verifier_environment_binds_the_profile_cpus() -> None:
+    host = Host(FIXTURE_HOST, run=lambda _: None, hosted=True)
+    env = VerifierEnvironment(host, 3)
+    assert env.cpus("verifier") == ("0,1,2", "0,1")
+    assert env.cpus("verifier_1") == ("0", "0,1")
+    assert (env.gpu(), env.host()) == (None, host)
+    with pytest.raises(IProofsError, match="binds no prover"):
+        env.cpus("prover")
+    with pytest.raises(IProofsError, match="not enough CPUs for the verifier profile: 4 < 8"):
+        VerifierEnvironment(host, 8)
+    assert select_verifier_cpus(usable_topology(host), 4) == (0, 1, 2, 3)
+
+
 def test_cli_split_and_merge(kept: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     r, run_dir = kept
     monkeypatch.chdir(r)
@@ -163,3 +201,36 @@ def test_cli_split_and_merge(kept: tuple[Path, Path], monkeypatch: pytest.Monkey
     assert cli.main([*base, "--only", "C1", "--seed", "0xzz"]) == 2
     assert cli.main(["controls", "--prepare-perturbed", "fake-tiny-ci", "--system", "fake",
                      "--profile", "ci-cpu", "--only", "C1"]) == 2  # fmt: skip
+
+
+def test_cli_hosted_needs_the_pinned_image(
+    kept: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A hosted container is the system's pinned image; a run made with another image (here
+    the in-process one) cannot be controlled in it."""
+    r, run_dir = kept
+    monkeypatch.chdir(r)
+    inner = InProcessRunner(r / "systems/fake/entrypoint", REGISTRY, env=ENV)
+    monkeypatch.setattr(cli, "_containers", lambda *a, **k: (inner, None, REGISTRY))
+    assert cli.main(["controls", str(run_dir), "--hosted", "--only", "C1"]) == 2
+    assert "--hosted runs in the pinned image" in capsys.readouterr().err
+
+
+def test_cli_hosted_verifier_host_and_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without --gpu a hosted controls job binds the release's verifier-cpu CPUs; with --gpu
+    the run's prover profile, as `iproofs run --gpu` does."""
+    from iproofs import runner as runner_mod  # noqa: PLC0415
+
+    made: list[tuple[Host, int]] = []
+
+    class Spy(OneCpuVerifier):
+        def __init__(self, host: Host, n: int) -> None:
+            made.append((host, n))
+            super().__init__()
+
+    monkeypatch.setattr(runner_mod, "VerifierEnvironment", Spy)
+    assert isinstance(cli._verifier_host(ROOT, "v0.1", REGISTRY), Spy)
+    ((host, n),) = made
+    assert (host.hosted, n) == (True, 8)
+    with pytest.raises(IProofsError, match="no verifier-cpu"):
+        cli._verifier_host(ROOT, "ci", REGISTRY)
