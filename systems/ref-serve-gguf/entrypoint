@@ -1,0 +1,337 @@
+#!/usr/bin/env python3
+"""Plain-serving reference for the Maverick workloads on llama.cpp (RFC-0015 SRV-6, SRV-7).
+
+Usage: entrypoint <info|setup|prove> /io/job.json /io/out.json
+
+`prove` starts the pinned `llama-server` once, with `-m` the first of the workload's GGUF files
+and the workload's `engine_args` from system.yaml verbatim (SRV-3, SRV-6). It sends each batch's
+requests to `/completion` at once, one per server slot (SRV-1), waits for the whole batch, and
+then releases one directory per request, `/io/proofs/req-<i>/outputs.json`, written under a
+temporary name and renamed (REF-1). Requests are token ids, greedy, `n_predict` the workload's
+output tokens (SRV-2), with the sampling fields SRV-6 names. The outputs are kept for audit and
+never compared with a system's outputs (SRV-4). `commit` and `verify` are skipped by the harness
+for a reference system, and refused here.
+
+Next to the releases, `prove` keeps for audit and for the CPU fixtures (README §Capture):
+`/io/responses.jsonl`, each request body and the server's response body, one line per request;
+and `/io/llama-server.log`, the server's own output.
+
+The engine image has Python 3.12 and its standard library, not PyYAML; the image build extracts
+the PyYAML wheel pinned in inputs.lock into `site/` next to this file (no pip in the image).
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests or the
+hosted runner run this file outside docker; IPROOFS_SYSTEM_YAML points at system.yaml outside
+the image.
+"""
+
+import http.client
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "site"))
+import yaml  # noqa: E402
+
+ENGINE_COMMIT = "cd959bae99ff4bed22bef2604f45241c09bbb8c8"  # llama.cpp v0.9.0, build b12110
+SERVER = ["/app/llama-server"]  # the engine image's server binary; the tests use a fake one
+# The image's WORKDIR: the server binary finds its libraries (libllama-server-impl.so and the
+# ggml backends in /app) from there, as the image's own ENTRYPOINT runs it.
+SERVER_CWD = "/app"
+LOOPBACK = "127.0.0.1"
+SCRATCH = os.environ.get("IPROOFS_SCRATCH", "/tmp/ref-serve-gguf")  # writable under --read-only
+SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.yaml"))
+INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+POLL_S = 1.0  # how often the server's /health is asked while it loads
+LOG_TAIL = 40  # server log lines printed to stderr when the server fails
+
+
+class ServeError(Exception):
+    """A server response or state the adapter cannot turn into outputs."""
+
+
+def host(container_path: str) -> Path:
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"ref-serve-gguf: path {container_path!r} outside /io and /models")
+
+
+def system() -> dict:
+    return yaml.safe_load(SYSTEM_YAML.read_text())
+
+
+def engine_args(workload_id: str) -> list[str]:
+    """The workload's options, verbatim from system.yaml (SRV-3)."""
+    for entry in system()["workloads"]:
+        if entry["id"] == workload_id:
+            return list(entry["engine_args"])
+    raise SystemExit(f"ref-serve-gguf: workload {workload_id!r} is not in system.yaml")
+
+
+def first_gguf(model_dir: str) -> str:
+    """The first of the workload's GGUF files, as a /models path: llama.cpp loads the other
+    split files from it (`-m`, tools/server/README.md L100)."""
+    files = sorted(host(model_dir).rglob("*.gguf"))
+    if not files:
+        raise SystemExit(f"ref-serve-gguf: no GGUF file under {model_dir}")
+    return f"{model_dir.rstrip('/')}/{files[0].relative_to(host(model_dir)).as_posix()}"
+
+
+def server_argv(model: str, port: int, args: list[str]) -> list[str]:
+    """The server command line: the model, a loopback address for the adapter's own requests,
+    then the workload's options unchanged. `--host` and `--port` are transport only."""
+    return [*SERVER, "-m", model, "--host", LOOPBACK, "--port", str(port), *args]
+
+
+def server_env(environ: dict[str, str]) -> dict[str, str]:
+    """The server's environment: the image's, without any LLAMA_ARG_* variable (the engine
+    image sets LLAMA_ARG_HOST and LLAMA_ARG_PORT), so the recorded command line is the whole
+    configuration; HOME and the CUDA JIT cache under the writable scratch."""
+    env = {k: v for k, v in environ.items() if not k.startswith("LLAMA_ARG_")}
+    return env | {"HOME": SCRATCH, "CUDA_CACHE_PATH": f"{SCRATCH}/nv-cache"}
+
+
+def request_body(prompt: list[int], n_predict: int) -> dict[str, object]:
+    """One `/completion` request (SRV-6, tools/server/README.md L501 to L611): token ids, which
+    the server does not prefix with BOS; greedy (temperature 0 with the default sampler order
+    and n_probs 0); penalties neutral; no reuse of another request's KV cache; token ids back."""
+    return {"prompt": prompt, "n_predict": n_predict, "temperature": 0.0, "n_probs": 0,
+            "repeat_penalty": 1.0, "presence_penalty": 0.0, "frequency_penalty": 0.0,
+            "cache_prompt": False, "return_tokens": True, "stream": False}  # fmt: skip
+
+
+def output_tokens(response: object, prompt_len: int, n_predict: int) -> list[int]:
+    """The generated token ids of one `/completion` response, or ServeError. The fields are the
+    pinned server's (README L670 to L684): `tokens` (with `return_tokens`), `stop_type`,
+    `tokens_predicted` and `tokens_evaluated`. `truncated` is not checked: with a slot of
+    prompt plus one token the server sets it when it samples that token (server-context.cpp
+    L2188), and the token is still the one greedy decoding gives."""
+    if not isinstance(response, dict):
+        raise ServeError(f"response is {type(response).__name__}, not an object")
+    tokens = response.get("tokens")
+    if not isinstance(tokens, list) or not all(
+        isinstance(t, int) and not isinstance(t, bool) and t >= 0 for t in tokens
+    ):
+        raise ServeError(f"tokens {tokens!r} is not a list of token ids")
+    stop = response.get("stop_type")
+    if stop == "limit" and len(tokens) != n_predict:
+        raise ServeError(f"stop_type limit with {len(tokens)} tokens, not n_predict {n_predict}")
+    if stop == "eos" and not 1 <= len(tokens) <= n_predict:
+        raise ServeError(f"stop_type eos with {len(tokens)} tokens for n_predict {n_predict}")
+    if stop not in ("limit", "eos"):
+        raise ServeError(f"stop_type {stop!r}: neither the n_predict limit nor end of sequence")
+    if response.get("tokens_predicted") != len(tokens):
+        raise ServeError(
+            f"tokens_predicted {response.get('tokens_predicted')!r} != {len(tokens)} tokens"
+        )
+    if response.get("tokens_evaluated") != prompt_len:
+        raise ServeError(
+            f"the server evaluated {response.get('tokens_evaluated')!r} prompt tokens, not the"
+            f" {prompt_len} sent (a BOS added, or the prompt cut)"
+        )
+    return tokens
+
+
+def free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((LOOPBACK, 0))
+        return int(s.getsockname()[1])
+
+
+class LlamaServer:
+    """The pinned `llama-server`, started once per `prove` and stopped at its end."""
+
+    def __init__(self, model: str, args: list[str], io: Path) -> None:
+        Path(SCRATCH).mkdir(parents=True, exist_ok=True)
+        self.port = free_port()
+        self.argv = server_argv(model, self.port, args)
+        self.log_path = io / "llama-server.log"
+        self.responses = io / "responses.jsonl"
+        self.started = time.monotonic_ns()
+        self.logged = False
+        real = [*self.argv]
+        real[real.index("-m") + 1] = str(host(model))
+        try:
+            with self.log_path.open("ab") as log:
+                self.proc = subprocess.Popen(real, stdout=log, stderr=subprocess.STDOUT,
+                                             env=server_env(dict(os.environ)),
+                                             cwd=SERVER_CWD)  # fmt: skip
+        except OSError as e:
+            log_command(self.argv, SERVER_CWD, self.started, None)
+            raise ServeError(f"llama-server did not start: {e}") from e
+        try:
+            self.wait_ready()
+        except BaseException:
+            self.close()
+            raise
+
+    def _request(self, method: str, path: str, body: object = None) -> tuple[int, bytes]:
+        conn = http.client.HTTPConnection(LOOPBACK, self.port)
+        try:
+            data = None if body is None else json.dumps(body).encode()
+            headers = {} if data is None else {"Content-Type": "application/json"}
+            conn.request(method, path, body=data, headers=headers)
+            response = conn.getresponse()
+            return response.status, response.read()
+        finally:
+            conn.close()
+
+    def wait_ready(self) -> None:
+        """Until `/health` answers 200 (README L480 to L492: 503 while the model loads)."""
+        while True:
+            if self.proc.poll() is not None:
+                raise ServeError(f"llama-server exited {self.proc.returncode} while loading")
+            try:
+                status, _ = self._request("GET", "/health")
+            except OSError:
+                status = 0  # not listening yet
+            if status == 200:
+                return
+            time.sleep(POLL_S)
+
+    def complete(self, body: dict[str, object]) -> tuple[int, object]:
+        status, raw = self._request("POST", "/completion", body)
+        try:
+            return status, json.loads(raw)
+        except ValueError:
+            return status, raw.decode(errors="replace")
+
+    def generate(self, batch: int, first: int, prompts: list[list[int]], n: int) -> list[list[int]]:
+        """One batch: every request sent at once, one per slot; the outputs once all are back.
+        Every request and response is appended to responses.jsonl before any is judged."""
+        bodies = [request_body(p, n) for p in prompts]
+        with ThreadPoolExecutor(max_workers=len(bodies)) as pool:
+            answers = list(pool.map(self.complete, bodies))
+        with self.responses.open("a") as f:
+            for j, (body, (status, response)) in enumerate(zip(bodies, answers, strict=True)):
+                line = {"request_index": first + j, "batch": batch, "request": body,
+                        "status": status, "response": response}  # fmt: skip
+                f.write(json.dumps(line, sort_keys=True) + "\n")
+        outputs = []
+        for j, (prompt, (status, response)) in enumerate(zip(prompts, answers, strict=True)):
+            if status != 200:
+                raise ServeError(f"request {first + j}: HTTP {status}: {str(response)[:300]}")
+            try:
+                outputs.append(output_tokens(response, len(prompt), n))
+            except ServeError as e:
+                raise ServeError(f"request {first + j}: {e}") from e
+        return outputs
+
+    def close(self) -> None:
+        """Stops the server (SIGTERM, then SIGKILL after 60 s) and records its command line
+        with its exit code in /io/commands.jsonl, once."""
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+                self.proc.wait()
+        if not self.logged:
+            log_command(self.argv, SERVER_CWD, self.started, self.proc.returncode)
+            self.logged = True
+
+
+def log_tail(io: Path) -> str:
+    """The last lines of the server's log, for the harness's record of a failed step."""
+    try:
+        lines = (io / "llama-server.log").read_text(errors="replace").splitlines()
+    except OSError:
+        return ""
+    return "\n".join(lines[-LOG_TAIL:])
+
+
+make_engine = LlamaServer  # the tests may replace this
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}  # fmt: skip
+
+
+def log_command(argv: list[str], cwd: str, started: int, exit_code: int | None) -> None:
+    line = {"argv": argv, "cwd": cwd, "started_mono_ns": started, "exit_code": exit_code}
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+
+
+def info(job: dict) -> dict:
+    doc = system()
+    out = {**base("info"), "system": doc["name"], "upstream_commit": ENGINE_COMMIT,
+           "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
+           "workloads": [w["id"] for w in doc["workloads"]], "profile": "prover-h100",
+           "contract_versions": ["adapter/1"]}  # fmt: skip
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
+
+
+def setup(job: dict) -> dict:
+    return {**base("setup"), "ready": True, "log_files": []}
+
+
+def release(proofs_dir: Path, proof_id: str, outputs: dict[str, object]) -> None:
+    """REF-1: written under a temporary name, then renamed, so a release is all or nothing."""
+    tmp = proofs_dir / f".tmp-{proof_id}"
+    tmp.mkdir()
+    (tmp / "outputs.json").write_text(json.dumps(outputs, sort_keys=True) + "\n")
+    os.rename(tmp, proofs_dir / proof_id)
+
+
+def prove(job: dict) -> dict:
+    args = engine_args(job["workload"]["id"])
+    prompts = [json.loads(line) for line in host(job["prompts_file"]).read_text().splitlines()]
+    size, batches = job["batch_size"], job["batches"]
+    if len(prompts) < size * batches:
+        raise SystemExit(f"ref-serve-gguf: {len(prompts)} prompts for {batches} batches of {size}")
+    io = host("/io")
+    proofs_dir = io / "proofs"
+    proofs_dir.mkdir(parents=True, exist_ok=True)
+    n = job["shape"]["output_tokens"]
+    try:
+        server = make_engine(first_gguf(job["model_dir"]), args, io)
+    except ServeError as e:
+        print(log_tail(io), file=sys.stderr)
+        raise SystemExit(f"ref-serve-gguf: {e}") from e
+    proofs: list[dict[str, object]] = []
+    failure = None
+    try:
+        for b in range(batches):
+            batch = prompts[b * size : (b + 1) * size]
+            outputs = server.generate(b, b * size, batch, n)
+            for j, tokens in enumerate(outputs):
+                i = b * size + j
+                release(proofs_dir, f"req-{i}", {"request_index": i, "batch": b,
+                                                  "token_ids": tokens})  # fmt: skip
+                proofs.append({"proof_id": f"req-{i}", "request_index": i,
+                               "parts": ["outputs.json"], "claimed_output": tokens})  # fmt: skip
+    except ServeError as e:
+        failure = e
+    finally:
+        server.close()
+    if failure is not None:
+        print(log_tail(io), file=sys.stderr)
+        raise SystemExit(f"ref-serve-gguf: {failure}")
+    return {**base("prove"), "proofs": proofs}
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"ref-serve-gguf: job.json is for {job.get('subcommand')!r}, not {sub!r}")
+    handlers = {"info": info, "setup": setup, "prove": prove}
+    if sub not in handlers:  # RFC-0015: the harness skips commit and verify
+        raise SystemExit(f"ref-serve-gguf: no {sub!r} step for a reference system")
+    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,53 @@
+# RFC-0015 reference system: plain serving of the Maverick workloads on llama.cpp (SRV-6, SRV-7).
+# Every option, with its documentation link at the pinned version: systems/ref-serve-gguf/README.md.
+# No adapter image is pinned yet: the images workflow builds it (RFC-0014 B7). Until then a run
+# uses a local build (--image) or the development install of docs/runbooks/hf-jobs.md, and is
+# never eligible for a release.
+#
+# Sizing (SRV-6): `--n-cpu-moe 22` is the starting value computed from the GGUF headers
+# (README §Sizing), not a measured one. Each N tried is this file at the commit the run names
+# (the manifest records `system_manifest_digest` and `adapter_commit`); only the final N is
+# published, and the runs of other N values never enter its statistics.
+schema: system/1
+name: ref-serve-gguf
+kind: reference
+contract: adapter/1
+reference_role: serve
+engine:
+  name: llama.cpp
+  version: v0.9.0
+  image: ghcr.io/ggml-org/llama.cpp:server-cuda-b12110@sha256:a2963b4817f03eea7e0d6065ea576252322792441ef97aaae178b924520547d6
+workloads:
+- id: fp-maverick-w1024-b1
+  precision_used: UD-Q4_K_XL
+  precision_substitution: null
+  engine_args:
+  - -np
+  - '1'
+  - --kv-unified
+  - --kv-unified-per-slot
+  - '1025'
+  - -ngl
+  - all
+  - --n-cpu-moe
+  - '22'
+  - --fit
+  - 'off'
+- id: fp-maverick-w1024-b24
+  precision_used: UD-Q4_K_XL
+  precision_substitution: null
+  engine_args:
+  - -np
+  - '24'
+  - --kv-unified
+  - --kv-unified-per-slot
+  - '1025'
+  - -ngl
+  - all
+  - --n-cpu-moe
+  - '22'
+  - --fit
+  - 'off'
+deterministic_proofs: false
+incremental_proofs: true
+forbidden_flags: []
