@@ -1287,20 +1287,23 @@ class Runner:
                     job, "verifier_files", io / "verifier", "verify", record, store)]  # fmt: skip
             else:
                 files = self._verifier_files(job, io)
-            out, result = self._call(
-                job,
-                "verify",
-                {
-                    "commitment_id": call.commitment_id,
-                    "verifier_files": files,
-                    "request": list(call.request),
-                    "claimed_output": list(call.claimed_output),
-                    "proof_dir": "/io/proof",
-                },
-                io=io,
-                control=True,
-                ro_mounts=[(io / "verifier", "/io/verifier")] if files else [],
-            )
+            try:
+                out, result = self._call(
+                    job,
+                    "verify",
+                    {
+                        "commitment_id": call.commitment_id,
+                        "verifier_files": files,
+                        "request": list(call.request),
+                        "claimed_output": list(call.claimed_output),
+                        "proof_dir": "/io/proof",
+                    },
+                    io=io,
+                    control=True,
+                    ro_mounts=[(io / "verifier", "/io/verifier")] if files else [],
+                )
+            finally:  # one copy at a time: the stored H100 SASH run's proof is 44.6 GB
+                shutil.rmtree(io / "proof", ignore_errors=True)
             return VerifyResult(
                 str(out.verdict),
                 int(out.raw_exit_code or 0),

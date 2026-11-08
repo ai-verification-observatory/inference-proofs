@@ -9,12 +9,13 @@ import shutil
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import pytest
 from test_prover_side import repo as perturbable_repo
 
 from iproofs import cli
-from iproofs.adapter import InProcessRunner
+from iproofs.adapter import InProcessRunner, StepResult
 from iproofs.errors import IProofsError
 from iproofs.provenance import Host, select_verifier_cpus, usable_topology
 from iproofs.runner import (
@@ -234,3 +235,23 @@ def test_cli_hosted_verifier_host_and_gpu(monkeypatch: pytest.MonkeyPatch) -> No
     assert (host.hosted, n) == (True, 8)
     with pytest.raises(IProofsError, match="no verifier-cpu"):
         cli._verifier_host(ROOT, "ci", REGISTRY)
+
+
+class OneCopyAtATime(InProcessRunner):
+    """The fake, checking that no earlier control call's proof copy is still on disk."""
+
+    calls = 0
+
+    def run(self, image: str, subcommand: str, io_dir: Path, **kw: Any) -> StepResult:
+        if subcommand == "verify" and io_dir.name.startswith("call-"):
+            OneCopyAtATime.calls += 1
+            assert [d.parent.name for d in io_dir.parent.glob("call-*/proof")] == [io_dir.name]
+        return super().run(image, subcommand, io_dir, **kw)
+
+
+def test_each_call_proof_copy_is_removed_after_the_call(kept: tuple[Path, Path]) -> None:
+    r, run_dir = kept
+    containers = OneCopyAtATime(r / "systems/fake/entrypoint", REGISTRY, env=ENV)
+    runner_ = Runner(containers, root=r, registry=REGISTRY, image=IMAGE)
+    controls_for_run(runner_, run_dir, seed=SEED, only=["C1,C6,P1"])
+    assert OneCopyAtATime.calls == 2 + 6 + 3  # twin and trial; twin and five; twin and two proofs
