@@ -56,6 +56,7 @@ const expected = (p, col, dir) => p.evaluate(([col, dir]) => [...document.queryS
 const sortState = (p) => p.evaluate(() => ({
   aria: [...new Set([...document.querySelectorAll('.hc[aria-sort]')].map((h) => `${h.dataset.col}:${h.getAttribute('aria-sort')}`))],
   heads: document.querySelectorAll('.hc[aria-sort]').length,
+  tables: document.querySelectorAll('.tbl').length,
   glyphs: [...document.querySelectorAll('.hc .g')].map((g) => g.textContent).join(''),
   hash: location.hash,
 }));
@@ -95,9 +96,9 @@ const sortBy = async (p, col, dir) => {
   }));
   ok(shape.select === 0 && shape.toggles === 0, 'no sort control, no view toggle, no tabs', shape);
   ok(shape.quotes === 0, 'no quotes on the home');
-  ok(shape.tables.join() === 'Llama 4 Maverick:flashprove+sash' && shape.wip === 0, 'one table, Llama 4 Maverick, every benchmarked system in it; no work-in-progress label', shape.tables);
+  ok(shape.tables.join() === 'Llama 4 Maverick:flashprove,Llama 3.1 8B:sash' && shape.wip === 0, 'two tables, Llama 4 Maverick (FlashProve) then Llama 3.1 8B (SASH); no work-in-progress label', shape.tables);
   ok(shape.refs.join() === 'ref-serve,ref-recompute' && !shape.sameAsAbove, 'two reference rows after the models, no "same as above"', shape.refs);
-  ok(shape.sections.join() === 'llama-4-maverick,references,not-yet' && shape.nb === 19 && !/Llama 3\.1 8B/.test(await p.locator('.bench, .refs').allInnerTexts().then((x) => x.join(' '))), 'sections in order, 19 not benchmarked yet, no Llama 3.1 8B', shape.sections);
+  ok(shape.sections.join() === 'llama-4-maverick,llama-3-1-8b,references,not-yet' && shape.nb === 19 && /Native workloads differ/.test(await p.locator('.nat').innerText()), 'sections in order, largest model first, under the native workloads header; 19 not benchmarked yet', shape.sections);
   // row slice hover: lift and a positioned label; no row moves; the other slices keep their ink
   const h0 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   const pie = await p.locator('#flashprove .pie').boundingBox();
@@ -130,13 +131,13 @@ const sortBy = async (p, col, dir) => {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const st0 = await sortState(p);
-  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === 1 && st0.hash === '', 'default: System A to Z in the table, empty hash', st0);
+  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === st0.tables && st0.hash === '', 'default: System A to Z in every table, one sorted head per table, empty hash', st0);
   for (const col of ['system', 'covers', 'proof_size', 'check_time', 'overhead']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(p, col, dir);
       const got = await order(p);
       const st = await sortState(p);
-      ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === 1 && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
+      ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === st.tables && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
         && (col === 'system' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`), `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
     }
   }
@@ -173,7 +174,7 @@ const sortBy = async (p, col, dir) => {
     for (const dir of ['asc', 'desc']) {
       await sortBy(bk.p, col, dir);
       const got = (await order(bk.p))[0];
-      const keys = await bk.p.evaluate((col) => [...document.querySelectorAll('.tbl .rows > .row')].map((r) => JSON.parse(r.dataset.k)[col]), col);
+      const keys = await bk.p.evaluate((col) => [...document.querySelector('.tbl .rows').children].map((r) => JSON.parse(r.dataset.k)[col]), col);
       const firstNull = keys.findIndex((k) => k == null);
       const missingLast = firstNull === -1 || keys.slice(firstNull).every((k) => k == null);
       ok(JSON.stringify(got) === JSON.stringify((await expected(bk.p, col, dir))[0]) && missingLast, `sort with missing values: ${col} ${dir}`, { got, keys });
@@ -405,7 +406,7 @@ for (const w of [1440, 390]) {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + 'sash', { waitUntil: 'networkidle' });
-  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s4\sMaverick/.test(await p.locator('#figures .sec-l').innerText()), 'sash: no work-in-progress label; its figures name their model');
+  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s3\.1\s8B/.test(await p.locator('#figures .sec-l').innerText()), 'sash: no work-in-progress label; its figures name their model, Llama 3.1 8B');
   // an unknown address: the site's own 404 page, with the site's header, at any depth
   for (const u of ['nope', 'a/b/c']) {
     const res = await p.goto(BASE + u, { waitUntil: 'networkidle' });
@@ -493,9 +494,10 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   // button at least 32 px tall; each row two lines (name, figures), so several systems fit on one screen
   const s = await p.evaluate(() => {
     const r = (x) => x.getBoundingClientRect();
-    const b = [...document.querySelectorAll('.bench .hc:not(.hsys) .sb')];
-    const sys = r(document.querySelector('.bench .hsys .sb'));
-    const row = document.querySelector('.bench .row');
+    const t = document.querySelector('.bench');  // the first table
+    const b = [...t.querySelectorAll('.hc:not(.hsys) .sb')];
+    const sys = r(t.querySelector('.hsys .sb'));
+    const row = t.querySelector('.row');
     const lefts = b.map((x) => Math.round(r(x).left));
     const cols = [...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).left));
     return { sysAlone: sys.bottom <= Math.min(...b.map((x) => r(x).top)) + 1, bottoms: new Set(b.map((x) => Math.round(r(x).bottom))).size, aligned: lefts.every((x, i) => Math.abs(x - cols[i]) <= 1), h: Math.min(...[sys, ...b.map(r)].map((x) => Math.round(x.height))), rowH: Math.round(r(row).height), lefts, cols };

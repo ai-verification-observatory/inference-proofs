@@ -50,9 +50,11 @@ def extras(extras_tree: Path) -> dict[str, Any]:
 
 
 def configuration(view: dict[str, Any], system: str, configuration: str | None = None,
-                  workload: str = ph.WORKLOAD) -> dict[str, Any]:  # fmt: skip
+                  workload: str | None = None) -> dict[str, Any]:  # fmt: skip
+    """The system's configuration on `workload`, by default its placeholder workload."""
+    wid = workload or ph.NATIVE.get(system, ph.WORKLOAD)
     found = [c for c in view["configurations"] if c["system"] == system
-             and c["workload"]["id"] == workload
+             and c["workload"]["id"] == wid
              and (configuration is None or c["configuration"] == configuration)]  # fmt: skip
     assert len(found) == 1
     out = found[0]
@@ -92,8 +94,8 @@ def test_labels_pass_through(view: dict[str, Any], tree: Path) -> None:
 
 
 def test_one_proof_covers_names_d_tpp(view: dict[str, Any]) -> None:
-    """The covers figure is D-STAT over D-TPP (RFC-0004): 1,024 and 1,025 token (fixture)."""
-    for system, want in (("flashprove", 1024.0), ("sash", 1025.0)):
+    """The covers figure is D-STAT over D-TPP (RFC-0004): 1,024 and 1,088 token (fixture)."""
+    for system, want in (("flashprove", 1024.0), ("sash", 1088.0)):
         f = configuration(view, system)["figures"]["tokens_covered_per_proof"]
         assert (f["value"], f["unit"], f["formula"], f["repetition_formula"]) == (
             want, "token", "D-STAT", "D-TPP")  # fmt: skip
@@ -112,16 +114,16 @@ def test_runs_left_out_listed(view: dict[str, Any]) -> None:
     last line."""
     runs = configuration(view, "sash")["runs"]
     rid = ph.run_id
-    reason = f"superseded by {rid('sash', ph.WORKLOAD, 5)}: {ph.SASH_CORRECTION}"
+    reason = f"superseded by {rid('sash', ph.SASH_WORKLOAD, 5)}: {ph.SASH_CORRECTION}"
     record = f"results/{ph.RELEASE}/sash/{{}}/run.json"
     assert runs["left_out"] == [{
-        "run_id": rid("sash", ph.WORKLOAD, 1), "reasons": [reason], "reason_words": [reason],
-        "replaced_by": rid("sash", ph.WORKLOAD, 5),
-        "record": record.format(rid("sash", ph.WORKLOAD, 1)),
-        "replaced_by_record": record.format(rid("sash", ph.WORKLOAD, 5))}]  # fmt: skip
+        "run_id": rid("sash", ph.SASH_WORKLOAD, 1), "reasons": [reason], "reason_words": [reason],
+        "replaced_by": rid("sash", ph.SASH_WORKLOAD, 5),
+        "record": record.format(rid("sash", ph.SASH_WORKLOAD, 1)),
+        "replaced_by_record": record.format(rid("sash", ph.SASH_WORKLOAD, 5))}]  # fmt: skip
     assert [(f["run_id"], f["exit_code"], f["last_line"]) for f in runs["failed"]] == [
-        (rid("sash", ph.WORKLOAD, 2), 1, ph.SASH_FAILURE["message"])]  # fmt: skip
-    assert runs["completed"] == [rid("sash", ph.WORKLOAD, n) for n in (3, 4, 5)]
+        (rid("sash", ph.SASH_WORKLOAD, 2), 1, ph.SASH_FAILURE["message"])]  # fmt: skip
+    assert runs["completed"] == [rid("sash", ph.SASH_WORKLOAD, n) for n in (3, 4, 5)]
 
 
 def test_reference_all_failed_counts(view: dict[str, Any]) -> None:
@@ -195,7 +197,7 @@ def test_release_record_listed(extras: dict[str, Any]) -> None:
     release = extras["release"]
     assert len(release["runs"]) == len(set(r["run_id"] for r in release["runs"]))
     failed = {r["run_id"] for r in release["runs"] if r["status"] == "failed"}
-    assert ph.run_id("sash", ph.WORKLOAD, 2) in failed
+    assert ph.run_id("sash", ph.SASH_WORKLOAD, 2) in failed
     assert [x["run_id"] for x in release["superseded_runs"]] == [
         ph.run_id("flashprove", ph.WORKLOAD, 102)]  # fmt: skip
     fp = configuration(extras, "flashprove", "exact-match-cp-verify")

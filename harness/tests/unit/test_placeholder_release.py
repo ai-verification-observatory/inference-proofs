@@ -50,10 +50,12 @@ def index(root: Path) -> dict[str, Any]:
     return doc
 
 
-def config(doc: dict[str, Any], system: str, workload: str = ph.WORKLOAD,
+def config(doc: dict[str, Any], system: str, workload: str | None = None,
            configuration: str | None = None) -> dict[str, Any]:  # fmt: skip
+    """The system's configuration on `workload`, by default its placeholder workload."""
+    wid = workload or ph.NATIVE.get(system, ph.WORKLOAD)
     found = [c for c in doc["configurations"] if c["system"] == system
-             and c["workload"]["id"] == workload
+             and c["workload"]["id"] == wid
              and (configuration is None or c["configuration"] == configuration)]  # fmt: skip
     assert len(found) == 1, (system, workload, configuration)
     out = found[0]
@@ -69,7 +71,7 @@ def test_four_configurations(tree: Path) -> None:
         ("flashprove", "exact-match-cp-verify", ph.WORKLOAD, ph.PROFILE),
         ("ref-recompute", None, ph.WORKLOAD, ph.PROFILE),
         ("ref-serve", None, ph.WORKLOAD, ph.PROFILE),
-        ("sash", "sound-defaults", ph.WORKLOAD, ph.PROFILE),
+        ("sash", "sound-defaults", ph.SASH_WORKLOAD, ph.PROFILE),
     ]
 
 
@@ -81,21 +83,21 @@ def test_two_freezes_byte_identical(tree: Path, tmp_path: Path) -> None:
 
 def test_sash_failed_and_superseded(tree: Path) -> None:
     sash = config(index(tree), "sash")
-    first = ph.run_id("sash", ph.WORKLOAD, 1)
-    assert sash["ineligible"] == [{"run_id": first, "reasons": [
-        f"superseded by {ph.run_id('sash', ph.WORKLOAD, 5)}: {ph.SASH_CORRECTION}"]}]  # fmt: skip
-    assert ph.run_id("sash", ph.WORKLOAD, 2) in sash["runs"]  # the failed run is kept, counted
+    rid = [ph.run_id("sash", ph.SASH_WORKLOAD, n) for n in range(6)]
+    assert sash["ineligible"] == [{"run_id": rid[1], "reasons": [
+        f"superseded by {rid[5]}: {ph.SASH_CORRECTION}"]}]  # fmt: skip
+    assert rid[2] in sash["runs"]  # the failed run is kept, counted
     assert sash["statistics"]["proof_bytes"]["stats"]["n_failed"] == 1
-    failed = json.loads((tree / f"results/v0.1/sash/{ph.run_id('sash', ph.WORKLOAD, 2)}/run.json")
+    failed = json.loads((tree / f"results/v0.1/sash/{rid[2]}/run.json")
                         .read_text())["failure"]  # fmt: skip
     assert (failed["exit_code"], failed["last_lines"][-1]) == (1, ph.SASH_FAILURE["message"])
 
 
 def test_tokens_covered_per_proof_statistics(tree: Path) -> None:
     """D-TPP through D-STAT: FlashProve's window rule counts the 1,024-token prompt; SASH's
-    prompt_plus_output rule counts 1,024 + 1 on this shape (fixture values)."""
+    prompt_plus_output rule counts 1,024 + 64 on its own shape (fixture values)."""
     doc = index(tree)
-    for system, want, failed in (("flashprove", 1024.0, 0), ("sash", 1025.0, 1)):
+    for system, want, failed in (("flashprove", 1024.0, 0), ("sash", 1088.0, 1)):
         q = config(doc, system)["statistics"]["tokens_covered_per_proof"]
         assert q["value"] == want
         assert q["stats"] == {"n": 3, "n_failed": failed, "mean": want, "stdev": 0.0,
@@ -104,13 +106,16 @@ def test_tokens_covered_per_proof_statistics(tree: Path) -> None:
 
 
 def test_agreement_null_not_measurable(tree: Path) -> None:
-    """RFC-0015 NM-1: every ref-recompute run failed with `resource`."""
+    """RFC-0015 NM-1: every reference run on FlashProve's workload failed with `resource`. The
+    placeholder holds no reference run on SASH's workload, so the freeze writes neither figure
+    for SASH (not recorded, never the NM-1 sentence)."""
     doc = index(tree)
-    for system in ("flashprove", "sash"):
-        stats = config(doc, system)["statistics"]
-        for metric in ("agreement_rate", "overhead_vs_serving_prove.session"):
-            q = stats[metric]
-            assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile"), metric
+    metrics = ("agreement_rate", "overhead_vs_serving_prove.session")
+    stats = config(doc, "flashprove")["statistics"]
+    for metric in metrics:
+        q = stats[metric]
+        assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile"), metric
+    assert not set(metrics) & set(config(doc, "sash")["statistics"])
 
 
 def test_reference_all_failed(tree: Path) -> None:
@@ -127,14 +132,16 @@ def test_reference_all_failed(tree: Path) -> None:
         assert run["failure"]["last_lines"] == []  # no invented log line
 
 
-def test_ref_recompute_pairs_both_provers(tree: Path) -> None:
-    sources = set()
+def test_ref_recompute_replays_flashprove(tree: Path) -> None:
+    """The rerun reference replays FlashProve's completed runs, one each: a replay of a run on
+    another workload is refused by the runner (`recorded_seed`, RFC-0015 RC-1)."""
+    sources = []
     for n in (1, 2, 3):
         rid = ph.run_id("ref-recompute", ph.WORKLOAD, n)
         manifest = json.loads((tree / f"results/v0.1/ref-recompute/{rid}/manifest.json")
                               .read_text())  # fmt: skip
-        sources.add(manifest["prompts_from"].split("-")[3])
-    assert sources == {"flashprove", "sash"}
+        sources.append(manifest["prompts_from"])
+    assert sources == [ph.run_id("flashprove", ph.WORKLOAD, n) for n in (1, 2, 3)]
 
 
 def test_placeholder_digits(tree: Path) -> None:
@@ -175,15 +182,18 @@ def test_every_run_derives_clean(tree: Path) -> None:
         assert check_derived(path, tree) == [], path
 
 
-def test_tree_local_edit_only(tree: Path) -> None:
-    """SASH joins the Maverick workload in the tree's copies only; the real files keep it out."""
-    copy = yaml.safe_load((tree / f"workloads/{ph.WORKLOAD}.yaml").read_text())
-    real = yaml.safe_load((ROOT / f"workloads/{ph.WORKLOAD}.yaml").read_text())
-    assert "sash" in copy["systems"]
-    assert "sash" not in real["systems"]
-    sash = yaml.safe_load((tree / "systems/sash/system.yaml").read_text())
-    assert ph.WORKLOAD in sash["workloads"]
-    assert (tree / f"workloads/{ph.WORKLOAD}.yaml").read_text().startswith("# RFC-0003")
+def test_tree_files_equal_the_real_ones(tree: Path) -> None:
+    """No tree-local edit (#335): each copied workload and system file is the real one, and each
+    prover runs on a workload both files list for it."""
+    rels = [f"workloads/{w}.yaml" for w in (ph.WORKLOAD, ph.SASH_WORKLOAD)]
+    rels += [f"systems/{s}/system.yaml" for s in ph.SYSTEMS]
+    for rel in rels:
+        assert (tree / rel).read_bytes() == (ROOT / rel).read_bytes(), rel
+    for system, workload in ph.NATIVE.items():
+        wl = yaml.safe_load((tree / f"workloads/{workload}.yaml").read_text())
+        assert system in wl["systems"], system
+        assert workload in yaml.safe_load((tree / f"systems/{system}/system.yaml").read_text())[
+            "workloads"]  # fmt: skip
 
 
 def test_deployed_build_has_no_extras(tree: Path) -> None:

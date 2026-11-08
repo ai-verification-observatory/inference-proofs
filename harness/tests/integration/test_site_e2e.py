@@ -98,6 +98,12 @@ def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
             assert f"{c['system']}.html" in site
 
 
+def _not_recorded(text: str, number: re.Match[str] | None, name: str) -> None:
+    """A metric the runs did not record: no value, no record, and the words saying so."""
+    assert number is None, (name, text)
+    assert "Not recorded in these runs." in text, (name, text)
+
+
 def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
     """Each overview figure and each plate names a statistic of the frozen index by its pointer,
     and prints that statistic's value at 4 significant digits; each overview sort key is that
@@ -118,9 +124,11 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
         for body in PLATE.findall(site[name]):
             source = re.sub(r"<[^>]+>", "", body)
             found = POINTER.search(source)
-            assert found, (name, source)
-            stat = resolve(doc, found[1])
             number = NUMBER.search(body)
+            if found is None:
+                _not_recorded(source, number, name)
+                continue
+            stat = resolve(doc, found[1])
             if stat["value"] is None:
                 assert number is None
                 assert stat["null_reason"], found[1]

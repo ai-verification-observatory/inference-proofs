@@ -23,10 +23,10 @@
     {
       "badge": "",
       "kind": "system",
-      "meta": "Proved · Llama 4 Maverick",
+      "meta": "Proved · Llama 3.1 8B",
       "name": "SASH",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 none\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 none\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 none\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 none\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 none\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 none\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "sash proved · llama 4 maverick proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover zk proof cryptographic",
+      "terms": "sash proved · llama 3.1 8b proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover zk proof cryptographic",
       "tier": 0,
       "url": "/sash"
     },
