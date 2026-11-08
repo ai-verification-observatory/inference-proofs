@@ -1,3 +1,4 @@
+import dataclasses
 import json
 import shutil
 from pathlib import Path
@@ -6,7 +7,8 @@ import pytest
 
 from iproofs import cli
 from iproofs.adapter import ContainerRunner, InProcessRunner, StepResult
-from iproofs.runner import JobSpec, Runner, allocate_run_id
+from iproofs.model import System, load
+from iproofs.runner import JobSpec, Runner, allocate_run_id, check_card_class
 from iproofs.schema import SchemaRegistry
 from iproofs.validate import check_derived
 from secret_samples import sample
@@ -192,3 +194,64 @@ def test_failed_prompt_build_still_names_the_image(
     failure = doc["failure"]
     assert isinstance(failure, dict)
     assert (doc["status"], failure["kind"]) == ("failed", "environment")
+
+
+SASH_CLASS = "greedy-continuation/exact-match/committed-weights"  # systems/sash/claim.yaml
+
+
+def closed_job(monkeypatch: pytest.MonkeyPatch, claim_class: str, card: Path | None) -> None:
+    """fake-tiny-ci as a closed workload fixing `claim_class`, and `card` as the fake system's
+    claim card (it has none)."""
+    from iproofs import runner as runner_module  # noqa: PLC0415
+    from iproofs.workloads import load_workload as real  # noqa: PLC0415
+
+    def closed(*a: object, **k: object) -> object:
+        wl = real(*a, **k)  # type: ignore[arg-type]
+        return dataclasses.replace(wl, division="closed", claim_class=claim_class)
+
+    monkeypatch.setattr(runner_module, "load_workload", closed)
+    monkeypatch.setattr(runner_module, "card_path", lambda *_: card)
+
+
+@pytest.mark.parametrize(
+    ("card", "message"),
+    [
+        (ROOT / "systems/sash/claim.yaml", SASH_CLASS),  # a card of another class
+        (None, "fake has no claim card"),
+    ],
+)
+def test_closed_workload_class_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, card: Path | None, message: str
+) -> None:
+    """RFC-0003 §Divisions: a job whose card class differs from the closed workload's, or whose
+    system has no card, fails at resolution with a `config` error; no container step runs."""
+    closed_job(monkeypatch, "next-token/exact-match/committed-weights", card)
+    doc = read(runner().run(spec(tmp_path)))
+    failure = doc["failure"]
+    assert isinstance(failure, dict)
+    assert (doc["status"], failure["kind"], failure["step"]) == ("failed", "config", "resolved")
+    assert message in failure["message"]
+    assert "closed workload" in failure["message"]
+    events = doc["events"]
+    assert isinstance(events, list)
+    assert events == []  # no info, setup, commit or prove call was made
+
+
+def test_closed_workload_same_class_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A card with the closed workload's exact class passes resolution."""
+    closed_job(monkeypatch, SASH_CLASS, ROOT / "systems/sash/claim.yaml")
+    doc = read(runner().run(spec(tmp_path)))
+    assert doc["status"] == "completed"
+
+
+def test_closed_workload_reference_has_no_card() -> None:
+    """A reference system has no card (RFC-0015) and runs on a closed workload."""
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    ref = load(ROOT / "systems/ref-serve/system.yaml", REGISTRY)
+    assert isinstance(ref, System)
+    wl = load_workload("l31-8b-c1024", 1, root=ROOT, registry=REGISTRY)
+    check_card_class(ROOT, REGISTRY, ref, wl)  # no error
+    sash = load(ROOT / "systems/sash/system.yaml", REGISTRY)
+    assert isinstance(sash, System)
+    check_card_class(ROOT, REGISTRY, sash, wl)  # SASH's card has the workload's class

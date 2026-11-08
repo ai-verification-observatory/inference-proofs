@@ -93,7 +93,7 @@ from iproofs.provenance import (
     read_topology,
     select_cpus,
 )
-from iproofs.quantity import NullReason, Scope, Unit
+from iproofs.quantity import NullReason, Scope, Unit, check_closed_division
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.workloads import (
@@ -225,6 +225,23 @@ def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, 
             else:
                 return run_id, staging
         n += 1
+
+
+def check_card_class(root: Path, registry: SchemaRegistry, system: System, wl: Workload) -> None:
+    """RFC-0003 §Divisions: a closed workload admits only a card with its exact `claim_class`,
+    so a job of another class, or of a system with no card, is a `config` error before any
+    container starts. A reference system has no card (RFC-0015) and runs on every workload."""
+    if wl.division != "closed" or system.kind == "reference":
+        return
+    card = card_path(root, system.name, "default")
+    doc = load(card, registry) if card else None
+    if not isinstance(doc, ClaimCard):
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"closed workload {wl.id} fixes claim_class {wl.claim_class!r}; "
+            f"{system.name} has no claim card",
+        )
+    check_closed_division(wl.division, wl.claim_class, doc.claim_class)
 
 
 @dataclass(slots=True)
@@ -510,6 +527,7 @@ class Runner:
         wl = load_workload(
             spec.workload, spec.workload_version, root=self.root, registry=self.registry
         )
+        check_card_class(self.root, self.registry, system, wl)
         job.reference, job.reference_file = self._reference(spec)
         job.system, job.workload = system, wl
         job.models = self._models(wl, log)

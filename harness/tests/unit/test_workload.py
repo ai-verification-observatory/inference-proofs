@@ -199,3 +199,31 @@ def test_asserted_inputs(tree: Path, registry: SchemaRegistry) -> None:
 def test_weight_bits_file_size_needs_files(tree: Path, registry: SchemaRegistry) -> None:
     edit(tree, PRECISION, file_size().replace(', files: ["weights.bin"]', ""))
     assert "/precision/weight_bits" in config_error(tree, registry)
+
+
+def test_closed_workload_loads(registry: SchemaRegistry) -> None:
+    """#334: the shared Llama 3.1 8B workload is closed, fixes one claim class, and pins the
+    model of sash-l31-8b-c1024 (same repository, revision, files and digest) at its shape and
+    precision (RFC-0003 §Closed workloads)."""
+    closed = load_workload("l31-8b-c1024", 1, root=ROOT, registry=registry)
+    native = load_workload("sash-l31-8b-c1024", 1, root=ROOT, registry=registry)
+    assert (closed.division, native.division) == ("closed", "native")
+    assert closed.claim_class == "greedy-continuation/exact-match/committed-weights"
+    assert closed.model == native.model
+    assert closed.model.digest == native.model.digest
+    assert (closed.shape, closed.precision, closed.prompts) == (
+        native.shape,
+        native.precision,
+        native.prompts,
+    )
+    assert (closed.decoding, closed.phase) == (native.decoding, native.phase)
+    assert closed.systems == ("sash", "ref-serve", "ref-recompute")
+
+
+def test_closed_workload_needs_class(tree: Path, registry: SchemaRegistry) -> None:
+    """RFC-0003 §Workload file: `claim_class` is required exactly when the division is closed."""
+    edit(tree, 'division: "open"', 'division: "closed"')
+    assert "claim_class" in config_error(tree, registry)
+    edit(tree, 'division: "closed"', 'division: "closed"\nclaim_class: "other/other/other"')
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    assert (wl.division, wl.claim_class) == ("closed", "other/other/other")
