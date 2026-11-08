@@ -34,7 +34,12 @@ INPUT = "token_embd.weight"
 # the first run's log prints the engine's own buffer sizes (README §Sizing).
 GPU_MIB = 140_000
 COMPUTE_MIB = 8_192  # compute buffers, with room for a CPU-held expert tensor copied to the
-#                      GPU for a large batch (--op-offload, on by default, README L94)
+#                      GPU for a large batch (--op-offload, on by default, README L94). The
+#                      scheduler copies one such tensor per split: a weight on another backend
+#                      starts a new split "so the memory of the previously offloaded weights can
+#                      be reused" (ggml/src/ggml-backend.cpp L1739 to L1748), and the copies are
+#                      graph nodes, freed after their last use (L1938). largest_expert_mib()
+#                      must fit in it; the rest is activations (an assumption)
 CONTEXT_MIB = 1_024  # CUDA context and cuBLAS workspace
 MARGIN_MIB = 1_024  # the engine's own --fit margin default (--fit-target, README L90)
 KV_PAD = 256  # cells rounded up to a multiple of 256 (an upper bound on the engine's padding)
@@ -69,6 +74,11 @@ def placement(found: list[Tensor], n: int) -> Placement:
     return Placement(n, gpu, host)
 
 
+def largest_expert_mib(found: list[Tensor]) -> float:
+    """The largest routed-expert tensor: the most --op-offload copies to the GPU at a time."""
+    return max(t.nbytes for t in found if EXPERTS.search(t.name) is not None) / MIB
+
+
 def kv_bytes(meta: dict[str, object], slots: int, per_slot: int) -> int:
     """K and V for every layer and cell, the cells of all slots padded up (an upper bound: the
     chunked-attention layers of llama4 may hold fewer cells)."""
@@ -99,6 +109,10 @@ def report(path: Path = FIXTURE) -> str:
     meta, found = tensors(path)
     per_slot = 1025  # prompt plus output tokens of both Maverick workloads
     lines = [f"budget per job: {GPU_MIB:,} MiB of GPU memory"]
+    lines.append(
+        f"compute buffers: {COMPUTE_MIB:,} MiB, of which the largest routed-expert tensor"
+        f" copied for --op-offload is {largest_expert_mib(found):,.0f} MiB"
+    )
     for slots in (1, 24):
         kv = kv_bytes(meta, slots, per_slot) / MIB
         lines.append(

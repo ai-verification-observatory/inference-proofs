@@ -81,6 +81,19 @@ def test_system_yaml_starts_at_the_computed_n(sizing: ModuleType) -> None:
         assert n == sizing.start_n(meta, found, slots, 1025), entry["id"]
 
 
+def test_compute_allowance_holds_one_expert_tensor(sizing: ModuleType) -> None:
+    """--op-offload copies one host-held weight per split (ggml-backend.cpp L1739 to L1748), so
+    the compute allowance must hold the largest routed-expert tensor, with room left over."""
+    _, found = sizing.tensors()
+    assert sizing.largest_expert_mib(found) < sizing.COMPUTE_MIB / 2
+
+
+def test_gpu_budget_is_the_profiles(sizing: ModuleType) -> None:
+    """AGENTS.md rule 3: the budget is the profile's GPU minimum, not a typed copy."""
+    ref = yaml.safe_load((SYSTEM.parents[1] / "reference/v0.1.yaml").read_text())["profiles"]
+    assert ref["prover-h200-hosted"]["gpu"]["memory_mib_min"] == sizing.GPU_MIB
+
+
 def test_no_n_fits(sizing: ModuleType, monkeypatch: pytest.MonkeyPatch) -> None:
     meta, found = sizing.tensors()
     monkeypatch.setattr(sizing, "GPU_MIB", 1_000)
