@@ -2720,22 +2720,16 @@
           "state": "not_stated"
         },
         "weights_hidden": {
-          "note": "Stated in the program setup for training; §2 adds \"While we focus on training, our techniques immediately extend to inference.\" and does not restate what the referee holds for inference. Kept No pending the owner's confirmation that the row reads the paper's own setting.",
-          "quotes": [
+          "note": "The paper's program setup, for training, states: \"The referee has access to the computational graph defining the model, the initial parameters, and the training data.\" (arXiv 2502.19405v1, §2, archived at https://web.archive.org/web/20261108141349/https://arxiv.org/pdf/2502.19405v1). §2 adds \"While we focus on training, our techniques immediately extend to inference.\" and does not say what the referee holds for inference. The row is read for inference, and a statement made for training is not carried over to it (owner decision, 2026-11-08), so the cell is Not stated.",
+          "quotes": [],
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
             {
-              "archive_url": "https://web.archive.org/web/20261108141349/https://arxiv.org/pdf/2502.19405v1",
-              "checked": true,
-              "checked_how": "retrieved 2026-11-08; the archived copy is byte-identical to the file read",
-              "decides": true,
-              "kind": "web",
-              "label": "Verde paper, arXiv 2502.19405v1, §2",
               "retrieved": "2026-11-08",
-              "text": "The referee has access to the computational graph defining the model, the initial parameters, and the training data.",
               "url": "https://arxiv.org/pdf/2502.19405v1"
             }
           ],
-          "reason": "For training, the referee holds the initial parameters; §2 says the techniques extend to inference.",
-          "state": "no"
+          "state": "not_stated"
         },
         "whole_output": {
           "quotes": [
