@@ -238,16 +238,21 @@ def docker_ref(image: str) -> str:
 
 
 def give_io_to_adapter(io_dir: Path) -> None:
-    """RFC-0005: the io dir belongs to the adapter's uid. Only root can chown; otherwise the
-    directories are opened to all so the container can write (development hosts)."""
+    """RFC-0005: the io dir belongs to the adapter's uid. Root chowns it. A process that already
+    runs as the adapter's uid (a hosted container started as that user) leaves it as created:
+    opening it would let other accounts replace its folders, which an adapter may rightly refuse
+    (FlashProve's calibrate.py does). Any other uid (a development host running docker as
+    itself) opens the directories to all with the sticky bit set, so the container can write
+    but no other account can rename or remove what it does not own."""
     paths = [io_dir, *io_dir.rglob("*")]
+    euid = os.geteuid()
     for path in paths:
         if path.is_symlink():
             continue
-        if os.geteuid() == 0:
+        if euid == 0:
             os.chown(path, int(ADAPTER_UID), int(ADAPTER_UID))
-        elif path.is_dir() and path.stat().st_uid == os.geteuid():
-            path.chmod(0o777)
+        elif euid != int(ADAPTER_UID) and path.is_dir() and path.stat().st_uid == euid:
+            path.chmod(0o1777)
 
 
 def _tail(text: str) -> tuple[str, ...]:
