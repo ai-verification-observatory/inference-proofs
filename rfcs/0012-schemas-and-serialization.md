@@ -110,7 +110,7 @@ Defined in `schema/quantity/1.schema.json` under `$defs/quantity`. Every number 
         "value": {"type": ["number", "null"]},
         "unit": {"enum": ["s", "ns", "B", "MiB", "J", "count", "token", "token/s", "s/token",
                           "B/token", "USD", "USD/1k_token", "USD/gpu_hour", "%",
-                          "param_token/s", "s/bit_token", "ratio"]},
+                          "param_token/s", "s/bit_token", "bit/weight", "ratio"]},
         "scope": {"enum": [null, "setup", "commit", "prove.steady", "prove.session",
                            "whole_wall", "verify", "verify.single_thread", "primitive"]},
         "grade": {"enum": ["measured", "derived", "projected", "external", "asserted"]},
@@ -206,7 +206,7 @@ Optional fields: `upstream_scope` (the scope name as the upstream source states 
 | `adapter` | same, pointing at the stored `out.json` phase entry | `.../run.json#/adapter_phases/witness` |
 | `derivation` | formula id from the RFC-0004 registry, `derive:<id>@<harness version>`; `inputs` lists a repo-relative path plus JSON Pointer for every input quantity, in formula argument order | `derive:D-RATE-S@0.1.0` |
 | `upstream` | URL containing a full 40-hex commit hash or an immutable URL | `https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/constants.json` |
-| `reference_file` | repo-relative path plus JSON Pointer into the YAML as parsed | `reference/v0.1.yaml#/cost/price_per_gpu_hour_usd` |
+| `reference_file` | repo-relative path plus JSON Pointer into the YAML as parsed: the reference file, or the workload record a run.json `inputs` quantity was copied from (RFC-0003 WB-4) | `reference/v0.1.yaml#/cost/price_per_gpu_hour_usd`, `workloads/sash-l31-8b-c1024.yaml#/precision/weight_bits` |
 
 #### Invariants
 
@@ -362,7 +362,7 @@ No results exist yet, so there is nothing to migrate. Rollout order:
 2. Land every other schema at major 1, each with valid and invalid examples, together with its dataclass and the drift test.
 3. Turn on gates G2 and G3 of RFC-0013 as required checks.
 
-The amendment of 2026-11-08 adds the unit `s/bit_token` (seconds per bit of active weights per token covered, [RFC-0004](0004-metrics-timing-grades.md#derived-metric-catalogue) D-SPAB-S) to the unit enum and to the INV-QTY-3 list, and the optional `precision.weight_bits` object to `workload/1` ([RFC-0003 §Weight bits](0003-workloads.md#weight-bits)). Both are additive: every document valid before stays valid, so neither schema changes major.
+The amendment of 2026-11-08 adds the unit `s/bit_token` (seconds per bit of active weights per token covered, [RFC-0004](0004-metrics-timing-grades.md#derived-metric-catalogue) D-SPAB-S) to the unit enum and to the INV-QTY-3 list, and the optional `precision.weight_bits` object to `workload/1` ([RFC-0003 §Weight bits](0003-workloads.md#weight-bits)). Both are additive: every document valid before stays valid, so neither schema changes major. After review, the same amendment adds: the unit `bit/weight` (bits per weight, the unit of an asserted weight width); `covers` and the computed `file_size` width in `precision.weight_bits`; the optional `run/1` property `inputs` (`active_parameters_per_token` with unit `count` and `weight_bits` with unit `bit/weight`, both `asserted` quantities with `source.kind: reference_file`, copied from the workload record at run time, RFC-0003 WB-4), whose model is `RunInputs`; and the optional `release-index/1` property `freeze_derived` (run id, then metric id, to the quantity the freeze evaluated for a run stored before its formula existed, RFC-0004 Q3). Every addition is optional or widens an enum, so no schema changes major; `workload/1`'s `weight_bits` changed shape before any release used it.
 
 The existing draft claim card example in the old `docs/SPEC.md` uses `reviewed_by_maintainers` and `security.bits`; RFC-0002's field names (`reviewed_by`, `security.level`) win, and `claim/1` follows RFC-0002.
 

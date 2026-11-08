@@ -66,7 +66,7 @@ Run matrix. Each cell is a configuration measured with at least 3 repetitions (R
 | `fp-maverick-w1024-b1` | FlashProve | yes, or recorded as not measurable on profile (RFC-0015) | yes, or recorded as not measurable on profile |
 | `fp-maverick-w1024-b24` | FlashProve | same | same |
 
-Published per row: claim card; per-scope times and rates; GPU and host memory peaks; proof bytes; verification time (8 CPUs and 1 CPU); control outcomes; derived metrics (cost per 1,000 proved tokens at the release price, overhead against plain serving, proved active-parameter-tokens per second, proof bytes and verification seconds per proved token, amortised commit cost at 1 and 1,000 requests); scope, grade, tier and source beside every number.
+Published per row: claim card; per-scope times and rates; GPU and host memory peaks; proof bytes; verification time (8 CPUs and 1 CPU); control outcomes; derived metrics (cost per 1,000 proved tokens at the release price, overhead against plain serving, prover time per bit of active weights (with the claim cards and its stated limit, RFC-0004 INV-DERIVE-7), proof bytes and verification seconds per proved token, amortised commit cost at 1 and 1,000 requests); scope, grade, tier and source beside every number.
 
 v0.1 does not compare SASH and FlashProve on one model. Neither supports the other's model at these pins.
 
