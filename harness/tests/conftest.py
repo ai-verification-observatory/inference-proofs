@@ -3,18 +3,28 @@ import os
 import pytest
 from hypothesis import settings
 
+from fixtures.builds import extras_build, placeholder_build  # noqa: F401 (session fixtures)
+
 # Deterministic property tests in CI (RFC-0013 §G1); select with HYPOTHESIS_PROFILE=ci.
 settings.register_profile("ci", max_examples=200, derandomize=True)
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))
 
 
 def shard_of(nodeids: list[str], shard: str) -> set[str]:
-    """`i/n`: the i-th of n interleaved parts of the sorted node ids (docs/spec/07 §Sharding),
-    so every test runs in exactly one shard and the parts differ in size by at most one."""
+    """`i/n`: the tests of the i-th of n parts (docs/spec/07 §Sharding). Test files are dealt
+    whole, most tests first (ties by path), each to the part with the fewest tests so far (the
+    lowest index on a tie). So every test runs in exactly one shard, a file's module fixtures
+    build in one shard only, and two parts differ by at most the tests of one file."""
     i, n = (int(x) for x in shard.split("/"))
     if not 1 <= i <= n:
         raise pytest.UsageError(f"IPROOFS_SHARD={shard!r}: need 1 <= i <= n")
-    return set(sorted(nodeids)[i - 1 :: n])
+    files: dict[str, list[str]] = {}
+    for nodeid in sorted(nodeids):
+        files.setdefault(nodeid.split("::", 1)[0], []).append(nodeid)
+    parts: list[list[str]] = [[] for _ in range(n)]
+    for path in sorted(files, key=lambda p: (-len(files[p]), p)):
+        min(parts, key=len).extend(files[path])  # min returns the first of equal parts
+    return set(parts[i - 1])
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:

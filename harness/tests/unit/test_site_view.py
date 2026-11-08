@@ -12,6 +12,7 @@ from typing import Any
 import pytest
 
 from fixtures import placeholder_release as ph
+from fixtures.builds import SiteBuild, writable_copy
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.release import not_measurable_on_profile
 from iproofs.schema import SchemaRegistry
@@ -23,15 +24,10 @@ from iproofs.validate import resolve
 ROOT = Path(__file__).resolve().parents[3]
 
 
-def frozen(root: Path, *, extras: bool = False) -> Path:
-    ph.build_placeholder(root, extras=extras)
-    assert ph.freeze_tree(root) == 0
-    return root
-
-
 @pytest.fixture(scope="module")
-def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return frozen(tmp_path_factory.mktemp("view"))
+def tree(placeholder_build: SiteBuild) -> Path:
+    """The deployed tree, frozen (the shared build: its freeze must exit 0, fixtures/builds)."""
+    return placeholder_build.repo
 
 
 @pytest.fixture(scope="module")
@@ -40,8 +36,9 @@ def view(tree: Path) -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def extras_tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    return frozen(tmp_path_factory.mktemp("view-extras"), extras=True)
+def extras_tree(extras_build: SiteBuild) -> Path:
+    """The tree with every test-only case, frozen (shared, as `tree`)."""
+    return extras_build.repo
 
 
 @pytest.fixture(scope="module")
@@ -271,7 +268,7 @@ def test_nm1_one_rule() -> None:
 
 
 def _edited_tree(src: Path, dst: Path, edit: Any) -> Path:
-    shutil.copytree(src, dst)
+    writable_copy(src, dst)  # the shared tree stays as built
     path = dst / inputs.CRITERIA
     doc = json.loads(path.read_text())
     edit(doc)

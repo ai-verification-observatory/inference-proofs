@@ -27,7 +27,8 @@ from typing import Any
 
 import pytest
 
-from fixtures.placeholder_release import FREEZE_DATE, REVIEW_WINDOW, build_site
+from fixtures.builds import SiteBuild
+from fixtures.placeholder_release import FREEZE_DATE, REVIEW_WINDOW
 from iproofs.site import renderer, reply_html
 from iproofs.site.view import site_view
 
@@ -94,22 +95,18 @@ def flat(text: str) -> str:
     return re.sub(r"\s+", " ", html.unescape(text).replace("\N{NO-BREAK SPACE}", " ")).strip()
 
 
-def _build(root: Path, *, extras: bool) -> tuple[Path, dict[str, Any]]:
-    out = build_site(root / "repo", root / "out", extras=extras)
-    return out, site_view(root / "repo")
-
-
 @pytest.fixture(scope="module")
-def extras(tmp_path_factory: pytest.TempPathFactory) -> Build:
-    out, view = _build(tmp_path_factory.mktemp("site-extras"), extras=True)
+def extras(extras_build: SiteBuild) -> Build:
+    """The extras build (shared and read-only, fixtures/builds), with its view."""
+    out, view = extras_build.out, site_view(extras_build.repo)
     return Build("extras", {p.name: p.read_text("utf-8") for p in out.glob("*.html")}, view, out)
 
 
 @pytest.fixture(scope="module")
-def deployed(tmp_path_factory: pytest.TempPathFactory) -> Build:
+def deployed(placeholder_build: SiteBuild) -> Build:
     """The committed web/ pages, with the view of the build that wrote them (web/ tests hold
-    the committed files equal to a fresh build)."""
-    _, view = _build(tmp_path_factory.mktemp("site-web"), extras=False)
+    the committed files equal to a fresh build; the deployed build is the shared one)."""
+    view = site_view(placeholder_build.repo)
     web = ROOT / "web"
     return Build("web", {p.name: p.read_text("utf-8") for p in web.glob("*.html")}, view, web)
 
