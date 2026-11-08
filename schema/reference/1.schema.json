@@ -1,5 +1,117 @@
 {
   "$defs": {
+    "cost": {
+      "$comment": "RFC-0006 §Cost basis: one price basis (C2, C3); `cost` is the release's default basis, and a prover profile whose GPU model is priced apart names a basis of `costs` (C7)",
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "date": {
+          "format": "date",
+          "type": "string"
+        },
+        "not_priced": {
+          "items": {
+            "enum": [
+              "gpu",
+              "cpu",
+              "host_memory",
+              "disk",
+              "network"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "price_per_gpu_hour_usd": {
+          "allOf": [
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/quantity"
+            }
+          ],
+          "properties": {
+            "grade": {
+              "const": "asserted"
+            },
+            "scope": {
+              "type": "null"
+            },
+            "unit": {
+              "const": "USD/gpu_hour"
+            }
+          }
+        },
+        "priced": {
+          "items": {
+            "enum": [
+              "gpu",
+              "cpu",
+              "host_memory",
+              "disk",
+              "network"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "providers": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "readings": {
+          "$comment": "RFC-0006 C3: the archived price readings; the validator recomputes the median (COST-1)",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "gpus": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "list_price_usd_per_hour": {
+                "exclusiveMinimum": 0,
+                "type": "number"
+              },
+              "offer": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "provider": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "type": "string"
+              }
+            },
+            "required": [
+              "provider",
+              "url",
+              "offer",
+              "list_price_usd_per_hour",
+              "gpus"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "price_per_gpu_hour_usd",
+        "basis",
+        "providers",
+        "date",
+        "priced",
+        "not_priced"
+      ],
+      "type": "object"
+    },
     "prover": {
       "additionalProperties": false,
       "properties": {
@@ -48,6 +160,11 @@
               "type": "object"
             }
           ]
+        },
+        "cost": {
+          "$comment": "RFC-0006 C7: the basis in `costs` that prices this profile's GPU; absent, the profile uses `cost`",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "type": "string"
         },
         "cpu": {
           "additionalProperties": false,
@@ -225,114 +342,17 @@
   "additionalProperties": false,
   "properties": {
     "cost": {
-      "additionalProperties": false,
-      "properties": {
-        "basis": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "date": {
-          "format": "date",
-          "type": "string"
-        },
-        "not_priced": {
-          "items": {
-            "enum": [
-              "gpu",
-              "cpu",
-              "host_memory",
-              "disk",
-              "network"
-            ]
-          },
-          "type": "array",
-          "uniqueItems": true
-        },
-        "price_per_gpu_hour_usd": {
-          "allOf": [
-            {
-              "$ref": "../quantity/1.schema.json#/$defs/quantity"
-            }
-          ],
-          "properties": {
-            "grade": {
-              "const": "asserted"
-            },
-            "scope": {
-              "type": "null"
-            },
-            "unit": {
-              "const": "USD/gpu_hour"
-            }
-          }
-        },
-        "priced": {
-          "items": {
-            "enum": [
-              "gpu",
-              "cpu",
-              "host_memory",
-              "disk",
-              "network"
-            ]
-          },
-          "type": "array",
-          "uniqueItems": true
-        },
-        "providers": {
-          "items": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "type": "array",
-          "uniqueItems": true
-        },
-        "readings": {
-          "$comment": "RFC-0006 C3: the archived price readings; the validator recomputes the median (COST-1)",
-          "items": {
-            "additionalProperties": false,
-            "properties": {
-              "gpus": {
-                "minimum": 1,
-                "type": "integer"
-              },
-              "list_price_usd_per_hour": {
-                "exclusiveMinimum": 0,
-                "type": "number"
-              },
-              "offer": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "provider": {
-                "minLength": 1,
-                "type": "string"
-              },
-              "url": {
-                "format": "uri",
-                "type": "string"
-              }
-            },
-            "required": [
-              "provider",
-              "url",
-              "offer",
-              "list_price_usd_per_hour",
-              "gpus"
-            ],
-            "type": "object"
-          },
-          "type": "array"
-        }
+      "$ref": "#/$defs/cost"
+    },
+    "costs": {
+      "$comment": "RFC-0006 C7: further price bases, one per GPU model priced apart from `cost`, named by a prover profile's `cost`",
+      "additionalProperties": {
+        "$ref": "#/$defs/cost"
       },
-      "required": [
-        "price_per_gpu_hour_usd",
-        "basis",
-        "providers",
-        "date",
-        "priced",
-        "not_priced"
-      ],
+      "minProperties": 1,
+      "propertyNames": {
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
       "type": "object"
     },
     "profiles": {

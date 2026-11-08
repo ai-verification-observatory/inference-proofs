@@ -344,7 +344,11 @@ def run(args: argparse.Namespace) -> int:
         replay_seed=seed,
         claims=claims,
         keep_io=args.keep_io,
-        env=_environment(args.gpu, args.hosted),
+        env=_environment(
+            args.gpu,
+            args.hosted,
+            _prover_cpus(root, args.profile, registry) if args.gpu is not None else 24,
+        ),
         hosted=args.hosted,
     )
     spec = JobSpec(
@@ -385,12 +389,26 @@ def _operator(root: Path, args: argparse.Namespace) -> "RunnerIdentity":
     )
 
 
-def _environment(gpu: int | None, hosted: bool) -> "Environment | None":
-    """The GPU host for `--gpu`; without it, the CPU-only host."""
+def _environment(gpu: int | None, hosted: bool, n_prover: int) -> "Environment | None":
+    """The GPU host for `--gpu`, binding `n_prover` prover CPUs; without it, the CPU-only host."""
     from iproofs.provenance import Host  # noqa: PLC0415
     from iproofs.runner import GpuEnvironment  # noqa: PLC0415
 
-    return None if gpu is None else GpuEnvironment(gpu, Host(hosted=hosted))
+    return None if gpu is None else GpuEnvironment(gpu, Host(hosted=hosted), n_prover)
+
+
+def _prover_cpus(root: Path, profile: str, registry: "SchemaRegistry") -> int:
+    """The prover CPUs a job on `profile` binds: its `cpu.logical_cpus_on_gpu_numa_node`
+    (RFC-0006 §CPU and memory selection), from the release's reference file or the CI one; 24,
+    the default, for a profile in neither (the runner refuses it with `config`)."""
+    from iproofs.model import ProverProfile, load_reference  # noqa: PLC0415
+
+    for release in (_release(root), "ci"):
+        if (root / "reference" / f"{release}.yaml").is_file():
+            found = load_reference(release, root, registry).profiles.get(profile)
+            if isinstance(found, ProverProfile):
+                return found.cpu.logical_cpus_on_gpu_numa_node
+    return 24
 
 
 def entrypoint_argv(dockerfile: str) -> list[str]:

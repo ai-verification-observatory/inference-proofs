@@ -200,10 +200,10 @@ def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """The fixture host has four CPUs: one prover and one verifier CPU stand in for 24 and 8."""
     from iproofs import provenance, runner  # noqa: PLC0415
 
-    small = functools.partial(provenance.select_cpus, n_prover=1, n_verifier=1)
+    small = functools.partial(provenance.select_cpus, n_verifier=1)
     monkeypatch.setattr(runner, "select_cpus", small)
     host = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:17:00.0"})
-    env = GpuEnvironment(0, host)
+    env = GpuEnvironment(0, host, n_prover=1)
     prover, mems = env.cpus("prover")
     assert prover == "0"
     assert mems == "0"
@@ -212,7 +212,7 @@ def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     assert set(prover.split(",")).isdisjoint(env.cpus("verifier")[0].split(","))
     lost = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:99:00.0"})
     with pytest.raises(IProofsError, match="no NUMA node"):
-        GpuEnvironment(0, lost)
+        GpuEnvironment(0, lost, n_prover=1)
 
 
 def test_disk_of_a_results_directory_not_made_yet(tmp_path: Path) -> None:

@@ -11,9 +11,9 @@ REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
 
 
 def test_reference_valid() -> None:
-    """TC-REF-VALID: the committed v0.1 file loads with both profiles."""
+    """TC-REF-VALID: the committed v0.1 file loads with its prover and verifier profiles."""
     ref = load_reference("v0.1", ROOT, REGISTRY)
-    prover = ref.profiles["prover-h100"]
+    prover = ref.profiles["prover-h200"]
     verifier = ref.profiles["verifier-cpu"]
     assert isinstance(prover, ProverProfile)
     assert isinstance(verifier, VerifierProfile)
@@ -21,15 +21,20 @@ def test_reference_valid() -> None:
     assert prover.gpu.count == 1
     assert prover.cpu.logical_cpus_on_gpu_numa_node == 24
     assert verifier.cpu.logical_cpus == 8
-    assert verifier.emulation.allowed_on == ("prover-h100", "prover-h100-hosted")
+    assert verifier.emulation.allowed_on == (
+        "prover-h200", "prover-h200-hosted", "prover-h100", "prover-h100-hosted"
+    )  # fmt: skip
     assert ref.cost.price_per_gpu_hour_usd.grade == "asserted"
 
 
 def test_reference_placeholders_are_visible() -> None:
-    """The price is set (#78); the driver stays a placeholder until #77 resolves it."""
+    """The prices are set (#78, C7); the drivers stay placeholders until #77 and Q5 pin them."""
     ref = load_reference("v0.1", ROOT, REGISTRY)
     assert (ref.cost.price_per_gpu_hour_usd.value or 0) > 0
-    assert ref.profiles["prover-h100"].driver == "unpinned"  # type: ignore[union-attr]
+    assert ref.costs is not None
+    assert (ref.costs["h200"].price_per_gpu_hour_usd.value or 0) > 0
+    for pid in ("prover-h100", "prover-h200", "prover-h200-hosted"):
+        assert ref.profiles[pid].driver == "unpinned"  # type: ignore[union-attr]
 
 
 def test_reference_ci_profile_has_no_gpu() -> None:

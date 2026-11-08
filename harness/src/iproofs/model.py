@@ -964,6 +964,7 @@ class ProverProfile(Document):
     kernel_min: str
     driver: str
     container_runtime: ContainerRuntime | HostedRuntime
+    cost: str | None = None  # a basis of `costs` (RFC-0006 C7); None: the release's `cost`
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1011,6 +1012,19 @@ class ReferenceFile(Document):
     release: str
     profiles: Mapping[str, ProverProfile | VerifierProfile]
     cost: Cost
+    costs: Mapping[str, Cost] | None = None  # RFC-0006 C7: bases of GPU models priced apart
+
+    def price_pointer(self, profile: str) -> str:
+        """The JSON pointer of the price that costs a row on `profile` (RFC-0006 C1, C7)."""
+        found = self.profiles.get(profile)
+        basis = found.cost if isinstance(found, ProverProfile) else None
+        if basis is None:
+            return "/cost/price_per_gpu_hour_usd"
+        if basis not in (self.costs or {}):
+            raise IProofsError(
+                ErrorKind.CONFIG, f"profile {profile} names cost basis {basis!r}, not in `costs`"
+            )
+        return f"/costs/{basis}/price_per_gpu_hour_usd"
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1417,8 +1431,8 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reference/1", "#/$defs/verifier"): VerifierProfile,
     ("reference/1", "#/$defs/verifier/properties/cpu"): VerifierCpu,
     ("reference/1", "#/$defs/verifier/properties/emulation"): Emulation,
-    ("reference/1", "#/properties/cost"): Cost,
-    ("reference/1", "#/properties/cost/properties/readings/items"): PriceReading,
+    ("reference/1", "#/$defs/cost"): Cost,
+    ("reference/1", "#/$defs/cost/properties/readings/items"): PriceReading,
     ("controls/1", "#"): Controls,
     ("controls/1", "#/$defs/control"): ControlResult,
     ("controls/1", "#/$defs/trial"): Trial,

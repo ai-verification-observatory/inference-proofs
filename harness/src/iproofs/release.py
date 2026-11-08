@@ -500,8 +500,9 @@ def freeze(
         raise _fail(f"{path.relative_to(root)} is not release {release_id}")
     reference = load(root / release.reference_file, registry)  # validates the reference file
     assert isinstance(reference, ReferenceFile)
-    if not reference.cost.price_per_gpu_hour_usd.value or not reference.cost.date:
-        raise _fail(f"{release.reference_file} has no price or no date (RFC-0006 C6)")
+    for basis in (reference.cost, *(reference.costs or {}).values()):  # C7: every basis
+        if not basis.price_per_gpu_hour_usd.value or not basis.date:
+            raise _fail(f"{release.reference_file} has no price or no date (RFC-0006 C6)")
     read += [path, root / release.reference_file]
     runs = {}
     for listed in release.runs:

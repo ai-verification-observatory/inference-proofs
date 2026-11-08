@@ -27,7 +27,7 @@ def two_sockets(smt: bool = True, cores: int = 24) -> Topology:
 
 def test_select_cpus_two_sockets_smt() -> None:
     """TC-CPU-2SOCKET-SMT: GPU on node 1; one prover CPU per physical core of node 1."""
-    b = select_cpus(two_sockets(), gpu_numa_node=1)
+    b = select_cpus(two_sockets(), gpu_numa_node=1, n_prover=24)
     assert b.prover == tuple(range(24, 48))
     assert b.verifier == tuple(range(72, 80))  # node 1's SMT siblings come before node 0
     assert b.verifier_1 == (72,)
@@ -38,23 +38,23 @@ def test_select_cpus_two_sockets_smt() -> None:
 def test_select_cpus_small_node() -> None:
     """TC-CPU-SMALL-NODE: a node with 16 logical CPUs cannot hold 24 prover CPUs."""
     with pytest.raises(IProofsError) as e:
-        select_cpus(two_sockets(cores=8), gpu_numa_node=0)
+        select_cpus(two_sockets(cores=8), gpu_numa_node=0, n_prover=24)
     assert e.value.kind is ErrorKind.ENVIRONMENT
     assert "PC-CPU-NUMA" in e.value.message
 
 
 def test_select_cpus_smt_off() -> None:
     """TC-CPU-SMT-OFF: no siblings; the second pass is empty and the result is the same."""
-    b = select_cpus(two_sockets(smt=False), gpu_numa_node=0)
+    b = select_cpus(two_sockets(smt=False), gpu_numa_node=0, n_prover=24)
     assert b.prover == tuple(range(24))
     assert b.verifier == tuple(range(24, 32))  # the other node, in order
-    assert select_cpus(two_sockets(smt=False), gpu_numa_node=0) == b
+    assert select_cpus(two_sockets(smt=False), gpu_numa_node=0, n_prover=24) == b
 
 
 def test_select_cpus_verifier_shortage() -> None:
     topo = Topology(tuple(Cpu(i, 0, i, 0) for i in range(26)))
     with pytest.raises(IProofsError, match="verifier emulation"):
-        select_cpus(topo, gpu_numa_node=0)
+        select_cpus(topo, gpu_numa_node=0, n_prover=24)
 
 
 def test_select_cpus_from_the_fixture_host_and_into_the_record() -> None:

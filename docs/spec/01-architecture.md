@@ -106,7 +106,7 @@ Data never flows backwards: nothing downstream of a run dir edits it (INV-ARCH-7
 
 - One runner process per host, one job per GPU at a time, sequential steps, sampler threads during timed steps ([RFC-0010](../../rfcs/0010-harness-runner.md#concurrency)).
 - CPU-only commands (`validate`, `derive`, `release`, `site`, the fake system end to end) run on any machine with Python 3.12 or 3.13, including hosted CI.
-- GPU jobs run on a host that meets `prover-h100`: Linux kernel 5.19 or later, cgroup v2, Docker Engine 25.0 or later with the systemd cgroup driver, NVIDIA Container Toolkit 1.17 or later, and the driver pinned in `reference/<release>.yaml`. Hosted CI never runs GPU jobs.
+- GPU jobs run on a host that meets `prover-h200` (or another declared docker profile, such as `prover-h100`): Linux kernel 5.19 or later, cgroup v2, Docker Engine 25.0 or later with the systemd cgroup driver, NVIDIA Container Toolkit 1.17 or later, and the driver pinned in `reference/<release>.yaml`. Hosted CI never runs GPU jobs.
 - There is no server, database or background service. State is files in git plus archived proofs by digest.
 
 ## Trust boundaries

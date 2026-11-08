@@ -1,0 +1,106 @@
+# Invalid: the H200 basis's price has no grade (RFC-0006 C2, C7).
+schema: "reference/1"
+release: "v0.1"
+profiles:
+  # The v0.1 reference: one H200 SXM (Hopper, sm_90 like the H100, so the pinned images run
+  # unchanged), on a bare-metal host with docker, with the host needs of prover-h100. A node
+  # with more GPUs passes; the job binds one (--gpu) and the others stay idle and unpriced (R1).
+  prover-h200:
+    kind: "prover"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 1, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 24, logical_cpus_total_min: 32}
+    host_memory_gib_min: 330
+    disk: {type: "local NVMe", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {docker_engine_min: "25.0", nvidia_container_toolkit_min: "1.17", cgroup_driver: "systemd"}
+    cost: "h200"
+  # RFC-0006 §H200 profiles, hosted form: a minimum spec for a container a provider starts from
+  # the adapter image (§Hosted execution), not one provider's offer. Its CPU and memory minimums
+  # admit the smallest hosted H200 offer read on 2026-11-08 (Hugging Face Jobs `h200`: 23 vCPU,
+  # 256 GB): 15 prover CPUs plus verifier-cpu's 8. FlashProve needs more than this minimum (330 GB
+  # available to commit, systems/flashprove/README.md), so its jobs use a larger host of the
+  # profile; the job binds one GPU (--gpu), others stay idle and unpriced (R1). Rows are their own
+  # configurations, never pooled with prover-h200.
+  prover-h200-hosted:
+    kind: "prover"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 1, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 23}
+    host_memory_gib_min: 200
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+  prover-h100:
+    kind: "prover"
+    gpu: {model: "NVIDIA H100 80GB HBM3", form_factor: "SXM", count: 1, memory_mib_min: 80000}
+    cpu: {logical_cpus_on_gpu_numa_node: 24, logical_cpus_total_min: 32}
+    host_memory_gib_min: 330
+    disk: {type: "local NVMe", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {docker_engine_min: "25.0", nvidia_container_toolkit_min: "1.17", cgroup_driver: "systemd"}
+  # RFC-0006 §Hosted execution: the same GPU in a container the provider starts from the
+  # adapter image, the harness inside it. Network, memory binding and limits are not isolated,
+  # CPUs may be shared under a quota, and the disk is the container's overlay, so its rows are
+  # their own configurations, never pooled with prover-h100. Driver: the one the hosted H100
+  # hosts ran on 2026-11-05.
+  prover-h100-hosted:
+    kind: "prover"
+    gpu: {model: "NVIDIA H100 80GB HBM3", form_factor: "SXM", count: 1, memory_mib_min: 80000}
+    cpu: {logical_cpus_on_gpu_numa_node: 24, logical_cpus_total_min: 32}
+    host_memory_gib_min: 330
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "610.57.04"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+  verifier-cpu:
+    kind: "verifier"
+    gpu: null
+    cpu: {logical_cpus: 8}
+    host_memory_gib: 32
+    emulation: {allowed_on: ["prover-h200", "prover-h200-hosted", "prover-h100", "prover-h100-hosted"]}
+cost:
+  price_per_gpu_hour_usd:
+    value: 4.29
+    unit: "USD/gpu_hour"
+    scope: null
+    grade: "asserted"
+    tier: "reported"
+    source: {kind: "reference_file", ref: "reference/v0.1.yaml#/cost"}
+    null_reason: null
+  basis: "median on-demand list price of the named providers on the named date"
+  providers: ["Lambda", "RunPod", "CoreWeave"]
+  date: "2026-11-04"
+  readings:
+    - {provider: "Lambda", url: "https://lambda.ai/pricing", offer: "1x NVIDIA H100 SXM 80 GB", list_price_usd_per_hour: 4.29, gpus: 1}
+    - {provider: "RunPod", url: "https://www.runpod.io/pricing", offer: "H100 SXM 80 GB, Secure Cloud", list_price_usd_per_hour: 3.99, gpus: 1}
+    - {provider: "CoreWeave", url: "https://www.coreweave.com/pricing", offer: "NVIDIA HGX H100 (8 GPUs), on-demand", list_price_usd_per_hour: 49.24, gpus: 8}
+  priced: ["gpu"]
+  not_priced: ["cpu", "host_memory", "disk", "network"]
+# RFC-0006 C7: the H200 basis, read on 2026-11-08 (Q1's rule C3 for the H200 SXM). Lambda listed
+# no H200 that day.
+costs:
+  h200:
+    price_per_gpu_hour_usd:
+      value: 5.345
+      unit: "USD/gpu_hour"
+      scope: null
+      tier: "reported"
+      source: {kind: "reference_file", ref: "reference/v0.1.yaml#/costs/h200"}
+      null_reason: null
+    basis: "median on-demand list price of the named providers on the named date"
+    providers: ["RunPod", "CoreWeave", "Nebius", "DigitalOcean"]
+    date: "2026-11-08"
+    readings:
+      - {provider: "RunPod", url: "https://www.runpod.io/pricing", offer: "H200 SXM 141 GB, Secure Cloud", list_price_usd_per_hour: 5.29, gpus: 1}
+      - {provider: "CoreWeave", url: "https://www.coreweave.com/pricing", offer: "NVIDIA HGX H200 (8 GPUs), on-demand", list_price_usd_per_hour: 50.44, gpus: 8}
+      - {provider: "Nebius", url: "https://nebius.com/prices", offer: "NVIDIA HGX H200, on-demand, per GPU", list_price_usd_per_hour: 5.40, gpus: 1}
+      - {provider: "DigitalOcean", url: "https://www.digitalocean.com/pricing/gpu-droplets", offer: "NVIDIA HGX H200 GPU Droplet, on-demand, per GPU", list_price_usd_per_hour: 4.47, gpus: 1}
+    priced: ["gpu"]
+    not_priced: ["cpu", "host_memory", "disk", "network"]

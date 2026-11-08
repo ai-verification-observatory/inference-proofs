@@ -74,7 +74,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="null-reason"></a>**Null reason.** The required explanation when a quantity's value is null: `not_externally_observable`, `fewer_than_two_proofs`, `not_applicable`, `step_failed`, `not_measurable_on_profile`, `missing_input`. [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
-<a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines `prover-h100` and `verifier-cpu`. Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
+<a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines the reference `prover-h200`, its hosted form `prover-h200-hosted`, `prover-h100`, `prover-h100-hosted` and `verifier-cpu`. Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
 
 <a id="proof"></a>**Proof.** In this project, the set of files (parts) that one `verify` call checks for one request, released atomically as `/io/proofs/<proof_id>/`. For a segment-grid system it is the set of segment proofs for one sequence plus whatever the grid check needs. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 

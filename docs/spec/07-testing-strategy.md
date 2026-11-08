@@ -90,7 +90,7 @@ Run by a person on the GPU host before every measurement campaign and recorded i
 - `harness/tests/gpu/test_nvml_sampler.py`: sampler rate at least 10 Hz over 60 s, gap accounting, memory peak of a known allocation (a CUDA allocation of a fixed size made by the test container) within the sampling resolution.
 - `test_cgroup_reader.py`: `memory.peak` and sampled `anon` for a container that allocates a known amount.
 - `test_numa_binding.py`: the chosen cpuset lies on the GPU's NUMA node and prefers distinct physical cores.
-- One full `fake` run on `prover-h100` and one short real job per adapter on the smallest workload, with controls.
+- One full `fake` run on `prover-h200` and one short real job per adapter on the smallest workload, with controls.
 
 ## Determinism tests
 
