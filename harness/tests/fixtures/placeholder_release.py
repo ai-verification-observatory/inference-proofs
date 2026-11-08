@@ -27,11 +27,14 @@ H100); their failure records carry no invented log line.
 `extras=True` adds cases the site tests need and the deployed build must not carry (a reply
 written by no system maintainer, a target, a criteria copy naming the release with a pending
 disclosure and an override, an ineligible run, a withdrawn run, an unexpected control, a
-second workload, SASH on the closed Llama 3.1 8B workload `l31-8b-c1024` with the model's name
-in the tree's facts copy (RFC-0003 §Closed workloads; test data only, as no second system with
-its class runs it yet), a review and a reproduction record). It holds no second claim card of one
-system: the renderer draws one glyph per system page, so `iproofs site build` refuses a system
-with two card configurations (RFC-0016 SRC-1).
+second workload, the closed Llama 3.1 8B workload `l31-8b-c1024` run by SASH and by a second
+test prover, a review and a reproduction record). The closed workload's model name is added to
+the tree's facts copy. The second prover, `fixture-closed` ("Fixture prover"), exists in no real
+tree: it is SASH's system file and claim card copied under another name, with SASH's criteria
+and facts rows, so the closed table holds two proving systems of its claim class, as `iproofs
+release freeze` requires (RFC-0003 Q7); real SASH has no row on that workload yet. The extras
+hold no second claim card of one system: the renderer draws one glyph per system page, so
+`iproofs site build` refuses a system with two card configurations (RFC-0016 SRC-1).
 
 Command (site.yml, until #146): `PYTHONPATH=harness/tests uv run python -m
 fixtures.placeholder_release --site OUT` builds the tree in a temporary directory, freezes it
@@ -78,6 +81,12 @@ WORKLOAD = "fp-maverick-w1024-b24"
 SECOND_WORKLOAD = "fp-maverick-w1024-b1"  # extras only
 CLOSED_WORKLOAD = "l31-8b-c1024"  # extras only
 CLOSED_MODEL = "Llama 3.1 8B"  # its display name in the tree's facts copy, extras only
+FIXTURE = "fixture-closed"  # extras only: the second prover on the closed workload
+FIXTURE_NAME = "Fixture prover"
+FIXTURE_HEAD = (
+    "# TEST DATA, extras build only (harness/tests/fixtures/placeholder_release.py): SASH's file\n"
+    "# copied under another name, so the closed workload has two proving systems of its class.\n"
+)
 PROFILE = "prover-h100"
 VERIFIER = "verifier-cpu"
 REFERENCE = "reference/v0.1.yaml"
@@ -591,9 +600,11 @@ def _prover_runs(
     repetitions: int,
     controls: Sequence[Any],
 ) -> Written:
-    """A prover configuration's runs; SASH also gets a failed and a superseded run."""
+    """A prover configuration's runs; SASH also gets a failed and a superseded run. A system
+    with no observable steady boundary takes SASH's raw values, the others FlashProve's."""
     sash = cfg.system == "sash"
-    reps = SASH if sash else FLASHPROVE
+    grid = _system(root, cfg.system)["proofs"]["steady_boundary"] == "not_observable"
+    reps = SASH if grid else FLASHPROVE
     out = Written([], [])
     n = 0
 
@@ -601,8 +612,8 @@ def _prover_runs(
         nonlocal n
         n += 1
         if rep is not None:
-            session = _sash_session(root, cfg.workload, rep) if sash else rep.session
-            kw |= {"session": session, "observable": not sash}
+            session = _sash_session(root, cfg.workload, rep) if grid else rep.session
+            kw |= {"session": session, "observable": not grid}
         rid, run_dir = _write_run(root, cfg, n, adapter, rep=rep, **kw)
         out.dirs.append(run_dir.relative_to(root).as_posix())
         return rid, run_dir
@@ -732,6 +743,7 @@ def _extras_tree(root: Path) -> None:
     facts = json.loads(facts_path.read_text())
     facts["models"][digest] = {"name": CLOSED_MODEL}
     write_json(facts_path, facts)
+    _fixture_prover(root)
     (root / REPLY).parent.mkdir(parents=True)
     (root / REPLY).write_text(REPLY_TEXT)
     target = (ROOT / "schema/target/examples/valid/verify-under-60s.yaml").read_text()
@@ -739,6 +751,36 @@ def _extras_tree(root: Path) -> None:
     (root / TARGET).write_text(
         target.replace("targets/example-policy-lab/", "targets/example-lab/")
     )
+
+
+def _fixture_prover(root: Path) -> None:
+    """The second prover on the closed workload (module docstring): SASH's system file and claim
+    card under the name `fixture-closed`, its criteria and facts rows copies of SASH's, and the
+    tree's copy of the workload listing it. Test data only."""
+    src, dst = root / "systems/sash", root / f"systems/{FIXTURE}"
+    dst.mkdir(parents=True)
+
+    def body(path: Path) -> str:
+        return "".join(x for x in path.read_text().splitlines(keepends=True) if x[:1] != "#")
+
+    system = yaml.safe_load(body(src / "system.yaml"))
+    system |= {"name": FIXTURE, "workloads": [CLOSED_WORKLOAD]}
+    (dst / "system.yaml").write_text(FIXTURE_HEAD + yaml.safe_dump(system, sort_keys=False))
+    card = body(src / "claim.yaml").replace('system: "sash"', f'system: "{FIXTURE}"', 1)
+    (dst / "claim.yaml").write_text(FIXTURE_HEAD + card)
+    (dst / "README.md").write_text(f"# {FIXTURE_NAME}\n\n{FIXTURE_HEAD.replace('# ', '')}")
+    _edit_yaml(root / f"workloads/{CLOSED_WORKLOAD}.yaml",
+               lambda d: d["systems"].insert(1, FIXTURE))  # fmt: skip
+    facts_path = root / "web/_data/facts.json"
+    facts = json.loads(facts_path.read_text())
+    facts["rows"][FIXTURE] = {**facts["rows"]["sash"], "name": FIXTURE_NAME}
+    write_json(facts_path, facts)
+    crit_path = root / "web/_data/criteria.json"
+    crit = json.loads(crit_path.read_text())
+    row = json.loads(json.dumps(next(r for r in crit["rows"] if r["id"] == "sash")))
+    row |= {"id": FIXTURE, "name": FIXTURE_NAME, "card": {**row["card"], "system": FIXTURE}}
+    crit["rows"].append(row)
+    write_json(crit_path, crit)
 
 
 def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: list[Config]) -> None:
@@ -767,6 +809,13 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
     closed = Config(sash.system, CLOSED_WORKLOAD, sash.configuration, sash.card_version,
                     sash.card_digest)  # fmt: skip
     release["runs"] += _prover_runs(root, closed, adapter, 3, SASH_CONTROLS).dirs
+    card_path, card = _card(root, FIXTURE)
+    digest = file_digest(root / card_path)
+    release["claim_cards"].append({"system": FIXTURE, "configuration": card["configuration"],
+                                   "card_version": card["card_version"], "path": card_path,
+                                   "digest": digest})  # fmt: skip
+    second = Config(FIXTURE, CLOSED_WORKLOAD, card["configuration"], card["card_version"], digest)
+    release["runs"] += _prover_runs(root, second, adapter, 3, SASH_CONTROLS).dirs
     release["replies"] = {sash.system: REPLY}
     _records(root, fp, first)
     _criteria(root, first, sash_first)

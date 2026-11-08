@@ -7,6 +7,7 @@ import pytest
 
 from iproofs import cli
 from iproofs.adapter import ContainerRunner, InProcessRunner, StepResult
+from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import System, load
 from iproofs.runner import JobSpec, Runner, allocate_run_id, check_card_class
 from iproofs.schema import SchemaRegistry
@@ -217,7 +218,7 @@ def closed_job(monkeypatch: pytest.MonkeyPatch, claim_class: str, card: Path | N
     ("card", "message"),
     [
         (ROOT / "systems/sash/claim.yaml", SASH_CLASS),  # a card of another class
-        (None, "fake has no claim card"),
+        (None, "fake has no claim card a job records"),
     ],
 )
 def test_closed_workload_class_mismatch(
@@ -255,3 +256,26 @@ def test_closed_workload_reference_has_no_card() -> None:
     sash = load(ROOT / "systems/sash/system.yaml", REGISTRY)
     assert isinstance(sash, System)
     check_card_class(ROOT, REGISTRY, sash, wl)  # SASH's card has the workload's class
+
+
+@pytest.mark.parametrize(("name", "ok"), [("default", True), ("sound-defaults", False)])
+def test_closed_workload_reads_the_card_a_job_records(tmp_path: Path, name: str, ok: bool) -> None:
+    """The check reads the card the job's manifest records (`job_card`): `claims/default.yaml`,
+    else `claim.yaml`. A v0.1 job names no configuration, so a system whose only card is
+    `claims/sound-defaults.yaml` records none and is refused on a closed workload."""
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    card = tmp_path / f"systems/sash/claims/{name}.yaml"
+    card.parent.mkdir(parents=True)
+    text = (ROOT / "systems/sash/claim.yaml").read_text()
+    card.write_text(text.replace('configuration: "sound-defaults"', f'configuration: "{name}"'))
+    sash = load(ROOT / "systems/sash/system.yaml", REGISTRY)
+    assert isinstance(sash, System)
+    wl = load_workload("l31-8b-c1024", 1, root=ROOT, registry=REGISTRY)
+    if ok:
+        check_card_class(tmp_path, REGISTRY, sash, wl)
+        return
+    with pytest.raises(IProofsError) as err:
+        check_card_class(tmp_path, REGISTRY, sash, wl)
+    assert err.value.kind == ErrorKind.CONFIG
+    assert "systems/sash/claims/default.yaml or systems/sash/claim.yaml" in str(err.value)

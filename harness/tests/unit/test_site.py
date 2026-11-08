@@ -791,7 +791,8 @@ def test_division_named(site: Build) -> None:
         assert len({c["workload"]["id"] for c in cfgs}) == 1, sid  # one workload per table
         wl = cfgs[0]["workload"]
         seen.setdefault(model, []).append(wl["division"])
-        where = f"{wl['id']} · {wl['division']} division · {cfgs[0]['profile']}"
+        profiles = ", ".join(sorted({c["profile"] for c in cfgs}))
+        where = f"{wl['id']} · {wl['division']} division · {profiles}"
         assert (where in plain(head)) == (wl["division"] != "native"), sid
     for model, divisions in seen.items():  # native tables first, then closed, then open
         order = ["native", "closed", "open"]
@@ -800,7 +801,12 @@ def test_division_named(site: Build) -> None:
         pytest.skip(
             "the deployed release has native workloads only; the extras build, a closed one"
         )
-    assert any("closed" in d for d in seen.values())
+    closed = [m for m, d in seen.items() if "closed" in d]
+    assert closed
+    for sid, body in TABLE.findall(site.pages["index.html"]):  # two systems of its class
+        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
+        if cfgs[0]["workload"]["division"] == "closed":
+            assert len({c["system"] for c in cfgs}) >= 2, sid  # RFC-0003 Q7
 
 
 def test_native_workloads_header(site: Build) -> None:

@@ -227,21 +227,36 @@ def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, 
         n += 1
 
 
+JOB_CONFIGURATION = "default"  # v0.1 jobs carry no configuration (JobSpec, system.yaml)
+
+
+def job_card(root: Path, registry: SchemaRegistry, system: str) -> tuple[Path, ClaimCard] | None:
+    """The claim card a job of `system` records in its manifest, with its path:
+    `claims/default.yaml`, else a single `claim.yaml` (RFC-0002 §File and identity). A v0.1 job
+    names no configuration, so a system whose only cards are `claims/<other>.yaml` records
+    none."""
+    card = card_path(root, system, JOB_CONFIGURATION)
+    doc = load(card, registry) if card else None
+    return (card, doc) if card and isinstance(doc, ClaimCard) else None
+
+
 def check_card_class(root: Path, registry: SchemaRegistry, system: System, wl: Workload) -> None:
     """RFC-0003 §Divisions: a closed workload admits only a card with its exact `claim_class`,
-    so a job of another class, or of a system with no card, is a `config` error before any
-    container starts. A reference system has no card (RFC-0015) and runs on every workload."""
+    so a job of another class, or of a system with no card the job records (`job_card`), is a
+    `config` error before any container starts. A reference system has no card (RFC-0015) and
+    runs on every workload."""
     if wl.division != "closed" or system.kind == "reference":
         return
-    card = card_path(root, system.name, "default")
-    doc = load(card, registry) if card else None
-    if not isinstance(doc, ClaimCard):
+    found = job_card(root, registry, system.name)
+    if found is None:
+        where = f"systems/{system.name}/claims/{JOB_CONFIGURATION}.yaml"
         raise IProofsError(
             ErrorKind.CONFIG,
             f"closed workload {wl.id} fixes claim_class {wl.claim_class!r}; "
-            f"{system.name} has no claim card",
+            f"{system.name} has no claim card a job records ({where} or "
+            f"systems/{system.name}/claim.yaml)",
         )
-    check_closed_division(wl.division, wl.claim_class, doc.claim_class)
+    check_closed_division(wl.division, wl.claim_class, found[1].claim_class)
 
 
 @dataclass(slots=True)
@@ -1508,15 +1523,15 @@ class Runner:
             self.root, ["harness", "pyproject.toml", "uv.lock"]
         )
         _, adapter_dirty = git_state(self.root, [f"systems/{system.name}"])
-        card = card_path(self.root, system.name, "default")
-        card_doc = load(card, self.registry) if card else None
+        found = job_card(self.root, self.registry, system.name)
+        card, card_doc = found if found else (None, None)
         claim = (
             {
                 "system": system.name,
                 "configuration": card_doc.configuration,
                 "card_version": card_doc.card_version,
             }
-            if isinstance(card_doc, ClaimCard)
+            if card_doc is not None
             else None
         )
         source = wl.model.source
