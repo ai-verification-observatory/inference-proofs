@@ -321,6 +321,7 @@
             "%",
             "param_token/s",
             "s/bit_token",
+            "bit/weight",
             "ratio"
           ]
         },

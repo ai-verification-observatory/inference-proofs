@@ -1,4 +1,4 @@
-# Weight bits from file size (RFC-0003 WB-2): 64 B of weights over 16 parameters, 64 x 8 / 16 = 32.
+# Weight bits from file size (RFC-0003 WB-2): 64 B of weights over 16 parameters; the loader computes 64 x 8 / 16 = 32.
 # Hashes are illustrative.
 schema: "workload/1"
 id: "fake-tiny-ci"
@@ -18,7 +18,7 @@ model:
 precision:
   served: "int8"
   proved: "int8"
-  weight_bits: {bits: 32, basis: "file_size", source: "https://example.org/fake-tiny", files: ["weights.bin"]}
+  weight_bits: {basis: "file_size", covers: "all", source: "https://example.org/fake-tiny", files: ["weights.bin"]}
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:8888888888888888888888888888888888888888888888888888888888888888"

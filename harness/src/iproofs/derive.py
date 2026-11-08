@@ -223,11 +223,12 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
     """Every repetition-level formula of RFC-0004 over one repetition's recorded metrics.
 
     `price`, `active_parameters`, `weight_bits` and `first_proof_tokens` are (pointer,
-    quantity) pairs from the reference file, the workload record (`model.parameters` and
-    `precision.weight_bits`, RFC-0003) and run.json `proofs[0]`; a quantity of None is a
-    missing input. Each formula is evaluated left to right as written in the RFC table
-    (INV-DERIVE-5). `reference` is true for a `kind: reference` system (RFC-0015), whose
-    D-TPP and D-SPAB-S are null (INV-DERIVE-6, INV-DERIVE-7).
+    quantity) pairs from the reference file, run.json `inputs` (the workload record's
+    `model.parameters` and `precision.weight_bits` as copied at run time, RFC-0003 WB-4) and
+    run.json `proofs[0]`; a quantity of None is a missing input. Each formula is evaluated
+    left to right as written in the RFC table (INV-DERIVE-5). `reference` is true for a
+    `kind: reference` system (RFC-0015), whose D-TPP and D-SPAB-S are null (INV-DERIVE-6,
+    INV-DERIVE-7).
     """
     out: dict[str, QuantityTree] = {}
 
@@ -309,6 +310,48 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
 
 # Formulas that describe proving: null with `not_applicable` on a `kind: reference` row.
 PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S"})
+
+# RFC-0004 Q3: formulas a release freeze evaluates for a run stored before they existed.
+FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S"})
+
+
+def freeze_values(
+    metrics: Mapping[str, QuantityTree],
+    *,
+    run_json: str,
+    harness_version: str,
+    active_parameters: Input,
+    weight_bits: Input,
+    reference: bool,
+) -> dict[str, QuantityTree]:
+    """RFC-0004 Q3: the FREEZE_FORMULAS values a stored run lacks, from its recorded metrics
+    (pointers into its unchanged run.json) and the workload record at the release commit. A
+    value whose run.json input the run does not hold is null with `missing_input`."""
+    out = derive_repetition(
+        metrics,
+        run_json=run_json,
+        harness_version=harness_version,
+        gpus=0,
+        price=("", None),
+        active_parameters=active_parameters,
+        weight_bits=weight_bits,
+        first_proof_tokens=("", None),
+        reference=reference,
+    )
+    stored = f"{run_json}#/metrics/"
+    late = {}
+    for name, q in out.items():
+        if name in metrics or formula_of(q)[0] not in FREEZE_FORMULAS:
+            continue
+        source = q["source"]
+        assert isinstance(source, Mapping)
+        held = [
+            ref.removeprefix(stored) in metrics
+            for ref in source["inputs"]
+            if ref.startswith(stored)
+        ]
+        late[name] = q if all(held) else _nulled(q, NullReason.MISSING_INPUT)
+    return late
 
 
 # ---------------------------------------------------------------- configuration statistics

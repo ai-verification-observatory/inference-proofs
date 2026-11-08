@@ -34,6 +34,32 @@
     }
   ],
   "failure": null,
+  "inputs": {
+    "active_parameters_per_token": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 64
+    },
+    "weight_bits": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+      },
+      "tier": "reported",
+      "unit": "bit/weight",
+      "value": 8
+    }
+  },
   "metrics": {
     "proof_bytes": {
       "grade": "measured",

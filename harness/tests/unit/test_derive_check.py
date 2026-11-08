@@ -106,14 +106,15 @@ def test_cli_derive_check_clean(capsys: pytest.CaptureFixture[str]) -> None:
 
 
 def test_derive_check_absent_weight_bits(tmp_path: Path) -> None:
-    """RFC-0004 D-SPAB-S null rule: a workload record without weight bits leaves the input
-    unresolvable; a stored null `missing_input` recomputes as it is, a stored value fails DER-3."""
+    """RFC-0004 D-SPAB-S null rule: an unresolvable weight-bits input (a run without
+    `inputs.weight_bits`); a stored null `missing_input` recomputes as it is, a stored value
+    fails DER-3."""
     name = "seconds_per_active_weight_bit_token_prove.steady"
 
     def absent(doc: dict[str, dict[str, dict[str, dict[str, list[str]]]]]) -> None:
         src = doc["metrics"][name]["source"]
         src["inputs"] = [
-            p.replace("/weight_bits/bits", "/weight_bits_absent") for p in src["inputs"]
+            p.replace("/inputs/weight_bits", "/inputs/weight_bits_absent") for p in src["inputs"]
         ]
 
     def absent_null(doc: dict[str, dict[str, dict[str, object]]]) -> None:

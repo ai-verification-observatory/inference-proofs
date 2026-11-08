@@ -58,6 +58,7 @@ def make_run(  # noqa: PLR0913 (one fixture knob per RFC rule)
     controls: dict[str, str] | None = None,
     digests: tuple[str, ...] = ("sha256:" + "1" * 64,),
     binding: tuple[int, ...] = (0, 1),
+    workload: dict[str, str] | None = None,
 ) -> Path:
     d = results / "v0.1/fake" / run_id
     d.mkdir(parents=True)
@@ -82,7 +83,8 @@ def make_run(  # noqa: PLR0913 (one fixture knob per RFC rule)
             "file_digest": "sha256:" + "2" * 64,
             "corpus_digest": "sha256:" + "3" * 64,
             "model": {"digest": "sha256:" + "4" * 64},
-        },
+        }
+        | (workload or {}),
         "profile": {"prover": "ci-cpu", "verifier": "ci-cpu"},
         "system": {"image": {"ref": image}, "adapter_dirty": False},
         "harness": {"git_dirty": False},
@@ -214,6 +216,21 @@ def test_null_metric_handling(tmp_path: Path) -> None:
 def test_eligibility_image_digest(tmp_path: Path) -> None:
     rec = record(tmp_path, image="ghcr.io/example/iproofs-fake@sha256:" + "b" * 64)
     assert rec["eligibility"]["same_image_digest"] is False  # type: ignore[index]
+    assert rec["outcome"] == "ineligible"
+
+
+def test_workload_file_digest_alone_keeps_eligibility(tmp_path: Path) -> None:
+    """RFC-0007 rule 1 compares workload ids, versions, model and corpus digests. A workload
+    file that gained a descriptive field (RFC-0003 WB-4, `precision.weight_bits`) has another
+    file digest but the same inputs, so the reproduction stays eligible."""
+    rec = record(tmp_path, workload={"file_digest": "sha256:" + "5" * 64})
+    assert rec["eligibility"]["same_workload_digests"] is True  # type: ignore[index]
+    assert rec["outcome"] == "within_tolerance"
+
+
+def test_workload_corpus_digest_breaks_eligibility(tmp_path: Path) -> None:
+    rec = record(tmp_path, workload={"corpus_digest": "sha256:" + "6" * 64})
+    assert rec["eligibility"]["same_workload_digests"] is False  # type: ignore[index]
     assert rec["outcome"] == "ineligible"
 
 

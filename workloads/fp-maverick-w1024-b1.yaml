@@ -30,8 +30,9 @@ precision:
   weight_bits:
     bits: 4.5
     basis: "stated"
+    covers: "part"
     source: "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF/blob/41032e5471dd6ea5b349062d978626215d6c5bba/README.md#L122-L129"
-    note: "Unsloth's figure for this quant, in its column headed MoE Bits. The GGUF tensor table of the pinned files also stores some tensors as Q5_K, Q6_K and F32, routed experts' down projections included, so it is a nominal width, not a mean over the active weights (RFC-0003 WB-1 and Q5)."
+    note: "Unsloth's figure for this quant, in its column headed MoE Bits: a width stated for the mixture-of-experts layers, not for every active weight. The GGUF tensor table of the pinned files also stores some tensors as Q5_K, Q6_K and F32, routed experts' down projections included, so it is a nominal width, not a mean over the active weights (RFC-0003 WB-1 and Q5)."
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"

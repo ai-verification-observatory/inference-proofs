@@ -19,13 +19,22 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from iproofs import __version__
-from iproofs.derive import agreement_rate, overhead, provider_spread, statistic
+from iproofs.derive import (
+    Input,
+    QuantityTree,
+    agreement_rate,
+    freeze_values,
+    overhead,
+    provider_spread,
+    statistic,
+)
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import ReferenceFile, Release, load
+from iproofs.model import ReferenceFile, Release, Workload, load
 from iproofs.provenance import file_digest
 from iproofs.quantity import NullReason, Scope, Tier, claim_class_matches, lowest_tier
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
+from iproofs.workloads import asserted_inputs, workload_file
 
 # RFC-0007 §Tolerance: compared metric ids, in record order.
 COMPARED = (
@@ -249,9 +258,11 @@ def compare(
     eligibility: dict[str, object] = {
         "same_release": _same(everyone, "manifest", "release"),
         "same_image_digest": _same(everyone, "manifest", "system", "image", "ref"),
+        # RFC-0007 rule 1: ids, versions, model and corpus digests. The file digest is not
+        # compared: a descriptive field (RFC-0003 WB-4, weight bits) changes it, not the inputs
         "same_workload_digests": all(
             _same(everyone, "manifest", "workload", k)
-            for k in ("id", "version", "file_digest", "corpus_digest", "model")
+            for k in ("id", "version", "corpus_digest", "model")
         ),
         "same_profile": _same(everyone, "manifest", "profile", "prover")
         and _same(everyone, "manifest", "profile", "verifier"),
@@ -535,11 +546,12 @@ def freeze(
     if dt.date.fromisoformat(release.freeze_date) <= closes:
         raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
     excluded = _excluded(release, runs, root, registry)  # step 4
-    configurations, controls, contexts = _configurations(runs, excluded, maintainers or {})
+    late = _Late(root, registry, release.release)
+    configurations, controls, contexts = _configurations(runs, excluded, maintainers or {}, late)
     _release_rows(release.release, contexts, _reference_roles(root))  # step 5, release rows
     targets = _targets(root, registry, release, contexts, read)  # step 8
     digests = sorted(file_digest(p) for p in read)
-    return {
+    index: dict[str, object] = {
         "schema": "release-index/1",
         "release": release.release,
         "reference": {
@@ -562,6 +574,9 @@ def freeze(
         "inputs_digest": "sha256:"
         + hashlib.sha256("".join(f"{d}\n" for d in digests).encode()).hexdigest(),
     }
+    if late.values:  # RFC-0004 Q3
+        index["freeze_derived"] = dict(late.values)
+    return index
 
 
 def _excluded(
@@ -595,6 +610,7 @@ def _configurations(
     runs: Mapping[str, RunView],
     excluded: Mapping[str, list[str]],
     maintainers: Mapping[str, Sequence[str]],
+    late: "_Late",
 ) -> tuple[list[dict[str, object]], list[dict[str, object]], list["_Context"]]:
     groups: dict[tuple[object, ...], list[RunView]] = {}
     for run in runs.values():
@@ -627,7 +643,7 @@ def _configurations(
             "ineligible": [{"run_id": r.run_id, "reasons": excluded[r.run_id]}
                            for r in members if r.run_id in excluded],
             "insufficient_repetitions": sum(r.ok for r in kept) < MIN_REPLAYED,
-            "statistics": (stats := _statistics(kept, tiers)),
+            "statistics": (stats := _statistics(kept, tiers, late)),
             "effective_tier": str(lowest_tier(list(tiers.values()))) if tiers else "reported",
             "evidence": {  # INV-TIER-7: outside_tolerance records are listed too
                 "reviews": [path for r in kept for path, _ in reviews[r.run_id]],
@@ -635,28 +651,108 @@ def _configurations(
             },
         })  # fmt: skip
         controls.append({**where, **_control_summary(kept)})
-        contexts.append(_Context(where, configuration, kept, tiers, stats))
+        contexts.append(_Context(where, configuration, kept, tiers, stats, late))
     return configurations, controls, contexts
 
 
-def _statistics(kept: Sequence[RunView], tiers: Mapping[str, Tier]) -> dict[str, object]:
+class _Late:
+    """RFC-0004 Q3: values a freeze evaluates for runs stored before their formula existed,
+    written to index.json `freeze_derived` and pointed at from there."""
+
+    def __init__(self, root: Path, registry: SchemaRegistry, release: str) -> None:
+        self.root, self.registry, self.release = root, registry, release
+        self.values: dict[str, dict[str, QuantityTree]] = {}
+        self._workloads: dict[str, Workload] = {}
+
+    def workload_inputs(self, run: RunView) -> tuple[Input, Input]:
+        """The workload record's asserted inputs at the release commit, as (pointer, quantity);
+        missing inputs when the record now holds another version than the run's."""
+        wid = str(run.get("run", "workload", "id"))
+        if wid not in self._workloads:  # the record only, not the loader's cross-file rules
+            wl = load(workload_file(self.root, wid), self.registry)
+            if not isinstance(wl, Workload):
+                raise _fail(f"workloads/{wid}.yaml is not a workload record")
+            self._workloads[wid] = wl
+        wl = self._workloads[wid]
+        same = wl.version == run.get("run", "workload", "version")
+        inputs, out = asserted_inputs(wl), []
+        for name in ("active_parameters_per_token", "weight_bits"):
+            q = inputs[name]
+            source = q["source"]
+            assert isinstance(source, dict)
+            out.append((str(source["ref"]), q if same else None))
+        return out[0], out[1]
+
+    def evaluate(self, run: RunView) -> dict[str, QuantityTree]:
+        params, bits = self.workload_inputs(run)
+        values = freeze_values(
+            run.run["metrics"],  # type: ignore[arg-type]
+            run_json=f"{_rel(run)}/run.json",
+            harness_version=__version__,
+            active_parameters=params,
+            weight_bits=bits,
+            reference=run.run.get("system_kind") == "reference",
+        )
+        if values:
+            self.values[run.run_id] = values
+        return values
+
+    def pointer(self, run: RunView, metric: str) -> str:
+        return f"releases/{self.release}/index.json#/freeze_derived/{run.run_id}/{metric}"
+
+
+def _statistics(
+    kept: Sequence[RunView], tiers: Mapping[str, Tier], late: _Late
+) -> dict[str, object]:
     """D-STAT per metric over completed repetitions, in repetition order (INV-DERIVE-1);
     failed repetitions count in n_failed. Each input carries its effective tier, so the
-    statistic's tier is the lowest of them (INV-TIER-6)."""
+    statistic's tier is the lowest of them (INV-TIER-6). A run stored before a formula of
+    FREEZE_FORMULAS existed gets its value at freeze (RFC-0004 Q3), so it stays in n."""
     done = [r for r in kept if r.ok]
     failed = [f"{_rel(r)}/run.json#/failure" for r in kept if not r.ok]
-    metrics = sorted({m for r in done for m in r.run["metrics"]})  # type: ignore[attr-defined]
+    evaluated = {r.run_id: late.evaluate(r) for r in done}
+    _same_inputs(done, evaluated, late)
+    metrics = sorted(
+        {m for r in done for m in r.run["metrics"]}  # type: ignore[attr-defined]
+        | {m for values in evaluated.values() for m in values}
+    )
     out: dict[str, object] = {}
     for metric in metrics:
-        inputs = _metric_inputs(done, metric, tiers)
+        inputs = _metric_inputs(done, metric, tiers, late)
         out[metric] = statistic(inputs, failed, __version__)
     return out
 
 
+def _same_inputs(
+    done: Sequence[RunView], evaluated: Mapping[str, Mapping[str, QuantityTree]], late: _Late
+) -> None:
+    """RFC-0003 WB-4: one configuration's repetitions share the workload's asserted inputs; a
+    change of weight bits or parameter count is a new workload version."""
+    used: dict[str, tuple[object, object]] = {}
+    for r in done:
+        recorded = r.run.get("inputs")
+        if isinstance(recorded, dict):
+            params, bits = recorded["active_parameters_per_token"], recorded["weight_bits"]
+        elif any(name.startswith("seconds_per_active") for name in evaluated[r.run_id]):
+            (_, params), (_, bits) = late.workload_inputs(r)
+        else:
+            continue
+        used[r.run_id] = (
+            None if params is None else params["value"],
+            None if bits is None else bits["value"],
+        )
+    if len(set(used.values())) > 1:
+        raise _fail(
+            "RFC-0003 WB-4: repetitions of one configuration have different workload inputs"
+            f" (active parameters per token, weight bits): {dict(sorted(used.items()))}"
+        )
+
+
 def _metric_inputs(
-    done: Sequence[RunView], metric: str, tiers: Mapping[str, Tier]
+    done: Sequence[RunView], metric: str, tiers: Mapping[str, Tier], late: _Late | None = None
 ) -> list[tuple[str, Mapping[str, object] | None]]:
-    """(pointer, quantity with its effective tier) per completed repetition that has `metric`."""
+    """(pointer, quantity with its effective tier) per completed repetition that has `metric`,
+    stored in its run.json or evaluated at freeze (`late`, RFC-0004 Q3)."""
     inputs: list[tuple[str, Mapping[str, object] | None]] = []
     for r in done:
         stored: dict[str, dict[str, object]] = r.run["metrics"]  # type: ignore[assignment]
@@ -665,6 +761,10 @@ def _metric_inputs(
             inputs.append(
                 (f"{_rel(r)}/run.json#/metrics/{metric}", {**stored[metric], "tier": tier})
             )
+        elif late is not None and metric in late.values.get(r.run_id, {}):
+            q = late.values[r.run_id][metric]
+            tier = str(quantity_tier(r, metric, tiers[r.run_id], q=q))
+            inputs.append((late.pointer(r, metric), {**q, "tier": tier}))
     return inputs
 
 
@@ -733,19 +833,27 @@ def effective_tier(
 
 
 def quantity_tier(
-    run: RunView, metric: str, run_tier: Tier, seen: frozenset[str] = frozenset()
+    run: RunView,
+    metric: str,
+    run_tier: Tier,
+    seen: frozenset[str] = frozenset(),
+    q: Mapping[str, object] | None = None,
 ) -> Tier:
     """RFC-0007 rules 1 and 2: a measured quantity takes its run's tier; a derived one the
     lowest tier of its inputs (INV-TIER-6), where an input outside this run's measured or
-    derived quantities (an asserted price, a projected or external figure) is `reported`."""
-    q = run.run["metrics"][metric]  # type: ignore[index]
+    derived quantities (an asserted price, a projected or external figure) is `reported`.
+    `q` is a value evaluated at freeze (RFC-0004 Q3) in place of the stored one."""
+    if q is None:
+        q = run.run["metrics"][metric]  # type: ignore[index]
+    assert q is not None
     grade = q.get("grade")
     if grade == "measured":
         return run_tier
     if grade != "derived" or metric in seen:
-        return Tier(q.get("tier", "reported")) if grade == "external" else Tier.REPORTED
+        return Tier(str(q.get("tier", "reported"))) if grade == "external" else Tier.REPORTED
     tiers = []
-    for ref in (q.get("source") or {}).get("inputs") or []:
+    source = q.get("source")
+    for ref in (source.get("inputs") if isinstance(source, Mapping) else None) or []:
         file, _, pointer = str(ref).partition("#")
         name = pointer.removeprefix("/metrics/")
         mine = file.endswith(f"{run.run_id}/run.json") and pointer.startswith("/metrics/")
@@ -772,6 +880,7 @@ class _Context:
     kept: list[RunView]
     tiers: dict[str, Tier]
     statistics: dict[str, object]
+    late: "_Late | None" = None
 
 
 def evaluate_target(
@@ -844,7 +953,7 @@ def _targets(
                 continue
             done = [r for r in ctx.kept if r.ok]
             result, reason, worst = evaluate_target(
-                target, _metric_inputs(done, target["metric"], ctx.tiers)
+                target, _metric_inputs(done, target["metric"], ctx.tiers, ctx.late)
             )
             mean = ctx.statistics.get(target["metric"]) if worst else None
             out.append({**ctx.where, "target": path.relative_to(root).as_posix(),
@@ -897,7 +1006,7 @@ def _release_rows(release: str, contexts: Sequence["_Context"], roles: Mapping[s
             by_provider: dict[str, list[tuple[str, Mapping[str, object] | None]]] = {}
             for r in done:
                 by_provider.setdefault(str(r.get("manifest", "provider")), []).extend(
-                    _metric_inputs([r], m, ctx.tiers)
+                    _metric_inputs([r], m, ctx.tiers, ctx.late)
                 )
             if any(by_provider.values()):
                 ctx.statistics[f"provider_spread_{m[5:]}"] = provider_spread(

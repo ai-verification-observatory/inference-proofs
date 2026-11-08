@@ -97,6 +97,7 @@ from iproofs.quantity import NullReason, Scope, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.workloads import (
+    asserted_inputs,
     default_cache,
     ensure_model,
     load_workload,
@@ -1478,7 +1479,7 @@ class Runner:
                 for i, (pid, ns) in enumerate(job.releases)
             ],
             "warnings": list(job.warnings),
-        }
+        } | ({"inputs": asserted_inputs(job.workload)} if metrics and job.workload else {})
 
     def _manifest(self, job: Job) -> dict[str, object]:
         """manifest.json: everything needed to rerun the job (RFC-0014 §manifest.json)."""
@@ -1674,20 +1675,9 @@ class Runner:
         profile = job.reference.profiles[job.spec.profile]
         gpus = profile.gpu.count if isinstance(profile, ProverProfile) and profile.gpu else 0
         price_ptr = f"{job.reference_file}#/cost/price_per_gpu_hour_usd"
-        params_ptr = f"workloads/{job.workload.id}.yaml#/model/parameters/active_per_token"
         price_q = json.loads(json.dumps(_price_tree(self.root / job.reference_file)))
-        params_q = {
-            "value": job.workload.model.parameters.active_per_token,
-            "tier": "reported",
-            "source": {"kind": "harness", "ref": ""},
-        }
-        bits = job.workload.precision.weight_bits  # RFC-0003 §Weight bits; absent: missing_input
-        bits_ptr = f"workloads/{job.workload.id}.yaml#/precision/weight_bits/bits"
-        bits_q = (
-            None
-            if bits is None
-            else {"value": bits.bits, "tier": "reported", "source": {"kind": "harness", "ref": ""}}
-        )
+        # RFC-0003 WB-4: the workload's asserted inputs, as copied into run.json `inputs`
+        inputs = asserted_inputs(job.workload)
         first = (
             {
                 "value": sum(per_proof[0]),
@@ -1703,8 +1693,11 @@ class Runner:
             harness_version=__version__,
             gpus=gpus,
             price=(price_ptr, price_q),
-            active_parameters=(params_ptr, params_q),
-            weight_bits=(bits_ptr, bits_q),
+            active_parameters=(
+                f"{run_json}#/inputs/active_parameters_per_token",
+                inputs["active_parameters_per_token"],
+            ),
+            weight_bits=(f"{run_json}#/inputs/weight_bits", inputs["weight_bits"]),
             first_proof_tokens=(f"{run_json}#/proofs/0/tokens_covered", first),
             reference=_reference(job),
         )

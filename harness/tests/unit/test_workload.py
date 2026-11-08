@@ -6,7 +6,7 @@ import pytest
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.provenance import file_digest
 from iproofs.schema import SchemaRegistry
-from iproofs.workloads import load_workload, workload_digest
+from iproofs.workloads import asserted_inputs, load_workload, weight_bits, workload_digest
 
 ROOT = Path(__file__).resolve().parents[3]
 EXAMPLE = ROOT / "schema/workload/examples/valid/fake-tiny-ci.yaml"
@@ -126,55 +126,76 @@ def test_schema_violation_is_config_error(tree: Path, registry: SchemaRegistry) 
 
 STATED = (
     'precision: {served: "int8", proved: "int8", alternatives: ["int4"], weight_bits: {bits: 8,'
-    ' basis: "stated", source: "https://example.org/fake-tiny"}}'
+    ' basis: "stated", covers: "part", source: "https://example.org/fake-tiny"}}'
 )
 PRECISION = 'precision: {served: "int8", proved: "int8", alternatives: ["int4"]}'
 
 
-def file_size(bits: str, files: str = '["weights.bin"]') -> str:
+def file_size(files: str = '["weights.bin"]', bits: str = "") -> str:
     return (
-        'precision: {served: "int8", proved: "int8", alternatives: ["int4"], weight_bits: {bits: '
-        f'{bits}, basis: "file_size", source: "https://example.org/fake-tiny", files: {files}}}}}'
+        'precision: {served: "int8", proved: "int8", alternatives: ["int4"], weight_bits: {'
+        f'{bits}basis: "file_size", covers: "all", source: "https://example.org/fake-tiny",'
+        f" files: {files}}}}}"
     )
 
 
 def test_weight_bits_stated(tree: Path, registry: SchemaRegistry) -> None:
-    """RFC-0003 WB-1: a stated width loads as written, with its basis and source."""
+    """RFC-0003 WB-1: a stated width loads as written, with its basis, coverage and source."""
     edit(tree, PRECISION, STATED)
-    wb = load_workload("fake-tiny-ci", root=tree, registry=registry).precision.weight_bits
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    wb = wl.precision.weight_bits
     assert wb is not None
-    assert (wb.bits, wb.basis, wb.files) == (8, "stated", None)
+    assert (wb.bits, wb.basis, wb.covers, wb.files) == (8, "stated", "part", None)
+    assert weight_bits(wl) == 8
 
 
 def test_weight_bits_absent(tree: Path, registry: SchemaRegistry) -> None:
     """No weight bits is valid: D-SPAB-S is then null with `missing_input` (RFC-0004)."""
-    assert load_workload("fake-tiny-ci", root=tree, registry=registry).precision.weight_bits is None
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    assert wl.precision.weight_bits is None
+    assert weight_bits(wl) is None
+    assert asserted_inputs(wl)["weight_bits"]["null_reason"] == "missing_input"
 
 
 def test_weight_bits_file_size(tree: Path, registry: SchemaRegistry) -> None:
-    """RFC-0003 WB-2, hand-computed: weights.bin is 64 B over 16 parameters, 64 x 8 / 16 = 32."""
-    edit(tree, PRECISION, file_size("32"))
-    wb = load_workload("fake-tiny-ci", root=tree, registry=registry).precision.weight_bits
-    assert wb is not None
-    assert wb.bits == 32
+    """RFC-0003 WB-2, hand-computed: weights.bin is 64 B over 16 parameters, so the loader
+    computes 64 x 8 / 16 = 32; the record does not type it."""
+    edit(tree, PRECISION, file_size())
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    assert wl.precision.weight_bits is not None
+    assert wl.precision.weight_bits.bits == 32
+    assert weight_bits(wl) == 32
 
 
-def test_weight_bits_file_size_mismatch(tree: Path, registry: SchemaRegistry) -> None:
-    edit(tree, PRECISION, file_size("8"))
-    message = config_error(tree, registry)
-    assert "precision.weight_bits.bits 8 != listed file bytes x 8 / model.parameters.total" in (
-        message
-    )
-    assert "= 32.0 (basis file_size)" in message
+def test_weight_bits_file_size_typed(tree: Path, registry: SchemaRegistry) -> None:
+    """WB-2 and AGENTS.md rule 3: a file_size width is computed, so typing it is an error."""
+    edit(tree, PRECISION, file_size(bits="bits: 32, "))
+    assert "/precision/weight_bits" in config_error(tree, registry)
 
 
 def test_weight_bits_file_size_unknown_file(tree: Path, registry: SchemaRegistry) -> None:
-    edit(tree, PRECISION, file_size("32", '["weights.bin", "other.bin"]'))
+    edit(tree, PRECISION, file_size('["weights.bin", "other.bin"]'))
     assert "precision.weight_bits.files ['other.bin'] are not in model.files" in config_error(
         tree, registry
     )
 
 
+def test_asserted_inputs(tree: Path, registry: SchemaRegistry) -> None:
+    """RFC-0003 WB-4: the inputs the runner copies into run.json are labelled asserted
+    quantities that point at the workload record they were copied from."""
+    edit(tree, PRECISION, STATED)
+    inputs = asserted_inputs(load_workload("fake-tiny-ci", root=tree, registry=registry))
+    params, bits = inputs["active_parameters_per_token"], inputs["weight_bits"]
+    assert (params["value"], params["unit"], params["grade"]) == (16, "count", "asserted")
+    assert (bits["value"], bits["unit"], bits["null_reason"]) == (8, "bit/weight", None)
+    assert bits["source"] == {
+        "kind": "reference_file",
+        "ref": "workloads/fake-tiny-ci.yaml#/precision/weight_bits",
+    }
+    for q in inputs.values():
+        assert registry.errors("quantity/1", q, def_name="quantity") == []
+
+
 def test_weight_bits_file_size_needs_files(tree: Path, registry: SchemaRegistry) -> None:
-    edit(tree, PRECISION, file_size("32").replace(', files: ["weights.bin"]', ""))
+    edit(tree, PRECISION, file_size().replace(', files: ["weights.bin"]', ""))
     assert "/precision/weight_bits" in config_error(tree, registry)

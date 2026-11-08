@@ -23,6 +23,29 @@
         }
       }
     },
+    "asserted": {
+      "$comment": "an asserted input copied from the workload record (RFC-0003 WB-4, RFC-0004 INV-DERIVE-3)",
+      "allOf": [
+        {
+          "$ref": "#/$defs/reported"
+        }
+      ],
+      "properties": {
+        "grade": {
+          "const": "asserted"
+        },
+        "scope": {
+          "const": null
+        },
+        "source": {
+          "properties": {
+            "kind": {
+              "const": "reference_file"
+            }
+          }
+        }
+      }
+    },
     "failure": {
       "additionalProperties": false,
       "properties": {
@@ -208,6 +231,41 @@
           "$ref": "#/$defs/failure"
         }
       ]
+    },
+    "inputs": {
+      "$comment": "RFC-0003 WB-4: the workload record's inputs to D-APT-S and D-SPAB-S at run time, so G4 recomputes from the run, not from the workload file at HEAD",
+      "additionalProperties": false,
+      "properties": {
+        "active_parameters_per_token": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/asserted"
+            }
+          ],
+          "properties": {
+            "unit": {
+              "const": "count"
+            }
+          }
+        },
+        "weight_bits": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/asserted"
+            }
+          ],
+          "properties": {
+            "unit": {
+              "const": "bit/weight"
+            }
+          }
+        }
+      },
+      "required": [
+        "active_parameters_per_token",
+        "weight_bits"
+      ],
+      "type": "object"
     },
     "metrics": {
       "additionalProperties": {

@@ -18,7 +18,7 @@ model:
 precision:
   served: "W8A8"
   proved: "W8A8"
-  weight_bits: {bits: 8, basis: "stated", source: "https://example.org/prover-quantization", note: "the prover's own statement of its weight width"}
+  weight_bits: {bits: 8, basis: "stated", covers: "part", source: "https://example.org/prover-quantization", note: "the prover's own statement of its weight width"}
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:4444444444444444444444444444444444444444444444444444444444444444"

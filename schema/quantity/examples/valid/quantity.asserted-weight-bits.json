@@ -1,0 +1,12 @@
+{
+  "grade": "asserted",
+  "null_reason": null,
+  "scope": null,
+  "source": {
+    "kind": "reference_file",
+    "ref": "workloads/fp-maverick-w1024-b1.yaml#/precision/weight_bits"
+  },
+  "tier": "reported",
+  "unit": "bit/weight",
+  "value": 4.5
+}

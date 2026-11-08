@@ -1,4 +1,5 @@
 import json
+import shutil
 from pathlib import Path
 
 import pytest
@@ -67,6 +68,34 @@ def test_state_machine_happy_path(tmp_path: Path) -> None:
         "verifier",
     ]
     assert check_derived(run_dir / "run.json", ROOT) == []  # derived values recompute exactly
+
+
+def test_g4_survives_a_weight_bits_correction(tmp_path: Path) -> None:
+    """RFC-0003 WB-4: the runner copies the workload's asserted inputs into run.json `inputs`
+    and D-SPAB-S points there, so correcting the workload file's weight bits after the run
+    leaves G4 clean (it does not read the workload file at HEAD)."""
+    run_dir = runner().run(spec(tmp_path / "results"))
+    doc = read(run_dir)
+    inputs = doc["inputs"]
+    assert isinstance(inputs, dict)
+    assert inputs["weight_bits"]["value"] == 8  # file_size: 64 B x 8 / 64 parameters
+    assert inputs["active_parameters_per_token"]["value"] == 64
+    metrics = doc["metrics"]
+    assert isinstance(metrics, dict)
+    spab = metrics["seconds_per_active_weight_bit_token_prove.session"]
+    assert spab["source"]["inputs"][2].endswith("run.json#/inputs/weight_bits")
+    root = tmp_path / "repo"
+    for tree in ("schema", "reference"):
+        shutil.copytree(ROOT / tree, root / tree)
+    (root / "workloads").mkdir()
+    text = (ROOT / "workloads/fake-tiny-ci.yaml").read_text()
+    corrected = text.replace(
+        'weight_bits: {basis: "file_size"', 'weight_bits: {bits: 4, basis: "stated"'
+    )
+    corrected = corrected.replace(', files: ["weights.bin"]}', "}")
+    assert corrected != text
+    (root / "workloads/fake-tiny-ci.yaml").write_text(corrected)
+    assert check_derived(run_dir / "run.json", root) == []
 
 
 def test_controls_skipped_without_flag(tmp_path: Path) -> None:

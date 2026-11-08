@@ -41,6 +41,32 @@
     }
   ],
   "failure": null,
+  "inputs": {
+    "active_parameters_per_token": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/worked-example.yaml#/model/parameters/active_per_token"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 8000000000
+    },
+    "weight_bits": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/worked-example.yaml#/precision/weight_bits"
+      },
+      "tier": "reported",
+      "unit": "bit/weight",
+      "value": 8
+    }
+  },
   "metrics": {
     "active_param_tokens_per_second_prove.session": {
       "grade": "derived",
@@ -49,7 +75,7 @@
       "source": {
         "inputs": [
           "harness/tests/fixtures/derive/worked-example/run.json#/metrics/rate_prove.session",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token"
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token"
         ],
         "kind": "derivation",
         "ref": "derive:D-APT-S@0.1.0"
@@ -65,7 +91,7 @@
       "source": {
         "inputs": [
           "harness/tests/fixtures/derive/worked-example/run.json#/metrics/rate_prove.steady",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token"
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token"
         ],
         "kind": "derivation",
         "ref": "derive:D-APT-S@0.1.0"
@@ -81,7 +107,7 @@
       "source": {
         "inputs": [
           "harness/tests/fixtures/derive/worked-example/run.json#/metrics/rate_whole_wall",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token"
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token"
         ],
         "kind": "derivation",
         "ref": "derive:D-APT-S@0.1.0"
@@ -327,8 +353,8 @@
       "source": {
         "inputs": [
           "harness/tests/fixtures/derive/worked-example/run.json#/metrics/seconds_per_token_prove.session",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/precision/weight_bits/bits"
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/weight_bits"
         ],
         "kind": "derivation",
         "ref": "derive:D-SPAB-S@0.1.0"
@@ -344,8 +370,8 @@
       "source": {
         "inputs": [
           "harness/tests/fixtures/derive/worked-example/run.json#/metrics/seconds_per_token_prove.steady",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/precision/weight_bits/bits"
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/weight_bits"
         ],
         "kind": "derivation",
         "ref": "derive:D-SPAB-S@0.1.0"
@@ -361,8 +387,8 @@
       "source": {
         "inputs": [
           "harness/tests/fixtures/derive/worked-example/run.json#/metrics/seconds_per_token_whole_wall",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token",
-          "harness/tests/fixtures/derive/worked-example/workload.yaml#/precision/weight_bits/bits"
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/weight_bits"
         ],
         "kind": "derivation",
         "ref": "derive:D-SPAB-S@0.1.0"

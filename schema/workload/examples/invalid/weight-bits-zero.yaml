@@ -17,7 +17,7 @@ model:
 precision:
   served: "int8"
   proved: "int8"
-  weight_bits: {bits: 0, basis: "stated", source: "https://example.org/fake-tiny"}
+  weight_bits: {bits: 0, basis: "stated", covers: "all", source: "https://example.org/fake-tiny"}
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:8888888888888888888888888888888888888888888888888888888888888888"

@@ -33,8 +33,9 @@ precision:
   weight_bits:
     bits: 8
     basis: "stated"
+    covers: "part"
     source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/quant.py#L15-L19"
-    note: "SASH's own statement: weight matmuls are exact int8 x int8 accumulations, one scale per output channel. SASH quantizes the pinned BF16 files at load time, so file size (2 bytes per parameter) does not give the proved width (RFC-0003 WB-1)."
+    note: "SASH's own statement covers weight matmuls: exact int8 x int8 accumulations, one scale per output channel. It does not state the width of the embedding table, which active_per_token counts, so it covers part of the active weights. SASH quantizes the pinned BF16 files at load time, so file size (2 bytes per parameter) does not give the proved width (RFC-0003 WB-1)."
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"

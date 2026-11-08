@@ -27,6 +27,7 @@ class Unit(StrEnum):
     PERCENT = "%"
     PARAM_TOKEN_PER_S = "param_token/s"
     S_PER_BIT_TOKEN = "s/bit_token"
+    BIT_PER_WEIGHT = "bit/weight"
     RATIO = "ratio"
 
 
