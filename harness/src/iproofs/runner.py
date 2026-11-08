@@ -909,6 +909,7 @@ class Runner:
         )
         watcher.start()
         fields: dict[str, object] = {"claims_file": "/io/claimed.jsonl"} if _recompute(job) else {}
+        args = _engine_args(job)
         try:
             out, _ = self._call(
                 job,
@@ -924,9 +925,18 @@ class Runner:
                 },
                 ro_mounts=ro,
             )
+        except IProofsError as failure:
+            # a failed step under another configuration is that configuration's failure
+            problem = engine_command_problem(job.staging / "io", args, required=False)
+            if reference and problem is not None:
+                raise IProofsError(ErrorKind.CONFIG, problem, step="prove") from failure
+            raise
         finally:
             end = job.steps["prove"].ended_mono_ns if "prove" in job.steps else None
             releases = watcher.stop(call_end_ns=end)
+        problem = engine_command_problem(job.staging / "io", args, required=True)
+        if reference and problem is not None:
+            raise IProofsError(ErrorKind.CONFIG, problem, step="prove")
         job.warnings += check_proofs(IoDirs(job.staging / "io"), out, job.system)
         watcher.check_unchanged()
         job.proofs, job.observable = out, watcher.observable
@@ -1894,6 +1904,51 @@ def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
 
 def _reference(job: Job) -> bool:
     return job.system is not None and job.system.kind == "reference"
+
+
+def _engine_args(job: Job) -> tuple[str, ...]:
+    """The workload's `engine_args` in system.yaml at the run's commit (RFC-0015 SRV-3)."""
+    assert job.system is not None
+    return next(
+        (w.engine_args for w in job.system.workloads
+         if isinstance(w, ReferenceWorkload) and w.id == job.spec.workload),
+        (),
+    )  # fmt: skip
+
+
+def engine_command_problem(io: Path, args: Sequence[str], *, required: bool) -> str | None:
+    """RFC-0015 SRV-3: the engine command a reference adapter records in /io/commands.jsonl
+    (RFC-0005 §Command log) ends with the workload's `engine_args`, verbatim, as system.yaml at
+    the run's commit lists them. The adapter reads its options from the system.yaml baked into
+    its image, so an image built from another system.yaml (another `--n-cpu-moe` N, for one)
+    would otherwise serve one configuration under another's manifest. None when it does, or
+    when there is nothing to compare: no `engine_args`, or no engine command and not
+    `required` (a step that failed before the engine started)."""
+    if not args:
+        return None
+    path = io / "commands.jsonl"
+    recorded: list[list[str]] = []
+    for line in path.read_text(errors="replace").splitlines() if path.is_file() else []:
+        try:
+            doc = json.loads(line)
+        except ValueError:
+            continue
+        argv = doc.get("argv") if isinstance(doc, dict) else None
+        if isinstance(argv, list) and all(isinstance(a, str) for a in argv):
+            recorded.append(argv)
+    if not recorded:
+        return (
+            f"no engine command in /io/commands.jsonl to check against system.yaml's "
+            f"engine_args {list(args)}"
+            if required
+            else None
+        )
+    if any(argv[-len(args) :] == list(args) for argv in recorded if len(argv) >= len(args)):
+        return None
+    return (
+        f"the engine command line does not end with system.yaml's engine_args {list(args)} "
+        f"(the image's system.yaml differs from the run's commit); recorded: {recorded[-1]}"
+    )
 
 
 def _recompute(job: Job) -> bool:

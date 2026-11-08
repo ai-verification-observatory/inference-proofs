@@ -6,8 +6,10 @@
 #
 # Sizing (SRV-6): `--n-cpu-moe 22` is the starting value computed from the GGUF headers
 # (README §Sizing), not a measured one. Each N tried is this file at the commit the run names
-# (the manifest records `system_manifest_digest` and `adapter_commit`); only the final N is
-# published, and the runs of other N values never enter its statistics.
+# (the manifest records `system_manifest_digest` and `adapter_commit`); a change of N rebuilds the
+# image and pins it in the same commit, and the runner refuses a run whose server command line
+# does not end with these engine_args (SRV-3). Only runs of the image pinned at the release
+# commit are eligible, so the runs of other N values never enter the final N's statistics.
 schema: system/1
 name: ref-serve-gguf
 kind: reference
