@@ -5,13 +5,14 @@ INV-CTRL-3: every mutation is a deterministic function of `control_seed`, the co
 the honest inputs.
 """
 
+import hashlib
 import json
 import math
 import os
 import random
 import re
 import shutil
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
@@ -27,6 +28,22 @@ CONTROL_SEED_RE = re.compile(r"^0x[0-9a-f]{16}$")
 def new_control_seed() -> str:
     """A fresh 64-bit seed from the OS, written as `0x` plus 16 lowercase hex digits."""
     return f"0x{int.from_bytes(os.urandom(8), 'big'):016x}"
+
+
+SEED_TEXT_RE = re.compile(r"^(0[xX][0-9a-fA-F]{1,16}|[0-9]{1,20})$")
+
+
+def parse_control_seed(text: str) -> str:
+    """`--seed`: a 64-bit value in hex (`0x` and 1 to 16 digits) or in decimal, returned in the
+    recorded form, `0x` plus 16 lowercase hex digits (RFC-0008 §Seeds)."""
+    if not SEED_TEXT_RE.fullmatch(text):
+        raise IProofsError(
+            ErrorKind.CONFIG, f"--seed {text!r}: give a 64-bit value in hex (0x...) or decimal"
+        )
+    value = int(text, 16) if text[:2] in ("0x", "0X") else int(text)
+    if value >= 1 << 64:
+        raise IProofsError(ErrorKind.CONFIG, f"--seed {text!r} is above 2**64 - 1")
+    return f"0x{value:016x}"
 
 
 def rng(control_seed: str, control_id: str, k: int) -> random.Random:
@@ -75,6 +92,7 @@ def select(proofs: Sequence[HonestProof]) -> Selection:
 # ---------------------------------------------------------------- verifier-side mutations
 
 SHARED_VERIFIER_CONTROLS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8")
+SHARED_PROVER_CONTROLS = ("P1", "P2")
 C6_TRIALS = 5
 
 
@@ -445,13 +463,17 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
     verify: Verifier,
     work: Path,
     check: Callable[[str], None] = lambda proof_id: None,
+    only: Collection[str] | None = None,
 ) -> list[dict[str, object]]:
     """C1 to C8 over a run's honest proofs, each after its honest twins (RFC-0008). `check`
-    rechecks a proof's digest immediately before each control mutates it (RFC-0014).
+    rechecks a proof's digest immediately before each control mutates it (RFC-0014). `only`
+    keeps those controls; each still runs with its own twins and its own seeded mutations, so
+    its record does not depend on which other controls ran (RFC-0008 §Split suites).
 
     `vocab_size` and `batch_size` come from the workload record (RFC-0003).
     """
     vocab_size, batch_size = workload.model.vocab_size, workload.shape.batch_size
+    wanted = [cid for cid in SHARED_VERIFIER_CONTROLS if only is None or cid in only]
     chosen = select(proofs)
     target, other = chosen.target, chosen.other
     if target is None:
@@ -467,7 +489,7 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
                 "passed": None,
                 "note": "no accepted proof in the run",
             }
-            for cid in SHARED_VERIFIER_CONTROLS
+            for cid in wanted
         ]
     t_dir = proof_dirs[target.proof_id]
 
@@ -510,9 +532,65 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
         return run
 
     return [
-        control_record(cid, checked(build), twins, verify)
-        for cid, (build, twins) in builders.items()
+        control_record(cid, checked(builders[cid][0]), builders[cid][1], verify) for cid in wanted
     ]
+
+
+# ---------------------------------------------------------------- split suites
+
+PART_SCHEMA = "controls-part/1"
+# What every part of one suite shares (RFC-0008 §Split suites).
+PART_KEYS = (
+    "run_id",
+    "run_manifest_digest",
+    "control_seed",
+    "suite",
+    "image",
+    "verifier_profile",
+    "profile",
+    "verifier_cpus",
+    "perturbed_commitment",
+    "harness_version",
+    "harness_commit",
+    "harness_dirty",
+)
+
+
+def parse_only(values: Sequence[str], suite: Sequence[str]) -> tuple[str, ...]:
+    """`--only ID[,ID...]` (repeatable): the asked controls in suite order. An empty, unknown or
+    repeated id is a `config` error that names the suite."""
+    asked = [cid.strip() for value in values for cid in value.split(",")]
+    unknown = [cid for cid in asked if cid not in suite]
+    if not asked or unknown:
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"--only: unknown control {', '.join(map(repr, unknown or ['']))}; "
+            f"this suite is {', '.join(suite)}",
+        )
+    repeated = sorted({cid for cid in asked if asked.count(cid) > 1})
+    if repeated:
+        raise IProofsError(ErrorKind.CONFIG, f"--only names {', '.join(repeated)} twice")
+    return tuple(cid for cid in suite if cid in asked)
+
+
+def part_name(control_seed: str, only: Sequence[str]) -> str:
+    """The file a part is written to: its seed and a digest of its subset, so two parts of
+    one run never share a name unless they ran the same controls with the same seed."""
+    subset = hashlib.sha256("\n".join(only).encode()).hexdigest()[:12]
+    return f"controls-part-{control_seed.removeprefix('0x')}-{subset}.json"
+
+
+def part_document(
+    same: Mapping[str, object], only: Sequence[str], records: Sequence[Mapping[str, object]]
+) -> dict[str, object]:
+    """A `controls-part/1` document: the records of the controls in `only`, with what every
+    part of the suite must share (`PART_KEYS`)."""
+    return {
+        "schema": PART_SCHEMA,
+        **{key: same[key] for key in PART_KEYS},
+        "only": list(only),
+        "controls": list(records),
+    }
 
 
 # ---------------------------------------------------------------- perturbed weights (C3, P1)

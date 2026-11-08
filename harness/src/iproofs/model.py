@@ -1117,6 +1117,27 @@ class Controls(Document):
     disclosure_pending: bool
 
 
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlsPart(Document):
+    """`controls-part/1`, one part of a suite split across hosts (RFC-0008 §Split suites)."""
+
+    schema: str
+    run_id: str
+    run_manifest_digest: str
+    control_seed: str
+    suite: tuple[str, ...]
+    only: tuple[str, ...]
+    image: str
+    verifier_profile: str
+    profile: str
+    verifier_cpus: int
+    perturbed_commitment: PerturbedCommitment | None
+    harness_version: str
+    harness_commit: str
+    harness_dirty: bool
+    controls: tuple[ControlResult, ...]
+
+
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1468,6 +1489,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("controls/1", "#/$defs/control/properties/twin/anyOf/1"): Twin,
     ("controls/1", "#/properties/perturbed_commitment/anyOf/1"): PerturbedCommitment,
     ("controls/1", "#/properties/summary"): ControlSummaryCounts,
+    ("controls-part/1", "#"): ControlsPart,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
     ("review/1", "#"): ReviewRecord,

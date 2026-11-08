@@ -13,7 +13,7 @@ import shutil
 import statistics
 import time
 import traceback
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -23,12 +23,18 @@ from iproofs import __version__, selftest
 from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
 from iproofs.controls import (
     EXPECTED,
+    SHARED_PROVER_CONTROLS,
+    SHARED_VERIFIER_CONTROLS,
     HonestProof,
     NotApplicable,
     VerifyCall,
     VerifyResult,
     controls_document,
+    disclosure_pending,
     new_control_seed,
+    parse_only,
+    part_document,
+    part_name,
     perturb_model,
     prover_side_record,
     run_shared_controls,
@@ -390,7 +396,7 @@ class Runner:
                 on_record=progress,
             )
             log.log(Event.RUNNER_START, job=run_id, harness_version=__version__)
-            actions: dict[str, Callable[[Job], None]] = {
+            actions: dict[str, Callable[[Job], object]] = {
                 "resolved": lambda j: self._resolve(j, log),
                 "image_ready": self._image,
                 "machine_recorded": self._machine,
@@ -528,8 +534,11 @@ class Runner:
                 )
             write_jsonl(io / "claimed.jsonl", self.claims)
 
-    def _resolve_inputs(self, job: Job, log: JsonlLogger | None = None) -> None:
-        """System, workload, reference file and the hash-checked model directory."""
+    def _resolve_inputs(
+        self, job: Job, log: JsonlLogger | None = None, *, models: bool = True
+    ) -> None:
+        """System, workload, reference file and the hash-checked model directory (left out
+        with `models=False`, for verify calls only: a verifier never sees the weights)."""
         spec = job.spec
         system = load(self.root / "systems" / spec.system / "system.yaml", self.registry)
         if not isinstance(system, System):
@@ -546,7 +555,7 @@ class Runner:
         check_card_class(self.root, self.registry, system, wl)
         job.reference, job.reference_file = self._reference(spec)
         job.system, job.workload = system, wl
-        job.models = self._models(wl, log)
+        job.models = self._models(wl, log) if models else None
 
     def _models(self, wl: Workload, log: JsonlLogger | None) -> Path:
         """Repository toy data (the fake systems) or the verified cache entry (RFC-0014): fetched
@@ -1061,16 +1070,19 @@ class Runner:
     # ---------------------------------------------------------------- controls
 
     def _system_controls(
-        self, job: Job, verify: Callable[[VerifyCall], VerifyResult], work: Path
+        self,
+        job: Job,
+        verify: Callable[[VerifyCall], VerifyResult],
+        work: Path,
+        only: Collection[str] | None = None,
     ) -> list[dict[str, object]]:
         """`systems/<name>/controls.yaml` (RFC-0008 §System-specific controls). A weakened prove
         runs in its own io dir with `control: true` and its flags passed explicitly; every verify
         uses the run's recorded commitment (INV-CTRL-6); the run's honest proof is the twin."""
-        path = self.root / "systems" / job.spec.system / "controls.yaml"
-        if not path.is_file():
+        controls = [c for c in system_controls(self.root, self.registry, job.spec.system)
+                    if only is None or c.id in only]  # fmt: skip
+        if not controls:
             return []
-        doc = load(path, self.registry)
-        assert isinstance(doc, SystemControls)
         assert job.commit is not None
         assert job.workload is not None
         twin = self._honest_twin(job)
@@ -1080,7 +1092,7 @@ class Runner:
 
         return [
             system_control_record(c, lambda c=c: weakened(c), lambda: [twin], verify)  # type: ignore[misc]
-            for c in doc.controls
+            for c in controls
         ]
 
     def _honest_twin(self, job: Job) -> VerifyCall:
@@ -1170,8 +1182,12 @@ class Runner:
         perturbed: PerturbedCommitmentRecord | str,
         verify: Callable[[VerifyCall], VerifyResult],
         work: Path,
+        only: Collection[str] | None = None,
     ) -> list[dict[str, object]]:
         """P1 and P2 (RFC-0008 §Shared controls, prover side), one batch each."""
+        wanted = [cid for cid in SHARED_PROVER_CONTROLS if only is None or cid in only]
+        if not wanted:
+            return []
         twin = self._honest_twin(job)
 
         def p1() -> list[VerifyCall]:
@@ -1185,9 +1201,10 @@ class Runner:
         def p2() -> list[VerifyCall]:
             raise NotApplicable("the workload declares one precision")
 
+        builds = {"P1": p1, "P2": p2}
         return [
-            prover_side_record(cid, EXPECTED[cid], "shared", build, lambda: [twin], verify)
-            for cid, build in (("P1", p1), ("P2", p2))
+            prover_side_record(cid, EXPECTED[cid], "shared", builds[cid], lambda: [twin], verify)
+            for cid in wanted
         ]
 
     def honest_proofs(self, job: Job) -> list[HonestProof]:
@@ -1207,11 +1224,21 @@ class Runner:
             for pid, ns in job.releases
         ]
 
-    def _controls(self, job: Job, log: JsonlLogger) -> None:
-        """The shared control suite against the honest proofs (RFC-0008 §Where controls run)."""
+    def _controls(
+        self,
+        job: Job,
+        log: JsonlLogger,
+        *,
+        seed: str | None = None,
+        only: Sequence[str] | None = None,
+    ) -> Path:
+        """The control suite against the honest proofs (RFC-0008 §Where controls run), with a
+        fresh seed unless one is given. Writes `controls.json`, or with `only` (a subset in
+        suite order) a `controls-part/1` file for `--merge` (RFC-0008 §Split suites); returns
+        the path written."""
         assert job.commit is not None
         assert job.workload is not None
-        seed = new_control_seed()
+        seed = seed or new_control_seed()
         work = job.staging / "controls-io"
         trials = 0
 
@@ -1266,6 +1293,7 @@ class Runner:
             verify=verify,
             work=work / "mutations",
             check=lambda proof_id: self._check_proof(job, proof_id, "controls"),
+            only=only,
         )
         for r in records:
             for t in r["trials"]:  # type: ignore[attr-defined]
@@ -1286,29 +1314,57 @@ class Runner:
                     control=r["id"],
                     twin_verdict=twin["verdict"],
                 )
-        records += self._prover_controls(job, perturbed, verify, work)
-        records += self._system_controls(job, verify, work)
+        records += self._prover_controls(job, perturbed, verify, work, only)
+        records += self._system_controls(job, verify, work, only)
         made = None if isinstance(perturbed, str) else {
             "commitment_id": str(perturbed.commitment["commitment_id"]),
             "model_digest": perturbed.model_digest,
         }  # fmt: skip
-        doc = controls_document(
-            job.run_id, seed, job.image, self._verifier_profile(job), made, records
-        )
-        if doc["disclosure_pending"]:
+        if disclosure_pending(records):
             log.log(
                 Event.CONTROL_DISCLOSURE_PENDING,
                 job=job.run_id,
                 step="controls",
                 control=[r["id"] for r in records if r["outcome"] == "accepted"],
             )
-        errors = self.registry.errors("controls/1", doc)
+        if only is None:
+            doc = controls_document(
+                job.run_id, seed, job.image, self._verifier_profile(job), made, records
+            )
+            schema, path = "controls/1", job.staging / "controls.json"
+        else:
+            doc = part_document(self._part_header(job, seed, made), only, records)
+            schema, path = "controls-part/1", job.staging / part_name(seed, only)
+        errors = self.registry.errors(schema, doc)
         if errors:
             raise IProofsError(
-                ErrorKind.INTERNAL, "controls.json fails controls/1: " + "; ".join(errors)
+                ErrorKind.INTERNAL, f"{path.name} fails {schema}: " + "; ".join(errors)
             )
-        write_json(job.staging / "controls.json", doc)
+        write_json(path, doc)
         self.controls_done = True
+        return path
+
+    def _part_header(
+        self, job: Job, seed: str, made: Mapping[str, str] | None
+    ) -> dict[str, object]:
+        """What every part of one split suite shares (RFC-0008 §Split suites): the run, read
+        from its manifest's bytes; the seed; the image; the verifier and run profiles and the
+        CPUs this host binds the verifier to; the perturbed commitment; the harness."""
+        commit, dirty = git_state(self.root, ["harness", "pyproject.toml", "uv.lock"])
+        return {
+            "run_id": job.run_id,
+            "run_manifest_digest": file_digest(job.staging / "manifest.json"),
+            "control_seed": seed,
+            "suite": [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)],
+            "image": job.image,
+            "verifier_profile": self._verifier_profile(job),
+            "profile": job.spec.profile,
+            "verifier_cpus": len(_cpu_list(self.env.cpus("verifier")[0])),
+            "perturbed_commitment": dict(made) if made else None,
+            "harness_version": __version__,
+            "harness_commit": commit,
+            "harness_dirty": dirty,
+        }
 
     def _verifier_files(self, job: Job, io: Path) -> list[str]:
         """The recorded verifier files in a fresh verify io dir, never the prover's copies."""
@@ -1793,11 +1849,39 @@ def recorded_seed(run_dir: Path, workload: str, version: int) -> int:
     return int(recorded["prompt_seed"], 16)
 
 
-def controls_for_run(runner: Runner, run_dir: Path) -> Path:
+def system_controls(root: Path, registry: SchemaRegistry, system: str) -> list[SystemControl]:
+    """`systems/<name>/controls.yaml`, in file order; none when the file is absent."""
+    path = root / "systems" / system / "controls.yaml"
+    if not path.is_file():
+        return []
+    doc = load(path, registry)
+    assert isinstance(doc, SystemControls)
+    return list(doc.controls)
+
+
+def control_suite(root: Path, registry: SchemaRegistry, system: str) -> list[tuple[str, str]]:
+    """(id, side) of every control of a system's suite, in the order a run writes them to
+    controls.json: C1 to C8, P1, P2, then controls.yaml in file order (RFC-0008)."""
+    return [
+        *((cid, "verifier") for cid in SHARED_VERIFIER_CONTROLS),
+        *((cid, "prover") for cid in SHARED_PROVER_CONTROLS),
+        *((c.id, "prover" if c.kind == "weakened_prover" else "verifier")
+          for c in system_controls(root, registry, system)),
+    ]  # fmt: skip
+
+
+def controls_for_run(
+    runner: Runner,
+    run_dir: Path,
+    *,
+    seed: str | None = None,
+    only: Sequence[str] | None = None,
+) -> Path:
     """`iproofs controls RUN_DIR`: the control suite against a completed run whose proof bytes
-    were kept (`--keep-io`); adds `controls.json` to the run directory (append-only)."""
-    if (run_dir / "controls.json").exists():
-        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} already has controls.json")
+    were kept (`--keep-io`); adds `controls.json` to the run directory (append-only). With
+    `seed` the suite uses it instead of a fresh one; with `only` it runs those controls and
+    writes a part for `--merge` instead (RFC-0008 §Split suites). The weights are resolved only
+    when a prover-side control runs."""
     io = run_dir / "io"
     if not (io / "proofs").is_dir() or not (io / "prove.out.json").is_file():
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no proofs; rerun with --keep-io")
@@ -1806,6 +1890,16 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         raise IProofsError(
             ErrorKind.CONFIG, f"{run_dir} did not complete; controls need accepted proofs"
         )
+    suite = control_suite(runner.root, runner.registry, doc["system"])
+    ids = parse_only(only, [cid for cid, _ in suite]) if only is not None else None
+    if ids is not None:
+        seed = seed or new_control_seed()  # drawn here: the part's name carries it
+        target = run_dir / part_name(seed, ids)
+    else:
+        target = run_dir / "controls.json"
+    if target.exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{target} exists; it is never overwritten")
+    prover = [cid for cid, side in suite if side == "prover" and (ids is None or cid in ids)]
     spec = JobSpec(
         doc["system"],
         doc["workload"]["id"],
@@ -1817,7 +1911,7 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         doc["release"],
     )
     job = Job(spec, doc["run_id"], run_dir, log_prefix="controls-")
-    runner._resolve_inputs(job)
+    runner._resolve_inputs(job, models=bool(prover))
     manifest = json.loads((run_dir / "manifest.json").read_text())
     job.image = manifest["system"]["image"]["ref"]
     job.commitment_record = manifest["commitment"]  # digests rechecked before every verify
@@ -1831,10 +1925,12 @@ def controls_for_run(runner: Runner, run_dir: Path) -> Path:
         setattr(job, attr, out)
     job.releases = [(p["proof_id"], p["release_mono_ns"]) for p in doc["proofs"]]
     job.verdicts = {p["proof_id"]: p["verdict"] for p in doc["proofs"]}
-    with (run_dir / "logs/harness.jsonl").open("a") as stream:
-        runner._controls(job, JsonlLogger(stream, redactor=runner.redact, mono=runner.clock))
-    shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
-    return run_dir / "controls.json"
+    try:
+        with (run_dir / "logs/harness.jsonl").open("a") as stream:
+            log = JsonlLogger(stream, redactor=runner.redact, mono=runner.clock)
+            return runner._controls(job, log, seed=seed, only=ids)
+    finally:
+        shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
 
 
 def perturbed_dir(results_root: Path, release: str, system: str, workload: str) -> Path:

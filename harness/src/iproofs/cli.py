@@ -140,6 +140,17 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--results", type=Path, default=Path("results"))
     p.add_argument("--image", metavar="IMAGE_ID", help="a locally built image by ID")
     p.add_argument("--in-process", action="store_true", help="test systems only")
+    p.add_argument(
+        "--only",
+        metavar="ID[,ID...]",
+        action="append",
+        help="run these controls only and write a part for --merge (RFC-0008 §Split suites)",
+    )
+    p.add_argument(
+        "--seed",
+        metavar="SEED",
+        help="the suite's control_seed, 64-bit hex (0x...) or decimal; default: drawn from the OS",
+    )
 
     p = command("machine-record", "print the machine record as JSON (RFC-0006)")
     p.add_argument("--selftest", action="store_true", help="run the RFC-0011 calibration checks")
@@ -467,7 +478,9 @@ def _containers(
 
 
 def controls(args: argparse.Namespace) -> int:
-    """`iproofs controls RUN_DIR`: add controls.json to a completed run kept with --keep-io."""
+    """`iproofs controls RUN_DIR`: add controls.json to a completed run kept with --keep-io;
+    with --only, write one part of the suite instead (RFC-0008 §Split suites)."""
+    from iproofs.controls import parse_control_seed  # noqa: PLC0415
     from iproofs.runner import Runner, controls_for_run  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
 
@@ -476,12 +489,14 @@ def controls(args: argparse.Namespace) -> int:
     if args.run_dir is None:
         raise IProofsError(ErrorKind.CONFIG, "give a RUN_DIR")
     root = repo_root(Path.cwd())
+    seed = parse_control_seed(args.seed) if args.seed is not None else None
     system = json.loads((args.run_dir / "run.json").read_text())["system"]
     image_ref = json.loads((args.run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
     containers, _, registry = _containers(
         root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
     )
-    print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    runner = Runner(containers, root=root, registry=registry)
+    print(controls_for_run(runner, args.run_dir, seed=seed, only=args.only))
     return 0
 
 
@@ -496,6 +511,8 @@ def _prepare_perturbed(args: argparse.Namespace) -> int:
         raise IProofsError(
             ErrorKind.CONFIG, "--prepare-perturbed takes --system and --profile, not a RUN_DIR"
         )
+    if args.only or args.seed:
+        raise IProofsError(ErrorKind.CONFIG, "--prepare-perturbed takes no --only or --seed")
     root = repo_root(Path.cwd())
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
