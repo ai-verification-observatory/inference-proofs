@@ -125,7 +125,7 @@ def test_runs_left_out_listed(view: dict[str, Any]) -> None:
 
 def test_reference_all_failed_counts(view: dict[str, Any]) -> None:
     """S3, S7: 0 completed, 3 failed, below minimum repetitions, NM-1."""
-    for system in ("ref-serve", "ref-recompute"):
+    for system in ("ref-recompute",):
         c = configuration(view, system)
         assert (len(c["runs"]["completed"]), len(c["runs"]["failed"])) == (0, 3)
         assert c["insufficient_repetitions"] is True
@@ -137,7 +137,7 @@ def test_orders(view: dict[str, Any]) -> None:
     """S5: benchmarked and not benchmarked in name order; reference serve then recompute."""
     orders = view["orders"]
     assert orders["benchmarked"] == ["flashprove", "sash"]
-    assert orders["reference"] == ["ref-serve", "ref-recompute"]
+    assert orders["reference"] == ["ref-recompute"]  # no plain-serving run yet (SRV-7)
     names = [view["facts"]["rows"][r]["name"].lower() for r in orders["not_benchmarked"]]
     assert names == sorted(names)
     assert len(names) == 19
@@ -151,7 +151,7 @@ def test_card_identity(view: dict[str, Any]) -> None:
     assert card["link"].endswith("/blob/main/systems/flashprove/claim.yaml")
     assert card["reviewed"] is False
     assert card["upstream"]["commit"] == "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
-    assert configuration(view, "ref-serve")["card"] is None
+    assert configuration(view, "ref-recompute")["card"] is None
 
 
 def test_property_controls_without_release(view: dict[str, Any]) -> None:
@@ -163,7 +163,7 @@ def test_property_controls_without_release(view: dict[str, Any]) -> None:
         assert lists[prop]["mapped"] == mapped
         assert {o["outcome"] for o in lists[prop]["outcomes"]} <= {"no_run_read"}
         assert [o["control"] for o in lists[prop]["outcomes"]] == mapped
-    assert "property_controls" not in configuration(view, "ref-serve")
+    assert "property_controls" not in configuration(view, "ref-recompute")
 
 
 def test_property_controls_with_release(extras: dict[str, Any]) -> None:

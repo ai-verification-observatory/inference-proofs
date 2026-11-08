@@ -69,7 +69,6 @@ def test_four_configurations(tree: Path) -> None:
     assert got == [
         ("flashprove", "exact-match-cp-verify", ph.WORKLOAD, ph.PROFILE),
         ("ref-recompute", None, ph.WORKLOAD, ph.PROFILE),
-        ("ref-serve", None, ph.WORKLOAD, ph.PROFILE),
         ("sash", "sound-defaults", ph.SASH_WORKLOAD, ph.PROFILE),
     ]
 
@@ -105,28 +104,34 @@ def test_tokens_covered_per_proof_statistics(tree: Path) -> None:
 
 
 def test_agreement_null_not_measurable(tree: Path) -> None:
-    """RFC-0015 NM-1: every reference run on FlashProve's workload failed with `resource`. The
-    placeholder holds no reference run on SASH's workload, so the freeze writes neither figure
-    for SASH (not recorded, never the NM-1 sentence)."""
+    """RFC-0015 NM-1: every rerun reference run on FlashProve's workload failed with `resource`.
+    The deployed placeholder holds no plain-serving run (SRV-7: ref-serve-gguf has none yet) and
+    no reference run on SASH's workload, so the freeze writes no overhead for either and no
+    agreement rate for SASH (not recorded, never the NM-1 sentence)."""
     doc = index(tree)
-    metrics = ("agreement_rate", "overhead_vs_serving_prove.session")
-    stats = config(doc, "flashprove")["statistics"]
-    for metric in metrics:
-        q = stats[metric]
-        assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile"), metric
-    assert not set(metrics) & set(config(doc, "sash")["statistics"])
+    overhead = "overhead_vs_serving_prove.session"
+    q = config(doc, "flashprove")["statistics"]["agreement_rate"]
+    assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile")
+    assert overhead not in config(doc, "flashprove")["statistics"]
+    assert not {"agreement_rate", overhead} & set(config(doc, "sash")["statistics"])
+
+
+def test_overhead_null_not_measurable(extras: Path) -> None:
+    """The tests-only build's plain-serving runs (ref-serve-gguf, the system the workload names,
+    SRV-7) all failed with `resource`: D-OVERHEAD-S is null with not_measurable_on_profile."""
+    q = config(index(extras), "flashprove")["statistics"]["overhead_vs_serving_prove.session"]
+    assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile")
 
 
 def test_reference_all_failed(tree: Path) -> None:
     doc = index(tree)
-    for system in ("ref-serve", "ref-recompute"):
-        c = config(doc, system)
-        assert c["statistics"] == {}
-        assert c["insufficient_repetitions"] is True
-        assert len(c["runs"]) == 3
+    c = config(doc, "ref-recompute")
+    assert c["statistics"] == {}
+    assert c["insufficient_repetitions"] is True
+    assert len(c["runs"]) == 3
     for n in (1, 2, 3):
-        run = json.loads((tree / f"results/v0.1/ref-serve/{ph.run_id('ref-serve', ph.WORKLOAD, n)}"
-                          "/run.json").read_text())  # fmt: skip
+        rid = ph.run_id("ref-recompute", ph.WORKLOAD, n)
+        run = json.loads((tree / f"results/v0.1/ref-recompute/{rid}/run.json").read_text())
         assert run["failure"]["kind"] == "resource"
         assert run["failure"]["last_lines"] == []  # no invented log line
 
@@ -176,7 +181,7 @@ def test_control_counts(tree: Path) -> None:
 def test_every_run_derives_clean(tree: Path) -> None:
     """G4: every derived value of every placeholder run recomputes from its inputs."""
     runs = sorted(tree.glob("results/v0.1/*/*/run.json"))
-    assert len(runs) == 3 + 5 + 3 + 3
+    assert len(runs) == 3 + 5 + 3  # FlashProve, SASH, the rerun reference (no plain serving)
     for path in runs:
         assert check_derived(path, tree) == [], path
 

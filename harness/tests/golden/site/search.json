@@ -38,7 +38,7 @@
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "plain serving the baseline with no check, for cost comparison. reference baseline reference",
       "tier": 2,
-      "url": "/reference#ref-serve"
+      "url": "/reference#ref-serve-gguf"
     },
     {
       "badge": "Reference",

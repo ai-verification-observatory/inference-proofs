@@ -101,7 +101,7 @@ def test_batches_released_per_request(adapter: ModuleType) -> None:
     io = Path(adapter.host("/io"))
     prompts = [[i, i + 1] for i in range(7)]  # one more than the job uses
     (io / "prompts.jsonl").write_text("".join(json.dumps(p) + "\n" for p in prompts))
-    out = run(adapter, "prove", job(io, "fp-maverick-w1024-b24", 2, 3, 1))
+    out = run(adapter, "prove", job(io, "sash-l31-8b-c4096", 2, 3, 1))
     assert Replay.calls == [(2, 1), (2, 1), (2, 1)]
     assert [p["request_index"] for p in out["proofs"]] == list(range(6))
     assert sorted(p.name for p in (io / "proofs").iterdir()) == [f"req-{i}" for i in range(6)]
@@ -151,7 +151,7 @@ def test_info_and_skipped_steps(adapter: ModuleType) -> None:
             "workload": {"id": "sash-l31-8b-c1024", "version": 1}}  # fmt: skip
     out = run(adapter, "info", base)
     assert (out["system"], out["upstream_commit"]) == ("ref-serve", adapter.ENGINE_COMMIT)
-    assert "fp-maverick-w1024-b24" in out["workloads"]
+    assert out["workloads"] == ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]  # Maverick: SRV-7
     assert run(adapter, "setup", base)["ready"] is True
     (io / "job.json").write_text(json.dumps(base | {"subcommand": "verify"}))
     adapter.sys.argv = ["entrypoint", "verify", "/io/job.json", "/io/out.json"]

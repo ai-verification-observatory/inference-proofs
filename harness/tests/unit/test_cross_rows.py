@@ -13,7 +13,8 @@ from iproofs.quantity import Scope, Tier
 from iproofs.release import RunView, _Context, _release_rows
 from iproofs.schema import SchemaRegistry
 
-ROLES = {"ref-serve": "serve", "ref-recompute": "recompute"}
+ROLES = {"ref-serve": "serve", "ref-serve-gguf": "serve", "ref-recompute": "recompute"}
+SERVING = {"sash-l31-8b-c1024": "ref-serve"}  # the plain-serving system the workload names
 REGISTRY = SchemaRegistry.from_tree(Path(__file__).resolve().parents[3] / "schema")
 WL = {"id": "sash-l31-8b-c1024", "version": 1}
 
@@ -97,7 +98,7 @@ def contexts(*, ref_profile: str = "prover-h100", ref_failure: str | None = None
 
 def test_release_rows_join_and_agreement() -> None:
     found = contexts()
-    _release_rows("v0.1", found, ROLES)
+    _release_rows("v0.1", found, ROLES, SERVING)
     stats = found[0].statistics
     assert stats["overhead_vs_serving_prove.steady"]["value"] == 100.0  # type: ignore[index]
     assert stats["overhead_vs_serving_prove.steady"]["source"]["inputs"] == [  # type: ignore[index]
@@ -112,7 +113,7 @@ def test_release_rows_join_and_agreement() -> None:
 def test_release_rows_profile_mismatch() -> None:
     """TC-OVERHEAD-JOIN: a ref-serve row on another profile does not join."""
     found = contexts(ref_profile="prover-a100")
-    _release_rows("v0.1", found, ROLES)
+    _release_rows("v0.1", found, ROLES, SERVING)
     out = found[0].statistics["overhead_vs_serving_prove.steady"]
     assert (out["value"], out["null_reason"]) == (None, "not_applicable")  # type: ignore[index]
 
@@ -121,7 +122,7 @@ def test_release_rows_profile_mismatch() -> None:
 def test_nm1_nulls_dependants(kind: str) -> None:
     """TC-NM-1: every reference attempt failed with resource or adapter."""
     found = contexts(ref_failure=kind)
-    _release_rows("v0.1", found, ROLES)
+    _release_rows("v0.1", found, ROLES, SERVING)
     stats = found[0].statistics
     for metric in ("overhead_vs_serving_prove.steady", "agreement_rate"):
         assert stats[metric]["null_reason"] == "not_measurable_on_profile"  # type: ignore[index]
@@ -137,14 +138,32 @@ def test_nm1_nulls_dependants(kind: str) -> None:
 def test_agreement_all_paired_failed_other_kind() -> None:
     """Every paired run failed, not under NM-1: D-AGREE is null `step_failed` (INV-QTY-8)."""
     found = contexts(ref_failure="internal")
-    _release_rows("v0.1", found, ROLES)
+    _release_rows("v0.1", found, ROLES, SERVING)
     out = found[0].statistics["agreement_rate"]
     assert (out["value"], out["null_reason"]) == (None, "step_failed")  # type: ignore[index]
 
 
 def test_other_failure_is_not_nm1() -> None:
     found = contexts(ref_failure="internal")
-    _release_rows("v0.1", found, ROLES)
+    _release_rows("v0.1", found, ROLES, SERVING)
     out = found[0].statistics["overhead_vs_serving_prove.steady"]
     assert out["null_reason"] == "step_failed"  # type: ignore[index]
     json.dumps(found[0].statistics)  # serialisable as written to index.json
+
+
+def test_overhead_joins_the_named_serving_system() -> None:
+    """TC-SRV-7: with two serve-role rows on the workload, D-OVERHEAD-S joins the one the
+    workload names, never the other; a workload that names none gets no overhead row."""
+    found = contexts()
+    other = view("ref-serve-gguf", "g-1", {"rate_prove.steady": q(500.0)})
+    found.insert(1, ctx([other], {"rate_prove.steady": q(500.0)}))
+    _release_rows("v0.1", found, ROLES, {"sash-l31-8b-c1024": "ref-serve-gguf"})
+    out = found[0].statistics["overhead_vs_serving_prove.steady"]
+    assert out["value"] == 5.0  # type: ignore[index]  # 500 over 100, not 10,000 over 100
+    assert out["source"]["inputs"][0] == (  # type: ignore[index]
+        "releases/v0.1/index.json#/configurations/1/statistics/rate_prove.steady"
+    )
+    found = contexts()
+    _release_rows("v0.1", found, ROLES, {"sash-l31-8b-c1024": None})
+    assert "overhead_vs_serving_prove.steady" not in found[0].statistics
+    assert found[0].statistics["agreement_rate"]["value"] == 11 / 12  # type: ignore[index]

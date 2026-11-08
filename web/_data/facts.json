@@ -135,6 +135,10 @@
       "kind_words": "Plain serving: the baseline with no check, for cost comparison.",
       "name": "Plain serving"
     },
+    "ref-serve-gguf": {
+      "kind_words": "Plain serving: the baseline with no check, for cost comparison.",
+      "name": "Plain serving"
+    },
     "remainder": {
       "code": "open_licence",
       "models": [

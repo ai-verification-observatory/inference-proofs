@@ -1,5 +1,7 @@
 # RFC-0015 reference system. Engine pin: RFC-0015 Q1 (#136); options and precision per
-# workload, with their documentation links: systems/ref-serve/README.md.
+# workload, with their documentation links: systems/ref-serve/README.md. The Maverick workloads'
+# plain-serving row is systems/ref-serve-gguf (SRV-6, SRV-7); the pinned image below was built
+# when this file still listed them, and its stored v0.1 attempts stay as recorded.
 schema: system/1
 name: ref-serve
 kind: reference
@@ -44,28 +46,6 @@ workloads:
   - '1088'
   - --max-num-seqs
   - '1'
-  - --skip-tokenizer-init
-- id: fp-maverick-w1024-b1
-  precision_used: UD-Q4_K_XL
-  precision_substitution: null
-  engine_args:
-  - --max-model-len
-  - '1025'
-  - --max-num-seqs
-  - '1'
-  - --cpu-offload-gb
-  - '160'
-  - --skip-tokenizer-init
-- id: fp-maverick-w1024-b24
-  precision_used: UD-Q4_K_XL
-  precision_substitution: null
-  engine_args:
-  - --max-model-len
-  - '1025'
-  - --max-num-seqs
-  - '24'
-  - --cpu-offload-gb
-  - '160'
   - --skip-tokenizer-init
 deterministic_proofs: false
 incremental_proofs: true

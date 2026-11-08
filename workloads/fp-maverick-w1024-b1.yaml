@@ -48,4 +48,5 @@ prompts:
 shape: {prompt_tokens: 1024, output_tokens: 1, batch_size: 1, batches_per_session: 5, context_window: 1024}
 decoding: {rule: "greedy"}
 phase: "prefill"
-systems: ["flashprove", "ref-serve", "ref-recompute"]
+# Plain serving is ref-serve-gguf, llama.cpp on the FlashProve rows' profile (RFC-0015 SRV-6, SRV-7).
+systems: ["flashprove", "ref-serve-gguf", "ref-recompute"]

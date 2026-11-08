@@ -44,7 +44,7 @@ The same in prose. Authored inputs live in git and change only by reviewed pull 
 | Workload registry | `workloads/` | model by source, revision and digest; prompt corpus and generator; shapes; division | [RFC-0003](../../rfcs/0003-workloads.md) |
 | System adapters | `systems/<name>/` | wrap one upstream prover unchanged behind `adapter/1` | [RFC-0005](../../rfcs/0005-adapter-contract.md) |
 | Claim cards | `systems/<name>/claim.yaml` | what one proof establishes | [RFC-0002](../../rfcs/0002-claim-card.md) |
-| Reference systems | `systems/ref-serve/`, `systems/ref-recompute/` | plain-serving and recompute rows through the same contract | [RFC-0015](../../rfcs/0015-reference-rows.md) |
+| Reference systems | `systems/ref-serve/` (vLLM), `systems/ref-serve-gguf/` (llama.cpp, the Maverick workloads), `systems/ref-recompute/` | plain-serving and recompute rows through the same contract, one plain-serving system per workload | [RFC-0015](../../rfcs/0015-reference-rows.md) |
 | Test systems | `systems/fake/`, `systems/fake-broken/` | CPU-only toy prover and a verifier that accepts everything, for CI | [RFC-0005](../../rfcs/0005-adapter-contract.md#reference-implementations) |
 | Reference hardware and cost | `reference/<release>.yaml` | profiles and price per release | [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md) |
 | Harness | `harness/src/iproofs/` | run jobs, measure, write and check results, build the site | [RFC-0010](../../rfcs/0010-harness-runner.md), [RFC-0011](../../rfcs/0011-measurement-and-sampling.md) |

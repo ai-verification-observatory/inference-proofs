@@ -108,6 +108,8 @@ def test_engine_options_follow_srv6(workload: str) -> None:
     assert 0 <= int(n) <= 48  # llama4.block_count of the pinned files
     assert (entry["precision_used"], entry["precision_substitution"]) == (
         wl["precision"]["served"], None)  # PM-1, no substitution  # fmt: skip
+    assert "ref-serve-gguf" in wl["systems"]  # SRV-7: the workload's one plain-serving system
+    assert "ref-serve" not in wl["systems"]
 
 
 def test_server_argv(adapter: ModuleType) -> None:

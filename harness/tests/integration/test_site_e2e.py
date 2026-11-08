@@ -48,7 +48,7 @@ def built(placeholder_build: SiteBuild) -> tuple[Path, Path]:
     exit; `iproofs derive --check` never writes, so it runs on that tree here."""
     tree, out = placeholder_build.repo, placeholder_build.out
     runs = sorted(p.parent for p in tree.glob("results/*/*/*/run.json"))
-    assert len(runs) >= 12  # 3 + 5 prover runs, 3 + 3 reference runs
+    assert len(runs) >= 11  # 3 + 5 prover runs, 3 rerun reference runs (no plain serving yet)
     with contextlib.chdir(tree):
         for run in runs:
             assert cli.main(["derive", "--check", str(run)]) == 0, run.name
@@ -89,7 +89,7 @@ def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
     site = pages(out)
     doc = index(tree)
     systems = {c["system"] for c in doc["configurations"]}
-    assert systems == {"flashprove", "sash", "ref-serve", "ref-recompute"}
+    assert systems == {"flashprove", "sash", "ref-recompute"}  # no plain-serving run (SRV-7)
     rows = {rid for rid, _ in ROW.findall(site["index.html"])}
     for c in doc["configurations"]:
         if c["system"].startswith("ref-"):

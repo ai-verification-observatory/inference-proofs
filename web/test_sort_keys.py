@@ -60,8 +60,8 @@ def test_covers_in_positions(site, keys):
 
 
 def test_overhead_missing(site, keys):
-    # plain serving could not run Llama 4 Maverick on one H100 (RFC-0015 NM-1): no overhead for
-    # FlashProve; the placeholder holds no reference run on SASH's workload: not recorded
+    # the placeholder holds no plain-serving run: Maverick's plain-serving system is
+    # ref-serve-gguf (RFC-0015 SRV-7), not run yet, and none on SASH's workload: not recorded
     assert keys["flashprove"]["overhead"] is None
     assert keys["sash"]["overhead"] is None
     figures = {
@@ -69,7 +69,7 @@ def test_overhead_missing(site, keys):
         for c in site.view["configurations"]
         if c["kind"] == "prover"
     }
-    assert figures["flashprove"]["null_reason"] == "not_measurable_on_profile"
+    assert figures["flashprove"]["recorded"] is False
     assert figures["sash"]["recorded"] is False
 
 
@@ -112,7 +112,7 @@ def test_sort_words(site):
 def test_two_models(site):
     # one table per model, largest first by the workload record's total parameters (RFC-0009
     # S6): Llama 4 Maverick (FlashProve), then Llama 3.1 8B (SASH); no table across models, so
-    # each system once; the two references
+    # each system once; the rerun reference (no plain-serving run yet, RFC-0015 SRV-7)
     tables = site.build.tables()
     assert [(site.build.MODEL_NAME[d], [c["system"] for c in rows]) for d, _, rows in tables] == [
         ("Llama 4 Maverick", ["flashprove"]),
@@ -123,12 +123,13 @@ def test_two_models(site):
     assert all({c["workload"]["model"]["digest"] for c in rows} == {d} for d, _, rows in tables)
     systems = [c["system"] for _, _, rows in tables for c in rows]
     assert sorted(systems) == sorted(set(systems)) == site.view["orders"]["benchmarked"]
-    assert site.view["orders"]["reference"] == ["ref-serve", "ref-recompute"]
+    assert site.view["orders"]["reference"] == ["ref-recompute"]
 
 
 def test_reference_cells(site):
     # a reference makes no proof (RFC-0015 REF-2): covers follows the system, a proof's figures do
-    # not apply, plain serving is the baseline of the overhead, the rerun's overhead does not apply
+    # not apply, the rerun's overhead does not apply (plain serving, the baseline of the overhead,
+    # has no run in the deployed placeholder: RFC-0015 SRV-7)
     got = {}
     for gid in site.view["orders"]["reference"]:
         cfg = site.build.first_config(gid)
@@ -139,7 +140,6 @@ def test_reference_cells(site):
         assert got[gid]["covers"] == "Same as the system"
         assert got[gid]["proof_size"] == "No proof"
         assert got[gid]["check_time"] == "Does not apply"
-    assert got["ref-serve"]["overhead"] == "Baseline"
     assert got["ref-recompute"]["overhead"] == "Does not apply"
 
 

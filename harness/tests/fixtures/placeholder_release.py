@@ -4,31 +4,35 @@
 returns its `releases/v0.1/release.yaml`. The tree holds copies of the real `schema/`,
 `reference/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, the tracked files of `web/` (less
 `shots/`), the workloads `fp-maverick-w1024-b24` and `sash-l31-8b-c1024` and the system
-directories of `flashprove`, `sash`, `ref-serve` and `ref-recompute`, so the deployed pages keep
-the real names, pins, claim cards and criteria rows. Only the runs are synthetic: PLACEHOLDER
-records of no real run, built from the `run/1` and `manifest/1` shapes, with every derived metric
-computed by `iproofs.derive.derive_repetition` and tokens counted by
+directories of `flashprove`, `sash`, `ref-serve`, `ref-serve-gguf` and `ref-recompute`, so the
+deployed pages keep the real names, pins, claim cards and criteria rows. Only the runs are
+synthetic: PLACEHOLDER records of no real run, built from the `run/1` and `manifest/1` shapes,
+with every derived metric computed by `iproofs.derive.derive_repetition` and tokens counted by
 `iproofs.derive.tokens_per_proof`, so `iproofs release freeze` passes the real gates G2 to G7 on
 them.
 
 The deployed build edits no file of the tree (#335): each prover runs on a native workload the real
 files list for it (RFC-0003 §v0.1 native workloads), FlashProve on `fp-maverick-w1024-b24` (Llama 4
-Maverick) and SASH on `sash-l31-8b-c1024` (Llama 3.1 8B). The references run on the Maverick
-workload only; the placeholder holds no reference run on the 8B workload, so the freeze writes no
-overhead or agreement rate for SASH.
+Maverick) and SASH on `sash-l31-8b-c1024` (Llama 3.1 8B). The rerun reference runs on the
+Maverick workload only; the placeholder holds no reference run on the 8B workload, so the freeze
+writes no overhead or agreement rate for SASH. It holds no plain-serving run either: the Maverick
+workloads' plain-serving system is `ref-serve-gguf` (llama.cpp, RFC-0015 SRV-6, SRV-7), which no
+run has used yet, so the freeze writes no overhead for FlashProve.
 
 Placeholder raw values (no measurement; chosen so the figures the site printed from its data
 snapshot before #320, `web/_data/` at 39662bf, keep their digits where the stored metric is the
 same one): three repetitions per prover configuration, the minimum, the middle and the maximum
 of that file's statistics (the middle is 3 x mean - min - max). SASH's proving session is scaled
 by its tokens on its workload (1,024 prompt plus 64 output, 1,088) over the 4,608 tokens of its
-earlier placeholder, so its rate and cost per 1,000 tokens keep their digits. Both reference rows
-fail every repetition with kind `resource` (RFC-0015 NM-1, as the site said: plain serving could
-not run Llama 4 Maverick on one H100); their failure records carry no invented log line. The
+earlier placeholder, so its rate and cost per 1,000 tokens keep their digits. The rerun reference
+fails every repetition with kind `resource` (RFC-0015 NM-1, as the site said: recompute could not
+run Llama 4 Maverick on one H100); its failure records carry no invented log line. The
 rerun reference replays FlashProve's runs only: a replay of SASH's run on the Maverick workload is
 refused by the runner (`recorded_seed`, RFC-0015 RC-1).
 
-`extras=True` adds cases the site tests need and the deployed build must not carry (a reply written
+`extras=True` adds cases the site tests need and the deployed build must not carry (plain-serving
+runs of `ref-serve-gguf` on the Maverick workload that fail with kind `resource` like the rerun
+reference's, so the pages' plain-serving row and its NM-1 overhead stay tested; a reply written
 by no system maintainer, a target, a criteria copy naming the release with a pending disclosure and
 an override, an ineligible run, a withdrawn run, an unexpected control, a second workload, the
 closed Llama 3.1 8B workload `l31-8b-c1024` run by SASH and by a second test prover, a review and a
@@ -99,7 +103,7 @@ REFERENCE = "reference/v0.1.yaml"
 RUN_DATE = "2026-11-25"
 # A commit on this repository's main, so the RFC links of the pages resolve (RFC-0009 S1).
 RFC_COMMIT = "39662bf6dd02b1ee8586c78f9a3b7f77b0d06ec1"
-SYSTEMS = ("flashprove", "sash", "ref-serve", "ref-recompute")
+SYSTEMS = ("flashprove", "sash", "ref-serve", "ref-serve-gguf", "ref-recompute")
 SYSTEM_FILES = ("system.yaml", "claim.yaml", "controls.yaml", "external.yaml", "README.md")
 COPY = ("schema", "reference", "rfcs", "MAINTAINERS.md", "LICENSES", f"workloads/{WORKLOAD}.yaml",
         f"workloads/{SASH_WORKLOAD}.yaml")  # fmt: skip
@@ -684,10 +688,10 @@ def build_placeholder(root: Path, *, repetitions: int = 3, extras: bool = False)
         runs += written.dirs
         if cfg.workload == WORKLOAD:
             replayed += written.completed
-    for ref in ("ref-serve", "ref-recompute"):
-        cfg = Config(ref, WORKLOAD, None, None, None)
-        pairs = replayed if ref == "ref-recompute" else []
-        runs += _reference_runs(root, cfg, adapter, pairs).dirs
+    # RFC-0015 SRV-7: Maverick's plain-serving system is ref-serve-gguf, which no run has used
+    # yet, so the placeholder holds no plain-serving run and the freeze writes no overhead.
+    cfg = Config("ref-recompute", WORKLOAD, None, None, None)
+    runs += _reference_runs(root, cfg, adapter, replayed).dirs
     release: dict[str, Any] = {
         "schema": "release/1",
         "release": RELEASE,
@@ -730,12 +734,21 @@ DISCLOSURE_URL = "https://example.org/placeholder/fixture-disclosure"
 
 
 def _extras_tree(root: Path) -> None:
-    """Extras committed with the systems: a reply, a target, and SASH on the closed workload
-    (its system.yaml lists it; facts.json names the model, which SASH's native workload shares)."""
+    """Extras committed with the systems: a reply, a target, SASH on the closed workload (its
+    system.yaml lists it; facts.json names the model, which SASH's native workload shares), and a
+    placeholder image pin in the tree's copy of ref-serve-gguf's system.yaml."""
     _edit_yaml(
         root / "systems/sash/system.yaml",
         lambda d: d.__setitem__("workloads", [*d["workloads"], CLOSED_WORKLOAD]),
     )
+    # ref-serve-gguf pins no image yet; the tree's copy gets a placeholder pin, test data only,
+    # so its placeholder runs read as pushed-image runs like the other references'
+    _edit_yaml(
+        root / "systems/ref-serve-gguf/system.yaml",
+        lambda d: d.__setitem__("image", {
+            "repository": "ghcr.io/ai-verification-observatory/ref-serve-gguf",
+            "digest": f"sha256:{_hex('placeholder image', 'ref-serve-gguf')}"}),
+    )  # fmt: skip
     _fixture_prover(root)
     (root / REPLY).parent.mkdir(parents=True)
     (root / REPLY).write_text(REPLY_TEXT)
@@ -810,6 +823,8 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
     second = Config(FIXTURE, CLOSED_WORKLOAD, card["configuration"], card["card_version"], digest)
     release["runs"] += _prover_runs(root, second, adapter, 3, SASH_CONTROLS).dirs
     release["replies"] = {sash.system: REPLY}
+    serve = Config("ref-serve-gguf", fp.workload, None, None, None)
+    release["runs"] += _reference_runs(root, serve, adapter, []).dirs
     _records(root, fp, first)
     _criteria(root, first, sash_first)
 

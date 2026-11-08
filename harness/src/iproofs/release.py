@@ -41,7 +41,7 @@ from iproofs.quantity import (
 )
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
-from iproofs.workloads import asserted_inputs, workload_file
+from iproofs.workloads import asserted_inputs, serving_system, workload_file
 
 # RFC-0007 §Tolerance: compared metric ids, in record order.
 COMPARED = (
@@ -562,7 +562,9 @@ def freeze(
     late = _Late(root, registry, release.release)
     configurations, controls, contexts = _configurations(runs, excluded, maintainers or {}, late)
     _require_closed(root, release, contexts)
-    _release_rows(release.release, contexts, _reference_roles(root))  # step 5, release rows
+    _release_rows(  # step 5, release rows
+        release.release, contexts, _reference_roles(root), _serving(root, contexts)
+    )
     targets = _targets(root, registry, release, contexts, read)  # step 8
     digests = sorted(file_digest(p) for p in read)
     index: dict[str, object] = {
@@ -1075,10 +1077,31 @@ def _measurable(ctx: "_Context") -> bool:
     )
 
 
-def _release_rows(release: str, contexts: Sequence["_Context"], roles: Mapping[str, str]) -> None:
+def _serving(root: Path, contexts: Sequence["_Context"]) -> dict[str, str | None]:
+    """workload id -> the plain-serving system its workload file names (RFC-0015 SRV-7)."""
+    import yaml  # noqa: PLC0415
+
+    found: dict[str, str | None] = {}
+    for ctx in contexts:
+        wid = str(ctx.where["workload"]["id"])  # type: ignore[index]
+        if wid not in found:
+            path = workload_file(root, wid)
+            doc = yaml.safe_load(path.read_text()) if path.is_file() else None
+            systems = doc.get("systems") if isinstance(doc, dict) else None
+            found[wid] = serving_system(root, [str(s) for s in systems or ()])
+    return found
+
+
+def _release_rows(
+    release: str,
+    contexts: Sequence["_Context"],
+    roles: Mapping[str, str],
+    serving: Mapping[str, str | None],
+) -> None:
     """Adds to each configuration's statistics the release-level rows of RFC-0004:
-    D-PROVIDER-SPREAD per rate, and for system rows D-OVERHEAD-S against the ref-serve row of
-    the same workload and D-AGREE against the ref-recompute runs that replayed its prompts."""
+    D-PROVIDER-SPREAD per rate, and for system rows D-OVERHEAD-S against the row of the
+    plain-serving system the workload names (`serving`, SRV-7) and D-AGREE against the
+    ref-recompute runs that replayed its prompts."""
     index = f"releases/{release}/index.json#/configurations"
     for ctx in contexts:
         done = [r for r in ctx.kept if r.ok]
@@ -1095,18 +1118,20 @@ def _release_rows(release: str, contexts: Sequence["_Context"], roles: Mapping[s
                 )
         if str(ctx.where["system"]) in roles:
             continue
-        _overheads(index, ctx, contexts, roles, rates)
+        _overheads(index, ctx, contexts, serving, rates)
         _agreement(ctx, contexts, roles)
 
 
 def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],
-               roles: Mapping[str, str], rates: Sequence[str]) -> None:  # fmt: skip
+               serving: Mapping[str, str | None], rates: Sequence[str]) -> None:  # fmt: skip
     """INV-DERIVE-2: join on workload id and version and profile (phase and batch size are
-    the workload version's); a ref-serve row of the same workload that does not join gives
+    the workload version's); a row of the workload's plain-serving system (SRV-7: the one its
+    `systems` names, never another serve-role system) that does not join gives
     `not_applicable`."""
     wl = ctx.where["workload"]
+    named = serving.get(str(wl["id"]))  # type: ignore[index]
     serve = [(i, c) for i, c in enumerate(contexts)
-             if roles.get(str(c.where["system"])) == "serve"
+             if named is not None and str(c.where["system"]) == named
              and c.where["workload"]["id"] == wl["id"]]  # type: ignore[index]  # fmt: skip
     if not serve:
         return

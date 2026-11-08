@@ -53,7 +53,7 @@ def tree(tmp: Path, *parts: str) -> Path:
     for part in (
         "systems/flashprove/claim.yaml",
         "systems/sash/claim.yaml",
-        "systems/ref-serve/system.yaml",
+        "systems/ref-serve-gguf/system.yaml",
         "systems/ref-recompute/system.yaml",
         crit.RFC_0015,
         *parts,
@@ -511,7 +511,7 @@ def test_reference_substitution_sets_partly() -> None:
 
 def test_reference_row_without_reference_system_fails() -> None:
     d = doc()
-    row(d, "ref-serve")["id"] = "ref-gone"
+    row(d, "ref-serve-gguf")["id"] = "ref-gone"
     assert [f.message for f in found(d, "CRIT-7")] == [
         "no reference system ref-gone with a role of the reference table"
     ]
@@ -557,9 +557,9 @@ def this_repo(tmp_path: Path) -> tuple[Path, str]:
 
 def quoted(rev: str, lines: str) -> dict[str, Any]:
     d = doc()
-    d["rows"] = [row(d, "ref-serve")]
+    d["rows"] = [row(d, "ref-serve-gguf")]
     d["pins"] = {"ai-verification-observatory/inference-proofs": rev}
-    c = cell(d, "ref-serve", "weights_hidden")
+    c = cell(d, "ref-serve-gguf", "weights_hidden")
     c["quotes"] = [
         c["quotes"][0]
         | {
@@ -571,7 +571,7 @@ def quoted(rev: str, lines: str) -> dict[str, Any]:
         }
     ]
     for other in crit.PROPERTIES[1:]:
-        cell(d, "ref-serve", other)["quotes"] = []
+        cell(d, "ref-serve-gguf", other)["quotes"] = []
     return d
 
 
@@ -659,7 +659,7 @@ def test_outside_pin_on_public_row_fails() -> None:
     assert [f.message for f in found(d, "CRIT-11")] == ["outside_pin on a public_sources row"]
     d = doc()
     row(d, "sash")["workloads"] = ["fp-maverick-w1024-b1"]
-    row(d, "ref-serve")["own_sources"] = [{"repo": "a/b", "how": "fixture"}]
+    row(d, "ref-serve-gguf")["own_sources"] = [{"repo": "a/b", "how": "fixture"}]
     assert len(found(d, "CRIT-11")) == 2
 
 
