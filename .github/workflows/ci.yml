@@ -43,10 +43,10 @@ jobs:
       fail-fast: false
       matrix:
         python: ["3.12", "3.13"]
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4, 5, 6]
     env:
       HYPOTHESIS_PROFILE: ci
-      IPROOFS_SHARD: ${{ matrix.shard }}/3
+      IPROOFS_SHARD: ${{ matrix.shard }}/6
       COVERAGE_FILE: .coverage.${{ matrix.python }}-${{ matrix.shard }}
     steps:
       - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
@@ -68,7 +68,7 @@ jobs:
       - name: wall time to the job summary
         if: always()
         run: |
-          echo "test-shard (Python ${{ matrix.python }}, ${{ matrix.shard }}/3): $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 6 min, twice B-CI-UNIT, 3 min)" >> "$GITHUB_STEP_SUMMARY"
+          echo "test-shard (Python ${{ matrix.python }}, ${{ matrix.shard }}/6): $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 6 min, twice B-CI-UNIT, 3 min)" >> "$GITHUB_STEP_SUMMARY"
 
   tests:
     # Required check names `tests (3.12)` and `tests (3.13)`: passes only when every shard of
