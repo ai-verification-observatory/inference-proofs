@@ -1,5 +1,6 @@
 """Workload resolution, model fetch and prompt materialisation (RFC-0003)."""
 
+import dataclasses
 import functools
 import hashlib
 import json
@@ -13,12 +14,17 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Protocol
 
+from iproofs import gguf
+from iproofs.derive import QuantityTree
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.gguf import ActiveWeights
 from iproofs.model import Corpus, ModelFile, Workload, load
 from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
+from iproofs.quantity import Grade, NullReason, SourceKind, Tier, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_jsonl
 
@@ -60,10 +66,136 @@ def check_workload(wl: Workload, root: Path) -> list[str]:
         )
     elif source is None and wl.model.tokenizer_file not in {f.path for f in wl.model.files}:
         problems.append(f"model.tokenizer_file {wl.model.tokenizer_file!r} is not in model.files")
+    problems += _weight_bits_problems(wl)
     for system in wl.systems:
         if not (root / "systems" / system / "system.yaml").is_file():
             problems.append(f"systems: {system!r} has no systems/{system}/system.yaml")
     return problems
+
+
+def file_size_bits(wl: Workload, files: Sequence[str]) -> float:
+    """RFC-0003 WB-2: bytes of the listed weight files x 8 / `model.parameters.total`."""
+    sizes = {f.path: f.bytes for f in wl.model.files}
+    return sum(sizes[path] for path in files) * 8 / wl.model.parameters.total
+
+
+def weight_bits(wl: Workload) -> float | None:
+    """The workload's weight bits: typed for a `stated` basis (WB-1), computed from the listed
+    files for `file_size` (WB-2), typed for `computed` (WB-5: the files are not in the tree, so
+    fetch-model and CI recompute the typed value), None when the record has none (WB-3)."""
+    wb = wl.precision.weight_bits
+    if wb is None:
+        return None
+    if wb.basis == "file_size" and wb.files is not None:
+        return file_size_bits(wl, wb.files)
+    return wb.bits
+
+
+def _weight_bits_problems(wl: Workload) -> list[str]:
+    """WB-2 and WB-5: a `file_size` or `computed` basis lists weight files of `model.files`."""
+    wb = wl.precision.weight_bits
+    if wb is None or wb.files is None:
+        return []
+    listed = {f.path for f in wl.model.files}
+    unknown = [path for path in wb.files if path not in listed]
+    return [f"precision.weight_bits.files {unknown} are not in model.files"] if unknown else []
+
+
+def stated_tolerance(count: int) -> Fraction:
+    """RFC-0003 WB-5: half a unit of the last non-zero digit of a stated count, the precision
+    the count is stated to: 17,000,000,000 ("17B") gives 500,000,000; an exact count gives 1/2."""
+    unit = 1
+    while count and count % (unit * 10) == 0:
+        unit *= 10
+    return Fraction(unit, 2)
+
+
+def check_computed_bits(wl: Workload, result: ActiveWeights) -> list[str]:
+    """RFC-0003 WB-5: the record's `bits` equal the method's result in binary64, and the active
+    and total weights the method counts reproduce `model.parameters.active_per_token` and
+    `model.parameters.total` within `stated_tolerance`, which checks the method against the
+    model's own documentation."""
+    wb = wl.precision.weight_bits
+    if wb is None or wb.basis != "computed":
+        return [f"{wl.id}: precision.weight_bits has no computed basis"]
+    problems = []
+    if wb.bits != result.bits:
+        problems.append(
+            f"{wl.id}: precision.weight_bits.bits {wb.bits!r} != {result.bits!r} computed by"
+            f" {wb.method} from the files"
+        )
+    params = wl.model.parameters
+    counts: list[tuple[str, Fraction, str, int]] = [
+        ("active", result.active_weights, "active_per_token", params.active_per_token),
+        ("total", Fraction(result.total_weights), "total", params.total),
+    ]
+    for label, counted, field, stated in counts:
+        if abs(counted - stated) > stated_tolerance(stated):
+            problems.append(
+                f"{wl.id}: {wb.method} counts {float(counted):.0f} {label} weights,"
+                f" outside {stated} +/- {float(stated_tolerance(stated)):g}"
+                f" (model.parameters.{field})"
+            )
+    return problems
+
+
+def _gguf_files(wl: Workload) -> list[ModelFile]:
+    wb = wl.precision.weight_bits
+    if wb is None or wb.basis != "computed" or wb.files is None:
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: precision.weight_bits is not computed")
+    if wb.method != gguf.METHOD:
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: unknown weight-bits method {wb.method}")
+    sizes = {f.path: f for f in wl.model.files}
+    return [sizes[path] for path in wb.files]
+
+
+def computed_bits(wl: Workload, sources: Callable[[ModelFile], gguf.ByteSource]) -> ActiveWeights:
+    """Rerun the record's WB-5 method over the headers of its listed files and check the
+    result (`check_computed_bits`); a difference is a `config` error. `sources` gives the bytes
+    of one listed file: the verified local copy, or range reads on the pinned revision."""
+    headers = [gguf.read_header(sources(f), f.bytes) for f in _gguf_files(wl)]
+    result = gguf.active_mean_bits(headers)
+    problems = check_computed_bits(wl, result)
+    if problems:
+        raise IProofsError(ErrorKind.CONFIG, "\n".join(problems))
+    return result
+
+
+def hub_sources(wl: Workload) -> Callable[[ModelFile], gguf.ByteSource]:
+    """Range reads of the listed files at the pinned revision: headers only, no weights."""
+    return lambda f: gguf.http_source(
+        gguf.hub_url(wl.model.source.repo, wl.model.revision, f.path), f.bytes
+    )
+
+
+def local_sources(directory: Path) -> Callable[[ModelFile], gguf.ByteSource]:
+    return lambda f: gguf.file_source(directory / f.path)
+
+
+def asserted_inputs(wl: Workload) -> dict[str, QuantityTree]:
+    """The workload record's inputs to RFC-0004 D-APT-S and D-SPAB-S as `asserted` quantities,
+    which the runner copies into run.json `inputs` (RFC-0003 WB-4): a later correction of the
+    workload file cannot change a stored run's inputs. No weight bits: null `missing_input`."""
+    ref = f"workloads/{wl.id}.yaml#"
+    bits = weight_bits(wl)
+
+    def asserted(value: float | None, unit: Unit, pointer: str) -> QuantityTree:
+        return {
+            "value": value,
+            "unit": str(unit),
+            "scope": None,
+            "grade": str(Grade.ASSERTED),
+            "tier": str(Tier.REPORTED),
+            "source": {"kind": str(SourceKind.REFERENCE_FILE), "ref": ref + pointer},
+            "null_reason": None if value is not None else str(NullReason.MISSING_INPUT),
+        }
+
+    return {
+        "active_parameters_per_token": asserted(
+            wl.model.parameters.active_per_token, Unit.COUNT, "/model/parameters/active_per_token"
+        ),
+        "weight_bits": asserted(bits, Unit.BIT_PER_WEIGHT, "/precision/weight_bits"),
+    }
 
 
 def load_workload(
@@ -88,6 +220,12 @@ def load_workload(
     problems += check_workload(wl, root)
     if problems:
         raise IProofsError(ErrorKind.CONFIG, "\n".join(f"{path}: {p}" for p in problems))
+    wb = wl.precision.weight_bits
+    if wb is not None and wb.bits is None:  # WB-2: the loader computes a file_size width
+        computed = dataclasses.replace(wb, bits=weight_bits(wl))
+        wl = dataclasses.replace(
+            wl, precision=dataclasses.replace(wl.precision, weight_bits=computed)
+        )
     return wl
 
 
@@ -279,7 +417,8 @@ def ensure_model(
     Absent: download the exact file list into a temporary sibling (`retry` wraps the call,
     RFC-0010), check it, rename it into place and drop write permission. Present: rehash it;
     a mismatch moves the entry to `quarantine/` and fails with `integrity`, never refetching.
-    `token` is `HF_TOKEN`, passed to `download` and nowhere else."""
+    `token` is `HF_TOKEN`, passed to `download` and nowhere else. A `computed` weight width is
+    then recomputed from the verified files (RFC-0003 WB-5); a difference is `config`."""
     target = cache / "models" / wl.model.digest.removeprefix("sha256:")
     if target.is_dir():
         try:
@@ -290,6 +429,7 @@ def ensure_model(
             _writable(target)
             target.rename(quarantine)
             raise
+        _recheck_bits(wl, target)
         return target
     tmp = target.with_name(f".tmp-{target.name}-{os.getpid()}")
     shutil.rmtree(tmp, ignore_errors=True)
@@ -306,7 +446,14 @@ def ensure_model(
     tmp.rename(target)
     for p in [*target.rglob("*"), target]:
         p.chmod(p.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+    _recheck_bits(wl, target)
     return target
+
+
+def _recheck_bits(wl: Workload, directory: Path) -> None:
+    wb = wl.precision.weight_bits
+    if wb is not None and wb.basis == "computed":
+        computed_bits(wl, local_sources(directory))
 
 
 def _writable(directory: Path) -> None:

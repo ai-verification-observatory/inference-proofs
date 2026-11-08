@@ -52,6 +52,13 @@ TABLE = re.compile(
     re.S,
 )
 SECTION = re.compile(r'<section class="sec bench" id="[^"]+".*?</section>', re.S)
+# S6: a run of native tables under the native header, which heads the group
+NATIVES = re.compile(
+    r'<div class="natives" role="group" aria-labelledby="([^"]+)"><p class="sec-l nat" id="\1">'
+    r"([^<]*)</p>(.*?</section>)\n  </div>",
+    re.S,
+)
+NATIVE_HEADER = "Native workloads differ: rows are not a head-to-head comparison"
 HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
 HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
 PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
@@ -422,8 +429,10 @@ def _validated_claims(site: Build, system: str) -> None:
     after = plain(text[gap:first_figure])
     assert "quality gap" in after
     assert "residual" in after
-    if cfg["agreement"]["recorded"]:  # RFC-0015 RC-6: the rate beside them, outside the fold
-        assert 'class="plate" id="agree-' in text[gap:first_figure]
+    # RFC-0015 RC-6: the rate beside them, outside the fold, or why it has none
+    assert 'class="plate" id="agree-' in text[gap:first_figure]
+    if not cfg["agreement"]["recorded"]:
+        assert "Not recorded in these runs." in plain(text[gap:first_figure])
     pc = next((c["property_controls"] for c in configs if c.get("property_controls")), None)
     for p in props:
         _property_claims(site, system, p, pc)
@@ -744,7 +753,8 @@ def test_sort_key_is_stored_value(site: Build) -> None:
 
 
 def test_default_order_alphabetical(site: Build) -> None:
-    """S5: the HTML as sent holds every table's rows A to Z by name; other orders on request."""
+    """S5: the HTML as sent holds every table's rows A to Z by name; other orders on request.
+    The order of the tables is `test_tables_by_model_size`."""
     tables = TABLE.findall(site.pages["index.html"])
     assert tables
     names = site.view["facts"]["rows"]
@@ -755,6 +765,83 @@ def test_default_order_alphabetical(site: Build) -> None:
     assert 'aria-sort="ascending"' in site.pages["index.html"]
     nb = site.view["orders"]["not_benchmarked"]
     assert [names[r]["name"].lower() for r in nb] == sorted(names[r]["name"].lower() for r in nb)
+
+
+def test_tables_by_model_size(site: Build) -> None:
+    """S5, S6: the tables follow the size of the model proved, `workload.model.parameters.total`
+    descending (Llama 4 Maverick, 400B, then Llama 3.1 8B, 8.03B, in both builds), and within a
+    model its divisions in RFC-0003's order (`test_division_named`); the HTML as sent holds them
+    so, and the hash reorders rows within each table only (`shoot.mjs`)."""
+    sizes = []
+    for _, body in TABLE.findall(site.pages["index.html"]):
+        models = {row_config(site.view, rid)["workload"]["model"]["digest"]
+                  for rid, *_ in ROW.findall(body)}  # fmt: skip
+        assert len(models) == 1  # no table across models
+        (digest,) = models
+        cfg = next(c for c in provers(site.view) if c["workload"]["model"]["digest"] == digest)
+        sizes.append((cfg["workload"]["model"]["parameters"]["total"], digest))
+    assert sizes == sorted(sizes, key=lambda s: -s[0])
+    names = [site.view["facts"]["models"][d]["name"] for d in dict.fromkeys(d for _, d in sizes)]
+    assert names == ["Llama 4 Maverick", "Llama 3.1 8B"]
+
+
+def test_models_by_size_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S6 on a hand-made case: 400B before 8.03B whatever the order of the rows or the names,
+    two models of one size by name, a model with no system row has no table, and two workloads
+    of one model that state different totals stop the build."""
+    draw = renderer(ROOT).draw
+
+    def cfg(digest: str, total: int) -> dict[str, Any]:
+        return {"workload": {"model": {"digest": digest, "parameters": {"total": total}}}}
+
+    names = {"d8": "A small", "d400": "Z large", "e8": "B small"}
+    got = draw.overview.models_by_size(
+        [cfg("d8", 8_030_261_248), cfg("e8", 8_030_261_248), cfg("d400", 400_000_000_000)],
+        names,
+    )
+    assert got == ["d400", "d8", "e8"]
+    assert draw.overview.models_by_size([cfg("d8", 8_030_261_248)], names) == ["d8"]
+    with pytest.raises(AssertionError, match=r"d8: workloads disagree on parameters\.total"):
+        draw.overview.models_by_size([cfg("d8", 8_030_261_248), cfg("d8", 8_000_000_000)], names)
+
+
+def test_rows_by_name_then_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S5 on a hand-made table: rows A to Z by system name whatever its case, then profile id,
+    then the configuration's position in the release's `index.json`, whatever order they come
+    in."""
+    draw = renderer(ROOT).draw
+    rows = {"a": {"name": "alpha"}, "b": {"name": "Beta"}}
+    monkeypatch.setattr(draw.state, "V", {"facts": {"rows": rows}})
+
+    def cfg(system: str, profile: str, position: int) -> dict[str, Any]:
+        return {"system": system, "profile": profile, "position": position}
+
+    given = [cfg("b", "p-a", 0), cfg("a", "p-z", 1), cfg("a", "p-a", 4), cfg("a", "p-a", 2)]
+    got = [(c["system"], c["profile"], c["position"]) for c in draw.overview.by_name(given)]
+    assert got == [("a", "p-a", 2), ("a", "p-a", 4), ("a", "p-z", 1), ("b", "p-a", 0)]
+
+
+def test_each_row_once(site: Build) -> None:
+    """S6: the overview has no table across models, so no row is repeated: each (system,
+    configuration, workload, profile) has exactly one row, in its workload's table, however
+    RFC-0009 Q5 is resolved. In the deployed build each benchmarked system has one such row, so
+    its glyph is on the overview once."""
+    index = site.pages["index.html"]
+    rows = [rid for _, body in TABLE.findall(index) for rid, *_ in ROW.findall(body)]
+    assert len(rows) == len(set(rows))
+
+    def key(c: dict[str, Any]) -> tuple[str, str, str, str]:
+        return c["system"], c["configuration"], c["workload"]["id"], c["profile"]
+
+    shown = [key(row_config(site.view, r)) for r in rows]
+    assert len(shown) == len(set(shown))
+    assert sorted(shown) == sorted(map(key, provers(site.view)))
+    if site.kind == "extras":
+        return
+    for system in site.view["orders"]["benchmarked"]:
+        assert [row_config(site.view, r)["system"] for r in rows].count(system) == 1, system
+        assert index.count(f'<a class="pie" href="/{system}#') == 1, system
+        assert f'id="nb-{system}"' not in index, system
 
 
 def test_no_ranking(site: Build) -> None:
@@ -771,34 +858,123 @@ def test_no_ranking(site: Build) -> None:
 
 def test_division_named(site: Build) -> None:
     """S6: the system page names the workload, its division and the profile of the configuration
-    it shows. Table headings naming them on the overview and `/reference` are RFC-0009 §Site
-    gaps for #320 (an owner decision on the overview's look)."""
+    it shows; on the overview a closed or open table sits after the model's native tables, under
+    a heading naming its workload, division and profile, and holds that workload's rows only
+    (RFC-0003 §Divisions, #334). Headings naming them on native tables and on `/reference` are
+    RFC-0009 §Site gaps (an owner decision on the overview's look)."""
     for system in site.view["orders"]["benchmarked"]:
         text = plain(site.pages[f"{system}.html"])
         for cfg in system_configs(site, system):
             assert cfg["workload"]["division"] in {"native", "closed", "open"}
             where = f"{cfg['workload']['id']} · {cfg['workload']['division']} · {cfg['profile']}"
             assert where in text, system
+    seen: dict[str, list[str]] = {}  # model name -> its tables' divisions, in page order
+    for sid, body in TABLE.findall(site.pages["index.html"]):
+        section = re.search(rf'<section class="sec bench" id="{sid}".*?</section>',
+                            site.pages["index.html"], re.S)[0]  # type: ignore[index]  # fmt: skip
+        head = re.search(r'<div class="sec-h">(.*?)</div>', section, re.S)[1]  # type: ignore[index]
+        model = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', head)[1])  # type: ignore[index]
+        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
+        assert len({c["workload"]["id"] for c in cfgs}) == 1, sid  # one workload per table
+        wl = cfgs[0]["workload"]
+        seen.setdefault(model, []).append(wl["division"])
+        profiles = ", ".join(sorted({c["profile"] for c in cfgs}))
+        where = f"{wl['id']} · {wl['division']} division · {profiles}"
+        assert (where in plain(head)) == (wl["division"] != "native"), sid
+    for model, divisions in seen.items():  # native tables first, then closed, then open
+        order = ["native", "closed", "open"]
+        assert divisions == sorted(divisions, key=order.index), model
+    if site.kind == "web":
+        pytest.skip(
+            "the deployed release has native workloads only; the extras build, a closed one"
+        )
+    closed = [m for m, d in seen.items() if "closed" in d]
+    assert closed
+    for sid, body in TABLE.findall(site.pages["index.html"]):  # two systems of its class
+        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
+        if cfgs[0]["workload"]["division"] == "closed":
+            assert len({c["system"] for c in cfgs}) >= 2, sid  # RFC-0003 Q7
 
 
 def test_native_workloads_header(site: Build) -> None:
-    """S6: tables of different native workloads side by side (two workloads on one model) carry
-    the header above them; a model with one workload table carries none."""
-    sections = SECTION.findall(site.pages["index.html"])
-    header = "Native workloads differ: rows are not a head-to-head comparison"
-    models: dict[str, list[str]] = {}
-    for sec in sections:
-        name = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', sec)[1])  # type: ignore[index]
-        models.setdefault(name, []).append(sec)
-    side_by_side = [secs for secs in models.values() if len(secs) > 1]
-    if site.kind == "web":
-        assert not side_by_side
-        assert header not in site.pages["index.html"]
-        pytest.skip("the deployed release has one workload per model; the extras build has two")
-    assert side_by_side
-    for secs in side_by_side:  # once, above the first table of the model
-        assert [header in plain(s) for s in secs] == [True] + [False] * (len(secs) - 1)
-    assert site.pages["index.html"].count(header) == len(side_by_side)
+    """S6: tables of different native workloads side by side (two workloads on one model, or a
+    page across models) carry the header above them: the header heads a group holding them, once
+    here, since no closed or open table comes between native ones. A closed or open table never
+    counts toward it, carries it or sits in its group (it compares directly within its
+    workload, RFC-0003 §Divisions). Both builds hold native tables of two models (Llama 4
+    Maverick and Llama 3.1 8B); the extras build also a closed table, after them.
+    `test_native_header_by_hand` covers the counts the builds do not."""
+    index = site.pages["index.html"]
+    sections = SECTION.findall(index)
+    cfgs = provers(site.view)
+    division = {c["workload"]["id"]: c["workload"]["division"] for c in cfgs}
+    assert len(sections) == len(division)
+    groups = NATIVES.findall(index)
+    assert [(header, len(SECTION.findall(body))) for _, header, body in groups] == [
+        (NATIVE_HEADER, sum(d == "native" for d in division.values()))
+    ]
+    assert index.count(NATIVE_HEADER) == 1
+    assert index.index(NATIVE_HEADER) < index.index('<section class="sec bench"')
+    grouped = "".join(body for *_, body in groups)
+    for section in sections:
+        rows = [row_config(site.view, rid) for rid, *_ in ROW.findall(section)]
+        native = rows[0]["workload"]["division"] == "native"
+        assert (section in grouped) == native, rows[0]["workload"]["id"]
+        assert NATIVE_HEADER not in section
+    if site.kind == "extras":
+        assert "closed" in division.values()
+
+
+def _prover(system: str, workload: str, division: str, model: str) -> dict[str, Any]:
+    wl = {"id": workload, "division": division, "model": {"digest": model}}
+    return {"system": system, "position": 0, "profile": "prover-h100", "workload": wl}
+
+
+@pytest.mark.parametrize(
+    ("configs", "headers", "grouped"),
+    [
+        # one native table and one closed table: no header
+        ([("a", "w-n", "native", "d2"), ("b", "w-c", "closed", "d2")], 0, []),
+        # two native tables and one closed table: the header once, over the native tables only
+        (
+            [("a", "w-big", "native", "d1"), ("a", "w-n", "native", "d2"),
+             ("b", "w-c", "closed", "d2")],
+            1,
+            [["big", "small-w-n"]],
+        ),
+        # a larger model's closed table between native ones: each run of natives is headed
+        (
+            [("a", "w-big", "native", "d1"), ("b", "w-o", "open", "d1"),
+             ("a", "w-n", "native", "d2")],
+            2,
+            [["big-w-big"], ["small"]],
+        ),
+    ],
+)  # fmt: skip
+def test_native_header_by_hand(
+    monkeypatch: pytest.MonkeyPatch,
+    configs: list[tuple[str, str, str, str]],
+    headers: int,
+    grouped: list[list[str]],
+) -> None:
+    """S6 on hand-made tables: the native header counts native tables only, and heads a group
+    of them that holds no closed or open table (`tables` orders them, `under_header` groups
+    them, as `build_index` does)."""
+    draw = renderer(ROOT).draw
+    state, overview = draw.state, draw.overview
+    monkeypatch.setattr(state, "V", {"facts": {"rows": {"a": {"name": "A"}, "b": {"name": "B"}}}})
+    monkeypatch.setattr(state, "MODELS", ["d1", "d2"])
+    monkeypatch.setattr(state, "MODEL_NAME", {"d1": "Big", "d2": "Small"})
+    monkeypatch.setattr(state, "PROVERS", [_prover(*c) for c in configs])
+    parts = [(overview.is_native(rows), f'\n  <section class="sec bench" id="{sid}"></section>')
+             for _, sid, rows in overview.tables()]  # fmt: skip
+    out = overview.under_header(parts)
+    assert out.count(NATIVE_HEADER) == headers
+    groups = NATIVES.findall(out)
+    assert [re.findall(r'id="([^"]+)"', body) for *_, body in groups] == grouped
+    assert all(header == NATIVE_HEADER for _, header, _ in groups)
+    natives = sum(native for native, _ in parts)
+    assert (headers > 0) == (natives > 1)
 
 
 def test_runs_left_out_listed(site: Build) -> None:
@@ -1041,14 +1217,17 @@ def test_pending_row_draws_no_state(site: Build) -> None:
     index = site.pages["index.html"]
     search = json.loads((site.out / "search.json").read_text())["entries"]
     for rid in pending:
-        row = index[index.index(f'<div class="row" id="{rid}"') :]
-        row = row[: row.index('<div class="vals">')]
-        assert len(re.findall(r'class="sl s\d none"', row)) == 6
-        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', row)
-        assert "data-word" not in row
-        assert '<p class="sr">' not in row
-        said = plain(row)
-        assert not [w for w in (*WORD.values(), "No state shown") if w in said], said
+        starts = [m.start() for m in re.finditer(f'<div class="row" id="{rid}(--[^"]*)?"', index)]
+        assert starts, rid  # one row per configuration of the system
+        for start in starts:
+            row = index[start:]
+            row = row[: row.index('<div class="vals">')]
+            assert len(re.findall(r'class="sl s\d none"', row)) == 6
+            assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', row)
+            assert "data-word" not in row
+            assert '<p class="sr">' not in row
+            said = plain(row)
+            assert not [w for w in (*WORD.values(), "No state shown") if w in said], said
         pie = next(e["pie"] for e in search if e["url"] == f"/{rid}")
         assert pie.count(' none"') == 6
         card = (site.out / f"og/{rid}.html").read_text()

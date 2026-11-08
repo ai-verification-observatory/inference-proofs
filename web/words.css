@@ -142,6 +142,11 @@ html:not(.js) .search { display: none; }
 /* ---------------------------------------------------------------- sections of the overview */
 .sec { padding-top: 40px; }
 .sec + .sec { margin-top: 24px; }
+/* the S6 header, once above tables of different native workloads */
+.nat { padding-top: 40px; }
+.nat + .sec { padding-top: 16px; }
+/* a closed or open table sits outside the native header's group (S6), spaced as tables are */
+.natives + .sec, .sec + .natives { margin-top: 24px; }
 .sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; }
 .sec-l { font: 500 13px/1.4 var(--mono); color: var(--muted); }
 .lead { font: 400 12px/1.5 var(--mono); color: var(--paper); margin: 12px 0 0; max-width: 110ch; }
@@ -719,6 +724,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .refpage .plates-sys .plate:nth-child(n+3) { border-top: 1px solid var(--rule); padding-top: 14px; }
   .refpage .plate dl div { display: block; }
   .refpage .plates-sys .na { font-size: 18px; }
+  /* the native workloads header close to the tables, so the first system shows on landing */
+  .nat { padding-top: 12px; }
+  .nat + .sec { padding-top: 8px; }
   /* the model's line of facts: one fact per line */
   .bench .sec-l > span { display: block; }
   .bench .sec-l .sep { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

@@ -198,6 +198,7 @@ COMPUTE: dict[str, Callable[[list[float], int], float]] = {
     "D-SPT-S": _ratio,
     "D-COST-1K-S": lambda x, gpus: x[0] * 1000 * gpus * x[1] / 3600,
     "D-APT-S": lambda x, gpus: x[0] * x[1],
+    "D-SPAB-S": lambda x, gpus: x[0] / nonzero(x[1] * x[2]),
     "D-COMMIT-AMORT-H1": _amortised(1),
     "D-COMMIT-AMORT-H1000": _amortised(1000),
     "D-BPT": _over,
@@ -207,7 +208,7 @@ COMPUTE: dict[str, Callable[[list[float], int], float]] = {
 }
 
 
-def derive_repetition(
+def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside run.json)
     metrics: Mapping[str, QuantityTree],
     *,
     run_json: str,
@@ -215,15 +216,19 @@ def derive_repetition(
     gpus: int,
     price: Input,
     active_parameters: Input,
+    weight_bits: Input,
     first_proof_tokens: Input,
     reference: bool = False,
 ) -> dict[str, QuantityTree]:
     """Every repetition-level formula of RFC-0004 over one repetition's recorded metrics.
 
-    `price`, `active_parameters` and `first_proof_tokens` are (pointer, quantity) pairs from
-    the reference file, the workload record and run.json `proofs[0]`. Each formula is
-    evaluated left to right as written in the RFC table (INV-DERIVE-5). `reference` is true
-    for a `kind: reference` system (RFC-0015), whose D-TPP is null (INV-DERIVE-6).
+    `price`, `active_parameters`, `weight_bits` and `first_proof_tokens` are (pointer,
+    quantity) pairs from the reference file, run.json `inputs` (the workload record's
+    `model.parameters` and `precision.weight_bits` as copied at run time, RFC-0003 WB-4) and
+    run.json `proofs[0]`; a quantity of None is a missing input. Each formula is evaluated
+    left to right as written in the RFC table (INV-DERIVE-5). `reference` is true for a
+    `kind: reference` system (RFC-0015), whose D-TPP and D-SPAB-S are null (INV-DERIVE-6,
+    INV-DERIVE-7).
     """
     out: dict[str, QuantityTree] = {}
 
@@ -257,6 +262,13 @@ def derive_repetition(
             scope,
             [metric(f"rate_{scope}"), active_parameters],
         )
+        put(
+            f"seconds_per_active_weight_bit_token_{scope}",
+            "D-SPAB-S",
+            Unit.S_PER_BIT_TOKEN,
+            scope,
+            [metric(f"seconds_per_token_{scope}"), active_parameters, weight_bits],
+        )
     commit = [metric("commit_seconds"), metric("tokens_covered_total"), metric("requests_count")]
     for h in (1, 1000):
         put(
@@ -289,11 +301,57 @@ def derive_repetition(
         [metric("verify_single_thread_seconds"), first_proof_tokens],
     )
     put("tokens_covered_per_proof", "D-TPP", Unit.TOKEN, None, [total, metric("proofs_count")])
-    if reference:  # INV-DERIVE-6: a reference row proves nothing (RFC-0015 REF-2)
-        out["tokens_covered_per_proof"] = _nulled(
-            out["tokens_covered_per_proof"], NullReason.NOT_APPLICABLE
-        )
+    if reference:  # INV-DERIVE-6, INV-DERIVE-7: a reference row proves nothing (REF-2)
+        for name, q in out.items():
+            if formula_of(q)[0] in PROVER_ONLY:
+                out[name] = _nulled(q, NullReason.NOT_APPLICABLE)
     return out
+
+
+# Formulas that describe proving: null with `not_applicable` on a `kind: reference` row.
+PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S"})
+
+# RFC-0004 Q3: formulas a release freeze evaluates for a run stored before they existed.
+FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S"})
+
+
+def freeze_values(
+    metrics: Mapping[str, QuantityTree],
+    *,
+    run_json: str,
+    harness_version: str,
+    active_parameters: Input,
+    weight_bits: Input,
+    reference: bool,
+) -> dict[str, QuantityTree]:
+    """RFC-0004 Q3: the FREEZE_FORMULAS values a stored run lacks, from its recorded metrics
+    (pointers into its unchanged run.json) and the workload record at the release commit. A
+    value whose run.json input the run does not hold is null with `missing_input`."""
+    out = derive_repetition(
+        metrics,
+        run_json=run_json,
+        harness_version=harness_version,
+        gpus=0,
+        price=("", None),
+        active_parameters=active_parameters,
+        weight_bits=weight_bits,
+        first_proof_tokens=("", None),
+        reference=reference,
+    )
+    stored = f"{run_json}#/metrics/"
+    late = {}
+    for name, q in out.items():
+        if name in metrics or formula_of(q)[0] not in FREEZE_FORMULAS:
+            continue
+        source = q["source"]
+        assert isinstance(source, Mapping)
+        held = [
+            ref.removeprefix(stored) in metrics
+            for ref in source["inputs"]
+            if ref.startswith(stored)
+        ]
+        late[name] = q if all(held) else _nulled(q, NullReason.MISSING_INPUT)
+    return late
 
 
 # ---------------------------------------------------------------- configuration statistics
@@ -308,6 +366,7 @@ FORMULAS = {
     "D-COMMIT-AMORT-H1": "commit_seconds / (tokens_covered_total / requests_count * 1)",
     "D-COMMIT-AMORT-H1000": "commit_seconds / (tokens_covered_total / requests_count * 1000)",
     "D-APT-S": "D-RATE-S * active_parameters_per_token",
+    "D-SPAB-S": "D-SPT-S / (active_parameters_per_token * weight_bits)",
     "D-BPT": "proof_bytes_total / tokens_covered_total",
     "D-VSPT": "verify_seconds_total / tokens_covered_total",
     "D-VSPT-1T": "first-proof single-thread verify seconds / first-proof tokens",
@@ -460,7 +519,7 @@ def recompute(
     q: Mapping[str, object], inputs: Sequence[Input], gpus: int, *, reference: bool = False
 ) -> QuantityTree:
     """Re-evaluate a stored derived quantity from its resolved inputs, in stored order.
-    `reference` is true for a run of a `kind: reference` system (INV-DERIVE-6)."""
+    `reference` is true for a run of a `kind: reference` system (INV-DERIVE-6, INV-DERIVE-7)."""
     formula, version = formula_of(q)
     scope = None if q["scope"] is None else Scope(str(q["scope"]))
     if formula == "D-STAT":
@@ -473,7 +532,7 @@ def recompute(
         raise UnknownFormula(formula)
     compute = COMPUTE[formula]
     out = derived(formula, version, Unit(str(q["unit"])), scope, inputs, lambda x: compute(x, gpus))
-    if reference and formula == "D-TPP":  # INV-DERIVE-6
+    if reference and formula in PROVER_ONLY:  # INV-DERIVE-6, INV-DERIVE-7
         return _nulled(out, NullReason.NOT_APPLICABLE)
     return out
 

@@ -50,11 +50,12 @@ Cross-cutting support: labelled quantities and serialization ([RFC-0012](../../r
 - Building or maintaining provers or shared proving libraries.
 - Training, fine-tuning or compute-accounting claims.
 - Setting policy thresholds. Relying parties publish targets under their own names.
-- In v0.1: common or closed workloads, sampled decoding, multi-GPU profiles, signed or attested results, structured proof-format fuzzing.
+- In v0.1: common or closed workloads, sampled decoding, multi-GPU profiles (for reference rows too, RFC-0015 Q2), signed or attested results, structured proof-format fuzzing.
+- A normalised proof size: succinct proofs barely grow with the model, so dividing by model size would favour larger models by construction (RFC-0004 §Non-Goals).
 
 ## v0.1 scope
 
-Two systems, unchanged at the pins above, on one reference prover profile (`prover-h200`: one NVIDIA H200 141 GB SXM; its hosted form `prover-h200-hosted` and the H100 profiles stay declared, [RFC-0006 §H200 profiles](../../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division only.
+Two systems, unchanged at the pins above, on one reference prover profile (`prover-h200`: one NVIDIA H200 141 GB SXM; its hosted form `prover-h200-hosted` and the H100 profiles stay declared, [RFC-0006 §H200 profiles](../../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division, plus one closed workload on Llama 3.1 8B (`l31-8b-c1024`) whose rows publish once a second system with its claim class runs it (Q7, default) ([RFC-0003 §Closed workloads](../../rfcs/0003-workloads.md#closed-workloads)).
 
 Run matrix. Each cell is a configuration measured with at least 3 repetitions (RFC-0004); the first successful repetition of each configuration is followed by the shared and system-specific controls (RFC-0008).
 
@@ -65,7 +66,7 @@ Run matrix. Each cell is a configuration measured with at least 3 repetitions (R
 | `fp-maverick-w1024-b1` | FlashProve | yes, or recorded as not measurable on profile (RFC-0015) | yes, or recorded as not measurable on profile |
 | `fp-maverick-w1024-b24` | FlashProve | same | same |
 
-Published per row: claim card; per-scope times and rates; GPU and host memory peaks; proof bytes; verification time (8 CPUs and 1 CPU); control outcomes; derived metrics (cost per 1,000 proved tokens at the release price, overhead against plain serving, proved active-parameter-tokens per second, proof bytes and verification seconds per proved token, amortised commit cost at 1 and 1,000 requests); scope, grade, tier and source beside every number.
+Published per row: claim card; per-scope times and rates; GPU and host memory peaks; proof bytes; verification time (8 CPUs and 1 CPU); control outcomes; derived metrics (cost per 1,000 proved tokens at the release price, overhead against plain serving, prover time per bit of active weights (with the claim cards and its stated limit, RFC-0004 INV-DERIVE-7), proof bytes and verification seconds per proved token, amortised commit cost at 1 and 1,000 requests); scope, grade, tier and source beside every number.
 
 v0.1 does not compare SASH and FlashProve on one model. Neither supports the other's model at these pins.
 
@@ -145,7 +146,7 @@ A contributor adding a third system reads [RFC-0005](../../rfcs/0005-adapter-con
 
 ### Where this spec is likely wrong
 
-- RISK: the Maverick plain-serving reference may be infeasible on one GPU (H100 80 GB or H200 141 GB), because the 4-bit model (232 GB of weight files, external, reported, `systems/flashprove/README.md`) does not fit in GPU memory. Plan: attempt with the pinned engine's documented offload, record failure as `not_measurable_on_profile`, publish overhead as null (RFC-0015).
+- RISK: the Maverick plain-serving reference may be infeasible on the FlashProve rows' profile (one H100 80 GB or one H200 141 GB), because the 4-bit model (232 GB of weight files, external, reported, `systems/flashprove/README.md`) does not fit in GPU memory. Plan: llama.cpp on that same profile with part of the weights in host memory (RFC-0015 SRV-6), no multi-GPU profile; if it fails, record `not_measurable_on_profile` and publish overhead as null (RFC-0015 NM-1).
 - RISK: `prove.steady` is not externally observable if an upstream writes all proofs at the end. Plan: null with `not_externally_observable`; the upstream steady figure shown only as `external` (RFC-0004, RFC-0011).
 - RISK: SASH's segment grid does not map onto per-request proofs; tokens covered and the steady boundary depend on the adapter's declaration. Plan: confirm the grid geometry from upstream documentation before the first beta run (RFC-0003 Q4, RFC-0005).
 - RISK: the verifier profile emulated on the prover host differs from a real 8-core machine (cache, memory bandwidth). Plan: record `verifier_host` and CPU model; allow a separate verifier host; revisit after v0.1 (RFC-0006).

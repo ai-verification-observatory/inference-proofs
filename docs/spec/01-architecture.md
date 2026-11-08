@@ -64,6 +64,7 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 0 | `iproofs.log` | JSON Lines logger, redaction, progress output ([05](05-observability.md)) | stdlib, `errors` |
 | 1 | `iproofs.serialize` | the single JSON writer, YAML safe loading, byte-format check | `errors` |
 | 1 | `iproofs.quantity` | labelled quantity and statistic types, vocabularies (units, scopes, grades, tiers) | `errors` |
+| 1 | `iproofs.gguf` | GGUF header reader (local file or HTTP range reads), the ggml type table and the weight-width method `gguf-active-mean/1` ([RFC-0003](../../rfcs/0003-workloads.md#weight-bits) WB-5) | `errors` |
 | 2 | `iproofs.schema` | schema registry, `$id` resolution, validation with Draft 2020-12 | `errors`, `serialize` |
 | 2 | `iproofs.model` | frozen dataclasses for every document, load = parse, validate, construct | `errors`, `serialize`, `quantity`, `schema` |
 | 3 | `iproofs.provenance` | digests (files, models, proofs), pin checks, machine record | layers 0 to 2 |

@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-07",
+  "date": "2026-11-08",
   "note": "The six glyph properties and their four states (RFC-0016). Our words are in reason, note, rules and not_here; quote text is the system's (or RFC-0015's) own. Nothing here adds, counts or orders states.",
   "order": [
     "weights_hidden",
@@ -10,15 +10,22 @@
     "no_trusted_party"
   ],
   "pins": {
+    "ICME-Lab/jolt-atlas": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
     "JamesPetrie/VerInf": "7947bb9a6c7ec86ea97927c76370b3920b6269f6",
     "Lagrange-Labs/deep-prove": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+    "PrimeIntellect-ai/toploc": "7ab7bcd6a4459ba4400fd41e4636bbeed7438997",
     "ai-verification-observatory/inference-proofs": "fbe1f9c798ac9a2865dca086954de5e8a20c91d7",
     "anthropics/FlashProve": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+    "ddkang/zkml": "43789582671f16148dd02cbac5654f462d4fe3e4",
+    "gizatechxyz/LuminAIR": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+    "inference-labs-inc/JSTprove": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+    "jvhs0706/zkllm-ccs2024": "993311ea8e2346b90efacb35337b2e3cfe0d6f8d",
     "nearai/private-ml-sdk": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
     "ora-io/opml": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
     "sg-ai-safety-hub/zk-inference-prover": "eb95bfa887299d1637550228d42086c27cbb2b3b",
     "sg-ai-safety-hub/zk-inference-results": "11decec3c0b62c707618aab5deb82750b355d202",
     "uiuc-kang-lab/zk-torch": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+    "worldcoin/Remainder_CE": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
     "zkonduit/ezkl": "e196b111c1bafaa61b92ae431cd3c3fe9371da05"
   },
   "properties": [
@@ -110,7 +117,7 @@
       "rules": {
         "no": "The documentation says the settings give no meaningful soundness, for example a test-only setting; or the row is a reference, which has no soundness level by definition.",
         "not_stated": "No level stated for the configuration in the sources read, or not copied yet.",
-        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system.",
+        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system. A level stated without saying it is proven or conjectured is Partly (RFC-0016 Q10, resolved 2026-11-08).",
         "yes": "The documentation states a numeric soundness bound for the configuration the row reads and says it is proven, by hand or by machine, under named assumptions."
       }
     },
@@ -1119,10 +1126,22 @@
           "state": "yes"
         },
         "security_level": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "not_stated"
+          "note": "The page states the level and the hash-function assumption; it does not say the level is proven or conjectured. Partly by RFC-0016 Q10, which the owner resolved on 2026-11-08 by keeping that default.",
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261108141405/https://attestable.com/blog/proving-llms-scale",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-08; the archived copy is byte-identical to the file read",
+              "decides": true,
+              "kind": "web",
+              "label": "Attestable blog, Our security and limitations",
+              "retrieved": "2026-11-08",
+              "text": "We are not relying on public-key cryptography at all, and uphold 100 bits of security",
+              "url": "https://attestable.com/blog/proving-llms-scale"
+            }
+          ],
+          "reason": "100 bits of security stated; not said to be proven (RFC-0016 Q10).",
+          "state": "partly"
         },
         "weights_hidden": {
           "quotes": [
@@ -1189,22 +1208,60 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "Model weights are committed (zkml/docs/src/commitments.md L9) and each prediction \"certifies the token at position t+1\" (zkml/README.md L21); no passage read says a passing check ties each token to the committed weights.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+              "paths": [
+                "README.md",
+                "zkml/README.md",
+                "docs/src/*.md",
+                "zkml/docs/src/**/*.md",
+                "**/*.rs"
+              ],
+              "repo": "Lagrange-Labs/deep-prove"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
-          "note": "The polynomial commitment named is HyperKZG; whether a setup must be trusted is not stated in the sources read.",
+          "note": "The commitment scheme is named (HyperKZG, zkml/README.md L36); no passage read says how its parameters are made or whether they are trusted. The parameters come from a dependency outside this repository. Searched **/*.rs for setup, SRS, ceremony, tau.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+              "paths": [
+                "README.md",
+                "zkml/README.md",
+                "docs/src/*.md",
+                "zkml/docs/src/**/*.md",
+                "**/*.rs"
+              ],
+              "repo": "Lagrange-Labs/deep-prove"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "Searched **/*.rs and all .md files for security level, bits of security, soundness error and security parameter.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+              "paths": [
+                "README.md",
+                "zkml/README.md",
+                "docs/src/*.md",
+                "zkml/docs/src/**/*.md",
+                "**/*.rs"
+              ],
+              "repo": "Lagrange-Labs/deep-prove"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1290,21 +1347,75 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "README.md L147 says outputs in Python and ezkl \"may differ slightly\" because of quantization; no passage read says what a passing check ties the output to.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "e196b111c1bafaa61b92ae431cd3c3fe9371da05",
+              "paths": [
+                "README.md",
+                "docs/advanced_security/*.md",
+                "ezkl.pyi",
+                "src/pfsys/srs.rs",
+                "src/**/*.rs",
+                "examples/notebooks/*.ipynb"
+              ],
+              "repo": "zkonduit/ezkl"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "not_stated"
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at e196b111",
+              "commit": "e196b111c1bafaa61b92ae431cd3c3fe9371da05",
+              "decides": true,
+              "kind": "repository",
+              "label": "examples/notebooks/cat_and_dog.ipynb L928 · e196b111",
+              "lines": "L928",
+              "path": "examples/notebooks/cat_and_dog.ipynb",
+              "repo": "zkonduit/ezkl",
+              "text": "As we use Halo2 with KZG-commitments we need an SRS string from (preferably) a multi-party trusted setup ceremony.",
+              "url": "https://github.com/zkonduit/ezkl/blob/e196b111c1bafaa61b92ae431cd3c3fe9371da05/examples/notebooks/cat_and_dog.ipynb?plain=1#L928"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at e196b111",
+              "commit": "e196b111c1bafaa61b92ae431cd3c3fe9371da05",
+              "decides": false,
+              "kind": "repository",
+              "label": "src/pfsys/srs.rs L9 · e196b111",
+              "lines": "L9",
+              "path": "src/pfsys/srs.rs",
+              "repo": "zkonduit/ezkl",
+              "text": "for now we use the urls of the powers of tau ceremony from <https://github.com/han0110/halo2-kzg-srs>",
+              "url": "https://github.com/zkonduit/ezkl/blob/e196b111c1bafaa61b92ae431cd3c3fe9371da05/src/pfsys/srs.rs#L9"
+            }
+          ],
+          "reason": "Needs an SRS from a trusted setup ceremony.",
+          "state": "partly"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "Searched src/**/*.rs and the docs for security level, bits of security and soundness error; the hits are code comments on lookup indexing, not a level.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "e196b111c1bafaa61b92ae431cd3c3fe9371da05",
+              "paths": [
+                "README.md",
+                "docs/advanced_security/*.md",
+                "ezkl.pyi",
+                "src/pfsys/srs.rs",
+                "src/**/*.rs",
+                "examples/notebooks/*.ipynb"
+              ],
+              "repo": "zkonduit/ezkl"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1372,22 +1483,66 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "Public inputs are bound into the transcript (jolt-atlas-core/src/onnx_proof/mod.rs from L64); no passage read says how the model's weights are bound.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
+              "paths": [
+                "README.md",
+                "AGENTS.md",
+                "specs/**",
+                "docs/**",
+                "jolt-atlas-core/src/onnx_proof/zk.rs",
+                "joltworks/src/poly/commitment/**/*.rs",
+                "**/*.rs"
+              ],
+              "repo": "ICME-Lab/jolt-atlas"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
-          "note": "Default commitment HyperKZG (README L33); setup trust not stated.",
+          "note": "The SRS is loaded from a file (joltworks/src/poly/commitment/hyperkzg/mod.rs L59, L381); no passage read says who makes it or whether it must be trusted.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
+              "paths": [
+                "README.md",
+                "AGENTS.md",
+                "specs/**",
+                "docs/**",
+                "jolt-atlas-core/src/onnx_proof/zk.rs",
+                "joltworks/src/poly/commitment/**/*.rs",
+                "**/*.rs"
+              ],
+              "repo": "ICME-Lab/jolt-atlas"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "Searched **/*.rs and the docs for security level, bits of security and soundness error.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "329b21efa6f6a74355e6096cf27c3e0cc7dfc226",
+              "paths": [
+                "README.md",
+                "AGENTS.md",
+                "specs/**",
+                "docs/**",
+                "jolt-atlas-core/src/onnx_proof/zk.rs",
+                "joltworks/src/poly/commitment/**/*.rs",
+                "**/*.rs"
+              ],
+              "repo": "ICME-Lab/jolt-atlas"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1452,21 +1607,79 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "docs/faq.md L10 says what is proven: \"That the model, when evaluated on your input, produces the stated output\"; no passage read says how the weights are committed or names output tokens.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+              "paths": [
+                "README.md",
+                "docs/*.md",
+                "prover/poly_commit/src/**/*.rs",
+                "rust/jstprove_circuits/src/runner/holographic.rs"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "One code path asserts \"holographic verify requires a transparent PCS (no trusted setup)\" (rust/jstprove_circuits/src/runner/holographic.rs L290); docs/cli.md does not list that path, and no passage read says which commitment the default run uses.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+              "paths": [
+                "README.md",
+                "docs/*.md",
+                "prover/poly_commit/src/**/*.rs",
+                "rust/jstprove_circuits/src/runner/holographic.rs"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "aside": {
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 7c3cbbee",
+                "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+                "decides": false,
+                "kind": "repository",
+                "label": "prover/poly_commit/src/lib.rs L7 · 7c3cbbee",
+                "lines": "L7",
+                "path": "prover/poly_commit/src/lib.rs",
+                "repo": "inference-labs-inc/JSTprove",
+                "text": "pub const PCS_SOUNDNESS_BITS: usize = 128;",
+                "url": "https://github.com/inference-labs-inc/JSTprove/blob/7c3cbbee83aaa01adde700673f00e317a4e902f9/prover/poly_commit/src/lib.rs#L7"
+              }
+            ],
+            "words": "128 soundness bits are set in code for the polynomial commitments that read the constant (Basefold, Orion), not for the default bn254 configuration."
+          },
+          "note": "The default `--curve` is `bn254` (docs/cli.md L35), which `ProofConfig::default()` maps to `Bn254Raw` (rust/jstprove_circuits/src/proof_config.rs L167-L170); `prover/poly_commit/src/raw.rs` does not read the constant, and no passage read states a level for that configuration.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "No level stated for the default configuration.",
+          "sources_read": [
+            {
+              "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+              "paths": [
+                "README.md",
+                "docs/*.md",
+                "prover/poly_commit/src/**/*.rs",
+                "rust/jstprove_circuits/src/proof_config.rs"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2510.21024"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1536,21 +1749,59 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+              "paths": [
+                "README.md",
+                "docs/**/*.mdx",
+                "crates/verifiers/wasm/README.md",
+                "crates/prover/src/prover.rs",
+                "crates/verifiers/rust/src/verifier.rs"
+              ],
+              "repo": "gizatechxyz/LuminAIR"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "docs/concepts/integrity.mdx L9 calls the underlying STARKs \"a transparent, scalable, and post-quantum secure proof system\"; no passage read says the check needs no trusted setup in those words.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+              "paths": [
+                "README.md",
+                "docs/**/*.mdx",
+                "crates/verifiers/wasm/README.md",
+                "crates/prover/src/prover.rs",
+                "crates/verifiers/rust/src/verifier.rs"
+              ],
+              "repo": "gizatechxyz/LuminAIR"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "The prover and verifier use `PcsConfig::default()` from a dependency (crates/prover/src/prover.rs L36); no level is stated in this repository.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "9026bd3d0934a35479e6b3b76353a6ac5facd9e8",
+              "paths": [
+                "README.md",
+                "docs/**/*.mdx",
+                "crates/verifiers/wasm/README.md",
+                "crates/prover/src/prover.rs",
+                "crates/verifiers/rust/src/verifier.rs"
+              ],
+              "repo": "gizatechxyz/LuminAIR"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1620,22 +1871,73 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "Definition 1 says model identity is bound by a public Merkle root and that a proof of an output other than the model's on the input is accepted with negligible probability; it speaks of the output y, not of tokens. Not copied as deciding until the paper names the tokens a check covers.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://arxiv.org/pdf/2603.18046v2"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "not_stated"
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261108141057/https://arxiv.org/pdf/2603.18046v2",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-08; the archived copy is byte-identical to the file read",
+              "decides": true,
+              "kind": "web",
+              "label": "NanoZK paper, arXiv 2603.18046v2, §2.2",
+              "retrieved": "2026-11-08",
+              "text": "We instantiate NanoZK on Halo2 with the Inner Product Argument (IPA) commitment scheme [31, 5]: no trusted setup",
+              "url": "https://arxiv.org/pdf/2603.18046v2"
+            }
+          ],
+          "reason": "The commitment scheme needs no trusted setup.",
+          "state": "yes"
         },
         "security_level": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "not_stated"
+          "note": "The proof is on paper (Appendix A); Formally verified is read separately.",
+          "quotes": [
+            {
+              "archive_url": "https://web.archive.org/web/20261108141057/https://arxiv.org/pdf/2603.18046v2",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-08; the archived copy is byte-identical to the file read",
+              "decides": true,
+              "kind": "web",
+              "label": "NanoZK paper, arXiv 2603.18046v2, §1",
+              "retrieved": "2026-11-08",
+              "text": "Soundness is maintained at ϵ ≈ 3 × 10⁻³⁷ (Theorem 1).",
+              "url": "https://arxiv.org/pdf/2603.18046v2"
+            },
+            {
+              "archive_url": "https://web.archive.org/web/20261108141057/https://arxiv.org/pdf/2603.18046v2",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-08; the archived copy is byte-identical to the file read",
+              "decides": false,
+              "kind": "web",
+              "label": "NanoZK paper, arXiv 2603.18046v2, Abstract",
+              "retrieved": "2026-11-08",
+              "text": "We prove compositional soundness and zero-knowledge under standard assumptions",
+              "url": "https://arxiv.org/pdf/2603.18046v2"
+            },
+            {
+              "archive_url": "https://web.archive.org/web/20261108141057/https://arxiv.org/pdf/2603.18046v2",
+              "checked": true,
+              "checked_how": "retrieved 2026-11-08; the archived copy is byte-identical to the file read",
+              "decides": false,
+              "kind": "web",
+              "label": "NanoZK paper, arXiv 2603.18046v2, §2.3, Definition 1",
+              "retrieved": "2026-11-08",
+              "text": "constrained only by standard cryptographic assumptions (discrete-log hardness, collision-resistant hashing)",
+              "url": "https://arxiv.org/pdf/2603.18046v2"
+            }
+          ],
+          "reason": "A soundness bound is stated and proved under named assumptions.",
+          "state": "yes"
         },
         "weights_hidden": {
           "quotes": [
@@ -1685,6 +1987,10 @@
         {
           "how": "the paper whose title names NanoZK, by the system's authors",
           "url": "https://arxiv.org/abs/2603.18046"
+        },
+        {
+          "how": "the full text (PDF, version 2) of the same paper, on arXiv",
+          "url": "https://arxiv.org/pdf/2603.18046"
         }
       ],
       "source_class": "public_sources",
@@ -1707,21 +2013,68 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "The VM image is committed by a Merkle root (docs/OPML.md L22); no passage read ties a checked output to the model's weights.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+              "paths": [
+                "README.md",
+                "docs/OPML.md",
+                "docs/tutorial.md"
+              ],
+              "repo": "ora-io/opml"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "not_stated"
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 2fa43311",
+              "commit": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+              "decides": true,
+              "kind": "repository",
+              "label": "docs/OPML.md L15 · 2fa43311",
+              "lines": "L15",
+              "path": "docs/OPML.md",
+              "repo": "ora-io/opml",
+              "text": "The one-phase pinpoint protocol works similarly to referred delegation of computation (RDoC), where two or more parties (with at least one honest party) are assumed to execute the same program.",
+              "url": "https://github.com/ora-io/opml/blob/2fa43311a4a95bcd96f5092d0a3b34e84da49eb0/docs/OPML.md?plain=1#L15"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 2fa43311",
+              "commit": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+              "decides": false,
+              "kind": "repository",
+              "label": "docs/OPML.md L102 · 2fa43311",
+              "lines": "L102",
+              "path": "docs/OPML.md",
+              "repo": "ora-io/opml",
+              "text": "crypto-economic incentives for security",
+              "url": "https://github.com/ora-io/opml/blob/2fa43311a4a95bcd96f5092d0a3b34e84da49eb0/docs/OPML.md?plain=1#L102"
+            }
+          ],
+          "reason": "Assumes at least one honest party among those who run the program.",
+          "state": "partly"
         },
         "security_level": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "2fa43311a4a95bcd96f5092d0a3b34e84da49eb0",
+              "paths": [
+                "README.md",
+                "docs/OPML.md",
+                "docs/tutorial.md"
+              ],
+              "repo": "ora-io/opml"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1787,13 +2140,79 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "The attestation measures the compose manifest (vllm-proxy/verifiers/README.md L17); e2e/README.md L9 says the models are not included in the image. No passage read ties an output to the model's weights.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "paths": [
+                "README.md",
+                "docs/how-cvm-boots.md",
+                "e2e/README.md",
+                "vllm-proxy/README.md",
+                "vllm-proxy/verifiers/README.md"
+              ],
+              "repo": "nearai/private-ml-sdk"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
+          "note": "The Intel TDX quote may be checked by any TDX quote verification service (e2e/README.md L50); the verifier script uses Phala's (vllm-proxy/verifiers/README.md L16). No rests on the NVIDIA dependency.",
           "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": true,
+              "kind": "repository",
+              "label": "vllm-proxy/verifiers/README.md L14 · 25c25025",
+              "lines": "L14",
+              "path": "vllm-proxy/verifiers/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "Submits GPU evidence payload to NVIDIA NRAS (https://nras.attestation.nvidia.com) and verifies the nonce matches",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/vllm-proxy/verifiers/README.md?plain=1#L14"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": false,
+              "kind": "repository",
+              "label": "e2e/README.md L41 · 25c25025",
+              "lines": "L41",
+              "path": "e2e/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "The next step involves verifying the attestation report using NVIDIA and Intel attestation services. This ensures the integrity and authenticity of the report.",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/e2e/README.md?plain=1#L41"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": false,
+              "kind": "repository",
+              "label": "e2e/README.md L50 · 25c25025",
+              "lines": "L50",
+              "path": "e2e/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "Intel verification: Theoretically, you can verify the Intel TDX quote with the value of intel_quote at anywhere that provide TDX quote verification service.",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/e2e/README.md?plain=1#L50"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": false,
+              "kind": "repository",
+              "label": "vllm-proxy/verifiers/README.md L16 · 25c25025",
+              "lines": "L16",
+              "path": "vllm-proxy/verifiers/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "Verifies TDX quote via Phala's verification service (https://cloud-api.phala.network)",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/vllm-proxy/verifiers/README.md?plain=1#L16"
+            },
             {
               "checked": true,
               "checked_how": "downloaded copy used by make_landscape.py",
@@ -1808,22 +2227,25 @@
               "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/README.md?plain=1#L3"
             }
           ],
-          "reason": "Runs in TEEs with remote attestation; no passage read says whose keys the check trusts.",
+          "reason": "The check submits GPU evidence to NVIDIA's attestation service (NRAS).",
+          "state": "no"
+        },
+        "security_level": {
+          "quotes": [],
+          "reason": "Not stated in the sources read.",
           "sources_read": [
             {
               "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
               "paths": [
-                "README.md"
+                "README.md",
+                "docs/how-cvm-boots.md",
+                "e2e/README.md",
+                "vllm-proxy/README.md",
+                "vllm-proxy/verifiers/README.md"
               ],
               "repo": "nearai/private-ml-sdk"
             }
           ],
-          "state": "not_stated"
-        },
-        "security_level": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1855,9 +2277,48 @@
           "state": "not_stated"
         },
         "whole_output": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
+          "note": "The signed text joins the sha256 of the HTTP request body and of the HTTP response body (e2e/README.md L71), and the verifier compares both hashes (vllm-proxy/verifiers/README.md L54). The sources read do not say that these bodies are the prompt and every output token of a request. The signature is kept in memory for 5 minutes (e2e/README.md L74).",
+          "quotes": [
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": false,
+              "kind": "repository",
+              "label": "e2e/README.md L71 · 25c25025",
+              "lines": "L71",
+              "path": "e2e/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "It is joined by the sha256 of the HTTP request body, and of the HTTP response body, separated by a colon :.",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/e2e/README.md?plain=1#L71"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": false,
+              "kind": "repository",
+              "label": "vllm-proxy/verifiers/README.md L54 · 25c25025",
+              "lines": "L54",
+              "path": "vllm-proxy/verifiers/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "Verifies request hash and response hash match the signed hashes",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/vllm-proxy/verifiers/README.md?plain=1#L54"
+            }
+          ],
+          "reason": "Signs request and response hashes; prompt and output tokens not named.",
+          "sources_read": [
+            {
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "paths": [
+                "README.md",
+                "e2e/README.md",
+                "vllm-proxy/README.md",
+                "vllm-proxy/verifiers/README.md"
+              ],
+              "repo": "nearai/private-ml-sdk"
+            }
+          ],
           "state": "not_stated"
         }
       },
@@ -1890,21 +2351,63 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "A general GKR prover; the README names no model or LLM circuit.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
+              "paths": [
+                "README.md",
+                "SECURITY.md",
+                "prover/README.md",
+                "ligero/src/*.rs",
+                "hyrax/src/**/*.rs",
+                "prover/src/**/*.rs"
+              ],
+              "repo": "worldcoin/Remainder_CE"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "A test helper comment says a lookup table \"should be generated via a transparent setup\" (prover/src/prover/helpers.rs L156-L160); no passage read says what the default proof needs.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
+              "paths": [
+                "README.md",
+                "SECURITY.md",
+                "prover/README.md",
+                "ligero/src/*.rs",
+                "hyrax/src/**/*.rs",
+                "prover/src/**/*.rs"
+              ],
+              "repo": "worldcoin/Remainder_CE"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "ligero/src/lib.rs L349 computes degree tests \"for `lambda`-bit security\"; no value of lambda is stated in the sources read.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
+              "paths": [
+                "README.md",
+                "SECURITY.md",
+                "prover/README.md",
+                "ligero/src/*.rs",
+                "hyrax/src/**/*.rs",
+                "prover/src/**/*.rs"
+              ],
+              "repo": "worldcoin/Remainder_CE"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1923,9 +2426,23 @@
           "state": "not_stated"
         },
         "whole_output": {
-          "not_copied": true,
+          "note": "A general GKR prover; the README names no model or LLM circuit.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "5687fe7f3a077c75c374422ef79f22e3860de9c1",
+              "paths": [
+                "README.md",
+                "SECURITY.md",
+                "prover/README.md",
+                "ligero/src/*.rs",
+                "hyrax/src/**/*.rs",
+                "prover/src/**/*.rs"
+              ],
+              "repo": "worldcoin/Remainder_CE"
+            }
+          ],
           "state": "not_stated"
         }
       },
@@ -1955,10 +2472,15 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
-          "note": "The page binds weight volumes with a dm-verity commitment; that passage is not copied verbatim yet (landscape.json note).",
+          "note": "The enclave rejects a weight volume that does not match its commitment (Modelwrap); no passage read ties an output token to the weights.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://docs.tinfoil.sh/verification/attestation-architecture"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
@@ -1979,9 +2501,14 @@
           "state": "no"
         },
         "security_level": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://docs.tinfoil.sh/verification/attestation-architecture"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -1996,9 +2523,14 @@
           "state": "not_stated"
         },
         "whole_output": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://docs.tinfoil.sh/verification/attestation-architecture"
+            }
+          ],
           "state": "not_stated"
         }
       },
@@ -2048,15 +2580,38 @@
           "state": "partly"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "The title says \"Trustless Verifiable Inference\" (README.md L1); no passage read says what the check rests on.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "7ab7bcd6a4459ba4400fd41e4636bbeed7438997",
+              "paths": [
+                "README.md",
+                "CONTRIBUTING.md",
+                "toploc/*.py",
+                "toploc/C/csrc/*"
+              ],
+              "repo": "PrimeIntellect-ai/toploc"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "7ab7bcd6a4459ba4400fd41e4636bbeed7438997",
+              "paths": [
+                "README.md",
+                "CONTRIBUTING.md",
+                "toploc/*.py",
+                "toploc/C/csrc/*"
+              ],
+              "repo": "PrimeIntellect-ai/toploc"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -2078,9 +2633,21 @@
           "state": "not_stated"
         },
         "whole_output": {
-          "not_copied": true,
+          "note": "The usage example builds proofs from prefill and generate activations (README.md L29-L33); no passage read says one check covers every output token.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "7ab7bcd6a4459ba4400fd41e4636bbeed7438997",
+              "paths": [
+                "README.md",
+                "CONTRIBUTING.md",
+                "toploc/*.py",
+                "toploc/C/csrc/*"
+              ],
+              "repo": "PrimeIntellect-ai/toploc"
+            }
+          ],
           "state": "not_stated"
         }
       },
@@ -2114,9 +2681,14 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://arxiv.org/pdf/2502.19405v1"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
@@ -2137,18 +2709,24 @@
           "state": "partly"
         },
         "security_level": {
-          "not_copied": true,
-          "quotes": [],
-          "reason": "Not copied yet.",
-          "state": "not_stated"
-        },
-        "weights_hidden": {
           "quotes": [],
           "reason": "Not stated in the sources read.",
           "sources_read": [
             {
-              "retrieved": "2026-11-07",
-              "url": "https://arxiv.org/abs/2502.19405"
+              "retrieved": "2026-11-08",
+              "url": "https://arxiv.org/pdf/2502.19405v1"
+            }
+          ],
+          "state": "not_stated"
+        },
+        "weights_hidden": {
+          "note": "The paper's program setup, for training, states: \"The referee has access to the computational graph defining the model, the initial parameters, and the training data.\" (arXiv 2502.19405v1, §2, archived at https://web.archive.org/web/20261108141349/https://arxiv.org/pdf/2502.19405v1). §2 adds \"While we focus on training, our techniques immediately extend to inference.\" and does not say what the referee holds for inference. The row is read for inference, and a statement made for training is not carried over to it (owner decision, 2026-11-08), so the cell is Not stated.",
+          "quotes": [],
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://arxiv.org/pdf/2502.19405v1"
             }
           ],
           "state": "not_stated"
@@ -2184,6 +2762,10 @@
         {
           "how": "the paper whose title names Verde, by the system's authors",
           "url": "https://arxiv.org/abs/2502.19405"
+        },
+        {
+          "how": "the full text (PDF, version 1) of the same paper, on arXiv",
+          "url": "https://arxiv.org/pdf/2502.19405"
         }
       ],
       "source_class": "public_sources",
@@ -2398,21 +2980,39 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "Read in the archived copy of 2025-09-02; eprint.iacr.org refused a direct download and a new archive capture, so no quote from it is copied as deciding (SRC-9).",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20250902071715/https://eprint.iacr.org/2025/1184.pdf"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "Read in the archived copy of 2025-09-02; eprint.iacr.org refused a direct download and a new archive capture, so no quote from it is copied as deciding (SRC-9). §7.1 names Hyrax as the commitment scheme \"because of its efficient prover time, reasonable proof size, and transparency\".",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20250902071715/https://eprint.iacr.org/2025/1184.pdf"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "Read in the archived copy of 2025-09-02; eprint.iacr.org refused a direct download and a new archive capture, so no quote from it is copied as deciding (SRC-9). §7.1: \"BN254 provides around 100 bits of security.\"",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20250902071715/https://eprint.iacr.org/2025/1184.pdf"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -2433,9 +3033,15 @@
           "state": "yes"
         },
         "whole_output": {
-          "not_copied": true,
+          "note": "Read in the archived copy of 2025-09-02; eprint.iacr.org refused a direct download and a new archive capture, so no quote from it is copied as deciding (SRC-9). Appendix A: \"we omit proving the final linear projection and the token generation procedure.\"",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20250902071715/https://eprint.iacr.org/2025/1184.pdf"
+            }
+          ],
           "state": "not_stated"
         }
       },
@@ -2472,21 +3078,56 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "README.md L48 commits to the model parameters; no passage read ties a checked output to them.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "993311ea8e2346b90efacb35337b2e3cfe0d6f8d",
+              "paths": [
+                "README.md",
+                "*.py",
+                "*.cu",
+                "*.cuh"
+              ],
+              "repo": "jvhs0706/zkllm-ccs2024"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "`llama-ppgen.py` \"generates the public parameters used in the commitment scheme\" (README.md L56); no passage read says whether they must be trusted.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "993311ea8e2346b90efacb35337b2e3cfe0d6f8d",
+              "paths": [
+                "README.md",
+                "*.py",
+                "*.cu",
+                "*.cuh"
+              ],
+              "repo": "jvhs0706/zkllm-ccs2024"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "993311ea8e2346b90efacb35337b2e3cfe0d6f8d",
+              "paths": [
+                "README.md",
+                "*.py",
+                "*.cu",
+                "*.cuh"
+              ],
+              "repo": "jvhs0706/zkllm-ccs2024"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -2568,21 +3209,58 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "43789582671f16148dd02cbac5654f462d4fe3e4",
+              "paths": [
+                "README.md",
+                "examples/nlp/*/README.md",
+                "backwards/README.md",
+                "src/utils/proving_kzg.rs",
+                "src/utils/proving_ipa.rs"
+              ],
+              "repo": "ddkang/zkml"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "The GPT-2 example asks to \"download the parameters\" (examples/nlp/gpt-2/README.md L16); no passage read says what they are or whether they must be trusted.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "43789582671f16148dd02cbac5654f462d4fe3e4",
+              "paths": [
+                "README.md",
+                "examples/nlp/*/README.md",
+                "backwards/README.md",
+                "src/utils/proving_kzg.rs",
+                "src/utils/proving_ipa.rs"
+              ],
+              "repo": "ddkang/zkml"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "43789582671f16148dd02cbac5654f462d4fe3e4",
+              "paths": [
+                "README.md",
+                "examples/nlp/*/README.md",
+                "backwards/README.md",
+                "src/utils/proving_kzg.rs",
+                "src/utils/proving_ipa.rs"
+              ],
+              "repo": "ddkang/zkml"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -2651,21 +3329,51 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
+          "note": "The paper was read in the archived copy of 2025-08-25; eprint.iacr.org refused a direct download.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20260825214632/https://eprint.iacr.org/2025/535.pdf"
+            },
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://polyhedra.network/zkPyTorch"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
-          "not_copied": true,
+          "note": "The paper was read in the archived copy of 2025-08-25; eprint.iacr.org refused a direct download.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20260825214632/https://eprint.iacr.org/2025/535.pdf"
+            },
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://polyhedra.network/zkPyTorch"
+            }
+          ],
           "state": "not_stated"
         },
         "security_level": {
-          "not_copied": true,
+          "note": "The paper was read in the archived copy of 2025-08-25; eprint.iacr.org refused a direct download.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20260825214632/https://eprint.iacr.org/2025/535.pdf"
+            },
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://polyhedra.network/zkPyTorch"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {
@@ -2684,9 +3392,19 @@
           "state": "not_stated"
         },
         "whole_output": {
-          "not_copied": true,
+          "note": "The paper was read in the archived copy of 2025-08-25; eprint.iacr.org refused a direct download. §3.4 collects \"the output tokens in batches\" into one proving circuit; no passage read says one check covers every output token of a request.",
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://web.archive.org/web/20260825214632/https://eprint.iacr.org/2025/535.pdf"
+            },
+            {
+              "retrieved": "2026-11-08",
+              "url": "https://polyhedra.network/zkPyTorch"
+            }
+          ],
           "state": "not_stated"
         }
       },
@@ -2727,9 +3445,18 @@
           "state": "not_stated"
         },
         "model_bound": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+              "paths": [
+                "README.md",
+                "test_gpu_scripts/README.md"
+              ],
+              "repo": "uiuc-kang-lab/zk-torch"
+            }
+          ],
           "state": "not_stated"
         },
         "no_trusted_party": {
@@ -2753,9 +3480,18 @@
           "state": "partly"
         },
         "security_level": {
-          "not_copied": true,
           "quotes": [],
-          "reason": "Not copied yet.",
+          "reason": "Not stated in the sources read.",
+          "sources_read": [
+            {
+              "commit": "63b9c68960f3ca84026d89428dd6d8129e930d53",
+              "paths": [
+                "README.md",
+                "test_gpu_scripts/README.md"
+              ],
+              "repo": "uiuc-kang-lab/zk-torch"
+            }
+          ],
           "state": "not_stated"
         },
         "weights_hidden": {

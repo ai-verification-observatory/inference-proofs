@@ -3,33 +3,42 @@
 `build_placeholder(root, repetitions=3, extras=False)` writes a git repository at `root` and
 returns its `releases/v0.1/release.yaml`. The tree holds copies of the real `schema/`,
 `reference/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, the tracked files of `web/` (less
-`shots/`), the workload `fp-maverick-w1024-b24` and the system directories of `flashprove`, `sash`,
-`ref-serve` and `ref-recompute`, so the deployed pages keep the real names, pins, claim cards
-and criteria rows. Only the runs are synthetic: PLACEHOLDER records of no real run, built from
-the `run/1` and `manifest/1` shapes, with every derived metric computed by
-`iproofs.derive.derive_repetition` and tokens counted by `iproofs.derive.tokens_per_proof`, so
-`iproofs release freeze` passes the real gates G2 to G7 on them.
+`shots/`), the workloads `fp-maverick-w1024-b24` and `sash-l31-8b-c1024` and the system
+directories of `flashprove`, `sash`, `ref-serve` and `ref-recompute`, so the deployed pages keep
+the real names, pins, claim cards and criteria rows. Only the runs are synthetic: PLACEHOLDER
+records of no real run, built from the `run/1` and `manifest/1` shapes, with every derived metric
+computed by `iproofs.derive.derive_repetition` and tokens counted by
+`iproofs.derive.tokens_per_proof`, so `iproofs release freeze` passes the real gates G2 to G7 on
+them.
 
-One tree-local edit: SASH joins the copy of `fp-maverick-w1024-b24` (the workload's `systems`
-and the copy of `systems/sash/system.yaml` `workloads`), so SASH has a placeholder row on
-Llama 4 Maverick. SASH's real code runs Llama 3.1 8B only (RFC-0003); the real tree is never
-changed.
+The deployed build edits no file of the tree (#335): each prover runs on a native workload the real
+files list for it (RFC-0003 §v0.1 native workloads), FlashProve on `fp-maverick-w1024-b24` (Llama 4
+Maverick) and SASH on `sash-l31-8b-c1024` (Llama 3.1 8B). The references run on the Maverick
+workload only; the placeholder holds no reference run on the 8B workload, so the freeze writes no
+overhead or agreement rate for SASH.
 
 Placeholder raw values (no measurement; chosen so the figures the site printed from its data
 snapshot before #320, `web/_data/` at 39662bf, keep their digits where the stored metric is the
 same one): three repetitions per prover configuration, the minimum, the middle and the maximum
 of that file's statistics (the middle is 3 x mean - min - max). SASH's proving session is scaled
-by its tokens on this shape over the 4,608 tokens of its earlier placeholder, so its rate and
-cost per 1,000 tokens keep their digits. Both reference rows fail every repetition with kind
-`resource` (RFC-0015 NM-1, as the site said: plain serving could not run this model on one
-H100); their failure records carry no invented log line.
+by its tokens on its workload (1,024 prompt plus 64 output, 1,088) over the 4,608 tokens of its
+earlier placeholder, so its rate and cost per 1,000 tokens keep their digits. Both reference rows
+fail every repetition with kind `resource` (RFC-0015 NM-1, as the site said: plain serving could
+not run Llama 4 Maverick on one H100); their failure records carry no invented log line. The
+rerun reference replays FlashProve's runs only: a replay of SASH's run on the Maverick workload is
+refused by the runner (`recorded_seed`, RFC-0015 RC-1).
 
-`extras=True` adds cases the site tests need and the deployed build must not carry (a reply
-written by no system maintainer, a target, a criteria copy naming the release with a pending
-disclosure and an override, an ineligible run, a withdrawn run, an unexpected control, a
-second workload, a review and a reproduction record). It holds no second claim card of one
-system: the renderer draws one glyph per system page, so `iproofs site build` refuses a system
-with two card configurations (RFC-0016 SRC-1).
+`extras=True` adds cases the site tests need and the deployed build must not carry (a reply written
+by no system maintainer, a target, a criteria copy naming the release with a pending disclosure and
+an override, an ineligible run, a withdrawn run, an unexpected control, a second workload, the
+closed Llama 3.1 8B workload `l31-8b-c1024` run by SASH and by a second test prover, a review and a
+reproduction record); they edit the tree's copies of SASH's `system.yaml`, the closed workload and
+the data files, never the real ones. The second prover, `fixture-closed` ("Fixture prover"), exists
+in no real tree: it is SASH's system file and claim card copied under another name, with SASH's
+criteria and facts rows, so the closed table holds two proving systems of its claim class, as
+`iproofs release freeze` requires (RFC-0003 Q7); real SASH has no row on that workload yet. The
+extras hold no second claim card of one system: the renderer draws one glyph per system page, so
+`iproofs site build` refuses a system with two card configurations (RFC-0016 SRC-1).
 
 Command (site.yml, until #146): `PYTHONPATH=harness/tests uv run python -m
 fixtures.placeholder_release --site OUT` builds the tree in a temporary directory, freezes it
@@ -66,12 +75,24 @@ from iproofs.derive import (
 from iproofs.model import Shape
 from iproofs.provenance import file_digest
 from iproofs.quantity import Scope, Unit
+from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
+from iproofs.workloads import asserted_inputs, load_workload
 
 ROOT = Path(__file__).resolve().parents[3]
 RELEASE = "v0.1"
 WORKLOAD = "fp-maverick-w1024-b24"
+SASH_WORKLOAD = "sash-l31-8b-c1024"
 SECOND_WORKLOAD = "fp-maverick-w1024-b1"  # extras only
+# each prover's workload: one the real workload and system files list for it (RFC-0003)
+NATIVE = {"flashprove": WORKLOAD, "sash": SASH_WORKLOAD}
+CLOSED_WORKLOAD = "l31-8b-c1024"  # extras only
+FIXTURE = "fixture-closed"  # extras only: the second prover on the closed workload
+FIXTURE_NAME = "Fixture prover"
+FIXTURE_HEAD = (
+    "# TEST DATA, extras build only (harness/tests/fixtures/placeholder_release.py): SASH's file\n"
+    "# copied under another name, so the closed workload has two proving systems of its class.\n"
+)
 PROFILE = "prover-h100"
 VERIFIER = "verifier-cpu"
 REFERENCE = "reference/v0.1.yaml"
@@ -80,7 +101,8 @@ RUN_DATE = "2026-11-25"
 RFC_COMMIT = "39662bf6dd02b1ee8586c78f9a3b7f77b0d06ec1"
 SYSTEMS = ("flashprove", "sash", "ref-serve", "ref-recompute")
 SYSTEM_FILES = ("system.yaml", "claim.yaml", "controls.yaml", "external.yaml", "README.md")
-COPY = ("schema", "reference", "rfcs", "MAINTAINERS.md", "LICENSES", f"workloads/{WORKLOAD}.yaml")
+COPY = ("schema", "reference", "rfcs", "MAINTAINERS.md", "LICENSES", f"workloads/{WORKLOAD}.yaml",
+        f"workloads/{SASH_WORKLOAD}.yaml")  # fmt: skip
 WEB_SKIP = ("shots", ".tools", "node_modules", "__pycache__", ".vercel", ".env*", ".DS_Store")
 REVIEW_WINDOW = {"opens": "2026-12-01", "closes": "2026-12-15"}
 FREEZE_DATE = "2026-12-16"
@@ -200,7 +222,7 @@ REFERENCE_FAILURE: dict[str, object] = {
 def _copy(root: Path, extras: bool) -> None:
     rels = [*COPY, *(f"systems/{s}/{f}" for s in SYSTEMS for f in SYSTEM_FILES)]
     if extras:
-        rels.append(f"workloads/{SECOND_WORKLOAD}.yaml")
+        rels += [f"workloads/{SECOND_WORKLOAD}.yaml", f"workloads/{CLOSED_WORKLOAD}.yaml"]
     for rel in rels:
         src, dst = ROOT / rel, root / rel
         if not src.exists():
@@ -239,15 +261,6 @@ def _edit_yaml(path: Path, edit: Any) -> None:
     edit(doc)
     body = yaml.safe_dump(doc, sort_keys=False, width=10_000, allow_unicode=True)
     path.write_text(head + body)
-
-
-def _put_sash_on_maverick(root: Path, workloads: Sequence[str]) -> None:
-    """The one tree-local edit (module docstring): SASH joins the Maverick workloads."""
-    for wl in workloads:
-        _edit_yaml(root / f"workloads/{wl}.yaml",
-                   lambda d: d["systems"].insert(1, "sash"))  # fmt: skip
-    _edit_yaml(root / "systems/sash/system.yaml",
-               lambda d: d.__setitem__("workloads", [*d["workloads"], *workloads]))  # fmt: skip
 
 
 def _system(root: Path, name: str) -> dict[str, Any]:
@@ -329,9 +342,17 @@ def _timeline(rep: Rep, k: int, session: float) -> tuple[dict[str, int], list[in
     return events, releases
 
 
+def _inputs(root: Path, wid: str) -> dict[str, QuantityTree]:
+    """run.json `inputs`: the workload's asserted inputs, as the runner copies them."""
+    registry = SchemaRegistry.from_tree(root / "schema")
+    return asserted_inputs(load_workload(wid, root=root, registry=registry))
+
+
 def _metrics(
     root: Path, cfg: Config, rep: Rep, session: float, run_json: str, observable: bool
-) -> tuple[dict[str, QuantityTree], list[dict[str, object]], dict[str, int]]:
+) -> tuple[
+    dict[str, QuantityTree], list[dict[str, object]], dict[str, int], dict[str, QuantityTree]
+]:
     wl = _workload(root, cfg.workload)
     shape = _shape(wl)
     k = shape.batch_size * shape.batches_per_session
@@ -353,7 +374,7 @@ def _metrics(
         rep.single_thread, 1, Unit.S, Scope.VERIFY_SINGLE_THREAD, vref
     )
     price = json.loads(json.dumps(yaml.safe_load((root / REFERENCE).read_text())["cost"]))
-    params = wl["model"]["parameters"]["active_per_token"]
+    inputs = _inputs(root, cfg.workload)
     harness = {"tier": "reported", "source": {"kind": "harness", "ref": ""}}
     m |= derive_repetition(
         m,
@@ -362,9 +383,10 @@ def _metrics(
         gpus=1,
         price=(f"{REFERENCE}#/cost/price_per_gpu_hour_usd", price["price_per_gpu_hour_usd"]),
         active_parameters=(
-            f"workloads/{cfg.workload}.yaml#/model/parameters/active_per_token",
-            {"value": params, **harness},
+            f"{run_json}#/inputs/active_parameters_per_token",
+            inputs["active_parameters_per_token"],
         ),
+        weight_bits=(f"{run_json}#/inputs/weight_bits", inputs["weight_bits"]),
         first_proof_tokens=(
             f"{run_json}#/proofs/0/tokens_covered",
             {"value": sum(per_proof[0]), **harness},
@@ -375,7 +397,7 @@ def _metrics(
          "verdict": "accept"}
         for i, r in enumerate(releases)
     ]  # fmt: skip
-    return m, proofs, events
+    return m, proofs, events, inputs
 
 
 def _run_doc(  # noqa: PLR0913 (one keyword per run.json field it sets)
@@ -389,6 +411,7 @@ def _run_doc(  # noqa: PLR0913 (one keyword per run.json field it sets)
     events: dict[str, int] | None = None,
     failure: dict[str, object] | None = None,
     replaces: dict[str, str] | None = None,
+    inputs: dict[str, QuantityTree] | None = None,
 ) -> dict[str, object]:
     claim = (
         None
@@ -417,7 +440,7 @@ def _run_doc(  # noqa: PLR0913 (one keyword per run.json field it sets)
                                                                 key=lambda x: x[1])],
         "proofs": proofs or [],
         "warnings": [],
-    }  # fmt: skip
+    } | ({"inputs": inputs} if inputs else {})  # fmt: skip
 
 
 def _manifest(
@@ -548,9 +571,9 @@ def _write_run(  # noqa: PLR0913 (one keyword per case a placeholder run covers)
         doc = _run_doc(cfg, rid, n, kind, failure=failure, replaces=replaces)
         proofs: list[dict[str, object]] = []
     else:
-        metrics, proofs, events = _metrics(root, cfg, rep, session, run_json, observable)
+        metrics, proofs, events, inputs = _metrics(root, cfg, rep, session, run_json, observable)
         doc = _run_doc(cfg, rid, n, kind, metrics=metrics, proofs=proofs, events=events,
-                       failure=failure, replaces=replaces)  # fmt: skip
+                       failure=failure, replaces=replaces, inputs=inputs)  # fmt: skip
     run_dir = root / rel
     run_dir.mkdir(parents=True)
     write_json(run_dir / "run.json", doc)
@@ -575,9 +598,11 @@ def _prover_runs(
     repetitions: int,
     controls: Sequence[Any],
 ) -> Written:
-    """A prover configuration's runs; SASH also gets a failed and a superseded run."""
+    """A prover configuration's runs; SASH also gets a failed and a superseded run. A system
+    with no observable steady boundary takes SASH's raw values, the others FlashProve's."""
     sash = cfg.system == "sash"
-    reps = SASH if sash else FLASHPROVE
+    grid = _system(root, cfg.system)["proofs"]["steady_boundary"] == "not_observable"
+    reps = SASH if grid else FLASHPROVE
     out = Written([], [])
     n = 0
 
@@ -585,8 +610,8 @@ def _prover_runs(
         nonlocal n
         n += 1
         if rep is not None:
-            session = _sash_session(root, cfg.workload, rep) if sash else rep.session
-            kw |= {"session": session, "observable": not sash}
+            session = _sash_session(root, cfg.workload, rep) if grid else rep.session
+            kw |= {"session": session, "observable": not grid}
         rid, run_dir = _write_run(root, cfg, n, adapter, rep=rep, **kw)
         out.dirs.append(run_dir.relative_to(root).as_posix())
         return rid, run_dir
@@ -632,7 +657,6 @@ def build_placeholder(root: Path, *, repetitions: int = 3, extras: bool = False)
     if repetitions < 1:
         raise ValueError("repetitions must be at least 1")
     _copy(root, extras)
-    _put_sash_on_maverick(root, [WORKLOAD])
     if extras:
         _extras_tree(root)
     git(root, "init", "-q", "-b", "main")
@@ -651,17 +675,18 @@ def build_placeholder(root: Path, *, repetitions: int = 3, extras: bool = False)
                 "digest": digest,
             }
         )
-        configs.append(Config(name, WORKLOAD, card["configuration"], card["card_version"],
+        configs.append(Config(name, NATIVE[name], card["configuration"], card["card_version"],
                               digest))  # fmt: skip
     runs: list[str] = []
-    prompts: list[str] = []
+    replayed: list[str] = []  # FlashProve's completed runs: the rerun reference replays them
     for cfg, controls in zip(configs, (FLASHPROVE_CONTROLS, SASH_CONTROLS), strict=True):
         written = _prover_runs(root, cfg, adapter, repetitions, controls)
         runs += written.dirs
-        prompts += written.completed[:2]
+        if cfg.workload == WORKLOAD:
+            replayed += written.completed
     for ref in ("ref-serve", "ref-recompute"):
         cfg = Config(ref, WORKLOAD, None, None, None)
-        pairs = [prompts[0], prompts[2], prompts[1]] if ref == "ref-recompute" else []
+        pairs = replayed if ref == "ref-recompute" else []
         runs += _reference_runs(root, cfg, adapter, pairs).dirs
     release: dict[str, Any] = {
         "schema": "release/1",
@@ -705,7 +730,13 @@ DISCLOSURE_URL = "https://example.org/placeholder/fixture-disclosure"
 
 
 def _extras_tree(root: Path) -> None:
-    """Extras committed with the systems: a reply and a target."""
+    """Extras committed with the systems: a reply, a target, and SASH on the closed workload
+    (its system.yaml lists it; facts.json names the model, which SASH's native workload shares)."""
+    _edit_yaml(
+        root / "systems/sash/system.yaml",
+        lambda d: d.__setitem__("workloads", [*d["workloads"], CLOSED_WORKLOAD]),
+    )
+    _fixture_prover(root)
     (root / REPLY).parent.mkdir(parents=True)
     (root / REPLY).write_text(REPLY_TEXT)
     target = (ROOT / "schema/target/examples/valid/verify-under-60s.yaml").read_text()
@@ -713,6 +744,36 @@ def _extras_tree(root: Path) -> None:
     (root / TARGET).write_text(
         target.replace("targets/example-policy-lab/", "targets/example-lab/")
     )
+
+
+def _fixture_prover(root: Path) -> None:
+    """The second prover on the closed workload (module docstring): SASH's system file and claim
+    card under the name `fixture-closed`, its criteria and facts rows copies of SASH's, and the
+    tree's copy of the workload listing it. Test data only."""
+    src, dst = root / "systems/sash", root / f"systems/{FIXTURE}"
+    dst.mkdir(parents=True)
+
+    def body(path: Path) -> str:
+        return "".join(x for x in path.read_text().splitlines(keepends=True) if x[:1] != "#")
+
+    system = yaml.safe_load(body(src / "system.yaml"))
+    system |= {"name": FIXTURE, "workloads": [CLOSED_WORKLOAD]}
+    (dst / "system.yaml").write_text(FIXTURE_HEAD + yaml.safe_dump(system, sort_keys=False))
+    card = body(src / "claim.yaml").replace('system: "sash"', f'system: "{FIXTURE}"', 1)
+    (dst / "claim.yaml").write_text(FIXTURE_HEAD + card)
+    (dst / "README.md").write_text(f"# {FIXTURE_NAME}\n\n{FIXTURE_HEAD.replace('# ', '')}")
+    _edit_yaml(root / f"workloads/{CLOSED_WORKLOAD}.yaml",
+               lambda d: d["systems"].insert(1, FIXTURE))  # fmt: skip
+    facts_path = root / "web/_data/facts.json"
+    facts = json.loads(facts_path.read_text())
+    facts["rows"][FIXTURE] = {**facts["rows"]["sash"], "name": FIXTURE_NAME}
+    write_json(facts_path, facts)
+    crit_path = root / "web/_data/criteria.json"
+    crit = json.loads(crit_path.read_text())
+    row = json.loads(json.dumps(next(r for r in crit["rows"] if r["id"] == "sash")))
+    row |= {"id": FIXTURE, "name": FIXTURE_NAME, "card": {**row["card"], "system": FIXTURE}}
+    crit["rows"].append(row)
+    write_json(crit_path, crit)
 
 
 def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: list[Config]) -> None:
@@ -738,6 +799,16 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
     second_wl = Config(fp.system, SECOND_WORKLOAD, fp.configuration, fp.card_version,
                        fp.card_digest)  # fmt: skip
     release["runs"] += _prover_runs(root, second_wl, adapter, 3, FLASHPROVE_CONTROLS).dirs
+    closed = Config(sash.system, CLOSED_WORKLOAD, sash.configuration, sash.card_version,
+                    sash.card_digest)  # fmt: skip
+    release["runs"] += _prover_runs(root, closed, adapter, 3, SASH_CONTROLS).dirs
+    card_path, card = _card(root, FIXTURE)
+    digest = file_digest(root / card_path)
+    release["claim_cards"].append({"system": FIXTURE, "configuration": card["configuration"],
+                                   "card_version": card["card_version"], "path": card_path,
+                                   "digest": digest})  # fmt: skip
+    second = Config(FIXTURE, CLOSED_WORKLOAD, card["configuration"], card["card_version"], digest)
+    release["runs"] += _prover_runs(root, second, adapter, 3, SASH_CONTROLS).dirs
     release["replies"] = {sash.system: REPLY}
     _records(root, fp, first)
     _criteria(root, first, sash_first)

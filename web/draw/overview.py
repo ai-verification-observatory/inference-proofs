@@ -1,10 +1,12 @@
-"""The overview page (index.html): one sortable table per model and workload (S6), the
-references and the systems not benchmarked yet, and the helpers the other pages share with it
+"""The overview page (index.html): one sortable table per model and workload (S6), the models
+largest first and no table across models, so each row is on the page once; the references and
+the systems not benchmarked yet, and the helpers the other pages share with it
 (model sizes, shapes, pins).
 """
 
 import json
 import re
+from itertools import groupby
 
 from . import state as S
 from .chrome import REF_PAGE, footer, header, masthead, page
@@ -194,22 +196,77 @@ def facts_line(text):
     )
 
 
+def models_by_size(provers, names):
+    """S6: the models of the system rows, in the order of their tables: total parameters as the
+    workload record states them (`workload.model.parameters.total`), largest first, then name. A
+    size of the model proved, read from stored values, never a figure or a glyph state: no
+    system's result moves its table (S5)."""
+    totals = {}
+    for c in provers:
+        model = c["workload"]["model"]
+        totals.setdefault(model["digest"], set()).add(model["parameters"]["total"])
+    for d, seen in totals.items():
+        assert len(seen) == 1, f"{d}: workloads disagree on parameters.total {sorted(seen)}"
+    size = {d: next(iter(seen)) for d, seen in totals.items()}
+    return sorted(size, key=lambda d: (-size[d], names[d]))
+
+
 def by_name(cfgs):
-    return sorted(cfgs, key=lambda c: (name_of(c["system"]).lower(), c["position"]))
+    """S5: a table's rows A to Z by system name, then profile id, then the configuration's
+    position in the release's `index.json`."""
+    return sorted(cfgs, key=lambda c: (name_of(c["system"]).lower(), c["profile"], c["position"]))
+
+
+# S6: a model's native tables first, then its closed and open tables, each apart
+DIVISIONS = ("native", "closed", "open")
 
 
 def tables():
-    """S6: one table per model, largest first, then one per workload of that model."""
+    """S6: one table per model, largest first (`models_by_size`), then one per workload of that
+    model: its native workloads by id, then its closed ones, then its open ones (RFC-0003
+    §Divisions). Each system row is in the table of its workload and in no other: there is no
+    table across models, so no row is repeated (owner decision of 2026-11-08, #333)."""
     out = []
     for d in S.MODELS:
-        wls = sorted(
-            {c["workload"]["id"] for c in S.PROVERS if c["workload"]["model"]["digest"] == d}
-        )
+        division = {c["workload"]["id"]: c["workload"]["division"]
+                    for c in S.PROVERS if c["workload"]["model"]["digest"] == d}  # fmt: skip
+        wls = sorted(division, key=lambda w: (DIVISIONS.index(division[w]), w))
         for wid in wls:
             rows = by_name(c for c in S.PROVERS if c["workload"]["id"] == wid)
             sid = slug(S.MODEL_NAME[d]) if len(wls) == 1 else f"{slug(S.MODEL_NAME[d])}-{slug(wid)}"
             out.append((d, sid, rows))
     return out
+
+
+def is_native(rows):
+    return rows[0]["workload"]["division"] == "native"
+
+
+def under_header(parts):
+    """S6: the overview's tables in page order, each `(native, html)`. Where the page holds more
+    than one native table (two workloads on one model, or a page across models), each run of
+    adjacent native tables sits in a group headed by the native header, so the header is printed
+    once while no closed or open table comes between native ones. A closed or open table sits
+    outside every group: it never counts toward the header and never sits under it, since its
+    rows compare directly within its workload."""
+    natives = sum(native for native, _ in parts)
+    out = ""
+    for i, (native, run) in enumerate(groupby(parts, key=lambda p: p[0]), 1):
+        body = "".join(h for _, h in run)
+        if native and natives > 1:
+            hid = f"nat-{i}"
+            head = f'<p class="sec-l nat" id="{hid}">{e(NATIVE_HEADER)}</p>'
+            body = f'\n  <div class="natives" role="group" aria-labelledby="{hid}">{head}{body}\n  </div>'
+        out += body
+    return out.lstrip()  # the page indents the first
+
+
+def division_words(rows):
+    """The heading line of a closed or open table (S6): its workload, its division and the
+    profiles of its rows, as the system page names them."""
+    wl = rows[0]["workload"]
+    profiles = ", ".join(sorted({r["profile"] for r in rows}))
+    return f"{wl['id']} · {wl['division']} division · {profiles}"
 
 
 def plate_prefix(cfg):
@@ -245,15 +302,13 @@ HOME_DESC = "Six properties of one proof per system (draft criteria), and the be
 
 def build_index():
     first = f"System, {SORT_WORDS['system']['asc']}"
-    secs = ""
-    seen = set()
     all_tables = tables()
+    parts = []
     for d, sid_, rows in all_tables:
         name = S.MODEL_NAME[d]
-        native = ""
-        if d not in seen and sum(x[0] == d for x in all_tables) > 1:
-            native = f'<p class="sec-l">{e(NATIVE_HEADER)}</p>'
-        seen.add(d)
+        apart = ""
+        if not is_native(rows):  # S6: closed and open tables apart, named by their division
+            apart = f'<p class="sec-l">{facts_line(division_words(rows))}</p>'
         body_rows = "".join(
             row_html(
                 row_id(r),
@@ -272,14 +327,16 @@ def build_index():
             )
             for r in rows
         )
-        secs += f"""
+        sec = f"""
   <section class="sec bench" id="{sid_}" aria-labelledby="h-{sid_}">
-    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + shape_words(rows[0])))}</p>{native}</div>
+    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + shape_words(rows[0])))}</p>{apart}</div>
     <div class="tbl" role="table" aria-labelledby="h-{sid_}" aria-describedby="sort-now" data-col="system" data-dir="asc">
       {sort_heads()}
       <div class="rows" role="rowgroup">{body_rows}</div>
     </div>
   </section>"""
+        parts.append((is_native(rows), sec))
+    secs = under_header(parts)  # S6: the native header above native tables only
     refs = ""
     for rid in S.V["orders"]["reference"]:
         cfg = first_config(rid)

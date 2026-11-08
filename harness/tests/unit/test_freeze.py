@@ -9,7 +9,11 @@ import yaml
 
 from fixtures.release_tree import build, commit
 from iproofs import cli
+from iproofs.errors import IProofsError
+from iproofs.quantity import Tier
+from iproofs.release import RunView, _Late, _rel, _statistics
 from iproofs.schema import SchemaRegistry
+from iproofs.workloads import asserted_inputs, load_workload
 
 ROOT = Path(__file__).resolve().parents[3]
 GOLDEN = ROOT / "harness/tests/golden/index/v0.1.json"
@@ -170,3 +174,131 @@ def test_gate_failure_stops_freeze(
     monkeypatch.chdir(tmp_path)
     assert cli.main(["release", "freeze", "v0.1"]) == 1
     assert "gates failed: G3" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------- RFC-0004 Q3, RFC-0003 WB-4
+
+WORKED = ROOT / "harness/tests/fixtures/derive/worked-example/run.json"
+SCOPES = ("prove.steady", "prove.session", "whole_wall")
+LATE = ("tokens_covered_per_proof", *(f"seconds_per_active_weight_bit_token_{s}" for s in SCOPES))
+
+
+def stored_run(n: int, *, late_keys: bool, inputs: dict[str, Any] | None) -> RunView:
+    """A completed fake-tiny-ci repetition from the worked example's metrics; without
+    `late_keys` it is a run stored before D-TPP and D-SPAB-S (fixture values, not a result)."""
+    doc = json.loads(WORKED.read_text())
+    rid = f"2026-11-0{n}-fake-fake-tiny-ci-ci-cpu-{n}"
+    doc |= {"run_id": rid, "workload": {"id": "fake-tiny-ci", "version": 1}}
+    doc["metrics"] = {k: v for k, v in doc["metrics"].items() if late_keys or k not in LATE}
+    doc.pop("inputs")
+    if inputs is not None:
+        doc["inputs"] = inputs
+    return RunView(Path(f"results/v0.1/fake/{rid}"), doc, {}, None)
+
+
+def late_statistics(runs: list[RunView]) -> tuple[dict[str, Any], _Late]:
+    late = _Late(ROOT, SchemaRegistry.from_tree(ROOT / "schema"), "v0.1")
+    tiers = {r.run_id: Tier.REPORTED for r in runs}
+    return _statistics(runs, tiers, late), late
+
+
+def fake_inputs() -> dict[str, Any]:
+    registry = SchemaRegistry.from_tree(ROOT / "schema")
+    return asserted_inputs(load_workload("fake-tiny-ci", root=ROOT, registry=registry))
+
+
+def test_freeze_evaluates_a_stored_run_without_the_key() -> None:
+    """RFC-0004 Q3: a run stored before D-SPAB-S and D-TPP stays in n. The freeze evaluates
+    its values into `freeze_derived`, and D-STAT points there; the newer run counts as stored."""
+    old = stored_run(1, late_keys=False, inputs=None)
+    new = stored_run(2, late_keys=True, inputs=fake_inputs())
+    stats, late = late_statistics([old, new])
+    for name in LATE:
+        assert stats[name]["stats"]["n"] == 2, name
+        assert stats[name]["source"]["inputs"][0] == (
+            f"releases/v0.1/index.json#/freeze_derived/{old.run_id}/{name}"
+        )
+    assert sorted(late.values) == [old.run_id]
+    spab = late.values[old.run_id]["seconds_per_active_weight_bit_token_prove.steady"]
+    assert spab["source"]["inputs"] == [  # type: ignore[index]
+        f"{_rel(old)}/run.json#/metrics/seconds_per_token_prove.steady",
+        "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+        "workloads/fake-tiny-ci.yaml#/precision/weight_bits",
+    ]
+    # hand-computed: 0.01 s/token over 64 parameters x 8 bits (fake-tiny-ci, file size)
+    assert spab["value"] == 0.01 / (64 * 8.0)
+    assert late.values[old.run_id]["tokens_covered_per_proof"]["value"] == 1000
+
+
+def test_freeze_value_of_another_workload_version_is_missing_input() -> None:
+    """RFC-0004 Q3: the workload record now holds another version than the run's, so its
+    inputs do not apply: D-SPAB-S is null with `missing_input`; D-TPP needs no workload."""
+    old = stored_run(1, late_keys=False, inputs=None)
+    old.run["workload"] = {"id": "fake-tiny-ci", "version": 2}
+    _, late = late_statistics([old])
+    values = late.values[old.run_id]
+    assert values["seconds_per_active_weight_bit_token_prove.steady"]["null_reason"] == (
+        "missing_input"
+    )
+    assert values["tokens_covered_per_proof"]["value"] == 1000
+
+
+def test_freeze_stops_on_different_workload_inputs() -> None:
+    """RFC-0003 WB-4: one configuration's repetitions share the workload's weight bits; a run
+    recorded with other bits (the worked example's 8e9 parameters) stops the freeze."""
+    worked = json.loads(WORKED.read_text())["inputs"]
+    runs = [stored_run(1, late_keys=True, inputs=fake_inputs()),
+            stored_run(2, late_keys=True, inputs=worked)]  # fmt: skip
+    with pytest.raises(IProofsError, match="WB-4"):
+        late_statistics(runs)
+
+
+CLOSED = "greedy-continuation/exact-match/committed-weights"
+
+
+@pytest.mark.parametrize(
+    ("rows", "failing"),
+    [
+        ([("c", "a", CLOSED), ("c", "b", CLOSED)], []),  # two systems of the class
+        ([("c", "a", CLOSED), ("c", "a", CLOSED)], ["of 1 proving system(s)"]),  # one, twice
+        ([("c", "a", CLOSED)], ["of 1 proving system(s)"]),
+        ([], ["of 0 proving system(s)"]),  # every run of the workload failed
+        (
+            [("c", "a", CLOSED), ("c", "b", "next-token/exact-match/committed-weights")],
+            ["b on closed workload c has claim class", "of 1 proving system(s)"],
+        ),
+        ([("c", "a", CLOSED), ("c", "b", None)], ["has claim class None", "of 1"]),  # no card
+        ([("n", "a", CLOSED)], ["of 0 proving system(s)"]),  # a native workload is not counted
+    ],
+)
+def test_closed_workload_needs_two_systems(
+    rows: list[tuple[str, str, str | None]], failing: list[str]
+) -> None:
+    """RFC-0003 Q7 (default): a closed workload's rows enter a release only when two distinct
+    proving systems with a card of its exact class completed runs of it."""
+    from iproofs.release import closed_workload_failures  # noqa: PLC0415
+
+    found = closed_workload_failures({"c": CLOSED}, rows)
+    assert len(found) == len(failing), found
+    for line, words in zip(found, failing, strict=True):
+        assert words in line
+
+
+def test_closed_workload_of_one_system_stops_freeze(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The extras placeholder release freezes with two provers on `l31-8b-c1024`; without the
+    second prover's runs the freeze stops and names the workload (RFC-0003 Q7)."""
+    from fixtures.placeholder_release import FIXTURE, build_placeholder  # noqa: PLC0415
+
+    path = build_placeholder(tmp_path, extras=True)
+    doc = yaml.safe_load(path.read_text())
+    doc["runs"] = [r for r in doc["runs"] if f"/{FIXTURE}/" not in r]
+    path.write_text(yaml.safe_dump(doc, sort_keys=False))
+    commit(tmp_path, "drop the second prover's runs")
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["release", "freeze", "v0.1"]) == 1
+    err = capsys.readouterr().err
+    assert "closed workload l31-8b-c1024 has completed runs of 1 proving system(s)" in err
+    assert "(sash)" in err
+    assert not (tmp_path / "releases/v0.1/index.json").exists()

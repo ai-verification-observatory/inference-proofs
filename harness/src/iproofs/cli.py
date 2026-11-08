@@ -19,6 +19,7 @@ from iproofs.errors import ErrorKind, IProofsError, Phase, exit_code
 
 if TYPE_CHECKING:
     from iproofs.adapter import ContainerRunner
+    from iproofs.model import Workload
     from iproofs.runner import Environment, RunnerIdentity
     from iproofs.schema import SchemaRegistry
 
@@ -155,6 +156,12 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
 
     p = command("fetch-model", "fetch a workload's weights and check every hash (RFC-0014)")
     p.add_argument("workload")
+    p.add_argument(
+        "--headers-only",
+        action="store_true",
+        help="fetch no weights: recompute a computed weight width from the GGUF headers alone,"
+        " by range reads at the pinned revision (RFC-0003 WB-5), and print it as JSON",
+    )
     p.set_defaults(handler=fetch_model)
 
     prompts = sub.add_parser("prompts", help="prompt sets (RFC-0003)")
@@ -623,6 +630,8 @@ def fetch_model(args: argparse.Namespace) -> int:
     wl = load_workload(args.workload, root=root, registry=SchemaRegistry.from_tree(root / "schema"))
     if wl.model.source.hub == "repository":
         raise IProofsError(ErrorKind.CONFIG, f"{wl.id} uses toy data in this repository")
+    if args.headers_only:
+        return _weight_bits_from_headers(wl)
     path = ensure_model(
         wl,
         default_cache(),
@@ -632,6 +641,33 @@ def fetch_model(args: argparse.Namespace) -> int:
     if wl.model.tokenizer_source is not None:  # a run builds its prompts offline, so fetch it now
         retry_fetch(lambda: tokenizer_file(root, wl, default_cache()), f"tokenizer {wl.id}")
     print(path)
+    return 0
+
+
+def _weight_bits_from_headers(wl: "Workload") -> int:
+    """`fetch-model --headers-only`: the RFC-0003 WB-5 recheck from range reads of the GGUF
+    headers, without the weights (whose digests a header read cannot check: the revision is
+    pinned and each file's size must equal the listed bytes). Prints the result as JSON."""
+    from iproofs.runner import retry_fetch  # noqa: PLC0415
+    from iproofs.serialize import dumps  # noqa: PLC0415
+    from iproofs.workloads import computed_bits, hub_sources  # noqa: PLC0415
+
+    result = retry_fetch(lambda: computed_bits(wl, hub_sources(wl)), f"headers {wl.id}")
+    wb = wl.precision.weight_bits
+    assert wb is not None  # computed_bits refuses a record without a computed width
+    active = result.active_weights
+    out = {
+        "workload": wl.id,
+        "method": wb.method,
+        "bits": result.bits,
+        "recorded_bits": wb.bits,
+        "active_weights": int(active) if active.denominator == 1 else float(active),
+        "active_per_token": wl.model.parameters.active_per_token,
+        "total_weights": result.total_weights,
+        "expert_count": result.expert_count,
+        "expert_used_count": result.expert_used_count,
+    }
+    sys.stdout.write(dumps(out).decode())
     return 0
 
 

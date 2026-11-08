@@ -1,0 +1,17 @@
+{
+  "grade": "derived",
+  "null_reason": null,
+  "scope": "prove.steady",
+  "source": {
+    "inputs": [
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/seconds_per_token_prove.steady",
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/inputs/active_parameters_per_token",
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/inputs/weight_bits"
+    ],
+    "kind": "derivation",
+    "ref": "derive:D-SPAB-S@0.1.0"
+  },
+  "tier": "reported",
+  "unit": "s/bit_token",
+  "value": 1.5625e-13
+}

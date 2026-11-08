@@ -1,0 +1,51 @@
+# RFC-0003 §Closed workloads: the shared Llama 3.1 8B workload of the closed division (#334), a
+# candidate until two systems with its claim class run it through their adapters with no upstream
+# change (RFC-0003 §Choosing common workloads, Q7). Every input is pinned as in sash-l31-8b-c1024:
+# the same repository, revision, files, digest, tokenizer, corpus, precision (weight bits
+# included, RFC-0003 §Weight bits) and shape, so its model digest equals that workload's. Why
+# this precision and shape, and which systems' sources name the model: workloads/README.md
+# §Closed workloads. claim_class is SASH's card class (RFC-0003 Q8). `sash` is listed as the one
+# system whose card has the class; its adapter and system.yaml list the id when its image is
+# rebuilt (workloads/README.md).
+schema: "workload/1"
+id: "l31-8b-c1024"
+version: 1
+division: "closed"
+claim_class: "greedy-continuation/exact-match/committed-weights"
+model:
+  source: {hub: "huggingface", repo: "unsloth/Llama-3.1-8B-Instruct"}
+  revision: "4699cc75b550f9c6f3173fb80f4703b62d946aa5"
+  files:
+    - {path: "config.json", sha256: "ad98082c6bc4ea7078915219241814762be259de16d6ca5f170ba02820b3928b", bytes: 896}
+    - {path: "generation_config.json", sha256: "6d4f979915331212d7672c68b22a4ddad9e21ed8126cf2bd1ea6b2b88f595c1c", bytes: 239}
+    - {path: "model-00001-of-00004.safetensors", sha256: "2b1879f356aed350030bb40eb45ad362c89d9891096f79a3ab323d3ba5607668", bytes: 4976698672}
+    - {path: "model-00002-of-00004.safetensors", sha256: "09d433f650646834a83c580877bd60c6d1f88f7755305c12576b5c7058f9af15", bytes: 4999802720}
+    - {path: "model-00003-of-00004.safetensors", sha256: "fc1cdddd6bfa91128d6e94ee73d0ce62bfcdb7af29e978ddcab30c66ae9ea7fa", bytes: 4915916176}
+    - {path: "model-00004-of-00004.safetensors", sha256: "92ecfe1a2414458b4821ac8c13cf8cb70aed66b5eea8dc5ad9eeb4ff309d6d7b", bytes: 1168138808}
+    - {path: "model.safetensors.index.json", sha256: "146776fce3f6db1103aa6f249e65ee5544c5923ce6f971b092eee79aa6e5d37b", bytes: 23950}
+    - {path: "special_tokens_map.json", sha256: "94e708c3f5e64acf85bbe5ad01467a1248faadb73e83b41793087ecced586e8f", bytes: 454}
+    - {path: "tokenizer.json", sha256: "6b9e4e7fb171f92fd137b777cc2714bf87d11576700a1dcd7a399e7bbe39537b", bytes: 17209920}
+    - {path: "tokenizer_config.json", sha256: "671ecdff1a4241f7d3e0ad21d347ada7d90f673810906727c124972e3ce03465", bytes: 55492}
+  digest: "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7"
+  licence: {name: "Llama 3.1 Community License", url: "https://github.com/meta-llama/llama-models/blob/0e0b8c519242d5833d8c11bffc1232b77ad7f301/models/llama3_1/LICENSE", gated: false}
+  parameters: {total: 8030261248, active_per_token: 8030261248, source: "https://huggingface.co/api/models/unsloth/Llama-3.1-8B-Instruct/revision/4699cc75b550f9c6f3173fb80f4703b62d946aa5?expand%5B%5D=safetensors"}
+  tokenizer_file: "tokenizer.json"
+  vocab_size: 128256
+precision:
+  served: "W8A8"
+  proved: "W8A8"
+  weight_bits:
+    bits: 8
+    basis: "stated"
+    covers: "part"
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/quant.py#L15-L19"
+    note: "SASH's own statement covers weight matmuls: exact int8 x int8 accumulations, one scale per output channel. The 8 is the int8 code alone; the per-output-channel scale is not counted in it. SASH states no width for the embedding table or the RMSNorm weights, which active_per_token counts, so it covers part of the active weights. SASH quantizes the pinned BF16 files at load time, so file size (2 bytes per parameter) does not give the proved width (RFC-0003 WB-1)."
+prompts:
+  generator: "corpus-window/1"
+  corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"
+  count: 1
+  length_rule: {prompt_tokens: 1024}
+shape: {prompt_tokens: 1024, output_tokens: 64, batch_size: 1, batches_per_session: 1, context_window: 1088}
+decoding: {rule: "greedy"}
+phase: "both"
+systems: ["sash", "ref-serve", "ref-recompute"]

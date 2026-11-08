@@ -65,12 +65,12 @@
   "outputDirectory": "public",
   "redirects": [
     {
-      "destination": "/flashprove",
+      "destination": "/fixture-closed",
       "permanent": true,
       "source": "/system"
     },
     {
-      "destination": "/flashprove",
+      "destination": "/fixture-closed",
       "permanent": true,
       "source": "/system.html"
     }

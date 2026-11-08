@@ -27,7 +27,15 @@ model:
   parameters: {total: 8030261248, active_per_token: 8030261248, source: "https://huggingface.co/api/models/unsloth/Llama-3.1-8B-Instruct/revision/4699cc75b550f9c6f3173fb80f4703b62d946aa5?expand%5B%5D=safetensors"}
   tokenizer_file: "tokenizer.json"
   vocab_size: 128256
-precision: {served: "W8A8", proved: "W8A8"}
+precision:
+  served: "W8A8"
+  proved: "W8A8"
+  weight_bits:
+    bits: 8
+    basis: "stated"
+    covers: "part"
+    source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/quant.py#L15-L19"
+    note: "SASH's own statement covers weight matmuls: exact int8 x int8 accumulations, one scale per output channel. The 8 is the int8 code alone; the per-output-channel scale is not counted in it. SASH states no width for the embedding table or the RMSNorm weights, which active_per_token counts, so it covers part of the active weights. SASH quantizes the pinned BF16 files at load time, so file size (2 bytes per parameter) does not give the proved width (RFC-0003 WB-1)."
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"

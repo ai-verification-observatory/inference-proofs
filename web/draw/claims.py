@@ -360,7 +360,7 @@ def gap_items(body, field):
 
 def agreement_plate(cfg, label):
     """RFC-0015 RC-5, RC-6: the agreement rate with a rerun by a weights holder, every label in
-    view (S2, S3), or why it has no value."""
+    view (S2, S3), or why it has no value; a rate the release does not record names no record."""
     f = cfg["agreement"]
     kv = []
     if f["value"] is None:
@@ -371,7 +371,8 @@ def agreement_plate(cfg, label):
         if f.get("stats"):
             kv.append(("spread", e(spread_line(f))))
         kv += [(k, e(v)) for k, v in labels(f, cfg)]
-    kv.append(("source", source_html(f["source"])))
+    if f["recorded"]:
+        kv.append(("source", source_html(f["source"])))
     dl = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
     return (f'<div class="plate" id="agree-{e(cfg["configuration"])}-{e(cfg["workload"]["id"])}">'
             f'<p class="lbl">{e(label)}</p><p class="pv">{val}</p><dl>{dl}</dl></div>')  # fmt: skip
@@ -379,19 +380,18 @@ def agreement_plate(cfg, label):
 
 def gap_block(cfgs):
     """S1 item 5: open, after the card, its `quality_gap` and `residual` under a label of their
-    own, with the agreement rate on a plate beside them, where the release reports one
-    (RFC-0015 RC-6)."""
+    own, with the agreement rate of each configuration on a plate beside them (RFC-0015 RC-6),
+    or why it has none ("Not recorded in these runs." where no rerun replayed its runs)."""
     body = cfgs[0]["card"]["body"]
     gap = (
         '<div class="gapc"><p class="lbl">Quality gap and residual</p><dl class="facts gapf">'
         f"<div><dt>quality gap</dt><dd>{gap_items(body, 'quality_gap')}</dd></div>"
         f"<div><dt>residual</dt><dd>{gap_items(body, 'residual')}</dd></div></dl></div>"
     )
-    rated = [c for c in cfgs if c["agreement"]["recorded"]]
-    many = len(rated) > 1
+    many = len(cfgs) > 1
     plates = "".join(
         agreement_plate(c, "Agreement with a rerun" + (f" · {c['workload']['id']}" if many else ""))
-        for c in rated
+        for c in cfgs
     )
     return (
         f'<div class="gapblk">{gap}{f'<div class="agree">{plates}</div>' if plates else ""}</div>'

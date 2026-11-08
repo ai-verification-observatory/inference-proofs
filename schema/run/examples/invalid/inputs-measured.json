@@ -1,0 +1,187 @@
+{
+  "adapter_phases": {
+    "witness": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "primitive",
+      "source": {
+        "kind": "adapter",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/adapter_phases/witness"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.2
+    }
+  },
+  "claim": {
+    "card_version": 1,
+    "configuration": "default",
+    "system": "fake"
+  },
+  "control": false,
+  "events": [
+    {
+      "event": "prove.start",
+      "mono_ns": 1000
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 500001000
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 1500001000
+    }
+  ],
+  "failure": null,
+  "inputs": {
+    "active_parameters_per_token": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 64
+    },
+    "weight_bits": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+      },
+      "tier": "reported",
+      "unit": "bit/weight",
+      "value": 8
+    }
+  },
+  "metrics": {
+    "proof_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/proofs"
+      },
+      "stats": {
+        "max": 64,
+        "mean": 64,
+        "min": 64,
+        "n": 6,
+        "n_failed": 0,
+        "stdev": 0.0
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 64
+    },
+    "prove_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": "not_applicable",
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/raw"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": null
+    },
+    "prove_session_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 1.5
+    },
+    "prove_steady_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 1.0
+    },
+    "rate_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/tokens_covered_steady",
+          "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/prove_steady_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 36.0
+    },
+    "tokens_covered_steady": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 36
+    }
+  },
+  "profile": "ci-cpu",
+  "proofs": [
+    {
+      "proof_id": "req-0",
+      "release_mono_ns": 500001000,
+      "tokens_covered": 9,
+      "verdict": "accept"
+    }
+  ],
+  "raw": {
+    "prove": {
+      "wall_ns": {
+        "grade": "measured",
+        "null_reason": null,
+        "scope": "prove.session",
+        "source": {
+          "kind": "harness",
+          "ref": "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/events/2"
+        },
+        "tier": "reported",
+        "unit": "ns",
+        "value": 1500000000.0
+      }
+    }
+  },
+  "release": "v0.1",
+  "repetition": 1,
+  "replaces": null,
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "run/1",
+  "status": "completed",
+  "system": "fake",
+  "system_kind": "test",
+  "warnings": [],
+  "workload": {
+    "id": "fake-tiny-ci",
+    "version": 1
+  }
+}

@@ -1,11 +1,15 @@
+import dataclasses
 import json
+import shutil
 from pathlib import Path
 
 import pytest
 
 from iproofs import cli
 from iproofs.adapter import ContainerRunner, InProcessRunner, StepResult
-from iproofs.runner import JobSpec, Runner, allocate_run_id
+from iproofs.errors import ErrorKind, IProofsError
+from iproofs.model import System, load
+from iproofs.runner import JobSpec, Runner, allocate_run_id, check_card_class
 from iproofs.schema import SchemaRegistry
 from iproofs.validate import check_derived
 from secret_samples import sample
@@ -67,6 +71,34 @@ def test_state_machine_happy_path(tmp_path: Path) -> None:
         "verifier",
     ]
     assert check_derived(run_dir / "run.json", ROOT) == []  # derived values recompute exactly
+
+
+def test_g4_survives_a_weight_bits_correction(tmp_path: Path) -> None:
+    """RFC-0003 WB-4: the runner copies the workload's asserted inputs into run.json `inputs`
+    and D-SPAB-S points there, so correcting the workload file's weight bits after the run
+    leaves G4 clean (it does not read the workload file at HEAD)."""
+    run_dir = runner().run(spec(tmp_path / "results"))
+    doc = read(run_dir)
+    inputs = doc["inputs"]
+    assert isinstance(inputs, dict)
+    assert inputs["weight_bits"]["value"] == 8  # file_size: 64 B x 8 / 64 parameters
+    assert inputs["active_parameters_per_token"]["value"] == 64
+    metrics = doc["metrics"]
+    assert isinstance(metrics, dict)
+    spab = metrics["seconds_per_active_weight_bit_token_prove.session"]
+    assert spab["source"]["inputs"][2].endswith("run.json#/inputs/weight_bits")
+    root = tmp_path / "repo"
+    for tree in ("schema", "reference"):
+        shutil.copytree(ROOT / tree, root / tree)
+    (root / "workloads").mkdir()
+    text = (ROOT / "workloads/fake-tiny-ci.yaml").read_text()
+    corrected = text.replace(
+        'weight_bits: {basis: "file_size"', 'weight_bits: {bits: 4, basis: "stated"'
+    )
+    corrected = corrected.replace(', files: ["weights.bin"]}', "}")
+    assert corrected != text
+    (root / "workloads/fake-tiny-ci.yaml").write_text(corrected)
+    assert check_derived(run_dir / "run.json", root) == []
 
 
 def test_controls_skipped_without_flag(tmp_path: Path) -> None:
@@ -163,3 +195,87 @@ def test_failed_prompt_build_still_names_the_image(
     failure = doc["failure"]
     assert isinstance(failure, dict)
     assert (doc["status"], failure["kind"]) == ("failed", "environment")
+
+
+SASH_CLASS = "greedy-continuation/exact-match/committed-weights"  # systems/sash/claim.yaml
+
+
+def closed_job(monkeypatch: pytest.MonkeyPatch, claim_class: str, card: Path | None) -> None:
+    """fake-tiny-ci as a closed workload fixing `claim_class`, and `card` as the fake system's
+    claim card (it has none)."""
+    from iproofs import runner as runner_module  # noqa: PLC0415
+    from iproofs.workloads import load_workload as real  # noqa: PLC0415
+
+    def closed(*a: object, **k: object) -> object:
+        wl = real(*a, **k)  # type: ignore[arg-type]
+        return dataclasses.replace(wl, division="closed", claim_class=claim_class)
+
+    monkeypatch.setattr(runner_module, "load_workload", closed)
+    monkeypatch.setattr(runner_module, "card_path", lambda *_: card)
+
+
+@pytest.mark.parametrize(
+    ("card", "message"),
+    [
+        (ROOT / "systems/sash/claim.yaml", SASH_CLASS),  # a card of another class
+        (None, "fake has no claim card a job records"),
+    ],
+)
+def test_closed_workload_class_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, card: Path | None, message: str
+) -> None:
+    """RFC-0003 §Divisions: a job whose card class differs from the closed workload's, or whose
+    system has no card, fails at resolution with a `config` error; no container step runs."""
+    closed_job(monkeypatch, "next-token/exact-match/committed-weights", card)
+    doc = read(runner().run(spec(tmp_path)))
+    failure = doc["failure"]
+    assert isinstance(failure, dict)
+    assert (doc["status"], failure["kind"], failure["step"]) == ("failed", "config", "resolved")
+    assert message in failure["message"]
+    assert "closed workload" in failure["message"]
+    events = doc["events"]
+    assert isinstance(events, list)
+    assert events == []  # no info, setup, commit or prove call was made
+
+
+def test_closed_workload_same_class_runs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A card with the closed workload's exact class passes resolution."""
+    closed_job(monkeypatch, SASH_CLASS, ROOT / "systems/sash/claim.yaml")
+    doc = read(runner().run(spec(tmp_path)))
+    assert doc["status"] == "completed"
+
+
+def test_closed_workload_reference_has_no_card() -> None:
+    """A reference system has no card (RFC-0015) and runs on a closed workload."""
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    ref = load(ROOT / "systems/ref-serve/system.yaml", REGISTRY)
+    assert isinstance(ref, System)
+    wl = load_workload("l31-8b-c1024", 1, root=ROOT, registry=REGISTRY)
+    check_card_class(ROOT, REGISTRY, ref, wl)  # no error
+    sash = load(ROOT / "systems/sash/system.yaml", REGISTRY)
+    assert isinstance(sash, System)
+    check_card_class(ROOT, REGISTRY, sash, wl)  # SASH's card has the workload's class
+
+
+@pytest.mark.parametrize(("name", "ok"), [("default", True), ("sound-defaults", False)])
+def test_closed_workload_reads_the_card_a_job_records(tmp_path: Path, name: str, ok: bool) -> None:
+    """The check reads the card the job's manifest records (`job_card`): `claims/default.yaml`,
+    else `claim.yaml`. A v0.1 job names no configuration, so a system whose only card is
+    `claims/sound-defaults.yaml` records none and is refused on a closed workload."""
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    card = tmp_path / f"systems/sash/claims/{name}.yaml"
+    card.parent.mkdir(parents=True)
+    text = (ROOT / "systems/sash/claim.yaml").read_text()
+    card.write_text(text.replace('configuration: "sound-defaults"', f'configuration: "{name}"'))
+    sash = load(ROOT / "systems/sash/system.yaml", REGISTRY)
+    assert isinstance(sash, System)
+    wl = load_workload("l31-8b-c1024", 1, root=ROOT, registry=REGISTRY)
+    if ok:
+        check_card_class(tmp_path, REGISTRY, sash, wl)
+        return
+    with pytest.raises(IProofsError) as err:
+        check_card_class(tmp_path, REGISTRY, sash, wl)
+    assert err.value.kind == ErrorKind.CONFIG
+    assert "systems/sash/claims/default.yaml or systems/sash/claim.yaml" in str(err.value)
