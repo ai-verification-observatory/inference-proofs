@@ -7,7 +7,10 @@ Format and constants as llama.cpp defines them at `cd959bae99ff4bed22bef2604f452
 (llama.cpp v0.9.0, the engine pin of RFC-0015 SRV-6): `ggml/include/gguf.h` and
 `ggml/src/gguf.cpp` for the container, `ggml/include/ggml.h` L391 to L437 for the type ids,
 `ggml/src/ggml.c` `type_traits` (L639 onward: `blck_size`, `type_size`) and the
-`static_assert(sizeof(block_...))` lines of `ggml/src/ggml-common.h` for the block sizes.
+`static_assert(sizeof(block_...))` lines of `ggml/src/ggml-common.h` for the block sizes. The
+header checks follow `gguf_init_from_file_impl` in `ggml/src/gguf.cpp`: `general.alignment` a
+UINT32 power of two (L622 to L636), each tensor's offset the sum of the padded sizes before it in
+header order (L790 to L820).
 """
 
 import re
@@ -80,6 +83,7 @@ _SCALARS: dict[int, str] = {
     12: "<d",
 }
 _STRING, _ARRAY = 8, 9
+_UINT32 = 4
 
 # The routed experts' weight tensors, by llama.cpp's names (src/llama-arch.cpp L535 to L538,
 # LLM_TENSOR_FFN_{GATE,GATE_UP,DOWN,UP}_EXPS). Any other tensor whose name holds "exps" is a
@@ -138,9 +142,18 @@ class Header:
 
     @property
     def alignment(self) -> int:
+        """`general.alignment`, a power of two (gguf.cpp L632); read_header has checked that
+        the file stores it as a UINT32 (L623)."""
         value = self.metadata.get("general.alignment", DEFAULT_ALIGNMENT)
-        if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-            raise IProofsError(ErrorKind.INTEGRITY, f"general.alignment {value!r} is invalid")
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or value <= 0
+            or value & (value - 1)
+        ):
+            raise IProofsError(
+                ErrorKind.INTEGRITY, f"general.alignment {value!r} is not a power of two"
+            )
         return value
 
 
@@ -211,8 +224,12 @@ def read_header(source: ByteSource, size: int) -> Header:
     n_tensors, n_kv = cur.u64(), cur.u64()
     metadata: dict[str, object] = {}
     for _ in range(n_kv):
-        key = cur.string()
-        metadata[key] = cur.value(cur.u32())
+        key, kind = cur.string(), cur.u32()
+        if key == "general.alignment" and kind != _UINT32:
+            raise IProofsError(
+                ErrorKind.INTEGRITY, f"general.alignment is GGUF type {kind}, not UINT32 (4)"
+            )
+        metadata[key] = cur.value(kind)
     tensors = []
     for _ in range(n_tensors):
         name = cur.string()
@@ -230,23 +247,29 @@ def read_header(source: ByteSource, size: int) -> Header:
 
 
 def check_layout(header: Header, size: int) -> None:
-    """The tensor data the header describes tiles the file: each tensor starts on the
-    alignment, takes exactly the bytes the type table gives (padded to the alignment), and the
-    last one ends inside the file. This checks the type table against the file itself."""
+    """The tensor data the header describes tiles the file: in header order, each tensor starts
+    where the one before it ends, padded to the alignment (gguf.cpp L790 to L820), and takes
+    exactly the bytes the type table gives; the last one ends at the end of the file, or at the
+    end padded to the alignment, as llama.cpp's writer pads it (gguf.cpp L1609). Every
+    tensor's size, the last one's included, is so checked against the file itself."""
     align = header.alignment
-    ordered = sorted(header.tensors, key=lambda t: t.offset)
     expected = 0
-    for t in ordered:
+    for t in header.tensors:
         if t.offset != expected:
             raise IProofsError(
                 ErrorKind.INTEGRITY,
                 f"tensor {t.name}: offset {t.offset}, expected {expected} from the type table",
             )
         expected = -(-(t.offset + t.nbytes) // align) * align
-    if ordered:
-        end = header.data_offset + ordered[-1].offset + ordered[-1].nbytes
-        if end > size:
-            raise IProofsError(ErrorKind.INTEGRITY, f"tensor data ends at {end} B, past {size} B")
+    if header.tensors:
+        last = header.tensors[-1]
+        end = header.data_offset + last.offset + last.nbytes
+        padded = -(-end // align) * align
+        if size not in {end, padded}:
+            raise IProofsError(
+                ErrorKind.INTEGRITY,
+                f"tensor data ends at {end} B ({padded} B padded), the file is {size} B",
+            )
 
 
 def file_source(path: Path) -> ByteSource:

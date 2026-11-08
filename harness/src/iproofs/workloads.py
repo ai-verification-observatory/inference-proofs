@@ -81,7 +81,8 @@ def file_size_bits(wl: Workload, files: Sequence[str]) -> float:
 
 def weight_bits(wl: Workload) -> float | None:
     """The workload's weight bits: typed for a `stated` basis (WB-1), computed from the listed
-    files for `file_size` (WB-2), None when the record has none (WB-3)."""
+    files for `file_size` (WB-2), typed for `computed` (WB-5: the files are not in the tree, so
+    fetch-model and CI recompute the typed value), None when the record has none (WB-3)."""
     wb = wl.precision.weight_bits
     if wb is None:
         return None
@@ -111,8 +112,9 @@ def stated_tolerance(count: int) -> Fraction:
 
 def check_computed_bits(wl: Workload, result: ActiveWeights) -> list[str]:
     """RFC-0003 WB-5: the record's `bits` equal the method's result in binary64, and the active
-    weights the method counts reproduce `model.parameters.active_per_token` within
-    `stated_tolerance`, which checks the method against the model's own documentation."""
+    and total weights the method counts reproduce `model.parameters.active_per_token` and
+    `model.parameters.total` within `stated_tolerance`, which checks the method against the
+    model's own documentation."""
     wb = wl.precision.weight_bits
     if wb is None or wb.basis != "computed":
         return [f"{wl.id}: precision.weight_bits has no computed basis"]
@@ -122,13 +124,18 @@ def check_computed_bits(wl: Workload, result: ActiveWeights) -> list[str]:
             f"{wl.id}: precision.weight_bits.bits {wb.bits!r} != {result.bits!r} computed by"
             f" {wb.method} from the files"
         )
-    stated = wl.model.parameters.active_per_token
-    if abs(result.active_weights - stated) > stated_tolerance(stated):
-        problems.append(
-            f"{wl.id}: {wb.method} counts {float(result.active_weights):.0f} active weights,"
-            f" outside {stated} +/- {float(stated_tolerance(stated)):g}"
-            " (model.parameters.active_per_token)"
-        )
+    params = wl.model.parameters
+    counts: list[tuple[str, Fraction, str, int]] = [
+        ("active", result.active_weights, "active_per_token", params.active_per_token),
+        ("total", Fraction(result.total_weights), "total", params.total),
+    ]
+    for label, counted, field, stated in counts:
+        if abs(counted - stated) > stated_tolerance(stated):
+            problems.append(
+                f"{wl.id}: {wb.method} counts {float(counted):.0f} {label} weights,"
+                f" outside {stated} +/- {float(stated_tolerance(stated)):g}"
+                f" (model.parameters.{field})"
+            )
     return problems
 
 

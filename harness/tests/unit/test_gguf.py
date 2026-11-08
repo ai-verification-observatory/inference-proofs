@@ -190,9 +190,20 @@ def test_custom_alignment() -> None:
     assert h.alignment == 64
     assert h.data_offset % 64 == 0
     assert [t.offset for t in h.tensors] == [0, 320, 512, 1088, 1344]
+
+
+def test_alignment_is_a_uint32_power_of_two() -> None:
+    """As gguf.cpp L622 to L636: stored as UINT32, and a power of two."""
     bad = {**TINY_META, "general.alignment": "x"}
-    with pytest.raises(IProofsError, match=r"general\.alignment 'x' is invalid"):
+    with pytest.raises(IProofsError, match=r"general\.alignment is GGUF type 8, not UINT32") as e:
         header_of(write_gguf(bad, TINY_TENSORS))
+    assert e.value.kind is ErrorKind.INTEGRITY
+    as_u64 = _str("general.alignment") + struct.pack("<IQ", 10, 32)
+    data = b"GGUF" + struct.pack("<IQQ", 3, 0, 1) + as_u64
+    with pytest.raises(IProofsError, match="GGUF type 10, not UINT32"):
+        header_of(data + b"\0" * 64)
+    with pytest.raises(IProofsError, match=r"general\.alignment 48 is not a power of two"):
+        header_of(write_gguf({**TINY_META, "general.alignment": 48}, TINY_TENSORS, align=48))
 
 
 @pytest.mark.parametrize(
@@ -225,8 +236,32 @@ def test_layout_checks_the_type_table() -> None:
     against the file itself."""
     with pytest.raises(IProofsError, match="offset 320, expected 288"):
         header_of(write_gguf(TINY_META, TINY_TENSORS, size_of={Q4_K: (256, 160)}))
-    with pytest.raises(IProofsError, match="past"):
+    with pytest.raises(IProofsError, match=r"ends at 2080 B \(2080 B padded\), the file is 2079 B"):
         header_of(write_gguf(TINY_META, TINY_TENSORS)[:-1])
+
+
+def test_layout_checks_the_last_tensor() -> None:
+    """The last tensor must end at the end of the file (or there padded), so a table that
+    gives it too few bytes fails too: here F32 laid out at 8 B per weight, 256 B, where the
+    table gives 128 B. Trailing bytes past the padding fail the same way. (The header takes
+    704 B, so the data the table gives ends at 704 + 1,248 + 128 = 2,080 B.)"""
+    with pytest.raises(IProofsError, match=r"ends at 2080 B \(2080 B padded\), the file is 2208 B"):
+        header_of(write_gguf(TINY_META, TINY_TENSORS, size_of={F32: (1, 8)}))
+    with pytest.raises(IProofsError, match="the file is 2112 B"):
+        header_of(write_gguf(TINY_META, TINY_TENSORS) + b"\0" * 32)
+    # The writer pads the last tensor (Q8_0, 136 B) to 160 B: the padded end is the file end.
+    data = write_gguf(TINY_META, TINY_TENSORS[:2])
+    h = header_of(data)
+    assert h.data_offset + h.tensors[-1].offset + h.tensors[-1].nbytes == len(data) - 24
+
+
+def test_layout_follows_header_order() -> None:
+    """gguf.cpp L790 to L820: offsets accumulate in header order. The first two tensors'
+    data swapped (Q8_0 at 0, padded to 160 B; Q4_K at 160) tiles the data in offset order,
+    but not in header order."""
+    offsets = [160, 0, 448, 1024, 1248]
+    with pytest.raises(IProofsError, match=r"token_embd\.weight: offset 160, expected 0"):
+        header_of(write_gguf(TINY_META, TINY_TENSORS, offsets=offsets))
 
 
 def test_unknown_type_and_block_multiple() -> None:
@@ -344,12 +379,16 @@ def test_maverick_record_recomputes_from_stored_headers(wid: str) -> None:
     assert check_computed_bits(wl, result) == []
     assert (result.expert_count, result.expert_used_count) == (128, 1)
     assert abs(result.active_weights - 17_000_000_000) <= 500_000_000
+    # The total, 400,711,848,960, is within the card's "400B" stated to one digit: +/- 5e10.
+    assert result.total_weights == 400_711_848_960
+    assert wl.model.parameters.total == 400_000_000_000
 
 
 def test_stated_tolerance() -> None:
     assert stated_tolerance(17_000_000_000) == 500_000_000
     assert stated_tolerance(8_030_261_248) == Fraction(1, 2)
     assert stated_tolerance(400) == 50
+    assert stated_tolerance(400_000_000_000) == 50_000_000_000
     assert stated_tolerance(0) == Fraction(1, 2)
 
 
@@ -360,12 +399,12 @@ def with_bits(wl: Workload, **changes: Any) -> Workload:
     return dataclasses.replace(wl, precision=precision)
 
 
-def tiny_workload(tmp_path: Path, bits: float, active: int = 1184) -> Workload:
+def tiny_workload(tmp_path: Path, bits: float, active: int = 1184, total: int = 1952) -> Workload:
     """fake-tiny-ci with one GGUF weight file and a computed width."""
     data = (tiny(tmp_path / "tiny.gguf")).read_bytes()
     wl = load_workload("fake-tiny-ci", root=ROOT, registry=REGISTRY)
     files = (ModelFile(path="tiny.gguf", sha256="0" * 64, bytes=len(data)),)
-    params = dataclasses.replace(wl.model.parameters, active_per_token=active)
+    params = dataclasses.replace(wl.model.parameters, active_per_token=active, total=total)
     wl = dataclasses.replace(
         wl, model=dataclasses.replace(wl.model, files=files, parameters=params)
     )
@@ -378,12 +417,23 @@ def test_computed_bits_from_local_files(tmp_path: Path) -> None:
 
 
 def test_computed_bits_mismatch_is_config(tmp_path: Path) -> None:
-    wl = tiny_workload(tmp_path, 6.12, active=1100)
+    wl = tiny_workload(tmp_path, 6.12, active=1100, total=3000)
     with pytest.raises(IProofsError) as e:
         computed_bits(wl, local_sources(tmp_path))
     assert e.value.kind is ErrorKind.CONFIG
     assert "bits 6.12 != 6.121621621621622 computed by gguf-active-mean/1" in str(e.value)
     assert "counts 1184 active weights, outside 1100 +/- 50" in str(e.value)
+    assert "counts 1952 total weights, outside 3000 +/- 500 (model.parameters.total)" in str(
+        e.value
+    )
+
+
+def test_computed_bits_checks_the_total(tmp_path: Path) -> None:
+    """A reader that drops or double-counts a whole tensor moves the total: 1,952 counted
+    against a stated 1,900 (+/- 50) fails, though the active count and the bits agree."""
+    wl = tiny_workload(tmp_path, float(Fraction(453, 74)), total=1900)
+    with pytest.raises(IProofsError, match=r"counts 1952 total weights, outside 1900 \+/- 50"):
+        computed_bits(wl, local_sources(tmp_path))
 
 
 def test_computed_bits_needs_a_computed_record(tmp_path: Path) -> None:
