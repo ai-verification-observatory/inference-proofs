@@ -66,7 +66,9 @@ from iproofs.derive import (
 from iproofs.model import Shape
 from iproofs.provenance import file_digest
 from iproofs.quantity import Scope, Unit
+from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
+from iproofs.workloads import asserted_inputs, load_workload
 
 ROOT = Path(__file__).resolve().parents[3]
 RELEASE = "v0.1"
@@ -329,9 +331,17 @@ def _timeline(rep: Rep, k: int, session: float) -> tuple[dict[str, int], list[in
     return events, releases
 
 
+def _inputs(root: Path, wid: str) -> dict[str, QuantityTree]:
+    """run.json `inputs`: the workload's asserted inputs, as the runner copies them."""
+    registry = SchemaRegistry.from_tree(root / "schema")
+    return asserted_inputs(load_workload(wid, root=root, registry=registry))
+
+
 def _metrics(
     root: Path, cfg: Config, rep: Rep, session: float, run_json: str, observable: bool
-) -> tuple[dict[str, QuantityTree], list[dict[str, object]], dict[str, int]]:
+) -> tuple[
+    dict[str, QuantityTree], list[dict[str, object]], dict[str, int], dict[str, QuantityTree]
+]:
     wl = _workload(root, cfg.workload)
     shape = _shape(wl)
     k = shape.batch_size * shape.batches_per_session
@@ -353,7 +363,7 @@ def _metrics(
         rep.single_thread, 1, Unit.S, Scope.VERIFY_SINGLE_THREAD, vref
     )
     price = json.loads(json.dumps(yaml.safe_load((root / REFERENCE).read_text())["cost"]))
-    params = wl["model"]["parameters"]["active_per_token"]
+    inputs = _inputs(root, cfg.workload)
     harness = {"tier": "reported", "source": {"kind": "harness", "ref": ""}}
     m |= derive_repetition(
         m,
@@ -362,9 +372,10 @@ def _metrics(
         gpus=1,
         price=(f"{REFERENCE}#/cost/price_per_gpu_hour_usd", price["price_per_gpu_hour_usd"]),
         active_parameters=(
-            f"workloads/{cfg.workload}.yaml#/model/parameters/active_per_token",
-            {"value": params, **harness},
+            f"{run_json}#/inputs/active_parameters_per_token",
+            inputs["active_parameters_per_token"],
         ),
+        weight_bits=(f"{run_json}#/inputs/weight_bits", inputs["weight_bits"]),
         first_proof_tokens=(
             f"{run_json}#/proofs/0/tokens_covered",
             {"value": sum(per_proof[0]), **harness},
@@ -375,7 +386,7 @@ def _metrics(
          "verdict": "accept"}
         for i, r in enumerate(releases)
     ]  # fmt: skip
-    return m, proofs, events
+    return m, proofs, events, inputs
 
 
 def _run_doc(  # noqa: PLR0913 (one keyword per run.json field it sets)
@@ -389,6 +400,7 @@ def _run_doc(  # noqa: PLR0913 (one keyword per run.json field it sets)
     events: dict[str, int] | None = None,
     failure: dict[str, object] | None = None,
     replaces: dict[str, str] | None = None,
+    inputs: dict[str, QuantityTree] | None = None,
 ) -> dict[str, object]:
     claim = (
         None
@@ -417,7 +429,7 @@ def _run_doc(  # noqa: PLR0913 (one keyword per run.json field it sets)
                                                                 key=lambda x: x[1])],
         "proofs": proofs or [],
         "warnings": [],
-    }  # fmt: skip
+    } | ({"inputs": inputs} if inputs else {})  # fmt: skip
 
 
 def _manifest(
@@ -548,9 +560,9 @@ def _write_run(  # noqa: PLR0913 (one keyword per case a placeholder run covers)
         doc = _run_doc(cfg, rid, n, kind, failure=failure, replaces=replaces)
         proofs: list[dict[str, object]] = []
     else:
-        metrics, proofs, events = _metrics(root, cfg, rep, session, run_json, observable)
+        metrics, proofs, events, inputs = _metrics(root, cfg, rep, session, run_json, observable)
         doc = _run_doc(cfg, rid, n, kind, metrics=metrics, proofs=proofs, events=events,
-                       failure=failure, replaces=replaces)  # fmt: skip
+                       failure=failure, replaces=replaces, inputs=inputs)  # fmt: skip
     run_dir = root / rel
     run_dir.mkdir(parents=True)
     write_json(run_dir / "run.json", doc)

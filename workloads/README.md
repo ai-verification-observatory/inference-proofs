@@ -8,7 +8,8 @@ One file per workload, `workloads/<id>.yaml`, valid against `schema/workload/1.s
 - INV-WL-4: `prompts.count == shape.batch_size * shape.batches_per_session` and `prompts.length_rule.prompt_tokens == shape.prompt_tokens`;
 - `shape.context_window >= shape.prompt_tokens + shape.output_tokens - 1`;
 - `model.tokenizer_file` is one of `model.files[].path`, or, when `model.tokenizer_source` names a second pinned repository for the tokenizer file alone, that source's `file.path`;
-- every id in `systems` has a `systems/<id>/system.yaml`.
+- every id in `systems` has a `systems/<id>/system.yaml`;
+- a `precision.weight_bits` with basis `file_size` lists files of `model.files` and types no `bits`: the loader computes them as the files' bytes × 8 / `model.parameters.total` ([RFC-0003 §Weight bits](../rfcs/0003-workloads.md#weight-bits)).
 
 The schema itself enforces the closed-division rule (`claim_class` present exactly when `division` is `closed`), greedy decoding and full 40-hex model revisions.
 
@@ -22,6 +23,8 @@ The schema itself enforces the closed-division rule (`claim_class` present exact
 | [`fp-maverick-w1024-b24`](fp-maverick-w1024-b24.yaml) | `unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF`, folder `UD-Q4_K_XL`; tokenizer from `unsloth/Llama-4-Maverick-17B-128E-Instruct` | UD-Q4_K_XL | 1,024 + 1, 24, 5 | prefill | `ref-serve`, `ref-recompute` |
 
 The model is the one each system's own runs name: SASH's recorded runs use the ungated mirror `unsloth/Llama-3.1-8B-Instruct` at `4699cc75b550f9c6f3173fb80f4703b62d946aa5`; FlashProve names the `UD-Q4_K_XL` files of `unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF` at `41032e5471dd6ea5b349062d978626215d6c5bba`, whose repository has no tokenizer file, so `model.tokenizer_source` pins it from the ungated full-precision repository. A native system joins its workloads' `systems` list when its `system.yaml` lands; until then only the reference systems (RFC-0015) are listed.
+
+Each workload carries `precision.weight_bits`, the bits per weight of the precision as proved, with its source (RFC-0003 §Weight bits): 8 for the SASH workloads, as SASH's own quantizer states its weight matmuls (the files are BF16, quantized at load time); 4.5 for the Maverick workloads, Unsloth's figure for `UD-Q4_K_XL` in its column headed "MoE Bits", a nominal width since the files mix block types (RFC-0003 Q5). Both statements cover part of the active weights (weight matmuls; the expert layers), so both are recorded `covers: part`, and RFC-0004 does not sort by their D-SPAB-S until Q5 is resolved. RFC-0004 D-SPAB-S divides prover time by active parameters times these bits. The runner copies both numbers into each run's `inputs`, so a correction of `bits`, which is a new workload version, never changes a stored run (WB-4).
 
 The prompt corpus is `prompts/corpus.yaml` ([RFC-0003 §Prompt corpus](../rfcs/0003-workloads.md#prompt-corpus)).
 

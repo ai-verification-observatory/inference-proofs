@@ -276,6 +276,83 @@
         "served": {
           "minLength": 1,
           "type": "string"
+        },
+        "weight_bits": {
+          "$comment": "RFC-0003 §Weight bits: bits per weight of the precision as proved, an asserted input of RFC-0004 D-SPAB-S. A stated basis types `bits`; a file_size basis lists `files`, covers all weights, and the loader computes `bits` (WB-2), so it is not typed",
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "files": false
+                },
+                "required": [
+                  "bits"
+                ]
+              },
+              "if": {
+                "properties": {
+                  "basis": {
+                    "const": "file_size"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "bits": false,
+                  "covers": {
+                    "const": "all"
+                  }
+                },
+                "required": [
+                  "files"
+                ]
+              }
+            }
+          ],
+          "properties": {
+            "basis": {
+              "enum": [
+                "stated",
+                "file_size"
+              ]
+            },
+            "bits": {
+              "exclusiveMinimum": 0,
+              "maximum": 64,
+              "type": "number"
+            },
+            "covers": {
+              "enum": [
+                "all",
+                "part"
+              ]
+            },
+            "files": {
+              "items": {
+                "pattern": "^[^/][^\\t\\n]*$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "note": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "source": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "basis",
+            "covers",
+            "source"
+          ],
+          "type": "object"
         }
       },
       "required": [

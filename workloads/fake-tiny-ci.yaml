@@ -16,7 +16,10 @@ model:
   parameters: {total: 64, active_per_token: 64, source: "https://github.com/ai-verification-observatory/inference-proofs/blob/64168df9fd0706dfd955b6795fa6f535872dff78/systems/fake/README.md"}
   tokenizer_file: "tokenizer.json"
   vocab_size: 96
-precision: {served: "int8", proved: "int8"}
+precision:
+  served: "int8"
+  proved: "int8"
+  weight_bits: {basis: "file_size", covers: "all", source: "https://github.com/ai-verification-observatory/inference-proofs/blob/64168df9fd0706dfd955b6795fa6f535872dff78/systems/fake/README.md", files: ["weights.bin"]}
 prompts:
   generator: "corpus-window/1"
   corpus_digest: "sha256:9ce23fc0c7b65899c302b4903729f1ff3a57d656afa8e9d178e9fbd1ec2f63bf"

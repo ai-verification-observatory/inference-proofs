@@ -83,6 +83,7 @@ results/<release>/<system>/<run-id>/
 - `claim` names the claim card in force for the run by system, configuration and `card_version`.
 - `raw` holds measured quantities per step; `metrics` holds the recorded and derived quantities keyed by RFC-0004 metric id; `adapter_phases` holds adapter-reported quantities (`source.kind: adapter`).
 - `replaces` is null or `{run_id, reason}` (see §Corrections).
+- `inputs` (runs recorded from the 2026-11-08 amendments on) holds the workload record's asserted inputs as copied at run time, `active_parameters_per_token` and `weight_bits` ([RFC-0003 WB-4](0003-workloads.md#weight-bits)); the derived quantities that use them point there.
 
 Size rules:
 
@@ -137,6 +138,7 @@ sponsors:
 - `targets[]`: every applicable target evaluation (§Targets).
 - `claim_cards[]` and `reference` digests as frozen.
 - `inputs_digest`: SHA-256 over the sorted list of digests of every file the freeze read, so anyone can check they froze the same inputs.
+- `freeze_derived` (only when non-empty): per run id, the repetition-level values the freeze evaluated for a run stored before their formula existed ([RFC-0004](0004-metrics-timing-grades.md#open-questions) Q3: D-TPP, D-SPAB-S), which the configuration statistics point at; `run.json` is never rewritten (APP-1).
 
 Every number in `index.json` is a quantity or statistic. Effective tiers appear here and nowhere in `results/` (INV-QTY-4).
 

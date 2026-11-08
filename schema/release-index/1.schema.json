@@ -296,6 +296,22 @@
       },
       "type": "array"
     },
+    "freeze_derived": {
+      "$comment": "RFC-0004 Q3: values the freeze evaluated for runs stored before their formula existed, by run id and metric id; D-STAT inputs point here",
+      "additionalProperties": {
+        "additionalProperties": {
+          "$ref": "#/$defs/value"
+        },
+        "propertyNames": {
+          "$ref": "../quantity/1.schema.json#/$defs/metricId"
+        },
+        "type": "object"
+      },
+      "propertyNames": {
+        "$ref": "../quantity/1.schema.json#/$defs/runId"
+      },
+      "type": "object"
+    },
     "inputs_digest": {
       "$ref": "../quantity/1.schema.json#/$defs/digest"
     },

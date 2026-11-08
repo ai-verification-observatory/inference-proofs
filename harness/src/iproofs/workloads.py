@@ -1,5 +1,6 @@
 """Workload resolution, model fetch and prompt materialisation (RFC-0003)."""
 
+import dataclasses
 import functools
 import hashlib
 import json
@@ -16,9 +17,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
+from iproofs.derive import QuantityTree
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Corpus, ModelFile, Workload, load
 from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
+from iproofs.quantity import Grade, NullReason, SourceKind, Tier, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_jsonl
 
@@ -60,10 +63,64 @@ def check_workload(wl: Workload, root: Path) -> list[str]:
         )
     elif source is None and wl.model.tokenizer_file not in {f.path for f in wl.model.files}:
         problems.append(f"model.tokenizer_file {wl.model.tokenizer_file!r} is not in model.files")
+    problems += _weight_bits_problems(wl)
     for system in wl.systems:
         if not (root / "systems" / system / "system.yaml").is_file():
             problems.append(f"systems: {system!r} has no systems/{system}/system.yaml")
     return problems
+
+
+def file_size_bits(wl: Workload, files: Sequence[str]) -> float:
+    """RFC-0003 WB-2: bytes of the listed weight files x 8 / `model.parameters.total`."""
+    sizes = {f.path: f.bytes for f in wl.model.files}
+    return sum(sizes[path] for path in files) * 8 / wl.model.parameters.total
+
+
+def weight_bits(wl: Workload) -> float | None:
+    """The workload's weight bits: typed for a `stated` basis (WB-1), computed from the listed
+    files for `file_size` (WB-2), None when the record has none (WB-3)."""
+    wb = wl.precision.weight_bits
+    if wb is None:
+        return None
+    if wb.basis == "file_size" and wb.files is not None:
+        return file_size_bits(wl, wb.files)
+    return wb.bits
+
+
+def _weight_bits_problems(wl: Workload) -> list[str]:
+    """WB-2: a `file_size` basis lists weight files of `model.files`."""
+    wb = wl.precision.weight_bits
+    if wb is None or wb.basis != "file_size" or wb.files is None:
+        return []
+    listed = {f.path for f in wl.model.files}
+    unknown = [path for path in wb.files if path not in listed]
+    return [f"precision.weight_bits.files {unknown} are not in model.files"] if unknown else []
+
+
+def asserted_inputs(wl: Workload) -> dict[str, QuantityTree]:
+    """The workload record's inputs to RFC-0004 D-APT-S and D-SPAB-S as `asserted` quantities,
+    which the runner copies into run.json `inputs` (RFC-0003 WB-4): a later correction of the
+    workload file cannot change a stored run's inputs. No weight bits: null `missing_input`."""
+    ref = f"workloads/{wl.id}.yaml#"
+    bits = weight_bits(wl)
+
+    def asserted(value: float | None, unit: Unit, pointer: str) -> QuantityTree:
+        return {
+            "value": value,
+            "unit": str(unit),
+            "scope": None,
+            "grade": str(Grade.ASSERTED),
+            "tier": str(Tier.REPORTED),
+            "source": {"kind": str(SourceKind.REFERENCE_FILE), "ref": ref + pointer},
+            "null_reason": None if value is not None else str(NullReason.MISSING_INPUT),
+        }
+
+    return {
+        "active_parameters_per_token": asserted(
+            wl.model.parameters.active_per_token, Unit.COUNT, "/model/parameters/active_per_token"
+        ),
+        "weight_bits": asserted(bits, Unit.BIT_PER_WEIGHT, "/precision/weight_bits"),
+    }
 
 
 def load_workload(
@@ -88,6 +145,12 @@ def load_workload(
     problems += check_workload(wl, root)
     if problems:
         raise IProofsError(ErrorKind.CONFIG, "\n".join(f"{path}: {p}" for p in problems))
+    wb = wl.precision.weight_bits
+    if wb is not None and wb.bits is None:  # WB-2: the loader computes a file_size width
+        computed = dataclasses.replace(wb, bits=weight_bits(wl))
+        wl = dataclasses.replace(
+            wl, precision=dataclasses.replace(wl.precision, weight_bits=computed)
+        )
     return wl
 
 

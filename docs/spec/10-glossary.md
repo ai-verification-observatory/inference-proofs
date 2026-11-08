@@ -74,11 +74,15 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="null-reason"></a>**Null reason.** The required explanation when a quantity's value is null: `not_externally_observable`, `fewer_than_two_proofs`, `not_applicable`, `step_failed`, `not_measurable_on_profile`, `missing_input`. [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
+<a id="overhead"></a>**Overhead.** The mean plain-serving rate of a workload over the mean rate of a proving system on it, same workload version, profile, phase and batch size (`D-OVERHEAD-S`). One of the two figures that compare provers across models; the other is [prover time per bit of active weights](#prover-time-per-bit). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md), [RFC-0015](../../rfcs/0015-reference-rows.md).
+
 <a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines `prover-h100` and `verifier-cpu`. Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
 
 <a id="proof"></a>**Proof.** In this project, the set of files (parts) that one `verify` call checks for one request, released atomically as `/io/proofs/<proof_id>/`. For a segment-grid system it is the set of segment proofs for one sequence plus whatever the grid check needs. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 
 <a id="proof-part"></a>**Proof part.** One file inside a proof directory. Controls C5, C6 and C8 operate on parts.
+
+<a id="prover-time-per-bit"></a>**Prover time per bit of active weights.** Prover seconds per token covered divided by the bits of weights one token uses, active parameters per token times [weight bits](#weight-bits) (`D-SPAB-S`, unit `s/bit_token`). Attention cost is not in the normaliser. Shown only with the claim cards. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 
 <a id="proved"></a>**Proved.** Said of a statement that a sound verifier's acceptance establishes under the claim card's stated assumptions. Never "provably safe". Contrast [attested](#attested), [sampled](#sampled).
 
@@ -123,6 +127,8 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 <a id="unbound"></a>**Unbound.** Said of an edge of the computation that the verifier's acceptance does not constrain, either by design or because a switch disabled its check.
 
 <a id="verdict"></a>**Verdict.** The adapter's normalisation of one `verify` call: `accept`, `reject`, `no_verdict`, `invalid_call`, always stored with the upstream verifier's raw exit code and last line. [RFC-0005](../../rfcs/0005-adapter-contract.md).
+
+<a id="weight-bits"></a>**Weight bits.** The bits that store one weight of a workload's precision as proved, one number in the workload record with its source: as the precision's own documentation states it (with whether the statement covers all or part of the active weights), or computed from file size when the files hold every weight at one width. [RFC-0003](../../rfcs/0003-workloads.md#weight-bits).
 
 <a id="workload"></a>**Workload.** A versioned definition (`workloads/<id>.yaml`) of a model by content digest, a precision, a prompt generator over the corpus, a shape, a decoding rule, a phase and a division. [RFC-0003](../../rfcs/0003-workloads.md).
 

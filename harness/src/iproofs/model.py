@@ -176,6 +176,14 @@ class ProofResult(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class RunInputs(Document):
+    """The workload record's asserted inputs, copied at run time (RFC-0003 WB-4)."""
+
+    active_parameters_per_token: Quantity
+    weight_bits: Quantity
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Run(Document):
     schema: str
     run_id: str
@@ -196,6 +204,7 @@ class Run(Document):
     events: tuple[Event, ...]
     proofs: tuple[ProofResult, ...]
     warnings: tuple[str, ...]
+    inputs: RunInputs | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -467,6 +476,7 @@ class ReleaseIndex(Document):
     claim_cards: tuple[ReleaseCard, ...]
     reference: ReferenceRecord
     inputs_digest: str
+    freeze_derived: Mapping[str, Mapping[str, Quantity | Statistic]] | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -638,10 +648,24 @@ class ModelSpec(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WeightBits(Document):
+    """Bits per weight of the precision as proved, an asserted input (RFC-0003 §Weight bits).
+    `bits` is typed for a `stated` basis; for `file_size` the loader computes it (WB-2)."""
+
+    basis: str  # "stated" or "file_size"
+    covers: str  # "all" or "part" of the active weights (WB-1)
+    source: str
+    bits: float | None = None
+    files: tuple[str, ...] | None = None
+    note: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Precision(Document):
     served: str
     proved: str
     alternatives: tuple[str, ...] | None = None
+    weight_bits: WeightBits | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1310,6 +1334,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore/properties/quality"): Quality,
     ("run/1", "#"): Run,
     ("run/1", "#/properties/workload"): WorkloadRef,
+    ("run/1", "#/properties/inputs"): RunInputs,
     ("run/1", "#/properties/claim/anyOf/1"): ClaimRef,
     ("run/1", "#/properties/replaces/anyOf/1"): Replaces,
     ("run/1", "#/properties/raw"): RawSteps,
@@ -1376,6 +1401,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("workload/1", "#/properties/model/properties/licence"): Licence,
     ("workload/1", "#/properties/model/properties/parameters"): Parameters,
     ("workload/1", "#/properties/precision"): Precision,
+    ("workload/1", "#/properties/precision/properties/weight_bits"): WeightBits,
     ("workload/1", "#/properties/prompts"): Prompts,
     ("workload/1", "#/properties/prompts/properties/length_rule"): LengthRule,
     ("workload/1", "#/properties/shape"): Shape,
