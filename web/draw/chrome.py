@@ -7,6 +7,7 @@ its hash. `version` names words.css, words.js and search.json by the first 12 he
 
 import hashlib
 import json
+import re
 
 from . import state as S
 from .hexagon import key_mini, mark_svg
@@ -170,6 +171,15 @@ def full_title(title):
     return title if title == "Inference proofs" else f"{title} · Inference proofs"
 
 
+# A link to another site (every site link is root-relative) opens in a new tab, with no opener and
+# no referrer: the reader keeps the page they were reading.
+EXTERNAL_A = re.compile(r'<a (?![^>]*\btarget=)([^>]*\bhref="https?://[^"]*"[^>]*)>')
+
+
+def new_tab(html):
+    return EXTERNAL_A.sub(r'<a \1 target="_blank" rel="noopener noreferrer">', html)
+
+
 def page(title, desc, body, cls, path, card):
     """One page. path: its address under the site ("" for the home); card: its preview card's name,
     or None for a page that is never shared (the 404)."""
@@ -180,7 +190,7 @@ def page(title, desc, body, cls, path, card):
         f'<title>{e(full_title(title))}</title><meta name="description" content="{e(desc)}">'
         f'<meta name="color-scheme" content="dark"><meta name="theme-color" content="{GROUND}">'
         f"{meta}{icon_links()}{preloads()}"
-        f'<link rel="stylesheet" href="{version("words.css")}"></head><body class="{cls}">{body}'
+        f'<link rel="stylesheet" href="{version("words.css")}"></head><body class="{cls}">{new_tab(body)}'
         f'<p class="sr" aria-live="polite" id="live"></p><script src="{version("words.js")}" defer></script></body></html>'
     )
 
