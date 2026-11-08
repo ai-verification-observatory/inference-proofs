@@ -3,6 +3,12 @@
     "NVIDIA H100 80GB HBM3": "H100"
   },
   "models": {
+    "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7": {
+      "name": "Llama 3.1 8B",
+      "precision_words": {
+        "W8A8": "8-bit weights and activations"
+      }
+    },
     "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114": {
       "name": "Llama 4 Maverick",
       "precision_words": {

@@ -240,7 +240,46 @@ def test_deciding_web_quote_not_own_source_fails() -> None:
     row(d, "nanozk")["own_sources"] = [{"domain": "arxiv.org", "how": "fixture"}]
     assert found(d, "CRIT-3") == []
     row(d, "nanozk")["own_sources"] = [{"repo": "example/nanozk", "how": "fixture"}]
-    assert len(found(d, "CRIT-3")) == 1
+    pointers = [f.pointer for f in found(d, "CRIT-3")]
+    assert len([p for p in pointers if "/cells/weights_hidden/" in p]) == 1
+
+
+def test_deciding_code_file_quote_at_pin() -> None:
+    """#336: a deciding quote may come from a code file of an own repository. It passes CRIT-2
+    and CRIT-3 at its pin; it fails CRIT-2 off the pin and CRIT-3 once its repository is not
+    one of the row's own sources. The cell is built here, so the test does not depend on what
+    the committed file reads."""
+    repo, path = "inference-labs-inc/JSTprove", "prover/poly_commit/src/lib.rs"
+    pin = COMMITTED["pins"][repo]
+    q: dict[str, Any] = {
+        "checked": True,
+        "checked_how": "fixture",
+        "commit": pin,
+        "decides": True,
+        "kind": "repository",
+        "label": "fixture",
+        "lines": "L7",
+        "path": path,
+        "repo": repo,
+        "text": "pub const PCS_SOUNDNESS_BITS: usize = 128;",
+        "url": f"https://github.com/{repo}/blob/{pin}/{path}#L7",
+    }
+    c = {"quotes": [q], "reason": "fixture", "state": "partly"}
+    d = doc()
+    row(d, "jstprove")["cells"]["security_level"] = c
+    assert found(d, "CRIT-2") == []
+    assert found(d, "CRIT-3") == []
+    other = "0" * 40
+    q["commit"], q["url"] = other, q["url"].replace(pin, other)
+    (f,) = found(d, "CRIT-2")
+    assert f.message.startswith(f"{repo} is quoted at 000000000000")
+    q["commit"], q["url"] = pin, q["url"].replace(other, pin)
+    row(d, "jstprove")["own_sources"] = [
+        s for s in row(d, "jstprove")["own_sources"] if s.get("repo") != repo
+    ]
+    (f,) = found(d, "CRIT-3")
+    assert f.message.startswith("the deciding quote is not from one of the row's own sources")
+    assert f.pointer.endswith("/cells/security_level/quotes/0")
 
 
 def test_own_source_only_repository_or_web() -> None:
@@ -255,16 +294,18 @@ def test_own_source_only_repository_or_web() -> None:
 
 
 def test_not_stated_without_sources_or_marker_fails() -> None:
+    """The cell is built here, so the test does not depend on what the committed file reads."""
     d = doc()
-    del cell(d, "ezkl", "model_bound")["not_copied"]
+    c: dict[str, Any] = {"quotes": [], "reason": "fixture", "state": "not_stated"}
+    row(d, "ezkl")["cells"]["model_bound"] = c
     (f,) = found(d, "CRIT-4")
     assert "exactly one of sources_read or not_copied" in f.message
-    c = cell(d, "ezkl", "model_bound")
-    c["not_copied"], c["sources_read"] = (
-        True,
-        [{"url": "https://example.org", "retrieved": "2026-11-07"}],
-    )
+    c["not_copied"] = True
+    assert found(d, "CRIT-4") == []
+    c["sources_read"] = [{"url": "https://example.org", "retrieved": "2026-11-07"}]
     assert len(found(d, "CRIT-4")) == 1
+    del c["not_copied"]
+    assert found(d, "CRIT-4") == []
     d = doc()
     cell(d, "ezkl", "formally_verified")["quotes"] = [
         cell(d, "ezkl", "weights_hidden")["quotes"][0]

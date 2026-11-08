@@ -50,21 +50,27 @@ def test_check_time_in_seconds(keys):
 
 
 def test_covers_in_positions(site, keys):
-    # D-TPP, positions one proof covers: FlashProve proves the 1,024-token window; SASH's rule
-    # counts the prompt and the output (1,024 + 1), on the same workload record
-    shape = site.view["configurations"][0]["workload"]["shape"]
-    assert keys["flashprove"]["covers"] == shape["context_window"] == 1024
-    assert keys["sash"]["covers"] == shape["prompt_tokens"] + shape["output_tokens"] == 1025
+    # D-TPP, positions one proof covers: FlashProve proves the 1,024-token window of its
+    # workload; SASH's prompt_plus_output rule counts its own workload's 1,024 prompt plus 64
+    # output tokens, 1,088 by hand
+    shapes = {c["system"]: c["workload"]["shape"] for c in site.view["configurations"]}
+    assert keys["flashprove"]["covers"] == shapes["flashprove"]["context_window"] == 1024
+    sash = shapes["sash"]
+    assert keys["sash"]["covers"] == sash["prompt_tokens"] + sash["output_tokens"] == 1088
 
 
 def test_overhead_missing(site, keys):
-    # plain serving could not run Llama 4 Maverick on one H100 (RFC-0015 NM-1): no overhead
+    # plain serving could not run Llama 4 Maverick on one H100 (RFC-0015 NM-1): no overhead for
+    # FlashProve; the placeholder holds no reference run on SASH's workload: not recorded
     assert keys["flashprove"]["overhead"] is None
     assert keys["sash"]["overhead"] is None
-    for cfg in site.view["configurations"]:
-        if cfg["kind"] == "prover":
-            f = cfg["figures"]["overhead_vs_serving_prove.session"]
-            assert f["null_reason"] == "not_measurable_on_profile"
+    figures = {
+        c["system"]: c["figures"]["overhead_vs_serving_prove.session"]
+        for c in site.view["configurations"]
+        if c["kind"] == "prover"
+    }
+    assert figures["flashprove"]["null_reason"] == "not_measurable_on_profile"
+    assert figures["sash"]["recorded"] is False
 
 
 def test_units_normalise(site):
@@ -103,20 +109,15 @@ def test_sort_words(site):
     assert set(w) == {"system", *site.build.COLS}
 
 
-def test_one_model(site):
-    # one table, Llama 4 Maverick, every benchmarked system in it; the two references
+def test_two_models(site):
+    # one table per model, largest first: Llama 4 Maverick (FlashProve), then Llama 3.1 8B
+    # (SASH); the two references
     tables = site.build.tables()
     assert [(site.build.MODEL_NAME[d], [c["system"] for c in rows]) for d, _, rows in tables] == [
-        ("Llama 4 Maverick", ["flashprove", "sash"])
+        ("Llama 4 Maverick", ["flashprove"]),
+        ("Llama 3.1 8B", ["sash"]),
     ]
     assert site.view["orders"]["reference"] == ["ref-serve", "ref-recompute"]
-
-
-def test_sorted_orders(keys):
-    # hand-computed from the printed figures: 18.78 MB < 19.80 GB, 3.120 s < 121.3 s
-    by = lambda col: sorted(("flashprove", "sash"), key=lambda s: keys[s][col])  # noqa: E731
-    assert by("proof_size") == ["flashprove", "sash"]
-    assert by("check_time") == ["flashprove", "sash"]
 
 
 def test_reference_cells(site):

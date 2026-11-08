@@ -52,6 +52,13 @@ TABLE = re.compile(
     re.S,
 )
 SECTION = re.compile(r'<section class="sec bench" id="[^"]+".*?</section>', re.S)
+# S6: a run of native tables under the native header, which heads the group
+NATIVES = re.compile(
+    r'<div class="natives" role="group" aria-labelledby="([^"]+)"><p class="sec-l nat" id="\1">'
+    r"([^<]*)</p>(.*?</section>)\n  </div>",
+    re.S,
+)
+NATIVE_HEADER = "Native workloads differ: rows are not a head-to-head comparison"
 HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
 HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
 PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
@@ -422,8 +429,10 @@ def _validated_claims(site: Build, system: str) -> None:
     after = plain(text[gap:first_figure])
     assert "quality gap" in after
     assert "residual" in after
-    if cfg["agreement"]["recorded"]:  # RFC-0015 RC-6: the rate beside them, outside the fold
-        assert 'class="plate" id="agree-' in text[gap:first_figure]
+    # RFC-0015 RC-6: the rate beside them, outside the fold, or why it has none
+    assert 'class="plate" id="agree-' in text[gap:first_figure]
+    if not cfg["agreement"]["recorded"]:
+        assert "Not recorded in these runs." in plain(text[gap:first_figure])
     pc = next((c["property_controls"] for c in configs if c.get("property_controls")), None)
     for p in props:
         _property_claims(site, system, p, pc)
@@ -810,27 +819,84 @@ def test_division_named(site: Build) -> None:
 
 
 def test_native_workloads_header(site: Build) -> None:
-    """S6: tables of different native workloads side by side (two workloads on one model) carry
-    the header above them; a model with one native table carries none, and a closed or open
-    table never does (it compares directly within its workload, RFC-0003 §Divisions)."""
-    sections = SECTION.findall(site.pages["index.html"])
-    header = "Native workloads differ: rows are not a head-to-head comparison"
-    models: dict[str, list[str]] = {}
-    for sec in sections:
-        name = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', sec)[1])  # type: ignore[index]
-        if re.search(r" (closed|open) division · ", plain(sec)):  # a closed or open table
-            assert header not in plain(sec)
-            continue
-        models.setdefault(name, []).append(sec)
-    side_by_side = [secs for secs in models.values() if len(secs) > 1]
-    if site.kind == "web":
-        assert not side_by_side
-        assert header not in site.pages["index.html"]
-        pytest.skip("the deployed release has one workload per model; the extras build has two")
-    assert side_by_side
-    for secs in side_by_side:  # once, above the first table of the model
-        assert [header in plain(s) for s in secs] == [True] + [False] * (len(secs) - 1)
-    assert site.pages["index.html"].count(header) == len(side_by_side)
+    """S6: tables of different native workloads side by side (two workloads on one model, or a
+    page across models) carry the header above them: the header heads a group holding them, once
+    here, since no closed or open table comes between native ones. A closed or open table never
+    counts toward it, carries it or sits in its group (it compares directly within its
+    workload, RFC-0003 §Divisions). Both builds hold native tables of two models (Llama 4
+    Maverick and Llama 3.1 8B); the extras build also a closed table, after them.
+    `test_native_header_by_hand` covers the counts the builds do not."""
+    index = site.pages["index.html"]
+    sections = SECTION.findall(index)
+    cfgs = provers(site.view)
+    division = {c["workload"]["id"]: c["workload"]["division"] for c in cfgs}
+    assert len(sections) == len(division)
+    groups = NATIVES.findall(index)
+    assert [(header, len(SECTION.findall(body))) for _, header, body in groups] == [
+        (NATIVE_HEADER, sum(d == "native" for d in division.values()))
+    ]
+    assert index.count(NATIVE_HEADER) == 1
+    assert index.index(NATIVE_HEADER) < index.index('<section class="sec bench"')
+    grouped = "".join(body for *_, body in groups)
+    for section in sections:
+        rows = [row_config(site.view, rid) for rid, *_ in ROW.findall(section)]
+        native = rows[0]["workload"]["division"] == "native"
+        assert (section in grouped) == native, rows[0]["workload"]["id"]
+        assert NATIVE_HEADER not in section
+    if site.kind == "extras":
+        assert "closed" in division.values()
+
+
+def _prover(system: str, workload: str, division: str, model: str) -> dict[str, Any]:
+    wl = {"id": workload, "division": division, "model": {"digest": model}}
+    return {"system": system, "position": 0, "workload": wl}
+
+
+@pytest.mark.parametrize(
+    ("configs", "headers", "grouped"),
+    [
+        # one native table and one closed table: no header
+        ([("a", "w-n", "native", "d2"), ("b", "w-c", "closed", "d2")], 0, []),
+        # two native tables and one closed table: the header once, over the native tables only
+        (
+            [("a", "w-big", "native", "d1"), ("a", "w-n", "native", "d2"),
+             ("b", "w-c", "closed", "d2")],
+            1,
+            [["big", "small-w-n"]],
+        ),
+        # a larger model's closed table between native ones: each run of natives is headed
+        (
+            [("a", "w-big", "native", "d1"), ("b", "w-o", "open", "d1"),
+             ("a", "w-n", "native", "d2")],
+            2,
+            [["big-w-big"], ["small"]],
+        ),
+    ],
+)  # fmt: skip
+def test_native_header_by_hand(
+    monkeypatch: pytest.MonkeyPatch,
+    configs: list[tuple[str, str, str, str]],
+    headers: int,
+    grouped: list[list[str]],
+) -> None:
+    """S6 on hand-made tables: the native header counts native tables only, and heads a group
+    of them that holds no closed or open table (`tables` orders them, `under_header` groups
+    them, as `build_index` does)."""
+    draw = renderer(ROOT).draw
+    state, overview = draw.state, draw.overview
+    monkeypatch.setattr(state, "V", {"facts": {"rows": {"a": {"name": "A"}, "b": {"name": "B"}}}})
+    monkeypatch.setattr(state, "MODELS", ["d1", "d2"])
+    monkeypatch.setattr(state, "MODEL_NAME", {"d1": "Big", "d2": "Small"})
+    monkeypatch.setattr(state, "PROVERS", [_prover(*c) for c in configs])
+    parts = [(overview.is_native(rows), f'\n  <section class="sec bench" id="{sid}"></section>')
+             for _, sid, rows in overview.tables()]  # fmt: skip
+    out = overview.under_header(parts)
+    assert out.count(NATIVE_HEADER) == headers
+    groups = NATIVES.findall(out)
+    assert [re.findall(r'id="([^"]+)"', body) for *_, body in groups] == grouped
+    assert all(header == NATIVE_HEADER for _, header, _ in groups)
+    natives = sum(native for native, _ in parts)
+    assert (headers > 0) == (natives > 1)
 
 
 def test_runs_left_out_listed(site: Build) -> None:
