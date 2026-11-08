@@ -117,7 +117,7 @@
       "rules": {
         "no": "The documentation says the settings give no meaningful soundness, for example a test-only setting; or the row is a reference, which has no soundness level by definition.",
         "not_stated": "No level stated for the configuration in the sources read, or not copied yet.",
-        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system.",
+        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system. A level stated without saying it is proven or conjectured is Partly until RFC-0016 Q10 is resolved.",
         "yes": "The documentation states a numeric soundness bound for the configuration the row reads and says it is proven, by hand or by machine, under named assumptions."
       }
     },
@@ -1126,7 +1126,7 @@
           "state": "yes"
         },
         "security_level": {
-          "note": "The page states the level and the hash-function assumption; it does not say the level is proven or conjectured. RFC-0016 has no rule for that case; Partly is read as a level stated without the proof Yes asks for.",
+          "note": "The page states the level and the hash-function assumption; it does not say the level is proven or conjectured. Partly follows the default of RFC-0016 Q10, open until the owner resolves it.",
           "quotes": [
             {
               "archive_url": "https://web.archive.org/web/20261108141405/https://attestable.com/blog/proving-llms-scale",
@@ -1140,7 +1140,7 @@
               "url": "https://attestable.com/blog/proving-llms-scale"
             }
           ],
-          "reason": "100 bits of security stated; not said to be proven.",
+          "reason": "100 bits of security stated; not said to be proven (RFC-0016 Q10).",
           "state": "partly"
         },
         "weights_hidden": {
@@ -1643,24 +1643,44 @@
           "state": "not_stated"
         },
         "security_level": {
-          "note": "Stated in code only, for the polynomial commitment; which commitment the default `jstprove` run uses is not stated in the sources read.",
-          "quotes": [
+          "aside": {
+            "quotes": [
+              {
+                "checked": true,
+                "checked_how": "pinned clone at 7c3cbbee",
+                "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
+                "decides": false,
+                "kind": "repository",
+                "label": "prover/poly_commit/src/lib.rs L7 · 7c3cbbee",
+                "lines": "L7",
+                "path": "prover/poly_commit/src/lib.rs",
+                "repo": "inference-labs-inc/JSTprove",
+                "text": "pub const PCS_SOUNDNESS_BITS: usize = 128;",
+                "url": "https://github.com/inference-labs-inc/JSTprove/blob/7c3cbbee83aaa01adde700673f00e317a4e902f9/prover/poly_commit/src/lib.rs#L7"
+              }
+            ],
+            "words": "128 soundness bits are set in code for the polynomial commitments that read the constant (Basefold, Orion), not for the default bn254 configuration."
+          },
+          "note": "The default `--curve` is `bn254` (docs/cli.md L35), which `ProofConfig::default()` maps to `Bn254Raw` (rust/jstprove_circuits/src/proof_config.rs L167-L170); `prover/poly_commit/src/raw.rs` does not read the constant, and no passage read states a level for that configuration.",
+          "quotes": [],
+          "reason": "No level stated for the default configuration.",
+          "sources_read": [
             {
-              "checked": true,
-              "checked_how": "pinned clone at 7c3cbbee",
               "commit": "7c3cbbee83aaa01adde700673f00e317a4e902f9",
-              "decides": true,
-              "kind": "repository",
-              "label": "prover/poly_commit/src/lib.rs L7 · 7c3cbbee",
-              "lines": "L7",
-              "path": "prover/poly_commit/src/lib.rs",
-              "repo": "inference-labs-inc/JSTprove",
-              "text": "pub const PCS_SOUNDNESS_BITS: usize = 128;",
-              "url": "https://github.com/inference-labs-inc/JSTprove/blob/7c3cbbee83aaa01adde700673f00e317a4e902f9/prover/poly_commit/src/lib.rs#L7"
+              "paths": [
+                "README.md",
+                "docs/*.md",
+                "prover/poly_commit/src/**/*.rs",
+                "rust/jstprove_circuits/src/proof_config.rs"
+              ],
+              "repo": "inference-labs-inc/JSTprove"
+            },
+            {
+              "retrieved": "2026-11-07",
+              "url": "https://arxiv.org/abs/2510.21024"
             }
           ],
-          "reason": "128 soundness bits set in code for the polynomial commitment.",
-          "state": "partly"
+          "state": "not_stated"
         },
         "weights_hidden": {
           "note": "The paper abstract speaks of not exposing sensitive data; it does not say model weights.",
@@ -2139,12 +2159,26 @@
           "state": "not_stated"
         },
         "no_trusted_party": {
+          "note": "The Intel TDX quote may be checked by any TDX quote verification service (e2e/README.md L50); the verifier script uses Phala's (vllm-proxy/verifiers/README.md L16). No rests on the NVIDIA dependency.",
           "quotes": [
             {
               "checked": true,
               "checked_how": "pinned clone at 25c25025",
               "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
               "decides": true,
+              "kind": "repository",
+              "label": "vllm-proxy/verifiers/README.md L14 · 25c25025",
+              "lines": "L14",
+              "path": "vllm-proxy/verifiers/README.md",
+              "repo": "nearai/private-ml-sdk",
+              "text": "Submits GPU evidence payload to NVIDIA NRAS (https://nras.attestation.nvidia.com) and verifies the nonce matches",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/vllm-proxy/verifiers/README.md?plain=1#L14"
+            },
+            {
+              "checked": true,
+              "checked_how": "pinned clone at 25c25025",
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "decides": false,
               "kind": "repository",
               "label": "e2e/README.md L41 · 25c25025",
               "lines": "L41",
@@ -2159,12 +2193,12 @@
               "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
               "decides": false,
               "kind": "repository",
-              "label": "vllm-proxy/verifiers/README.md L14 · 25c25025",
-              "lines": "L14",
-              "path": "vllm-proxy/verifiers/README.md",
+              "label": "e2e/README.md L50 · 25c25025",
+              "lines": "L50",
+              "path": "e2e/README.md",
               "repo": "nearai/private-ml-sdk",
-              "text": "Submits GPU evidence payload to NVIDIA NRAS (https://nras.attestation.nvidia.com) and verifies the nonce matches",
-              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/vllm-proxy/verifiers/README.md?plain=1#L14"
+              "text": "Intel verification: Theoretically, you can verify the Intel TDX quote with the value of intel_quote at anywhere that provide TDX quote verification service.",
+              "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/e2e/README.md?plain=1#L50"
             },
             {
               "checked": true,
@@ -2193,7 +2227,7 @@
               "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/README.md?plain=1#L3"
             }
           ],
-          "reason": "The check rests on NVIDIA's and Intel's attestation services.",
+          "reason": "The check submits GPU evidence to NVIDIA's attestation service (NRAS).",
           "state": "no"
         },
         "security_level": {
@@ -2243,13 +2277,13 @@
           "state": "not_stated"
         },
         "whole_output": {
-          "note": "The check is a signature by a key the attestation binds; it shows the response came from the attested enclave, not how it was computed.",
+          "note": "The signed text joins the sha256 of the HTTP request body and of the HTTP response body (e2e/README.md L71), and the verifier compares both hashes (vllm-proxy/verifiers/README.md L54). The sources read do not say that these bodies are the prompt and every output token of a request. The signature is kept in memory for 5 minutes (e2e/README.md L74).",
           "quotes": [
             {
               "checked": true,
               "checked_how": "pinned clone at 25c25025",
               "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
-              "decides": true,
+              "decides": false,
               "kind": "repository",
               "label": "e2e/README.md L71 · 25c25025",
               "lines": "L71",
@@ -2272,8 +2306,20 @@
               "url": "https://github.com/nearai/private-ml-sdk/blob/25c25025c556ab2f797eeda3bab433f38a8ffb7a/vllm-proxy/verifiers/README.md?plain=1#L54"
             }
           ],
-          "reason": "The signed text covers the request body and the response body.",
-          "state": "yes"
+          "reason": "Signs request and response hashes; prompt and output tokens not named.",
+          "sources_read": [
+            {
+              "commit": "25c25025c556ab2f797eeda3bab433f38a8ffb7a",
+              "paths": [
+                "README.md",
+                "e2e/README.md",
+                "vllm-proxy/README.md",
+                "vllm-proxy/verifiers/README.md"
+              ],
+              "repo": "nearai/private-ml-sdk"
+            }
+          ],
+          "state": "not_stated"
         }
       },
       "family": "attested",
@@ -2674,7 +2720,7 @@
           "state": "not_stated"
         },
         "weights_hidden": {
-          "note": "Stated for training; §2 adds \"our techniques immediately extend to inference\".",
+          "note": "Stated in the program setup for training; §2 adds \"While we focus on training, our techniques immediately extend to inference.\" and does not restate what the referee holds for inference. Kept No pending the owner's confirmation that the row reads the paper's own setting.",
           "quotes": [
             {
               "archive_url": "https://web.archive.org/web/20261108141349/https://arxiv.org/pdf/2502.19405v1",
@@ -2688,7 +2734,7 @@
               "url": "https://arxiv.org/pdf/2502.19405v1"
             }
           ],
-          "reason": "The referee holds the model's parameters.",
+          "reason": "For training, the referee holds the initial parameters; §2 says the techniques extend to inference.",
           "state": "no"
         },
         "whole_output": {

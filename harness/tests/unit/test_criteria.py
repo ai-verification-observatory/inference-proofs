@@ -247,22 +247,33 @@ def test_deciding_web_quote_not_own_source_fails() -> None:
 def test_deciding_code_file_quote_at_pin() -> None:
     """#336: a deciding quote may come from a code file of an own repository. It passes CRIT-2
     and CRIT-3 at its pin; it fails CRIT-2 off the pin and CRIT-3 once its repository is not
-    one of the row's own sources."""
+    one of the row's own sources. The cell is built here, so the test does not depend on what
+    the committed file reads."""
     repo, path = "inference-labs-inc/JSTprove", "prover/poly_commit/src/lib.rs"
     pin = COMMITTED["pins"][repo]
+    q: dict[str, Any] = {
+        "checked": True,
+        "checked_how": "fixture",
+        "commit": pin,
+        "decides": True,
+        "kind": "repository",
+        "label": "fixture",
+        "lines": "L7",
+        "path": path,
+        "repo": repo,
+        "text": "pub const PCS_SOUNDNESS_BITS: usize = 128;",
+        "url": f"https://github.com/{repo}/blob/{pin}/{path}#L7",
+    }
+    c = {"quotes": [q], "reason": "fixture", "state": "partly"}
     d = doc()
-    c = cell(d, "jstprove", "security_level")
-    q = c["quotes"][0]
-    assert (c["state"], q["decides"], q["repo"], q["path"]) == ("partly", True, repo, path)
-    assert (q["commit"], q["kind"]) == (pin, "repository")
-    assert pin in q["url"]
+    row(d, "jstprove")["cells"]["security_level"] = c
     assert found(d, "CRIT-2") == []
     assert found(d, "CRIT-3") == []
     other = "0" * 40
     q["commit"], q["url"] = other, q["url"].replace(pin, other)
     (f,) = found(d, "CRIT-2")
     assert f.message.startswith(f"{repo} is quoted at 000000000000")
-    d = doc()
+    q["commit"], q["url"] = pin, q["url"].replace(other, pin)
     row(d, "jstprove")["own_sources"] = [
         s for s in row(d, "jstprove")["own_sources"] if s.get("repo") != repo
     ]
