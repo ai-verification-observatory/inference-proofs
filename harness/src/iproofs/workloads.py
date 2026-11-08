@@ -14,11 +14,14 @@ import urllib.error
 import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from fractions import Fraction
 from pathlib import Path
 from typing import Protocol
 
+from iproofs import gguf
 from iproofs.derive import QuantityTree
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.gguf import ActiveWeights
 from iproofs.model import Corpus, ModelFile, Workload, load
 from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
 from iproofs.quantity import Grade, NullReason, SourceKind, Tier, Unit
@@ -88,13 +91,78 @@ def weight_bits(wl: Workload) -> float | None:
 
 
 def _weight_bits_problems(wl: Workload) -> list[str]:
-    """WB-2: a `file_size` basis lists weight files of `model.files`."""
+    """WB-2 and WB-5: a `file_size` or `computed` basis lists weight files of `model.files`."""
     wb = wl.precision.weight_bits
-    if wb is None or wb.basis != "file_size" or wb.files is None:
+    if wb is None or wb.files is None:
         return []
     listed = {f.path for f in wl.model.files}
     unknown = [path for path in wb.files if path not in listed]
     return [f"precision.weight_bits.files {unknown} are not in model.files"] if unknown else []
+
+
+def stated_tolerance(count: int) -> Fraction:
+    """RFC-0003 WB-5: half a unit of the last non-zero digit of a stated count, the precision
+    the count is stated to: 17,000,000,000 ("17B") gives 500,000,000; an exact count gives 1/2."""
+    unit = 1
+    while count and count % (unit * 10) == 0:
+        unit *= 10
+    return Fraction(unit, 2)
+
+
+def check_computed_bits(wl: Workload, result: ActiveWeights) -> list[str]:
+    """RFC-0003 WB-5: the record's `bits` equal the method's result in binary64, and the active
+    weights the method counts reproduce `model.parameters.active_per_token` within
+    `stated_tolerance`, which checks the method against the model's own documentation."""
+    wb = wl.precision.weight_bits
+    if wb is None or wb.basis != "computed":
+        return [f"{wl.id}: precision.weight_bits has no computed basis"]
+    problems = []
+    if wb.bits != result.bits:
+        problems.append(
+            f"{wl.id}: precision.weight_bits.bits {wb.bits!r} != {result.bits!r} computed by"
+            f" {wb.method} from the files"
+        )
+    stated = wl.model.parameters.active_per_token
+    if abs(result.active_weights - stated) > stated_tolerance(stated):
+        problems.append(
+            f"{wl.id}: {wb.method} counts {float(result.active_weights):.0f} active weights,"
+            f" outside {stated} +/- {float(stated_tolerance(stated)):g}"
+            " (model.parameters.active_per_token)"
+        )
+    return problems
+
+
+def _gguf_files(wl: Workload) -> list[ModelFile]:
+    wb = wl.precision.weight_bits
+    if wb is None or wb.basis != "computed" or wb.files is None:
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: precision.weight_bits is not computed")
+    if wb.method != gguf.METHOD:
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: unknown weight-bits method {wb.method}")
+    sizes = {f.path: f for f in wl.model.files}
+    return [sizes[path] for path in wb.files]
+
+
+def computed_bits(wl: Workload, sources: Callable[[ModelFile], gguf.ByteSource]) -> ActiveWeights:
+    """Rerun the record's WB-5 method over the headers of its listed files and check the
+    result (`check_computed_bits`); a difference is a `config` error. `sources` gives the bytes
+    of one listed file: the verified local copy, or range reads on the pinned revision."""
+    headers = [gguf.read_header(sources(f), f.bytes) for f in _gguf_files(wl)]
+    result = gguf.active_mean_bits(headers)
+    problems = check_computed_bits(wl, result)
+    if problems:
+        raise IProofsError(ErrorKind.CONFIG, "\n".join(problems))
+    return result
+
+
+def hub_sources(wl: Workload) -> Callable[[ModelFile], gguf.ByteSource]:
+    """Range reads of the listed files at the pinned revision: headers only, no weights."""
+    return lambda f: gguf.http_source(
+        gguf.hub_url(wl.model.source.repo, wl.model.revision, f.path), f.bytes
+    )
+
+
+def local_sources(directory: Path) -> Callable[[ModelFile], gguf.ByteSource]:
+    return lambda f: gguf.file_source(directory / f.path)
 
 
 def asserted_inputs(wl: Workload) -> dict[str, QuantityTree]:
@@ -342,7 +410,8 @@ def ensure_model(
     Absent: download the exact file list into a temporary sibling (`retry` wraps the call,
     RFC-0010), check it, rename it into place and drop write permission. Present: rehash it;
     a mismatch moves the entry to `quarantine/` and fails with `integrity`, never refetching.
-    `token` is `HF_TOKEN`, passed to `download` and nowhere else."""
+    `token` is `HF_TOKEN`, passed to `download` and nowhere else. A `computed` weight width is
+    then recomputed from the verified files (RFC-0003 WB-5); a difference is `config`."""
     target = cache / "models" / wl.model.digest.removeprefix("sha256:")
     if target.is_dir():
         try:
@@ -353,6 +422,7 @@ def ensure_model(
             _writable(target)
             target.rename(quarantine)
             raise
+        _recheck_bits(wl, target)
         return target
     tmp = target.with_name(f".tmp-{target.name}-{os.getpid()}")
     shutil.rmtree(tmp, ignore_errors=True)
@@ -369,7 +439,14 @@ def ensure_model(
     tmp.rename(target)
     for p in [*target.rglob("*"), target]:
         p.chmod(p.stat().st_mode & ~(stat.S_IWUSR | stat.S_IWGRP | stat.S_IWOTH))
+    _recheck_bits(wl, target)
     return target
+
+
+def _recheck_bits(wl: Workload, directory: Path) -> None:
+    wb = wl.precision.weight_bits
+    if wb is not None and wb.basis == "computed":
+        computed_bits(wl, local_sources(directory))
 
 
 def _writable(directory: Path) -> None:
