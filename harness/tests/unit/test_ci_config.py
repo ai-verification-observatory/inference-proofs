@@ -84,3 +84,17 @@ def test_shards_cover_the_workflow_matrix() -> None:
     shard = ci["jobs"]["test-shard"]
     assert shard["env"]["IPROOFS_SHARD"].endswith(f"/{len(shard['strategy']['matrix']['shard'])}")
     assert ci["jobs"]["tests"]["needs"] == "test-shard"
+
+
+def test_images_workflow_offers_every_adapter() -> None:
+    """RFC-0014 B7: the images workflow can build every adapter image a run pins, which is every
+    system with a Dockerfile except the test systems CI rebuilds itself."""
+    doc = yaml.safe_load((ROOT / ".github/workflows/images.yml").read_text())
+    options = doc[True]["workflow_dispatch"]["inputs"]["system"]["options"]  # YAML 1.1: on is True
+    adapters = sorted(
+        p.parent.name
+        for p in (ROOT / "systems").glob("*/Dockerfile")
+        if yaml.safe_load((p.parent / "system.yaml").read_text())["kind"] != "test"
+    )
+    assert sorted(options) == adapters
+    assert "ref-serve-gguf" in options

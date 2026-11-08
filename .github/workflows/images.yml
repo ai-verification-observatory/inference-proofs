@@ -10,7 +10,7 @@ on:
         description: "systems/<name> to build"
         required: true
         type: choice
-        options: [ref-serve, ref-recompute, sash, flashprove]
+        options: [ref-serve, ref-serve-gguf, ref-recompute, sash, flashprove]
 
 permissions:
   contents: read
