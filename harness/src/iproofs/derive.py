@@ -553,7 +553,7 @@ def project_campaign(
     figures = _external_figures(root)
     out = []
     for system, workload in sorted({(s, w) for s, w, _ in figures if not s.startswith("ref-")}):
-        ref = _reference_for(figures, workload)
+        ref = _reference_for(root, figures, workload)
         wanted = [(system, "whole_wall_seconds"), (system, "commit_seconds"),
                   (system, "prove_session_seconds"), (ref, "prove_session_seconds")]  # fmt: skip
         inputs = [
@@ -590,8 +590,17 @@ def _external_figures(root: Path) -> dict[tuple[str, str, str], Input]:
     return found
 
 
-def _reference_for(figures: Mapping[tuple[str, str, str], Input], workload: str) -> str:
-    """The reference system with figures for this workload (ref-serve first), or ref-serve."""
+def _reference_for(root: Path, figures: Mapping[tuple[str, str, str], Input], workload: str) -> str:
+    """The workload's plain-serving system (RFC-0015 SRV-7: the one serve-role system its
+    `systems` list names) when its workload file names one; otherwise the reference system with
+    figures for this workload (ref-serve first), or ref-serve."""
+    path = root / "workloads" / f"{workload}.yaml"
+    listed = load_yaml(path).get("systems") if path.is_file() else None
+    for name in listed if isinstance(listed, list) else []:  # as workloads.serving_system
+        system = root / "systems" / str(name) / "system.yaml"
+        doc = load_yaml(system) if system.is_file() else {}
+        if doc.get("kind") == "reference" and doc.get("reference_role") == "serve":
+            return str(name)
     systems = sorted({s for (s, w, _) in figures if w == workload and s.startswith("ref-")})
     return "ref-serve" if "ref-serve" in systems or not systems else systems[0]
 

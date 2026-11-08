@@ -54,6 +54,22 @@ def test_project_campaign_hand_computed(tmp_path: Path) -> None:
     assert config["missing"] == []
 
 
+def test_reference_is_the_workloads_serving_system(tmp_path: Path) -> None:
+    """RFC-0015 SRV-7: the reference input is the serve-role system the workload names
+    (ref-serve-gguf for Maverick), not ref-serve; without its figures it is the one missing."""
+    root = fixture(tmp_path)
+    (root / "workloads").mkdir()
+    (root / "workloads/w1.yaml").write_text(yaml.safe_dump({"systems": ["sys-a", "ref-gguf"]}))
+    (root / "systems/ref-gguf").mkdir()
+    (root / "systems/ref-gguf/system.yaml").write_text(
+        yaml.safe_dump({"kind": "reference", "reference_role": "serve"})
+    )
+    out = project_campaign("v0.1", root)
+    config: Any = out["configurations"][0]  # type: ignore[index]
+    assert config["missing"] == ["ref-gguf:w1:prove_session_seconds"]
+    assert config["campaign_gpu_seconds"]["null_reason"] == "missing_input"
+
+
 def test_missing_whole_wall_gives_missing_input(tmp_path: Path) -> None:
     root = fixture(tmp_path, whole_wall=False)
     path = root / "systems/sys-a/external.yaml"
