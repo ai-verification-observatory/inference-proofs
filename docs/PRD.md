@@ -75,7 +75,7 @@ Plus two reference rows per workload, so every proof cost reads against somethin
 
 What v0.1 does not do: compare SASH and FlashProve on one model. Neither supports the other's model at these pins. v0.1 publishes both on their native workloads, side by side, with normalised metrics (cost per proved token at the reference price, overhead against plain serving, prover time per bit of active weights) and the claim cards that explain why the headline numbers differ.
 
-v0.1 also defines one closed workload, `l31-8b-c1024`: Llama-3.1-8B W8A8 at SASH's shorter shape, with one fixed claim class, where rows compare directly. Its rows publish once a second system with that class runs it through an adapter with no upstream change; of the systems read, SASH alone runs it today ([RFC-0003 §Closed workloads](../rfcs/0003-workloads.md#closed-workloads), [`workloads/README.md`](../workloads/README.md#closed-workloads)). More common workloads come in v0.2 (RFC-0003).
+v0.1 also defines one closed workload, `l31-8b-c1024`: Llama-3.1-8B W8A8 at SASH's shorter shape, with one fixed claim class, where rows compare directly. Its rows publish once a second system with that class runs it through an adapter with no upstream change (RFC-0003 Q7, a default until the owner resolves it; the release freeze enforces it). Of the systems read, SASH alone runs it today; the sources of TOPLOC, Verde, the Private ML SDK and zkPyTorch name the model, and none of them has a claim card ([RFC-0003 §Closed workloads](../rfcs/0003-workloads.md#closed-workloads), [`workloads/README.md`](../workloads/README.md#closed-workloads)). More common workloads come in v0.2 (RFC-0003).
 
 ## 7. Requirements
 
