@@ -112,3 +112,66 @@ def test_upload_to_a_mounted_bucket_prunes_a_stopped_run(tmp_path: Path) -> None
         assert not (copied / part).exists(), part
     assert (folder / "job.log").is_file()
     assert "hf_secret_x" not in (folder / "job.log").read_text() + log
+
+
+def test_keep_io_is_refused_for_flashprove_before_the_probe(tmp_path: Path) -> None:
+    """keep-io uploads io/ and the commitment store; FlashProve's hold a weights copy and the
+    prover's secret key, so the step is refused before anything is installed."""
+    repo, head = checkout(tmp_path)
+    done = job(repo, "run", "flashprove", "fp-maverick-w1024-b1:1:controls:keep-io",
+               IPROOFS_COMMIT=head)  # fmt: skip
+    assert done.returncode == 2
+    log = log_of(repo, "upload: skipped")
+    assert "keep-io is refused for flashprove" in log
+    assert "probe exit" not in log
+
+
+RUN_PATH = "runs/x/dev-results/v0.1/sash/r-1"
+
+
+@pytest.mark.parametrize(
+    ("args", "bucket", "message"),
+    [
+        (["sash", RUN_PATH, "0x1"], True, "usage: hf-job.sh controls"),
+        (["sash", RUN_PATH, "0x1", "C1"], False, "set IPROOFS_UPLOAD_DIR"),
+        (["sash", RUN_PATH.replace("sash", "flashprove"), "0x1", "C1"], True, "RUN_PATH must be"),
+        (["sash", RUN_PATH, "0x1", "C1"], True, "no kept run at"),
+    ],
+)
+def test_controls_refuses_before_the_probe(
+    tmp_path: Path, args: list[str], bucket: bool, message: str
+) -> None:
+    """A controls job reads a run kept with keep-io from the mounted bucket; what it cannot
+    run is refused before the probe, the install and any copy."""
+    repo, head = checkout(tmp_path)
+    (tmp_path / "bucket").mkdir()
+    env = {"IPROOFS_UPLOAD_DIR": str(tmp_path / "bucket")} if bucket else {}
+    done = job(repo, "controls", *args, IPROOFS_COMMIT=head, **env)
+    assert done.returncode == 2
+    log = log_of(repo, "upload:")
+    assert message in log
+    assert "probe exit" not in log
+
+
+def test_controls_part_and_logs_are_uploaded(tmp_path: Path) -> None:
+    """What a controls job leaves in out/controls (its part and the run's logs) goes to the
+    bucket with the small files, before the run directories."""
+    repo, _ = checkout(tmp_path)
+    part = repo.parent / "out/controls/controls-part-0000000000000001-abcdefabcdef.json"
+    part.parent.mkdir(parents=True)
+    part.write_text("{}")
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    done = job(repo, "probe", IPROOFS_COMMIT="0" * 40, IPROOFS_UPLOAD_DIR=str(bucket))
+    assert done.returncode == 2
+    log_of(repo, "upload: done")
+    (folder,) = (bucket / "runs").iterdir()
+    assert (folder / "controls" / part.name).is_file()
+
+
+def test_the_controls_step_runs_one_part_in_this_container() -> None:
+    text = SCRIPT.read_text()
+    assert '"$IP" controls "$RUN" --hosted "${extra[@]}"' in text
+    assert '--only "$IDS" --seed "$SEED"' in text
+    assert 'extra=(--gpu "$GPU")' in text  # prover-side ids bind the GPU; none: a verifier host
+    assert 'has_opt "${opts:-}" keep-io && extra+=(--keep-io)' in text

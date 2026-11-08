@@ -105,8 +105,12 @@ What happens inside, in order (`hf-job.sh`):
 4. **Binding check.** The CPUs `iproofs run --gpu` would bind on `prover-h200-hosted` (`GpuEnvironment`, RFC-0006 §CPU and memory selection). It fails when the GPU has no NUMA node or fewer than 15 usable CPUs sit on it; `iproofs run` then refuses before any step, and `--allow-nonconforming` does not change that. A `run` job stops here, before any weights are fetched.
 5. **Self-test.** `iproofs machine-record --hosted --selftest` (RFC-0011), into `out/selftest.json` and the results directory.
 6. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
-7. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite]`, under `timeout` so it stops 15 minutes before the script's budget. A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
+7. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite] [--keep-io]`, under `timeout` so it stops 15 minutes before the script's budget (60 minutes with `keep-io`, see stage 2). A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
 8. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the run directories, then the log again.
+
+A STEP is `WORKLOAD:REPETITIONS`, with options after further colons: `controls` runs the control suite in the job (`--control-suite`), and `keep-io` keeps the completed run directory's `io/` (prompts, adapter outputs, state, proofs) and commitment store (`--keep-io`), so both are uploaded and a later `controls` job can run from the bucket (stage 5). The job log prints the size of each kept directory. `keep-io` is refused for FlashProve before the probe: its `io/` holds a copy of the weights and its commitment store the prover's secret key.
+
+`hf-job.sh controls SYSTEM RUN_PATH SEED ID[,ID...]` runs one part of a stored run's control suite ([RFC-0008 §Split suites](../../rfcs/0008-negative-controls.md#split-suites)). Before the probe it refuses a missing bucket mount, a `RUN_PATH` other than `runs/<folder>/dev-results/<release>/SYSTEM/<run id>`, and a run without `run.json`, `io/proofs` and `commitment/` (a run made without `keep-io`). Then steps 1 to 3; with a GPU, steps 4 and 5 and `fetch-model` of the run's workload; without one, the job is a verifier host and skips them. It copies the run directory from the bucket to the job's disk, runs `iproofs controls <copy> --hosted [--gpu <index>] --only ID[,ID...] --seed SEED` (the copy is never uploaded), and copies the part file and the run's logs to `out/controls/`, which the upload sends with the small files. Exit 0: the part is written; 2: refused (for example a prover-side id on a verifier host); 124 or 137: stopped at the deadline, no part. The dataset fallback is not supported for this mode.
 
 ## Stage 1a: the containers without a GPU (under 0.01 USD)
 
@@ -149,13 +153,13 @@ Read, in each job's log or `probe.json`:
 
 ## Stage 2: SASH smoke on `h200` (estimate 41.84 to 51.96 USD, cap 60 USD)
 
-One repetition, no controls:
+One repetition, no controls in the job, its proofs kept for the control jobs of stage 5:
 
 ```sh
-iproofs_job h200 43200 "$SASH_IMAGE" sash-c1024-r1 run sash sash-l31-8b-c1024:1
+iproofs_job h200 43200 "$SASH_IMAGE" sash-c1024-r1 run sash sash-l31-8b-c1024:1:keep-io
 ```
 
-Timeout 12 h (43,200 s): cap 12 h x 5.00 = 60.00 USD. The script's runs must end by 41,700 s after it starts (43,200 less 600 and 900). Estimate, from the one H100 record of this workload and SASH's files, all on an H100, none on an H200:
+Timeout 12 h (43,200 s): cap 12 h x 5.00 = 60.00 USD. With `keep-io` the script keeps 3,600 s for the upload instead of 900, so its runs must end by 39,000 s after it starts (43,200 less 600 and 3,600). The upload then holds the proof: 1,639 parts and 44,638,531,893 bytes in the H100 run (`manifest.json` of the run named below, measured, n = 1), plus the run's `io/state`, whose size no record states (the job log prints it). 3,600 s is enough at a bucket write speed of 12.4 MB/s or more, an assumption: the provider documents no speed. A run whose upload does not finish leaves a partial directory in the bucket; a control job then fails the proof digest check (RFC-0014) and runs nothing. The bucket bills that storage above its free allowance ([hf.co/storage](https://huggingface.co/storage)). If stage 2 already ran without `keep-io`, its proofs and commitment store are not in the bucket (the runner deletes them at the run's final write unless `--keep-io`, RFC-0010) and no control job can run from it; give `keep-io` to stage 4.2 instead and run stage 5 on that run. Estimate, from the one H100 record of this workload and SASH's files, all on an H100, none on an H200:
 
 | Part | Seconds | Source |
 |---|---|---|
@@ -166,7 +170,7 @@ Timeout 12 h (43,200 s): cap 12 h x 5.00 = 60.00 USD. The script's runs must end
 | pull, clone, install, 16.1 GB of weights, self-test | 1,200 | assumption |
 | **total** | **30,125** (8.37 h) | 8.37 h x 5.00 USD/h = 41.84 USD |
 
-If `commit` and `prove` are CPU-bound and slow by 24/15 with 15 prover CPUs instead of 24 (an assumption the other way), they take 7,283 s more: 37,408 s (10.39 h), 51.96 USD. The deadline leaves 4,292 s above that for `verify` and `verify.single_thread` running longer than assumed; beyond it the run is stopped at the deadline and recorded so. Issue #142 estimated about 7 h for a self-tested job on the H100.
+If `commit` and `prove` are CPU-bound and slow by 24/15 with 15 prover CPUs instead of 24 (an assumption the other way), they take 7,283 s more: 37,408 s (10.39 h), 51.96 USD. The deadline leaves 1,592 s above that for `verify` and `verify.single_thread` running longer than assumed (4,292 s without `keep-io`); beyond it the run is stopped at the deadline and recorded so. Issue #142 estimated about 7 h for a self-tested job on the H100.
 
 ## Stage 3: FlashProve smoke on `h200x2` (estimate 12.24 to 19.31 USD, cap 25 USD)
 
@@ -202,7 +206,7 @@ iproofs_job h200x2 14400 "$FP_IMAGE" fp-b1-r2-ctl run flashprove fp-maverick-w10
 
 Timeout 4 h: cap 40.00 USD; the runs must end by 12,900 s. Estimate: 600 + (232 to 774) + 232 s of overhead, b1 2 x (3,344 to 4,074) s, controls about 300 s (assumption: the verifier-side controls and their twins call `cp_verify`, about 21 s on one thread upstream, FlashProve README; C3 and P1 report `not_applicable`, see below): 8,052 to 10,054 s (2.24 to 2.79 h), 22.37 to 27.93 USD. With `commit` slower by 24/15 (assumption, as in stage 3): up to 12,600 s, 35.00 USD.
 
-**4.2 SASH: a second repetition on `h200`**, the same command as stage 2 with the label `sash-c1024-r2`: cap 60.00 USD, estimate 41.84 to 51.96 USD.
+**4.2 SASH: a second repetition on `h200`**, the same command as stage 2 with the label `sash-c1024-r2` and without `keep-io` (controls run once per configuration, RFC-0008), unless stage 2 did not complete with its proofs kept: cap 60.00 USD, estimate 41.84 to 51.96 USD.
 
 **4.3 FlashProve on `h200x2`: one b24 repetition**, only if the spend so far is at most 165.00 USD:
 
@@ -228,8 +232,82 @@ Stages 1a to 4.2 fit in 200 USD even if every job runs to its timeout (190.01 US
 
 Not on Jobs, and why:
 
-- **SASH's control suite.** Its verifier-side controls and their honest twins are about 20 `boundary-grid --verify` calls of about an hour each (3,600 s or more, above), and its six registered `weakened_prover` controls each prove again (5,768 s on the H100) and verify: well over 30 h, beyond the budget. It runs on the bare-metal node.
 - **C3 and P1 (perturbed weights).** `iproofs controls --prepare-perturbed` runs the adapter under docker only, so on Jobs no perturbed commitment exists and both controls report `not_applicable` (RFC-0008). They run on the bare-metal node.
+
+## Stage 5: SASH's control suite in parallel jobs (estimate 138.73 to 167.57 USD, cap 295.00 USD)
+
+Stage 5 is outside the 200 USD plan above: the owner sets its budget before the first job, and the stop rule applies with that figure in place of 200.00 USD. It runs SASH's whole control suite against the stage 2 run (or the first completed SASH run kept with `keep-io`), split by [RFC-0008 §Split suites](../../rfcs/0008-negative-controls.md#split-suites) into eleven jobs that run at the same time, instead of one job of 30 h or more, and merges their parts into the run's `controls.json`. Every control keeps its honest twin and its own seeded mutations, so the merged file is the one a single run with the same seed writes (INV-CTRL-7). FlashProve's suite stays inside its run job (stage 4.1, about 300 s of controls, an assumption there), and `keep-io` is refused for it (job command, above).
+
+The suite (`systems/sash/controls.yaml`, RFC-0008) on a SASH run (one request, batch size 1, one proof):
+
+| Controls | Side | Applicable on this run | Verify calls | Weights |
+|---|---|---|---|---|
+| C1, C2, C5, C8 | verifier | yes | 2 each: twin and trial | no |
+| C6 | verifier | yes | 6: twin and five trials, in one part | no |
+| C3 | verifier | no: no perturbed commitment on Jobs (below) | 0 | no; on a host that has one, C3 reads only its stored commitment record |
+| C4, C7 | verifier | no: one request, and batch size 1 | 0 | no |
+| P1, P2 | prover | no: no perturbed weights on Jobs; one precision | 0 | yes, resolved before the not-applicable check |
+| the six `sash-unsound-*` controls | prover | yes | 2 each: twin and the control's proof | yes: each proves again |
+
+A verify call never sees the weights (RFC-0005: `verify` gets no `/models`), so the verifier-side jobs fetch none. A verifier-side job binds the 8 CPUs of `verifier-cpu` (`reference/v0.1.yaml`) on `cpu-xl`, 16 vCPU, 124 GB, 1,000 GB of disk, 1.00 USD per hour (provider list, Flavors above); the harness refuses a host with fewer than 8 usable CPUs, and `cpu-performance` or another CPU flavor works too if `hf jobs hardware` shows 8 or more vCPUs and the disk below. A prover-side job runs on `h200`, the run's profile `prover-h200-hosted`, and fetches the 16.1 GB of weights. The harness refuses a prover-side id on a host without a GPU before any call, so a prove that cannot run there never reads as `prover_failed`.
+
+Disk, from the 44.6 GB proof (stage 2): the copy of the run, plus one call's copy at a time, plus each mutated proof (five for C6): about 312 GB for the C6 job, under 140 GB for the others, plus the run's `io/state` (its size is in the stage 2 log). `cpu-xl` has 1,000 GB and `h200` 3,000 GB.
+
+The seed: draw it once, write it in the campaign notes with the run's bucket folder, and give the same value to every job (SPLIT-1). It is not secret; `controls.json` records it.
+
+```sh
+SEED=0x$(python3 -c 'import os; print(os.urandom(8).hex())')   # once; 16 hex digits
+R1=runs/<the stage 2 folder>/dev-results/v0.1/sash/<run id>     # from hf buckets list
+ctl() {  # FLAVOR TIMEOUT_SECONDS LABEL IDS
+  iproofs_job "$1" "$2" "$SASH_IMAGE" "sash-ctl-$3" controls sash "$R1" "$SEED" "$4"
+}
+# wave 1: the five verifier-side jobs and one prover-side job, at once
+ctl cpu-xl 21600 c1 C1,C3,C4,C7
+ctl cpu-xl 21600 c2 C2
+ctl cpu-xl 21600 c5 C5
+ctl cpu-xl 21600 c8 C8
+ctl cpu-xl 57600 c6 C6
+ctl h200   30600 p-residual P1,P2,sash-unsound-skip-residual-stream
+# wave 2: once p-residual has run 3 h without exiting (its weights, binding check and weakened
+# prove have started; a failed prove ends the job early, as prover_failed)
+ctl h200   30600 p-layer    sash-unsound-skip-layer-boundary
+ctl h200   30600 p-kv       sash-unsound-skip-kv-boundary
+ctl h200   30600 p-argmax   sash-unsound-skip-argmax
+ctl h200   30600 p-embed    sash-unsound-skip-embedding
+ctl h200   30600 p-lax      sash-unsound-argmax-lax
+```
+
+The job image is the pinned SASH image on both flavors: `iproofs controls --hosted` refuses a run made with another image, and the verifier runs on the CPU (SIMD backend, `systems/sash/README.md` §verify). Check that Jobs accepts a 16 h `--timeout` (`hf jobs run --help` takes `s`, `m`, `h` or `d`) before wave 1.
+
+Timeouts and costs, per job. Every duration here is an assumption from H100 records, none measured on these flavors: a verify call takes 3,600 s (the H100 run's `verify` on 8 CPUs was stopped at its 3,600 s limit, a lower bound, stage 2), and timeouts allow 9,000 s per call (2.5 times that); a weakened prove takes 5,768 s (the H100 run's `prove`, with the kernel build, measured, tier reported, n = 1), or 9,229 s if CPU-bound by 24/15 (stage 2); the pull, clone, install and copy of the run take 1,200 s on `cpu-xl`, and 1,800 s on `h200` with the binding check, self-test and weights. Each timeout adds 600 s for the pull and 900 s for the upload.
+
+| Job | Flavor | Calls | Estimate (s) | Estimate (USD) | Timeout (s) | Cap (USD) |
+|---|---|---|---|---|---|---|
+| c1, c2, c5, c8 (4 jobs) | `cpu-xl` | 2 | 1,200 + 2 x 3,600 = 8,400 | 2.33 each, 9.33 | 21,600 (1,200 + 2 x 9,000 + 1,500 = 20,700, rounded up to 6 h) | 6.00 each, 24.00 |
+| c6 | `cpu-xl` | 6 | 1,200 + 6 x 3,600 = 22,800 | 6.33 | 57,600 (1,200 + 6 x 9,000 + 1,500 = 56,700, rounded up to 16 h) | 16.00 |
+| p-residual, p-layer, p-kv, p-argmax, p-embed, p-lax (6 jobs) | `h200` | 2, after one prove | 1,800 + 5,768 + 2 x 3,600 = 14,768, to 18,229 with the 24/15 prove | 20.51 to 25.32 each, 123.07 to 151.91 | 30,600 (1,800 + 9,229 + 2 x 9,000 + 1,500 = 30,529, rounded up to 8.5 h) | 42.50 each, 255.00 |
+| **total** | | | | **138.73 to 167.57** | | **295.00** |
+
+Wave 1 caps total 82.50 USD (estimate 36.18 to 40.98 USD). With everything at once, the suite's wall time is that of its longest job: about 6.3 h for c6 on the estimates, against 30 h or more in one job. A `controls` job prints no line between `controls ...` and `controls exit`, so it is not stuck before its timeout (stop rule 5). A job stopped at its deadline writes no part: run the same `ctl` line again, with the same seed (SPLIT-6); the stopped job's log stays in the bucket and the spend log. A control whose call failed has its `error` outcome in its part and is not rerun.
+
+The merge, on the owner's machine in the checkout (no cost; it reads `run.json` and `manifest.json` of the run and the parts, nothing else):
+
+```sh
+D=<a directory outside the checkout>; RUN_ID=<run id>
+mkdir -p "$D/dev-results/v0.1/sash/$RUN_ID" "$D/parts"
+for f in run.json manifest.json; do
+  hf buckets cp "hf://buckets/$NS/iproofs-dev-runs/$R1/$f" "$D/dev-results/v0.1/sash/$RUN_ID/$f"
+done
+hf buckets list "$NS/iproofs-dev-runs/runs" -h     # the eleven folders runs/<UTC>-sash-ctl-<label>
+for folder in <each of the eleven folders>; do
+  hf buckets sync "hf://buckets/$NS/iproofs-dev-runs/runs/$folder/controls" "$D/parts/$folder"
+done
+.venv/bin/iproofs controls "$D/dev-results/v0.1/sash/$RUN_ID" --merge "$D"/parts/*/controls-part-*.json
+hf buckets cp "$D/dev-results/v0.1/sash/$RUN_ID/controls.json" \
+  "hf://buckets/$NS/iproofs-dev-runs/runs/$(date -u +%Y%m%dT%H%M%SZ)-sash-ctl-merged/controls.json"
+```
+
+The merge refuses parts of another run, seed, image, profile, verifier CPU count or harness commit, a control in two parts, and a control in no part (it names the missing ids: run their job again). Every job must therefore use the same `IPROOFS_COMMIT`. An `accepted` outcome where rejection is expected sets `disclosure_pending` (RFC-0008 §Disclosure): follow that section before quoting anything from the file.
 
 ## Stop rule
 
@@ -237,10 +315,10 @@ Before starting any job, and after each one ends:
 
 1. Read the spend: [huggingface.co/settings/billing](https://huggingface.co/settings/billing), section Compute Usage, is the authority. Cross-check with `hf jobs ps -a` and `hf jobs inspect <job id>` for each job: its billed minutes times its flavor's per-minute price.
 2. Write the job in the spend log below, with its pull time (creation time against the log's first line).
-3. Start the next job only if the spend so far plus that job's cap is at most 200.00 USD. Otherwise stop: the rest of the plan moves to the bare-metal node.
+3. Start the next job only if the spend so far plus that job's cap is at most 200.00 USD (for stage 5, the budget the owner set for it). Otherwise stop: the rest of the plan moves to the bare-metal node.
 4. Stop and look before spending more when a job fails for a reason not yet understood (a `FAIL` row, a failed binding check, a harness error, an exit other than 0 or 4). The next job is a probe of the question (stage 1a or 1), not a rerun of the same job. Never rerun a failed run to replace it; a rerun is a new repetition and the failed one stays recorded (AGENTS.md rule 5).
 5. Cancel a job (`hf jobs cancel <job id>`) whose log shows it stuck (no new line for longer than the longest step estimated above) rather than letting it run to its timeout. A cancelled job does not upload; its billed minutes still count.
-6. Never add a flag that weakens a system's statement to make a job pass (AGENTS.md rule 4); the only runs with such flags are the registered controls of `--control-suite`.
+6. Never add a flag that weakens a system's statement to make a job pass (AGENTS.md rule 4); the only runs with such flags are the registered controls of `--control-suite` and of stage 5's `controls` jobs.
 
 Spend log (keep it with the campaign notes, not in the repository; no job IDs or account names go into the repository, AGENTS.md rule 7):
 
