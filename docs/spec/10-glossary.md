@@ -76,7 +76,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="overhead"></a>**Overhead.** The mean plain-serving rate of a workload over the mean rate of a proving system on it, same workload version, profile, phase and batch size (`D-OVERHEAD-S`). One of the two figures that compare provers across models; the other is [prover time per bit of active weights](#prover-time-per-bit). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md), [RFC-0015](../../rfcs/0015-reference-rows.md).
 
-<a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines `prover-h100` and `verifier-cpu`. Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
+<a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines the reference `prover-h200`, its hosted form `prover-h200-hosted`, `prover-h100`, `prover-h100-hosted` and `verifier-cpu`. Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
 
 <a id="proof"></a>**Proof.** In this project, the set of files (parts) that one `verify` call checks for one request, released atomically as `/io/proofs/<proof_id>/`. For a segment-grid system it is the set of segment proofs for one sequence plus whatever the grid check needs. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 

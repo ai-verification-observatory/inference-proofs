@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from iproofs import adapter as adapter_mod
 from iproofs import cli
 from iproofs.adapter import HostedRunner, image_environment
 from iproofs.errors import IProofsError
@@ -200,10 +201,10 @@ def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     """The fixture host has four CPUs: one prover and one verifier CPU stand in for 24 and 8."""
     from iproofs import provenance, runner  # noqa: PLC0415
 
-    small = functools.partial(provenance.select_cpus, n_prover=1, n_verifier=1)
+    small = functools.partial(provenance.select_cpus, n_verifier=1)
     monkeypatch.setattr(runner, "select_cpus", small)
     host = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:17:00.0"})
-    env = GpuEnvironment(0, host)
+    env = GpuEnvironment(0, host, n_prover=1)
     prover, mems = env.cpus("prover")
     assert prover == "0"
     assert mems == "0"
@@ -212,7 +213,7 @@ def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     assert set(prover.split(",")).isdisjoint(env.cpus("verifier")[0].split(","))
     lost = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:99:00.0"})
     with pytest.raises(IProofsError, match="no NUMA node"):
-        GpuEnvironment(0, lost)
+        GpuEnvironment(0, lost, n_prover=1)
 
 
 def test_disk_of_a_results_directory_not_made_yet(tmp_path: Path) -> None:
@@ -261,3 +262,33 @@ def test_hosted_paths_are_absolute(tmp_path: Path, monkeypatch: pytest.MonkeyPat
     _, env = runner._command("prove", Path("results/io"), Path("models"), 0, "0", [])
     assert env["IPROOFS_IO"] == str((tmp_path / "results/io").resolve())
     assert env["IPROOFS_MODELS"] == str((tmp_path / "models").resolve())
+
+
+def test_io_dir_as_the_adapter_uid_stays_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A job that already runs as the adapter's uid leaves the io dir as created: no folder below
+    it is writable by others, which FlashProve's calibrate.py refuses (HF Jobs, 2026-11-08)."""
+    io = tmp_path / "io"
+    (io / "fit").mkdir(parents=True)
+    for d in (io, io / "fit"):
+        d.chmod(0o755)
+    monkeypatch.setattr(os, "geteuid", lambda: int(adapter_mod.ADAPTER_UID))
+    adapter_mod.give_io_to_adapter(io)
+    for d in (io, io / "fit"):
+        assert d.stat().st_mode & 0o7777 == 0o755
+
+
+def test_io_dir_as_another_uid_is_open_with_sticky_bit(tmp_path: Path) -> None:
+    """A development host running as itself opens the io dirs so the container can write, with
+    the sticky bit, so no other account can replace a folder it does not own."""
+    io = tmp_path / "io"
+    (io / "fit").mkdir(parents=True)
+    (io / "job.json").write_text("{}")
+    me = os.geteuid()
+    if me in (0, int(adapter_mod.ADAPTER_UID)):
+        pytest.skip("needs a uid that is neither root nor the adapter's")
+    adapter_mod.give_io_to_adapter(io)
+    for d in (io, io / "fit"):
+        assert d.stat().st_mode & 0o7777 == 0o1777
+    assert (io / "job.json").stat().st_mode & 0o7777 != 0o1777

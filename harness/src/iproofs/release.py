@@ -498,6 +498,13 @@ def _fail(message: str) -> IProofsError:
     return IProofsError(ErrorKind.CONFIG, f"release freeze: {message}")
 
 
+def _check_cost_bases(reference: ReferenceFile, name: str) -> None:
+    """RFC-0006 C6 and C7: every cost basis of the reference file has a price and a date."""
+    for basis in (reference.cost, *(reference.costs or {}).values()):
+        if not basis.price_per_gpu_hour_usd.value or not basis.date:
+            raise _fail(f"{name} has no price or no date (RFC-0006 C6)")
+
+
 def freeze(
     release_id: str,
     root: Path,
@@ -518,8 +525,7 @@ def freeze(
         raise _fail(f"{path.relative_to(root)} is not release {release_id}")
     reference = load(root / release.reference_file, registry)  # validates the reference file
     assert isinstance(reference, ReferenceFile)
-    if not reference.cost.price_per_gpu_hour_usd.value or not reference.cost.date:
-        raise _fail(f"{release.reference_file} has no price or no date (RFC-0006 C6)")
+    _check_cost_bases(reference, release.reference_file)
     read += [path, root / release.reference_file]
     runs = {}
     for listed in release.runs:

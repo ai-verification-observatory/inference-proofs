@@ -55,7 +55,7 @@ Cross-cutting support: labelled quantities and serialization ([RFC-0012](../../r
 
 ## v0.1 scope
 
-Two systems, unchanged at the pins above, on one prover profile (`prover-h100`: one NVIDIA H100 80 GB SXM) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division, plus one closed workload on Llama 3.1 8B (`l31-8b-c1024`) whose rows publish once a second system with its claim class runs it (Q7, default) ([RFC-0003 §Closed workloads](../../rfcs/0003-workloads.md#closed-workloads)).
+Two systems, unchanged at the pins above, on one reference prover profile (`prover-h200`: one NVIDIA H200 141 GB SXM; its hosted form `prover-h200-hosted` and the H100 profiles stay declared, [RFC-0006 §H200 profiles](../../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division, plus one closed workload on Llama 3.1 8B (`l31-8b-c1024`) whose rows publish once a second system with its claim class runs it (Q7, default) ([RFC-0003 §Closed workloads](../../rfcs/0003-workloads.md#closed-workloads)).
 
 Run matrix. Each cell is a configuration measured with at least 3 repetitions (RFC-0004); the first successful repetition of each configuration is followed by the shared and system-specific controls (RFC-0008).
 
@@ -75,7 +75,7 @@ Milestones, all inside benchmark release v0.1:
 | Milestone | Content | Exit criterion |
 |---|---|---|
 | `v0.1-alpha` | schemas, serialization, labelled quantities, derivation and statistics, validation CLI, CI gates, fake system, runner against the fake system, governance files | in CI, `iproofs run --system fake` produces a schema-valid run directory, `iproofs derive --check` passes, controls classify, and `fake-broken` is flagged |
-| `v0.1-beta` | GPU measurement, model fetch and hash check, prompt generation, SASH and FlashProve adapters, reference rows, controls on real systems | at least one `reported` run per matrix cell on `prover-h100`, each with a valid run directory |
+| `v0.1-beta` | GPU measurement, model fetch and hash check, prompt generation, SASH and FlashProve adapters, reference rows, controls on real systems | at least one `reported` run per matrix cell on `prover-h200`, each with a valid run directory |
 | `v0.1` | reviewed claim cards, peer review, third-party reproduction, site, report, 14-day review window, freeze | the success criteria below |
 
 ## Success criteria
@@ -146,7 +146,7 @@ A contributor adding a third system reads [RFC-0005](../../rfcs/0005-adapter-con
 
 ### Where this spec is likely wrong
 
-- RISK: the Maverick plain-serving reference may be infeasible on the FlashProve rows' profile, because the 4-bit model does not fit in GPU memory. Plan: llama.cpp on that same profile with part of the weights in host memory (RFC-0015 SRV-6), no multi-GPU profile; if it fails, record `not_measurable_on_profile` and publish overhead as null (RFC-0015 NM-1).
+- RISK: the Maverick plain-serving reference may be infeasible on the FlashProve rows' profile (one H100 80 GB or one H200 141 GB), because the 4-bit model (232 GB of weight files, external, reported, `systems/flashprove/README.md`) does not fit in GPU memory. Plan: llama.cpp on that same profile with part of the weights in host memory (RFC-0015 SRV-6), no multi-GPU profile; if it fails, record `not_measurable_on_profile` and publish overhead as null (RFC-0015 NM-1).
 - RISK: `prove.steady` is not externally observable if an upstream writes all proofs at the end. Plan: null with `not_externally_observable`; the upstream steady figure shown only as `external` (RFC-0004, RFC-0011).
 - RISK: SASH's segment grid does not map onto per-request proofs; tokens covered and the steady boundary depend on the adapter's declaration. Plan: confirm the grid geometry from upstream documentation before the first beta run (RFC-0003 Q4, RFC-0005).
 - RISK: the verifier profile emulated on the prover host differs from a real 8-core machine (cache, memory bandwidth). Plan: record `verifier_host` and CPU model; allow a separate verifier host; revisit after v0.1 (RFC-0006).

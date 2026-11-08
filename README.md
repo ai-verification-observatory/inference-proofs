@@ -13,7 +13,7 @@ Several open systems can now prove that a language model produced a given output
 | SASH zk-inference-prover | [sg-ai-safety-hub/zk-inference-prover](https://github.com/sg-ai-safety-hub/zk-inference-prover) | Llama-3.1-8B, W8A8 |
 | FlashProve | [anthropics/FlashProve](https://github.com/anthropics/FlashProve) | Llama 4 Maverick, 4-bit |
 
-Both run on one NVIDIA H100 80 GB. More systems and common workloads follow (see the roadmap in the PRD).
+Both publish their figures from one NVIDIA H100 80 GB; v0.1 measures them on one NVIDIA H200 141 GB, the same Hopper architecture ([RFC-0006](rfcs/0006-reference-hardware-and-cost.md#h200-profiles)). More systems and common workloads follow (see the roadmap in the PRD).
 
 ## Principles
 

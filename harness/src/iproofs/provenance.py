@@ -427,6 +427,20 @@ def read_topology(root: Path = Path("/")) -> Topology:
     return Topology(tuple(sorted(cpus, key=lambda c: c.id)))
 
 
+def usable_topology(host: Host, allowed: Iterable[int] | None = None) -> Topology:
+    """RFC-0006 §CPU and memory selection: the host's topology, reduced to the CPUs `allowed`.
+    Without `allowed`, a hosted container on the real root keeps the CPUs of this process's
+    scheduler affinity (a provider's cpuset), so no CPU outside the container's set is bound; a
+    docker host, or a fixture tree, keeps every CPU."""
+    topology = read_topology(host.root)
+    if allowed is None and host.hosted and host.root == Path("/"):
+        allowed = os.sched_getaffinity(0) if hasattr(os, "sched_getaffinity") else None
+    if allowed is None:
+        return topology
+    keep = set(allowed)
+    return Topology(tuple(c for c in topology.cpus if c.id in keep))
+
+
 def _ordered(cpus: Iterable[Cpu]) -> list[int]:
     """One logical CPU per physical core first (lowest id of each core), then SMT siblings."""
     groups: dict[tuple[int, int], list[int]] = {}
@@ -437,9 +451,11 @@ def _ordered(cpus: Iterable[Cpu]) -> list[int]:
 
 
 def select_cpus(
-    topology: Topology, gpu_numa_node: int, n_prover: int = 24, n_verifier: int = 8
+    topology: Topology, gpu_numa_node: int, n_prover: int, n_verifier: int = 8
 ) -> CpuBinding:
-    """RFC-0006 §CPU and memory selection, a pure function of the topology."""
+    """RFC-0006 §CPU and memory selection, a pure function of the topology. `n_prover` is the
+    profile's `cpu.logical_cpus_on_gpu_numa_node` and has no default, so no caller binds 24 on a
+    profile that asks for fewer."""
     on_node = [c for c in topology.cpus if c.node == gpu_numa_node]
     ordered = _ordered(on_node)
     if len(ordered) < n_prover:

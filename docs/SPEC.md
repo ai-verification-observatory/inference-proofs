@@ -14,7 +14,7 @@ Five mechanisms carry the design:
 4. **Adversarial checks applied by the harness** ([RFC-0008](../rfcs/0008-negative-controls.md)). Every verifier faces the same tampering controls, each with an honest twin, so a verifier that accepts everything, or a broken control, is visible.
 5. **Evidence tiers and reproduction** ([RFC-0007](../rfcs/0007-evidence-tiers-and-reproduction.md)). Every number says who stands behind it; only numbers reproduced by an unaffiliated runner within a stated tolerance are called measured in prose.
 
-Benchmark release v0.1 covers two systems on their native workloads on one NVIDIA H100 80 GB profile, SASH zk-inference-prover and FlashProve, plus plain-serving and recompute reference rows ([RFC-0003](../rfcs/0003-workloads.md), [RFC-0015](../rfcs/0015-reference-rows.md)). It publishes no ranking and no aggregate score ([PRD §5](PRD.md#5-non-goals)).
+Benchmark release v0.1 covers two systems on their native workloads on one NVIDIA H200 141 GB reference profile ([RFC-0006 §H200 profiles](../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)), SASH zk-inference-prover and FlashProve, plus plain-serving and recompute reference rows ([RFC-0003](../rfcs/0003-workloads.md), [RFC-0015](../rfcs/0015-reference-rows.md)). It publishes no ranking and no aggregate score ([PRD §5](PRD.md#5-non-goals)).
 
 ## Corpus
 

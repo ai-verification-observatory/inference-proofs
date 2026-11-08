@@ -503,9 +503,9 @@
       }
     }
   },
-  "inputs_digest": "sha256:a11cb0459d5d3f5a0a68be1afbac5668e2b36f154603a5ad09a1e115454da5aa",
+  "inputs_digest": "sha256:56dda688f612d1babaa3060172d18d42f31b9c52a5cf9a42e31b55ab8f48f20c",
   "reference": {
-    "digest": "sha256:8ee2355f3950d68d11e2b0e85f60f78d7426a017a9f98168edcdfd777293258a",
+    "digest": "sha256:f53face597c3ae122735259880c66ad54697ac430a42ce2a4b9b801eb1cea676",
     "file": "reference/v0.1.yaml"
   },
   "release": "v0.1",

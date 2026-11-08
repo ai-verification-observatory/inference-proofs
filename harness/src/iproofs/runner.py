@@ -90,8 +90,8 @@ from iproofs.provenance import (
     machine_record,
     model_digest,
     proof_digest,
-    read_topology,
     select_cpus,
+    usable_topology,
 )
 from iproofs.quantity import NullReason, Scope, Unit, check_closed_division
 from iproofs.schema import SchemaRegistry
@@ -173,14 +173,15 @@ class RunnerIdentity:
 class GpuEnvironment:
     """A GPU host (RFC-0006 §CPU and memory selection): the bound GPU by NVML index, the
     prover's CPUs on its NUMA node and the verifier's elsewhere, a pure function of the
-    topology."""
+    topology. `n_prover` is the profile's `cpu.logical_cpus_on_gpu_numa_node`; a hosted host
+    binds only CPUs of its own scheduler affinity (`usable_topology`)."""
 
-    def __init__(self, gpu_index: int, host: Host) -> None:
+    def __init__(self, gpu_index: int, host: Host, n_prover: int) -> None:
         self._host, self._gpu = host, gpu_index
         node = host.gpu(gpu_index).get("numa_node")
         if not isinstance(node, int) or node < 0:
             raise IProofsError(ErrorKind.ENVIRONMENT, f"no NUMA node for GPU {gpu_index} (NVML)")
-        self.binding = select_cpus(read_topology(host.root), node)
+        self.binding = select_cpus(usable_topology(host), node, n_prover=n_prover)
 
     def host(self) -> Host:
         return self._host
@@ -595,7 +596,7 @@ class Runner:
         record = self._record_for(spec)
         gpu = record.get("gpu")
         node = gpu.get("numa_node") if isinstance(gpu, dict) else None
-        cpus = read_topology(self.env.host().root).cpus
+        cpus = usable_topology(self.env.host()).cpus
         on_node = sum(c.node == node for c in cpus) if node is not None else None
         failures = check_profile(record, profile, numa_node_cpus=on_node)
         saved = selftest.saved(Path(spec.results_root))
@@ -1707,8 +1708,9 @@ class Runner:
             )
         profile = job.reference.profiles[job.spec.profile]
         gpus = profile.gpu.count if isinstance(profile, ProverProfile) and profile.gpu else 0
-        price_ptr = f"{job.reference_file}#/cost/price_per_gpu_hour_usd"
-        price_q = json.loads(json.dumps(_price_tree(self.root / job.reference_file)))
+        pointer = job.reference.price_pointer(job.spec.profile)  # RFC-0006 C7
+        price_ptr = f"{job.reference_file}#{pointer}"
+        price_q = json.loads(json.dumps(_price_tree(self.root / job.reference_file, pointer)))
         # RFC-0003 WB-4: the workload's asserted inputs, as copied into run.json `inputs`
         inputs = asserted_inputs(job.workload)
         first = (
@@ -1755,14 +1757,16 @@ def _statistic(values: list[float], unit: Unit, scope: Scope | None, ref: str) -
     return q
 
 
-def _price_tree(path: Path) -> dict[str, object]:
+def _price_tree(path: Path, pointer: str) -> dict[str, object]:
+    """The price quantity at `pointer` (`/cost/...` or `/costs/<basis>/...`) of a reference file."""
     from iproofs.schema import parse_tree  # noqa: PLC0415
 
-    cost = parse_tree(path)["cost"]
-    assert isinstance(cost, dict)
-    price = cost["price_per_gpu_hour_usd"]
-    assert isinstance(price, dict)
-    return price
+    node: object = parse_tree(path)
+    for part in pointer.strip("/").split("/"):
+        assert isinstance(node, dict)
+        node = node[part]
+    assert isinstance(node, dict)
+    return node
 
 
 def _boot_id() -> str:

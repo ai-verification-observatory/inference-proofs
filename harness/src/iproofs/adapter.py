@@ -238,16 +238,21 @@ def docker_ref(image: str) -> str:
 
 
 def give_io_to_adapter(io_dir: Path) -> None:
-    """RFC-0005: the io dir belongs to the adapter's uid. Only root can chown; otherwise the
-    directories are opened to all so the container can write (development hosts)."""
+    """RFC-0005: the io dir belongs to the adapter's uid. Root chowns it. A process that already
+    runs as the adapter's uid (a hosted container started as that user) leaves it as created:
+    opening it would let other accounts replace its folders, which an adapter may rightly refuse
+    (FlashProve's calibrate.py does). Any other uid (a development host running docker as
+    itself) opens the directories to all with the sticky bit set, so the container can write
+    but no other account can rename or remove what it does not own."""
     paths = [io_dir, *io_dir.rglob("*")]
+    euid = os.geteuid()
     for path in paths:
         if path.is_symlink():
             continue
-        if os.geteuid() == 0:
+        if euid == 0:
             os.chown(path, int(ADAPTER_UID), int(ADAPTER_UID))
-        elif path.is_dir() and path.stat().st_uid == os.geteuid():
-            path.chmod(0o777)
+        elif euid != int(ADAPTER_UID) and path.is_dir() and path.stat().st_uid == euid:
+            path.chmod(0o1777)
 
 
 def _tail(text: str) -> tuple[str, ...]:
@@ -380,10 +385,17 @@ class InProcessRunner:
         return ("in-process", *argv[1:])
 
 
-# Names a provider adds to its container's environment (access keys, ports, addresses); the
-# adapter gets the image's own environment, never these (AGENTS.md rule 7).
-PROVIDER_ENV = re.compile(r"^(VAST_|CONTAINER_|PUBLIC_|SSH_|JUPYTER|OPEN_BUTTON|DIRECT_|PORTAL_)"
-                          r"|^(HOSTNAME|GPU_COUNT|NV_GPU)$|KEY|TOKEN|SECRET|PASSW")  # fmt: skip
+# Names a provider adds to its container's environment (access keys, ports, addresses, job
+# identifiers); the adapter gets the image's own environment, never these (AGENTS.md rule 7).
+# Hugging Face Jobs adds JOB_ID, ACCELERATOR, CPU_CORES, MEMORY and HF_NETWORK_GROUP_* (its
+# jobs-configuration page, read 2026-11-08). The IPROOFS_* names are those the job command of
+# docs/runbooks/hf-jobs.md passes with `hf jobs run -e` (commit, upload target, label, budget,
+# GPU); they belong to the job script, and the upload target names an account.
+PROVIDER_ENV = re.compile(r"^(VAST_|CONTAINER_|PUBLIC_|SSH_|JUPYTER|OPEN_BUTTON|DIRECT_|PORTAL_"
+                          r"|HF_NETWORK_GROUP_)"
+                          r"|^(HOSTNAME|GPU_COUNT|NV_GPU|JOB_ID|ACCELERATOR|CPU_CORES|MEMORY)$"
+                          r"|^IPROOFS_(COMMIT|UPLOAD|UPLOAD_DIR|LABEL|JOB_BUDGET_S|GPU)$"
+                          r"|KEY|TOKEN|SECRET|PASSW")  # fmt: skip
 
 
 def image_environment(environ: str) -> dict[str, str]:
