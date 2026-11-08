@@ -110,7 +110,7 @@ Defined in `schema/quantity/1.schema.json` under `$defs/quantity`. Every number 
         "value": {"type": ["number", "null"]},
         "unit": {"enum": ["s", "ns", "B", "MiB", "J", "count", "token", "token/s", "s/token",
                           "B/token", "USD", "USD/1k_token", "USD/gpu_hour", "%",
-                          "param_token/s", "ratio"]},
+                          "param_token/s", "s/bit_token", "ratio"]},
         "scope": {"enum": [null, "setup", "commit", "prove.steady", "prove.session",
                            "whole_wall", "verify", "verify.single_thread", "primitive"]},
         "grade": {"enum": ["measured", "derived", "projected", "external", "asserted"]},
@@ -137,7 +137,8 @@ Defined in `schema/quantity/1.schema.json` under `$defs/quantity`. Every number 
          "then": {"properties": {"null_reason": {"type": "string"}}},
          "else": {"properties": {"null_reason": {"const": null}}}},
         {"if": {"properties": {"unit": {"enum": ["s", "ns", "token/s", "s/token", "USD",
-                                                  "USD/1k_token", "param_token/s"]}}},
+                                                  "USD/1k_token", "param_token/s",
+                                                  "s/bit_token"]}}},
          "then": {"properties": {"scope": {"type": "string"}}}},
         {"if": {"properties": {"grade": {"const": "external"}}},
          "then": {"required": ["upstream_scope", "mapping"],
@@ -211,7 +212,7 @@ Optional fields: `upstream_scope` (the scope name as the upstream source states 
 
 - **INV-QTY-1** A quantity has all seven required keys; no key is omitted, including `scope` and `null_reason`, which are present as `null` when they do not apply.
 - **INV-QTY-2** `value` is null if and only if `null_reason` is a non-null member of its enum.
-- **INV-QTY-3** If `unit` is one of `s`, `ns`, `token/s`, `s/token`, `USD`, `USD/1k_token`, `param_token/s`, then `scope` is non-null. If `unit` is `ratio` and the quantity is derived from one or more scoped quantities, `scope` is non-null and equals the scope of the rate in its denominator; this second half is checked by [RFC-0013 §G5](0013-validation-and-ci.md#g5-label-check), not by the schema, because it needs the derivation graph.
+- **INV-QTY-3** If `unit` is one of `s`, `ns`, `token/s`, `s/token`, `USD`, `USD/1k_token`, `param_token/s`, `s/bit_token`, then `scope` is non-null. If `unit` is `ratio` and the quantity is derived from one or more scoped quantities, `scope` is non-null and equals the scope of the rate in its denominator; this second half is checked by [RFC-0013 §G5](0013-validation-and-ci.md#g5-label-check), not by the schema, because it needs the derivation graph.
 - **INV-QTY-4** In a `run.json` or `controls.json`, `tier` is `reported`. Effective tiers appear only in `releases/<release>/index.json` (RFC-0009).
 - **INV-QTY-5** `grade: external` implies `source.kind: upstream`, `upstream_scope` and `mapping` present, and `source.ref` contains a 40-hex commit hash or an immutable archive URL (RFC-0014 §Pin rules).
 - **INV-QTY-6** `grade: derived` implies `source.kind: derivation`, a non-empty `source.inputs`, and that the formula id exists in the harness's formula registry at the named version.
@@ -360,6 +361,8 @@ No results exist yet, so there is nothing to migrate. Rollout order:
 1. Land `schema/quantity/1.schema.json` with examples and the serialisation module (`iproofs.serialize`), with tests.
 2. Land every other schema at major 1, each with valid and invalid examples, together with its dataclass and the drift test.
 3. Turn on gates G2 and G3 of RFC-0013 as required checks.
+
+The amendment of 2026-11-08 adds the unit `s/bit_token` (seconds per bit of active weights per token covered, [RFC-0004](0004-metrics-timing-grades.md#derived-metric-catalogue) D-SPAB-S) to the unit enum and to the INV-QTY-3 list, and the optional `precision.weight_bits` object to `workload/1` ([RFC-0003 §Weight bits](0003-workloads.md#weight-bits)). Both are additive: every document valid before stays valid, so neither schema changes major.
 
 The existing draft claim card example in the old `docs/SPEC.md` uses `reviewed_by_maintainers` and `security.bits`; RFC-0002's field names (`reviewed_by`, `security.level`) win, and `claim/1` follows RFC-0002.
 

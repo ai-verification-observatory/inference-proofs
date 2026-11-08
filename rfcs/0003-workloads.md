@@ -60,6 +60,7 @@ Scenarios:
 | `model.tokenizer_file` | yes | path in `model.files`, or `model.tokenizer_source.file.path` | the tokenizer the prompt generator uses |
 | `model.tokenizer_source` | no | `{hub: huggingface, repo, revision, file: {path, sha256, bytes}}` | the tokenizer file from a second pinned repository, when the weights' repository has none (for example a GGUF conversion). `model.digest` covers `model.files` only; this file is checked against its own sha256 |
 | `precision` | yes | `{served: Text, proved: Text}` | quantisation as served and as proved |
+| `precision.weight_bits` | no | `{bits: number > 0 and <= 64, basis: "stated" or "file_size", source: URL, files: [path], note: Text}`; `files` exactly when `basis` is `file_size`; `note` optional | bits per weight of the precision as proved, with its source (§Weight bits); used by RFC-0004 D-SPAB-S |
 | `prompts.generator` | yes | `"corpus-window/1"` | generator id and version |
 | `prompts.corpus_digest` | yes | `sha256:<hex>` | digest of `workloads/prompts/corpus.yaml` content set |
 | `prompts.count` | yes | integer >= 1 | prompts per job |
@@ -77,6 +78,26 @@ Scenarios:
 | `notes` | no | `Text` | |
 
 Invariant INV-WL-4: `prompts.count == shape.batch_size * shape.batches_per_session` and `prompts.length_rule.prompt_tokens == shape.prompt_tokens`. The loader checks it; a violation is a `config` error.
+
+### Weight bits
+
+`precision.weight_bits` holds one number: the bits that store one weight of the precision as proved (`precision.proved`). It is an input of [RFC-0004](0004-metrics-timing-grades.md#derived-metric-catalogue) D-SPAB-S, prover seconds per bit of active weights per token covered, and enters it like `model.parameters`: an `asserted` input (RFC-0004 grades), never measured, whose source is the record's `source`. Multiplied by `model.parameters.active_per_token`, it gives the bits of active weights per token. The value comes from one of two bases, in this order of preference:
+
+- WB-1, `stated`: the width that the precision's own documentation states at a pinned commit or revision, copied and linked: the system's documentation when the system quantizes the weights itself, or the publisher's when the pinned files are already quantized. `note` says what the statement covers when it does not cover every weight. This is the rule whenever file size does not give the width:
+  - quantization at load time: the pinned files hold another precision than the one proved. The SASH workloads' files hold BF16 weights (file bytes over `parameters.total` is 2 bytes per parameter), and SASH proves int8 weight matmuls, as its own source states;
+  - mixed widths: the files store tensors at several widths. A GGUF quant mix such as `UD-Q4_K_XL` holds several block types, and a mixture of experts can store routed experts at another width than its shared weights, so file bytes over total parameters is not the width of the active weights either.
+  A publisher's figure that names one part of the weights (Unsloth states "MoE Bits" per quant) is recorded with basis `stated` and a `note` saying so. It is then a nominal width, not a mean over the active weights; RFC-0004 prints the note beside the figure (INV-DERIVE-7).
+- WB-2, `file_size`: only when the files in `files` hold every weight of the precision as proved, at one width, and nothing else. `bits` = the sum of their `bytes` × 8 / `model.parameters.total`. The loader recomputes it from `model.files` and the parameter count: a listed file outside `model.files`, or a stored value not equal to the computed one, is a `config` error.
+- WB-3: when no documentation states a width and file size does not give it, the field is absent and D-SPAB-S is null with `missing_input`. The width is never estimated.
+- WB-4: `precision.weight_bits` describes the weights; it does not change a job's inputs (model files, prompts, shape), so adding or correcting it keeps the workload `version`. It changes the workload file's bytes, and so its `file_digest` in every manifest recorded after the change (RFC-0014); see Q6.
+
+The v0.1 values:
+
+| Workload | `bits` | `basis` | Source |
+|---|---|---|---|
+| `sash-l31-8b-c4096`, `sash-l31-8b-c1024` | 8 | `stated` | SASH at `eb95bfa887299d1637550228d42086c27cbb2b3b`, [`harness/witness/quant.py` L15 to L19](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/quant.py#L15-L19): "weight matmuls are exact int8 x int8 -> int32 accumulations", with one scale per output channel. The files are BF16 and quantized at load time |
+| `fp-maverick-w1024-b1`, `fp-maverick-w1024-b24` | 4.5 | `stated` | the publisher's model card at `41032e5471dd6ea5b349062d978626215d6c5bba`, [README L122 to L129](https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF/blob/41032e5471dd6ea5b349062d978626215d6c5bba/README.md#L122-L129): "4.5-bit" for `Q4_K_XL` in the column headed "MoE Bits". The pinned files' GGUF tensor table also stores some tensors as Q5_K, Q6_K and F32, routed experts' down projections included: a nominal width (Q5) |
+| `fake-tiny-ci` | 8 | `file_size` | `weights.bin`, 64 B over 64 parameters ([`systems/fake/README.md`](https://github.com/ai-verification-observatory/inference-proofs/blob/64168df9fd0706dfd955b6795fa6f535872dff78/systems/fake/README.md)): 64 × 8 / 64 = 8, recomputed by the loader |
 
 ### v0.1 native workloads
 
@@ -185,6 +206,8 @@ A candidate common workload is accepted, by RFC, when at least two systems run i
 | Corpus text hash mismatch | `integrity` error in `prompts build`; no job starts |
 | Corpus shorter than `prompt_tokens` | `config` error at load |
 | INV-WL-4 violated | `config` error at load |
+| `precision.weight_bits` with basis `file_size` that the listed files do not give (WB-2) | `config` error at load |
+| No `precision.weight_bits` (WB-3) | the workload loads; RFC-0004 D-SPAB-S is null with `missing_input` |
 | Tokenizer produces different ids on another library version | Prompt digest differs from the recorded one; reproduction fails the digest check and is reported; the `tokenizers` version is recorded in the manifest |
 | Adapter's `tokens_covered` differs from the declaration | `adapter` error; no per-token metric |
 | A closed workload receives a card with another class | `config` error; the run is rejected or moved to open by its submitter |
@@ -214,6 +237,7 @@ The author's affiliations and any interest in a measured system are declared in 
 1. v0.1-alpha: `workload/1` and `corpus/1` schemas with examples; loader with INV-WL-4; the generator against a toy tokenizer fixture.
 2. v0.1-beta: the four workload files with pinned revisions and hashes; `corpus.yaml` with chosen texts; `fetch-model` and `prompts build` on real models.
 3. The earlier draft's shape fields (prompt length, output length, batch size, context window) are kept and `batches_per_session` is added. No results exist yet, so nothing is relabelled.
+4. The amendment of 2026-11-08 adds `precision.weight_bits` (§Weight bits), the input RFC-0004 D-SPAB-S needs (owner decision of 2026-11-08: prover time per bit of active weights and the overhead against plain serving are the two figures that compare provers across models). The field is optional, so `workload/1` stays at major 1 (RFC-0012); every file in `workloads/` gains it with its source, and no workload version changes (WB-4). Stored runs (`results/v0.1`) are not changed (APP-1).
 
 ## Testing Strategy
 
@@ -227,7 +251,8 @@ The author's affiliations and any interest in a measured system are declared in 
 - `test_model_hash_mismatch`: a fixture model dir with one byte changed raises `integrity` and the container runner is never called (mock asserts no call).
 - `test_model_digest_order`: digest is independent of filesystem listing order.
 - `test_fresh_seed_recorded`: two fake-system jobs record different seeds; replaying one seed reproduces its prompt digest.
-- Schema examples: `valid/sash-l31-8b-c4096.yaml`, `valid/closed-with-class.yaml`; `invalid/branch-revision.yaml` (`revision: main`), `invalid/sampled-decoding.yaml`, `invalid/closed-without-class.yaml`, `invalid/context-too-small.yaml` (schema cannot express it; loader test `test_context_window_check`).
+- Weight bits (`test_workload.py`): `test_weight_bits_stated` (WB-1 loads as written), `test_weight_bits_absent` (valid, no field), `test_weight_bits_file_size` (hand-computed: 64 B over 16 parameters, 64 × 8 / 16 = 32, fixture values), `test_weight_bits_file_size_mismatch`, `test_weight_bits_file_size_unknown_file`, `test_weight_bits_file_size_needs_files` (WB-2).
+- Schema examples: `valid/sash-l31-8b-c4096.yaml`, `valid/closed-with-class.yaml`, `valid/weight-bits-file-size.yaml`; `invalid/branch-revision.yaml` (`revision: main`), `invalid/sampled-decoding.yaml`, `invalid/closed-without-class.yaml`, `invalid/weight-bits-zero.yaml`, `invalid/weight-bits-no-source.yaml`, `invalid/weight-bits-file-size-without-files.yaml`, `invalid/weight-bits-stated-with-files.yaml`, `invalid/context-too-small.yaml` (schema cannot express it; loader test `test_context_window_check`).
 
 ## Open Questions
 
@@ -235,6 +260,8 @@ The author's affiliations and any interest in a measured system are declared in 
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: RFC for v0.2): which mid-size model has the widest prover support at the first v0.2 call. Default: none chosen; v0.1 is native only.
 - OPEN QUESTION Q3 (owner: AbdelStark, resolve by: RFC for v0.2): whether decode-heavy shapes (long outputs) get their own workload family. Default: no.
 - Resolved Q4: one SASH grid proves every prompt and continuation position of its sequence (the recorded 4,096 + 512 run is 9 blocks of 512 positions over 32 layers plus 2 head segments, 290 segments), so `tokens_covered` is `prompt_tokens + output_tokens` per sequence, exact, for both shapes. Upstream states no geometry for the 1,024 + 64 shape; the count does not depend on it. Sources, at the pinned commits: [`systems/sash/README.md`](../systems/sash/README.md#grid-geometry-and-proof-release).
+- OPEN QUESTION Q5 (owner: 0xchqrles, resolve by: Last call of RFC-0004's amendment of 2026-11-08): for pinned files stored at mixed widths, does the record keep the publisher's stated width or a width computed from the files? Default until resolved: the stated width (WB-1), 4.5 for the Maverick workloads, with its note. The alternative is a third basis, `tensor_table`: the mean storage bits per active weight, which the harness would compute from the GGUF tensor table of the pinned files (each tensor's elements times the bits per element of its block type, as ggml defines the block sizes; routed experts' tensors weighted by experts used per token over expert count) and check at fetch time. Two conventions meet here: Unsloth's 4.5 is ggml's size of a Q4_K block per weight, block scales included, while the SASH workloads' 8 counts the int8 code alone, without its per-channel scale; FlashProve's own guide names the same folder "4 bits" ([examples/maverick/README.md L332](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/examples/maverick/README.md#L332)).
+- OPEN QUESTION Q6 (owner: 0xchqrles, resolve by: the first reproduction of a v0.1 run): adding `precision.weight_bits` changes each workload file's `file_digest` (WB-4), and RFC-0007 reproduction eligibility compares `file_digest` across original and reproduction runs (`same_workload_digests`), so a reproduction recorded after this amendment does not match a run recorded before it. Default until resolved: the field is added now; before the first reproduction, either eligibility compares the digest of the fields that alter inputs, or the original's workload file is checked out at its recorded digest.
 
 ## References
 
