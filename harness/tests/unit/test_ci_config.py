@@ -55,11 +55,19 @@ def test_shards_partition_the_suite() -> None:
     """Every test runs in exactly one shard (docs/spec/07 §Sharding)."""
     from conftest import shard_of  # noqa: PLC0415
 
-    ids = [f"t{i:03d}" for i in range(100)]
+    # 12 files of 1 to 12 tests (78 in all), one parametrized
+    sizes = dict(enumerate(range(1, 13)))
+    ids = [f"unit/test_{f:02d}.py::test_{t}" for f, k in sizes.items() for t in range(k)]
+    ids += ["unit/test_11.py::test_p[x::y]"]  # `::` inside a parameter id
     parts = [shard_of(ids, f"{i}/3") for i in (1, 2, 3)]
     assert set().union(*parts) == set(ids)
     assert sum(len(p) for p in parts) == len(ids)
-    assert sorted(len(p) for p in parts) == [33, 33, 34]
+    for f in sizes:  # every test of a file in the same shard
+        assert sum(any(i.startswith(f"unit/test_{f:02d}.py::") for i in p) for p in parts) == 1
+    # dealt whole, most tests first, to the part with the fewest (hand-computed)
+    assert sorted(len(p) for p in parts) == [26, 26, 27]
+    assert shard_of(list(reversed(ids)), "2/3") == parts[1]  # independent of collection order
+    assert shard_of(ids, "1/1") == set(ids)
     with pytest.raises(pytest.UsageError):
         shard_of(ids, "4/3")
 

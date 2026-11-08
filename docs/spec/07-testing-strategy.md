@@ -104,7 +104,7 @@ Line coverage target for `iproofs` excluding `iproofs.measure.nvml` and `iproofs
 
 ## Sharding
 
-On hosted CI the unit, property and schema-example tests run in six shards per Python version (three until 2026-11-08, when the 3.13 shards reached 5 to 6 minutes against the 6-minute hard limit) (job `test-shard`), so each shard fits B-CI-UNIT ([08](08-performance-budget.md)) on a 2-vCPU runner. `IPROOFS_SHARD=i/n` keeps the i-th of n interleaved parts of the sorted test ids (`harness/tests/conftest.py`), so every test runs in exactly one shard. Each shard writes its own coverage data; the `tests` job of the same Python version combines them and runs the coverage gate, so the floors apply to the whole suite. `make ci` runs the suite unsharded with the same commands.
+On hosted CI the unit, property and schema-example tests run in six shards per Python version (three until 2026-11-08, when the 3.13 shards reached 5 to 6 minutes against the 6-minute hard limit) (job `test-shard`), so each shard fits B-CI-UNIT ([08](08-performance-budget.md)) on a 2-vCPU runner. `IPROOFS_SHARD=i/n` keeps the i-th of n parts of the test files (`harness/tests/conftest.py`): files are dealt whole, the file with the most tests first (ties by path), each to the part with the fewest tests so far. So every test runs in exactly one shard, all tests of a file run in the same shard, and a module fixture builds in one shard, not in all of them. The parts differ by at most the tests of one file. Each shard writes its own coverage data; the `tests` job of the same Python version combines them and runs the coverage gate, so the floors apply to the whole suite. `make ci` runs the suite unsharded with the same commands.
 
 ## Flaky-test policy
 
