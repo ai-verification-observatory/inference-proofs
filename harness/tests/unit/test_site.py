@@ -750,7 +750,8 @@ def test_sort_key_is_stored_value(site: Build) -> None:
 
 
 def test_default_order_alphabetical(site: Build) -> None:
-    """S5: the HTML as sent holds every table's rows A to Z by name; other orders on request."""
+    """S5: the HTML as sent holds every table's rows A to Z by name; other orders on request.
+    The order of the tables is `test_tables_by_model_size`."""
     tables = TABLE.findall(site.pages["index.html"])
     assert tables
     names = site.view["facts"]["rows"]
@@ -761,6 +762,83 @@ def test_default_order_alphabetical(site: Build) -> None:
     assert 'aria-sort="ascending"' in site.pages["index.html"]
     nb = site.view["orders"]["not_benchmarked"]
     assert [names[r]["name"].lower() for r in nb] == sorted(names[r]["name"].lower() for r in nb)
+
+
+def test_tables_by_model_size(site: Build) -> None:
+    """S5, S6: the tables follow the size of the model proved, `workload.model.parameters.total`
+    descending (Llama 4 Maverick, 400B, then Llama 3.1 8B, 8.03B, in both builds), and within a
+    model its divisions in RFC-0003's order (`test_division_named`); the HTML as sent holds them
+    so, and the hash reorders rows within each table only (`shoot.mjs`)."""
+    sizes = []
+    for _, body in TABLE.findall(site.pages["index.html"]):
+        models = {row_config(site.view, rid)["workload"]["model"]["digest"]
+                  for rid, *_ in ROW.findall(body)}  # fmt: skip
+        assert len(models) == 1  # no table across models
+        (digest,) = models
+        cfg = next(c for c in provers(site.view) if c["workload"]["model"]["digest"] == digest)
+        sizes.append((cfg["workload"]["model"]["parameters"]["total"], digest))
+    assert sizes == sorted(sizes, key=lambda s: -s[0])
+    names = [site.view["facts"]["models"][d]["name"] for d in dict.fromkeys(d for _, d in sizes)]
+    assert names == ["Llama 4 Maverick", "Llama 3.1 8B"]
+
+
+def test_models_by_size_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S6 on a hand-made case: 400B before 8.03B whatever the order of the rows or the names,
+    two models of one size by name, a model with no system row has no table, and two workloads
+    of one model that state different totals stop the build."""
+    draw = renderer(ROOT).draw
+
+    def cfg(digest: str, total: int) -> dict[str, Any]:
+        return {"workload": {"model": {"digest": digest, "parameters": {"total": total}}}}
+
+    names = {"d8": "A small", "d400": "Z large", "e8": "B small"}
+    got = draw.overview.models_by_size(
+        [cfg("d8", 8_030_261_248), cfg("e8", 8_030_261_248), cfg("d400", 400_000_000_000)],
+        names,
+    )
+    assert got == ["d400", "d8", "e8"]
+    assert draw.overview.models_by_size([cfg("d8", 8_030_261_248)], names) == ["d8"]
+    with pytest.raises(AssertionError, match=r"d8: workloads disagree on parameters\.total"):
+        draw.overview.models_by_size([cfg("d8", 8_030_261_248), cfg("d8", 8_000_000_000)], names)
+
+
+def test_rows_by_name_then_profile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S5 on a hand-made table: rows A to Z by system name whatever its case, then profile id,
+    then the configuration's position in the release's `index.json`, whatever order they come
+    in."""
+    draw = renderer(ROOT).draw
+    rows = {"a": {"name": "alpha"}, "b": {"name": "Beta"}}
+    monkeypatch.setattr(draw.state, "V", {"facts": {"rows": rows}})
+
+    def cfg(system: str, profile: str, position: int) -> dict[str, Any]:
+        return {"system": system, "profile": profile, "position": position}
+
+    given = [cfg("b", "p-a", 0), cfg("a", "p-z", 1), cfg("a", "p-a", 4), cfg("a", "p-a", 2)]
+    got = [(c["system"], c["profile"], c["position"]) for c in draw.overview.by_name(given)]
+    assert got == [("a", "p-a", 2), ("a", "p-a", 4), ("a", "p-z", 1), ("b", "p-a", 0)]
+
+
+def test_each_row_once(site: Build) -> None:
+    """S6: the overview has no table across models, so no row is repeated: each (system,
+    configuration, workload, profile) has exactly one row, in its workload's table, however
+    RFC-0009 Q5 is resolved. In the deployed build each benchmarked system has one such row, so
+    its glyph is on the overview once."""
+    index = site.pages["index.html"]
+    rows = [rid for _, body in TABLE.findall(index) for rid, *_ in ROW.findall(body)]
+    assert len(rows) == len(set(rows))
+
+    def key(c: dict[str, Any]) -> tuple[str, str, str, str]:
+        return c["system"], c["configuration"], c["workload"]["id"], c["profile"]
+
+    shown = [key(row_config(site.view, r)) for r in rows]
+    assert len(shown) == len(set(shown))
+    assert sorted(shown) == sorted(map(key, provers(site.view)))
+    if site.kind == "extras":
+        return
+    for system in site.view["orders"]["benchmarked"]:
+        assert [row_config(site.view, r)["system"] for r in rows].count(system) == 1, system
+        assert index.count(f'<a class="pie" href="/{system}#') == 1, system
+        assert f'id="nb-{system}"' not in index, system
 
 
 def test_no_ranking(site: Build) -> None:
@@ -846,7 +924,7 @@ def test_native_workloads_header(site: Build) -> None:
 
 def _prover(system: str, workload: str, division: str, model: str) -> dict[str, Any]:
     wl = {"id": workload, "division": division, "model": {"digest": model}}
-    return {"system": system, "position": 0, "workload": wl}
+    return {"system": system, "position": 0, "profile": "prover-h100", "workload": wl}
 
 
 @pytest.mark.parametrize(

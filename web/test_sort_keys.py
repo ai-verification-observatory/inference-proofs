@@ -110,13 +110,19 @@ def test_sort_words(site):
 
 
 def test_two_models(site):
-    # one table per model, largest first: Llama 4 Maverick (FlashProve), then Llama 3.1 8B
-    # (SASH); the two references
+    # one table per model, largest first by the workload record's total parameters (RFC-0009
+    # S6): Llama 4 Maverick (FlashProve), then Llama 3.1 8B (SASH); no table across models, so
+    # each system once; the two references
     tables = site.build.tables()
     assert [(site.build.MODEL_NAME[d], [c["system"] for c in rows]) for d, _, rows in tables] == [
         ("Llama 4 Maverick", ["flashprove"]),
         ("Llama 3.1 8B", ["sash"]),
     ]
+    sizes = [rows[0]["workload"]["model"]["parameters"]["total"] for _, _, rows in tables]
+    assert sizes == [400_000_000_000, 8_030_261_248]
+    assert all({c["workload"]["model"]["digest"] for c in rows} == {d} for d, _, rows in tables)
+    systems = [c["system"] for _, _, rows in tables for c in rows]
+    assert sorted(systems) == sorted(set(systems)) == site.view["orders"]["benchmarked"]
     assert site.view["orders"]["reference"] == ["ref-serve", "ref-recompute"]
 
 

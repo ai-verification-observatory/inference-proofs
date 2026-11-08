@@ -5,6 +5,8 @@ ok   pointing at header properties changes nothing
 ok   no sort control, no view toggle, no tabs {"select":0,"toggles":0,"quotes":0,"tables":["Llama 4 Maverick:flashprove","Llama 3.1 8B:sash"],"refs":["ref-serve","ref-recompute"],"wip":0,"sameAsAbove":false,"nb":19,"sections":["llama-4-maverick","llama-3-1-8b","references","not-yet"]}
 ok   no quotes on the home
 ok   two tables, Llama 4 Maverick (FlashProve) then Llama 3.1 8B (SASH); no work-in-progress label ["Llama 4 Maverick:flashprove","Llama 3.1 8B:sash"]
+ok   tables by model size, largest first, from the sizes they print ["Llama 4 Maverick 400000000000","Llama 3.1 8B 8030000000"]
+ok   no table across models: each system once on the overview, its glyph once {"systems":["/flashprove","/sash"],"pies":["/flashprove","/sash"]}
 ok   two reference rows after the models, no "same as above" ["ref-serve","ref-recompute"]
 ok   sections in order, largest model first, under the native workloads header; 19 not benchmarked yet ["llama-4-maverick","llama-3-1-8b","references","not-yet"]
 ok   row slice hover shows its name and state Model boundPartly
@@ -26,6 +28,7 @@ ok   sort overhead desc {"got":[["flashprove"],["sash"]],"hash":"#sort=overhead-
 ok   CLS after a sort (shifts without input) is 0
 ok   the order is named for screen readers Proof size, large to small
 ok   hash round-trip {"aria":["check_time:descending"],"heads":2,"tables":2,"glyphs":"↕↕↕↓↕↕↕↕↓↕","hash":"#sort=check_time-desc"}
+ok   a sort from the hash keeps the tables in model-size order, each with its own rows
 ok   CLS on load with a sort hash is 0
 ok   hashchange applies a new order
 ok   Back to no hash restores the default order {"aria":["system:ascending"],"heads":2,"tables":2,"glyphs":"↑↕↕↕↕↑↕↕↕↕","hash":""}

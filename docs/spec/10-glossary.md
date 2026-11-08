@@ -128,7 +128,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="verdict"></a>**Verdict.** The adapter's normalisation of one `verify` call: `accept`, `reject`, `no_verdict`, `invalid_call`, always stored with the upstream verifier's raw exit code and last line. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 
-<a id="weight-bits"></a>**Weight bits.** The bits that store one weight of a workload's precision as proved, one number in the workload record with its source: as the precision's own documentation states it (with whether the statement covers all or part of the active weights), or computed from file size when the files hold every weight at one width. [RFC-0003](../../rfcs/0003-workloads.md#weight-bits).
+<a id="weight-bits"></a>**Weight bits.** The bits that store one weight of a workload's precision as proved, one number in the workload record with its source: computed from the pinned files when they hold the precision as proved (the mean storage bits per active weight from their tensor tables, block scales included, or file size when they hold every weight at one width), else as the precision's own documentation states it, with whether the statement covers all or part of the active weights. [RFC-0003](../../rfcs/0003-workloads.md#weight-bits).
 
 <a id="workload"></a>**Workload.** A versioned definition (`workloads/<id>.yaml`) of a model by content digest, a precision, a prompt generator over the corpus, a shape, a decoding rule, a phase and a division. [RFC-0003](../../rfcs/0003-workloads.md).
 

@@ -109,12 +109,10 @@ def setup(view, out):
     S.RFC_REF = view["release"]["rfc_commit"]  # the methodology the release was frozen under
     S.RFC_FILES = {f[:4]: f for f in view["rfcs"] if re.match(r"\d{4}-", f)}
     S.crit_sha = S.CRIT["sha256"].removeprefix("sha256:")
-    models = {c["workload"]["model"]["digest"]: c["workload"]["model"]["parameters"]["total"]
-              for c in S.CONFIGS}  # fmt: skip
-    S.MODEL_NAME = {d: view["facts"]["models"][d]["name"] for d in models}
+    S.MODEL_NAME = {d: view["facts"]["models"][d]["name"]
+                    for d in {c["workload"]["model"]["digest"] for c in S.CONFIGS}}  # fmt: skip
     assert len(set(S.MODEL_NAME.values())) == len(S.MODEL_NAME), "two models share a name"
-    S.MODELS = sorted((d for d in models if any(c["workload"]["model"]["digest"] == d for c in S.PROVERS)),
-                      key=lambda d: (-models[d], S.MODEL_NAME[d]))  # fmt: skip
+    S.MODELS = draw.overview.models_by_size(S.PROVERS, S.MODEL_NAME)
     text = json.dumps(S.CRIT, ensure_ascii=False) + json.dumps(view["facts"], ensure_ascii=False)
     for k in draw.plates.PHRASES:
         assert k in text, f"PHRASES: {k!r} no longer in the criteria or facts file"
