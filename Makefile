@@ -9,7 +9,7 @@ ci:
 	uv run ruff check .
 	uv run ruff format --check .
 	uv run mypy --strict harness/src/iproofs harness/tests
-	HYPOTHESIS_PROFILE=ci COVERAGE_FILE=.coverage.local uv run pytest harness/tests systems -q -n auto --durations=20 --cov=iproofs --cov-report=
+	HYPOTHESIS_PROFILE=ci COVERAGE_FILE=.coverage.local uv run pytest harness/tests systems -q -n auto --dist loadfile --durations=20 --cov=iproofs --cov-report=
 	uv run coverage combine
 	uv run coverage json -o coverage.json
 	uv run python harness/tests/coverage_gate.py coverage.json

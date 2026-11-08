@@ -16,7 +16,8 @@ from typing import Any
 
 import pytest
 
-from fixtures.placeholder_release import RELEASE, build_placeholder
+from fixtures.builds import SiteBuild
+from fixtures.placeholder_release import RELEASE
 from iproofs import cli
 from iproofs.derive import FORMULAS
 
@@ -40,18 +41,19 @@ COLUMN = {
 
 
 @pytest.fixture(scope="module")
-def built(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Path]:
-    """(tree, out): the placeholder tree, its runs checked and frozen, and the site built."""
-    root = tmp_path_factory.mktemp("site-e2e")
-    tree, out = root / "repo", root / "out"
-    build_placeholder(tree)
+def built(placeholder_build: SiteBuild) -> tuple[Path, Path]:
+    """(tree, out): the placeholder tree, its runs checked and frozen, and the site built. The
+    tree, its freeze and the site are the shared deployed build (fixtures/builds), which runs
+    `iproofs release freeze` and `iproofs site build` through the CLI and fails on a non-zero
+    exit; `iproofs derive --check` never writes, so it runs on that tree here."""
+    tree, out = placeholder_build.repo, placeholder_build.out
     runs = sorted(p.parent for p in tree.glob("results/*/*/*/run.json"))
     assert len(runs) >= 12  # 3 + 5 prover runs, 3 + 3 reference runs
     with contextlib.chdir(tree):
         for run in runs:
             assert cli.main(["derive", "--check", str(run)]) == 0, run.name
-        assert cli.main(["release", "freeze", RELEASE]) == 0
-        assert cli.main(["site", "build", "--out", str(out)]) == 0
+    assert (tree / INDEX).is_file()  # frozen
+    assert (out / "index.html").is_file()  # built
     return tree, out
 
 

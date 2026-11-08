@@ -16,6 +16,7 @@ import pytest
 import yaml
 
 from fixtures import placeholder_release as ph
+from fixtures.builds import SiteBuild
 from iproofs.validate import check_derived
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -31,17 +32,15 @@ def frozen(root: Path, *, extras: bool = False) -> dict[str, Any]:
 
 
 @pytest.fixture(scope="module")
-def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    root = tmp_path_factory.mktemp("placeholder")
-    frozen(root)
-    return root
+def tree(placeholder_build: SiteBuild) -> Path:
+    """The deployed tree, frozen (the shared build: its freeze must exit 0, fixtures/builds)."""
+    return placeholder_build.repo
 
 
 @pytest.fixture(scope="module")
-def extras(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    root = tmp_path_factory.mktemp("placeholder-extras")
-    frozen(root, extras=True)
-    return root
+def extras(extras_build: SiteBuild) -> Path:
+    """The tree with every test-only case, frozen (shared, as `tree`)."""
+    return extras_build.repo
 
 
 def index(root: Path) -> dict[str, Any]:

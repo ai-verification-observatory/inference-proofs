@@ -57,7 +57,7 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv python install ${{ matrix.python }}
       - run: uv sync --frozen --python ${{ matrix.python }}
-      - run: uv run pytest harness/tests systems -q -n auto --durations=20 --cov=iproofs --cov-report=
+      - run: uv run pytest harness/tests systems -q -n auto --dist loadfile --durations=20 --cov=iproofs --cov-report=
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-${{ matrix.python }}-${{ matrix.shard }}
