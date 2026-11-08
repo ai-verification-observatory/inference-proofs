@@ -4,10 +4,15 @@ copies, at the paths it copies them to, from this checkout, so the hosted runner
 Dockerfile's ENTRYPOINT) finds them. Run as root, from the checkout, inside the engine image, with
 its Python (standard library only):
 
-    python3 systems/ref-serve-gguf/dev_install.py ENGINE_IMAGE
+    python3 systems/ref-serve-gguf/dev_install.py ENGINE_IMAGE [GPU]
 
 ENGINE_IMAGE is the reference the provider started, <repository>@sha256:<digest>; it must be the
-Dockerfile's FROM. Nothing here is a pinned adapter image: a run from it records the image as
+Dockerfile's FROM. The job command asserts that reference; what is checked here is the server
+binary itself: `llama-server --version` must name the pinned build and commit, and that line is
+recorded. With GPU (the index the runs bind), the server, run as uid 10001 with only that GPU
+visible as the hosted runner gives it, must list exactly one CUDA device, so a CUDA build the
+driver cannot run stops the job before the weights are fetched. Nothing here is a pinned adapter
+image: a run from it records the image as
 local/<ENGINE_IMAGE> (digest_kind config, `iproofs run --hosted --image ENGINE_IMAGE`), the adapter
 commit as the checkout's, and in image_inputs the engine image and the adapter files at that
 commit. It is never eligible for a release (RFC-0014 §Eligibility).
@@ -30,7 +35,13 @@ OPT = Path("/opt")  # the tests install under a temporary directory instead
 FETCH = OPT / "iproofs/fetch"
 SITE = OPT / "ref-serve-gguf/site"
 SERVER = Path("/app/llama-server")
+SERVER_CWD = "/app"  # the image's WORKDIR, where the server finds its libraries (README)
+BUILD = "build 12110, commit cd959bae9"  # `--version` of the pinned server (README §Engine)
 BLOB = "https://github.com/ai-verification-observatory/inference-proofs/blob"
+ADAPTER_UID = "10001"
+# as the hosted runner starts a step (iproofs.adapter DROP_TO_ADAPTER); the tests run unprivileged
+AS_ADAPTER = ["setpriv", f"--reuid={ADAPTER_UID}", f"--regid={ADAPTER_UID}", "--clear-groups"]
+CUDA_DEVICE = re.compile(r"^\s+CUDA\d+: ", re.M)  # common/arg.cpp L1140 to L1150 at the pin
 
 
 def fail(message: str) -> None:
@@ -68,7 +79,35 @@ def git(*args: str) -> str:
     return done.stdout.strip()
 
 
-def inputs_json(image: str, commit: str, dirty: bool) -> dict[str, object]:
+def server_output(*args: str, env: dict[str, str] | None = None, drop: bool = False) -> str:
+    """stdout and stderr of the server binary run with `args` from its directory."""
+    argv = [*(AS_ADAPTER if drop else []), str(SERVER), *args]
+    done = subprocess.run(argv, cwd=SERVER_CWD, capture_output=True, text=True, env=env,
+                          timeout=300, check=False)  # fmt: skip
+    return done.stdout + done.stderr
+
+
+def server_version() -> str:
+    """The `--version` line of the image's server, refused unless it is the pinned build."""
+    out = server_output("--version")
+    line = next((x.strip() for x in out.splitlines() if x.startswith("version:")), "")
+    if BUILD not in line:
+        fail(f"{SERVER} --version says {line or out.strip()[:200]!r}, not {BUILD!r}")
+    return line
+
+
+def check_gpu(gpu: str) -> None:
+    """The server, as the adapter uid with only GPU visible, lists exactly one CUDA device."""
+    env = {k: v for k, v in os.environ.items() if not k.startswith("LLAMA_ARG_")}
+    env |= {"CUDA_DEVICE_ORDER": "PCI_BUS_ID", "CUDA_VISIBLE_DEVICES": gpu}
+    out = server_output("--list-devices", env=env, drop=True)
+    print(out.rstrip())
+    found = CUDA_DEVICE.findall(out)
+    if len(found) != 1:
+        fail(f"{len(found)} CUDA devices listed with CUDA_VISIBLE_DEVICES={gpu}, not 1")
+
+
+def inputs_json(image: str, commit: str, dirty: bool, version: str) -> dict[str, object]:
     """B5 for a development install: the locked inputs, then the engine image and the adapter
     files at this commit, so the run's image_inputs say what ran."""
     inputs: list[dict[str, str]] = [
@@ -83,6 +122,7 @@ def inputs_json(image: str, commit: str, dirty: bool) -> dict[str, object]:
                        "url": f"{BLOB}/{commit}/systems/ref-serve-gguf/{name}",
                        "digest": f"sha256:{sha}"})  # fmt: skip
     toolchains = {"python": sys.version.split()[0], "llama.cpp": "b12110",
+                  "llama-server --version": version,
                   "development_install": f"{commit}{' dirty' if dirty else ''}"}  # fmt: skip
     return {"inputs": inputs, "toolchains": toolchains}
 
@@ -90,6 +130,8 @@ def inputs_json(image: str, commit: str, dirty: bool) -> dict[str, object]:
 def install(image: str) -> None:
     if image != dockerfile_from():
         fail(f"the job's image {image} is not the Dockerfile's FROM {dockerfile_from()}")
+    version = server_version()
+    print(f"dev-install: {version}")
     commit = git("rev-parse", "HEAD")
     dirty = bool(git("status", "--porcelain", "--", "systems/ref-serve-gguf"))
     FETCH.mkdir(parents=True, exist_ok=True)
@@ -109,7 +151,7 @@ def install(image: str) -> None:
             with zipfile.ZipFile(FETCH / name) as wheel:
                 wheel.extractall(SITE)
     (OPT / "iproofs/inputs.json").write_text(
-        json.dumps(inputs_json(image, commit, dirty), sort_keys=True) + "\n"
+        json.dumps(inputs_json(image, commit, dirty, version), sort_keys=True) + "\n"
     )
     for root in (OPT / "iproofs", OPT / "ref-serve-gguf"):  # readable by uid 10001
         for path in [root, *root.rglob("*")]:
@@ -118,19 +160,22 @@ def install(image: str) -> None:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
-        fail("usage: dev_install.py ENGINE_IMAGE")
+    if len(argv) not in (2, 3):
+        fail("usage: dev_install.py ENGINE_IMAGE [GPU]")
     if os.geteuid() != 0:
         fail("run as root (it writes /opt and adds uid 10001)")
     if not SERVER.is_file():
         fail(f"no {SERVER}: not the engine image")
     install(argv[1])
-    if subprocess.run(["id", "-u", "10001"], capture_output=True, check=False).returncode != 0:
-        subprocess.run(["useradd", "--uid", "10001", "--no-create-home", "adapter"], check=True)
+    if subprocess.run(["id", "-u", ADAPTER_UID], capture_output=True, check=False).returncode != 0:
+        subprocess.run(["useradd", "--uid", ADAPTER_UID, "--no-create-home", "adapter"], check=True)
     sys.path.insert(0, str(SITE))
     import yaml  # noqa: PLC0415 (the wheel just extracted)
 
     print(f"dev-install: PyYAML {yaml.__version__}")
+    if len(argv) == 3:
+        check_gpu(argv[2])
+        print(f"dev-install: one CUDA device, CUDA_VISIBLE_DEVICES={argv[2]}, uid {ADAPTER_UID}")
     return 0
 
 

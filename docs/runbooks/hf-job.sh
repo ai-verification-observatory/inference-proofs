@@ -27,10 +27,11 @@
 #   IPROOFS_GPU           the bound GPU index (default: the probe's suggestion, else 0)
 #   IPROOFS_DEV_IMAGE     a development run from the public engine image the job was started
 #                         from, <repository>@sha256:<digest>: systems/SYSTEM/dev_install.py puts
-#                         the adapter files from this checkout where the Dockerfile puts them,
-#                         and the runs pass `--image IPROOFS_DEV_IMAGE --keep-io` (recorded as
-#                         local/<that image>, digest_kind config; the io directory, with the
-#                         engine's raw responses, stays in the run directory)
+#                         the adapter files from this checkout where the Dockerfile puts them and
+#                         checks the engine on the bound GPU, and the runs pass `--image
+#                         IPROOFS_DEV_IMAGE --keep-io` (recorded as local/<that image>,
+#                         digest_kind config; the io directory, with the engine's raw responses,
+#                         stays in the run directory and is uploaded if it holds no weights)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
 set -uo pipefail
 
@@ -44,6 +45,8 @@ PROFILE=prover-h200-hosted
 PROVIDER="Hugging Face Jobs"
 BUDGET=${IPROOFS_JOB_BUDGET_S:-1200}
 RESERVE=900                          # seconds kept for the upload at the end
+IO_KEEP_MAX_K=1048576                # a development run's io/ is uploaded only without a file
+                                     # above 1 GiB or a weights file (prune)
 MODE=${1:-}
 [ $# -gt 0 ] && shift
 mkdir -p "$OUT" "$DEV" "$WORK/home" "$WORK/hf-home"
@@ -66,10 +69,17 @@ prune() {  # what a run stopped at the deadline leaves in its staging directory 
     for part in io prover-ro verify controls-io commitment; do
       [ -e "$dir/$part" ] || continue
       if [ "$part" = io ] && [ -n "${IPROOFS_DEV_IMAGE:-}" ]; then
-        # a development install's io holds the engine's responses and log, never weights (the
-        # adapter reads /models from the cache): it is the capture, kept
-        log "prune: keeping $(du -sh "$dir/$part" | cut -f1) $(basename "$dir")/io (development run)"
-        continue
+        # a development install's io is the capture (the engine's responses and log): kept,
+        # unless it holds a weights file or any file above 1 GiB (another system's io may hold
+        # a copy of the weights or a key)
+        local big
+        big=$(find "$dir/io" -type f \( -size +"${IO_KEEP_MAX_K}k" -o -name '*.gguf' \
+          -o -name '*.safetensors' \) -print -quit)
+        if [ -z "$big" ]; then
+          log "prune: keeping $(du -sh "$dir/$part" | cut -f1) $(basename "$dir")/io (development run)"
+          continue
+        fi
+        log "prune: io of a development run holds ${big#"$dir/"}: not kept"
       fi
       log "prune: $(du -sh "$dir/$part" | cut -f1) $(basename "$dir")/$part (weights copy, scratch, prover key)"
       rm -rf "${dir:?}/$part"
@@ -106,22 +116,25 @@ upload() {
   log "upload: out/ to dataset $IPROOFS_UPLOAD, folder $folder; exit $status"
   local py="$PY"
   [ -x "$py" ] || py="uv run --no-project --with huggingface_hub==0.36.2 python"
-  IPROOFS_FOLDER="$folder" IPROOFS_OUT="$OUT" $py - <<'EOF' || log "upload: failed"
+  local keep_io=0  # prune has removed every io/ that is not to leave the job
+  [ -n "${IPROOFS_DEV_IMAGE:-}" ] && keep_io=1
+  IPROOFS_FOLDER="$folder" IPROOFS_OUT="$OUT" IPROOFS_KEEP_STAGING_IO="$keep_io" $py - <<'EOF' \
+    || log "upload: failed"
 import os
 from huggingface_hub import HfApi
 
 api = HfApi()  # reads HF_TOKEN from the environment; it is never printed
 repo, out, folder = os.environ["IPROOFS_UPLOAD"], os.environ["IPROOFS_OUT"], os.environ["IPROOFS_FOLDER"]
 message = "development run (docs/runbooks/hf-jobs.md)"
+ignore = [f"**/.staging-*/{part}/**" for part in ("prover-ro", "verify", "controls-io", "commitment")]
+if os.environ.get("IPROOFS_KEEP_STAGING_IO") != "1":  # a development run's io/ is its capture
+    ignore.insert(0, "**/.staging-*/io/**")
 # The dataset exists already (hf-jobs.md stage 0): a token scoped to it cannot create it.
 # Two commits: the log, probe and self-test first, then the run directories.
 api.upload_folder(repo_id=repo, repo_type="dataset", folder_path=out, path_in_repo=folder,
                   allow_patterns=["*.json", "job.log"], commit_message=message)
 api.upload_folder(repo_id=repo, repo_type="dataset", folder_path=out, path_in_repo=folder,
-                  allow_patterns=["dev-results/**"],
-                  ignore_patterns=["**/.staging-*/io/**", "**/.staging-*/prover-ro/**",
-                                   "**/.staging-*/verify/**", "**/.staging-*/controls-io/**",
-                                   "**/.staging-*/commitment/**"],
+                  allow_patterns=["dev-results/**"], ignore_patterns=ignore,
                   commit_message=message)
 print("upload: done")
 EOF
@@ -226,8 +239,8 @@ image_args=()
 if [ -n "${IPROOFS_DEV_IMAGE:-}" ]; then
   log "development install of $SYSTEM into $IPROOFS_DEV_IMAGE, from this checkout"
   if [ ! -f "systems/$SYSTEM/dev_install.py" ] \
-    || ! python3 "systems/$SYSTEM/dev_install.py" "$IPROOFS_DEV_IMAGE"; then
-    log "the development install failed (or $SYSTEM has none); stopping before any weights"
+    || ! python3 "systems/$SYSTEM/dev_install.py" "$IPROOFS_DEV_IMAGE" "$GPU"; then
+    log "the development install or its engine check failed (or $SYSTEM has none); stopping before any weights"
     exit 3
   fi
   image_args=(--image "$IPROOFS_DEV_IMAGE" --keep-io)
@@ -258,8 +271,8 @@ for step in "$@"; do
   log "run $SYSTEM $workload x${reps:-1} ${extra[*]:-} ${image_args[*]:-}, at most $remaining s"
   env -u HF_TOKEN timeout --kill-after=60 "$remaining" "$IP" run --system "$SYSTEM" \
     --workload "$workload" --profile "$PROFILE" --hosted --gpu "$GPU" --provider "$PROVIDER" \
-    --repetitions "${reps:-1}" --allow-nonconforming --results "$DEV" "${extra[@]}" \
-    "${image_args[@]}"
+    --repetitions "${reps:-1}" --allow-nonconforming --results "$DEV" \
+    ${extra[@]+"${extra[@]}"} ${image_args[@]+"${image_args[@]}"}  # empty arrays under bash 3.2 too
   rc=$?
   # 0 all repetitions completed; 4 a repetition was recorded as failed; 124 or 137 stopped at
   # the job's deadline: its staging directory is uploaded without io/, the scratch directories

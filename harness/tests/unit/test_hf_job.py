@@ -2,9 +2,11 @@
 that is not the asked commit, stops when the harness install fails, and always writes its log
 and tries the upload on exit, without a token in the log (AGENTS.md rule 7)."""
 
+import json
 import os
 import shutil
 import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -18,11 +20,14 @@ pytestmark = pytest.mark.skipif(
 )
 
 
-def checkout(tmp_path: Path) -> tuple[Path, str]:
+def checkout(tmp_path: Path, files: dict[str, str] | None = None) -> tuple[Path, str]:
     """A one-commit repository laid out as the job clones it: <work>/inference-proofs."""
     repo = tmp_path / "work" / "inference-proofs"
     (repo / "docs/runbooks").mkdir(parents=True)
     shutil.copy(SCRIPT, repo / "docs/runbooks/hf-job.sh")
+    for rel, text in (files or {}).items():
+        (repo / rel).parent.mkdir(parents=True, exist_ok=True)
+        (repo / rel).write_text(text)
     env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.invalid",
            "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.invalid"}  # fmt: skip
     for argv in (["init", "-q"], ["add", "."], ["commit", "-q", "-m", "x"]):
@@ -123,18 +128,23 @@ def test_development_run_keeps_io(tmp_path: Path) -> None:
     for part in ("io", "verify", "commitment"):
         (staging / part).mkdir(parents=True)
     (staging / "io/responses.jsonl").write_text("{}\n")
+    weights = repo.parent / "out/dev-results/v0.1/other/.staging-r2/io"
+    weights.mkdir(parents=True)
+    (weights / "fit.gguf").write_bytes(b"w")  # another system's io with a weights file
     bucket = tmp_path / "bucket"
     bucket.mkdir()
     done = job(repo, "probe", IPROOFS_COMMIT="0" * 40, IPROOFS_UPLOAD_DIR=str(bucket),
-               IPROOFS_DEV_IMAGE="ghcr.io/ggml-org/llama.cpp@sha256:" + "a" * 64)  # fmt: skip
+               IPROOFS_DEV_IMAGE=DEV_IMAGE)  # fmt: skip
     assert done.returncode == 2
     log = log_of(repo, "upload: done")
     assert ".staging-r1/io (development run)" in log
+    assert "prune: io of a development run holds io/fit.gguf: not kept" in log
     (folder,) = (bucket / "runs").iterdir()
     copied = folder / "dev-results/v0.1/ref-serve-gguf/.staging-r1"
     assert (copied / "io/responses.jsonl").is_file()
     assert not (copied / "verify").exists()
     assert not (copied / "commitment").exists()
+    assert not (folder / "dev-results/v0.1/other/.staging-r2/io").exists()
 
 
 def test_development_run_installs_and_passes_the_engine_image() -> None:
@@ -144,6 +154,110 @@ def test_development_run_installs_and_passes_the_engine_image() -> None:
     text = SCRIPT.read_text()
     assert 'python3 "systems/$SYSTEM/dev_install.py" "$IPROOFS_DEV_IMAGE"' in text
     assert 'image_args=(--image "$IPROOFS_DEV_IMAGE" --keep-io)' in text
-    assert '"${image_args[@]}"' in text
+    assert '${image_args[@]+"${image_args[@]}"}' in text
     assert "sha256sum -c --quiet" in text
     assert '[ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv' in text
+
+
+DEV_IMAGE = "ghcr.io/ggml-org/llama.cpp@sha256:" + "a" * 64
+
+# Stand-ins for the tools hf-job.sh calls, each logging its arguments to $STUB_LOG: uv, the
+# harness's python and iproofs, the system's dev_install.py, and huggingface_hub's HfApi.
+STUB_UV = """#!/usr/bin/env bash
+echo "uv $*" >> "$STUB_LOG"
+"""
+STUB_PYTHON = """#!/usr/bin/env bash
+echo "python $*" >> "$STUB_LOG"
+if [ "${1:-}" = - ] && [ $# -gt 1 ]; then cat > /dev/null; exit 0; fi  # the binding check
+exec "$STUB_REAL_PYTHON" "$@"  # the extras' import and the dataset upload, on stub modules
+"""
+STUB_IPROOFS = """#!/usr/bin/env bash
+echo "iproofs $*" >> "$STUB_LOG"
+[ "${1:-}" = machine-record ] && echo '{}'
+exit 0
+"""
+STUB_DEV_INSTALL = """import os, sys
+with open(os.environ["STUB_LOG"], "a") as f:
+    f.write("dev_install " + " ".join(sys.argv[1:]) + "\\n")
+sys.exit(int(os.environ.get("STUB_DEV_RC", "0")))
+"""
+STUB_HF = """import json, os
+class HfApi:
+    def upload_folder(self, **kw):
+        with open(os.environ["STUB_HF_LOG"], "a") as f:
+            f.write(json.dumps(kw) + "\\n")
+"""
+
+
+def stubbed(tmp_path: Path) -> tuple[Path, str, dict[str, str]]:
+    """A checkout with a stub dev_install.py for ref-serve-gguf, the stubs, and their env."""
+    repo, head = checkout(tmp_path, {"systems/ref-serve-gguf/dev_install.py": STUB_DEV_INSTALL})
+    bin_dir, venv, mods = tmp_path / "bin", repo / ".venv/bin", tmp_path / "mods"
+    for path, text in ((bin_dir / "uv", STUB_UV), (venv / "python", STUB_PYTHON),
+                       (venv / "iproofs", STUB_IPROOFS)):  # fmt: skip
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+        path.chmod(0o755)
+    for name, text in (("huggingface_hub", STUB_HF), ("pynvml", ""), ("tokenizers", "")):
+        (mods / name).mkdir(parents=True)
+        (mods / name / "__init__.py").write_text(text)
+    env = {"PATH": f"{bin_dir}:{os.environ['PATH']}", "PYTHONPATH": str(mods),
+           "STUB_LOG": str(tmp_path / "stub.log"), "STUB_HF_LOG": str(tmp_path / "hf.log"),
+           "STUB_REAL_PYTHON": sys.executable, "IPROOFS_DEV_IMAGE": DEV_IMAGE}  # fmt: skip
+    return repo, head, env
+
+
+def calls(tmp_path: Path) -> list[str]:
+    path = tmp_path / "stub.log"
+    return path.read_text().splitlines() if path.is_file() else []
+
+
+def test_development_run_installs_then_runs_with_the_engine_image(tmp_path: Path) -> None:
+    """IPROOFS_DEV_IMAGE: after the binding check, the system's dev_install.py with the image
+    and the bound GPU (it checks the engine there), then fetch-model, then every run with
+    `--image <image> --keep-io`; uv is not downloaded when the image has one."""
+    repo, head, env = stubbed(tmp_path)
+    done = job(repo, "run", "ref-serve-gguf", "fp-maverick-w1024-b1:1", IPROOFS_COMMIT=head,
+               IPROOFS_JOB_BUDGET_S="5000", **env)  # fmt: skip
+    log = log_of(repo, "upload: skipped")
+    assert done.returncode == 0, log
+    seen = calls(tmp_path)
+    binding = seen.index("python - 0 prover-h200-hosted v0.1")
+    install = seen.index(f"dev_install {DEV_IMAGE} 0")
+    fetch = seen.index("iproofs fetch-model fp-maverick-w1024-b1")
+    (run,) = [c for c in seen if c.startswith("iproofs run ")]
+    assert binding < install < fetch < seen.index(run)
+    assert run.endswith(f"--allow-nonconforming --results {repo.parent}/out/dev-results"
+                        f" --image {DEV_IMAGE} --keep-io")  # fmt: skip
+    assert "--system ref-serve-gguf --workload fp-maverick-w1024-b1" in run
+    assert "uv: not in the image" not in log
+
+
+def test_failed_development_install_stops_before_the_weights(tmp_path: Path) -> None:
+    repo, head, env = stubbed(tmp_path)
+    done = job(repo, "run", "ref-serve-gguf", "fp-maverick-w1024-b1:1", IPROOFS_COMMIT=head,
+               IPROOFS_JOB_BUDGET_S="5000", STUB_DEV_RC="1", **env)  # fmt: skip
+    assert done.returncode == 3
+    log = log_of(repo, "upload: skipped")
+    assert "engine check failed" in log
+    assert f"dev_install {DEV_IMAGE} 0" in calls(tmp_path)
+    assert not [c for c in calls(tmp_path) if c.startswith(("iproofs fetch-model", "iproofs run"))]
+
+
+@pytest.mark.parametrize("dev", [True, False])
+def test_dataset_upload_keeps_io_only_for_a_development_run(tmp_path: Path, dev: bool) -> None:
+    """The fallback upload (a dataset) sends a development run's kept io/ as the bucket copy
+    does; for any other run io/ never leaves the job."""
+    repo, _, env = stubbed(tmp_path)
+    if not dev:
+        del env["IPROOFS_DEV_IMAGE"]
+    staging = repo.parent / "out/dev-results/v0.1/ref-serve-gguf/.staging-r1"
+    (staging / "io").mkdir(parents=True)
+    (staging / "io/responses.jsonl").write_text("{}\n")
+    done = job(repo, "probe", IPROOFS_COMMIT="0" * 40, IPROOFS_UPLOAD="ns/ds", **env)
+    assert done.returncode == 2
+    log_of(repo, "upload: done")
+    first, runs = (json.loads(x) for x in (tmp_path / "hf.log").read_text().splitlines())
+    assert first["allow_patterns"] == ["*.json", "job.log"]
+    assert ("**/.staging-*/io/**" in runs["ignore_patterns"]) is not dev
+    assert "**/.staging-*/commitment/**" in runs["ignore_patterns"]

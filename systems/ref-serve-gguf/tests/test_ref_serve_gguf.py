@@ -365,7 +365,11 @@ def dev_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
             wheel.writestr("yaml/__init__.py", "__version__ = 'fixture'\n")
 
     monkeypatch.setattr(module, "fetch", fetch)
+    monkeypatch.setattr(module, "server_version", lambda: VERSION)
     return module
+
+
+VERSION = "version: 0.9.0-dev (build 12110, commit cd959bae9)"  # the pinned image's, 2026-11-08
 
 
 def test_dev_install_mirrors_the_dockerfile(dev_install: ModuleType) -> None:
@@ -393,6 +397,7 @@ def test_dev_install_mirrors_the_dockerfile(dev_install: ModuleType) -> None:
     commit = dev_install.git("rev-parse", "HEAD")
     assert doc["inputs"][2]["url"].endswith(f"/{commit}/systems/ref-serve-gguf/entrypoint")
     assert doc["toolchains"]["development_install"].startswith(commit)
+    assert doc["toolchains"]["llama-server --version"] == VERSION
     assert REGISTRY.errors("adapter-out/1", {
         "schema": "adapter-out/1", "contract": "adapter/1", "subcommand": "info",
         "phases": [], "warnings": [], "system": "ref-serve-gguf",
@@ -421,3 +426,56 @@ def test_dev_install_refuses(dev_install: ModuleType, tmp_path: Path) -> None:
     if os.geteuid() != 0:
         with pytest.raises(SystemExit, match="run as root"):
             real.main(["dev_install.py", real.dockerfile_from()])
+
+
+def stand_in_server(module: ModuleType, tmp_path: Path, script: str) -> None:
+    """A shell script in place of /app/llama-server, run without the uid drop."""
+    server = tmp_path / "llama-server"
+    server.write_text("#!/bin/sh\n" + script)
+    server.chmod(0o755)
+    module.SERVER, module.SERVER_CWD, module.AS_ADAPTER = server, str(tmp_path), []
+
+
+def test_dev_install_checks_the_server_build(tmp_path: Path) -> None:
+    """The binary in the image the job started is the pinned build, whatever the job command
+    says the image is; its version line goes to inputs.json (see the test above)."""
+    spec = importlib.util.spec_from_file_location("ref_serve_gguf_dev3", SYSTEM / "dev_install.py")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    stand_in_server(module, tmp_path, f'echo "{VERSION}" >&2\necho "built with GNU 14.2.0"\n')
+    assert module.server_version() == VERSION
+    stand_in_server(module, tmp_path, 'echo "version: 0.9.1 (build 12200, commit 0000000)" >&2\n')
+    with pytest.raises(SystemExit, match="not 'build 12110, commit cd959bae9'"):
+        module.server_version()
+
+
+@pytest.mark.parametrize(
+    ("listed", "ok"),
+    [("  CUDA0: NVIDIA H200 (143771 MiB, 143199 MiB free)", True),  # common/arg.cpp L1149
+     ("  (none)", False),
+     ("  CUDA0: NVIDIA H200 (1 MiB, 1 MiB free)\n  CUDA1: NVIDIA H200 (1 MiB, 1 MiB free)", False)],
+)  # fmt: skip
+def test_dev_install_checks_one_cuda_device(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, listed: str, ok: bool
+) -> None:
+    """Before any weights: the server, with only the bound GPU visible and no LLAMA_ARG_*
+    option, lists exactly one CUDA device; a CUDA build the driver cannot run lists none."""
+    spec = importlib.util.spec_from_file_location("ref_serve_gguf_dev4", SYSTEM / "dev_install.py")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    monkeypatch.setenv("LLAMA_ARG_HOST", "0.0.0.0")
+    script = f"""[ "$1" = --list-devices ] || exit 9
+[ "$CUDA_VISIBLE_DEVICES" = 1 ] && [ "$CUDA_DEVICE_ORDER" = PCI_BUS_ID ] || exit 8
+[ -z "$LLAMA_ARG_HOST" ] || exit 7
+printf 'Available devices:\\n{listed}\\n'
+"""
+    stand_in_server(module, tmp_path, script)
+    if ok:
+        module.check_gpu("1")
+    else:
+        with pytest.raises(SystemExit, match=r"CUDA devices listed with CUDA_VISIBLE_DEVICES=1"):
+            module.check_gpu("1")
