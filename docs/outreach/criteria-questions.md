@@ -10,7 +10,7 @@ How an answer is used ([RFC-0016](../../rfcs/0016-glyph-properties-and-states.md
 - A private message or an issue comment alone sets nothing (SRC-8; for card rows, cf. OVR-6). An unpublished answer leaves the cell Not stated.
 - A reviewer copies the team's words and sets the state by the property's rules. Nobody infers or tests a property from the answer.
 - The questions ask about the system's default use, because RFC-0016 reads a public-source row for its default or expected use (SRC-1). An answer for another configuration is printed as an aside and sets nothing.
-- A question marked "(Partly cell)" targets a cell that is Partly under an open question of RFC-0016 (Q10), not a Not stated cell.
+- A question marked "(Partly cell)" targets a cell that is Partly by RFC-0016 Q10 (a level stated as neither proven nor conjectured; resolved 2026-11-08), not a Not stated cell.
 
 The claim card teams (FlashProve, SASH) are asked in #42, not here.
 
@@ -30,7 +30,7 @@ The claim card teams (FlashProve, SASH) are asked in #42, not here.
 | [Remainder (Community Edition)](#remainder-community-edition) | an issue on `worldcoin/Remainder_CE` (not a security report, so not through its SECURITY.md) | Weights hidden, Model bound, Whole output checked, Formally verified, Security level, No trusted party | yes |
 | [Tinfoil](#tinfoil) | the contact channel listed on docs.tinfoil.sh | Weights hidden, Model bound, Whole output checked, Formally verified, Security level | yes |
 | [TOPLOC](#toploc) | an issue on `PrimeIntellect-ai/toploc` | Weights hidden, Whole output checked, Formally verified, Security level, No trusted party | yes |
-| [Verde (with RepOps)](#verde-with-repops) | the correspondence address printed on arXiv 2502.19405 | Model bound, Whole output checked, Formally verified, Security level | yes |
+| [Verde (with RepOps)](#verde-with-repops) | the correspondence address printed on arXiv 2502.19405 | Weights hidden, Model bound, Whole output checked, Formally verified, Security level | yes |
 | [zkGPT](#zkgpt) | the correspondence address printed on ePrint 2025/1184 | Model bound, Whole output checked, Formally verified, Security level, No trusted party | yes |
 | [zkLLM](#zkllm) | the correspondence address printed on arXiv 2404.16109 | Model bound, Whole output checked, Formally verified, Security level, No trusted party | optional |
 | [ZKML](#zkml) | an issue on `ddkang/zkml` | Model bound, Whole output checked, Formally verified, Security level, No trusted party | yes |
@@ -310,10 +310,11 @@ The claim card teams (FlashProve, SASH) are asked in #42, not here.
 >
 > We found no statement that answers these questions:
 >
-> 1. Model bound: In its default use, is each checked output token tied to the committed weights?
-> 2. Whole output checked: Does one check, or one joined set of checks, cover the prompt and every output token of a request?
-> 3. Formally verified: Is the security argument for its default use checked in a proof assistant (Lean, Coq, Isabelle or similar)?
-> 4. Security level: Is a numeric soundness level stated for its default use, and is it proven or conjectured?
+> 1. Weights hidden: For inference, does the party that checks a result learn nothing about the model weights? Section 2 states what the referee holds for training ("the initial parameters") and that the techniques extend to inference, but not what the referee holds for inference.
+> 2. Model bound: In its default use, is each checked output token tied to the committed weights?
+> 3. Whole output checked: Does one check, or one joined set of checks, cover the prompt and every output token of a request?
+> 4. Formally verified: Is the security argument for its default use checked in a proof assistant (Lean, Coq, Isabelle or similar)?
+> 5. Security level: Is a numeric soundness level stated for its default use, and is it proven or conjectured?
 >
 > Would you state the answers in a new version of arXiv 2502.19405, or point us to where you already do? "Not provided" or "does not hold" is as useful to us as "holds". A reply by message alone does not change the site; the statement needs to be in a public source of yours. We copy your words, link them at a commit or an archived page, and do not infer or test the properties. Thank you.
 

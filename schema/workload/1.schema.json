@@ -278,18 +278,10 @@
           "type": "string"
         },
         "weight_bits": {
-          "$comment": "RFC-0003 §Weight bits: bits per weight of the precision as proved, an asserted input of RFC-0004 D-SPAB-S. A stated basis types `bits`; a file_size basis lists `files`, covers all weights, and the loader computes `bits` (WB-2), so it is not typed",
+          "$comment": "RFC-0003 §Weight bits: bits per weight of the precision as proved, an asserted input of RFC-0004 D-SPAB-S. A stated basis types `bits` (WB-1); a file_size basis lists `files`, covers all weights, and the loader computes `bits` (WB-2), so it is not typed; a computed basis types the `bits` its `method` computes from the listed `files`, covers all active weights, and fetch-model recomputes it (WB-5)",
           "additionalProperties": false,
           "allOf": [
             {
-              "else": {
-                "properties": {
-                  "files": false
-                },
-                "required": [
-                  "bits"
-                ]
-              },
               "if": {
                 "properties": {
                   "basis": {
@@ -302,10 +294,50 @@
                   "bits": false,
                   "covers": {
                     "const": "all"
-                  }
+                  },
+                  "method": false
                 },
                 "required": [
                   "files"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "basis": {
+                    "const": "computed"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "covers": {
+                    "const": "all"
+                  }
+                },
+                "required": [
+                  "bits",
+                  "files",
+                  "method"
+                ]
+              }
+            },
+            {
+              "if": {
+                "properties": {
+                  "basis": {
+                    "const": "stated"
+                  }
+                }
+              },
+              "then": {
+                "properties": {
+                  "files": false,
+                  "method": false
+                },
+                "required": [
+                  "bits"
                 ]
               }
             }
@@ -314,7 +346,8 @@
             "basis": {
               "enum": [
                 "stated",
-                "file_size"
+                "file_size",
+                "computed"
               ]
             },
             "bits": {
@@ -336,6 +369,12 @@
               "minItems": 1,
               "type": "array",
               "uniqueItems": true
+            },
+            "method": {
+              "$comment": "RFC-0003 WB-5: the computation's id and version",
+              "enum": [
+                "gguf-active-mean/1"
+              ]
             },
             "note": {
               "maxLength": 500,

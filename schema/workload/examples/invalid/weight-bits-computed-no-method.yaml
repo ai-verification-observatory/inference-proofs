@@ -1,0 +1,30 @@
+# A computed width names its method (RFC-0003 WB-5).
+# Hashes are illustrative.
+schema: "workload/1"
+id: "fake-tiny-ci"
+version: 1
+division: "open"
+model:
+  source: {hub: "huggingface", repo: "ai-verification-observatory/fake-tiny"}
+  revision: "0123456789abcdef0123456789abcdef01234567"
+  files:
+    - {path: "weights.gguf", sha256: "5555555555555555555555555555555555555555555555555555555555555555", bytes: 64}
+    - {path: "tokenizer.json", sha256: "6666666666666666666666666666666666666666666666666666666666666666", bytes: 128}
+  digest: "sha256:7777777777777777777777777777777777777777777777777777777777777777"
+  licence: {name: "CC0-1.0", url: "https://creativecommons.org/publicdomain/zero/1.0/", gated: false}
+  parameters: {total: 16, active_per_token: 16, source: "https://example.org/fake-tiny"}
+  tokenizer_file: "tokenizer.json"
+  vocab_size: 256
+precision:
+  served: "int8"
+  proved: "int8"
+  weight_bits: {bits: 4.5, basis: "computed", covers: "all", source: "https://example.org/fake-tiny", files: ["weights.gguf"]}
+prompts:
+  generator: "corpus-window/1"
+  corpus_digest: "sha256:8888888888888888888888888888888888888888888888888888888888888888"
+  count: 6
+  length_rule: {prompt_tokens: 8}
+shape: {prompt_tokens: 8, output_tokens: 1, batch_size: 2, batches_per_session: 3, context_window: 8}
+decoding: {rule: "greedy"}
+phase: "prefill"
+systems: ["fake", "fake-broken"]

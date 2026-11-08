@@ -33,7 +33,7 @@ iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR
 iproofs controls RUN_DIR
 iproofs controls --prepare-perturbed WORKLOAD --system S --profile P [--image IMAGE_ID | --in-process] [--results DIR]
 iproofs machine-record [--selftest]
-iproofs fetch-model WORKLOAD
+iproofs fetch-model WORKLOAD [--headers-only]      # --headers-only: no weights; recompute a computed weight width from the GGUF headers (RFC-0003 WB-5), JSON on stdout
 iproofs prompts build WORKLOAD --seed SEED [--out FILE]
 iproofs reproduce compare ORIG_RUN REPRO_RUN
 iproofs release freeze RELEASE
@@ -46,7 +46,7 @@ Contracts:
 
 - **CLI-1 Exit codes.** 0 success; 1 check failed; 2 usage error; 3 environment does not meet the profile; 4 a job ran and was recorded as failed; 5 internal error. These meanings never change within a harness major version.
 - **CLI-2 No measurement flags.** No command-line option changes what is measured or how. Workload, shape, profile, timeouts and forbidden flags come from reviewed files.
-- **CLI-3 Machine-readable output.** Commands that print data (`machine-record`, `prompts build`, `reproduce compare`, `archive upload`) print JSON on stdout through the single writer; human progress goes to stderr and is suppressed by `--quiet`.
+- **CLI-3 Machine-readable output.** Commands that print data (`machine-record`, `prompts build`, `reproduce compare`, `archive upload`, `fetch-model --headers-only`) print JSON on stdout through the single writer; human progress goes to stderr and is suppressed by `--quiet`.
 - **CLI-4 Determinism.** `validate`, `derive`, `release freeze` and `site build` produce byte-identical output for identical inputs on any supported platform.
 - **CLI-5 Offline checks.** `validate`, `derive`, `release freeze` and `site build` need no network and no GPU, and run with the base install (no optional extras).
 

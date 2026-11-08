@@ -180,6 +180,37 @@ def test_weight_bits_file_size_unknown_file(tree: Path, registry: SchemaRegistry
     )
 
 
+COMPUTED = (
+    'precision: {served: "int8", proved: "int8", alternatives: ["int4"], weight_bits: {bits: 5.5,'
+    ' basis: "computed", covers: "all", method: "gguf-active-mean/1",'
+    ' source: "https://example.org/fake-tiny", files: FILES}}'
+)
+
+
+def test_weight_bits_computed(tree: Path, registry: SchemaRegistry) -> None:
+    """RFC-0003 WB-5: a computed width loads as typed; fetch-model, not the loader, reruns
+    its method, because the files are not in the repository."""
+    edit(tree, PRECISION, COMPUTED.replace("FILES", '["weights.bin"]'))
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    wb = wl.precision.weight_bits
+    assert wb is not None
+    assert (wb.bits, wb.basis, wb.covers, wb.method) == (
+        5.5,
+        "computed",
+        "all",
+        "gguf-active-mean/1",
+    )
+    assert weight_bits(wl) == 5.5
+    assert asserted_inputs(wl)["weight_bits"]["value"] == 5.5
+
+
+def test_weight_bits_computed_unknown_file(tree: Path, registry: SchemaRegistry) -> None:
+    edit(tree, PRECISION, COMPUTED.replace("FILES", '["other.gguf"]'))
+    assert "precision.weight_bits.files ['other.gguf'] are not in model.files" in config_error(
+        tree, registry
+    )
+
+
 def test_asserted_inputs(tree: Path, registry: SchemaRegistry) -> None:
     """RFC-0003 WB-4: the inputs the runner copies into run.json are labelled asserted
     quantities that point at the workload record they were copied from."""

@@ -650,13 +650,16 @@ class ModelSpec(Document):
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class WeightBits(Document):
     """Bits per weight of the precision as proved, an asserted input (RFC-0003 §Weight bits).
-    `bits` is typed for a `stated` basis; for `file_size` the loader computes it (WB-2)."""
+    `bits` is typed for a `stated` basis (WB-1) and for a `computed` one, whose `method`
+    `fetch-model` reruns on the listed files (WB-5); for `file_size` the loader computes it
+    (WB-2)."""
 
-    basis: str  # "stated" or "file_size"
+    basis: str  # "stated", "file_size" or "computed"
     covers: str  # "all" or "part" of the active weights (WB-1)
     source: str
     bits: float | None = None
     files: tuple[str, ...] | None = None
+    method: str | None = None  # `computed` only: "gguf-active-mean/1"
     note: str | None = None
 
 

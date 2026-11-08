@@ -1,4 +1,4 @@
-# The basis is stated or file_size (RFC-0003 WB-1, WB-2).
+# The basis is stated, file_size or computed (RFC-0003 WB-1, WB-2, WB-5).
 schema: "workload/1"
 id: "fake-tiny-ci"
 version: 1
