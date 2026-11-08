@@ -3,6 +3,8 @@ import os
 import pytest
 from hypothesis import settings
 
+from fixtures.builds import extras_build, placeholder_build  # noqa: F401 (session fixtures)
+
 # Deterministic property tests in CI (RFC-0013 §G1); select with HYPOTHESIS_PROFILE=ci.
 settings.register_profile("ci", max_examples=200, derandomize=True)
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))

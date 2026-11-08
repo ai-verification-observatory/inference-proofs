@@ -11,7 +11,7 @@ from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from fixtures.placeholder_release import build_site
+from fixtures.builds import SiteBuild, placeholder_build  # noqa: F401 (a session fixture)
 from iproofs.site import renderer
 from iproofs.site.view import site_view
 
@@ -19,12 +19,12 @@ WEB = Path(__file__).resolve().parent
 
 
 @pytest.fixture(scope="session")
-def site(tmp_path_factory: pytest.TempPathFactory) -> SimpleNamespace:
-    """out: a fresh build; web: the committed pages; view: what the build printed from;
-    build: the renderer, set up on that view (for its words and helpers)."""
-    root = tmp_path_factory.mktemp("site")
-    out = build_site(root / "repo", root / "out")
-    view = site_view(root / "repo")
-    build: ModuleType = renderer(root / "repo")
+def site(placeholder_build: SiteBuild) -> SimpleNamespace:  # noqa: F811 (the fixture above)
+    """out: a fresh build (the shared, read-only deployed build of fixtures/builds); web: the
+    committed pages; view: what the build printed from; build: the renderer, set up on that
+    view (for its words and helpers)."""
+    out = placeholder_build.out
+    view = site_view(placeholder_build.repo)
+    build: ModuleType = renderer(placeholder_build.repo)
     build.setup(view, out)
     return SimpleNamespace(out=out, web=WEB, view=view, build=build)
