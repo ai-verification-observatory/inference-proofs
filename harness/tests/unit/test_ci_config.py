@@ -31,6 +31,13 @@ def test_make_ci_runs_the_workflow_commands() -> None:
     assert make_commands() == workflow_commands()
 
 
+def test_shard_keeps_a_file_on_one_worker() -> None:
+    """docs/spec/07 §Sharding: within a shard a module fixture builds once, not once per worker.
+    `make ci` runs the same command (test_make_ci_runs_the_workflow_commands)."""
+    (pytest_cmd,) = [c for c in workflow_commands() if "pytest harness/tests" in c]
+    assert "--dist loadfile" in pytest_cmd
+
+
 def test_actions_pinned_by_full_commit() -> None:
     uses = [m.group(1) for wf in WORKFLOWS for m in re.finditer(r"uses:\s*(\S+)", wf.read_text())]
     assert uses
