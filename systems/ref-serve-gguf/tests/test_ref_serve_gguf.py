@@ -231,6 +231,32 @@ def test_server_failure_while_loading(
     assert not list((Path(adapter.host("/io")) / "proofs").iterdir())
 
 
+def test_server_crash_mid_request(
+    adapter: ModuleType, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A server that dies during a batch (for one, out of GPU memory on the first prompt) fails
+    the step as the adapter's error, not a traceback: the log's last lines (the allocation
+    error) go to stderr, every request of the batch is in responses.jsonl, nothing of the batch
+    is released, and the server's exit code is recorded."""
+    monkeypatch.setenv("FAKE_MODE", "crash")
+    prompts(adapter, 24)
+    with pytest.raises(SystemExit, match=r"request 0: no response: .*llama-server exited 134"):
+        run(adapter, "prove", job("fp-maverick-w1024-b24", 24, 1))
+    assert "CUDA error: out of memory (synthetic)" in capsys.readouterr().err
+    io = Path(adapter.host("/io"))
+    lines = [json.loads(x) for x in (io / "responses.jsonl").read_text().splitlines()]
+    assert [(x["request_index"], x["status"]) for x in lines] == [(i, 0) for i in range(24)]
+    assert all(x["response"].startswith("no response: ") for x in lines)
+    assert not list((io / "proofs").iterdir())
+    assert [c["exit_code"] for c in commands(adapter)] == [134]
+
+
+def test_request_timeouts(adapter: ModuleType) -> None:
+    """A wedged server cannot hold a step until the job's deadline: every request has a socket
+    timeout, short for /health, long for /completion."""
+    assert 0 < adapter.HEALTH_TIMEOUT_S < adapter.COMPLETION_TIMEOUT_S
+
+
 def test_server_missing(adapter: ModuleType) -> None:
     adapter.SERVER = [str(Path(adapter.SCRATCH) / "no-such-server")]
     prompts(adapter, 1)
@@ -283,6 +309,10 @@ def test_info_and_skipped_steps(adapter: ModuleType) -> None:
             "workload": {"id": "fp-maverick-w1024-b1", "version": 1}}  # fmt: skip
     out = run(adapter, "info", base)
     assert (out["system"], out["upstream_commit"]) == ("ref-serve-gguf", adapter.ENGINE_COMMIT)
+    # the profile the row runs on (SRV-6): one H200, the GPU minimum README §Sizing sizes for
+    reference = yaml.safe_load((ROOT / "reference/v0.1.yaml").read_text())["profiles"]
+    assert out["profile"] == "prover-h200"
+    assert reference["prover-h200"]["gpu"] == reference["prover-h200-hosted"]["gpu"]
     assert out["workloads"] == ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
     assert run(adapter, "setup", base)["ready"] is True
     for sub in ("commit", "verify"):
@@ -367,7 +397,7 @@ def test_dev_install_mirrors_the_dockerfile(dev_install: ModuleType) -> None:
         "schema": "adapter-out/1", "contract": "adapter/1", "subcommand": "info",
         "phases": [], "warnings": [], "system": "ref-serve-gguf",
         "upstream_commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
-        "image_inputs": doc["inputs"], "workloads": [], "profile": "prover-h100",
+        "image_inputs": doc["inputs"], "workloads": [], "profile": "prover-h200",
         "contract_versions": ["adapter/1"]}) == []  # fmt: skip
 
 

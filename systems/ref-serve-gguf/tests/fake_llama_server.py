@@ -2,8 +2,10 @@
 `/completion` over HTTP on the loopback address, with synthetic outputs. Nothing here is a
 capture of the real server; its replay tests come from the first GPU run (README §Capture).
 
-FAKE_MODE selects a failure: `die` (exits 3 while loading), `bos` (evaluates one more prompt
-token than sent), `http500` (every completion fails) or `ok`.
+FAKE_MODE selects a failure: `die` (exits 3 while loading), `crash` (aborts with exit code 134
+on the first completion request, after a synthetic allocation error line, as a server that runs
+out of GPU memory mid-request does), `bos` (evaluates one more prompt token than sent),
+`http500` (every completion fails) or `ok`.
 """
 
 import argparse
@@ -45,6 +47,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.mode == "crash":
+            print("CUDA error: out of memory (synthetic)", flush=True)
+            os._exit(134)
         wrong = {k: body.get(k) for k, v in EXPECTED.items() if body.get(k) != v}
         try:  # every request of a batch must be in flight at once, one per slot
             slot = self.barrier.wait()

@@ -48,6 +48,15 @@ SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.ya
 INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
 POLL_S = 1.0  # how often the server's /health is asked while it loads
 LOG_TAIL = 40  # server log lines printed to stderr when the server fails
+# Socket timeouts, guards against a server that stops answering, not measurements: a /health
+# answer is immediate (README L480 to L492); one /completion of 1,024 prompt tokens and 1 output
+# token is far below an hour on the profile (an assumption until the first run's log shows it).
+HEALTH_TIMEOUT_S = 30.0
+COMPLETION_TIMEOUT_S = 3600.0
+# The required prover profile (RFC-0005 info): the v0.1 reference GPU, one H200 of at least
+# 140,000 MiB, the profile of the FlashProve rows this row serves (SRV-6, reference/v0.1.yaml);
+# prover-h200-hosted is its hosted form, with the same GPU minimum. README §Sizing sizes for it.
+PROFILE = "prover-h200"
 
 
 class ServeError(Exception):
@@ -170,8 +179,10 @@ class LlamaServer:
             self.close()
             raise
 
-    def _request(self, method: str, path: str, body: object = None) -> tuple[int, bytes]:
-        conn = http.client.HTTPConnection(LOOPBACK, self.port)
+    def _request(
+        self, method: str, path: str, body: object = None, timeout: float = HEALTH_TIMEOUT_S
+    ) -> tuple[int, bytes]:
+        conn = http.client.HTTPConnection(LOOPBACK, self.port, timeout=timeout)
         try:
             data = None if body is None else json.dumps(body).encode()
             headers = {} if data is None else {"Content-Type": "application/json"}
@@ -188,14 +199,20 @@ class LlamaServer:
                 raise ServeError(f"llama-server exited {self.proc.returncode} while loading")
             try:
                 status, _ = self._request("GET", "/health")
-            except OSError:
-                status = 0  # not listening yet
+            except (OSError, http.client.HTTPException):
+                status = 0  # not listening yet, or the connection dropped while it loads
             if status == 200:
                 return
             time.sleep(POLL_S)
 
     def complete(self, body: dict[str, object]) -> tuple[int, object]:
-        status, raw = self._request("POST", "/completion", body)
+        """One request's HTTP status and response body. A server that dies or stops answering
+        during the request (an allocation failure, for one) gives status 0 and the error, so
+        the batch is still written to responses.jsonl and fails as a ServeError."""
+        try:
+            status, raw = self._request("POST", "/completion", body, COMPLETION_TIMEOUT_S)
+        except (OSError, http.client.HTTPException) as e:
+            return 0, f"no response: {e!r}"
         try:
             return status, json.loads(raw)
         except ValueError:
@@ -214,6 +231,8 @@ class LlamaServer:
                 f.write(json.dumps(line, sort_keys=True) + "\n")
         outputs = []
         for j, (prompt, (status, response)) in enumerate(zip(prompts, answers, strict=True)):
+            if status == 0:
+                raise ServeError(f"request {first + j}: {response} ({self.exited()})")
             if status != 200:
                 raise ServeError(f"request {first + j}: HTTP {status}: {str(response)[:300]}")
             try:
@@ -221,6 +240,14 @@ class LlamaServer:
             except ServeError as e:
                 raise ServeError(f"request {first + j}: {e}") from e
         return outputs
+
+    def exited(self) -> str:
+        """The server's state after a request got no response: its exit code once it has
+        exited (within a few seconds), or that it is still running."""
+        try:
+            return f"llama-server exited {self.proc.wait(timeout=5)}"
+        except subprocess.TimeoutExpired:
+            return "llama-server still running"
 
     def close(self) -> None:
         """Stops the server (SIGTERM, then SIGKILL after 60 s) and records its command line
@@ -264,7 +291,7 @@ def info(job: dict) -> dict:
     doc = system()
     out = {**base("info"), "system": doc["name"], "upstream_commit": ENGINE_COMMIT,
            "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
-           "workloads": [w["id"] for w in doc["workloads"]], "profile": "prover-h100",
+           "workloads": [w["id"] for w in doc["workloads"]], "profile": PROFILE,
            "contract_versions": ["adapter/1"]}  # fmt: skip
     if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
         out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
