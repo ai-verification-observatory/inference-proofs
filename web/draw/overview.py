@@ -198,18 +198,35 @@ def by_name(cfgs):
     return sorted(cfgs, key=lambda c: (name_of(c["system"]).lower(), c["position"]))
 
 
+# S6: a model's native tables first, then its closed and open tables, each apart
+DIVISIONS = ("native", "closed", "open")
+
+
 def tables():
-    """S6: one table per model, largest first, then one per workload of that model."""
+    """S6: one table per model, largest first, then one per workload of that model: its native
+    workloads by id, then its closed ones, then its open ones (RFC-0003 §Divisions)."""
     out = []
     for d in S.MODELS:
-        wls = sorted(
-            {c["workload"]["id"] for c in S.PROVERS if c["workload"]["model"]["digest"] == d}
-        )
+        division = {c["workload"]["id"]: c["workload"]["division"]
+                    for c in S.PROVERS if c["workload"]["model"]["digest"] == d}  # fmt: skip
+        wls = sorted(division, key=lambda w: (DIVISIONS.index(division[w]), w))
         for wid in wls:
             rows = by_name(c for c in S.PROVERS if c["workload"]["id"] == wid)
             sid = slug(S.MODEL_NAME[d]) if len(wls) == 1 else f"{slug(S.MODEL_NAME[d])}-{slug(wid)}"
             out.append((d, sid, rows))
     return out
+
+
+def is_native(rows):
+    return rows[0]["workload"]["division"] == "native"
+
+
+def division_words(rows):
+    """The heading line of a closed or open table (S6): its workload, its division and the
+    profiles of its rows, as the system page names them."""
+    wl = rows[0]["workload"]
+    profiles = ", ".join(sorted({r["profile"] for r in rows}))
+    return f"{wl['id']} · {wl['division']} division · {profiles}"
 
 
 def plate_prefix(cfg):
@@ -251,9 +268,11 @@ def build_index():
     for d, sid_, rows in all_tables:
         name = S.MODEL_NAME[d]
         native = ""
-        if d not in seen and sum(x[0] == d for x in all_tables) > 1:
+        if rows[0]["workload"]["division"] != "native":  # S6: closed and open tables apart
+            native = f'<p class="sec-l">{facts_line(division_words(rows))}</p>'
+        elif d not in seen and sum(x[0] == d and is_native(x[2]) for x in all_tables) > 1:
             native = f'<p class="sec-l">{e(NATIVE_HEADER)}</p>'
-        seen.add(d)
+            seen.add(d)
         body_rows = "".join(
             row_html(
                 row_id(r),

@@ -27,7 +27,9 @@ H100); their failure records carry no invented log line.
 `extras=True` adds cases the site tests need and the deployed build must not carry (a reply
 written by no system maintainer, a target, a criteria copy naming the release with a pending
 disclosure and an override, an ineligible run, a withdrawn run, an unexpected control, a
-second workload, a review and a reproduction record). It holds no second claim card of one
+second workload, SASH on the closed Llama 3.1 8B workload `l31-8b-c1024` with the model's name
+in the tree's facts copy (RFC-0003 §Closed workloads; test data only, as no second system with
+its class runs it yet), a review and a reproduction record). It holds no second claim card of one
 system: the renderer draws one glyph per system page, so `iproofs site build` refuses a system
 with two card configurations (RFC-0016 SRC-1).
 
@@ -74,6 +76,8 @@ ROOT = Path(__file__).resolve().parents[3]
 RELEASE = "v0.1"
 WORKLOAD = "fp-maverick-w1024-b24"
 SECOND_WORKLOAD = "fp-maverick-w1024-b1"  # extras only
+CLOSED_WORKLOAD = "l31-8b-c1024"  # extras only
+CLOSED_MODEL = "Llama 3.1 8B"  # its display name in the tree's facts copy, extras only
 PROFILE = "prover-h100"
 VERIFIER = "verifier-cpu"
 REFERENCE = "reference/v0.1.yaml"
@@ -202,7 +206,7 @@ REFERENCE_FAILURE: dict[str, object] = {
 def _copy(root: Path, extras: bool) -> None:
     rels = [*COPY, *(f"systems/{s}/{f}" for s in SYSTEMS for f in SYSTEM_FILES)]
     if extras:
-        rels.append(f"workloads/{SECOND_WORKLOAD}.yaml")
+        rels += [f"workloads/{SECOND_WORKLOAD}.yaml", f"workloads/{CLOSED_WORKLOAD}.yaml"]
     for rel in rels:
         src, dst = ROOT / rel, root / rel
         if not src.exists():
@@ -717,7 +721,17 @@ DISCLOSURE_URL = "https://example.org/placeholder/fixture-disclosure"
 
 
 def _extras_tree(root: Path) -> None:
-    """Extras committed with the systems: a reply and a target."""
+    """Extras committed with the systems: a reply, a target, and SASH on the closed workload
+    (its system.yaml lists it; the facts copy names its model)."""
+    _edit_yaml(
+        root / "systems/sash/system.yaml",
+        lambda d: d.__setitem__("workloads", [*d["workloads"], CLOSED_WORKLOAD]),
+    )
+    digest = _workload(root, CLOSED_WORKLOAD)["model"]["digest"]
+    facts_path = root / "web/_data/facts.json"
+    facts = json.loads(facts_path.read_text())
+    facts["models"][digest] = {"name": CLOSED_MODEL}
+    write_json(facts_path, facts)
     (root / REPLY).parent.mkdir(parents=True)
     (root / REPLY).write_text(REPLY_TEXT)
     target = (ROOT / "schema/target/examples/valid/verify-under-60s.yaml").read_text()
@@ -750,6 +764,9 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
     second_wl = Config(fp.system, SECOND_WORKLOAD, fp.configuration, fp.card_version,
                        fp.card_digest)  # fmt: skip
     release["runs"] += _prover_runs(root, second_wl, adapter, 3, FLASHPROVE_CONTROLS).dirs
+    closed = Config(sash.system, CLOSED_WORKLOAD, sash.configuration, sash.card_version,
+                    sash.card_digest)  # fmt: skip
+    release["runs"] += _prover_runs(root, closed, adapter, 3, SASH_CONTROLS).dirs
     release["replies"] = {sash.system: REPLY}
     _records(root, fp, first)
     _criteria(root, first, sash_first)
