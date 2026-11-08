@@ -122,7 +122,9 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         "--image",
         metavar="IMAGE_ID",
         help="a locally built image by ID (sha256:<hex>), recorded as local/<system> with "
-        "digest_kind config and never eligible for a release (RFC-0014)",
+        "digest_kind config and never eligible for a release (RFC-0014); with --hosted, also "
+        "the reference <repository>@sha256:<hex> of the image the provider started when the "
+        "adapter was installed into it from this checkout, recorded as local/<reference>",
     )
     p.set_defaults(handler=run)
 
@@ -428,16 +430,34 @@ def entrypoint_argv(dockerfile: str) -> list[str]:
     return [str(a) for a in argv]
 
 
+def local_image(system: str, image: str, *, hosted: bool) -> str:
+    """`--image` as recorded (RFC-0014: an image never pushed is `local/...` with digest_kind
+    `config`, never eligible for a release). An image ID gives `local/<system>@<id>`. In hosted
+    mode a full reference names the image the provider started, into which the job installed
+    the adapter from this checkout (docs/runbooks/hf-jobs.md, `dev_install.py`): it is recorded
+    as `local/<reference>`, so the record names that image and never an adapter image that was
+    not built; the adapter commit is the checkout's (B6 fallback)."""
+    from iproofs.adapter import LOCAL_IMAGE_PREFIX, check_image  # noqa: PLC0415
+
+    if "@" in image:
+        if not hosted:
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"--image {image!r}: a full image reference only with --hosted; docker runs a "
+                "local build by its ID (sha256:<hex>)",
+            )
+        return check_image(f"{LOCAL_IMAGE_PREFIX}{image.removeprefix(LOCAL_IMAGE_PREFIX)}")
+    return check_image(f"{LOCAL_IMAGE_PREFIX}{system}@{image}")
+
+
 def _containers(
     system_file: Path, in_process: bool, image_id: str | None = None, *, hosted: bool = False
 ) -> tuple["ContainerRunner", str | None, "SchemaRegistry"]:
     """The container runner for a system; in process only for test systems."""
     from iproofs.adapter import (  # noqa: PLC0415
-        LOCAL_IMAGE_PREFIX,
         DockerRunner,
         HostedRunner,
         InProcessRunner,
-        check_image,
         image_environment,
     )
     from iproofs.model import System, load  # noqa: PLC0415
@@ -451,11 +471,11 @@ def _containers(
             raise IProofsError(ErrorKind.CONFIG, "--hosted runs an image; drop --in-process")
         argv = entrypoint_argv((system_file.parent / "Dockerfile").read_text())
         environ = image_environment(Path("/proc/1/environ").read_text())
-        local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
-        return HostedRunner(argv, registry, environ), local and check_image(local), registry
+        local = local_image(system.name, image_id, hosted=True) if image_id else None
+        return HostedRunner(argv, registry, environ), local, registry
     if not in_process:
-        local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
-        return DockerRunner(registry), local and check_image(local), registry
+        local = local_image(system.name, image_id, hosted=False) if image_id else None
+        return DockerRunner(registry), local, registry
     if image_id:
         raise IProofsError(ErrorKind.CONFIG, "--image names a container image; drop --in-process")
     if system.kind != "test":

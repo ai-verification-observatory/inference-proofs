@@ -6,8 +6,10 @@ once the first GPU run has saved them (README §Capture); no capture is invented
 import importlib.machinery
 import importlib.util
 import json
+import os
 import re
 import sys
+import zipfile
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -313,3 +315,79 @@ def test_engine_pin_matches() -> None:
         'ENGINE_COMMIT = "cd959bae99ff4bed22bef2604f45241c09bbb8c8"'
         in (SYSTEM / "entrypoint").read_text()
     )
+
+
+@pytest.fixture
+def dev_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """dev_install.py with /opt under tmp_path and the download replaced by a local wheel."""
+    spec = importlib.util.spec_from_file_location("ref_serve_gguf_dev", SYSTEM / "dev_install.py")
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    opt = tmp_path / "opt"
+    monkeypatch.setattr(module, "OPT", opt)
+    monkeypatch.setattr(module, "FETCH", opt / "iproofs/fetch")
+    monkeypatch.setattr(module, "SITE", opt / "ref-serve-gguf/site")
+
+    def fetch(url: str, dest: Path, sha256: str) -> None:
+        with zipfile.ZipFile(dest, "w") as wheel:
+            wheel.writestr("yaml/__init__.py", "__version__ = 'fixture'\n")
+
+    monkeypatch.setattr(module, "fetch", fetch)
+    return module
+
+
+def test_dev_install_mirrors_the_dockerfile(dev_install: ModuleType) -> None:
+    """The development install (docs/runbooks/hf-jobs.md) puts the files where the final stage
+    of the Dockerfile does, so the hosted runner's command (its ENTRYPOINT) finds them, and lists
+    the engine image and the adapter files at the checkout's commit as image inputs."""
+    image = dev_install.dockerfile_from()
+    dev_install.install(image)
+    opt = dev_install.OPT
+    dockerfile = (SYSTEM / "Dockerfile").read_text()
+    final = dockerfile[dockerfile.rindex("\nFROM ") :]  # the image's own stage
+    for dest in re.findall(r"^COPY (?:--from=\S+ )?\S+ /opt/(\S+)$", final, re.M):
+        assert (opt / dest.rstrip("/")).exists(), dest
+    assert '["python3", "/opt/ref-serve-gguf/entrypoint"]' in final
+    assert (opt / "ref-serve-gguf/entrypoint").read_bytes() == (SYSTEM / "entrypoint").read_bytes()
+    assert (opt / "ref-serve-gguf/site/yaml/__init__.py").is_file()  # the wheel, extracted
+    doc = json.loads((opt / "iproofs/inputs.json").read_text())
+    names = [i["name"] for i in doc["inputs"]]
+    assert names[0].startswith("pyyaml-6.0.3-")
+    engine = doc["inputs"][1]
+    assert (engine["url"], engine["digest"]) == (
+        "docker://ghcr.io/ggml-org/llama.cpp",
+        "sha256:a2963b4817f03eea7e0d6065ea576252322792441ef97aaae178b924520547d6",
+    )
+    commit = dev_install.git("rev-parse", "HEAD")
+    assert doc["inputs"][2]["url"].endswith(f"/{commit}/systems/ref-serve-gguf/entrypoint")
+    assert doc["toolchains"]["development_install"].startswith(commit)
+    assert REGISTRY.errors("adapter-out/1", {
+        "schema": "adapter-out/1", "contract": "adapter/1", "subcommand": "info",
+        "phases": [], "warnings": [], "system": "ref-serve-gguf",
+        "upstream_commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+        "image_inputs": doc["inputs"], "workloads": [], "profile": "prover-h100",
+        "contract_versions": ["adapter/1"]}) == []  # fmt: skip
+
+
+def test_dev_install_refuses(dev_install: ModuleType, tmp_path: Path) -> None:
+    """Another image than the Dockerfile's FROM, a download whose sha256 differs, a non-root
+    caller: each stops the install before the runs."""
+    with pytest.raises(SystemExit, match="is not the Dockerfile's FROM"):
+        dev_install.install("ghcr.io/ggml-org/llama.cpp@sha256:" + "0" * 64)
+    source = tmp_path / "wheel.whl"
+    source.write_bytes(b"not the locked wheel")
+    spec = importlib.util.spec_from_file_location("ref_serve_gguf_dev2", SYSTEM / "dev_install.py")
+    assert spec is not None
+    assert spec.loader is not None
+    real = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(real)
+    with pytest.raises(SystemExit, match=r"sha256 differs from inputs\.lock"):
+        real.fetch(source.as_uri(), tmp_path / "out.whl", "0" * 64)
+    assert not (tmp_path / "out.whl").exists()
+    with pytest.raises(SystemExit, match="usage"):
+        real.main(["dev_install.py"])
+    if os.geteuid() != 0:
+        with pytest.raises(SystemExit, match="run as root"):
+            real.main(["dev_install.py", real.dockerfile_from()])

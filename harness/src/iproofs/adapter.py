@@ -390,11 +390,12 @@ class InProcessRunner:
 # Hugging Face Jobs adds JOB_ID, ACCELERATOR, CPU_CORES, MEMORY and HF_NETWORK_GROUP_* (its
 # jobs-configuration page, read 2026-11-08). The IPROOFS_* names are those the job command of
 # docs/runbooks/hf-jobs.md passes with `hf jobs run -e` (commit, upload target, label, budget,
-# GPU); they belong to the job script, and the upload target names an account.
+# GPU, and the engine image of a development install); they belong to the job script, and the
+# upload target names an account.
 PROVIDER_ENV = re.compile(r"^(VAST_|CONTAINER_|PUBLIC_|SSH_|JUPYTER|OPEN_BUTTON|DIRECT_|PORTAL_"
                           r"|HF_NETWORK_GROUP_)"
                           r"|^(HOSTNAME|GPU_COUNT|NV_GPU|JOB_ID|ACCELERATOR|CPU_CORES|MEMORY)$"
-                          r"|^IPROOFS_(COMMIT|UPLOAD|UPLOAD_DIR|LABEL|JOB_BUDGET_S|GPU)$"
+                          r"|^IPROOFS_(COMMIT|UPLOAD|UPLOAD_DIR|LABEL|JOB_BUDGET_S|GPU|DEV_IMAGE)$"
                           r"|KEY|TOKEN|SECRET|PASSW")  # fmt: skip
 
 

@@ -133,7 +133,7 @@ def test_image_environment_drops_the_providers_additions() -> None:
     environ = "\0".join([
         "PATH=/usr/bin", "IPROOFS_ADAPTER_COMMIT=abc", "VAST_CONTAINERLABEL=C.1",
         "CONTAINER_API_KEY=x", "HF_TOKEN=y", "HOSTNAME=h", "GPU_COUNT=1", "PUBLIC_IPADDR=z",
-        "SSH_PUBLIC_KEY=k", "NOVALUE",
+        "SSH_PUBLIC_KEY=k", "NOVALUE", "IPROOFS_DEV_IMAGE=r@sha256:0",
     ])  # fmt: skip
     assert image_environment(environ) == {"PATH": "/usr/bin", "IPROOFS_ADAPTER_COMMIT": "abc"}
 
@@ -171,6 +171,26 @@ def test_hosted_runner_runs_the_fake_adapter(tmp_path: Path) -> None:
                         cpuset="0", mems="0", memory=None, timeout_s=60)  # fmt: skip
     assert result.exit_code == 0, result.stderr_tail
     assert result.argv[0] == "hosted"
+
+
+def test_local_image() -> None:
+    """RFC-0014: --image is recorded under local/ (digest_kind config). An ID names a local
+    build of the system; in hosted mode a full reference names the image the provider started,
+    with the adapter installed from the checkout, never an adapter image that was not built."""
+    digest = "sha256:" + "a" * 64
+    for hosted in (False, True):
+        assert cli.local_image("ref-serve-gguf", digest, hosted=hosted) == (
+            f"local/ref-serve-gguf@{digest}"
+        )
+    engine = f"ghcr.io/ggml-org/llama.cpp@{digest}"
+    assert cli.local_image("ref-serve-gguf", engine, hosted=True) == f"local/{engine}"
+    assert cli.local_image("x", f"local/{engine}", hosted=True) == f"local/{engine}"
+    with pytest.raises(IProofsError, match="only with --hosted"):
+        cli.local_image("ref-serve-gguf", engine, hosted=False)
+    with pytest.raises(IProofsError, match="is not <repository>@sha256"):
+        cli.local_image("ref-serve-gguf", "ghcr.io/ggml-org/llama.cpp:server-cuda", hosted=True)
+    with pytest.raises(IProofsError, match="is not <repository>@sha256"):
+        cli.local_image("ref-serve-gguf", "abc", hosted=False)
 
 
 def test_entrypoint_argv() -> None:

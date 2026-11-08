@@ -112,3 +112,38 @@ def test_upload_to_a_mounted_bucket_prunes_a_stopped_run(tmp_path: Path) -> None
         assert not (copied / part).exists(), part
     assert (folder / "job.log").is_file()
     assert "hf_secret_x" not in (folder / "job.log").read_text() + log
+
+
+def test_development_run_keeps_io(tmp_path: Path) -> None:
+    """A development install's io holds the engine's responses and log, never weights (the
+    adapter reads /models from the cache): a stopped run keeps it for the capture, and still
+    drops the scratch directories and the commitment store."""
+    repo, _ = checkout(tmp_path)
+    staging = repo.parent / "out/dev-results/v0.1/ref-serve-gguf/.staging-r1"
+    for part in ("io", "verify", "commitment"):
+        (staging / part).mkdir(parents=True)
+    (staging / "io/responses.jsonl").write_text("{}\n")
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    done = job(repo, "probe", IPROOFS_COMMIT="0" * 40, IPROOFS_UPLOAD_DIR=str(bucket),
+               IPROOFS_DEV_IMAGE="ghcr.io/ggml-org/llama.cpp@sha256:" + "a" * 64)  # fmt: skip
+    assert done.returncode == 2
+    log = log_of(repo, "upload: done")
+    assert ".staging-r1/io (development run)" in log
+    (folder,) = (bucket / "runs").iterdir()
+    copied = folder / "dev-results/v0.1/ref-serve-gguf/.staging-r1"
+    assert (copied / "io/responses.jsonl").is_file()
+    assert not (copied / "verify").exists()
+    assert not (copied / "commitment").exists()
+
+
+def test_development_run_installs_and_passes_the_engine_image() -> None:
+    """IPROOFS_DEV_IMAGE: the system's dev_install.py from the checkout, then every run with
+    `--image` (recorded as local/<image>) and `--keep-io`; uv from its pinned, checked release
+    only for such a run."""
+    text = SCRIPT.read_text()
+    assert 'python3 "systems/$SYSTEM/dev_install.py" "$IPROOFS_DEV_IMAGE"' in text
+    assert 'image_args=(--image "$IPROOFS_DEV_IMAGE" --keep-io)' in text
+    assert '"${image_args[@]}"' in text
+    assert "sha256sum -c --quiet" in text
+    assert '[ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv' in text

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # One development job of the harness on Hugging Face Jobs, inside a container the provider
-# started from a pinned adapter image (docs/runbooks/hf-jobs.md, RFC-0006 §Hosted execution).
+# started from a pinned adapter image, or from an engine image the job installs the adapter into
+# (IPROOFS_DEV_IMAGE below) (docs/runbooks/hf-jobs.md, RFC-0006 §Hosted execution).
 # The job's command clones this repository at IPROOFS_COMMIT and runs this script from it:
 #
 #   hf-job.sh probe                          host probe, harness install, binding check, self-test
@@ -24,6 +25,12 @@
 #                         who can read that secret in the container
 #   IPROOFS_LABEL         a short label for the upload folder (default: the mode)
 #   IPROOFS_GPU           the bound GPU index (default: the probe's suggestion, else 0)
+#   IPROOFS_DEV_IMAGE     a development run from the public engine image the job was started
+#                         from, <repository>@sha256:<digest>: systems/SYSTEM/dev_install.py puts
+#                         the adapter files from this checkout where the Dockerfile puts them,
+#                         and the runs pass `--image IPROOFS_DEV_IMAGE --keep-io` (recorded as
+#                         local/<that image>, digest_kind config; the io directory, with the
+#                         engine's raw responses, stays in the run directory)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
 set -uo pipefail
 
@@ -58,6 +65,12 @@ prune() {  # what a run stopped at the deadline leaves in its staging directory 
     [ -d "$dir" ] || continue
     for part in io prover-ro verify controls-io commitment; do
       [ -e "$dir/$part" ] || continue
+      if [ "$part" = io ] && [ -n "${IPROOFS_DEV_IMAGE:-}" ]; then
+        # a development install's io holds the engine's responses and log, never weights (the
+        # adapter reads /models from the cache): it is the capture, kept
+        log "prune: keeping $(du -sh "$dir/$part" | cut -f1) $(basename "$dir")/io (development run)"
+        continue
+      fi
       log "prune: $(du -sh "$dir/$part" | cut -f1) $(basename "$dir")/$part (weights copy, scratch, prover key)"
       rm -rf "${dir:?}/$part"
     done
@@ -144,6 +157,24 @@ print(found[0] if found and found[0] is not None else 0)' "$OUT/probe.json" 2>/d
 GPU=${GPU:-0}
 log "bound GPU $GPU"
 
+# An engine image (IPROOFS_DEV_IMAGE) has no uv: the pinned release, its sha256 checked. An
+# adapter image has its own (hf-jobs.md), so nothing is downloaded for one.
+UV_VERSION=0.11.18
+UV_SHA256=588f3e360f69ce02b6982aa99f2240e803933a6b7e176ac01617830adf955add
+if [ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv >/dev/null; then
+  log "uv: not in the image; uv $UV_VERSION from its GitHub release, sha256 checked"
+  UV_DIR="$WORK/uv-$UV_VERSION"
+  mkdir -p "$UV_DIR"
+  if ! curl -fsSL --retry 3 -o "$WORK/uv.tar.gz" \
+      "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz" \
+    || ! echo "$UV_SHA256  $WORK/uv.tar.gz" | sha256sum -c --quiet - \
+    || ! tar -xzf "$WORK/uv.tar.gz" -C "$UV_DIR" --strip-components=1; then
+    log "uv: download or check failed; stopping"
+    exit 3
+  fi
+  export PATH="$UV_DIR:$PATH"
+fi
+uv --version
 log "install the harness"
 if ! uv sync --frozen --no-dev --extra gpu --extra fetch --extra prompts; then
   log "uv sync failed; stopping"
@@ -191,6 +222,16 @@ if [ "$BOUND" -ne 0 ]; then
 fi
 SYSTEM=$1
 shift
+image_args=()
+if [ -n "${IPROOFS_DEV_IMAGE:-}" ]; then
+  log "development install of $SYSTEM into $IPROOFS_DEV_IMAGE, from this checkout"
+  if [ ! -f "systems/$SYSTEM/dev_install.py" ] \
+    || ! python3 "systems/$SYSTEM/dev_install.py" "$IPROOFS_DEV_IMAGE"; then
+    log "the development install failed (or $SYSTEM has none); stopping before any weights"
+    exit 3
+  fi
+  image_args=(--image "$IPROOFS_DEV_IMAGE" --keep-io)
+fi
 failed=0
 for step in "$@"; do
   IFS=: read -r workload reps controls <<< "$step"
@@ -214,10 +255,11 @@ for step in "$@"; do
   fi
   extra=()
   [ "${controls:-}" = controls ] && extra=(--control-suite)
-  log "run $SYSTEM $workload x${reps:-1} ${extra[*]:-}, at most $remaining s"
+  log "run $SYSTEM $workload x${reps:-1} ${extra[*]:-} ${image_args[*]:-}, at most $remaining s"
   env -u HF_TOKEN timeout --kill-after=60 "$remaining" "$IP" run --system "$SYSTEM" \
     --workload "$workload" --profile "$PROFILE" --hosted --gpu "$GPU" --provider "$PROVIDER" \
-    --repetitions "${reps:-1}" --allow-nonconforming --results "$DEV" "${extra[@]}"
+    --repetitions "${reps:-1}" --allow-nonconforming --results "$DEV" "${extra[@]}" \
+    "${image_args[@]}"
   rc=$?
   # 0 all repetitions completed; 4 a repetition was recorded as failed; 124 or 137 stopped at
   # the job's deadline: its staging directory is uploaded without io/, the scratch directories

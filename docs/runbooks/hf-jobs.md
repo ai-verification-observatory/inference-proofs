@@ -104,9 +104,10 @@ What happens inside, in order (`hf-job.sh`):
 3. **Harness.** `uv sync --frozen --no-dev --extra gpu --extra fetch --extra prompts` from the checkout's `uv.lock`: NVML, `fetch-model` and `tokenizers`, which every run needs to build the workload's prompts from its `tokenizer.json`. The script then imports all three and stops if one is missing. Both images have Python 3.12.3 (Ubuntu 24.04's `python3`) and `uv` (0.11.18 in SASH's image, by its Dockerfile); FlashProve's also has `pip` 24.0, but Ubuntu's `pip` refuses to install into the system Python (PEP 668), so `uv` is used in both. The harness needs Python 3.12 or 3.13 (`pyproject.toml`).
 4. **Binding check.** The CPUs `iproofs run --gpu` would bind on `prover-h200-hosted` (`GpuEnvironment`, RFC-0006 §CPU and memory selection). It fails when the GPU has no NUMA node or fewer than 15 usable CPUs sit on it; `iproofs run` then refuses before any step, and `--allow-nonconforming` does not change that. A `run` job stops here, before any weights are fetched.
 5. **Self-test.** `iproofs machine-record --hosted --selftest` (RFC-0011), into `out/selftest.json` and the results directory.
-6. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
-7. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite]`, under `timeout` so it stops 15 minutes before the script's budget. A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
-8. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the run directories, then the log again.
+6. **Development install**, only with `IPROOFS_DEV_IMAGE` ([below](#ref-serve-gguf-from-the-engine-image)): `systems/<system>/dev_install.py` puts the adapter into the engine image the job started from (uv, which such an image lacks, was installed before step 3 from its pinned release), and the runs pass `--image` and `--keep-io`. A failed install stops the job before any weights are fetched.
+7. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
+8. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite]`, under `timeout` so it stops 15 minutes before the script's budget. A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
+9. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the run directories, then the log again.
 
 ## Stage 1a: the containers without a GPU (under 0.01 USD)
 
@@ -230,6 +231,67 @@ Not on Jobs, and why:
 
 - **SASH's control suite.** Its verifier-side controls and their honest twins are about 20 `boundary-grid --verify` calls of about an hour each (3,600 s or more, above), and its six registered `weakened_prover` controls each prove again (5,768 s on the H100) and verify: well over 30 h, beyond the budget. It runs on the bare-metal node.
 - **C3 and P1 (perturbed weights).** `iproofs controls --prepare-perturbed` runs the adapter under docker only, so on Jobs no perturbed commitment exists and both controls report `not_applicable` (RFC-0008). They run on the bare-metal node.
+
+## ref-serve-gguf from the engine image
+
+The plain-serving reference of the Maverick workloads, `ref-serve-gguf` (llama.cpp, [`systems/ref-serve-gguf/README.md`](../../systems/ref-serve-gguf/README.md), RFC-0015 SRV-6), so that D-OVERHEAD-S can be computed against the FlashProve rows of this profile. Its adapter image is not pushed yet, and once the images workflow pushes `ghcr.io/ai-verification-observatory/ref-serve-gguf`, the package is private until an owner makes it public (as [above](#before-stage-0-the-images-must-be-pullable)). The engine image it is built from is public: on 2026-11-08 ghcr.io granted an anonymous pull token for `ggml-org/llama.cpp`. So the development run starts the job from the **engine image** and installs the adapter into it from the pinned checkout:
+
+1. The job command installs `git` with `apt-get` (the engine image has none; Ubuntu 24.04's package of that day, not pinned, used by the job script and the harness only, never by the engine; the log prints its version), then clones and checks out `IPROOFS_COMMIT` as `BOOT` does.
+2. `hf-job.sh` sees `IPROOFS_DEV_IMAGE` and, since the image has no `uv`, installs uv 0.11.18 from its GitHub release, sha256 checked against the value in the script.
+3. After the binding check, it runs [`systems/ref-serve-gguf/dev_install.py`](../../systems/ref-serve-gguf/dev_install.py) as root: it refuses an image other than the Dockerfile's `FROM`, fetches the PyYAML wheel of `inputs.lock` and checks its sha256, and puts the entrypoint, `system.yaml` and the wheel's files where the Dockerfile puts them, so the hosted runner's command (the Dockerfile's `ENTRYPOINT`, `python3 /opt/ref-serve-gguf/entrypoint`) finds them. The engine image runs as root, so the hosted runner drops each step to uid 10001 as usual.
+4. Every run passes `--image <the engine image> --keep-io`.
+
+What the run records (RFC-0014): `manifest.json` `system.image` is `{"ref": "local/ghcr.io/ggml-org/llama.cpp@sha256:a2963b48...", "digest_kind": "config"}`, the image the provider started, under `local/`, never a `ref-serve-gguf` digest; `system.adapter_commit` is `IPROOFS_COMMIT` (no image bakes one in), with `adapter_dirty` from the checkout; `system.image_inputs` lists the PyYAML wheel, the engine image by digest, and the entrypoint and `system.yaml` at that commit with their sha256. Such a run is never eligible for a release. `--keep-io` keeps the job's `io/` in the run directory: the engine's request and response bodies (`responses.jsonl`) and its log (`llama-server.log`), which the capture fixture is made from (README §Capture), and no weights (the adapter reads `/models` from the cache); `hf-job.sh` keeps that `io/` even for a run stopped at the deadline.
+
+First, under 0.01 USD, check the image on `cpu-basic` as stage 1a does: that Jobs pulls it by digest, that the command replaces its `ENTRYPOINT` (`/app/llama-server`; if it does not, this job fails at once with the server's usage message), that it runs as root, and that `apt-get` reaches its mirrors:
+
+```sh
+LLAMA_IMAGE=ghcr.io/ggml-org/llama.cpp@sha256:a2963b4817f03eea7e0d6065ea576252322792441ef97aaae178b924520547d6
+hf jobs run --detach --flavor cpu-basic --timeout 15m --name iproofs-stage-1a-llama \
+  -v "hf://buckets/$NS/iproofs-dev-runs:/upload" "$LLAMA_IMAGE" -- \
+  bash -c 'date -u; id -u; python3 -V; ls -l /app/llama-server; command -v git uv || true; df -h / /tmp;
+           apt-get update -qq && echo "apt: reachable";
+           mkdir -p /upload/stage-1a && touch "/upload/stage-1a/uid-$(id -u)-llama" && echo "upload: writable"'
+```
+
+Then the development run of `fp-maverick-w1024-b1` (one repetition, 5 requests of 1,024 tokens, batch 1), with the job command's variables set as in [The job command](#the-job-command):
+
+```sh
+LLAMA_IMAGE=ghcr.io/ggml-org/llama.cpp@sha256:a2963b4817f03eea7e0d6065ea576252322792441ef97aaae178b924520547d6
+BOOT_ENGINE='set -eu; command -v git >/dev/null || { apt-get update -qq &&
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates >/dev/null; };
+git --version; '"$BOOT"
+
+iproofs_dev_job() {  # FLAVOR TIMEOUT_SECONDS ENGINE_IMAGE LABEL then hf-job.sh's arguments
+  local flavor=$1 timeout=$2 image=$3 label=$4; shift 4
+  hf jobs run --detach --flavor "$flavor" --timeout "$timeout" --name "iproofs-$label" \
+    --label "iproofs=$label" "${UPLOAD[@]}" \
+    -e IPROOFS_COMMIT="$IPROOFS_COMMIT" -e IPROOFS_JOB_BUDGET_S="$((timeout - 600))" \
+    -e IPROOFS_LABEL="$label" -e IPROOFS_DEV_IMAGE="$image" \
+    "$image" -- bash -c "$BOOT_ENGINE" hf-job "$@"
+}
+
+iproofs_dev_job h200x2 7200 "$LLAMA_IMAGE" ref-gguf-b1-n22 run ref-serve-gguf fp-maverick-w1024-b1:1
+```
+
+`IPROOFS_COMMIT` must contain `systems/ref-serve-gguf` and this section's `hf-job.sh` (the merge of that change, or later). `h200x2` because FlashProve's rows run there: the same flavor, one bound GPU, the second idle and not counted (RFC-0006 R1). The job's N is the one in `system.yaml` at `IPROOFS_COMMIT` (`--n-cpu-moe 22` to start, computed, not measured); the label names it.
+
+Timeout 2 h (7,200 s): cap 2 h x 10.00 USD/h = 20.00 USD; the run must end by 5,700 s after the script starts (7,200 less 600 and 900). Estimate, none of it measured for llama.cpp:
+
+| Part | Seconds | Source |
+|---|---|---|
+| image pull, 2.60 GB compressed (the `linux/amd64` layers, read 2026-11-08) | within the 600 s allowance | `iproofs_dev_job` |
+| `apt-get` git, clone, probe, uv, harness install, binding check, self-test, development install | 600 | assumption, as stage 3 |
+| weights: 232.1 GB from the Hub | 480 | about 8 minutes for FlashProve's development job of 2026-11-08 on Jobs (reported, n = 1, not stored in this repository) |
+| `fetch-model`'s sha256 pass over 232.1 GB | 232 | assumption: 1 GB/s, as stage 3 |
+| the run's rehash of the weights | 395 to 418 | the six completed FlashProve b1 runs on an H100 container (measured, tier reported, n = 6, stage 3 table) |
+| server start, 124 GB to the GPU, CUDA compilation of the `compute_90` PTX, warmup | 1,800 | assumption: the image holds no `sm_90` machine code (README §Engine); never measured |
+| 5 requests, the batch's slot computing 11 expert layers from host memory | 600 | assumption |
+| **total** | **4,107 to 4,130** (1.14 to 1.15 h) | 11.41 to 11.47 USD |
+
+The deadline leaves about 1,570 s more for the load or the requests running longer than assumed; beyond it the run is stopped and recorded so, and its `io/` is uploaded with the server log. Count the job in the spend log and the stop rule like any other.
+
+Read afterwards, in the bucket folder: `job.log` (the `apt-get`, uv and `dev-install:` lines, the binding), the run directory's `run.json` (`status`; for a failure, `failure.kind` and `failure.last_lines`, which end with the server log's last lines), `io/llama-server.log` (the model, KV cache and compute buffer sizes the engine allocated, its thread count, how long the load took) and `io/responses.jsonl`, and `metrics.prove_gpu_memory_peak`. Then the next N, by [`systems/ref-serve-gguf/README.md` §Sizing](../../systems/ref-serve-gguf/README.md#sizing-the-placement---n-cpu-moe-n): each N a commit of `system.yaml` and a job of its own; `fp-maverick-w1024-b24` (24 slots) after b1 has run, with the same command, label and step changed. The first run's `io/` becomes the replay fixture (README §Capture), by pull request.
 
 ## Stop rule
 
