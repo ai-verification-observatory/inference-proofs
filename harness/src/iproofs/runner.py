@@ -31,6 +31,7 @@ from iproofs.controls import (
     VerifyResult,
     controls_document,
     disclosure_pending,
+    merge_parts,
     new_control_seed,
     parse_only,
     part_document,
@@ -1931,6 +1932,36 @@ def controls_for_run(
             return runner._controls(job, log, seed=seed, only=ids)
     finally:
         shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
+
+
+def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:
+    """`iproofs controls RUN_DIR --merge PART...`: the `controls.json` of a suite run in parts
+    (RFC-0008 §Split suites). Every part must be valid `controls-part/1` and made against this
+    run (its run id and the digest of its manifest.json); `merge_parts` checks the rest. The
+    document is checked against `controls/1` and written once, never over an existing one."""
+    target = run_dir / "controls.json"
+    if target.exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{target} exists; it is never overwritten")
+    run_id = json.loads((run_dir / "run.json").read_text())["run_id"]
+    manifest = file_digest(run_dir / "manifest.json")
+    docs: dict[str, dict[str, object]] = {}
+    for path in parts:
+        if str(path) in docs:
+            raise IProofsError(ErrorKind.CONFIG, f"{path} is given twice")
+        doc = json.loads(path.read_text())
+        errors = registry.errors("controls-part/1", doc)
+        if errors:
+            raise IProofsError(ErrorKind.CONFIG, f"{path} fails controls-part/1: {errors[0]}")
+        if (doc["run_id"], doc["run_manifest_digest"]) != (run_id, manifest):
+            raise IProofsError(ErrorKind.CONFIG, f"{path} was not made against {run_dir}")
+        docs[str(path)] = doc
+    merged = merge_parts(docs)
+    errors = registry.errors("controls/1", merged)
+    if errors:
+        message = f"merged controls.json fails controls/1: {errors[0]}"
+        raise IProofsError(ErrorKind.INTERNAL, message)
+    write_json(target, merged)
+    return target
 
 
 def perturbed_dir(results_root: Path, release: str, system: str, workload: str) -> Path:

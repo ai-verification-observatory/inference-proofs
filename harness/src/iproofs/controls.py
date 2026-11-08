@@ -539,7 +539,7 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
 # ---------------------------------------------------------------- split suites
 
 PART_SCHEMA = "controls-part/1"
-# What every part of one suite shares (RFC-0008 §Split suites).
+# What every part of one suite shares; the merge refuses parts that differ in any of them.
 PART_KEYS = (
     "run_id",
     "run_manifest_digest",
@@ -591,6 +591,49 @@ def part_document(
         "only": list(only),
         "controls": list(records),
     }
+
+
+def merge_parts(parts: Mapping[str, Mapping[str, Any]]) -> dict[str, object]:
+    """RFC-0008 §Split suites: the `controls.json` document of a suite run in parts, keyed by
+    their file names. Every part shares `PART_KEYS`; each holds the records of its own `only`,
+    in suite order; together they cover the suite exactly once. The records go back in suite
+    order and `summary` and `disclosure_pending` are recomputed, so the document is the one a
+    single run with the same seed writes from the same verify results."""
+    if not parts:
+        raise IProofsError(ErrorKind.CONFIG, "--merge: no part given")
+    names = list(parts)
+    first = parts[names[0]]
+    for name in names[1:]:
+        differ = [key for key in PART_KEYS if parts[name][key] != first[key]]
+        if differ:
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{name} differs from {names[0]} in {', '.join(differ)}"
+            )
+    suite = list(first["suite"])
+    owner: dict[str, str] = {}
+    for name in names:
+        ids = [str(r["id"]) for r in parts[name]["controls"]]
+        if ids != list(parts[name]["only"]):
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{name}: records {ids} are not its subset {parts[name]['only']}"
+            )
+        for cid in ids:
+            if cid in owner:
+                raise IProofsError(ErrorKind.CONFIG, f"{cid} is in both {owner[cid]} and {name}")
+            owner[cid] = name
+    if extra := [cid for cid in owner if cid not in suite]:
+        raise IProofsError(ErrorKind.CONFIG, f"{', '.join(extra)} not in the suite {suite}")
+    if gap := [cid for cid in suite if cid not in owner]:
+        raise IProofsError(ErrorKind.CONFIG, f"no part ran {', '.join(gap)}")
+    by_id = {str(r["id"]): r for name in names for r in parts[name]["controls"]}
+    return controls_document(
+        str(first["run_id"]),
+        str(first["control_seed"]),
+        str(first["image"]),
+        str(first["verifier_profile"]),
+        first["perturbed_commitment"],
+        [by_id[cid] for cid in suite],
+    )
 
 
 # ---------------------------------------------------------------- perturbed weights (C3, P1)

@@ -151,6 +151,13 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         metavar="SEED",
         help="the suite's control_seed, 64-bit hex (0x...) or decimal; default: drawn from the OS",
     )
+    p.add_argument(
+        "--merge",
+        metavar="PART",
+        nargs="+",
+        type=Path,
+        help="write RUN_DIR/controls.json from parts that cover the suite once",
+    )
 
     p = command("machine-record", "print the machine record as JSON (RFC-0006)")
     p.add_argument("--selftest", action="store_true", help="run the RFC-0011 calibration checks")
@@ -479,9 +486,10 @@ def _containers(
 
 def controls(args: argparse.Namespace) -> int:
     """`iproofs controls RUN_DIR`: add controls.json to a completed run kept with --keep-io;
-    with --only, write one part of the suite instead (RFC-0008 §Split suites)."""
+    with --only, write one part of the suite instead, and with --merge, controls.json from the
+    parts (RFC-0008 §Split suites)."""
     from iproofs.controls import parse_control_seed  # noqa: PLC0415
-    from iproofs.runner import Runner, controls_for_run  # noqa: PLC0415
+    from iproofs.runner import Runner, controls_for_run, merge_controls  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     if args.prepare_perturbed:
@@ -489,6 +497,13 @@ def controls(args: argparse.Namespace) -> int:
     if args.run_dir is None:
         raise IProofsError(ErrorKind.CONFIG, "give a RUN_DIR")
     root = repo_root(Path.cwd())
+    if args.merge:
+        if args.only or args.seed:
+            raise IProofsError(ErrorKind.CONFIG, "--merge takes RUN_DIR and the parts only")
+        from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+
+        print(merge_controls(SchemaRegistry.from_tree(root / "schema"), args.run_dir, args.merge))
+        return 0
     seed = parse_control_seed(args.seed) if args.seed is not None else None
     system = json.loads((args.run_dir / "run.json").read_text())["system"]
     image_ref = json.loads((args.run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
@@ -511,8 +526,10 @@ def _prepare_perturbed(args: argparse.Namespace) -> int:
         raise IProofsError(
             ErrorKind.CONFIG, "--prepare-perturbed takes --system and --profile, not a RUN_DIR"
         )
-    if args.only or args.seed:
-        raise IProofsError(ErrorKind.CONFIG, "--prepare-perturbed takes no --only or --seed")
+    if args.only or args.seed or args.merge:
+        raise IProofsError(
+            ErrorKind.CONFIG, "--prepare-perturbed takes no --only, --seed or --merge"
+        )
     root = repo_root(Path.cwd())
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():

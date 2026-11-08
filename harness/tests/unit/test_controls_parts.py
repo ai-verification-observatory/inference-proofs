@@ -103,3 +103,45 @@ def test_part_document_shape() -> None:
     assert doc["only"] == ["C1", "P1"]
     assert [r["id"] for r in doc["controls"]] == ["C1", "P1"]
     assert set(ctl.PART_KEYS) < set(doc)
+
+
+def test_merge_restores_suite_order_and_recomputes() -> None:
+    a, b = part("sys-a", "C1"), part("P1", "C2")
+    a["controls"] = [record("sys-a", "accepted"), record("C1")]
+    a["only"] = ["sys-a", "C1"]
+    merged = ctl.merge_parts({"b.json": b, "a.json": a})
+    assert [r["id"] for r in merged["controls"]] == SUITE  # type: ignore[attr-defined]
+    assert merged["summary"] == ctl.summary(merged["controls"])  # type: ignore[arg-type]
+    assert merged["disclosure_pending"] is True
+    assert set(merged) == {"schema", "run_id", "control_seed", "image", "verifier_profile",
+                           "perturbed_commitment", "controls", "summary",
+                           "disclosure_pending"}  # fmt: skip
+    single = ctl.controls_document(a["run_id"], SEED, a["image"], "ci-cpu", None,
+                                   [record("C1"), record("C2"), record("P1"),
+                                    record("sys-a", "accepted")])  # fmt: skip
+    assert merged == single
+
+
+@pytest.mark.parametrize("key", ctl.PART_KEYS)
+def test_merge_refuses_parts_that_differ(key: str) -> None:
+    other = part("C2", "P1", "sys-a", **{key: {"different": True}})
+    with pytest.raises(IProofsError, match=rf"b\.json differs from a\.json in {key}"):
+        ctl.merge_parts({"a.json": part("C1"), "b.json": other})
+
+
+def test_merge_refuses_records_other_than_the_subset() -> None:
+    bad = part("C1", "C2")
+    bad["only"] = ["C1"]
+    with pytest.raises(IProofsError, match="are not its subset"):
+        ctl.merge_parts({"a.json": bad})
+
+
+def test_merge_refuses_overlap_gap_and_strangers() -> None:
+    with pytest.raises(IProofsError, match=r"C2 is in both a\.json and b\.json"):
+        ctl.merge_parts({"a.json": part("C1", "C2"), "b.json": part("C2", "P1", "sys-a")})
+    with pytest.raises(IProofsError, match="no part ran P1, sys-a"):
+        ctl.merge_parts({"a.json": part("C1"), "b.json": part("C2")})
+    with pytest.raises(IProofsError, match="C9 not in the suite"):
+        ctl.merge_parts({"a.json": part(*SUITE), "b.json": part("C9")})
+    with pytest.raises(IProofsError, match="no part given"):
+        ctl.merge_parts({})

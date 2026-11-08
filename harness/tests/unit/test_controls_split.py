@@ -1,6 +1,6 @@
 """RFC-0008 §Split suites on the fake system: `iproofs controls RUN_DIR --only ... --seed ...`
-writes parts, and each control's record in a part is the one a run of the whole suite with the
-same seed writes."""
+writes parts, `--merge` writes controls.json, and the merge of a suite split three ways is the
+same bytes as one run of the whole suite with the same seed."""
 
 import functools
 import itertools
@@ -21,6 +21,7 @@ from iproofs.runner import (
     Runner,
     control_suite,
     controls_for_run,
+    merge_controls,
     prepare_perturbed,
 )
 from iproofs.schema import SchemaRegistry
@@ -72,14 +73,13 @@ def twin_of(run_dir: Path, name: str) -> Path:
     return copy
 
 
-def test_parts_hold_the_records_of_one_whole_run(kept: tuple[Path, Path]) -> None:
+def test_merged_parts_equal_one_run_byte_for_byte(
+    kept: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
     r, run_dir = kept
+    monkeypatch.chdir(r)
     assert [cid for cid, _ in control_suite(r, REGISTRY, "fake")] == SUITE
-    whole = json.loads(
-        controls_for_run(runner(r), twin_of(run_dir, "whole"), seed=SEED).read_text()
-    )
-    by_id = {c["id"]: c for c in whole["controls"]}
-    assert by_id["C3"]["outcome"] == by_id["P1"]["outcome"] == "rejected"  # the full suite ran
+    whole = controls_for_run(runner(r), twin_of(run_dir, "whole"), seed=SEED)
     split = twin_of(run_dir, "split")
     asked = (["P1,C4", "C1,C2,C3"], ["fake-fixture-proof,C8", "C5,C6,C7"],
              ["fake-unsound-skip-nothing,P2,fake-unsound-skip-tag"])  # fmt: skip
@@ -89,14 +89,42 @@ def test_parts_hold_the_records_of_one_whole_run(kept: tuple[Path, Path]) -> Non
         doc = json.loads(path.read_text())
         assert REGISTRY.errors("controls-part/1", doc) == []
         assert doc["only"] == [c for c in SUITE if c in ",".join(only).split(",")]
-        assert doc["controls"] == [by_id[c] for c in doc["only"]]
+        assert [c["id"] for c in doc["controls"]] == doc["only"]
         assert (doc["control_seed"], doc["suite"], doc["verifier_cpus"]) == (SEED, SUITE, 1)
+    merged = merge_controls(REGISTRY, split, list(reversed(parts)))
+    assert merged == split / "controls.json"
+    assert merged.read_bytes() == whole.read_bytes()
+    doc = json.loads(whole.read_text())
+    outcomes = {c["id"]: c["outcome"] for c in doc["controls"]}
+    assert outcomes["C3"] == outcomes["P1"] == "rejected"  # the full suite ran, not a stub
+    assert outcomes["fake-unsound-skip-tag"] == "accepted"
     assert not (split / "controls-io").exists()
-    assert not (split / "controls.json").exists()
+    assert cli.main(["derive", str(split), "--check"]) == 0
+    with pytest.raises(IProofsError, match="never overwritten"):
+        merge_controls(REGISTRY, split, parts)
     with pytest.raises(IProofsError, match="never overwritten"):
         controls_for_run(runner(r), split, seed=SEED, only=asked[0])
-    fresh = controls_for_run(runner(r), split, only=["C2"])
-    assert json.loads(fresh.read_text())["control_seed"] != SEED  # no seed: drawn, and named
+
+
+def test_merge_refuses_a_part_of_another_run(kept: tuple[Path, Path]) -> None:
+    r, run_dir = kept
+    one = controls_for_run(runner(r), twin_of(run_dir, "one"), seed=SEED, only=["C1"])
+    other = twin_of(run_dir, "other")
+    manifest = json.loads((other / "manifest.json").read_text())
+    manifest["warnings"] = ["edited"]
+    (other / "manifest.json").write_text(json.dumps(manifest))
+    with pytest.raises(IProofsError, match="was not made against"):
+        merge_controls(REGISTRY, other, [one])
+    with pytest.raises(IProofsError, match="is given twice"):
+        merge_controls(REGISTRY, run_dir.parent / "one", [one, one])
+    bad = run_dir.parent / "bad.json"
+    bad.write_text(json.dumps({"schema": "controls-part/1"}))
+    with pytest.raises(IProofsError, match="fails controls-part/1"):
+        merge_controls(REGISTRY, run_dir, [bad])
+    other_seed = controls_for_run(runner(r), run_dir.parent / "one", only=["C2"])
+    assert other_seed.name != one.name  # no --seed: a fresh one, carried in the name
+    with pytest.raises(IProofsError, match=r"differs .* in control_seed"):
+        merge_controls(REGISTRY, run_dir.parent / "one", [one, other_seed])
 
 
 def test_verifier_part_needs_no_weights(
@@ -116,18 +144,22 @@ def test_verifier_part_needs_no_weights(
         controls_for_run(runner(r), run_dir, seed=SEED, only=["P2"])
 
 
-def test_cli_only_and_seed(kept: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_split_and_merge(kept: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     r, run_dir = kept
     monkeypatch.chdir(r)
     monkeypatch.setenv("IPROOFS_FAKE_DELAY_S", "0")
     monkeypatch.setenv("IPROOFS_FAKE_UPSTREAM", ENV["IPROOFS_FAKE_UPSTREAM"])
     base = ["controls", str(run_dir)]
-    assert cli.main([*base, "--only", "C1,C2", "--seed", "6862529337877772160"]) == 0
-    assert cli.main([*base, "--only", "C8", "--only", "P2", "--seed", SEED]) == 0
+    assert cli.main([*base, "--only", "C1,C2,C3,C4,C5,C6,C7", "--seed", "6862529337877772160"]) == 0
+    assert cli.main([*base, "--only", "C8,P1,P2", "--only", ",".join(SUITE[10:]),
+                     "--seed", SEED]) == 0  # fmt: skip
     parts = sorted(run_dir.glob("controls-part-5f3c9a12d4e6b780-*.json"))
     assert len(parts) == 2
-    assert not (run_dir / "controls.json").exists()
+    assert cli.main([*base, "--merge", *map(str, parts), "--seed", SEED]) == 2
+    assert cli.main([*base, "--merge", *map(str, parts)]) == 0
+    doc = json.loads((run_dir / "controls.json").read_text())
+    assert [c["id"] for c in doc["controls"]] == SUITE
+    assert doc["control_seed"] == SEED
     assert cli.main([*base, "--only", "C1", "--seed", "0xzz"]) == 2
-    assert cli.main([*base, "--only", "C9", "--seed", SEED]) == 2
     assert cli.main(["controls", "--prepare-perturbed", "fake-tiny-ci", "--system", "fake",
                      "--profile", "ci-cpu", "--only", "C1"]) == 2  # fmt: skip
