@@ -10,7 +10,7 @@ How an answer is used ([RFC-0016](../../rfcs/0016-glyph-properties-and-states.md
 - A private message or an issue comment alone sets nothing (SRC-8; for card rows, cf. OVR-6). An unpublished answer leaves the cell Not stated.
 - A reviewer copies the team's words and sets the state by the property's rules. Nobody infers or tests a property from the answer.
 - The questions ask about the system's default use, because RFC-0016 reads a public-source row for its default or expected use (SRC-1). An answer for another configuration is printed as an aside and sets nothing.
-- A question marked "(Partly cell)" targets a cell that is Partly under an open question of RFC-0016 (Q10), not a Not stated cell.
+- A question marked "(Partly cell)" targets a cell that is Partly by RFC-0016 Q10 (a level stated as neither proven nor conjectured; resolved 2026-11-08), not a Not stated cell.
 
 The claim card teams (FlashProve, SASH) are asked in #42, not here.
 
