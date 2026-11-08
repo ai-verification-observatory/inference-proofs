@@ -1,3 +1,5 @@
-# Fixture workload record: only the parameter count the worked example needs.
+# Fixture workload record: only the parameter count and weight bits the worked example needs.
 model:
   parameters: {active_per_token: 8000000000}
+precision:
+  weight_bits: {bits: 8}

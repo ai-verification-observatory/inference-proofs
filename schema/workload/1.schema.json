@@ -276,6 +276,68 @@
         "served": {
           "minLength": 1,
           "type": "string"
+        },
+        "weight_bits": {
+          "$comment": "RFC-0003 §Weight bits: bits per weight of the precision as proved, an asserted input of RFC-0004 D-SPAB-S; `files` exactly when the basis is file_size",
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "else": {
+                "properties": {
+                  "files": false
+                }
+              },
+              "if": {
+                "properties": {
+                  "basis": {
+                    "const": "file_size"
+                  }
+                }
+              },
+              "then": {
+                "required": [
+                  "files"
+                ]
+              }
+            }
+          ],
+          "properties": {
+            "basis": {
+              "enum": [
+                "stated",
+                "file_size"
+              ]
+            },
+            "bits": {
+              "exclusiveMinimum": 0,
+              "maximum": 64,
+              "type": "number"
+            },
+            "files": {
+              "items": {
+                "pattern": "^[^/][^\\t\\n]*$",
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "note": {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            "source": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "bits",
+            "basis",
+            "source"
+          ],
+          "type": "object"
         }
       },
       "required": [

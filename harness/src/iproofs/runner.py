@@ -1681,6 +1681,13 @@ class Runner:
             "tier": "reported",
             "source": {"kind": "harness", "ref": ""},
         }
+        bits = job.workload.precision.weight_bits  # RFC-0003 §Weight bits; absent: missing_input
+        bits_ptr = f"workloads/{job.workload.id}.yaml#/precision/weight_bits/bits"
+        bits_q = (
+            None
+            if bits is None
+            else {"value": bits.bits, "tier": "reported", "source": {"kind": "harness", "ref": ""}}
+        )
         first = (
             {
                 "value": sum(per_proof[0]),
@@ -1697,6 +1704,7 @@ class Runner:
             gpus=gpus,
             price=(price_ptr, price_q),
             active_parameters=(params_ptr, params_q),
+            weight_bits=(bits_ptr, bits_q),
             first_proof_tokens=(f"{run_json}#/proofs/0/tokens_covered", first),
             reference=_reference(job),
         )

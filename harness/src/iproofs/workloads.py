@@ -60,10 +60,35 @@ def check_workload(wl: Workload, root: Path) -> list[str]:
         )
     elif source is None and wl.model.tokenizer_file not in {f.path for f in wl.model.files}:
         problems.append(f"model.tokenizer_file {wl.model.tokenizer_file!r} is not in model.files")
+    problems += _weight_bits_problems(wl)
     for system in wl.systems:
         if not (root / "systems" / system / "system.yaml").is_file():
             problems.append(f"systems: {system!r} has no systems/{system}/system.yaml")
     return problems
+
+
+def file_size_bits(wl: Workload, files: Sequence[str]) -> float:
+    """RFC-0003 WB-2: bytes of the listed weight files x 8 / `model.parameters.total`."""
+    sizes = {f.path: f.bytes for f in wl.model.files}
+    return sum(sizes[path] for path in files) * 8 / wl.model.parameters.total
+
+
+def _weight_bits_problems(wl: Workload) -> list[str]:
+    """WB-2: a `file_size` basis lists weight files of `model.files` whose size gives the bits."""
+    wb = wl.precision.weight_bits
+    if wb is None or wb.basis != "file_size" or wb.files is None:
+        return []
+    listed = {f.path for f in wl.model.files}
+    unknown = [path for path in wb.files if path not in listed]
+    if unknown:
+        return [f"precision.weight_bits.files {unknown} are not in model.files"]
+    computed = file_size_bits(wl, wb.files)
+    if computed != wb.bits:
+        return [
+            f"precision.weight_bits.bits {wb.bits} != listed file bytes x 8 /"
+            f" model.parameters.total = {computed} (basis file_size)"
+        ]
+    return []
 
 
 def load_workload(

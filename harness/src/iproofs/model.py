@@ -638,10 +638,22 @@ class ModelSpec(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class WeightBits(Document):
+    """Bits per weight of the precision as proved, an asserted input (RFC-0003 §Weight bits)."""
+
+    bits: float
+    basis: str  # "stated" or "file_size"
+    source: str
+    files: tuple[str, ...] | None = None
+    note: str | None = None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Precision(Document):
     served: str
     proved: str
     alternatives: tuple[str, ...] | None = None
+    weight_bits: WeightBits | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1376,6 +1388,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("workload/1", "#/properties/model/properties/licence"): Licence,
     ("workload/1", "#/properties/model/properties/parameters"): Parameters,
     ("workload/1", "#/properties/precision"): Precision,
+    ("workload/1", "#/properties/precision/properties/weight_bits"): WeightBits,
     ("workload/1", "#/properties/prompts"): Prompts,
     ("workload/1", "#/properties/prompts/properties/length_rule"): LengthRule,
     ("workload/1", "#/properties/shape"): Shape,

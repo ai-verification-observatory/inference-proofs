@@ -19,6 +19,7 @@ from iproofs.schema import SchemaRegistry
 ROOT = Path(__file__).resolve().parents[3]
 FIXTURE = ROOT / "harness/tests/fixtures/derive/worked-example"
 RUN = "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json"
+BITS_REF = "workloads/x.yaml#/precision/weight_bits/bits"
 NS = 1_000_000_000
 UNITS = {
     "tokens_covered_total": Unit.TOKEN, "tokens_covered_steady": Unit.TOKEN,
@@ -46,7 +47,8 @@ def worked_example() -> tuple[dict[str, QuantityTree], dict[str, QuantityTree]]:
     metrics: dict[str, QuantityTree] = {k: q(k, v) for k, v in inputs["metrics"].items()}
     metrics |= scope_seconds(events, releases, observable=True, run_json=RUN)
     out = derive(metrics, price=inputs["price_usd_per_gpu_hour"], gpus=inputs["gpus"],
-                 params=inputs["active_parameters_per_token"])  # fmt: skip
+                 params=inputs["active_parameters_per_token"],
+                 bits=inputs["weight_bits"])  # fmt: skip
     return metrics, out
 
 
@@ -56,6 +58,7 @@ def derive(
     price: float = 3.6,
     gpus: int = 1,
     params: float = 8e9,
+    bits: float | None = 8.0,
     reference: bool = False,
 ) -> dict[str, QuantityTree]:
     price_ref = "reference/v0.1.yaml#/cost/price_per_gpu_hour_usd"
@@ -67,6 +70,7 @@ def derive(
         gpus=gpus,
         price=(price_ref, asserted(price, Unit.USD_PER_GPU_HOUR, price_ref)),
         active_parameters=(params_ref, asserted(params, Unit.COUNT, params_ref)),
+        weight_bits=(BITS_REF, None if bits is None else asserted(bits, Unit.COUNT, BITS_REF)),
         first_proof_tokens=(f"{RUN}#/proofs/0/tokens_covered", q("tokens_covered_total", 1000)),
         reference=reference,
     )
@@ -205,3 +209,57 @@ def test_formula_registry_names_every_emitted_id() -> None:
     emitted = {str(v["source"]["ref"]).split(":")[1].split("@")[0] for v in out.values()}  # type: ignore[index]
     assert emitted | {"D-STAT", "D-OVERHEAD-S", "D-AGREE", "D-PROVIDER-SPREAD"} <= set(FORMULAS)
     assert set(COMPUTE) <= set(FORMULAS)
+
+
+SPAB = "seconds_per_active_weight_bit_token_prove.steady"
+
+
+def test_seconds_per_active_weight_bit_worked_example() -> None:
+    """TC-SPAB-WORKED: RFC-0004 worked example D-SPAB row, 0.01 / (8.0e9 x 8) = 1.5625e-13
+    s/bit_token (fixture values, not a result), with its labels."""
+    _, out = worked_example()
+    spab = out[SPAB]
+    assert isinstance(spab["value"], float)
+    assert math.isclose(spab["value"], 1.5625e-13, rel_tol=1e-12)
+    assert (spab["grade"], spab["unit"], spab["scope"], spab["tier"], spab["null_reason"]) == (
+        "derived", "s/bit_token", "prove.steady", "reported", None
+    )  # fmt: skip
+
+
+def test_seconds_per_active_weight_bit_source() -> None:
+    """TC-SPAB-SOURCE: formula id and inputs in order: D-SPT-S, parameters, weight bits."""
+    _, out = worked_example()
+    assert out[SPAB]["source"] == {
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0",
+        "inputs": [
+            f"{RUN}#/metrics/seconds_per_token_prove.steady",
+            "workloads/x.yaml#/model/parameters/active_per_token",
+            BITS_REF,
+        ],
+    }
+
+
+def test_seconds_per_active_weight_bit_no_bits_is_missing_input() -> None:
+    """TC-SPAB-NO-BITS: a workload record without weight bits gives null `missing_input`."""
+    metrics, _ = worked_example()
+    out = derive(metrics, bits=None)
+    for scope in ("prove.steady", "prove.session", "whole_wall"):
+        q = out[f"seconds_per_active_weight_bit_token_{scope}"]
+        assert (q["value"], q["null_reason"]) == (None, "missing_input"), scope
+    assert out["seconds_per_token_prove.steady"]["value"] is not None  # the time is still there
+
+
+def test_seconds_per_active_weight_bit_reference_is_null() -> None:
+    """TC-SPAB-REFERENCE: a `kind: reference` row gives null `not_applicable` (INV-DERIVE-7)."""
+    metrics, _ = worked_example()
+    q = derive(metrics, reference=True)[SPAB]
+    assert (q["value"], q["null_reason"]) == (None, "not_applicable")
+
+
+def test_seconds_per_active_weight_bit_follows_steady_null() -> None:
+    """TC-SPAB-NULL: a null D-SPT-S passes its own reason on (k = 1: fewer_than_two_proofs)."""
+    events = {"commit.start": 0, "prove.start": 1 * NS}
+    metrics = scope_seconds(events, [2 * NS], observable=True, run_json=RUN)
+    metrics["tokens_covered_steady"] = q("tokens_covered_steady", 0)
+    assert derive(metrics)[SPAB]["null_reason"] == "fewer_than_two_proofs"

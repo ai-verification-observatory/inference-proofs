@@ -320,6 +320,57 @@
       "unit": "count",
       "value": 5
     },
+    "seconds_per_active_weight_bit_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/seconds_per_token_prove.session",
+          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token",
+          "harness/tests/fixtures/derive/worked-example/workload.yaml#/precision/weight_bits/bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 1.953125e-13
+    },
+    "seconds_per_active_weight_bit_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/seconds_per_token_prove.steady",
+          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token",
+          "harness/tests/fixtures/derive/worked-example/workload.yaml#/precision/weight_bits/bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 1.5625000000000002e-13
+    },
+    "seconds_per_active_weight_bit_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/seconds_per_token_whole_wall",
+          "harness/tests/fixtures/derive/worked-example/workload.yaml#/model/parameters/active_per_token",
+          "harness/tests/fixtures/derive/worked-example/workload.yaml#/precision/weight_bits/bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 3.90625e-13
+    },
     "seconds_per_token_prove.session": {
       "grade": "derived",
       "null_reason": null,

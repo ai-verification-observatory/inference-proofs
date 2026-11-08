@@ -71,19 +71,28 @@ def test_derive_check_null_reason_must_match(tmp_path: Path) -> None:
     )
 
 
+PROVER_ONLY = ["tokens_covered_per_proof"] + [
+    f"seconds_per_active_weight_bit_token_{s}"
+    for s in ("prove.steady", "prove.session", "whole_wall")
+]
+
+
 def test_derive_check_reference_tokens_per_proof(tmp_path: Path) -> None:
-    """INV-DERIVE-6: in a `kind: reference` run, D-TPP recomputes as null `not_applicable`;
-    a stored count fails DER-1."""
+    """INV-DERIVE-6, INV-DERIVE-7: in a `kind: reference` run, D-TPP and D-SPAB-S recompute
+    as null `not_applicable`; a stored value fails DER-1."""
 
     def reference(doc: dict[str, object]) -> None:
         doc["system_kind"] = "reference"
 
     def reference_null(doc: dict[str, dict[str, dict[str, object]]]) -> None:
         reference(doc)  # type: ignore[arg-type]
-        q = doc["metrics"]["tokens_covered_per_proof"]
-        q["value"], q["null_reason"] = None, "not_applicable"
+        for name in PROVER_ONLY:
+            q = doc["metrics"][name]
+            q["value"], q["null_reason"] = None, "not_applicable"
 
-    assert any("tokens_covered_per_proof DER-1" in line for line in edited(tmp_path, reference))
+    found = edited(tmp_path, reference)
+    for name in PROVER_ONLY:
+        assert any(f"{name} DER-1" in line for line in found), name
     assert edited(tmp_path, reference_null) == []
 
 
@@ -94,3 +103,23 @@ def test_g4_gate_fixture_fails(capsys: pytest.CaptureFixture[str]) -> None:
 
 def test_cli_derive_check_clean(capsys: pytest.CaptureFixture[str]) -> None:
     assert cli.main(["derive", str(WORKED), "--check"]) == 0
+
+
+def test_derive_check_absent_weight_bits(tmp_path: Path) -> None:
+    """RFC-0004 D-SPAB-S null rule: a workload record without weight bits leaves the input
+    unresolvable; a stored null `missing_input` recomputes as it is, a stored value fails DER-3."""
+    name = "seconds_per_active_weight_bit_token_prove.steady"
+
+    def absent(doc: dict[str, dict[str, dict[str, dict[str, list[str]]]]]) -> None:
+        src = doc["metrics"][name]["source"]
+        src["inputs"] = [
+            p.replace("/weight_bits/bits", "/weight_bits_absent") for p in src["inputs"]
+        ]
+
+    def absent_null(doc: dict[str, dict[str, dict[str, object]]]) -> None:
+        absent(doc)  # type: ignore[arg-type]
+        q = doc["metrics"][name]
+        q["value"], q["null_reason"] = None, "missing_input"
+
+    assert any(f"{name} DER-3: inputs missing" in line for line in edited(tmp_path, absent))
+    assert edited(tmp_path, absent_null) == []

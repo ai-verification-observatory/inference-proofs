@@ -354,6 +354,7 @@ def _metrics(
     )
     price = json.loads(json.dumps(yaml.safe_load((root / REFERENCE).read_text())["cost"]))
     params = wl["model"]["parameters"]["active_per_token"]
+    bits = wl["precision"].get("weight_bits")
     harness = {"tier": "reported", "source": {"kind": "harness", "ref": ""}}
     m |= derive_repetition(
         m,
@@ -364,6 +365,10 @@ def _metrics(
         active_parameters=(
             f"workloads/{cfg.workload}.yaml#/model/parameters/active_per_token",
             {"value": params, **harness},
+        ),
+        weight_bits=(
+            f"workloads/{cfg.workload}.yaml#/precision/weight_bits/bits",
+            None if bits is None else {"value": bits["bits"], **harness},
         ),
         first_proof_tokens=(
             f"{run_json}#/proofs/0/tokens_covered",

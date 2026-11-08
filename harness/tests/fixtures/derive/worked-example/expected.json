@@ -9,6 +9,7 @@
   "rate_prove.session": 80,
   "rate_prove.steady": 100,
   "rate_whole_wall": 40,
+  "seconds_per_active_weight_bit_token_prove.steady": 1.5625e-13,
   "seconds_per_token_prove.steady": 0.01,
   "tokens_covered_per_proof": 1000,
   "verify_seconds_per_token": 0.005,
