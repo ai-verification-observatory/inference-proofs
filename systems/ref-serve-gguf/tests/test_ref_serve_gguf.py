@@ -98,7 +98,9 @@ def test_engine_options_verbatim(adapter: ModuleType) -> None:
 def test_engine_options_follow_srv6(workload: str) -> None:
     """SRV-6: as many slots as the batch size, prompt plus output tokens per slot in the one
     pinned form (no -c), every layer on the GPU, the routed experts of the first N layers in
-    host memory, and the placement fixed (--fit off)."""
+    host memory, the placement fixed (--fit off), and as many CPU threads as the prover rows'
+    profile binds for a prover (15 on prover-h200-hosted), so plain serving gets no CPUs the
+    prover did not get."""
     doc = yaml.safe_load((SYSTEM / "system.yaml").read_text())
     [entry] = [w for w in doc["workloads"] if w["id"] == workload]
     wl = yaml.safe_load((ROOT / "workloads" / f"{workload}.yaml").read_text())
@@ -106,7 +108,8 @@ def test_engine_options_follow_srv6(workload: str) -> None:
     per_slot = shape["prompt_tokens"] + shape["output_tokens"]
     n = args[args.index("--n-cpu-moe") + 1]
     assert args == ["-np", str(shape["batch_size"]), "--kv-unified", "--kv-unified-per-slot",
-                    str(per_slot), "-ngl", "all", "--n-cpu-moe", n, "--fit", "off"]  # fmt: skip
+                    str(per_slot), "-ngl", "all", "--n-cpu-moe", n, "--fit", "off",
+                    "-t", "15", "-tb", "15"]  # fmt: skip
     assert 0 <= int(n) <= 48  # llama4.block_count of the pinned files
     assert (entry["precision_used"], entry["precision_substitution"]) == (
         wl["precision"]["served"], None)  # PM-1, no substitution  # fmt: skip

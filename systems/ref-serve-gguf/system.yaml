@@ -35,6 +35,10 @@ workloads:
   - '22'
   - --fit
   - 'off'
+  - -t
+  - '15'
+  - -tb
+  - '15'
 - id: fp-maverick-w1024-b24
   precision_used: UD-Q4_K_XL
   precision_substitution: null
@@ -50,6 +54,10 @@ workloads:
   - '22'
   - --fit
   - 'off'
+  - -t
+  - '15'
+  - -tb
+  - '15'
 deterministic_proofs: false
 incremental_proofs: true
 forbidden_flags: []
