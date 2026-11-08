@@ -30,7 +30,10 @@ iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR
             [--in-process]                  # test systems only: run the entrypoint as a local process
             [--image IMAGE_ID]              # a local image by ID, digest_kind config (RFC-0014)
             [--runner HANDLE] [--runner-org ORG] [--affiliated SYSTEM ...]   # declared runner (RFC-0007)
-iproofs controls RUN_DIR
+iproofs controls RUN_DIR [--seed SEED]
+            [--only ID[,ID...]]             # a part of the suite, for --merge (RFC-0008 §Split suites)
+            [--hosted] [--gpu INDEX]        # in the run's pinned image; --gpu for prover-side ids
+iproofs controls RUN_DIR --merge PART [PART...]     # controls.json from parts that cover the suite once
 iproofs controls --prepare-perturbed WORKLOAD --system S --profile P [--image IMAGE_ID | --in-process] [--results DIR]
 iproofs machine-record [--selftest]
 iproofs fetch-model WORKLOAD [--headers-only]      # --headers-only: no weights; recompute a computed weight width from the GGUF headers (RFC-0003 WB-5), JSON on stdout

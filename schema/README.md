@@ -34,6 +34,7 @@ Schemas in the RFC-0012 catalogue that have landed, with their Python model in `
 | `adapter-job/1` | `/io/job.json` inside an adapter container | `AdapterJob` |
 | `adapter-out/1` | `/io/out.json` inside an adapter container | `AdapterOut`, `ProofEntry`, `CommandLine` |
 | `controls/1` | `results/<release>/<system>/<run-id>/controls.json` | `Controls` |
+| `controls-part/1` | `<run-dir>/controls-part-<seed>-<subset>.json`, a working file (RFC-0008 §Split suites) | `ControlsPart` |
 | `release/1` | `releases/<release>/release.yaml` | `Release` |
 | `release-index/1` | `releases/<release>/index.json` | `ReleaseIndex` |
 | `target/1` | `targets/<author>/<id>.yaml` | `Target` |

@@ -36,11 +36,22 @@ Speed is half of a result. A proof system is useful when its verifier rejects wh
 
 ### Where controls run
 
-`iproofs run ... --control-suite` runs the suite once per configuration, after the honest `verify` step of the first successful repetition (controls test the verifier, not run-to-run variance, and each prover-side control costs a proving run), and `iproofs controls RUN_DIR` runs it against a completed run ([RFC-0010](0010-harness-runner.md)). Inputs: the run's honest proofs, requests, claimed outputs and the harness's commit record. Every mutated input is written by the harness into a fresh verify io dir; the adapter's `verify` subcommand runs unchanged (INV-CTRL-1).
+`iproofs run ... --control-suite` runs the suite once per configuration, after the honest `verify` step of the first successful repetition (controls test the verifier, not run-to-run variance, and each prover-side control costs a proving run), and `iproofs controls RUN_DIR` runs it against a completed run ([RFC-0010](0010-harness-runner.md)), whole or in parts on several hosts (§Split suites). Inputs: the run's honest proofs, requests, claimed outputs and the harness's commit record. Every mutated input is written by the harness into a fresh verify io dir; the adapter's `verify` subcommand runs unchanged (INV-CTRL-1).
 
 ### Seeds
 
 Every control job derives its randomness from one 64-bit `control_seed`, drawn from `os.urandom` at the start of the control suite and recorded in `controls.json`. Per-control randomness uses `random.Random(f"{control_seed}:{control_id}:{k}")` with `.random()` only, the method CPython guarantees stable across versions; an index in `[0, m)` is `floor(r * m)`. Rerunning with the recorded seed reproduces every mutation byte for byte (INV-CTRL-3).
+
+### Split suites
+
+Amendment of 2026-11-09 (owner request of 2026-11-08: every control's data as soon as possible; the RFC stays Draft). A suite may run in parts, on several hosts at once, and be merged into the `controls.json` one run writes. Every other rule of this RFC holds for each control in each part.
+
+- SPLIT-1. One seed. `control_seed` is drawn once from `os.urandom`, before the first part, recorded with the campaign, and given to every part (`iproofs controls RUN_DIR --only ID[,ID...] --seed SEED`, hex or decimal). A part run without `--seed` draws its own and cannot be merged with parts of another seed.
+- SPLIT-2. Whole controls. A part runs whole controls, each with its honest twins in the same part (INV-CTRL-2) and its mutations from `control_seed` and its own id (INV-CTRL-3); C6's five trials and its twin stay together. A control's record therefore does not depend on which other controls ran in its part.
+- SPLIT-3. One run, one image, the run's profiles. Every part runs against the same run directory (its run id and the sha256 of its `manifest.json`), in the run's image, with the same harness version and commit. Verifier-side controls run on hosts of the run's verifier profile, prover-side controls (P1, P2, `weakened_prover`) on hosts of the run's prover profile, and every part binds its verify calls to the same number of CPUs. A host that cannot prove (no GPU on a GPU profile, or a host that binds a verifier only) refuses a prover-side control before any call, so a prove that cannot run there never reads as `prover_failed`.
+- SPLIT-4. Parts. A part is a `controls-part/1` document ([RFC-0012](0012-schemas-and-serialization.md)) named `controls-part-<16 hex of the seed>-<12 hex of the sha256 of the subset>.json`. It holds the subset, the whole suite in `controls.json` order, and what SPLIT-1 and SPLIT-3 name (seed; run id and manifest digest; image; verifier and run profiles; verifier CPU count; perturbed commitment; harness version, commit and dirty flag), then the subset's records. It is a working file, kept with the run's evidence and never in `results/`; the merged `controls.json` is the record.
+- SPLIT-5. Merge. `iproofs controls RUN_DIR --merge PART...` refuses, with a `config` error and nothing written: a part not valid against `controls-part/1` or not made against RUN_DIR; parts that differ in any field SPLIT-4 lists before the subset; a part whose records are not its subset; a control in two parts, in no part, or outside the suite; an existing `controls.json`. It writes the records in suite order, recomputes `summary` (INV-CTRL-5) and `disclosure_pending`, and checks the document against `controls/1`.
+- SPLIT-6. A part that stops before its end (deadline, cancelled job, host failure) writes no part. Its controls run again in a new part with the same seed, which reproduces their mutations byte for byte; the stopped job's log stays in the campaign record (AGENTS.md rule 5). A control whose call failed is not rerun: its `error` outcome is in its part.
 
 ### Proof selection
 
@@ -190,6 +201,7 @@ An accepted control where rejection was expected is a possible soundness or adap
 - **INV-CTRL-4:** A control job never produces a measured row, and a measured row never comes from a job with `control: true`.
 - **INV-CTRL-5:** `summary` in `controls.json` equals the counts recomputed from `controls`.
 - **INV-CTRL-6:** The commitment in every control verify call comes from the harness's commit records (the run's or the perturbed one), never from proof files.
+- **INV-CTRL-7:** A `controls.json` merged from parts (§Split suites) is byte for byte the one a single run of the suite with the same `control_seed` writes from the same verify results.
 
 ### Failure modes
 
@@ -226,6 +238,7 @@ The author's affiliations and any interest in a measured system are declared in 
 - Replaces the draft control list of the initial design commit; IDs C1 to C8, P1, P2 are kept, C6 is fixed at five seeds and gains exact algorithms.
 - v0.1-alpha: harness mutations and classification, tested against `systems/fake` (all shared controls pass) and `systems/fake-broken` (every applicable verifier-side control `accepted`).
 - v0.1-beta: suite runs on SASH and FlashProve rows, plus registered system-specific controls.
+- Split suites (amendment of 2026-11-09) change no control, algorithm, expected set or `controls/1` field; they add the `controls-part/1` working file and the `--only`, `--seed`, `--merge`, `--hosted` and `--gpu` options of `iproofs controls`. A merged file is a `controls.json` like any other (INV-CTRL-7).
 - A new control or a change to an algorithm or expected set needs an RFC and a new `controls/<major>` if the file shape changes. Past `controls.json` files are never edited; they name the RFC version they ran under ([RFC-0001](0001-process-and-governance.md)).
 
 ## Testing Strategy
@@ -242,6 +255,9 @@ The author's affiliations and any interest in a measured system are declared in 
 - `test_weakened_prover_requires_unbound_edge`: a `weakened_prover` control with outcome `accepted` and a binding report marking the edge bound does not pass.
 - `test_control_job_never_measured_row`: a run directory with `control: true` in its manifest fails `iproofs validate` if it appears in a release's measured rows ([RFC-0013](0013-validation-and-ci.md)).
 - `test_commitment_never_from_proof`: a proof directory containing a forged commitment file does not change the commitment passed to verify.
+- `test_merged_parts_equal_one_run_byte_for_byte` (INV-CTRL-7): on `systems/fake`, with a perturbed commitment (C3, P1) and three system controls, the whole suite run once and the suite split into three parts and merged, with one seed, give identical bytes.
+- `test_merge_refuses_*`: parts of another run, another seed or any other SPLIT-4 field, overlapping or missing controls, records other than the subset (SPLIT-5).
+- `test_prover_side_refused_where_no_prove_can_run`: a prover-side control on a verifier host, or on a GPU profile without `--gpu`, stops before any call (SPLIT-3).
 
 ## Open Questions
 
