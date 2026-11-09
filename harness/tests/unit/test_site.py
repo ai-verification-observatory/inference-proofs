@@ -74,7 +74,7 @@ HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
 HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
 PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
 DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
-NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
+NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u(?: x)?">([^<]+)</span>')
 # an overview cell's title: sample size and range (S3); the plate it links holds mean and sd
 TITLE_SPREAD = re.compile(
     r"(\d+) completed, (\d+) failed, (\S+(?: \S+)? to \S+(?: \S+)?|\S+ \S+ for every run)"
@@ -83,7 +83,7 @@ TITLE_SPREAD = re.compile(
 # mean, then the sd; a constant once, with its run count
 SPREAD = re.compile(r"all \d+ runs: .+|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?")
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
-SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
+SCALE = {"tokens": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
          "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
          "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
 

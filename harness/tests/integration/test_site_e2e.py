@@ -26,15 +26,26 @@ POINTER = re.compile(rf"{re.escape(INDEX)}#(/[^\s<\"]+)")
 VAL = re.compile(r'<a class="val" href="[^"]*" title="([^"]*)">(.*?)</a>', re.S)
 ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" data-k="([^"]+)">')
 PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
-NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
-SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
+NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u(?: x)?">([^<]+)</span>')
+SCALE = {"tokens": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
          "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
-         "\N{MULTIPLICATION SIGN}": 1.0,
-         # GPU memory, stored in MiB
-         "KiB": 1 / 1024, "MiB": 1.0, "GiB": 1024.0,
-         # more numbers: token/s, and USD per 1,000 tokens (the row names the basis)
-         "positions/s": 1.0, "USD": 1.0}  # fmt: skip
+         "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
+# units read back by the stored unit they print (S4: display only): memory stored in MiB prints in
+# the SI family; a cost per 1,000 tokens prints per 1M tokens, in USD or cents; a rate below 1 a
+# second prints per minute or per hour
+BY_STORED = {
+    "MiB": lambda v, u: v * SCALE[u] / 1024**2,
+    "USD/1k_token": lambda v, u: v * {"USD": 1.0, "\N{CENT SIGN}": 0.01}[u] / 1000,
+    "token/s": lambda v, u: v * {"tokens/s": 1.0, "tokens/min": 1 / 60, "tokens/h": 1 / 3600}[u],
+}
 MORE_ROW = re.compile(r'<tr><th scope="row">.*?</tr>', re.S)
+# a system page in document order: each setup's shared labels (its record prefix), then its plates
+# and its more-numbers rows, each naming its record's key under that prefix
+TOKEN = re.compile(
+    r'<dl class="tlab setl">.*?</dl>|<div class="plate" id="[^"]+" data-col="[^"]+">.*?</dl></div>'
+    r'|<tr><th scope="row">.*?</tr>',
+    re.S,
+)
 COLUMN = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
@@ -93,14 +104,53 @@ def pages(out: Path) -> dict[str, str]:
 def printed(number: str, unit: str, stored_unit: str = "") -> float:
     """A printed figure in its stored base unit; a per-bit unit (s/bit_token, B/bit_token) is
     printed per Gbit of active weights, 1e9 bits."""
+    v = float(number.replace(",", ""))
+    if stored_unit in BY_STORED:
+        return float(BY_STORED[stored_unit](v, unit))
     per_gbit = 1e-9 if stored_unit.endswith("/bit_token") else 1.0
-    return float(number.replace(",", "")) * SCALE[unit] * per_gbit
+    return v * SCALE[unit] * per_gbit
+
+
+def text_of(fragment: str) -> str:
+    """An HTML fragment's text, its tags dropped in place (a path split for line breaks reads
+    whole), no-break spaces read."""
+    return html.unescape(re.sub(r"<[^>]+>", "", fragment)).replace("\N{NO-BREAK SPACE}", " ")
+
+
+def traced(text: str) -> list[tuple[str, str, str | None]]:
+    """(kind, fragment, pointer) for each plate ("plate") and more-numbers row ("row") of a system
+    page, its pointer rebuilt from its setup's record prefix and its own key; None where it names
+    no record (a metric the runs did not record)."""
+    out: list[tuple[str, str, str | None]] = []
+    prefix = ""
+    for m in TOKEN.finditer(text):
+        chunk = m[0]
+        if chunk.startswith('<dl class="tlab setl">'):
+            found = POINTER.search(text_of(chunk))
+            prefix = found[1] if found else ""
+            continue
+        kind = "plate" if chunk.startswith('<div class="plate"') else "row"
+        if kind == "plate":
+            key = re.search(r"<dt>source</dt><dd>(.*?)</dd>", chunk, re.S)
+            name = text_of(key[1]).strip() if key else None
+        else:
+            key = re.search(r"source: (\S+)", text_of(chunk))
+            name = key[1] if key else None
+        out.append((kind, chunk, f"{prefix}{name}" if name and prefix else None))
+    return out
 
 
 def close_at_4(value: float, stored: float) -> bool:
     """The printed value is the stored one at 4 significant digits."""
     exponent = math.floor(math.log10(abs(stored)))
     return abs(value - stored) <= 0.5 * 10.0 ** (exponent - 3) * 1.0001
+
+
+def shown_at_4(number: str, unit: str, stat: dict[str, Any]) -> bool:
+    """The printed figure is the stored value at 4 significant digits in the unit it prints in
+    (a per-minute rate rounds per minute, not per second)."""
+    factor = printed("1", unit, stat["unit"])
+    return close_at_4(float(number.replace(",", "")), stat["value"] / factor)
 
 
 def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
@@ -131,55 +181,49 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
     value as stored."""
     tree, out = built
     doc, site = index(tree), pages(out)
-    traced = 0
-    for title, inner in VAL.findall(site["index.html"]):
-        found = POINTER.search(html.unescape(title))
-        if not found:
-            continue
-        stat = resolve(doc, found[1])
-        number = NUMBER.search(inner)
-        assert number, title
-        assert close_at_4(printed(number[1], number[2], stat["unit"]), stat["value"]), title
-        traced += 1
+    count = more = 0
+    plates: dict[str, str | None] = {}  # "/<system>#<plate id>" -> its record's pointer
     for name in ("flashprove.html", "sash.html"):
-        for body in PLATE.findall(site[name]):
-            source = re.sub(r"<[^>]+>", "", body)
-            found = POINTER.search(source)
+        for kind, body, pointer in traced(site[name]):
             number = NUMBER.search(body)
-            if found is None:
-                _not_recorded(source, number, name)
+            if kind == "plate":
+                pid = re.search(r'id="([^"]+)"', body)
+                plates[f"/{name.removesuffix('.html')}#{pid[1] if pid else ''}"] = pointer
+            if pointer is None:  # a metric the runs did not record: no value and no record
+                if kind == "plate":
+                    _not_recorded(text_of(body), number, name)
+                else:
+                    assert number is None, (name, body)
+                    assert "Not recorded in these runs." in body
                 continue
-            stat = resolve(doc, found[1])
+            stat = resolve(doc, pointer)
             if stat["value"] is None:
-                assert number is None
-                assert stat["null_reason"], found[1]
+                assert number is None, (name, pointer)
+                assert stat["null_reason"], pointer
                 continue
-            assert number, (name, found[1])
-            value = printed(number[1], number[2], stat["unit"])
-            assert close_at_4(value, stat["value"]), (name, found[1])
-            traced += 1
-    assert traced >= 12  # two systems, three measured figures, on the overview and the plates
-    more = 0
-    for name in ("flashprove.html", "sash.html"):
-        for row in MORE_ROW.findall(site[name]):
-            found = POINTER.search(re.sub(r"<[^>]+>", "", row))
-            number = NUMBER.search(row)
-            if found is None:  # a metric the runs did not record: no value and no record
-                assert number is None, (name, row)
-                assert "Not recorded in these runs." in row
-                continue
-            stat = resolve(doc, found[1])
-            if stat["value"] is None:
-                assert number is None, (name, found[1])
-                continue
-            assert number, (name, found[1])
-            value = printed(number[1], number[2])
-            assert close_at_4(value, stat["value"]), (name, found[1])
-            stats = stat["stats"]
-            spread = f"{stats['n']} completed, {stats['n_failed']} failed"
-            assert spread in re.sub(r"<[^>]+>", "", row).replace("\N{NO-BREAK SPACE}", " ")
-            more += 1
-    assert more >= 6  # two systems: proving rate, GPU cost, commit once
+            assert number, (name, pointer)
+            assert shown_at_4(number[1], number[2], stat), (name, pointer, number[1], number[2])
+            if kind == "row":
+                assert "spread: " in text_of(body), (name, pointer)
+                more += 1
+            else:
+                count += 1
+    # each overview figure prints the value its plate's record stores
+    for href, inner in re.findall(r'<a class="val" href="([^"]*)" title="[^"]*">(.*?)</a>',
+                                  site["index.html"], re.S):  # fmt: skip
+        pointer = plates.get(href)
+        if pointer is None:
+            continue
+        stat = resolve(doc, pointer)
+        number = NUMBER.search(inner)
+        if stat["value"] is None:
+            assert number is None, href
+            continue
+        assert number, href
+        assert shown_at_4(number[1], number[2], stat), href
+        count += 1
+    assert count >= 12  # two systems, three measured figures, on the overview and the plates
+    assert more >= 6  # two systems: proving rate, GPU cost, preparing the model
     _keys_are_stored(doc, site["index.html"])
 
 
@@ -200,10 +244,15 @@ def test_every_formula_is_in_derive(built: tuple[Path, Path]) -> None:
     names is one `iproofs.derive` holds (#320: no site-only formula ids)."""
     tree, out = built
     doc = index(tree)
-    text = "".join(pages(out).values())
+    site = pages(out)
+    text = "".join(site.values())
     named = set(re.findall(r"\bD-[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*\b", re.sub(r"<[^>]+>", " ", text)))
     assert named <= set(FORMULAS), named - set(FORMULAS)
-    pointers = set(POINTER.findall(html.unescape(text)))
+    # whole pointers (titles, the reference page), and each plate's and row's rebuilt from its
+    # setup's prefix; a prefix alone names no statistic
+    pointers = {p for p in POINTER.findall(html.unescape(text)) if not p.endswith("/")}
+    pointers |= {p for name in ("flashprove.html", "sash.html")
+                 for _, _, p in traced(site[name]) if p}  # fmt: skip
     assert pointers
     for pointer in pointers:
         stat = resolve(doc, pointer)
