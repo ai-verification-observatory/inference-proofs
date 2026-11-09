@@ -145,7 +145,7 @@ const sortBy = async (p, col, dir) => {
   // the labels ride in each figure's title: sample size and range for the three with a spread, the
   // overhead's pairs; under each figure at most its scope in a few words
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => a.querySelector('.fig'))
-    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+(\sto\s|\sfor every run)/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 4 })));
+    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+(\sto\s|\sin all \d+ runs)/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 4 })));
   ok(spreads.length === 8 && spreads.every((x) => x.t && x.sub), 'each figure carries its labels in its title, at most a scope word under it', spreads);
   // no states key under the legend: the slice inks and their tips name the states
   ok(await p.evaluate(() => !document.querySelector('.mast .keyline, .mast .chip, .mast a')), 'the legend holds no states key and no link');
@@ -609,6 +609,29 @@ for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   const lift = await p.evaluate(() => ({ s2: getComputedStyle(document.querySelector('.rpie .s2')).transform, rn: getComputedStyle(document.querySelector('.rp[data-n="2"] .rn')).color, path: location.pathname }));
   ok(lift.s2 !== 'none' && lift.rn === 'rgb(241, 239, 233)' && lift.path === '/flashprove', 'touch: a tap on a slice lifts it and marks its property', lift);
   await ctx.close();
+}
+// "sd < 0.1 %" on one line on phones: the statistic, its sign and its number never part
+for (const w of [320, 360, 390]) {
+  for (const name of ['flashprove', 'sash']) {
+    const { ctx, p } = await pg(w, 844);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const sd = await p.evaluate(() => {
+      const out = []; let n = 0;
+      const tw = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+      for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+        for (const m of t.data.matchAll(/sd\s<\s0\.1\s%/g)) {
+          const r = document.createRange(); r.setStart(t, m.index); r.setEnd(t, m.index + m[0].length);
+          const tops = new Set([...r.getClientRects()].filter((x) => x.width).map((x) => Math.round(x.top)));
+          if (!tops.size) continue;
+          n++;
+          if (tops.size > 1) out.push(t.data.slice(Math.max(0, m.index - 24), m.index + m[0].length));
+        }
+      }
+      return { n, out };
+    });
+    ok(sd.n > 0 && !sd.out.length, `${name}-${w}: "sd < 0.1 %" never breaks`, sd);
+    await ctx.close();
+  }
 }
 {
   // inline links on every page: hit boxes 24 px tall or more, none overlapping another

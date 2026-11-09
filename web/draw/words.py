@@ -240,14 +240,15 @@ def shown(v, unit):
     return f"{n}×" if unit == "ratio" else f"{n} {u}"
 
 
-def range_words(lo, hi, unit):
+def range_words(lo, hi, unit, n):
     """A range with its unit once: "67.61 to 68.91 µs"; two units only where the prefix
-    changes inside it ("999.9 µs to 1.001 ms"); a ratio keeps its sign on both ends."""
+    changes inside it ("999.9 µs to 1.001 ms"); a ratio keeps its sign on both ends; ends alike
+    at four digits read as the one value "in all <n> runs"."""
     if unit == "ratio":
         return f"{shown(lo, unit)} to {shown(hi, unit)}"
     (a, u), (b, w) = amount(lo, unit), amount(hi, unit)
     if (a, u) == (b, w):  # the ends differ below four digits
-        return f"{a} {u} for every run"
+        return f"{a} {u} in all {n} runs"
     return f"{a} to {b} {u}" if u == w else f"{a} {u} to {b} {w}"
 
 
@@ -257,37 +258,40 @@ def title_spread(f):
     if not st:
         return ""
     return (f"{st['n']} completed, {st['n_failed']} failed, "
-            f"{range_words(st['min'], st['max'], f['unit'])}")  # fmt: skip
+            f"{range_words(st['min'], st['max'], f['unit'], st['n'])}")  # fmt: skip
 
 
 def sd_words(f):
-    """The standard deviation in its mean's unit when it is 1 or more in that unit, else as a
-    share of the mean ("sd 1.49 %"), "sd < 0.1 %" below that; "" when none is stored. The
-    record keeps the stored value."""
+    """The standard deviation as a share of the mean ("sd 0.877 %"), unit-free, so plates side
+    by side read alike, the range beside it carrying the unit; "sd < 0.1 %" below that, its
+    sign held to both sides; in the mean's unit only where the mean is 0; "" when none is
+    stored. The record keeps the stored value."""
     st, unit = f["stats"], f["unit"]
     sd, mean = st.get("stdev"), st["mean"]
     if sd is None:
         return ""
     if sd == 0:
         return "sd 0"
-    (_, mu), (n, u) = amount(mean, unit), amount(sd, unit)
-    if (u == mu and float(n.replace(",", "")) >= 1) or not mean:
+    if not mean:
         return f"sd {shown(sd, unit)}"
     share = abs(sd / mean) * 100
-    return f"sd < 0.1{PCT}" if share < 0.1 else f"sd {share:.3g}{PCT}"
+    if share < 0.1:
+        return f"sd\u00a0<\u00a00.1{PCT}"
+    return f"sd {f'{share:#.3g}'.rstrip('.')}{PCT}"  # three digits, a trailing zero kept
 
 
 def spread_line(f, count=False):
     """The spread as a system page prints it (S3): the range with its unit once and the mean
-    ("28.83 to 29.88 tokens/s, mean 29.42"), then the sd; a constant as "all 4 runs: 1,024
-    tokens". count: the sample size first, where no runs line above names it."""
+    ("28.83 to 29.88 tokens/s, mean 29.42"), then the sd; a constant, or ends alike at four
+    digits, as "1,024 tokens in all 4 runs". count: the sample size first, where no runs line
+    above names it."""
     st, unit = f["stats"], f["unit"]
     parts = [f"{st['n']} completed, {st['n_failed']} failed"] if count else []
     if st["min"] == st["max"]:
-        return " · ".join([*parts, f"all {st['n']} runs: {shown(st['min'], unit)}"])
-    rng = range_words(st["min"], st["max"], unit)
-    if rng.endswith(" for every run"):  # the ends alike at four digits: the value once, then the sd
-        parts.append(f"all {st['n']} runs: {shown(st['mean'], unit)}")
+        return " · ".join([*parts, f"{shown(st['min'], unit)} in all {st['n']} runs"])
+    rng = range_words(st["min"], st["max"], unit, st["n"])
+    if rng.endswith(" runs"):  # the ends alike at four digits: the value once, then the sd
+        parts.append(f"{shown(st['mean'], unit)} in all {st['n']} runs")
     else:
         hi_unit = amount(st["max"], unit)[1]
         m, mu = amount(st["mean"], unit)

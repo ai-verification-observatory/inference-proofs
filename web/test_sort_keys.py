@@ -179,9 +179,9 @@ def test_titles_are_short(site):
 
 
 def test_spread_words(site):
-    # a plate's spread, by hand: the range with its unit once and the mean; the sd in the
-    # mean's unit when 1 or more in it, else as a share of the mean (0.1009 / 16.68 = 0.605 %),
-    # "< 0.1 %" below that; a constant once, with its run count
+    # a plate's spread, by hand: the range with its unit once and the mean; the sd always as a
+    # share of the mean (0.1009 / 16.68 = 0.605 %; 1.167 / 264.1 = 0.442 %), "< 0.1 %" below
+    # that with its sign held to both sides; a constant once, with its run count
     b = site.build
     f = {"unit": "s", "stats": {"n": 4, "n_failed": 1, "min": 16.63, "max": 16.74,
                                 "mean": 16.68, "stdev": 0.1009}}  # fmt: skip
@@ -190,22 +190,27 @@ def test_spread_words(site):
     assert b.spread_line(f, count=True).startswith("4 completed, 1 failed · 16.63")
     f["stats"]["stdev"] = 1.167e-6
     f["stats"] |= {"min": 263.1e-6, "max": 265.4e-6, "mean": 264.1e-6}
-    assert (
-        b.spread_line(f) == "263.1 to 265.4 \N{MICRO SIGN}s, mean 264.1 · sd 1.167 \N{MICRO SIGN}s"
-    )
+    assert b.spread_line(f) == f"263.1 to 265.4 \N{MICRO SIGN}s, mean 264.1 · sd 0.442{pct}"
     f["stats"]["stdev"] = 1e-10
-    assert b.spread_line(f).endswith(f"sd < 0.1{pct}")
+    assert b.spread_line(f).endswith(f"sd\u00a0<\u00a00.1{pct}")
     tokens = {"unit": "token", "stats": {"n": 4, "n_failed": 0, "min": 1024.0, "max": 1024.0,
                                          "mean": 1024.0, "stdev": 0.0}}  # fmt: skip
-    assert b.spread_line(tokens) == "all 4 runs: 1,024 tokens"
+    assert b.spread_line(tokens) == "1,024 tokens in all 4 runs"
+    # ends alike at four digits: the value once, in the same words, then the sd
+    near = {"unit": "B", "stats": {"n": 4, "n_failed": 0, "min": 222.91, "max": 222.94,
+                                   "mean": 222.92, "stdev": 0.01}}  # fmt: skip
+    assert b.spread_line(near) == f"222.9 B in all 4 runs · sd\u00a0<\u00a00.1{pct}"
+    near["stats"]["stdev"] = 0.8471  # 0.8471 / 222.92 = 0.380 %: three digits, the zero kept
+    assert b.spread_line(near).endswith(f"sd 0.380{pct}")
+    assert b.title_spread(near) == "4 completed, 0 failed, 222.9 B in all 4 runs"
 
 
 def test_range_words(site):
     # a range names its unit once, twice only where the prefix changes inside it (by hand)
     b = site.build
-    assert b.range_words(6.761e-14, 6.891e-14, "s/bit_token") == "67.61 to 68.91 \N{MICRO SIGN}s"
-    assert b.range_words(0.0009999, 0.001001, "s") == "999.9 \N{MICRO SIGN}s to 1.001 ms"
-    assert b.range_words(61.0, 61.51, "ratio") == "61.00× to 61.51×"
+    assert b.range_words(6.761e-14, 6.891e-14, "s/bit_token", 4) == "67.61 to 68.91 \N{MICRO SIGN}s"
+    assert b.range_words(0.0009999, 0.001001, "s", 4) == "999.9 \N{MICRO SIGN}s to 1.001 ms"
+    assert b.range_words(61.0, 61.51, "ratio", 3) == "61.00× to 61.51×"
 
 
 def test_every_stored_id_has_words(site):

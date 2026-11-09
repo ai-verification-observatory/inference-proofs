@@ -77,11 +77,11 @@ DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u(?: x)?">([^<]+)</span>')
 # an overview cell's title: sample size and range (S3); the plate it links holds mean and sd
 TITLE_SPREAD = re.compile(
-    r"(\d+) completed, (\d+) failed, (\S+(?: \S+)? to \S+(?: \S+)?|\S+ \S+ for every run)"
+    r"(\d+) completed, (\d+) failed, (\S+(?: \S+)? to \S+(?: \S+)?|\S+ \S+ in all \d+ runs)"
 )
 # a plate's spread (S3; the setup's runs line names n): the range with its unit once and the
 # mean, then the sd; a constant once, with its run count
-SPREAD = re.compile(r"all \d+ runs: .+|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?")
+SPREAD = re.compile(r"\S+ \S+ in all \d+ runs(?: · sd .+)?|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?")
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
 SCALE = {"tokens": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
          "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
@@ -705,7 +705,7 @@ def _chunks(items: list[str], n: int) -> list[list[str]]:
     return [items[i : i + n] for i in range(0, len(items), n)]
 
 
-MORE_SPREAD = re.compile(r"spread: (all \d+ runs: |.+? to .+?, mean )")
+MORE_SPREAD = re.compile(r"spread: (.+? in all \d+ runs|.+? to .+?, mean )")
 # the more-numbers rows, in the renderer's order (web/draw/plates.py MORE)
 MORE = (("rate_prove.session", "Proving rate"),
         ("cost_per_1k_tokens_prove.session", "GPU cost per 1M tokens"),
