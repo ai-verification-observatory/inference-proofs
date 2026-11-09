@@ -28,8 +28,7 @@ from typing import Any
 import pytest
 
 from fixtures.builds import SiteBuild
-from fixtures.placeholder_release import FREEZE_DATE, REVIEW_WINDOW
-from iproofs.site import renderer, reply_html
+from iproofs.site import renderer
 from iproofs.site.view import site_view
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -191,12 +190,10 @@ def more_rows(text: str) -> list[str]:
 
 def test_page_set_and_footer(site: Build) -> None:
     """Page table: the overview, one page per benchmarked system, the references, the criteria,
-    the release, sponsors and conflicts, Targets only when the release evaluates a target, and
-    Not found; every footer names the release and links the release page, the sponsors and
-    conflicts page and the criteria page, and names the release's `index.json`: as text while
-    the release is a candidate (no tracked file records its publication, #146), else a link."""
-    want = {"index.html", "reference.html", "criteria.html", "release.html", "sponsors.html",
-            "404.html"}  # fmt: skip
+    the release, Targets only when the release evaluates a target, and Not found; every footer
+    names the release, links the release page and the criteria page, and links the release's
+    `index.json`."""
+    want = {"index.html", "reference.html", "criteria.html", "release.html", "404.html"}
     want |= {f"{s}.html" for s in site.view["orders"]["benchmarked"]}
     if site.view["targets"]:
         want.add("targets.html")
@@ -206,11 +203,9 @@ def test_page_set_and_footer(site: Build) -> None:
     for name, text in site.pages.items():
         foot = text[text.index('<footer class="foot">') :]
         assert f"Release {release['id']}" in plain(foot), name
-        for href in ("/criteria", "/release", "/sponsors"):
+        for href in ("/criteria", "/release"):
             assert f'href="{href}"' in foot, (name, href)
-        assert release["index"] in plain(foot), name
-        assert release["candidate"]  # until #146 the index is named, not linked
-        assert f"/{release['index']}" not in foot, name
+        assert f"/{release['index']}" in foot, name
     if site.kind == "web":
         vercel = json.loads((site.out / "vercel.json").read_text())
         assert vercel["cleanUrls"] is True
@@ -219,8 +214,8 @@ def test_page_set_and_footer(site: Build) -> None:
 
 def test_release_page(site: Build) -> None:
     """Page table, Release: every run the release lists, by id, with its status; the superseded
-    and withdrawn runs with their reasons; the review window, freeze date, RFC commit, reference
-    file, claim cards with their digests, and replies."""
+    and withdrawn runs with their reasons; the RFC commit, reference file, and claim cards with
+    their digests."""
     text = site.pages["release.html"]
     said = flat(text)
     release = site.view["release"]
@@ -229,66 +224,12 @@ def test_release_page(site: Build) -> None:
     for x in release["superseded_runs"]:
         assert x["run_id"] in said
         assert x["reason"] in said
-    _release_dates(release, said)
     assert f"/tree/{release['rfc_commit']}/rfcs" in text
     assert release["reference_file"] in said
     for card in release["claim_cards"]:
         assert card["path"] in said
         assert card["digest"].removeprefix("sha256:")[:12] in said
-    for system in release["replies"]:
-        assert f'href="/{system}#reply"' in text
     assert ('href="/targets"' in text) == bool(site.view["targets"])
-
-
-def _release_dates(release: dict[str, Any], said: str) -> None:
-    """While the release is a candidate its dates are the placeholder fixture's, not the
-    release's, so the page says they are not set and prints none of them (AGENTS.md rule 5);
-    once it is published, the review window and the freeze date `release.yaml` sets."""
-    window = release["review_window"]
-    if release["candidate"]:
-        assert f"not set: {release['id']} is not frozen (#146)" in said
-        for value in (FREEZE_DATE, *REVIEW_WINDOW.values(), release["freeze_date"],
-                      window["opens"], window["closes"]):  # fmt: skip
-            assert value not in said, value
-    else:
-        assert f"{window['opens']} to {window['closes']}" in said
-        assert release["freeze_date"] in said
-
-
-def test_release_dates_once_published(extras: Build) -> None:
-    """Once a tracked file records the release's publication, `/release` prints its review
-    window and freeze date, and `/sponsors` its sponsor list, from `release.yaml`."""
-    build = renderer(ROOT)
-    view = json.loads(json.dumps(extras.view))
-    view["release"]["candidate"] = False
-    build.setup(view, extras.out)
-    _release_dates(view["release"], flat(build.draw.release.build_release()))
-    sponsors = plain(build.draw.release.build_sponsors())
-    assert "not frozen" not in sponsors
-    if not view["release"]["sponsors"]:
-        assert f"No sponsor is listed for release {view['release']['id']}." in sponsors
-
-
-def test_sponsors_and_conflicts(site: Build) -> None:
-    """Page table, Sponsors and conflicts: the sponsors `release.yaml` lists, then every row of
-    `MAINTAINERS.md` with its organisation and declared interests, in separate sections."""
-    text = site.pages["sponsors.html"]
-    assert text.index('id="sponsors"') < text.index('id="conflicts"')
-    said = plain(text[text.index('id="conflicts"') :])
-    assert site.view["maintainers"]
-    for m in site.view["maintainers"]:
-        assert m["handle"] in said
-        assert f"organisation: {m['organisation']}" in said
-        assert f"declared interests: {m['interests']}" in said
-    sponsors = plain(text[text.index('id="sponsors"') : text.index('id="conflicts"')])
-    release = site.view["release"]
-    if release["candidate"]:  # the placeholder's list is a fixture's, not the release's
-        assert f"No sponsor list yet: {release['id']} is not frozen (#146)." in sponsors
-        return
-    for x in release["sponsors"]:
-        assert x["name"] in sponsors
-    if not release["sponsors"]:
-        assert "No sponsor is listed" in sponsors
 
 
 def test_targets_page(site: Build) -> None:
@@ -970,8 +911,7 @@ def test_runs_left_out_listed(site: Build) -> None:
     system page shows is listed above that configuration's figures, by its run id, with its
     reasons (a failure's exit code and last line; a superseded run's replacing run), and is in
     no statistic (the completed count is over the completed runs only). Each run's record is
-    named by its path while the release is a candidate (#146), and linked once it is published
-    (`test_run_records_link_once_published`)."""
+    linked (`test_run_records_link`)."""
     listed = 0
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
@@ -1009,7 +949,7 @@ def _left_out_listed(cfg: dict[str, Any], said: str, block: str, system: str) ->
         listed += 1
     if runs["failed"] or runs["left_out"]:
         assert 'class="tlab runs"' in block
-        assert ('<span class="rec">' in block) == site_candidate(block)
+        assert '<span class="rec">' not in block
     for f in cfg["figures"].values():
         if f.get("stats"):
             assert f["stats"]["n"] == len(runs["completed"]), system
@@ -1017,17 +957,11 @@ def _left_out_listed(cfg: dict[str, Any], said: str, block: str, system: str) ->
     return listed
 
 
-def site_candidate(block: str) -> bool:
-    """While the release is a candidate, every record is named as text, never linked."""
-    return "/results/" not in "".join(re.findall(r'href="([^"]+)"', block))
-
-
-def test_run_records_link_once_published(extras: Build) -> None:
-    """S7: once a tracked file records the release's publication, each run left out links its
-    record (and the run that replaced it) at the commit the site links."""
+def test_run_records_link(extras: Build) -> None:
+    """S7: each run left out links its record (and the run that replaced it) at the commit the
+    site links."""
     build = renderer(ROOT)
     view = json.loads(json.dumps(extras.view))
-    view["release"]["candidate"] = False
     build.setup(view, extras.out)
     sash = next(c for c in view["configurations"] if c["system"] == "sash")
     block = build.draw.pages.left_out(sash)
@@ -1267,22 +1201,8 @@ def test_figures_link_their_own_plate(site: Build) -> None:
     assert linked == len(BOARD) * len(site.view["orders"]["benchmarked"])
 
 
-def test_reply_escaped() -> None:
-    """§Right of reply: a reply is escaped; only http(s) links become links."""
-    out = reply_html("We *disagree*: <script>x</script> [notes](https://example.org/n)\n\n"
-                     "- one\n- [bad](javascript:alert(1))")  # fmt: skip
-    assert isinstance(out, str)
-    assert "<script>" not in out
-    assert "&lt;script&gt;" in out
-    assert '<a href="https://example.org/n">notes</a>' in out
-    assert "<em>disagree</em>" in out
-    assert 'href="javascript' not in out
-    assert "<ul><li>one</li>" in out
-
-
 def test_generated_html_passes_g8(site: Build, tmp_path: Path) -> None:
-    """S8: every page the build writes passes the RFC-0013 G8 word list (replies are excluded
-    at source, RFC-0009 §Right of reply)."""
+    """S8: every page the build writes passes the RFC-0013 G8 word list."""
     from iproofs.validate.tree import g8_language  # noqa: PLC0415
 
     for name, text in site.pages.items():

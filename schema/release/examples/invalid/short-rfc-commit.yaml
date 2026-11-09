@@ -8,9 +8,3 @@ runs:
 superseded_runs: []
 claim_cards:
   - {system: "sash", configuration: "default", card_version: 1, path: "systems/sash/claims/default.yaml", digest: "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"}
-review_window: {opens: "2027-02-15", closes: "2027-03-01"}
-freeze_date: "2027-03-02"
-replies:
-  sash: "systems/sash/replies/v0.1.md"
-sponsors:
-  - {name: "Example Foundation", provided: "GPU hours", period: "2027-01 to 2027-02"}

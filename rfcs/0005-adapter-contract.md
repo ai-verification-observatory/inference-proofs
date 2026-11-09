@@ -56,7 +56,6 @@ systems/<name>/
   controls.yaml     system-specific negative controls (RFC-0008), optional
   README.md         mapping of each subcommand onto upstream tools, with links at the pin
   tests/            CPU-only fixture tests (INV-ADAPTER-9)
-  replies/          right of reply per release (RFC-0009)
 ```
 
 `<name>` matches `^[a-z][a-z0-9-]{1,31}$` ([RFC-0012](0012-schemas-and-serialization.md)).
@@ -78,7 +77,7 @@ upstream:
 image:
   repository: "ghcr.io/<org>/iproofs-flashprove"        # where the built image is pushed
   digest: "sha256:<64 hex>"           # set by the build job, INV-ADAPTER-3
-maintainers:                           # system maintainers (RFC-0001); handles only
+maintainers:                           # system maintainers; handles only
   - handle: "<github handle>"
     organisation: "<organisation>"
 workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
@@ -305,7 +304,7 @@ The adapter MUST refuse, by exiting non-zero before starting any upstream proces
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 

@@ -95,7 +95,7 @@ def runner(repo: Path, gpus: tuple[int, ...], **kw: Any) -> Runner:
     containers = InProcessRunner(repo / "systems/fake-ref/entrypoint", REGISTRY,
                                  env={"IPROOFS_FAKE_NAME": "fake-ref"})  # fmt: skip
     return Runner(containers, root=repo, registry=REGISTRY, image="local/x@sha256:" + "0" * 64,
-                  env=FakeGpus(gpus), allow_nonconforming=True, **kw)  # fmt: skip
+                  env=FakeGpus(gpus), **kw)  # fmt: skip
 
 
 def spec(repo: Path, profile: str, system: str = "fake-ref") -> JobSpec:
@@ -235,50 +235,16 @@ def test_sizing_capture(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     assert "already has batches_per_session_run 5" in read(set_count, "run")["failure"]["message"]
 
 
-def test_bound_gpu_count_and_placement(repo: Path) -> None:
+def test_bound_gpu_count(repo: Path) -> None:
     """TC-SRV-GPU-COUNT: one bound GPU on a 2-GPU serving profile is `config` before `info`.
-    TC-SRV-PLACEMENT: once a 2-GPU run completed, a 4-GPU job of the workload is `config`."""
+    A completed 2-GPU run does not refuse a 4-GPU job of the workload."""
     one = read(runner(repo, (0,)).run(spec(repo, "ci-serving-x2")), "run")
     assert (one["failure"]["kind"], one["failure"]["step"]) == ("config", "resolved")
     assert "1 bound GPU(s) [0], profile ci-serving-x2 holds 2" in one["failure"]["message"]
+    two = read(runner(repo, (0, 1)).run(spec(repo, "ci-serving-x2")), "run")
+    assert two["status"] == "completed"
     four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
-    assert four["status"] == "completed"  # no smaller count has run yet
-    assert read(runner(repo, (0, 1)).run(spec(repo, "ci-serving-x2")), "run")["status"] == (
-        "completed"
-    )
-    refused = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
-    assert refused["failure"]["kind"] == "config"
-    assert "a 4-GPU job of this workload is refused" in refused["failure"]["message"]
-    high = read(runner(repo, (0, 1, 2, 3), load="high").run(spec(repo, "ci-serving-x4")), "run")
-    assert "a run on 2 GPU(s) completed" in high["failure"]["message"]  # either load point
-
-
-def attempt(repo: Path, name: str, profile: str, failure: dict[str, Any] | None) -> None:
-    """A stored matched attempt of fake-tiny-ci in the results root (fixture records)."""
-    out = repo / "results/v0.1/fake-ref" / name
-    out.mkdir(parents=True)
-    doc = {"status": "failed" if failure else "completed", "profile": profile,
-           "workload": {"id": "fake-tiny-ci"}, "failure": failure}  # fmt: skip
-    (out / "run.json").write_text(json.dumps(doc))
-    (out / "manifest.json").write_text(json.dumps({"workload": {"load_point": "matched"}}))
-
-
-def test_placement_needs_resource_evidence(repo: Path) -> None:
-    """TC-SRV-PLACEMENT (RFC-0015 SRV-6): an `adapter` failure on 2 GPUs admits no 4-GPU job;
-    a `resource` failure with the KV-capacity line does (the adapter failure set aside); one
-    without evidence does not."""
-    attempt(repo, "a", "ci-serving-x2", {"kind": "adapter", "last_lines": ["boom"]})
-    four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
-    assert four["failure"]["kind"] == "config"
-    assert "not all `resource` failures" in four["failure"]["message"]
-    attempt(repo, "b", "ci-serving-x2", {"kind": "resource", "last_lines": ["killed"]})
-    four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
-    assert four["failure"]["kind"] == "config"
-    shutil.rmtree(repo / "results/v0.1/fake-ref/b")
-    kv = "GPU KV cache size: 20,000 tokens, Maximum concurrency for 1,025 tokens per request"
-    attempt(repo, "c", "ci-serving-x2", {"kind": "resource", "last_lines": [kv]})
-    four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
-    assert four["status"] == "completed", four["failure"]
+    assert four["status"] == "completed"
 
 
 def test_profile_rules(repo: Path) -> None:
@@ -287,7 +253,7 @@ def test_profile_rules(repo: Path) -> None:
     fake = InProcessRunner(repo / "systems/fake/entrypoint", REGISTRY,
                            env={"IPROOFS_FAKE_NAME": "fake"})  # fmt: skip
     prover = Runner(fake, root=repo, registry=REGISTRY, image="local/x@sha256:" + "0" * 64,
-                    env=FakeGpus((0, 1)), allow_nonconforming=True)  # fmt: skip
+                    env=FakeGpus((0, 1)))  # fmt: skip
     doc = read(prover.run(spec(repo, "ci-serving-x2", "fake")), "run")
     assert "runs production serving only" in doc["failure"]["message"]
     high = Runner(fake, root=repo, registry=REGISTRY, image="local/x@sha256:" + "0" * 64,

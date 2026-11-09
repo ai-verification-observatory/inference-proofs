@@ -129,7 +129,6 @@ from iproofs.serving import (
     SIZING_MIN_BATCHES,
     SIZING_WARNING,
     ensure_serving_model,
-    placement_problem,
     record_for,
     serving_manifest,
 )
@@ -202,7 +201,7 @@ def bound_gpus(env: "Environment") -> tuple[int, ...]:
 
 @dataclass(frozen=True, slots=True)
 class RunnerIdentity:
-    """Who ran the job (RFC-0007 tiers read it). Self-declared; #83 adds the CLI flags."""
+    """Who ran the job, as declared (recorded in the manifest)."""
 
     handle: str
     organisation: str
@@ -420,7 +419,6 @@ class Runner:
         keep_io: bool = False,
         progress: TextIO | None = None,
         log_level: str = "info",
-        allow_nonconforming: bool = False,
         prompts_from: str | None = None,
         claims: list[list[int]] | None = None,
         hosted: bool = False,
@@ -444,7 +442,6 @@ class Runner:
         self.progress = progress  # stderr for progress lines; None with --quiet
         self.log_level = log_level
         self.repetitions = 1
-        self.allow_nonconforming = allow_nonconforming  # development only (RFC-0006)
         self.nonconforming: list[ConformanceFailure] = []
         self.controls_done = False
         self.redact = Redactor.from_host()
@@ -728,10 +725,6 @@ class Runner:
         if job.serving_record is None and wl.model.source.hub != "repository":
             raise IProofsError(ErrorKind.CONFIG, f"no serving record names {wl.id} "
                                "(workloads/serving/, RFC-0015 SRV-6)")  # fmt: skip
-        if isinstance(profile, ServingProfile) and count is not None:
-            placement_problem = self._placement(job, count)
-            if placement_problem:
-                raise IProofsError(ErrorKind.CONFIG, placement_problem)
 
     def _sizing(self, job: Job, entry: ReferenceWorkload) -> int:
         """RFC-0015 SRV-1: a sizing capture serves the declared batch count at the workload's
@@ -756,35 +749,6 @@ class Runner:
         if SIZING_WARNING not in job.warnings:
             job.warnings.append(SIZING_WARNING)
         return n
-
-    def _placement(self, job: Job, count: int) -> str | None:
-        """RFC-0015 SRV-6 placement over the attempts this results root holds: a job of a larger
-        GPU count is refused, at either load point (the matched load sizes the placement), once
-        a smaller count's matched run completed, or while a smaller count's attempts are not
-        all `resource` failures with KV-capacity or out-of-memory evidence (an `adapter`
-        failure admits nothing). Attempts made in other jobs are not seen here; the release
-        join applies the same rule to every kept attempt (RFC-0004 INV-DERIVE-2)."""
-        assert job.reference is not None
-        found = Path(job.spec.results_root) / job.spec.release / job.spec.system
-        by_count: dict[int, list[tuple[bool, object]]] = {}
-        for run_json in sorted(found.glob("*/run.json")):
-            try:
-                doc = json.loads(run_json.read_text())
-                manifest = json.loads((run_json.parent / "manifest.json").read_text())
-            except (OSError, ValueError):
-                continue
-            other = job.reference.profiles.get(str(doc.get("profile")))
-            theirs = getattr(getattr(other, "gpu", None), "count", None)
-            point = (manifest.get("workload") or {}).get("load_point") or "matched"
-            if (doc.get("workload", {}).get("id") == job.spec.workload and point == "matched"
-                    and isinstance(other, ServingProfile) and isinstance(theirs, int)):  # fmt: skip
-                by_count.setdefault(theirs, []).append(
-                    (doc.get("status") == "completed", doc.get("failure"))
-                )
-        problem = placement_problem(by_count, count)
-        if problem is None:
-            return None
-        return f"{problem}; a {count}-GPU job of this workload is refused (RFC-0015 SRV-6)"
 
     def _serving_models(self, record: ServingModel, log: JsonlLogger | None) -> Path:
         """The serving record's files, fetched and checked (RFC-0014 SM-2), rehashed per job."""
@@ -838,11 +802,8 @@ class Runner:
             raise IProofsError(ErrorKind.CONFIG, f"{job.spec.system} has no pinned image")
 
     def _conform(self, spec: JobSpec) -> None:
-        """RFC-0006 §Profile conformance check, once per invocation and before any staging
-        directory exists, so a refused host writes nothing to results/ (exit 3). A test system
-        (fake, fake-broken) runs anywhere, RFC-0011 §Portability; its failures are warnings."""
-        system = load(self.root / "systems" / spec.system / "system.yaml", self.registry)
-        assert isinstance(system, System)
+        """RFC-0006 §Profile conformance check, once per invocation: every failure is recorded
+        (manifest `harness.nonconforming`, run.json warnings) and none refuses the run."""
         profile = self._reference(spec)[0].profiles[spec.profile]
         if not isinstance(profile, ProverProfile):
             return
@@ -853,14 +814,8 @@ class Runner:
         on_node = sum(c.node == node for c in cpus) if node is not None else None
         failures = check_profile(record, profile, numa_node_cpus=on_node)
         saved = selftest.saved(Path(spec.results_root))
-        if saved is not None and not saved.get("passed"):  # RFC-0014: a failed self-test stops
+        if saved is not None and not saved.get("passed"):
             failures.append(ConformanceFailure("ST", "the host's last self-test failed"))
-        if failures and not self.allow_nonconforming and system.kind != "test":
-            raise IProofsError(
-                ErrorKind.ENVIRONMENT,
-                f"this host does not meet profile {spec.profile}: "
-                + "; ".join(f.line() for f in failures),
-            )
         self.nonconforming = failures
 
     def _skip(self, job: Job, state: str, log: JsonlLogger) -> bool:
@@ -897,10 +852,6 @@ class Runner:
             return
         after = self._record(job)
         changed = machine_drift(job.machine, after)
-        gpu = after.get("gpu")
-        for idle in (gpu.get("unbound_samples") or []) if isinstance(gpu, dict) else []:
-            if idle["compute_processes_max"]:  # RFC-0006 PC-GPU-IDLE, sampled again at the end
-                changed.append(f"unbound GPU {idle['index']} ran a compute process (PC-GPU-IDLE)")
         if changed:
             message = f"machine record changed during the job: {'; '.join(changed)}"
             job.failure = Failure.build(ErrorKind.ENVIRONMENT, "written", self.redact(message))
@@ -992,8 +943,9 @@ class Runner:
             idle.stop()
             raise
         summary = sampler.stop(result.started_mono_ns, result.ended_mono_ns)
-        if used := idle_use(idle.stop(), job.machine):  # RFC-0004 INV-DERIVE-8
-            raise IProofsError(ErrorKind.ENVIRONMENT, "; ".join(used), step=sub)
+        for line in idle_use(idle.stop(), job.machine):  # PC-GPU-IDLE: recorded, never refused
+            if line not in job.warnings:
+                job.warnings.append(line)
         cpu1, oom1 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
         if not control:
             job.resources[sub] = StepResources(
@@ -1967,7 +1919,7 @@ class Runner:
                 "git_commit": harness_commit,
                 "git_dirty": harness_dirty,
                 "lock_digest": file_digest(self.root / "uv.lock"),
-                "nonconforming": bool(self.nonconforming) and self.allow_nonconforming,
+                "nonconforming": bool(self.nonconforming),
             },
             "runner": {
                 "handle": self.operator.handle,

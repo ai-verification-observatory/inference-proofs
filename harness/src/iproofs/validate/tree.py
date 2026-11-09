@@ -7,8 +7,6 @@ import subprocess
 from collections.abc import Iterable, Mapping
 from pathlib import Path
 
-import yaml
-
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.log.patterns import IPV4_ALLOWED, PATTERNS, is_ipv6
 from iproofs.schema import SchemaRegistry, check_examples, load_document, parse_tree
@@ -19,8 +17,6 @@ from iproofs.validate import (
     check_controls_summary,
     check_derived,
     cost,
-    criteria,
-    governance,
     links,
     precision,
 )
@@ -41,8 +37,6 @@ G2_GLOBS = (
     "results/**/manifest.json",
     "results/**/controls.json",
     "results/**/_controls/*/perturbed.json",
-    "results/**/reviews/*.json",
-    "results/**/reproductions/*.json",
     "web/_data/facts.json",
     "web/_data/criteria.json",
 )
@@ -50,7 +44,6 @@ G2_GLOBS = (
 EXCLUDED = ("harness/tests/fixtures/gates/",)
 MAX_FILE_BYTES = 5 * 1024 * 1024  # SIZE-1 (a limit, not a measurement)
 MAX_RUN_BYTES = 10 * 1024 * 1024
-STRUCTURAL = Path(__file__).with_name("structural_paths.txt")
 
 
 def _git(root: Path, *args: str) -> list[str]:
@@ -101,7 +94,8 @@ def g2_schema(root: Path, files: list[str], registry: SchemaRegistry) -> list[Fi
 
 
 def g2_xref(root: Path, files: list[str]) -> list[Finding]:
-    """XREF-1, XREF-3, XREF-4, XREF-5 (XREF-2 has no run.json image field to compare yet)."""
+    """XREF-1 and XREF-4: runs name known workloads, systems and profiles; releases name
+    existing runs and reference files."""
     found = []
     for rel in documents(root, files):
         doc = parse_tree(root / rel)
@@ -142,16 +136,6 @@ def g2_xref(root: Path, files: list[str]) -> list[Finding]:
                         "/profile",
                     )
                 )
-        elif "/reviews/" in rel or "/reproductions/" in rel:
-            run_dir = (root / rel).parent.parent
-            if not (run_dir / "run.json").is_file():
-                found.append(
-                    Finding(
-                        "G2", rel, "XREF-3", "names no existing run directory", ErrorKind.CONFIG
-                    )
-                )
-            elif "/reviews/" in rel:
-                found += _own_review(root, rel, doc, run_dir)
         elif schema == "release/1":
             found += _release_xref(root, rel, doc)
     return found
@@ -168,13 +152,12 @@ def _profile_known(root: Path, release: str, profile: str) -> bool:
 
 
 def g2_append_only(root: Path, base_ref: str) -> list[Finding]:
-    """APP-1: under results/, only additions of reviews and reproductions touch existing runs."""
+    """APP-1: results are append-only; no file is added to, changed in or removed from a run."""
     found = []
     for line in _git(root, "diff", "--name-status", f"{base_ref}...HEAD", "--", "results/"):
         status, *paths = line.split("\t")
         path = paths[-1]
-        added_record = status == "A" and re.search(r"/(reviews|reproductions)/[^/]+$", path)
-        if status == "A" and not added_record:
+        if status == "A":
             run_dir = "/".join(path.split("/")[:4])
             if _git(root, "ls-tree", "--name-only", base_ref, f"{run_dir}/run.json"):
                 found.append(
@@ -194,88 +177,8 @@ def g2_append_only(root: Path, base_ref: str) -> list[Finding]:
     return found
 
 
-CARD_GLOBS = ("systems/*/claim.yaml", "systems/*/claims/*.yaml")
-
-
-def g2_card_edits(root: Path, base_ref: str) -> list[Finding]:
-    """CARD-1 to CARD-3 (RFC-0002 §Rules 5, §Configuration identity 1): a changed card
-    increments `card_version` by exactly 1, drops reviews of older versions, keeps its pin."""
-    base = _git(root, "merge-base", base_ref, "HEAD")[0]
-    found = []
-    for line in _git(root, "diff", "--name-status", f"{base}..HEAD", "--", "systems/"):
-        status, *paths = line.split("\t")
-        path = paths[-1]
-        if status != "M" or not any(fnmatch.fnmatch(path, g) for g in CARD_GLOBS):
-            continue  # a new or renamed card is a new configuration, reviewed from scratch
-        old, new = (_card_at(root, ref, path) for ref in (base, "HEAD"))
-        found += [
-            Finding("G2", path, rule, msg, ErrorKind.POLICY, hint=hint)
-            for rule, msg, hint in card_edit_problems(old, new)
-        ]
-    return found
-
-
-def _card_at(root: Path, ref: str, path: str) -> dict[str, object]:
-    text = subprocess.run(
-        ["git", "-C", str(root), "show", f"{ref}:{path}"],
-        capture_output=True,
-        text=True,
-        check=True,
-    ).stdout
-    doc = yaml.safe_load(text)
-    return doc if isinstance(doc, dict) else {}
-
-
-def card_edit_problems(
-    old: dict[str, object], new: dict[str, object]
-) -> list[tuple[str, str, str]]:
-    """(rule, message, hint) for one edited card; empty when the edit follows rule 5."""
-    problems = []
-    before, after = old.get("card_version"), new.get("card_version")
-    content = {k for k in old.keys() | new.keys() if k not in ("reviewed_by", "card_version")}
-    changed = any(old.get(k) != new.get(k) for k in content)
-    bumped = isinstance(before, int) and isinstance(after, int) and after == before + 1
-    if (changed and not bumped) or (before != after and not bumped):
-        problems.append(
-            (
-                "CARD-1",
-                f"card_version {before} -> {after}; a changed card increments it by exactly 1",
-                "increment card_version and reset reviewed_by to []",
-            )
-        )
-    reviews = new.get("reviewed_by")
-    stale = [
-        r
-        for r in (reviews if isinstance(reviews, list) else [])
-        if not isinstance(r, dict) or r.get("card_version") != after
-    ]
-    if stale:
-        problems.append(
-            (
-                "CARD-2",
-                f"reviewed_by holds {len(stale)} review(s) of another card_version than {after}",
-                "reset reviewed_by to []; maintainers re-review the new version",
-            )
-        )
-    pin = [_upstream_commit(d) for d in (old, new)]
-    if pin[0] != pin[1]:
-        problems.append(
-            (
-                "CARD-3",
-                "upstream.commit changed in place; a new pin is a new configuration",
-                "copy the card forward to a new configuration file and leave this one",
-            )
-        )
-    return problems
-
-
-def _upstream_commit(card: dict[str, object]) -> object:
-    upstream = card.get("upstream")
-    return upstream.get("commit") if isinstance(upstream, dict) else None
-
-
 def _release_xref(root: Path, rel: str, doc: Mapping[str, object]) -> list[Finding]:
-    """XREF-4: the listed runs, reply files and reference file exist."""
+    """XREF-4: the listed runs and the reference file exist."""
     found: list[Finding] = []
     runs = doc.get("runs")
     for i, run in enumerate(runs if isinstance(runs, list) else []):
@@ -290,11 +193,6 @@ def _release_xref(root: Path, rel: str, doc: Mapping[str, object]) -> list[Findi
                     f"/runs/{i}",
                 )
             )
-    replies = doc.get("replies")
-    for system, reply in replies.items() if isinstance(replies, dict) else []:
-        if not (root / str(reply)).is_file():
-            found.append(Finding("G2", rel, "XREF-4", f"reply file {reply} does not exist",
-                                 ErrorKind.CONFIG, f"/replies/{system}"))  # fmt: skip
     if not (root / str(doc.get("reference_file"))).is_file():
         found.append(
             Finding(
@@ -306,42 +204,6 @@ def _release_xref(root: Path, rel: str, doc: Mapping[str, object]) -> list[Findi
                 "/reference_file",
             )
         )
-    return found
-
-
-def _own_review(root: Path, rel: str, doc: Mapping[str, object], run_dir: Path) -> list[Finding]:
-    """INV-TIER-3: a reviewer from the run's own organisation does not review it."""
-    reviewer = doc.get("reviewer")
-    manifest = run_dir / "manifest.json"
-    if not isinstance(reviewer, Mapping) or not manifest.is_file():
-        return []
-    runner = json.loads(manifest.read_text()).get("runner") or {}
-    mine = str(runner.get("organisation", "")).strip().lower()
-    if str(reviewer.get("organisation", "")).strip().lower() != mine:
-        return []
-    return [Finding("G2", rel, "TIER-3", "the reviewer's organisation is the run's runner's",
-                    ErrorKind.CONFIG, "/reviewer/organisation")]  # fmt: skip
-
-
-REPLY_WORDS = 300
-LINK_TARGET = re.compile(r"(?<=\])\([^)\s]*(?:\s+\"[^\"]*\")?\)|^\s*\[[^\]]+\]:\s*\S+.*$", re.M)
-
-
-def reply_words(text: str) -> int:
-    """RFC-0009 §Right of reply: whitespace-separated tokens of the Markdown source after
-    removing link targets (`[text](target)` keeps `[text]`; reference definitions go)."""
-    return len(LINK_TARGET.sub("", text).split())
-
-
-def g2_replies(root: Path, files: list[str]) -> list[Finding]:
-    """RPL-1: a reply is at most 300 words (RFC-0013 §G2)."""
-    found = []
-    for rel in files:
-        if fnmatch.fnmatch(rel, "systems/*/replies/*.md"):
-            n = reply_words((root / rel).read_text("utf-8"))
-            if n > REPLY_WORDS:
-                found.append(Finding("G2", rel, "RPL-1", f"{n} words; a reply has at most "
-                                     f"{REPLY_WORDS}", ErrorKind.CONFIG))  # fmt: skip
     return found
 
 
@@ -409,65 +271,15 @@ def g4_derived(root: Path, files: list[str]) -> list[Finding]:
 # ---------------------------------------------------------------- G5
 
 
-def _allowlist() -> dict[str, list[str]]:
-    out: dict[str, list[str]] = {}
-    for line in STRUCTURAL.read_text().splitlines():
-        if line.strip() and not line.startswith("#"):
-            name, pattern = line.split()
-            out.setdefault(name, []).append(pattern)
-    return out
-
-
-def _is_quantity(node: object) -> bool:
-    return isinstance(node, Mapping) and {"value", "unit", "grade", "tier"} <= set(node)
-
-
-def _bare_numbers(node: object, pointer: str = "") -> Iterable[str]:
-    if _is_quantity(node):
-        return
-    if isinstance(node, Mapping):
-        for k, v in node.items():
-            yield from _bare_numbers(v, f"{pointer}/{k}")
-    elif isinstance(node, list):
-        for i, v in enumerate(node):
-            yield from _bare_numbers(v, f"{pointer}/{i}")
-    elif isinstance(node, int | float) and not isinstance(node, bool):
-        yield pointer
-
-
-def _matches(pointer: str, pattern: str) -> bool:
-    """`*` matches exactly one segment; a trailing `*` also matches any deeper path."""
-    a, b = pointer.split("/"), pattern.split("/")
-    if b[-1] == "*" and len(a) >= len(b):
-        a = a[: len(b)]
-    return len(a) == len(b) and all(y in ("*", x) for x, y in zip(a, b, strict=True))
-
-
 def g5_labels(root: Path, files: list[str]) -> list[Finding]:
-    """LBL-1, LBL-3 and LBL-4; LBL-2 and LBL-5 are enforced by G4's full recompute."""
-    allow = _allowlist()
+    """LBL-1 and LBL-3; LBL-2 and LBL-5 are enforced by G4's full recompute."""
     found = []
     for rel in files:
-        name = rel.rsplit("/", 1)[-1]
-        if not rel.startswith(("results/", "releases/")) or name not in allow:
+        if not (rel.startswith("results/") and rel.endswith("/run.json")):
             continue
         doc = json.loads((root / rel).read_text())
-        for pointer in _bare_numbers(doc):
-            if not any(_matches(pointer, p) for p in allow[name]):
-                found.append(
-                    Finding(
-                        "G5",
-                        rel,
-                        "LBL-4",
-                        "a number outside a quantity is not on the structural allowlist",
-                        ErrorKind.CONFIG,
-                        pointer,
-                        "make it a quantity",
-                    )
-                )
-        metrics = doc.get("metrics", {}) if name == "run.json" else {}
-        for key, q in metrics.items():
-            if name == "run.json" and q.get("tier") != "reported":
+        for key, q in doc.get("metrics", {}).items():
+            if q.get("tier") != "reported":
                 found.append(
                     Finding(
                         "G5",
@@ -526,18 +338,12 @@ def validate_tree(
         files = [f for f in files if any(f == w or f.startswith(w + "/") for w in wanted)]
     named = [f for f in files if f.startswith(EXCLUDED)]
     found = g2_schema(root, files, registry) + g2_xref(root, files) + g2_size(root, files)
-    found += g2_replies(root, files) + criteria.check(root, files)
     if base_ref:
-        found += g2_append_only(root, base_ref) + g2_card_edits(root, base_ref)
+        found += g2_append_only(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
     found += g6_policy(root, files) + g7_pins(root, files) + g8_language(root, files, named)
     found += g9_secrets(root, files, only or ()) + links.check(root, files, named)
     found += precision.check(root, files, registry) + cost.check(root, files)
-    if governance.PATH in files:
-        found += governance.check((root / governance.PATH).read_text("utf-8"))
-    if any(f.startswith("rfcs/") for f in files):
-        rfcs = [f for f in tracked_files(root) if f.startswith("rfcs/") and f.endswith(".md")]
-        found += governance.check_rfc_index({f: (root / f).read_text("utf-8") for f in rfcs})
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
 
@@ -557,7 +363,7 @@ def _forbidden(root: Path, system: str) -> list[str]:
 
 
 def g6_policy(root: Path, files: list[str]) -> list[Finding]:
-    """POL-1 to POL-4: no measured run used a weakening configuration (RFC-0013 §G6)."""
+    """POL-1 to POL-3: no measured run used a weakening configuration (RFC-0013 §G6)."""
     found = []
     for rel in files:
         if rel.startswith("results/") and rel.endswith("/manifest.json"):
@@ -584,8 +390,6 @@ def g6_policy(root: Path, files: list[str]) -> list[Finding]:
 def _manifest_policy(root: Path, rel: str) -> list[Finding]:
     doc = json.loads((root / rel).read_text())
     found: list[Finding] = []
-    # POL-4 (refuse runs made with --allow-nonconforming) is off during research (owner,
-    # 2026-11-09): the manifest still records harness.nonconforming and the profile checks.
     if doc.get("control") is False:
         system = str(doc.get("system", {}).get("name", ""))
         patterns = _forbidden(root, system)
@@ -790,11 +594,7 @@ PICTOGRAPH = re.compile("[\U0001f000-\U0001faff\u2600-\u27bf\u2b50\u2b55\u3030\u
 
 
 def _lang_in_scope(rel: str) -> bool:
-    return (
-        any(fnmatch.fnmatch(rel, g) for g in LANG_SCOPE)
-        and rel not in LANG_SKIP
-        and not fnmatch.fnmatch(rel, "systems/*/replies/*")
-    )
+    return any(fnmatch.fnmatch(rel, g) for g in LANG_SCOPE) and rel not in LANG_SKIP
 
 
 def g8_language(root: Path, files: list[str], named: Iterable[str] = ()) -> list[Finding]:

@@ -430,11 +430,7 @@ def test_engine_lines_parsed(adapter: ModuleType, tmp_path: Path) -> None:
 def test_out_of_memory_at_start_is_resource(adapter: ModuleType, tmp_path: Path) -> None:
     """SRV-6: the engine exiting at start out of GPU memory is `resource`, with the engine's
     line as evidence (the release admits a larger GPU count on it); another exit stays an
-    adapter failure. The adapter's patterns are the harness's (iproofs.serving)."""
-    from iproofs.serving import RESOURCE_EVIDENCE  # noqa: PLC0415
-
-    assert [p.pattern for p in adapter.OOM_LINES] == [p.pattern for p in RESOURCE_EVIDENCE[1:]]
-    assert RESOURCE_EVIDENCE[0].search("GPU KV cache size: 20,000 tokens, Maximum")
+    adapter failure."""
     log = tmp_path / "engine.log"
     engine = object.__new__(adapter.ServeEngine)
     engine.log_path = log

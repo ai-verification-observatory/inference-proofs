@@ -65,37 +65,6 @@
               }
             ]
           },
-          "effective_tier": {
-            "enum": [
-              "reported",
-              "peer-reviewed",
-              "reproduced"
-            ]
-          },
-          "evidence": {
-            "additionalProperties": false,
-            "properties": {
-              "reproductions": {
-                "items": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "type": "array"
-              },
-              "reviews": {
-                "items": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "type": "array"
-              }
-            },
-            "required": [
-              "reviews",
-              "reproductions"
-            ],
-            "type": "object"
-          },
           "ineligible": {
             "items": {
               "additionalProperties": false,
@@ -583,9 +552,7 @@
           "runs",
           "ineligible",
           "insufficient_repetitions",
-          "statistics",
-          "effective_tier",
-          "evidence"
+          "statistics"
         ],
         "type": "object"
       },

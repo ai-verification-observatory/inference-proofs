@@ -1,6 +1,6 @@
 # 08. Performance budget
 
-Status: Draft 0.1, part of the specification corpus indexed by [docs/SPEC.md](../SPEC.md). Normative decisions live in the RFCs under [rfcs/](../../rfcs/README.md); where this section and an Accepted RFC disagree, the RFC takes precedence.
+Status: Draft 0.1, part of the specification corpus indexed by [docs/SPEC.md](../SPEC.md). Normative decisions live in the RFCs under [rfcs/](../../rfcs/README.md); where this section and an RFC disagree, the RFC takes precedence.
 
 This section sets the performance budgets of the benchmark's own software: the harness's measurement overhead, the CPU-only tooling (validation, derivation, site, CI), and the method for budgeting GPU time for a run campaign. It does not set targets for the measured provers; the project publishes no targets for systems (RFC-0009 §Targets). Every number below is a **target** (a budget the software must meet), not a measurement, and carries no grade or tier because it describes no run.
 
@@ -48,14 +48,14 @@ Design consequences:
 
 ## Run-campaign compute budget
 
-A release needs GPU time for every configuration, repetition, negative control and reference row, and a third-party reproduction needs about as much again. Sponsors and runners need that estimate before the campaign starts (PRD §11, "proving runs are expensive").
+A release needs GPU time for every configuration, repetition, negative control and reference row. Runners need that estimate before the campaign starts (PRD §11, "proving runs are expensive").
 
 Method (AGENTS.md rule 3: derived numbers are computed, not typed):
 
 1. Inputs are the `external` quantities in `systems/<name>/external.yaml` (upstream figures with their upstream scope, RFC-0004 §Mapping from upstream scopes) and the workload shapes (RFC-0003).
 2. `iproofs.derive.project_campaign(release: str, root: Path) -> CampaignProjection` computes, per configuration, projected GPU-seconds as repetitions × (projected `whole_wall` seconds for the shape) + projected commit seconds for one perturbed-weights commitment (control C3, once per workload) + projected prove seconds for prover-side controls P1 and P2 + projected reference-row seconds (RFC-0015). Setup is counted once per image per host.
 3. Every output quantity has grade `projected`, names the formula id P-CAMPAIGN and lists its external inputs in `source.inputs`. Where an input is missing (for example `whole_wall` is not published upstream), the projection for that configuration is null with `null_reason: missing_input` and the gap is listed; nobody fills it by hand.
-4. The projection is printed by `iproofs release plan RELEASE` and attached to the release's sponsorship request; it is never published as a result.
+4. The projection is printed by `iproofs release plan RELEASE`; it is never published as a result.
 
 The command is [`iproofs release plan RELEASE [--repetitions N]`](../../harness/src/iproofs/cli.py) (default and minimum 3) and the code is `project_campaign` in [`derive.py`](../../harness/src/iproofs/derive.py). It reads the `external.yaml` metrics `whole_wall_seconds`, `commit_seconds` and `prove_session_seconds` of each system, and `prove_session_seconds` of the reference system `ref-serve` for the same workload. Each configuration also lists `missing` (the absent inputs) and `verify_seconds_per_proof_external` (the upstream `verify_single_thread_seconds` figure, or null).
 
@@ -76,9 +76,9 @@ Verifier-side controls C1 to C8 run on the CPU verifier profile (RFC-0008) and c
 | Measurement overhead (B-OVH-*) on a host | the self-test fails and the host is refused (`environment`, exit 3) for B-OVH-JITTER and B-OVH-RATE; a GH-OVERHEAD failure for B-OVH-CPU or B-OVH-RSS blocks the release until fixed; per-call sampling gaps mark that call's GPU metrics `degraded: true` rather than failing it |
 | CI gates (B-CI-*) | each CI job has a hard timeout of twice its target; a timeout fails the pull request; a gate between its target and the hard timeout passes, its time is shown in the job summary, and a maintainer opens an issue labelled `type:perf` |
 | Tooling operations (B-VAL-TREE, B-DERIVE-RUN, B-SITE, B-FREEZE, B-CLI-START) | a benchmark test over the synthetic tree fails at twice the target on the default branch; a breach between target and twice the target is reported in the job summary |
-| Campaign projection | if a projected configuration exceeds the sponsored GPU budget, the release plan drops repetitions only down to the minimum of three (RFC-0004 §Statistics); below that, the configuration is deferred and the release report says so |
+| Campaign projection | if a projected configuration exceeds the GPU budget, the release plan drops repetitions only down to the minimum of three (RFC-0004 §Statistics); below that, the configuration is deferred and the release report says so |
 
-Changing a target is a change to this document by pull request; changing a measurement mechanism to meet a target is a change to RFC-0011 and goes through RFC-0001.
+Changing a target is a change to this document by pull request; changing a measurement mechanism to meet a target is a change to RFC-0011.
 
 ## Cross-references
 

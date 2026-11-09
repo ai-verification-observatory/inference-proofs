@@ -176,7 +176,7 @@ The harness never runs on prover or verifier CPUs (C-3), so its overhead does no
 
 ### Calibration self-test
 
-`iproofs machine-record --selftest` runs on the host before its first run of a release and before each run campaign; its JSON result is stored in `manifest.json` `self_test`. A run whose manifest lacks a passing self-test from the same harness version is refused by the validator for `results/` (RFC-0013). Checks:
+`iproofs machine-record --selftest` runs on the host before its first run of a release and before each run campaign; its JSON result is stored in `manifest.json` `self_test`. A run whose manifest lacks a passing self-test from the same harness version is ineligible for a release (RFC-0014 §Eligibility). Checks:
 
 | Check id | Procedure | Pass when |
 |---|---|---|
@@ -228,7 +228,7 @@ On non-Linux hosts and in hosted CI (fake system only): the watcher uses polling
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 

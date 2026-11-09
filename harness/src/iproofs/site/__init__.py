@@ -14,10 +14,9 @@ from types import ModuleType
 
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.serialize import write_json, write_text
-from iproofs.site.inputs import REPOSITORY, maintainer_rows
-from iproofs.site.reply import reply_html
+from iproofs.site.inputs import REPOSITORY
 
-__all__ = ["ASSETS", "REPOSITORY", "build", "maintainer_rows", "renderer", "reply_html"]
+__all__ = ["ASSETS", "REPOSITORY", "build", "renderer"]
 
 RENDERER = "web/build.py"
 # What the renderer reads from its output folder and does not write: copied there first when the

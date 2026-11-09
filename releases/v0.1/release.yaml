@@ -41,9 +41,3 @@ claim_cards:
   card_version: 1
   path: systems/flashprove/claim.yaml
   digest: sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e
-review_window:
-  opens: '2026-11-09'
-  closes: '2026-11-09'
-freeze_date: '2026-11-09'
-replies: {}
-sponsors: []

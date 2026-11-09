@@ -18,11 +18,6 @@
   "configurations": [
     {
       "configuration": "exact-match-cp-verify",
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "overhead_headline": {
@@ -553,30 +548,6 @@
           "unit": "s",
           "value": 0.06418388925
         },
-        "overhead_vs_production_high_prove.session": {
-          "grade": "derived",
-          "null_reason": "missing_input",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 4
-          },
-          "scope": "prove.session",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-3/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_prove.session"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-HIGH-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
         "overhead_vs_production_high_prove.steady": {
           "grade": "derived",
           "null_reason": "missing_input",
@@ -601,54 +572,6 @@
           "unit": "ratio",
           "value": null
         },
-        "overhead_vs_production_high_whole_wall": {
-          "grade": "derived",
-          "null_reason": "not_applicable",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 4
-          },
-          "scope": "whole_wall",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-3/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_whole_wall"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-HIGH-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
-        "overhead_vs_production_prove.session": {
-          "grade": "derived",
-          "null_reason": "missing_input",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 4
-          },
-          "scope": "prove.session",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-3/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_prove.session"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-SESSION@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
         "overhead_vs_production_prove.steady": {
           "grade": "derived",
           "null_reason": "missing_input",
@@ -665,30 +588,6 @@
               "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-3/gpu_seconds_per_token_prove.steady",
               "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/gpu_seconds_per_token_prove.steady",
               "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_prove.steady"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
-        "overhead_vs_production_whole_wall": {
-          "grade": "derived",
-          "null_reason": "not_applicable",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 4
-          },
-          "scope": "whole_wall",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-3/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2/gpu_seconds_per_token_whole_wall"
             ],
             "kind": "derivation",
             "ref": "derive:D-OVERHEAD-S@0.1.0.dev0"
@@ -1844,11 +1743,6 @@
     },
     {
       "configuration": "exact-match-cp-verify",
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "overhead_conditions": {
@@ -2437,30 +2331,6 @@
           "unit": "s",
           "value": 0.06426580825
         },
-        "overhead_vs_production_high_prove.session": {
-          "grade": "derived",
-          "null_reason": null,
-          "pairs": {
-            "max": 30.112911772071275,
-            "min": 30.053814780008445,
-            "n_serving": 3,
-            "n_system": 1
-          },
-          "scope": "prove.session",
-          "source": {
-            "inputs": [
-              "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-2/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-6/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-7/run.json#/metrics/gpu_seconds_per_token_prove.session"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-HIGH-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": 30.091926334962423
-        },
         "overhead_vs_production_high_prove.steady": {
           "grade": "derived",
           "null_reason": null,
@@ -2485,54 +2355,6 @@
           "unit": "ratio",
           "value": 67.88430743674073
         },
-        "overhead_vs_production_high_whole_wall": {
-          "grade": "derived",
-          "null_reason": "not_applicable",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 1
-          },
-          "scope": "whole_wall",
-          "source": {
-            "inputs": [
-              "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-2/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-6/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-7/run.json#/metrics/gpu_seconds_per_token_whole_wall"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-HIGH-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
-        "overhead_vs_production_prove.session": {
-          "grade": "derived",
-          "null_reason": null,
-          "pairs": {
-            "max": 30.38151763935843,
-            "min": 29.924073490738895,
-            "n_serving": 3,
-            "n_system": 1
-          },
-          "scope": "prove.session",
-          "source": {
-            "inputs": [
-              "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-3/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-4/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-5/run.json#/metrics/gpu_seconds_per_token_prove.session"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-SESSION@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": 30.095162701595296
-        },
         "overhead_vs_production_prove.steady": {
           "grade": "derived",
           "null_reason": null,
@@ -2556,30 +2378,6 @@
           "tier": "reported",
           "unit": "ratio",
           "value": 61.280443745443634
-        },
-        "overhead_vs_production_whole_wall": {
-          "grade": "derived",
-          "null_reason": "not_applicable",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 1
-          },
-          "scope": "whole_wall",
-          "source": {
-            "inputs": [
-              "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-3/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-4/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-5/run.json#/metrics/gpu_seconds_per_token_whole_wall"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
         },
         "proof_bytes": {
           "grade": "derived",
@@ -3729,11 +3527,6 @@
     },
     {
       "configuration": null,
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "load_point": "high",
@@ -4827,11 +4620,6 @@
     },
     {
       "configuration": null,
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "load_point": "matched",
@@ -5976,11 +5764,6 @@
     },
     {
       "configuration": null,
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "load_point": "matched",
@@ -7170,11 +6953,6 @@
     },
     {
       "configuration": "sound-defaults",
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "overhead_conditions": {
@@ -7719,29 +7497,6 @@
           "unit": "s",
           "value": 0.06424746133333334
         },
-        "overhead_vs_production_high_prove.session": {
-          "grade": "derived",
-          "null_reason": "missing_input",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 3
-          },
-          "scope": "prove.session",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-1/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-2/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-3/gpu_seconds_per_token_prove.session"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-HIGH-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
         "overhead_vs_production_high_prove.steady": {
           "grade": "derived",
           "null_reason": "not_externally_observable",
@@ -7764,55 +7519,6 @@
           "tier": "reported",
           "unit": "ratio",
           "value": null
-        },
-        "overhead_vs_production_high_whole_wall": {
-          "grade": "derived",
-          "null_reason": "not_applicable",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 3
-          },
-          "scope": "whole_wall",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-1/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-2/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-3/gpu_seconds_per_token_whole_wall"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-HIGH-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
-        },
-        "overhead_vs_production_prove.session": {
-          "grade": "derived",
-          "null_reason": null,
-          "pairs": {
-            "max": 10896.691990899899,
-            "min": 10425.357147178263,
-            "n_serving": 3,
-            "n_system": 3
-          },
-          "scope": "prove.session",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-1/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-2/gpu_seconds_per_token_prove.session",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-3/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-3/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-4/run.json#/metrics/gpu_seconds_per_token_prove.session",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-5/run.json#/metrics/gpu_seconds_per_token_prove.session"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-SESSION@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": 10622.714120068591
         },
         "overhead_vs_production_prove.steady": {
           "grade": "derived",
@@ -7865,32 +7571,6 @@
           "tier": "reported",
           "unit": "ratio",
           "value": 15756.029402978018
-        },
-        "overhead_vs_production_whole_wall": {
-          "grade": "derived",
-          "null_reason": "not_applicable",
-          "pairs": {
-            "max": null,
-            "min": null,
-            "n_serving": 0,
-            "n_system": 3
-          },
-          "scope": "whole_wall",
-          "source": {
-            "inputs": [
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-1/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-2/gpu_seconds_per_token_whole_wall",
-              "releases/v0.1/index.json#/freeze_derived/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-3/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-3/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-4/run.json#/metrics/gpu_seconds_per_token_whole_wall",
-              "results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-5/run.json#/metrics/gpu_seconds_per_token_whole_wall"
-            ],
-            "kind": "derivation",
-            "ref": "derive:D-OVERHEAD-S@0.1.0.dev0"
-          },
-          "tier": "reported",
-          "unit": "ratio",
-          "value": null
         },
         "proof_bytes": {
           "grade": "derived",
@@ -10444,7 +10124,7 @@
       }
     }
   },
-  "inputs_digest": "sha256:f456cbdf06efe0ae23aac98b45a7a0b940be21612a6d82785b2eaceb1ddeac01",
+  "inputs_digest": "sha256:b6edf7e0bb9f83d63a80d99e1dd969d4cf51abaa93982cad24c783dbdfca9ed1",
   "reference": {
     "digest": "sha256:5a6639f10a7db4536d7ef2d3eeca2cc6356302f0eb0ba02d2ea38ba450bed3f9",
     "file": "reference/v0.1.yaml"

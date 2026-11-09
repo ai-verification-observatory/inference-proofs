@@ -10,7 +10,6 @@ import yaml
 from fixtures.release_tree import build, commit
 from iproofs import cli
 from iproofs.errors import IProofsError
-from iproofs.quantity import Tier
 from iproofs.release import RunView, _Late, _rel, _statistics
 from iproofs.schema import SchemaRegistry
 from iproofs.workloads import asserted_inputs, load_workload
@@ -29,13 +28,6 @@ def freeze(root: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFi
 def index(root: Path) -> dict[str, object]:
     doc: dict[str, object] = json.loads((root / "releases/v0.1/index.json").read_text())
     return doc
-
-
-def edit_release(root: Path, change: dict[str, object]) -> None:
-    path = root / "releases/v0.1/release.yaml"
-    doc = yaml.safe_load(path.read_text())
-    path.write_text(yaml.safe_dump(doc | change, sort_keys=False))
-    commit(root, "edit release")
 
 
 def configuration(root: Path) -> dict[str, object]:
@@ -65,18 +57,6 @@ def test_deterministic_index(
     assert a == GOLDEN.read_bytes()
 
 
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
-def test_review_window_under_14_days_fails(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    build(tmp_path)
-    edit_release(tmp_path, {"review_window": {"opens": "2027-02-15", "closes": "2027-02-28"}})
-    monkeypatch.chdir(tmp_path)
-    assert cli.main(["release", "freeze", "v0.1"]) == 1
-    assert "is under 14 days" in capsys.readouterr().err
-    assert not (tmp_path / "releases/v0.1/index.json").exists()
-
-
 def test_freeze_price_zero(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -91,17 +71,6 @@ def test_freeze_price_zero(
     assert cli.main(["release", "freeze", "v0.1"]) == 1
     assert "has no price or no date (RFC-0006 C6)" in capsys.readouterr().err
     assert not (tmp_path / "releases/v0.1/index.json").exists()
-
-
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
-def test_freeze_date_must_follow_window(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    build(tmp_path)
-    edit_release(tmp_path, {"freeze_date": "2027-03-01"})
-    monkeypatch.chdir(tmp_path)
-    assert cli.main(["release", "freeze", "v0.1"]) == 1
-    assert "freeze_date 2027-03-01 is not after 2027-03-01" in capsys.readouterr().err
 
 
 def test_insufficient_repetitions_flagged(
@@ -205,8 +174,7 @@ def stored_run(n: int, *, late_keys: bool, inputs: dict[str, Any] | None) -> Run
 
 def late_statistics(runs: list[RunView]) -> tuple[dict[str, Any], _Late]:
     late = _Late(ROOT, SchemaRegistry.from_tree(ROOT / "schema"), "v0.1")
-    tiers = {r.run_id: Tier.REPORTED for r in runs}
-    return _statistics(runs, tiers, late), late
+    return _statistics(runs, late), late
 
 
 def fake_inputs() -> dict[str, Any]:
@@ -329,7 +297,7 @@ def test_freeze_gspt_from_the_profile_gpu_count() -> None:
     old = stored_run(1, late_keys=True, inputs=fake_inputs())
     old.run["profile"] = "serving-h200x4-hosted"
     late = _Late(ROOT, registry, "v0.1", (reference, "reference/v0.1.yaml"))
-    stats = _statistics([old], {old.run_id: Tier.REPORTED}, late)
+    stats = _statistics([old], late)
     q = late.values[old.run_id]["gpu_seconds_per_token_prove.steady"]
     assert q["value"] == 0.01 * 4
     assert q["source"]["inputs"] == [  # type: ignore[index]

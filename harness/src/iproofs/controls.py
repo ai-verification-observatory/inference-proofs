@@ -927,21 +927,24 @@ CONTROL_PROPERTY: Mapping[str, str | None] = MappingProxyType({
 def runs_read(root: Path, release: str | None, system: str, configuration: str) -> list[str]:
     """RFC-0016 OVR-5: the run directories read for one card row, as `release.yaml` lists them.
 
-    The runs listed in `releases/<release>/release.yaml` and in every release with an earlier
-    `freeze_date`, in freeze-date order then listed order, whose `run.json` `claim` names
+    The runs listed in `releases/<release>/release.yaml` and in every earlier release (by
+    version number), in release order then listed order, whose `run.json` `claim` names
     `system` and `configuration`; less every run a read release supersedes and every run a
-    read run `replaces`. No release reads no run. The site and CRIT-13 both call this.
+    read run `replaces`. No release reads no run.
     """
     if release is None:
         return []
     named = root / "releases" / release / "release.yaml"
     if not named.is_file():
         raise IProofsError(ErrorKind.INTEGRITY, f"OVR-5: no releases/{release}/release.yaml")
-    cutoff = str(load_yaml(named)["freeze_date"])
+
+    def version(rid: object) -> tuple[int, ...]:
+        return tuple(int(x) for x in str(rid).removeprefix("v").split("."))
+
     docs = [load_yaml(path) for path in sorted((root / "releases").glob("*/release.yaml"))]
     read = sorted(
-        (d for d in docs if d["release"] == release or str(d["freeze_date"]) < cutoff),
-        key=lambda d: (str(d["freeze_date"]), str(d["release"])),
+        (d for d in docs if version(d["release"]) <= version(release)),
+        key=lambda d: version(d["release"]),
     )
     dropped = {str(s["run_id"]) for d in read for s in _items(d.get("superseded_runs"))}
     kept: list[tuple[str, str]] = []  # (run directory, run id)

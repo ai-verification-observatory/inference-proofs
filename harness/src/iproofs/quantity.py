@@ -92,15 +92,6 @@ TIME_UNITS = frozenset({
     Unit.GPU_S_PER_TOKEN,
 })  # fmt: skip
 
-TIER_ORDER = (Tier.REPORTED, Tier.PEER_REVIEWED, Tier.REPRODUCED)
-
-
-def lowest_tier(tiers: list[Tier]) -> Tier:
-    """INV-QTY-6a: a derived quantity carries the lowest tier among its inputs."""
-    if not tiers:
-        raise ValueError("no input tiers")
-    return min(tiers, key=TIER_ORDER.index)
-
 
 def statistic_problems(q: Mapping[str, object]) -> list[str]:
     """INV-QTY-8 checks the schema cannot express: value equals stats.mean."""

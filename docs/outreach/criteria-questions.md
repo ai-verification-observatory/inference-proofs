@@ -1,6 +1,6 @@
 # Questions to system teams on Not stated criteria
 
-Drafts, not sent. Issue #336 asks each team whose public-source row has a Not stated cell in [`web/_data/criteria.json`](../../web/_data/criteria.json) to state the missing properties in its own sources. A maintainer sends them, then records the date and channel of each in a public issue ([RFC-0001 §Adding and removing a system](../../rfcs/0001-process-and-governance.md#adding-and-removing-a-system)). No personal address is written here (AGENTS.md rule 7): a channel is a public repository, a paper's printed correspondence line or a team's own site.
+Drafts, not sent. Issue #336 asks each team whose public-source row has a Not stated cell in [`web/_data/criteria.json`](../../web/_data/criteria.json) to state the missing properties in its own sources. A maintainer sends them, then records the date and channel of each in a public issue. No personal address is written here (AGENTS.md rule 7): a channel is a public repository, a paper's printed correspondence line or a team's own site.
 
 Each message below lists the cells that are Not stated at `date` 2026-11-08 of the criteria file, and the sources read for them. Check them against the file before sending: a cell set since then is dropped from its message.
 

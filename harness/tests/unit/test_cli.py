@@ -18,7 +18,6 @@ COMMANDS = [
     "machine-record",
     "fetch-model",
     "prompts",
-    "reproduce",
     "release",
     "site",
 ]
@@ -67,7 +66,7 @@ def test_exit_codes(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_every_command_has_a_handler() -> None:
     parser = cli.build_parser()
     leaves = [["validate"], ["derive", "x"], ["controls"], ["machine-record"], ["fetch-model", "w"],
-              ["prompts", "build", "w", "--seed", "0"], ["reproduce", "compare", "a", "b"],
+              ["prompts", "build", "w", "--seed", "0"],
               ["release", "freeze", "v"], ["release", "plan", "v"], ["site", "build"]]  # fmt: skip
     for argv in leaves:
         assert callable(parser.parse_args(argv).handler), argv

@@ -156,7 +156,7 @@ The values above come from docs/PRD.md and the earlier draft of this RFC; the `<
 2. **Card first (INV-CLAIM-1).** On every page and in every report that shows a number for a system, the card for that number's configuration appears before the number. RFC-0009 enforces this in the site generator.
 3. **Sources (INV-CLAIM-3).** `sources` has an entry for every field path whose value is not `not stated`. Each `SourceRef` contains the full upstream commit hash of the card's `upstream.commit`. CI fails a card with a missing or mismatched source.
 4. **Weakening configurations (INV-CLAIM-4).** A configuration that weakens the statement (for example any SASH `--unsound-skip-*` flag) has no card. A run with such a flag is valid only as a negative-control job (`control: true`, RFC-0008). The flags are listed in `forbidden_flags` and the policy gate (RFC-0013 gate 6) rejects any measured run whose manifest command lines contain one.
-5. **Review.** A card changes only by pull request. Every change increments `card_version` and resets `reviewed_by` to empty; a system maintainer re-adds their entry with the new `card_version` after review. A maintainer with a declared interest in the system does not merge (RFC-0001 INV-GOV-4).
+5. **Review.** A card changes only by pull request. Every change increments `card_version` and resets `reviewed_by` to empty; a system maintainer re-adds their entry with the new `card_version` after review.
 6. **Published cards are frozen.** A release records the `card_version` of every card it shows (RFC-0009). Later card changes do not alter a published release.
 
 ### Claim class
@@ -202,7 +202,7 @@ The field set merges three sources: the relation, security definition and assump
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 
@@ -230,7 +230,6 @@ Unit tests:
 
 - `test_sources_complete`: a card with `relation` filled and no `sources.relation` fails INV-CLAIM-3; adding it passes.
 - `test_source_commit_mismatch`: a source URL with a different commit hash fails.
-- `test_card_version_reset`: a fixture diff that changes `relation` without incrementing `card_version` fails the CI card-diff check; incrementing it with a non-empty `reviewed_by` for the old version fails; with `reviewed_by: []` passes.
 - `test_forbidden_flags_subset`: a card listing a flag absent from `system.yaml` fails.
 - `test_run_card_resolution`: a run manifest pointing to a missing configuration fails; to an existing one passes.
 - `test_claim_class_wildcard`: target filter `next-token/*/committed-weights` matches `next-token/exact-match/committed-weights` and not `segment-grid/exact-match/committed-weights`.

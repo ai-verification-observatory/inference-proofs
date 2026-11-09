@@ -54,11 +54,6 @@ def test_control_job_may_use_the_flag(repo: Path) -> None:
     assert rules(repo) == []
 
 
-def test_nonconforming_run_accepted_during_research(repo: Path) -> None:
-    place(repo, G6 / "manifest-nonconforming.json", f"{RUN_DIR}/manifest.json")
-    assert rules(repo) == []  # POL-4 off during research (owner, 2026-11-09)
-
-
 def test_unlisted_entrypoint_literal_fails(repo: Path) -> None:
     place(repo, G6 / "entrypoint-unlisted", "systems/fake/entrypoint")
     found = [f for f in validate_tree(repo) if f.rule == "POL-3"]

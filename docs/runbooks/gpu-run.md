@@ -96,7 +96,7 @@ export IPROOFS_CUDA_PROBE_IMAGE=<image>@sha256:<digest>  # any pinned image with
 | Adapter smoke job | per adapter, its README's shortest job on the smallest workload, with `--control-suite` | exit 0 and a valid run directory; every control's outcome matches its expected verdict |
 | GH-REF-SERVE-L31 ([RFC-0015](../../rfcs/0015-reference-rows.md#testing-strategy)) | `sudo -E .venv/bin/iproofs run --system ref-serve --workload sash-l31-8b-c1024 --profile prover-h200 --gpu $IPROOFS_GPU --repetitions 3` | three repetitions, schema-valid, `rate_prove.steady` non-null |
 | GH-REF-RECOMPUTE-L31 | `sudo -E .venv/bin/iproofs run --system ref-recompute --workload sash-l31-8b-c1024 --profile prover-h200 --gpu $IPROOFS_GPU --prompts-from <a completed SASH run dir>` | completed; the agreement block is present |
-| GH-REF-MAVERICK-ATTEMPT | `sudo -E .venv/bin/iproofs run --system ref-serve --workload fp-maverick-w1024-b1 --profile prover-h200 --gpu $IPROOFS_GPU` | either a valid row, or a recorded failure (`resource` or `adapter`) that leads to NM-1 |
+| GH-REF-MAVERICK-ATTEMPT | `sudo -E .venv/bin/iproofs run --system ref-serve --workload fp-maverick-w1024-b1 --profile prover-h200 --gpu $IPROOFS_GPU` | either a valid row, or a recorded failure (`resource` or `adapter`) |
 
 GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test process for 30 minutes and measures that process; the container's own work is outside the harness process, so the figure bounds the harness's share of one call. The reference-row tests need the reference systems and the adapter tests need the adapters (issues #65, #69, #138, #139); until those exist, the campaign log records them as not run, with the reason.
 
@@ -105,23 +105,11 @@ GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test proces
 1. Run the host probe ([`h200-host.md`](h200-host.md#1-probe-the-host)) and check the host prerequisites, then fetch the models (`iproofs fetch-model WORKLOAD`) for every workload of the campaign.
    Then, once per workload per release and system, prepare the C3 and P1 perturbed commitment: `sudo -E .venv/bin/iproofs controls --prepare-perturbed WORKLOAD --system S --profile prover-h200`. It writes `results/<release>/<system>/_controls/<workload>/` (commit to the results pull request) and keeps the perturbed weights in `$IPROOFS_CACHE/perturbed/` on this host only.
 2. Run the GPU-host tests above, in order. Start the campaign log.
-3. Project the GPU time with `uv run iproofs release plan RELEASE` ([docs/spec/08](../spec/08-performance-budget.md#run-campaign-compute-budget)) and check it fits the sponsored budget.
+3. Project the GPU time with `uv run iproofs release plan RELEASE` ([docs/spec/08](../spec/08-performance-budget.md#run-campaign-compute-budget)) and check it fits the budget.
 4. Run the matrix: per configuration, `sudo -E .venv/bin/iproofs run --system S --workload W --profile prover-h200 --gpu $IPROOFS_GPU --repetitions N --control-suite` with N at least 3 (RFC-0004). A failed job (exit 4) is kept as recorded; rerun only as new repetitions, never by deleting the failed one.
 5. Validate the whole tree: `uv run iproofs validate results/`.
-6. Upload the proof archives and upstream inputs, which records each archive URI in its run's manifest: `HF_TOKEN=... uv run --extra fetch iproofs archive upload` (below). Results are append-only, so this comes before the pull request.
-7. Open the results pull request: one pull request per campaign, holding the new run directories under `results/` and nothing else. Its description is the campaign log.
+6. Open the results pull request: one pull request per campaign, holding the new run directories under `results/` and nothing else. Its description is the campaign log.
 
-### Proof archive (RFC-0014 §Proof digests and archive)
-
-The first proof of repetition 1 that verified `accept` is archived in full, once per configuration (system, workload, profile, release), at `results/.archive/<release>/<system>/<workload>/<profile>/<run-id>-<proof-id>.tar`. The tar is POSIX ustar with entries sorted by name, mtime 0, uid and gid 0, mode 0644, uncompressed, so the same proof always gives the same bytes. Its digest is the `archive/<proof-id>.tar` line of the run's `digests.txt`.
-
-`results/.archive/` is ignored by git: no proof bytes are committed (RFC-0009 §Storage). The archives are stored in the public dataset repository `abdelstark/inference-proofs-archive` on the Hugging Face Hub (RFC-0009 Q1). `iproofs archive upload`:
-
-- checks each tar against its `digests.txt` line, uploads it to `<release>/<system>/<workload>/<profile>/<run-id>-<proof-id>.tar`, reads the stored object's sha256 back, and writes the URI pinned to the dataset commit (`https://huggingface.co/datasets/<repo>/resolve/<commit>/<path>`) into `manifest.proofs[].archive`;
-- downloads every input in the adapter's `inputs.lock` at the run's adapter commit, checks it against the lock and stores it at `<release>/sources/<system>/<name>` (RFC-0014 Q3);
-- skips what is already stored. Any digest mismatch stops it with kind `integrity` and leaves the manifest unchanged.
-
-The token needs write access to the dataset only. A manifest whose `archive` is still `null` makes its configuration ineligible at freeze (`no_archived_proof`).
 
 Every proof's digest is also rechecked immediately before each verify call and each control mutation; a proof that changed on disk after its release fails the job with kind `integrity`.
 

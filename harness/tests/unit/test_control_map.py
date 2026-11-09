@@ -39,10 +39,10 @@ def test_control_map_is_read_only() -> None:
 SYSTEM, CONFIG = "fake", "default"
 
 
-def release(root: Path, rid: str, freeze: str, runs: list[str], superseded: list[str]) -> None:
+def release(root: Path, rid: str, runs: list[str], superseded: list[str]) -> None:
     path = root / "releases" / rid / "release.yaml"
     path.parent.mkdir(parents=True)
-    lines = [f'release: "{rid}"', f'freeze_date: "{freeze}"', "runs:"]
+    lines = [f'release: "{rid}"', "runs:"]
     lines += [f'  - "{r}"' for r in runs] or ["  []"]
     if superseded:
         lines += ["superseded_runs:"]
@@ -79,12 +79,12 @@ def test_runs_read_ovr5(tmp_path: Path) -> None:
     early = [run(root, r(1)), run(root, r(2)), run(root, r(3), claim=None)]
     other = run(root, r(4), claim={"system": SYSTEM, "configuration": "other"})
     no_claim = run(root, r(5), claim={})
-    release(root, "v0.1", "2027-01-10", [*early, other, no_claim], superseded=["2026-11-20-x"])
+    release(root, "v0.1", [*early, other, no_claim], superseded=["2026-11-20-x"])
     fix = run(root, r(1, "v0.2"), replaces=rid(2))
     dropped = run(root, r(2, "v0.2"))
-    release(root, "v0.2", "2027-03-10", [fix, dropped, early[0]], superseded=[rid(2, "v0.2")])
+    release(root, "v0.2", [fix, dropped, early[0]], superseded=[rid(2, "v0.2")])
     later = run(root, r(1, "v0.3"))
-    release(root, "v0.3", "2027-05-10", [later], superseded=[rid(1)])
+    release(root, "v0.3", [later], superseded=[rid(1)])
 
     assert runs_read(root, "v0.2", SYSTEM, CONFIG) == [early[0], early[2], fix]
     assert runs_read(root, "v0.1", SYSTEM, CONFIG) == early
@@ -94,7 +94,7 @@ def test_runs_read_ovr5(tmp_path: Path) -> None:
 
 
 def test_runs_read_no_runs_listed(tmp_path: Path) -> None:
-    release(tmp_path, "v0.1", "2027-01-10", [], superseded=[])
+    release(tmp_path, "v0.1", [], superseded=[])
     assert runs_read(tmp_path, "v0.1", SYSTEM, CONFIG) == []
 
 
@@ -105,8 +105,8 @@ def test_runs_read_unknown_release(tmp_path: Path) -> None:
 
 
 def test_runs_read_unreadable_run_is_environment(tmp_path: Path) -> None:
-    """CRIT-13: a listed run directory that cannot be read is an error, never a pass."""
-    release(tmp_path, "v0.1", "2027-01-10", [r(1)], superseded=[])
+    """OVR-5: a listed run directory that cannot be read is an error, never a pass."""
+    release(tmp_path, "v0.1", [r(1)], superseded=[])
     with pytest.raises(IProofsError) as e:
         runs_read(tmp_path, "v0.1", SYSTEM, CONFIG)
     assert e.value.kind is ErrorKind.ENVIRONMENT

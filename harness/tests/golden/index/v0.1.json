@@ -11,11 +11,6 @@
   "configurations": [
     {
       "configuration": "default",
-      "effective_tier": "reported",
-      "evidence": {
-        "reproductions": [],
-        "reviews": []
-      },
       "ineligible": [
         {
           "reasons": [
@@ -640,7 +635,7 @@
       }
     }
   },
-  "inputs_digest": "sha256:76d7997176ad37f46655a1b781429d9c8552d20b6d4424ce06cf946c6b23d4f4",
+  "inputs_digest": "sha256:5a1c244e9fa581578f84f0483063e70d81c997f25bb47b45f3ac3e6bac278dcf",
   "reference": {
     "digest": "sha256:5a6639f10a7db4536d7ef2d3eeca2cc6356302f0eb0ba02d2ea38ba450bed3f9",
     "file": "reference/v0.1.yaml"

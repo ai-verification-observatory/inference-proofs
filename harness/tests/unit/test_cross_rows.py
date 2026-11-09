@@ -1,5 +1,5 @@
-"""RFC-0004 release rows: D-OVERHEAD-S and D-OVERHEAD-HIGH-S in GPU-seconds per token
-(INV-DERIVE-2, -8, -9), D-AGREE, D-PROVIDER-SPREAD, and RFC-0015 NM-1.
+"""RFC-0004 release rows: D-OVERHEAD-S, D-OVERHEAD-HIGH-S and D-OVERHEAD-WARM in GPU-seconds
+per token (INV-DERIVE-2, -8, -9, -11), D-AGREE and D-PROVIDER-SPREAD.
 
 Every value here is a fixture value, not a result."""
 
@@ -12,8 +12,8 @@ import pytest
 
 from iproofs.derive import FORMULAS, agreement_rate, overhead, overhead_formula, provider_spread
 from iproofs.model import Workload, load
-from iproofs.quantity import NullReason, Scope, Tier
-from iproofs.release import WARM, RunView, _Context, _release_rows, _serving_nm1, headline_scope
+from iproofs.quantity import NullReason, Scope
+from iproofs.release import WARM, RunView, _Context, _release_rows, headline_scope
 from iproofs.schema import SchemaRegistry
 
 ROLES = {"ref-serve": "serve", "ref-recompute": "recompute"}
@@ -23,11 +23,8 @@ WL = {"id": "fp-maverick-w1024-b24", "version": 1}
 DIGEST = "sha256:" + "d" * 64
 IMAGE = "docker.io/vllm/vllm-openai@sha256:" + "c" * 64
 COMMIT = "5df63a7203cdb9328d824a27b682e77c7b9928be"
-KV = ("KV cache size: 20,000 tokens, Maximum concurrency for 1,025 tokens per request: "
-      "19.51x")  # fmt: skip
 GSPT = "gpu_seconds_per_token_prove.steady"
 SESSION = "gpu_seconds_per_token_prove.session"
-WHOLE = "gpu_seconds_per_token_whole_wall"
 
 
 def q(
@@ -42,9 +39,9 @@ def test_agreement_rate_hand_computed() -> None:
     """TC-AGREE-FIXTURE totals: 11 agreeing positions and 1 disagreeing give 11/12."""
     agree = [("a1", q(5.0, "count", None)), ("a2", q(6.0, "count", None))]
     disagree = [("d1", q(0.0, "count", None)), ("d2", q(1.0, "count", None))]
-    out = agreement_rate(agree, disagree, measurable=True, version="1")
+    out = agreement_rate(agree, disagree, version="1")
     assert out["value"] == 11 / 12
-    assert agreement_rate([], [], measurable=True, version="1")["value"] is None  # none compared
+    assert agreement_rate([], [], version="1")["value"] is None  # none compared
 
 
 def test_provider_spread_single_provider_null() -> None:
@@ -102,7 +99,7 @@ def test_overhead_sash_reason_first() -> None:
     """TC-OVERHEAD-SASH: a system steady null `not_externally_observable` passes that reason
     on, whatever the serving side."""
     sash = [("s", gspt(None, "not_externally_observable"))]
-    for reason in (None, NullReason.MISSING_INPUT, NullReason.NOT_MEASURABLE_ON_PROFILE):
+    for reason in (None, NullReason.MISSING_INPUT, NullReason.NOT_APPLICABLE):
         out = overhead(sash, [("v", gspt(0.0001))], Scope.PROVE_STEADY, reason=reason,
                        version="1")  # fmt: skip
         assert (out["value"], out["null_reason"]) == (None, "not_externally_observable")
@@ -112,9 +109,8 @@ def test_overhead_sash_reason_first() -> None:
 def view(system: str, run_id: str, metrics: Mapping[str, object], *, failure: str | None = None,  # noqa: PLR0913
          prompts_from: str | None = None, profile: str = "prover-h200-hosted",
          digest: str = DIGEST, image: str = IMAGE, warnings: tuple[str, ...] = (),
-         evidence: tuple[str, ...] = (KV,), rule: str | None = "batch-membership",
-         observed: str = COMMIT, sizing: bool = False) -> RunView:  # fmt: skip
-    failed = {"kind": failure, "last_lines": list(evidence)} if failure else None
+         rule: str | None = "batch-membership", sizing: bool = False) -> RunView:  # fmt: skip
+    failed = {"kind": failure, "last_lines": []} if failure else None
     run: dict[str, object] = {"run_id": run_id, "system": system, "metrics": metrics,
            "status": "failed" if failure else "completed", "profile": profile,
            "failure": failed, "warnings": list(warnings)}  # fmt: skip
@@ -128,7 +124,7 @@ def view(system: str, run_id: str, metrics: Mapping[str, object], *, failure: st
     if system == "ref-serve":
         manifest["serving_model"] = {"digest": digest}
         manifest["engine"] = {"image": image, "interface": "vllm serve",
-                              "observed": {"version": "0.32.0", "build_commit": observed,
+                              "observed": {"version": "0.32.0", "build_commit": COMMIT,
                                            "max_num_batched_tokens": 8192}}  # fmt: skip
         workload |= {"prompt_count_run": 120, "batches_per_session_run": 5}
         if sizing:  # RFC-0015 SRV-1: a sizing capture
@@ -144,8 +140,7 @@ def ctx(runs: list[RunView], profile: str = "prover-h200-hosted",
         "profile": profile,
     }
     stats: dict[str, object] = {}
-    return _Context(where, None, runs, {r.run_id: Tier.REPORTED for r in runs}, stats, None,
-                    load_point, {})  # fmt: skip
+    return _Context(where, None, runs, stats, None, load_point, {})
 
 
 class Profile:
@@ -283,23 +278,13 @@ def test_overhead_fewest() -> None:
     assert stats["overhead_vs_production_prove.steady"]["value"] == pytest.approx(100.0)  # type: ignore[index]
 
 
-def test_overhead_placement() -> None:
-    """TC-SRV-PLACEMENT at the release (RFC-0015 SRV-6): TP8 joins only when every TP4 attempt
-    other than an `adapter` failure failed `resource` with KV-capacity or out-of-memory
-    evidence. TP4 `adapter` only, TP4 `resource` without evidence, and no TP4 attempt at all
-    (system.yaml declares TP4) leave the overhead null `missing_input`."""
+def test_overhead_smallest_joinable_count() -> None:
+    """The matched join takes the smallest GPU count with a joinable run; failed attempts at a
+    smaller count neither block nor admit a larger one."""
     tp8 = serve_ctx("b", (0.0004,), profile="serving-h200x8-hosted")
-    adapter = serve_ctx("a", (None, None), failure="adapter")
-    assert overhead_of([system_ctx(), adapter, tp8]) == (None, "missing_input")
-    bare = serve_ctx("a", (None,), failure="resource", evidence=("killed",))
-    assert overhead_of([system_ctx(), bare, tp8]) == (None, "missing_input")
-    assert overhead_of([system_ctx(), tp8]) == (None, "missing_input")
-    oom = ("torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB",)
-    for evidence in ((KV,), oom):
-        tp4 = serve_ctx("a", (None,), failure="resource", evidence=evidence)
-        fixed = serve_ctx("c", (None,), failure="adapter")  # a bug at TP4, set aside
-        value, reason = overhead_of([system_ctx(), tp4, fixed, tp8])
-        assert (value, reason) == (pytest.approx(25.0), None)
+    assert overhead_of([system_ctx(), tp8]) == (pytest.approx(25.0), None)
+    failed = serve_ctx("a", (None, None), failure="adapter")
+    assert overhead_of([system_ctx(), failed, tp8]) == (pytest.approx(25.0), None)
     smaller = serve_ctx("d", (0.0002,), profile="serving-h200x2-hosted")
     assert overhead_of([system_ctx(), smaller, tp8]) == (pytest.approx(50.0), None)
 
@@ -314,12 +299,10 @@ def test_overhead_short_steady_and_rule() -> None:
     assert overhead_of([system_ctx(), old]) == (None, "missing_input")
     before = system_ctx(rule=None)
     assert overhead_of([before, serve_ctx("m", (0.0001,))]) == (None, "not_applicable")
-    other = serve_ctx("m", (0.0001,), observed="0" * 40)  # another engine build ran
-    assert overhead_of([system_ctx(), other]) == (None, "missing_input")
 
 
 def test_overhead_high_same_placement() -> None:
-    """The high load joins only at the matched load's profile and GPU count (SRV-6)."""
+    """The high load joins only at the matched load's profile and GPU count."""
     found = [system_ctx(), serve_ctx("m", (0.0001,)),
              serve_ctx("h", (0.00005,), load_point="high",
                        profile="serving-h200x8-hosted")]  # fmt: skip
@@ -338,20 +321,11 @@ def test_overhead_prompts_pairing() -> None:
     assert stats["overhead_vs_production_prove.steady"]["null_reason"] == "missing_input"  # type: ignore[index]
 
 
-def test_overhead_nm1() -> None:
-    """TC-OVERHEAD-NM1: not_measurable_on_profile only when the largest serving profile of the
-    GPU model (8 GPUs) failed `resource` with evidence too; TP4 alone gives missing_input."""
-    tp4 = serve_ctx("m", (None, None), failure="resource")
-    assert overhead_of([system_ctx(), tp4]) == (None, "missing_input")
-    tp8 = serve_ctx("e", (None,), failure="resource", profile="serving-h200x8-hosted")
-    assert overhead_of([system_ctx(), tp4, tp8]) == (None, "not_measurable_on_profile")
-    bare = serve_ctx("e", (None,), failure="resource", evidence=("x",),
-                     profile="serving-h200x8-hosted")  # fmt: skip
-    assert overhead_of([system_ctx(), tp4, bare]) == (None, "missing_input")
-    adapter = join([system_ctx(), serve_ctx("m", (None,), failure="adapter")])
-    assert adapter["overhead_vs_production_prove.steady"]["null_reason"] == "missing_input"  # type: ignore[index]
-    assert not _serving_nm1(serve_ctx("m", (None,), failure="adapter"))
-    assert _serving_nm1(tp4)
+def test_overhead_failed_serving() -> None:
+    """Serving attempts that all failed leave the overhead null `missing_input`."""
+    for kind in ("resource", "adapter"):
+        failed = serve_ctx("m", (None, None), failure=kind)
+        assert overhead_of([system_ctx(), failed]) == (None, "missing_input")
 
 
 def test_overhead_digest() -> None:
@@ -367,25 +341,30 @@ def test_overhead_digest() -> None:
     assert same["value"] == pytest.approx(100.0)  # type: ignore[index]
 
 
-def test_whole_wall_not_applicable_and_ci_absent() -> None:
-    sys = system_ctx()
-    sys.kept[0].run["metrics"][WHOLE] = gspt(0.02)  # type: ignore[index]
-    stats = join([sys, serve_ctx("m", (0.0001,))])
-    assert stats[f"overhead_vs_production_{WHOLE[22:]}"]["null_reason"] == "not_applicable"  # type: ignore[index]
+def test_steady_overheads_only_and_ci_absent() -> None:
+    """Only the steady overheads (and the warm one for a system without a steady scope) are
+    computed; a workload that names no serve-role system has none."""
+    sys = with_session(system_ctx(), (0.02,))
+    stats = join([sys, with_session(serve_ctx("m", (0.0001,)), (0.0004,))])
+    found = sorted(k for k in stats if k.startswith("overhead"))
+    assert found == [
+        f"overhead_vs_production_high_{GSPT[22:]}",
+        f"overhead_vs_production_{GSPT[22:]}",
+    ]
     none = FakeServing()
     none.named = lambda workload: None  # type: ignore[method-assign]
     assert not [k for k in join([system_ctx()], none) if k.startswith("overhead")]
 
 
 @pytest.mark.parametrize("kind", ["resource", "adapter"])
-def test_nm1_nulls_agreement(kind: str) -> None:
-    """TC-NM-1 for D-AGREE: every recompute attempt failed with resource or adapter."""
+def test_failed_recompute_nulls_agreement(kind: str) -> None:
+    """D-AGREE when every recompute attempt failed: null `step_failed`, inputs the failures."""
     system = system_ctx()
     recompute = ctx([view("ref-recompute", "c-1", {}, failure=kind, prompts_from="s-0")])
     _release_rows("v0.1", [system, recompute], ROLES, None)
     agree = system.statistics["agreement_rate"]
     assert isinstance(agree, dict)
-    assert agree["null_reason"] == "not_measurable_on_profile"
+    assert agree["null_reason"] == "step_failed"
     assert agree["source"]["inputs"] == ["results/v0.1/ref-recompute/c-1/run.json#/failure"]
     assert REGISTRY.errors("quantity/1", agree, def_name="quantity") == []
 
@@ -418,21 +397,6 @@ def with_session(found: _Context, values: tuple[float | None, ...]) -> _Context:
     return found
 
 
-def test_overhead_session_formula() -> None:
-    """D-OVERHEAD-SESSION (RFC-0004 INV-DERIVE-10) by hand: a system session of 0.5 gpu_s/token
-    (544 s for 1,088 tokens on 1 GPU) over a serving session of 0.0025 gpu_s/token (engine start
-    to last token, 2.72 s for 1,088 tokens on 1 GPU) is 200; the high-load session figure keeps
-    D-OVERHEAD-HIGH-S and the steady one D-OVERHEAD-S."""
-    out = overhead([("sys", session_q(544 / 1088))], [("srv", session_q(2.72 / 1088))],
-                   Scope.PROVE_SESSION, version="1")  # fmt: skip
-    assert out["value"] == pytest.approx(200.0, rel=1e-12)
-    assert (out["scope"], out["unit"]) == ("prove.session", "ratio")
-    assert out["source"]["ref"] == "derive:D-OVERHEAD-SESSION@1"  # type: ignore[index]
-    assert REGISTRY.errors("quantity/1", out, def_name="quantity") == []
-    assert overhead_formula(Scope.PROVE_SESSION, high=True) == "D-OVERHEAD-HIGH-S"
-    assert overhead_formula(Scope.PROVE_STEADY) == "D-OVERHEAD-S"
-
-
 def test_overhead_warm_formula() -> None:
     """TC-OVERHEAD-WARM, D-OVERHEAD-WARM (RFC-0004 INV-DERIVE-11) by hand: the prover's session
     of 0.5 gpu_s/token (544 s for 1,088 tokens on 1 GPU, its start-up inside) over warm
@@ -447,25 +411,19 @@ def test_overhead_warm_formula() -> None:
                             "max": pytest.approx(1000.0)}  # fmt: skip
     assert REGISTRY.errors("quantity/1", out, def_name="quantity") == []
     assert overhead_formula(Scope.PROVE_SESSION, warm=True) == "D-OVERHEAD-WARM"
+    assert overhead_formula(Scope.PROVE_SESSION, high=True) == "D-OVERHEAD-HIGH-S"
+    assert overhead_formula(Scope.PROVE_STEADY) == "D-OVERHEAD-S"
     assert "prove.steady, matched load" in FORMULAS["D-OVERHEAD-WARM"]
 
 
-def test_overhead_both_figures_flashprove_like() -> None:
-    """A FlashProve-like row has both figures (fixture values): steady 0.01 / (0.000025 x 4) =
-    100, session 0.02 / (0.0001 x 4) = 50 (start-up in both sessions makes the per-token cost
-    larger on each side). The steady figure is the headline, start-up excluded."""
+def test_overhead_steady_headline_flashprove_like() -> None:
+    """A FlashProve-like row (fixture values): steady 0.01 / (0.000025 x 4) = 100 is the
+    headline, start-up excluded."""
     found = [with_session(system_ctx(), (0.02,)),
              with_session(serve_ctx("m", (0.000025 * 4,)), (0.0001 * 4,))]  # fmt: skip
     stats = join(found)
     steady = stats["overhead_vs_production_prove.steady"]
-    session = stats["overhead_vs_production_prove.session"]
     assert steady["value"] == pytest.approx(100.0, rel=1e-12)  # type: ignore[index]
-    assert session["value"] == pytest.approx(50.0, rel=1e-12)  # type: ignore[index]
-    assert session["source"]["ref"].startswith("derive:D-OVERHEAD-SESSION@")  # type: ignore[index]
-    assert session["source"]["inputs"] == [  # type: ignore[index]
-        f"results/v0.1/flashprove/s-0/run.json#/metrics/{SESSION}",
-        f"results/v0.1/ref-serve/m-0/run.json#/metrics/{SESSION}",
-    ]
     entry = found[0].entry
     assert entry is not None
     assert entry["overhead_headline"] == {"metric": "overhead_vs_production_prove.steady",
@@ -496,16 +454,13 @@ def lengthened(steady: float | None, session: float, **keys: Any) -> _Context:
 def test_overhead_warm_headline_sash_like() -> None:
     """TC-OVERHEAD-WARM, a SASH-like row: D-OVERHEAD-S null `not_externally_observable`, so the
     headline is D-OVERHEAD-WARM, the prover's session over warm serving's steady scope: 0.5 /
-    0.0005 = 1,000 (fixture values). D-OVERHEAD-SESSION stays computed, 0.5 / 0.0025 = 200,
-    and is not the headline. The conditions are written for the warm figure, serving warm."""
+    0.0005 = 1,000 (fixture values). The conditions are written for the warm figure, serving
+    warm."""
     sash = sash_ctx()
     found = [sash, lengthened(0.0005, 0.0025)]
     stats = join(found)
     steady = stats["overhead_vs_production_prove.steady"]
     assert (steady["value"], steady["null_reason"]) == (None, "not_externally_observable")  # type: ignore[index]
-    session = stats["overhead_vs_production_prove.session"]
-    assert session["value"] == pytest.approx(200.0, rel=1e-12)  # type: ignore[index]
-    assert session["source"]["ref"].startswith("derive:D-OVERHEAD-SESSION@")  # type: ignore[index]
     warm = stats[WARM]
     assert isinstance(warm, dict)
     assert warm["value"] == pytest.approx(1000.0, rel=1e-12)
@@ -535,22 +490,18 @@ def test_overhead_warm_headline_sash_like() -> None:
 def test_overhead_warm_nulls() -> None:
     """TC-OVERHEAD-WARM null cases, the SASH-like row: no production-serving run gives
     `missing_input` (headline still the warm figure, no conditions); a serving run of one batch
-    (no steady scope) gives its own reason, `fewer_than_two_proofs`, while D-OVERHEAD-SESSION
-    keeps its value; a serving run with the warning "steady scope under 60 s" and a sizing
-    capture (RFC-0015 SRV-1) enter no mean, `missing_input`; a failed prover session passes
-    its reason on first."""
+    (no steady scope) gives its own reason, `fewer_than_two_proofs`; a serving run with the
+    warning "steady scope under 60 s" and a sizing capture (RFC-0015 SRV-1) enter no mean,
+    `missing_input`; a failed prover session passes its reason on first."""
     sash = sash_ctx()
     stats = join([sash])
-    for key in ("overhead_vs_production_prove.session", WARM):
-        out = stats[key]
-        assert (out["value"], out["null_reason"]) == (None, "missing_input")  # type: ignore[index]
+    out = stats[WARM]
+    assert (out["value"], out["null_reason"]) == (None, "missing_input")  # type: ignore[index]
     assert sash.entry is not None
     assert sash.entry["overhead_headline"]["metric"] == WARM  # type: ignore[index]
     assert "overhead_conditions" not in sash.entry
     one = [sash_ctx(), lengthened(None, 0.0025)]
     assert overhead_of(one, WARM) == (None, "fewer_than_two_proofs")
-    session = "overhead_vs_production_prove.session"
-    assert overhead_of(one, session) == (pytest.approx(200.0), None)
     short = [sash_ctx(), lengthened(0.0005, 0.0025, warnings=("steady scope under 60 s",))]
     assert overhead_of(short, WARM) == (None, "missing_input")
     sizing = [sash_ctx(), lengthened(0.0005, 0.0025, sizing=True)]

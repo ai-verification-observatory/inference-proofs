@@ -1,14 +1,14 @@
 # RFC-NNNN: Title
 
 - Status: Draft
-- Authors: handle (affiliation declared in `MAINTAINERS.md`)
+- Authors: handle
 - Created: YYYY-MM-DD
 - Target milestone: v0.1-alpha | v0.1-beta | v0.1 | later
 - Requires: RFC numbers this one depends on
 - Supersedes: none
 - Discussion: link to the pull request or issue
 
-Every section below is required. Write "None." where a section has no content; never delete a heading. Normative text uses MUST, SHOULD and MAY as defined in RFC 2119.
+Write "None." where a section has no content. Normative text uses MUST, SHOULD and MAY as defined in RFC 2119.
 
 ## Summary
 
@@ -48,7 +48,7 @@ What this design gives up.
 
 ## Conflicts of Interest
 
-Any author who builds, funds or competes with a system this RFC affects says so here (RFC-0001).
+Any author who builds, funds or competes with a system this RFC affects says so here.
 
 ## Migration / Rollout
 

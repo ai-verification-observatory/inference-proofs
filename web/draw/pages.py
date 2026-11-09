@@ -412,16 +412,6 @@ def claims_section(sid, cfgs, g, facts):
     )
 
 
-def reply_section(sid):
-    """§Right of reply: the system maintainers' reply, unedited, escaped at build."""
-    reply = S.V["release"]["replies"].get(sid)
-    if not reply:
-        return ""
-    return (f'<section class="blk reply" id="reply" aria-labelledby="h-reply">'
-            f'<h2 id="h-reply" class="sect">Reply from the system maintainers</h2>'
-            f'<div class="replyb">{reply}</div></section>')  # fmt: skip
-
-
 def build_system(sid):
     name = name_of(sid)
     cfgs = configs_of(sid)
@@ -458,7 +448,6 @@ def build_system(sid):
       <h2 id="h-tamper" class="sect">Tamper tests</h2>
       {"".join(config_tamper(c, g["drawn"]) for c in cfgs)}
     </section>
-    {reply_section(sid)}
   </div>
 </main>
 {footer()}"""

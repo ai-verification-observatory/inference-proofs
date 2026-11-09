@@ -27,11 +27,11 @@ Status: Draft 0.1. This section is the threat model for the benchmark itself: th
 
 ## Trust boundaries
 
-1. **Runner host.** Trusted by the runner who operates it. The harness process runs there with the runner's privileges and holds `HF_TOKEN` in its environment. Nothing else on the host is trusted to be absent: the harness checks that no other compute process is on the bound GPU before each job.
+1. **Runner host.** Trusted by the runner who operates it. The harness process runs there with the runner's privileges and holds `HF_TOKEN` in its environment. Nothing else on the host is trusted to be absent: the harness records whether another compute process is on the bound GPU before each job.
 2. **Adapter container.** Untrusted. It receives only `/io` (job inputs, read-write), `/models` (read-only, prover steps only) and the recorded commitment files (read-only). It has no network, no secrets and no host paths beyond those mounts.
 3. **Upstream code inside the container.** Untrusted for the same reasons; pinned by commit and recorded by digest.
 4. **Results repository.** Changes arrive by pull request; CI gates and reviewers are the boundary. Merged results are append-only.
-5. **Site.** Generated from the repository; it executes no code from submissions (replies are escaped Markdown).
+5. **Site.** Generated from the repository; it executes no code from submissions.
 
 ## Mechanisms
 
@@ -73,7 +73,7 @@ Pins and build rules B1 to B7 in [RFC-0014](../../rfcs/0014-provenance-and-integ
 
 ### Fabricating runner (T4)
 
-v0.1 has no cryptographic defence against a runner who fabricates a whole run directory with consistent numbers. The defences are procedural: every run is `reported` until a different organisation peer-reviews it and an unaffiliated runner reproduces it ([RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md)); a fabricated run fails reproduction. Signed results are [RFC-0014 Q1](../../rfcs/0014-provenance-and-integrity.md#open-questions).
+v0.1 has no cryptographic defence against a runner who fabricates a whole run directory with consistent numbers. Every run is `reported` ([RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md)); peer review and reproduction are out for the research phase. Signed results are [RFC-0014 Q1](../../rfcs/0014-provenance-and-integrity.md#open-questions).
 
 ### Methodology weakening (T5)
 
@@ -92,7 +92,7 @@ The redactor (`iproofs.log.redact`) and the CI secrets scan (gate G9) share one 
 
 ## Privacy and identifier exclusion (A5, T6)
 
-The machine record contains only the fields [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md) lists: GPU model, count, memory, driver, CUDA runtime, CPU model, sockets, cores, logical CPUs, the GPU's NUMA node, the bound cpuset, SMT state, host memory total, disk type and free space, kernel version, OS release, container runtime and its version, NVIDIA Container Toolkit version, and the runner-declared provider name. It never contains hostnames, IP or MAC addresses, GPU UUIDs or serials, account or user names, SSH configuration, cloud instance ids or absolute home paths. The harness builds the record from an allowlist of probes, not by filtering a full dump, so a new probe cannot leak a field by accident. The probes are `iproofs.provenance.Host` (the `machine` block of `manifest/1` sets `additionalProperties: false` at every level, INV-MR-1), every string passes the redactor, and the record is collected again after the last step: a changed driver, kernel or prover cpuset is an `environment` failure (INV-MR-2). Tests: [`test_machine_record.py`](../../harness/tests/unit/test_machine_record.py) (TC-MR-FIELDS, TC-MR-NO-IDENTIFIERS, TC-MR-DRIFT) over the fixture host tree in `harness/tests/fixtures/host/`. The manifest's `runner` block (`handle`, `organisation`, `affiliated_systems`) is what the runner declares for attribution and tier rules (RFC-0007); a runner may give an organisation name only.
+The machine record contains only the fields [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md) lists: GPU model, count, memory, driver, CUDA runtime, CPU model, sockets, cores, logical CPUs, the GPU's NUMA node, the bound cpuset, SMT state, host memory total, disk type and free space, kernel version, OS release, container runtime and its version, NVIDIA Container Toolkit version, and the runner-declared provider name. It never contains hostnames, IP or MAC addresses, GPU UUIDs or serials, account or user names, SSH configuration, cloud instance ids or absolute home paths. The harness builds the record from an allowlist of probes, not by filtering a full dump, so a new probe cannot leak a field by accident. The probes are `iproofs.provenance.Host` (the `machine` block of `manifest/1` sets `additionalProperties: false` at every level, INV-MR-1), every string passes the redactor, and the record is collected again after the last step: a changed driver, kernel or prover cpuset is an `environment` failure (INV-MR-2). Tests: [`test_machine_record.py`](../../harness/tests/unit/test_machine_record.py) (TC-MR-FIELDS, TC-MR-NO-IDENTIFIERS, TC-MR-DRIFT) over the fixture host tree in `harness/tests/fixtures/host/`. The manifest's `runner` block (`handle`, `organisation`, `affiliated_systems`) is what the runner declares for attribution; a runner may give an organisation name only.
 
 ## Disclosure
 
@@ -102,7 +102,7 @@ When a control whose expected outcomes exclude `accept` is accepted on a real sy
 
 1. The runner does not open a public pull request with that run. They report privately to the system's maintainers through the channel in the system's security policy, and to the benchmark maintainers through `SECURITY.md`.
 2. The embargo follows the system's own policy; if it has none, 90 days from the report or until the upstream publishes a fix or advisory, whichever is earlier.
-3. After the embargo the run is published in full, with the outcome printed in the row (RFC-0008 §Reporting) and the system maintainers' reply if they write one.
+3. After the embargo the run is published in full, with the outcome printed in the row (RFC-0008 §Reporting).
 4. The run is not discarded, and the result is not softened.
 
 ### Harness vulnerabilities
@@ -111,7 +111,7 @@ When a control whose expected outcomes exclude `accept` is accepted on a real sy
 
 ## Residual risks
 
-- A fabricating runner is caught only by reproduction, not prevented (T4).
+- A fabricating runner is not caught while reproduction is out (T4).
 - A container escape through the GPU driver or container runtime is outside what the harness can prevent; runners should use dedicated or freshly provisioned hosts and keep the driver and runtime at the versions the reference file pins.
 - Upstream code inside a container can behave differently when it detects measurement (for example skipping work when not observed). External timing and controls limit the effect; they cannot exclude it.
 - The neutral-language lint and the redactor are pattern based and can miss paraphrases and novel secret formats.

@@ -63,8 +63,7 @@ KV_LINE = re.compile(r"KV cache size: ([\d,]+) tokens, Maximum concurrency for (
 # vllm/config/scheduler.py L307 at v0.32.0 (info level; max_num_seqs is logged at debug only)
 BATCHED_LINE = re.compile(r"Chunked prefill is enabled with max_num_batched_tokens=(\d+)\.")
 # The engine's and torch's out-of-memory errors at start: evidence, with the KV-capacity line,
-# that the model and the matched load do not fit on this GPU count (RFC-0015 SRV-6). The same
-# list as iproofs.serving.RESOURCE_EVIDENCE (a test keeps the two equal).
+# that the model and the matched load do not fit on this GPU count (RFC-0015 SRV-6).
 OOM_LINES = (
     re.compile(r"CUDA out of memory"),
     re.compile(r"OutOfMemoryError"),

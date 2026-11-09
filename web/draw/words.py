@@ -41,19 +41,17 @@ SCOPE_WORD = {
     "verify.single_thread": "checking (one CPU thread)",
     "primitive": "one primitive",
 }
-SESSION_LINE = "proving session, start-up included on both sides"
 # RFC-0004 INV-DERIVE-11: the warm overhead names both scopes wherever it appears
 WARM = "overhead_vs_production_warm"
 WARM_LINE = ("proving session (start-up included; it proves one request at a time) vs warm "
              "serving (steady)")  # fmt: skip
 STEADY_LINE = "steady state on both sides, start-up excluded"
 # the scope line of an overhead, by its stored statistic
-SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE,
-               "overhead_vs_production_prove.session": SESSION_LINE, WARM: WARM_LINE}  # fmt: skip
+SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE, WARM: WARM_LINE}
 # the overview's scopes in short, the one line under a figure (the full words ride in its title)
 SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "session", "verify": "{cpus} threads",
                "overhead_vs_production_prove.steady": "steady",
-               "overhead_vs_production_prove.session": "session", WARM: "session vs warm"}  # fmt: skip
+               WARM: "session vs warm"}  # fmt: skip
 # RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns; a
 # value per bit prints per Gbit (x 1e9), in seconds or bytes with their own prefix
 PER_GBIT = "per token, per Gbit of active weights"

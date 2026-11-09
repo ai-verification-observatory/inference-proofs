@@ -8,7 +8,7 @@ The benchmark's public surface is everything a third party can depend on without
 
 | Surface | Who depends on it | Contract | Version identifier |
 |---|---|---|---|
-| Command line `iproofs` | runners, reproducers, CI | commands, arguments, exit codes, files written | harness version (SemVer) |
+| Command line `iproofs` | runners, CI | commands, arguments, exit codes, files written | harness version (SemVer) |
 | File schemas | submitters, readers, downstream tools | `schema/<name>/<major>.schema.json` | `schema: "<name>/<major>"` in every document |
 | Adapter contract | system teams writing adapters | invocation, job.json, out.json, proof release | `contract: "adapter/<major>"` |
 | Repository layout | everyone | paths of authored and generated files | benchmark release |
@@ -21,7 +21,7 @@ Specified in [RFC-0010 §Command line](../../rfcs/0010-harness-runner.md#command
 iproofs validate [PATH ...]
 iproofs derive RUN_DIR [--check]
 iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR] [--control-suite]
-            [--provider NAME] [--prompts-from RUN_DIR] [--allow-nonconforming]
+            [--provider NAME] [--prompts-from RUN_DIR] [--allow-nonconforming]   # a no-op: conformance is recorded, never refuses
                                             # --prompts-from: replay a completed run's prompt
                                             # seeds; its run id is recorded as prompts_from
                                             # (RFC-0015 RC-1); a kind: reference system skips
@@ -29,7 +29,7 @@ iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR
             [--keep-io]                     # keep io/ with proofs, for `iproofs controls RUN_DIR`
             [--in-process]                  # test systems only: run the entrypoint as a local process
             [--image IMAGE_ID]              # a local image by ID, digest_kind config (RFC-0014)
-            [--runner HANDLE] [--runner-org ORG] [--affiliated SYSTEM ...]   # declared runner (RFC-0007)
+            [--runner HANDLE] [--runner-org ORG] [--affiliated SYSTEM ...]   # declared runner
 iproofs controls RUN_DIR [--hosted] [--gpu INDEX] [--provider NAME]   # the whole suite; --hosted: in the run's pinned image
 iproofs controls RUN_DIR --draw-seed                # the split suite's one seed, into RUN_DIR/controls-seed.json, once (RFC-0008 §Split suites)
 iproofs controls RUN_DIR --only ID[,ID...] [--seed SEED] [--hosted] [--gpu INDEX] [--provider NAME]
@@ -39,18 +39,16 @@ iproofs controls --prepare-perturbed WORKLOAD --system S --profile P [--image IM
 iproofs machine-record [--selftest]
 iproofs fetch-model WORKLOAD [--headers-only]      # --headers-only: no weights; recompute a computed weight width from the GGUF headers (RFC-0003 WB-5), JSON on stdout
 iproofs prompts build WORKLOAD --seed SEED [--out FILE]
-iproofs reproduce compare ORIG_RUN REPRO_RUN
 iproofs release freeze RELEASE
 iproofs release plan RELEASE
 iproofs site build [--out DIR]                     # writes web/ (default) from the newest frozen release (RFC-0009 §Site)
-iproofs archive upload [--results DIR] [--repo REPO]   # GPU host, before the results PR (RFC-0009 Q1)
 ```
 
 Contracts:
 
 - **CLI-1 Exit codes.** 0 success; 1 check failed; 2 usage error; 3 environment does not meet the profile; 4 a job ran and was recorded as failed; 5 internal error. These meanings never change within a harness major version.
 - **CLI-2 No measurement flags.** No command-line option changes what is measured or how. Workload, shape, profile, timeouts and forbidden flags come from reviewed files.
-- **CLI-3 Machine-readable output.** Commands that print data (`machine-record`, `prompts build`, `reproduce compare`, `archive upload`, `fetch-model --headers-only`) print JSON on stdout through the single writer; human progress goes to stderr and is suppressed by `--quiet`.
+- **CLI-3 Machine-readable output.** Commands that print data (`machine-record`, `prompts build`, `fetch-model --headers-only`) print JSON on stdout through the single writer; human progress goes to stderr and is suppressed by `--quiet`.
 - **CLI-4 Determinism.** `validate`, `derive`, `release freeze` and `site build` produce byte-identical output for identical inputs on any supported platform.
 - **CLI-5 Offline checks.** `validate`, `derive`, `release freeze` and `site build` need no network and no GPU, and run with the base install (no optional extras).
 
@@ -72,8 +70,6 @@ Specified in [RFC-0012](../../rfcs/0012-schemas-and-serialization.md). Every doc
 | Run result | `results/.../run.json` | generated | `run/1` |
 | Run manifest | `results/.../manifest.json` | generated | `manifest/1` |
 | Control verdicts | `results/.../controls.json` | generated | `controls/1` |
-| Review record | `results/.../reviews/*.json` | generated | `review/1` |
-| Reproduction record | `results/.../reproductions/*.json` | generated | `reproduction/1` |
 | Perturbed commitment | `results/<release>/<system>/_controls/<workload>/perturbed.json` | generated | `perturbed-commitment/1` |
 | Release index | `releases/<release>/index.json` | generated | `release-index/1` |
 | Adapter job | `/io/job.json` | generated | `adapter-job/1` |
@@ -108,10 +104,10 @@ The paths below are public: tools and people rely on them. Moving one is a break
 
 ```
 schema/<name>/<major>.schema.json          schema/<name>/examples/{valid,invalid}/
-systems/<name>/{Dockerfile,entrypoint,system.yaml,claim.yaml,external.yaml,controls.yaml,README.md,tests/,replies/}
+systems/<name>/{Dockerfile,entrypoint,system.yaml,claim.yaml,external.yaml,controls.yaml,README.md,tests/}
 workloads/<id>.yaml                        workloads/prompts/corpus.yaml
 reference/<release>.yaml
-results/<release>/<system>/<run-id>/{run.json,manifest.json,controls.json,verifier/,logs/,digests.txt,reviews/,reproductions/}
+results/<release>/<system>/<run-id>/{run.json,manifest.json,controls.json,verifier/,logs/,digests.txt}
 releases/<release>/{release.yaml,index.json}
 targets/<author>/<id>.yaml
 reports/<release>.md

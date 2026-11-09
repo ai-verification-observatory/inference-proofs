@@ -34,7 +34,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="corpus"></a>**Corpus (prompt corpus).** The fixed set of public-domain texts from which prompt sets are drawn, listed with source and digest in `workloads/prompts/corpus.yaml`. [RFC-0003](../../rfcs/0003-workloads.md).
 
-<a id="criteria-file"></a>**Criteria file.** `web/_data/criteria.json` (schema `criteria/1`): the six [glyph properties](#glyph-property), the four [glyph states](#glyph-state) and one row per system, reference and public-source system, each cell with its state, our short reason and the quotes or sources read behind it. Checked under G2 by the rules `CRIT-1` to `CRIT-14`. [RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#criteria-file-contract).
+<a id="criteria-file"></a>**Criteria file.** `web/_data/criteria.json` (schema `criteria/1`): the six [glyph properties](#glyph-property), the four [glyph states](#glyph-state) and one row per system, reference and public-source system, each cell with its state, our short reason and the quotes or sources read behind it. Checked under G2 by its schema. [RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#criteria-file-contract).
 
 <a id="derived-metric"></a>**Derived metric.** A number computed by the derivation code from stored raw numbers by a formula with a stable identifier (for example `D-RATE-S`). Never typed by hand. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 
@@ -42,11 +42,9 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="division"></a>**Division.** The comparability class of a row: `native` (a system's own workload; side by side, never head to head), `closed` (a common workload and a fixed claim class; rows compare directly), `open` (anything declared; shown separately). v0.1 has native workloads and one closed workload, `l31-8b-c1024` on Llama 3.1 8B, whose rows publish once two systems with its claim class run it (RFC-0003 Q7, default). [RFC-0003](../../rfcs/0003-workloads.md).
 
-<a id="effective-tier"></a>**Effective tier.** The evidence tier of a run as computed at release freeze from its review and reproduction records, written to `releases/<release>/index.json`. The tier stored in `run.json` is always `reported`. [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md).
-
 <a id="error-kind"></a>**Error kind.** The category of a recorded failure: `config`, `environment`, `integrity`, `fetch`, `adapter`, `timeout`, `resource`, `policy`, `internal`. A verdict is a result, never an error. [RFC-0010](../../rfcs/0010-harness-runner.md).
 
-<a id="evidence-tier"></a>**Evidence tier.** Who stands behind a number: `reported` (one runner, not yet checked), `peer-reviewed` (checked by someone from another organisation), `reproduced` (rerun by an unaffiliated runner within tolerance). Only reproduced numbers are called measured in prose. [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md).
+<a id="evidence-tier"></a>**Evidence tier.** Who stands behind a number. During the research phase every tier is `reported` (one runner, not yet checked); `peer-reviewed` and `reproduced` are reserved. [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md).
 
 <a id="fake-system"></a>**Fake system.** `systems/fake/`, a CPU-only toy prover and verifier implementing the adapter contract, with a verifier that rejects every shared control. Its twin `systems/fake-broken/` accepts everything; CI asserts the control suite flags it. Used for end-to-end tests without a GPU. [RFC-0005](../../rfcs/0005-adapter-contract.md), [07](07-testing-strategy.md).
 
@@ -74,7 +72,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="null-reason"></a>**Null reason.** The required explanation when a quantity's value is null: `not_externally_observable`, `fewer_than_two_proofs`, `not_applicable`, `step_failed`, `not_measurable_on_profile`, `missing_input`. [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
-<a id="overhead"></a>**Overhead.** The prover's GPU-seconds per token on its profile over [production serving](#production-serving)'s GPU-seconds per token on its own (vLLM, the publisher's release precision, every weight in GPU memory, the fewest GPUs of the same model that hold it), same workload version, steady scope, matched load (`D-OVERHEAD-S`); at high load as context (`D-OVERHEAD-HIGH-S`). A system with no steady scope (SASH) shows the warm figure instead: its proving session, its start-up included, over production serving's steady scope, the engine already running as a provider's is (`D-OVERHEAD-WARM`, Draft); the session figure with start-up on both sides (`D-OVERHEAD-SESSION`) is computed and not shown. One of the two figures that compare provers across models; the other is [prover time per bit of active weights](#prover-time-per-bit). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md), [RFC-0015](../../rfcs/0015-reference-rows.md).
+<a id="overhead"></a>**Overhead.** The prover's GPU-seconds per token on its profile over [production serving](#production-serving)'s GPU-seconds per token on its own (vLLM, the publisher's release precision, every weight in GPU memory, the fewest GPUs of the same model that hold it), same workload version, steady scope, matched load (`D-OVERHEAD-S`); at high load as context (`D-OVERHEAD-HIGH-S`). A system with no steady scope (SASH) shows the warm figure instead: its proving session, its start-up included, over production serving's steady scope, the engine already running as a provider's is (`D-OVERHEAD-WARM`, Draft). One of the two figures that compare provers across models; the other is [prover time per bit of active weights](#prover-time-per-bit). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md), [RFC-0015](../../rfcs/0015-reference-rows.md).
 
 <a id="production-serving"></a>**Production serving.** The model served unproved as providers serve it: the pinned vLLM release with its defaults, the publisher's release precision, every weight in GPU memory, tensor parallel over the fewest GPUs of the proving system's GPU model that hold it, at two load points (the workload's batch size, `matched`, and a high-load batch, `high`). The baseline of the [overhead](#overhead). [RFC-0015](../../rfcs/0015-reference-rows.md) SRV-6.
 
@@ -100,27 +98,25 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="repetition"></a>**Repetition.** One of at least three jobs run for the same system, workload, shape and profile. Statistics are computed over successful repetitions; failed ones are counted in `n_failed`.
 
-<a id="reproduction"></a>**Reproduction.** A rerun of a run's configuration through the harness by a runner unaffiliated with the system's authors and the original runner, compared with the RFC-0007 tolerance and recorded in a reproduction record. [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md).
-
 <a id="residual"></a>**Residual.** The claim card's list of what a cheating prover can still do while passing verification. [RFC-0002](../../rfcs/0002-claim-card.md).
 
 <a id="row"></a>**Row.** The published aggregate of the repetitions of one configuration (system, workload, shape, profile), with its claim card, labels, controls and reference rows.
 
-<a id="run-directory"></a>**Run directory.** `results/<release>/<system>/<run-id>/`, the append-only record of one job: `run.json`, `manifest.json`, `controls.json`, `verifier/`, `logs/`, `digests.txt`, and later `reviews/` and `reproductions/`. [RFC-0009](../../rfcs/0009-results-and-publication.md).
+<a id="run-directory"></a>**Run directory.** `results/<release>/<system>/<run-id>/`, the append-only record of one job: `run.json`, `manifest.json`, `controls.json`, `verifier/`, `logs/`, and `digests.txt`. [RFC-0009](../../rfcs/0009-results-and-publication.md).
 
-<a id="runner"></a>**Runner.** The person or organisation that executes jobs and signs off the run directory. The runner's affiliation is recorded and determines eligibility for review and reproduction.
+<a id="runner"></a>**Runner.** The person or organisation that executes jobs and signs off the run directory. The runner's declared affiliation may be recorded in the manifest.
 
 <a id="sampled"></a>**Sampled.** Said of a guarantee obtained by checking a random subset of the computation (for example sampled recompute). A sampled guarantee is statistical, not cryptographic, and the claim card says so.
 
 <a id="scope"></a>**Scope (timing scope).** The interval a time or rate covers: `setup`, `commit`, `prove.steady`, `prove.session`, `whole_wall`, `verify`, `verify.single_thread`, `primitive`. Every time-based number names exactly one. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 
-<a id="seed"></a>**Seed.** The 64-bit value from which a job's prompt offsets are drawn. Measured jobs draw a fresh seed from the operating system at job start and record it; reproductions replay recorded seeds and add at least one fresh seed. [RFC-0003](../../rfcs/0003-workloads.md).
+<a id="seed"></a>**Seed.** The 64-bit value from which a job's prompt offsets are drawn. Measured jobs draw a fresh seed from the operating system at job start and record it; `--prompts-from` replays a run's recorded seeds. [RFC-0003](../../rfcs/0003-workloads.md).
 
 <a id="shape"></a>**Shape.** The size parameters of a workload: `prompt_tokens`, `output_tokens`, `batch_size`, `batches_per_session`, `context_window`. [RFC-0003](../../rfcs/0003-workloads.md).
 
 <a id="system"></a>**System.** A prover (or a reference engine) measured by the benchmark, identified by a name matching `^[a-z][a-z0-9-]{1,31}$`, for example `sash`, `flashprove`, `ref-serve`.
 
-<a id="system-maintainer"></a>**System maintainer.** A person a prover team names to own its adapter and claim card and to review every row about its system before publication. [RFC-0001](../../rfcs/0001-process-and-governance.md).
+<a id="system-maintainer"></a>**System maintainer.** A person a prover team names to own its adapter and claim card. [RFC-0001](../../rfcs/0001-process-and-governance.md).
 
 <a id="target"></a>**Target.** A threshold on a named metric for a claim class, published by a relying party under their own name in `targets/<author>/<id>.yaml`. Rows show `meets`, `does_not_meet` or `not_evaluable` per target. [RFC-0009](../../rfcs/0009-results-and-publication.md).
 

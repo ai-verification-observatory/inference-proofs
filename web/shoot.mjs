@@ -17,7 +17,7 @@ const tipSeen = (row) => {
 };
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
-const PAGES = ['', 'flashprove', 'sash', 'reference', 'criteria', 'release', 'sponsors'];  // clean addresses, as on the site
+const PAGES = ['', 'flashprove', 'sash', 'reference', 'criteria', 'release'];  // clean addresses, as on the site
 const tagOf = (name) => name || 'home';
 const b = await chromium.launch();
 const errs = [];
@@ -632,7 +632,7 @@ for (const [name, w] of [['sash', 390], ['flashprove', 390], ['sash', 1440], ['f
 // link and button of the new blocks (quotes' sources, control lines, card fields, runs left out,
 // unexpected outcomes, the release record) is 24 px tall or more, none overlapping another
 for (const w of [390, 320]) {
-  for (const name of ['flashprove', 'sash', 'release', 'sponsors']) {
+  for (const name of ['flashprove', 'sash', 'release']) {
     const { ctx, p } = await pg(w, 844, { touch: true });
     await p.goto(BASE + name, { waitUntil: 'networkidle' });
     for (const [cls, what] of [['howread', 'how we read it'], ['cardfull', 'the card in full']]) {

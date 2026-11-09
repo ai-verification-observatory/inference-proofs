@@ -14,7 +14,6 @@ import pytest
 from fixtures import placeholder_release as ph
 from fixtures.builds import SiteBuild, writable_copy
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.release import not_measurable_on_profile
 from iproofs.schema import SchemaRegistry
 from iproofs.site import build, inputs
 from iproofs.site import view as site_view_module
@@ -129,12 +128,11 @@ def test_runs_left_out_listed(view: dict[str, Any]) -> None:
 
 
 def test_reference_all_failed_counts(view: dict[str, Any]) -> None:
-    """S3, S7: 0 completed, 3 failed, below minimum repetitions, NM-1."""
+    """S3, S7: 0 completed, 3 failed, below minimum repetitions."""
     for system in ("ref-serve", "ref-recompute"):
         c = configuration(view, system)
         assert (len(c["runs"]["completed"]), len(c["runs"]["failed"])) == (0, 3)
         assert c["insufficient_repetitions"] is True
-        assert c["runs"]["not_measurable"] is True
         assert {f["kind"] for f in c["runs"]["failed"]} == {"resource"}
 
 
@@ -264,14 +262,6 @@ def test_verifier_profiles_must_agree() -> None:
     assert e.value.kind is ErrorKind.CONFIG
 
 
-def test_nm1_one_rule() -> None:
-    """RFC-0015 NM-1, the freeze's rule the site calls too, on hand-made attempts."""
-    assert not_measurable_on_profile([(False, "resource"), (False, "adapter")])
-    assert not not_measurable_on_profile([])
-    assert not not_measurable_on_profile([(False, "resource"), (True, None)])
-    assert not not_measurable_on_profile([(False, "resource"), (False, "timeout")])
-
-
 def _edited_tree(src: Path, dst: Path, edit: Any) -> Path:
     writable_copy(src, dst)  # the shared tree stays as built
     path = dst / inputs.CRITERIA
@@ -327,14 +317,7 @@ def test_override_cell_keeps_stated(extras: dict[str, Any]) -> None:
     assert cell["contradicted_by"][0]["control"] == "C1"
 
 
-def test_reply_escaped(extras: dict[str, Any]) -> None:
-    reply = extras["release"]["replies"]["sash"]
-    assert "&lt;b&gt;Markup in a reply&lt;/b&gt;" in reply
-    assert "<b>" not in reply
-
-
 def test_footer_facts(view: dict[str, Any]) -> None:
-    assert view["release"]["candidate"] is True
     assert view["release"]["licence"] == "CC BY 4.0"
     assert view["criteria"]["rfc"] == {"file": "0016-glyph-properties-and-states.md",
                                        "status": "Draft"}  # fmt: skip
@@ -505,39 +488,6 @@ def sash_conditions(warm: bool) -> dict[str, Any]:
         "prompt_count_run": {"system": 1, "serving_matched": 1, "serving_high": None},
         "n": {"system": 1, "serving_matched": 1, "serving_high": 0},
     }  # fmt: skip
-
-
-def test_overhead_session_words() -> None:
-    """RFC-0004 INV-DERIVE-10: the session figure's words say that start-up is inside it on
-    both sides, and its high-load context is the session one too (fixture values, not a
-    result)."""
-    from iproofs.site.view import overhead_words  # noqa: PLC0415
-
-    conditions = sash_conditions(warm=False)
-    pairs = {"n_system": 1, "n_serving": 1, "min": 200.0, "max": 200.0}
-    session = "overhead_vs_production_prove.session"
-    stats = {
-        "overhead_vs_production_prove.steady": {"value": None, "pairs": pairs,
-                                                "scope": "prove.steady"},
-        session: {"value": 200.0, "pairs": pairs, "scope": "prove.session"},
-        "overhead_vs_production_high_prove.steady": {"value": 9.0, "pairs": pairs,
-                                                     "scope": "prove.steady"},
-    }  # fmt: skip
-    wl = {"precision": {"weight_bits": {"bits": 16, "basis": "computed"}}}
-    words = overhead_words(conditions, stats, wl, session)
-    assert words is not None
-    assert words["conditions"].startswith(
-        "prove.session scope (start-up included on both sides: the prover's from the start of "
-        "its prove call, production serving's from the start of its engine, each to its last "
-        "token)"
-    )
-    assert "greedy decoding, cold: engine and prover start-up inside the session" in (
-        words["conditions"])  # fmt: skip
-    assert words["precision"].endswith(
-        "in GPU-seconds per token, per proving session with start-up, at 1 requests a batch."
-    )
-    assert "high" not in words  # the steady high-load figure is not this row's context
-    assert overhead_words(conditions, stats, wl) is None  # the steady figure has no value
 
 
 def test_overhead_warm_words() -> None:

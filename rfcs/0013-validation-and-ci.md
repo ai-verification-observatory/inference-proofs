@@ -10,7 +10,7 @@
 
 ## Summary
 
-This RFC defines every automated check that stands between a pull request and the default branch, and the local command that runs the same checks. There are twelve gates, G1 to G12. Each gate has one rule, a fixed input set, a failure message format and a required-check status. All gates run on CPU in hosted CI; nothing in this RFC needs a GPU. GPU work is verified by the records it produces, which these gates then check.
+This RFC defines every automated check that stands between a pull request and the default branch, and the local command that runs the same checks. There are eleven gates, G1 to G10 and G12. Each gate has one rule, a fixed input set, a failure message format and a required-check status. All gates run on CPU in hosted CI; nothing in this RFC needs a GPU. GPU work is verified by the records it produces, which these gates then check.
 
 ## Motivation
 
@@ -48,10 +48,9 @@ pull request
   -> job tests               G1 (pytest unit + property)
   -> job validate            G2 G3 G4 G5 G6 G7 G8 G9 G12   (iproofs validate --all)
   -> job fake-e2e            G10 (docker on the hosted runner, CPU only)
-  -> job dco                 G11
 ```
 
-All five jobs are required checks on the default branch. A pull request merges only when all are green. Maintainers MUST NOT bypass required checks; a broken gate is fixed by a pull request to the gate.
+A broken gate is fixed by a pull request to the gate. G11 (DCO sign-off) is out for the research phase ([rfcs/README.md](README.md#out-for-the-research-phase)).
 
 The command `iproofs validate [PATH ...]` runs the tree gates. With no path it validates the tree under the current directory; with `--all` it ignores git and checks every file; with `--changed-since <ref>` it limits G2 to G9 to files changed since `ref` plus every file that references them (run directories referencing a changed workload or system manifest). CI on pull requests uses `--changed-since origin/main`; CI on the default branch, nightly, uses `--all`.
 
@@ -73,32 +72,27 @@ Failures are sorted by gate, then path bytes, then pointer. After the list, a su
 - `uv run mypy --strict harness/src/iproofs`.
 - `uv run pytest harness/tests/unit harness/tests/property -q` with Hypothesis profile `ci` (`max_examples=200`, `derandomize=True`, so property tests are deterministic in CI).
 - Adapter fixture tests: `uv run pytest systems/*/tests -q` (CPU only, stored fixtures, RFC-0005).
-- Repository policy tests: `uv run pytest harness/tests/repo -q`. They implement the governance checks of [RFC-0001](0001-process-and-governance.md#testing-strategy) (`MAINTAINERS.md` rows and seat rules, RFC status lines against `rfcs/README.md`, the licence boundary, claim card `card_version` increments, and, where the hosting platform exposes the merger, the interested-maintainer merge guard), the module import layers of [01](../docs/spec/01-architecture.md#module-boundaries), and the quarantine rule for flaky tests ([07](../docs/spec/07-testing-strategy.md#flaky-test-policy)).
+- Repository policy tests: `uv run pytest harness/tests/repo -q`. They check the module import layers of [01](../docs/spec/01-architecture.md#module-boundaries) and the quarantine rule for flaky tests ([07](../docs/spec/07-testing-strategy.md#flaky-test-policy)).
 
 ### G2 Schema validation
 
 Rule: every document in the tree that has a schema validates against the schema its `schema` field names (RFC-0012). Every `schema/*/examples/valid/*` validates; every `schema/*/examples/invalid/*` fails, and the failure text contains the content of its `.reason` file.
 
-Inputs: files matching `systems/*/claim.yaml`, `systems/*/claims/*.yaml`, `systems/*/{system,external,controls}.yaml`, `workloads/**/*.yaml`, `reference/*.yaml`, `targets/**/*.yaml`, `releases/*/release.yaml`, `releases/*/index.json`, `results/**/{run,manifest,controls}.json`, `results/**/reviews/*.json`, `results/**/reproductions/*.json`, `web/_data/facts.json`, `web/_data/criteria.json`, `schema/*/examples/**`.
+Inputs: files matching `systems/*/claim.yaml`, `systems/*/claims/*.yaml`, `systems/*/{system,external,controls}.yaml`, `workloads/**/*.yaml`, `reference/*.yaml`, `targets/**/*.yaml`, `releases/*/release.yaml`, `releases/*/index.json`, `results/**/{run,manifest,controls}.json`, `web/_data/facts.json`, `web/_data/criteria.json`, `schema/*/examples/**`.
 
 Cross-document checks (also G2, rule ids `XREF-n`):
 
 - `XREF-1` every `run.json` names a workload id and version that exist in `workloads/`, a system that exists in `systems/`, and a profile that exists in the release's reference file.
 - `XREF-2` every `manifest.json` image digest equals the digest recorded in `run.json`.
-- `XREF-3` every review and reproduction record names an existing run directory.
-- `TIER-3` ([RFC-0007](0007-evidence-tiers-and-reproduction.md) INV-TIER-3): a review record's `reviewer.organisation` differs from the reviewed run's `runner.organisation`.
 - `XREF-4` every `releases/<r>/release.yaml` lists only existing run directories, and the reference file it names exists.
 - `XREF-5` every target names a metric id that exists in the RFC-0004 formula registry or the raw metric list.
 - `PM-1` and `PM-2` ([RFC-0015 §Precision matching](0015-reference-rows.md#precision-matching)): a reference system that does not use the workload's served precision declares a substitution (`PM-1`); a substitution never goes to a lower bit width, and every quantity of a substituted reference row carries `quality.precision_substituted: true` (`PM-2`).
-- `CRIT-1` to `CRIT-14` ([RFC-0016 §Validation rules](0016-glyph-properties-and-states.md#validation-rules-g2)): on `web/_data/criteria.json`, a coloured cell has one deciding quote and a Not stated cell lists the sources read; quotes sit at full pinned commits, card-row quotes at the card's pin, web quotes carry a retrieval date and an archive or copy; card rows keep to the states their card allows, reference rows to the RFC-0016 table and RFC-0015's current text; the file holds no number and no aggregate key; and the negative control override is recomputed from the stored `controls.json` files of the release the file names.
-- `CARD-1` to `CARD-3` (pull requests only, with `--changed-since`; [RFC-0002 §Rules](0002-claim-card.md#rules) rule 5 and [§Configuration identity](0002-claim-card.md#configuration-identity) item 1): an edited card increments `card_version` by exactly 1 unless only current-version reviews were added (`CARD-1`); `reviewed_by` holds only reviews of the current `card_version` (`CARD-2`); `upstream.commit` never changes in place (`CARD-3`).
-- `GOV-1` to `GOV-3` (governance, [RFC-0001 §Roles](0001-process-and-governance.md#roles)): every `MAINTAINERS.md` row has a handle, role, organisation and declared interests (`GOV-1`; the placeholder `undeclared` is a warning); INV-GOV-1 (`GOV-2`, a warning until release approval); INV-GOV-2 (`GOV-3`); every `rfcs/NNNN-*.md` status line equals its row in `rfcs/README.md`, from the [RFC-0001 §RFC lifecycle](0001-process-and-governance.md#rfc-lifecycle) vocabulary (`GOV-4`); on pull requests, INV-GOV-4 (`GOV-5`, the `merge-guard` workflow): a change to a system's files is not approved only by maintainers who declared an interest in that system. Warnings go to stderr and never fail the gate.
+- `web/_data/criteria.json` is checked by its schema (`criteria/1`) only; the RFC-0016 `CRIT-*` rules are out for the research phase.
 
 Repository-shape checks (also G2):
 
-- `APP-1` on pull requests, no path under `results/` that exists on the base branch is modified or deleted; additions under `<run-id>/reviews/` and `<run-id>/reproductions/` are the only changes allowed inside an existing run directory ([RFC-0009 §Append-only rule and corrections](0009-results-and-publication.md#append-only-rule-and-corrections)).
+- `APP-1` on pull requests, no path under `results/` that exists on the base branch is modified or deleted, and no file is added inside an existing run directory ([RFC-0009 §Append-only rule and corrections](0009-results-and-publication.md#append-only-rule-and-corrections)).
 - `SIZE-1` no committed file outside `results/*/*/*/logs/` exceeds 5 MiB, and no run directory exceeds 10 MiB. This keeps weights and proofs out of git (AGENTS.md rule 8).
-- `RPL-1` every reply file `systems/*/replies/*.md` has at most 300 words, counted per [RFC-0009 §Right of reply](0009-results-and-publication.md#right-of-reply).
 
 ### G3 JSON format check
 
@@ -116,7 +110,6 @@ Rule: every quantity satisfies INV-QTY-1 to INV-QTY-8 of [RFC-0012 §Invariants]
 - `LBL-2` (INV-QTY-6) the derivation formula id exists at the named harness version, and every `source.inputs` pointer resolves to a quantity.
 - `LBL-5` (INV-QTY-6a, INV-QTY-9) a derived quantity's tier is the lowest tier among its inputs and its `quality` flags are the OR of its inputs' flags.
 - `LBL-3` (INV-QTY-4) no `run.json` or `controls.json` quantity has a tier other than `reported`.
-- `LBL-4` every number-typed leaf in `run.json`, `controls.json` and `index.json` that is not inside a quantity sits at a path on the structural-integer allowlist in `harness/src/iproofs/validate/structural_paths.txt` (for example `/shape/batch_size`, `/*/stats/n`). A bare float anywhere else fails.
 
 ### G6 Policy check
 
@@ -125,7 +118,6 @@ Rule: no measured run uses a weakening configuration.
 - Input: each `systems/<name>/system.yaml` field `forbidden_flags: [string]` (for SASH this lists the `--unsound-skip-*` family as a glob, `--unsound-skip-*`; the exact entries come from the upstream documentation at the pinned commit and are confirmed in the adapter issue).
 - `POL-1`: for every `manifest.json` with `control: false`, no recorded command line (`manifest.commands[].argv`) contains a token matching any forbidden glob (`fnmatch`, case sensitive).
 - `POL-2`: every run with `control: true` has no measured quantities other than verdict counts, and is excluded from every release table except the controls table (checked against `release.yaml`).
-- `POL-4`: no run directory whose manifest records `harness.nonconforming: true` is accepted anywhere under `results/`. `iproofs run --allow-nonconforming` exists for adapter development on hosts that do not meet a profile ([RFC-0010](0010-harness-runner.md)); its output is refused by the validator, so it can never enter the repository or a release.
 - `POL-3`: every adapter's entrypoint source does not contain a forbidden flag literal outside a code path guarded by the job's `control` field. This is a text check over `systems/<name>/entrypoint*` that flags any line containing a forbidden glob match; the adapter README MUST list each such line and the guard, and the check accepts lines listed in `systems/<name>/policy-allow.txt` (file, line content). Reviewers check the guard.
 
 ### G7 Pin check
@@ -146,7 +138,7 @@ state of the art, state-of-the-art, world-class, revolutionary, blazing,
 provably safe, provably secure, guaranteed secure, unbreakable, military-grade
 ```
 
-Mentions are not uses: an occurrence inside double quotes (`"..."`, typographic quotes) or a backtick span on the same line is skipped, so a document can say that the project never names a "fastest" system. Allowlist: files that state the rule itself (`AGENTS.md`, `docs/spec/10-glossary.md`, `rfcs/0013-validation-and-ci.md`) are skipped. A single line elsewhere can be allowed by an HTML comment on the line above, `<!-- lang-allow: <word> <reason> -->`, which reviewers must approve; each use is printed as a notice in CI output. Right-of-reply files (`systems/*/replies/*.md`) are printed unedited (RFC-0009) and are excluded; the site shows them as the system maintainers' words.
+Mentions are not uses: an occurrence inside double quotes (`"..."`, typographic quotes) or a backtick span on the same line is skipped, so a document can say that the project never names a "fastest" system. Allowlist: files that state the rule itself (`AGENTS.md`, `docs/spec/10-glossary.md`, `rfcs/0013-validation-and-ci.md`) are skipped. A single line elsewhere can be allowed by an HTML comment on the line above, `<!-- lang-allow: <word> <reason> -->`, which reviewers must approve; each use is printed as a notice in CI output.
 
 Rule `LANG-2`: no emoji code points (Unicode `Extended_Pictographic`) in the same file set.
 
@@ -196,17 +188,13 @@ and asserts:
 
 Images for the fake systems are built in the job from `systems/fake*/Dockerfile` with base images pinned by digest. Build cache uses the runner's Docker layer cache keyed by the Dockerfile digest.
 
-### G11 DCO sign-off
-
-Rule `DCO-1`: every commit in the pull request has a `Signed-off-by:` trailer whose name and email match the commit author. Implemented as a small script over `git log --format` in CI (no external service), so it runs identically locally: `uv run python -m iproofs.validate.dco origin/main..HEAD`.
-
 ### G12 Link and anchor check
 
 Rule `LNK-1`: every relative Markdown link in `README.md`, `AGENTS.md`, `docs/**`, `rfcs/**`, `reports/**` and `systems/*/README.md` resolves to an existing file, and every `#anchor` resolves to a heading in the target using GitHub's slug rules (lowercase, spaces to `-`, punctuation other than `-` and `_` removed). `LNK-2`: RFC references in text of the form `RFC-NNNN` name an RFC file that exists in `rfcs/`. External links are not fetched in CI (non-deterministic); a weekly scheduled job checks them and opens an issue on failure without blocking merges.
 
 ### CI workflow structure
 
-- One workflow file `.github/workflows/ci.yml` with the five jobs above, triggered on `pull_request` and `push` to `main`; plus `.github/workflows/nightly.yml` running `iproofs validate --all` and the external link check on a schedule.
+- One workflow file `.github/workflows/ci.yml` with the jobs above, triggered on `pull_request` and `push` to `main`; plus `.github/workflows/nightly.yml` running `iproofs validate --all` and the external link check on a schedule.
 - Runner: hosted Ubuntu 24.04. Python from `uv python install` reading `.python-version` (3.12). Dependencies from `uv sync --frozen` so the lockfile is authoritative and a stale lock fails.
 - Caches: uv cache keyed by `uv.lock` digest; Docker layer cache for G10 keyed by the fake Dockerfiles.
 - Actions referenced by full commit hash, not tag (PIN rules apply to CI itself).
@@ -235,13 +223,12 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 | A gate has a false positive that blocks a correct change | Fix the gate in its own pull request with a regression test; no bypass |
 | A gate silently passes everything (for example a glob matching nothing) | Each gate has a self-test with a known-bad fixture under `harness/tests/fixtures/gates/<gate>/`; the gate's test suite fails if the fixture passes |
 | Validation is slow on a large `results/` tree | `--changed-since` limits pull request scope; nightly `--all` keeps the full check |
-| A required check is renamed and branch protection silently stops requiring it | Branch protection is documented in `docs/runbooks/repository-settings.md` and reviewed at each release checklist (docs/spec/09-release-and-versioning.md) |
 
 ## Alternatives Considered
 
 **Pre-commit hooks as the enforcement point.** Considered because they catch problems before push. Rejected as the enforcement point because they are optional and skippable; the same commands are offered as an optional pre-commit configuration, but CI is authoritative.
 
-**Third-party DCO and secret-scanning services.** Considered because they exist and need no code. Rejected because they cannot be run locally with identical results, add an external dependency to a neutrality-sensitive project, and the secret patterns must match the log redactor exactly.
+**Third-party secret-scanning services.** Considered because they exist and need no code. Rejected because they cannot be run locally with identical results, add an external dependency to a neutrality-sensitive project, and the secret patterns must match the log redactor exactly.
 
 **Schema checks only, no graph checks.** Considered for simplicity. Rejected because the two most important rules (derived numbers recomputed, ratios carrying their scope) need the derivation graph, which JSON Schema cannot express.
 
@@ -253,30 +240,29 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 
 - The word list will produce occasional false positives and will miss paraphrases; reviewers remain responsible for tone.
 - POL-3 is a text check and can be evaded by constructing a flag string at run time. G6 POL-1 on recorded command lines is the real control; POL-3 is an early warning.
-- Twelve gates are a lot for a contributor to learn; the failure message format and `make ci` mitigate this.
+- Eleven gates are a lot for a contributor to learn; the failure message format and `make ci` mitigate this.
 - IPv4 matching flags version-like strings outside `version` fields; authors may need to rephrase.
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 
-1. v0.1-alpha: land G1, G2, G3, G11 and G12 first, as they need only schemas and the writer. Mark them required.
-2. Land G4 and G5 with the derivation module; G10 with the fake systems; G7 and G9 with their pattern modules. Each becomes required in the pull request that adds it.
+1. v0.1-alpha: land G1, G2, G3 and G12 first, as they need only schemas and the writer.
+2. Land G4 and G5 with the derivation module; G10 with the fake systems; G7 and G9 with their pattern modules. Each runs in CI from the pull request that adds it.
 3. G6 becomes meaningful when SASH's `system.yaml` lists forbidden flags (v0.1-beta); it is required from the start and passes vacuously before then.
-4. Branch protection is set by a maintainer and recorded in `docs/runbooks/repository-settings.md`.
+4. Repository settings are recorded in `docs/runbooks/repository-settings.md`.
 
 ## Testing Strategy
 
 - `harness/tests/unit/validate/test_g3_format.py::test_detects_reordered_keys`, `::test_detects_crlf`, `::test_accepts_canonical`.
 - `test_g4_derive.py::test_hand_edited_mean_fails` (edit a stored mean by one ulp with `math.nextafter`, expect `DER-1`), `::test_unknown_formula_fails` (`DER-2`).
-- `test_g5_labels.py::test_bare_float_outside_allowlist_fails` (`LBL-4`), `::test_ratio_without_scope_fails` (`LBL-1`), `::test_run_tier_not_reported_fails` (`LBL-3`).
-- `test_g6_policy.py::test_nonconforming_run_refused` (`POL-4`), `::test_measured_run_with_unsound_flag_fails` (manifest argv contains `--unsound-skip-x`, `control: false`, expect `POL-1`), `::test_control_run_with_flag_passes`.
+- `test_g5_labels.py::test_ratio_without_scope_fails` (`LBL-1`), `::test_run_tier_not_reported_fails` (`LBL-3`).
+- `test_g6_policy.py::test_measured_run_with_unsound_flag_fails` (manifest argv contains `--unsound-skip-x`, `control: false`, expect `POL-1`), `::test_control_run_with_flag_passes`.
 - `test_g7_pins.py::test_short_hash_fails` (`eb95bfa`), `::test_tag_only_image_fails` (`python:3.12-slim`), `::test_tag_and_digest_passes`.
-- `test_g8_language.py::test_fastest_fails`, `::test_best_effort_passes`, `::test_allow_comment_passes_and_notices`, `::test_reply_files_excluded`, `::test_emoji_fails`.
+- `test_g8_language.py::test_fastest_fails`, `::test_best_effort_passes`, `::test_allow_comment_passes_and_notices`, `::test_emoji_fails`.
 - `test_g9_secrets.py` one case per pattern `SEC-1` to `SEC-11` using fixtures under `harness/tests/fixtures/secrets/`, plus `::test_machine_record_example_passes` against the RFC-0006 example record, and `::test_redactor_and_scanner_share_patterns` asserting the redactor's pattern list is the scanner's.
-- `test_g11_dco.py::test_missing_signoff_fails`, `::test_mismatched_email_fails`.
 - `test_g12_links.py::test_missing_anchor_fails`, `::test_github_slug_rules` (headings with punctuation, duplicates get `-1`).
 - `test_g10_e2e.py` is the G10 job itself; its assertions are listed in §G10.
 - Each gate has a fixture under `harness/tests/fixtures/gates/<gate>/bad/` that the gate must flag, as a guard against a gate that passes everything.

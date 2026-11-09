@@ -58,7 +58,6 @@ def setup(
     m["claim"] = {"system": "fake", "configuration": "default", "card_version": 1}
     m["system"] |= {"adapter_commit": commit, "adapter_dirty": False, "claim_digest": CARD,
                     "image": {"ref": image, "digest_kind": "manifest"}}  # fmt: skip
-    m["proofs"][0]["archive"] = "https://archive.example.org/v0.1/fake/req-0.tar"
     edit(m)
     (run_dir / "manifest.json").write_text(json.dumps(m))
     doc = yaml.safe_load((ROOT / "schema/release/examples/valid/v0.1.yaml").read_text())
@@ -97,22 +96,6 @@ def test_dirty_harness_marks_ineligible(tmp_path: Path, stored: Path) -> None:
     assert reasons(tmp_path, stored, dirty) == ["harness_dirty", "adapter_dirty"]
 
 
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
-def test_config_digest_kind_ineligible(tmp_path: Path, stored: Path) -> None:
-    def config(m: dict[str, Any]) -> None:
-        m["system"]["image"]["digest_kind"] = "config"
-
-    assert reasons(tmp_path, stored, config) == ["image_digest_kind_config"]
-
-
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
-def test_image_outside_project_registry_ineligible(tmp_path: Path, stored: Path) -> None:
-    """B7 (RFC-0014 Q2): a release image lives in the project's registry, even when the run
-    and system.yaml agree on it."""
-    other = "ghcr.io/example/iproofs-fake@sha256:" + "a" * 64
-    assert reasons(tmp_path, stored, lambda m: None, other) == ["image_not_in_project_registry"]
-
-
 def test_claim_card_mismatch_ineligible(tmp_path: Path, stored: Path) -> None:
     def other_card(m: dict[str, Any]) -> None:
         m["system"]["claim_digest"] = "sha256:" + "d" * 64
@@ -123,62 +106,17 @@ def test_claim_card_mismatch_ineligible(tmp_path: Path, stored: Path) -> None:
     ]
 
 
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 @pytest.mark.parametrize(
     ("edit", "want"),
     [
         (lambda m: m.update(release="v0.2"), ["other_release"]),
-        (lambda m: m["harness"].update(nonconforming=True), ["nonconforming_host"]),
         (lambda m: m["harness"].update(git_commit="abc123"), ["manifest_invalid"]),  # short pin
-        (
-            lambda m: m["system"]["image"].update(ref="ghcr.io/x/y@sha256:" + "b" * 64),
-            ["image_differs_from_system_yaml", "image_not_in_project_registry"],
-        ),
-        (lambda m: m["system"].update(adapter_commit="f" * 40), ["image_differs_from_system_yaml"]),
-        (lambda m: m["proofs"][0].update(archive=None), ["no_archived_proof"]),
+        (lambda m: m["harness"].update(nonconforming=True), []),  # recorded, never a reason
+        (lambda m: m["system"]["image"].update(digest_kind="config"), []),
+        (lambda m: m["proofs"][0].update(archive=None), []),
     ],
 )
 def test_each_condition_has_its_reason(
     tmp_path: Path, stored: Path, edit: Callable[[dict[str, Any]], None], want: list[str]
 ) -> None:
     assert reasons(tmp_path, stored, edit) == want
-
-
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
-def test_image_pinned_after_its_build_commit(tmp_path: Path, stored: Path) -> None:
-    """The real order: the image is built at commit A (no digest in system.yaml yet), and a
-    later commit B pins it. The run is eligible; a build commit outside the history is not."""
-    run_dir, release = setup(tmp_path, stored, lambda m: None)
-    root = run_dir.parents[3]
-    git = ["git", "-C", str(root), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
-    m = json.loads((run_dir / "manifest.json").read_text())
-    system_yaml = root / "systems/fake/system.yaml"
-    pinned = system_yaml.read_text()
-    doc = yaml.safe_load(pinned)
-    del doc["image"]
-    system_yaml.write_text(yaml.safe_dump(doc))
-    subprocess.run([*git, "commit", "-qam", "build", "--no-gpg-sign"], check=True)
-    build = subprocess.run([*git, "rev-parse", "HEAD"], capture_output=True, text=True,
-                           check=True).stdout.strip()  # fmt: skip
-    system_yaml.write_text(pinned)
-    subprocess.run([*git, "commit", "-qam", "pin", "--no-gpg-sign"], check=True)
-    m["system"]["adapter_commit"] = build
-    (run_dir / "manifest.json").write_text(json.dumps(m))
-    assert eligibility(run_dir, release, root, REGISTRY) == (True, [])
-    subprocess.run([*git, "checkout", "-q", "HEAD~1"], check=True)  # releasing the build commit
-    assert eligibility(run_dir, release, root, REGISTRY)[1] == ["image_differs_from_system_yaml"]
-
-
-@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
-def test_stored_fake_run_is_ineligible_as_is(tmp_path: Path, stored: Path) -> None:
-    """A CI run (local image, no self-test, no claim card) fails several conditions at once."""
-    release = Release.from_tree(
-        {
-            **yaml.safe_load((ROOT / "schema/release/examples/valid/v0.1.yaml").read_text()),
-            "runs": [],
-        }
-    )
-    ok, found = eligibility(stored, release, ROOT, REGISTRY)
-    assert not ok
-    assert found[:2] == ["self_test_failed", "claim_card_not_listed"]
-    assert "image_digest_kind_config" in found

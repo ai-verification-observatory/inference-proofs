@@ -62,7 +62,7 @@ class Criteria:
 
 
 def load_criteria(root: Path) -> Criteria:
-    """Read `web/_data/criteria.json` (`criteria/1`; G2 validates it, CRIT-1 to CRIT-14). An
+    """Read `web/_data/criteria.json` (`criteria/1`; G2 validates it against the schema). An
     unknown schema, row or cell key, state, family or source class raises. Each cell keeps the
     state the file sets; a card row with a `pending` disclosure gets `drawn: False` (OVR-8: the
     glyph draws no state, and the system page prints the stated states beside the RFC-0008
@@ -172,11 +172,12 @@ def check_facts(facts: SiteFacts, criteria: Criteria, rows: list[str], digests: 
 
 
 def newest_release(root: Path) -> str:
-    """The newest frozen release (freeze_date, then id); a tree with none is a config error."""
+    """The newest frozen release (the highest vX.Y with an index.json); a tree with none is a
+    config error."""
     found = []
     for path in sorted(root.glob("releases/*/index.json")):
-        doc = load_yaml(path.with_name("release.yaml"))
-        found.append((str(doc["freeze_date"]), path.parent.name))
+        name = path.parent.name
+        found.append((tuple(int(x) for x in name.removeprefix("v").split(".")), name))
     if not found:
         raise IProofsError(
             ErrorKind.CONFIG,
@@ -217,22 +218,6 @@ def run_records(root: Path, run_dirs: list[str]) -> dict[str, dict[str, Any]]:
             "controls": read_json(controls) if controls.is_file() else None,
         }
     return out
-
-
-def maintainer_rows(path: Path) -> list[dict[str, str]]:
-    """The MAINTAINERS.md tables (RFC-0001 §Roles) as rows; the site may not import the
-    validator (docs/spec/01 layers), so it reads the six columns itself."""
-    columns = ("handle", "role", "organisation", "systems", "interests", "since")
-    rows, inside = [], False
-    for line in path.read_text("utf-8").splitlines() if path.is_file() else []:
-        cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if line.lstrip().startswith("|") and cells[0] == "Handle":
-            inside = True
-        elif inside and line.lstrip().startswith("|") and not set(cells[0]) <= {"-"}:
-            rows.append(dict(zip(columns, cells + [""] * 6, strict=False)))
-        elif not line.lstrip().startswith("|"):
-            inside = False
-    return rows
 
 
 def maybe(mapping: Mapping[str, Any], *keys: str) -> Any:

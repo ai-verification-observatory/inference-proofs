@@ -8,6 +8,8 @@
 The same models, the same reference hardware, the same timing rules,<br>
 and a claim card beside every number saying what the proof establishes.</p>
 
+**Status:** research phase.
+
 <a href="https://github.com/ai-verification-observatory/inference-proofs/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ai-verification-observatory/inference-proofs/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white"></a>
 <a href="releases/v0.1/release.yaml"><img alt="Benchmark release v0.1" src="https://img.shields.io/badge/release-v0.1-8A2BE2?style=for-the-badge"></a>
 <a href="https://www.inferenceproofs.ai"><img alt="Site" src="https://img.shields.io/badge/site-inferenceproofs.ai-0B0B0B?style=for-the-badge"></a>
@@ -330,21 +332,19 @@ inference-proofs/
 | copy what systems state, and write `not stated` | infer a security property |
 | place results side by side | rank, score, certify or crown |
 
-Governance: maintainers from several organisations, methodology by RFC ([RFC-0001](rfcs/0001-process-and-governance.md)), conflicts and sponsors disclosed, and a **right of reply** for every system team, published beside its rows. See [MAINTAINERS.md](MAINTAINERS.md).
 
 ## Contributing
 
-- **Prover teams.** Want your system included, or a claim card corrected? Open an issue with your repository and the workloads you support, then follow the [adapter guide](systems/README.md). Your team reviews your claim card; your reply is published.
-- **Cryptographers.** Read the claim cards and the [controls](rfcs/0008-negative-controls.md). A missing edge, a wrong assumption or a control a verifier should face is the most valuable issue you can file.
-- **ML and systems engineers.** Reproduce a run on your own hardware ([RFC-0007](rfcs/0007-evidence-tiers-and-reproduction.md)). An unaffiliated reproduction within tolerance is what moves a number to `reproduced`.
-- **Everyone.** Methodology changes go through an [RFC](rfcs/0000-template.md). Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md), sign off your commits (`git commit -s`, DCO), and report vulnerabilities per [SECURITY.md](SECURITY.md).
+Open an issue or a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)). Prover teams who want their system included: open an issue with your repository and the workloads you support, then follow the adapter guide, [systems/README.md](systems/README.md).
 
 ## Licence
 
 Code is licensed under [Apache-2.0](LICENSE). Specifications, data, results and reports are licensed under [CC BY 4.0](LICENSES/CC-BY-4.0.txt). The boundary is fixed by [RFC-0001](rfcs/0001-process-and-governance.md#governance-files) (INV-GOV-6):
 
-- **Code (Apache-2.0):** `harness/`, `systems/*/` (except `claim.yaml`, `claims/`, `external.yaml` and `replies/`), `site/` templates, `schema/` and CI configuration.
-- **Documents and data (CC BY 4.0):** `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, and claim cards, external figures and replies.
+The boundary:
+
+- Code (Apache-2.0): `harness/`, `systems/*/` (except `claim.yaml`, `claims/` and `external.yaml`), `site/` templates, `schema/` and CI configuration.
+- Documents and data (CC BY 4.0): `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, and claim cards and external figures.
 - A file that fits neither list is code.
 
 <div align="center">
