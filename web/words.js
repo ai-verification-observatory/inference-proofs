@@ -9,12 +9,12 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
-  // ------------------------------------------------------------ row pies and the not-benchmarked glyphs: the slice
-  // under the pointer lifts, and its property's name and state show beside it (positioned: nothing moves), on a
-  // not-benchmarked card in place of the lines under its name. The others keep their ink. The pointer is read on
-  // the still .hit copy of the wedges, so a lifted slice never slips out from under it.
-  $$('.row .pie, .nb .nbpie').forEach((pie) => {
-    const card = pie.closest('.nb');
+  // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
+  // glyph: the slice under the pointer lifts, and its property's name and state show beside it (positioned: nothing
+  // moves), on a not-benchmarked card or the reference page in place of the line beside the glyph. The others keep
+  // their ink. The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
+  $$('.row .pie, .nb .nbpie, .refone .refpie').forEach((pie) => {
+    const card = pie.closest('.nb, .refone');
     const tip = $('.tip', pie) || $('.tip', card);
     let hot = 0;
     const set = (n) => {
@@ -27,7 +27,7 @@
       if (tip && sl && sl.dataset.word) {
         const b = document.createElement('b');
         b.textContent = sl.dataset.name;
-        // a not-benchmarked card: one line in the model line's place ("Whole output checked: not stated")
+        // a not-benchmarked card or a reference: one line in its line's place ("Whole output checked: not stated")
         if (card) { tip.replaceChildren(b, document.createTextNode(`: ${sl.dataset.word.toLowerCase()}`)); return; }
         const sw = document.createElement('i');
         // the slice's state class (yes, partly, no, unstated) is the one besides sl, sN

@@ -748,9 +748,13 @@ def reference_claims(gid, g, name):
     if len(set(g["states"])) == 1:
         why = common_reason(g)
         line = f'<p class="refline">{e(words(why))}.</p>' if why else ""
-        pie = sized(lambda s: hex_svg(s, states=g["states"]), (120, 72))
+        # its petals name themselves under a pointer or a tap, in the line's place, as a card's do
+        pie = sized(
+            lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == 120 else None, hit=True),
+            (120, 72),
+        )
         return (f'<div class="refone"><a class="refpie" href="{CRIT_PAGE}" aria-label="{e(aria(g, name))}">'
-                f"{pie}</a>{line}</div>")  # fmt: skip
+                f'{pie}</a><div class="reft">{line}<p class="tip" aria-hidden="true"></p></div></div>')  # fmt: skip
     return f'<div class="over">{rose(g, f"h-{gid}-props", name, level=3, pre=f"{gid}-")}</div>'
 
 

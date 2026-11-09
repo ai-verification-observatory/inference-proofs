@@ -227,9 +227,10 @@ html:has(.top.s-on) { overflow: hidden; }
 .s6 { --dx: -0.5; --dy: -0.866; }
 /* a still copy of the wedges takes the pointer, so a lifted slice never slips out from under it */
 .hit path { fill: transparent; pointer-events: all; }
-.pie .sl, .rpie .sl, .nbpie .sl { pointer-events: none; }
+.pie .sl, .rpie .sl, .nbpie .sl, .refpie .sl { pointer-events: none; }
 /* the slice under the pointer steps out with a paper edge; the others keep their ink */
 .pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
+.refpie[data-hot="1"] .s1, .refpie[data-hot="2"] .s2, .refpie[data-hot="3"] .s3, .refpie[data-hot="4"] .s4, .refpie[data-hot="5"] .s5, .refpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
 .nbpie[data-hot="1"] .s1, .nbpie[data-hot="2"] .s2, .nbpie[data-hot="3"] .s3, .nbpie[data-hot="4"] .s4, .nbpie[data-hot="5"] .s5, .nbpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke: var(--paper); stroke-width: 1.5; }
 /* its name and state beside the glyph, in place of the system's name, hidden while it is named, so
    they overlap no text: positioned, so nothing moves; one line at every width */
@@ -466,6 +467,14 @@ html:has(.top.s-on) { overflow: hidden; }
 .refpie, .refpie .pie-svg { display: block; flex: none; width: 120px; height: 120px; }
 .refpie > .w72 { display: none; }
 .refline { font: 750 22px/1.25 var(--disp); font-stretch: 84%; max-width: 40ch; text-wrap: pretty; }
+/* a named petal of the reference's glyph: its name and state in the line's place, in its type, over nothing */
+.refpie { -webkit-tap-highlight-color: transparent; }
+.reft { display: grid; }
+.reft > .refline, .reft > .tip { grid-area: 1 / 1; }
+.reft > .tip { position: static; transform: none; width: auto; max-width: 40ch; font: 750 22px/1.25 var(--disp); font-stretch: 84%; color: var(--paper); }
+.reft > .tip b { display: inline; font-weight: inherit; color: var(--violet); text-transform: none; letter-spacing: 0; }
+.refone:has(.refpie[data-hot]) .reft > .tip { display: block; }
+.refone:has(.refpie[data-hot]) .refline { visibility: hidden; }
 .refline a { text-decoration-color: var(--rule); }
 .stab { margin-top: 40px; }
 .stab caption { text-align: left; margin: 0 0 14px; }
@@ -763,7 +772,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .refpie, .refpie .pie-svg { width: 72px; height: 72px; }
   .refpie > .w120 { display: none; }
   .refpie > .w72 { display: block; }
-  .refline { font-size: 18px; }
+  .refline, .reft > .tip { font-size: 18px; }
   .mtab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; border-top: 1px solid var(--line); padding: 8px 0; }
   .mtab th { border: 0; padding: 0; text-wrap: balance; }
   .mtab td { border: 0; padding: 0; }

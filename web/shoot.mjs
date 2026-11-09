@@ -426,6 +426,12 @@ const ROSE_MAIN = { flashprove: 309, sash: 309 };
   await p.goto(BASE + 'reference', { waitUntil: 'networkidle' });
   const r = await p.evaluate(() => ({ glyphs: [...document.querySelectorAll('.refpie svg')].filter((s) => s.getBoundingClientRect().width).length, roses: document.querySelectorAll('.rose').length, rows: document.querySelectorAll('.stab tbody tr').length, plates: document.querySelectorAll('.plate').length }));
   ok(r.glyphs === 1 && r.roses === 0 && r.rows >= 1 && r.plates === 0, 'reference: one small glyph, the measured table, no empty plates', r);
+  // its glyph, a link to the criteria, names a petal under the pointer in its line's place, as every glyph does: the
+  // petal lifts, nothing moves
+  const at = await p.evaluate(() => { const h = [...document.querySelectorAll('.refpie .hit path[data-n="2"]')].find((x) => x.getBoundingClientRect().width).getBoundingClientRect(); return [h.x + h.width * 0.7, h.y + h.height / 2, Math.round(document.querySelector('.refone').getBoundingClientRect().height)]; });
+  await p.mouse.move(at[0], at[1]); await p.waitForTimeout(400);
+  const hv = await p.evaluate(() => ({ tip: document.querySelector('.reft .tip').textContent, line: getComputedStyle(document.querySelector('.refline')).visibility, lift: getComputedStyle([...document.querySelectorAll('.refpie .s2')].find((x) => x.getBoundingClientRect().width)).transform, h: Math.round(document.querySelector('.refone').getBoundingClientRect().height) }));
+  ok(/^Model bound: [a-z ]+$/.test(hv.tip) && hv.line === 'hidden' && hv.lift !== 'none' && hv.h === at[2], 'reference: a hovered petal of the glyph lifts and names itself in the line\'s place, nothing moves', hv);
   await ctx.close();
 }
 for (const name of ['flashprove', 'sash']) {
