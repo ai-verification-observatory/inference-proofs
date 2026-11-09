@@ -9,6 +9,7 @@ from iproofs.errors import IProofsError
 
 SUITE = ["C1", "C2", "P1", "sys-a"]
 SEED = "0x0123456789abcdef"
+HOST = {"machine": {"provider": "undeclared"}, "nonconforming": []}
 
 
 def record(cid: str, outcome: str = "rejected") -> dict[str, object]:
@@ -23,6 +24,7 @@ def part(*ids: str, **changes: object) -> dict[str, Any]:
         "run_id": "2026-11-09-fake-fake-tiny-ci-ci-cpu-1",
         "run_manifest_digest": "sha256:" + "0" * 64,
         "control_seed": SEED,
+        "seed_record_digest": "sha256:" + "1" * 64,
         "suite": SUITE,
         "image": "local/in-process@sha256:" + "0" * 64,
         "verifier_profile": "ci-cpu",
@@ -33,7 +35,7 @@ def part(*ids: str, **changes: object) -> dict[str, Any]:
         "harness_commit": "a" * 40,
         "harness_dirty": False,
     }
-    doc = ctl.part_document(same, ids, [record(cid) for cid in ids])
+    doc = ctl.part_document(same, HOST, ids, [record(cid) for cid in ids])
     return doc | changes
 
 
@@ -103,6 +105,22 @@ def test_part_document_shape() -> None:
     assert doc["only"] == ["C1", "P1"]
     assert [r["id"] for r in doc["controls"]] == ["C1", "P1"]
     assert set(ctl.PART_KEYS) < set(doc)
+    assert doc["host"] == HOST
+    assert "host" not in ctl.PART_KEYS  # parts of one suite may run on different hosts
+
+
+def test_merge_ignores_the_host() -> None:
+    other = part("C2", "P1", "sys-a")
+    other["host"] = {"machine": {"provider": "elsewhere"}, "nonconforming": ["PC-MEM: low"]}
+    merged = ctl.merge_parts({"a.json": part("C1"), "b.json": other})
+    assert "host" not in merged
+
+
+def test_seed_document_shape() -> None:
+    doc = ctl.seed_document("run", "sha256:" + "0" * 64, SEED, "2026-11-09T10:00:00Z")
+    assert doc == {"schema": "controls-seed/1", "run_id": "run",
+                   "run_manifest_digest": "sha256:" + "0" * 64, "control_seed": SEED,
+                   "drawn_at": "2026-11-09T10:00:00Z"}  # fmt: skip
 
 
 def test_merge_restores_suite_order_and_recomputes() -> None:

@@ -539,11 +539,14 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
 # ---------------------------------------------------------------- split suites
 
 PART_SCHEMA = "controls-part/1"
+SEED_SCHEMA = "controls-seed/1"
+SEED_RECORD = "controls-seed.json"  # next to the run's run.json, written once (SPLIT-1)
 # What every part of one suite shares; the merge refuses parts that differ in any of them.
 PART_KEYS = (
     "run_id",
     "run_manifest_digest",
     "control_seed",
+    "seed_record_digest",
     "suite",
     "image",
     "verifier_profile",
@@ -580,14 +583,33 @@ def part_name(control_seed: str, only: Sequence[str]) -> str:
     return f"controls-part-{control_seed.removeprefix('0x')}-{subset}.json"
 
 
+def seed_document(
+    run_id: str, run_manifest_digest: str, control_seed: str, drawn_at: str
+) -> dict[str, object]:
+    """A `controls-seed/1` document: the one seed of a run's split suite, drawn by the harness
+    before the first part and never drawn again for that run (RFC-0008 SPLIT-1)."""
+    return {
+        "schema": SEED_SCHEMA,
+        "run_id": run_id,
+        "run_manifest_digest": run_manifest_digest,
+        "control_seed": control_seed,
+        "drawn_at": drawn_at,
+    }
+
+
 def part_document(
-    same: Mapping[str, object], only: Sequence[str], records: Sequence[Mapping[str, object]]
+    same: Mapping[str, object],
+    host: Mapping[str, object],
+    only: Sequence[str],
+    records: Sequence[Mapping[str, object]],
 ) -> dict[str, object]:
     """A `controls-part/1` document: the records of the controls in `only`, with what every
-    part of the suite must share (`PART_KEYS`)."""
+    part of the suite must share (`PART_KEYS`) and the host this part ran on, which parts do
+    not share (RFC-0008 SPLIT-4)."""
     return {
         "schema": PART_SCHEMA,
         **{key: same[key] for key in PART_KEYS},
+        "host": dict(host),
         "only": list(only),
         "controls": list(records),
     }

@@ -25,6 +25,29 @@
       "minLength": 1,
       "type": "string"
     },
+    "host": {
+      "$comment": "the host this part ran on; parts of one suite need not share it (RFC-0008 SPLIT-4)",
+      "additionalProperties": false,
+      "properties": {
+        "machine": {
+          "$comment": "the RFC-0006 machine record of this host, its allowlisted fields only",
+          "$ref": "../manifest/1.schema.json#/$defs/machine"
+        },
+        "nonconforming": {
+          "$comment": "one line per profile check this host does not meet; recorded, not refused",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "machine",
+        "nonconforming"
+      ],
+      "type": "object"
+    },
     "image": {
       "minLength": 1,
       "type": "string"
@@ -55,6 +78,10 @@
     "schema": {
       "const": "controls-part/1"
     },
+    "seed_record_digest": {
+      "$comment": "sha256 of the run's controls-seed.json bytes, the record the seed came from (RFC-0008 SPLIT-1)",
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
     "suite": {
       "$comment": "every control of the suite, in the order controls.json lists them",
       "items": {
@@ -78,6 +105,7 @@
     "run_id",
     "run_manifest_digest",
     "control_seed",
+    "seed_record_digest",
     "suite",
     "only",
     "image",
@@ -88,6 +116,7 @@
     "harness_version",
     "harness_commit",
     "harness_dirty",
+    "host",
     "controls"
   ],
   "title": "One part of a control suite run split across hosts, merged into controls.json by iproofs controls --merge (RFC-0008 §Split suites)",

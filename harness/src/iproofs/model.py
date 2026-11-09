@@ -1118,6 +1118,25 @@ class Controls(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlsSeed(Document):
+    """`controls-seed/1`, the one seed of a run's split suite (RFC-0008 SPLIT-1)."""
+
+    schema: str
+    run_id: str
+    run_manifest_digest: str
+    control_seed: str
+    drawn_at: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PartHost(Document):
+    """The host one part of a split suite ran on (RFC-0008 SPLIT-4)."""
+
+    machine: Mapping[str, object]  # RFC-0006 record; schema manifest $defs/machine
+    nonconforming: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ControlsPart(Document):
     """`controls-part/1`, one part of a suite split across hosts (RFC-0008 §Split suites)."""
 
@@ -1125,6 +1144,7 @@ class ControlsPart(Document):
     run_id: str
     run_manifest_digest: str
     control_seed: str
+    seed_record_digest: str
     suite: tuple[str, ...]
     only: tuple[str, ...]
     image: str
@@ -1135,6 +1155,7 @@ class ControlsPart(Document):
     harness_version: str
     harness_commit: str
     harness_dirty: bool
+    host: PartHost
     controls: tuple[ControlResult, ...]
 
 
@@ -1490,6 +1511,8 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("controls/1", "#/properties/perturbed_commitment/anyOf/1"): PerturbedCommitment,
     ("controls/1", "#/properties/summary"): ControlSummaryCounts,
     ("controls-part/1", "#"): ControlsPart,
+    ("controls-part/1", "#/properties/host"): PartHost,
+    ("controls-seed/1", "#"): ControlsSeed,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
     ("review/1", "#"): ReviewRecord,

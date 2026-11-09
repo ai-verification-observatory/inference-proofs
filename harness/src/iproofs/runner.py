@@ -17,12 +17,14 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal, Protocol, TextIO
+from typing import Any, Literal, Protocol, TextIO
 
 from iproofs import __version__, selftest
 from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
 from iproofs.controls import (
     EXPECTED,
+    SEED_RECORD,
+    SEED_SCHEMA,
     SHARED_PROVER_CONTROLS,
     SHARED_VERIFIER_CONTROLS,
     HonestProof,
@@ -39,6 +41,7 @@ from iproofs.controls import (
     perturb_model,
     prover_side_record,
     run_shared_controls,
+    seed_document,
     system_control_record,
 )
 from iproofs.derive import (
@@ -80,6 +83,7 @@ from iproofs.model import (
     System,
     SystemControl,
     SystemControls,
+    VerifierProfile,
     Workload,
     card_path,
     load,
@@ -181,15 +185,18 @@ class RunnerIdentity:
 class GpuEnvironment:
     """A GPU host (RFC-0006 §CPU and memory selection): the bound GPU by NVML index, the
     prover's CPUs on its NUMA node and the verifier's elsewhere, a pure function of the
-    topology. `n_prover` is the profile's `cpu.logical_cpus_on_gpu_numa_node`; a hosted host
-    binds only CPUs of its own scheduler affinity (`usable_topology`)."""
+    topology. `n_prover` is the profile's `cpu.logical_cpus_on_gpu_numa_node` and `n_verifier`
+    verifier-cpu's `cpu.logical_cpus`; a hosted host binds only CPUs of its own scheduler
+    affinity (`usable_topology`)."""
 
-    def __init__(self, gpu_index: int, host: Host, n_prover: int) -> None:
+    def __init__(self, gpu_index: int, host: Host, n_prover: int, n_verifier: int = 8) -> None:
         self._host, self._gpu = host, gpu_index
         node = host.gpu(gpu_index).get("numa_node")
         if not isinstance(node, int) or node < 0:
             raise IProofsError(ErrorKind.ENVIRONMENT, f"no NUMA node for GPU {gpu_index} (NVML)")
-        self.binding = select_cpus(usable_topology(host), node, n_prover=n_prover)
+        self.binding = select_cpus(
+            usable_topology(host), node, n_prover=n_prover, n_verifier=n_verifier
+        )
 
     def host(self) -> Host:
         return self._host
@@ -1102,6 +1109,7 @@ class Runner:
         verify: Callable[[VerifyCall], VerifyResult],
         work: Path,
         only: Collection[str] | None = None,
+        log: JsonlLogger | None = None,
     ) -> list[dict[str, object]]:
         """`systems/<name>/controls.yaml` (RFC-0008 §System-specific controls). A weakened prove
         runs in its own io dir with `control: true` and its flags passed explicitly; every verify
@@ -1115,7 +1123,8 @@ class Runner:
         twin = self._honest_twin(job)
 
         def weakened(control: SystemControl) -> tuple[list[VerifyCall], object]:
-            return self._control_prove(job, control.id, work, flags=control.control_flags or ())
+            flags = control.control_flags or ()
+            return self._control_prove(job, control.id, work, flags=flags, log=log)
 
         return [
             system_control_record(c, lambda c=c: weakened(c), lambda: [twin], verify)  # type: ignore[misc]
@@ -1141,6 +1150,7 @@ class Runner:
         flags: Sequence[str] = (),
         models: Path | None = None,
         batches: int | None = None,
+        log: JsonlLogger | None = None,
     ) -> tuple[list[VerifyCall], object]:
         """A `prove` with `control: true` in its own io dir: the run's commitment and prover
         files, optionally other weights (P1) or explicit flags (weakened provers). Returns the
@@ -1158,7 +1168,7 @@ class Runner:
         honest_models = job.models
         job.models = models or honest_models
         try:
-            out, _ = self._call(
+            out, result = self._call(
                 job,
                 "prove",
                 {
@@ -1175,6 +1185,7 @@ class Runner:
             )
         finally:
             job.models = honest_models
+        self._log_call(log, job, control_id, None, "prove", result)
         check_proofs(IoDirs(io), out, job.system)  # type: ignore[arg-type]
         report = None
         if out.binding_report:
@@ -1210,6 +1221,7 @@ class Runner:
         verify: Callable[[VerifyCall], VerifyResult],
         work: Path,
         only: Collection[str] | None = None,
+        log: JsonlLogger | None = None,
     ) -> list[dict[str, object]]:
         """P1 and P2 (RFC-0008 §Shared controls, prover side), one batch each."""
         wanted = [cid for cid in SHARED_PROVER_CONTROLS if only is None or cid in only]
@@ -1220,10 +1232,10 @@ class Runner:
         def p1() -> list[VerifyCall]:
             if isinstance(perturbed, str):
                 raise NotApplicable(perturbed)
-            weights = default_cache() / "perturbed" / perturbed.source_model_digest[7:]
-            if not weights.is_dir() or model_digest(weights) != perturbed.model_digest:
+            weights = perturbed_weights(perturbed)
+            if weights is None:
                 raise NotApplicable("the perturbed weights are not on this host")
-            return self._control_prove(job, "P1", work, models=weights, batches=1)[0]
+            return self._control_prove(job, "P1", work, models=weights, batches=1, log=log)[0]
 
         def p2() -> list[VerifyCall]:
             raise NotApplicable("the workload declares one precision")
@@ -1233,6 +1245,22 @@ class Runner:
             prover_side_record(cid, EXPECTED[cid], "shared", builds[cid], lambda: [twin], verify)
             for cid in wanted
         ]
+
+    @staticmethod
+    def _log_call(
+        log: JsonlLogger | None,
+        job: Job,
+        control: str,
+        trial: int | None,
+        sub: str,
+        result: StepResult,
+    ) -> None:
+        """`control.call` after each control call that returned, so a long suite shows its
+        progress and a part stopped at its deadline leaves each finished call's span."""
+        if log is not None:
+            log.log(Event.CONTROL_CALL, job=job.run_id, step="controls", control=control,
+                    trial=trial, subcommand=sub, exit_code=result.exit_code,
+                    seconds=span_seconds(result.started_mono_ns, result.ended_mono_ns))  # fmt: skip
 
     def honest_proofs(self, job: Job) -> list[HonestProof]:
         assert job.proofs is not None
@@ -1258,11 +1286,13 @@ class Runner:
         *,
         seed: str | None = None,
         only: Sequence[str] | None = None,
+        part: Mapping[str, object] | None = None,
     ) -> Path:
         """The control suite against the honest proofs (RFC-0008 §Where controls run), with a
         fresh seed unless one is given. Writes `controls.json`, or with `only` (a subset in
-        suite order) a `controls-part/1` file for `--merge` (RFC-0008 §Split suites); returns
-        the path written."""
+        suite order) a `controls-part/1` file for `--merge` (RFC-0008 §Split suites), whose
+        `part` gives the seed record's digest and the host record; returns the path
+        written."""
         assert job.commit is not None
         assert job.workload is not None
         seed = seed or new_control_seed()
@@ -1304,6 +1334,7 @@ class Runner:
                 )
             finally:  # one copy at a time: the stored H100 SASH run's proof is 44.6 GB
                 shutil.rmtree(io / "proof", ignore_errors=True)
+            self._log_call(log, job, call.control_id, call.trial, "verify", result)
             return VerifyResult(
                 str(out.verdict),
                 int(out.raw_exit_code or 0),
@@ -1344,8 +1375,8 @@ class Runner:
                     control=r["id"],
                     twin_verdict=twin["verdict"],
                 )
-        records += self._prover_controls(job, perturbed, verify, work, only)
-        records += self._system_controls(job, verify, work, only)
+        records += self._prover_controls(job, perturbed, verify, work, only, log)
+        records += self._system_controls(job, verify, work, only, log)
         made = None if isinstance(perturbed, str) else {
             "commitment_id": str(perturbed.commitment["commitment_id"]),
             "model_digest": perturbed.model_digest,
@@ -1357,14 +1388,7 @@ class Runner:
                 step="controls",
                 control=[r["id"] for r in records if r["outcome"] == "accepted"],
             )
-        if only is None:
-            doc = controls_document(
-                job.run_id, seed, job.image, self._verifier_profile(job), made, records
-            )
-            schema, path = "controls/1", job.staging / "controls.json"
-        else:
-            doc = part_document(self._part_header(job, seed, made), only, records)
-            schema, path = "controls-part/1", job.staging / part_name(seed, only)
+        doc, schema, path = self._controls_doc(job, seed, made, records, only, part)
         errors = self.registry.errors(schema, doc)
         if errors:
             raise IProofsError(
@@ -1374,17 +1398,43 @@ class Runner:
         self.controls_done = True
         return path
 
+    def _controls_doc(
+        self,
+        job: Job,
+        seed: str,
+        made: Mapping[str, str] | None,
+        records: Sequence[Mapping[str, object]],
+        only: Sequence[str] | None,
+        part: Mapping[str, object] | None,
+    ) -> tuple[dict[str, object], str, Path]:
+        """(document, schema, path): controls.json, or with `only` a `controls-part/1` part."""
+        if only is None:
+            doc = controls_document(
+                job.run_id, seed, job.image, self._verifier_profile(job), made, records
+            )
+            return doc, "controls/1", job.staging / "controls.json"
+        assert part is not None
+        same = self._part_header(job, seed, str(part["seed_record_digest"]), made)
+        doc = part_document(same, part["host"], only, records)  # type: ignore[arg-type]
+        return doc, "controls-part/1", job.staging / part_name(seed, only)
+
     def _part_header(
-        self, job: Job, seed: str, made: Mapping[str, str] | None
+        self, job: Job, seed: str, seed_record_digest: str, made: Mapping[str, str] | None
     ) -> dict[str, object]:
         """What every part of one split suite shares (RFC-0008 §Split suites): the run, read
-        from its manifest's bytes; the seed; the image; the verifier and run profiles and the
-        CPUs this host binds the verifier to; the perturbed commitment; the harness."""
-        commit, dirty = git_state(self.root, ["harness", "pyproject.toml", "uv.lock"])
+        from its manifest's bytes; the seed and its record; the image; the verifier and run
+        profiles and the CPUs this host binds the verifier to; the perturbed commitment; the
+        harness. The dirty flag covers what decides a control's inputs and outcome: the
+        harness, the system's directory (its controls.yaml and adapter), the schemas and the
+        reference files."""
+        paths = ["harness", "pyproject.toml", "uv.lock", f"systems/{job.spec.system}", "schema",
+                 "reference"]  # fmt: skip
+        commit, dirty = git_state(self.root, paths)
         return {
             "run_id": job.run_id,
             "run_manifest_digest": file_digest(job.staging / "manifest.json"),
             "control_seed": seed,
+            "seed_record_digest": seed_record_digest,
             "suite": [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)],
             "image": job.image,
             "verifier_profile": self._verifier_profile(job),
@@ -1900,7 +1950,123 @@ def control_suite(root: Path, registry: SchemaRegistry, system: str) -> list[tup
     ]  # fmt: skip
 
 
-def controls_for_run(
+def perturbed_weights(record: PerturbedCommitmentRecord) -> Path | None:
+    """The perturbed weights of a stored perturbed commitment in this host's cache, or None
+    when they are absent or have another digest (RFC-0008 P1)."""
+    weights = default_cache() / "perturbed" / record.source_model_digest.removeprefix("sha256:")
+    if not weights.is_dir() or model_digest(weights) != record.model_digest:
+        return None
+    return weights
+
+
+def _completed_run(run_dir: Path) -> dict[str, Any]:
+    doc: dict[str, Any] = json.loads((run_dir / "run.json").read_text())
+    if doc["status"] != "completed":
+        raise IProofsError(
+            ErrorKind.CONFIG, f"{run_dir} did not complete; controls need accepted proofs"
+        )
+    return doc
+
+
+def draw_seed(
+    registry: SchemaRegistry,
+    run_dir: Path,
+    *,
+    control_seed: str | None = None,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
+) -> Path:
+    """`iproofs controls RUN_DIR --draw-seed`: the one seed of a run's split suite, drawn
+    from `os.urandom` and written to RUN_DIR/controls-seed.json with the time it was drawn
+    (RFC-0008 SPLIT-1). Written once: refused when the file or controls.json exists. It needs
+    only run.json and manifest.json, so it can run on a copy that holds just those two.
+    `control_seed` is for tests, which need a known seed; the command never passes one."""
+    for name in ("controls.json", SEED_RECORD):
+        if (run_dir / name).exists():
+            raise IProofsError(ErrorKind.CONFIG, f"{run_dir / name} exists; it is never redrawn")
+    run_id = _completed_run(run_dir)["run_id"]
+    drawn_at = now().astimezone(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+    doc = seed_document(run_id, file_digest(run_dir / "manifest.json"),
+                        control_seed or new_control_seed(), drawn_at)  # fmt: skip
+    errors = registry.errors(SEED_SCHEMA, doc)
+    if errors:
+        raise IProofsError(ErrorKind.INTERNAL, f"{SEED_RECORD} fails {SEED_SCHEMA}: {errors[0]}")
+    write_json(run_dir / SEED_RECORD, doc)
+    return run_dir / SEED_RECORD
+
+
+def read_seed(registry: SchemaRegistry, run_dir: Path) -> tuple[str, str]:
+    """(control_seed, sha256 of the file) of RUN_DIR/controls-seed.json, which must be valid
+    and drawn for this run: its run id and the digest of this manifest.json (SPLIT-1)."""
+    path = run_dir / SEED_RECORD
+    if not path.is_file():
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"{run_dir} has no {SEED_RECORD}: draw the suite's seed once with "
+            f"iproofs controls {run_dir} --draw-seed",
+        )
+    doc = json.loads(path.read_text())
+    errors = registry.errors(SEED_SCHEMA, doc)
+    if errors:
+        raise IProofsError(ErrorKind.CONFIG, f"{path} fails {SEED_SCHEMA}: {errors[0]}")
+    run_id = json.loads((run_dir / "run.json").read_text())["run_id"]
+    if (doc["run_id"], doc["run_manifest_digest"]) != (
+        run_id,
+        file_digest(run_dir / "manifest.json"),
+    ):
+        raise IProofsError(ErrorKind.CONFIG, f"{path} was not drawn for {run_dir}")
+    return str(doc["control_seed"]), file_digest(path)
+
+
+def _part_host(
+    runner: Runner, job: Job, run_machine: Mapping[str, Any], prover_side: bool
+) -> dict[str, object]:
+    """The host a part ran on (RFC-0008 SPLIT-3, SPLIT-4): its machine record (RFC-0006, the
+    allowlisted fields only) and the lines of every profile check it does not meet, which are
+    recorded, not refused. Refused: a prover-side part on a GPU other than the run's, whose
+    proves would be another configuration's."""
+    env = runner.env
+    verifier_only = isinstance(env, VerifierEnvironment)
+    roles = ("verifier", "verifier_1") if verifier_only else ("prover", "verifier", "verifier_1")
+    cpus = {role: _cpu_list(env.cpus(role)[0]) for role in roles}  # type: ignore[arg-type]
+    record = machine_record(
+        env.host(),
+        results=job.staging,
+        gpu_index=env.gpu(),
+        cpus=cpus,
+        mems=_cpu_list(env.cpus(roles[0])[1]),  # type: ignore[arg-type]
+        provider=runner.provider,
+        verifier_host="separate" if verifier_only else "same_as_prover",
+        redact=runner.redact,
+    )
+    assert job.reference is not None
+    lines: list[str] = []
+    if verifier_only:
+        found = job.reference.profiles.get("verifier-cpu")
+        memory: dict[str, Any] = record.get("memory", {})  # type: ignore[assignment]
+        usable = min(memory.get("available_bytes_at_start", 0),
+                     memory.get("cgroup_limit_bytes", 2**63))  # fmt: skip
+        if isinstance(found, VerifierProfile) and usable < found.host_memory_gib * 1024**3:
+            lines.append(f"PC-MEM: {usable} B available or allowed < {found.host_memory_gib} GiB")
+    else:
+        profile = job.reference.profiles[job.spec.profile]
+        if isinstance(profile, ProverProfile):
+            gpu = record.get("gpu")
+            node = gpu.get("numa_node") if isinstance(gpu, dict) else None
+            topology = usable_topology(env.host()).cpus
+            on_node = sum(c.node == node for c in topology) if node is not None else None
+            lines = [f.line() for f in check_profile(record, profile, numa_node_cpus=on_node)]
+        ran_on = (run_machine.get("gpu") or {}).get("model")
+        here = (record.get("gpu") or {}).get("model")  # type: ignore[attr-defined]
+        if prover_side and ran_on is not None and here != ran_on:
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"the run proved on {ran_on!r}; this host's GPU is {here!r}: prover-side "
+                "controls prove on the run's GPU (RFC-0008 SPLIT-3)",
+            )
+    return {"machine": record, "nonconforming": lines}
+
+
+def controls_for_run(  # noqa: PLR0915 (one check per refusal)
     runner: Runner,
     run_dir: Path,
     *,
@@ -1908,28 +2074,37 @@ def controls_for_run(
     only: Sequence[str] | None = None,
 ) -> Path:
     """`iproofs controls RUN_DIR`: the control suite against a completed run whose proof bytes
-    were kept (`--keep-io`); adds `controls.json` to the run directory (append-only). With
-    `seed` the suite uses it instead of a fresh one; with `only` it runs those controls and
-    writes a part for `--merge` instead (RFC-0008 §Split suites). The weights are resolved only
-    when a prover-side control runs, and a prover-side control of a GPU profile needs the
-    runner's GPU."""
+    were kept (`--keep-io`); adds `controls.json` to the run directory (append-only), once per
+    run, whole or from parts. With `only` it runs those controls with the seed of the run's
+    controls-seed.json (`seed`, if given, must be that one) and writes a part for `--merge`
+    (RFC-0008 §Split suites); the whole suite runs with `seed` (tests) or a fresh one, and is
+    refused once a seed record exists. The weights are resolved only when a prover-side control
+    runs, and a prover-side control of a GPU profile needs the runner's GPU."""
+    if (run_dir / "controls.json").exists():  # once per configuration (§Where controls run)
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} already has controls.json")
     io = run_dir / "io"
     if not (io / "proofs").is_dir() or not (io / "prove.out.json").is_file():
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no proofs; rerun with --keep-io")
-    doc = json.loads((run_dir / "run.json").read_text())
-    if doc["status"] != "completed":
-        raise IProofsError(
-            ErrorKind.CONFIG, f"{run_dir} did not complete; controls need accepted proofs"
-        )
+    doc = _completed_run(run_dir)
     suite = control_suite(runner.root, runner.registry, doc["system"])
     ids = parse_only(only, [cid for cid, _ in suite]) if only is not None else None
+    part: dict[str, object] | None = None
     if ids is not None:
-        seed = seed or new_control_seed()  # drawn here: the part's name carries it
+        recorded, seed_digest = read_seed(runner.registry, run_dir)
+        if seed is not None and seed != recorded:
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"--seed {seed} is not the seed {recorded} of {run_dir / SEED_RECORD}",
+            )
+        seed = recorded
         target = run_dir / part_name(seed, ids)
-    else:
-        target = run_dir / "controls.json"
-    if target.exists():
-        raise IProofsError(ErrorKind.CONFIG, f"{target} exists; it is never overwritten")
+        if target.exists():
+            raise IProofsError(ErrorKind.CONFIG, f"{target} exists; it is never overwritten")
+    elif (run_dir / SEED_RECORD).exists():
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"{run_dir} has {SEED_RECORD}: its suite runs in parts (--only) and --merge",
+        )
     prover = [cid for cid, side in suite if side == "prover" and (ids is None or cid in ids)]
     spec = JobSpec(
         doc["system"],
@@ -1960,6 +2135,16 @@ def controls_for_run(
     job.proof_records = manifest["proofs"]  # proof digests rechecked before every control
     if not (run_dir / COMMITMENT_STORE).is_dir():
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no commitment store")
+    if ids is not None:
+        perturbed = runner._perturbed(job)
+        if "P1" in ids and not isinstance(perturbed, str) and perturbed_weights(perturbed) is None:
+            raise IProofsError(  # a single run on the host that made them would run P1
+                ErrorKind.CONFIG,
+                f"P1: the perturbed weights of {perturbed.model_digest} are not in this host's "
+                "cache; run P1's part where they are (RFC-0008 SPLIT-2)",
+            )
+        host = _part_host(runner, job, manifest.get("machine") or {}, bool(prover))
+        part = {"seed_record_digest": seed_digest, "host": host}
     job.prompts = [json.loads(line) for line in (io / "prompts.jsonl").read_text().splitlines()]
     for name, attr in (("commit", "commit"), ("prove", "proofs")):
         out = load(io / f"{name}.out.json", runner.registry)
@@ -1967,24 +2152,28 @@ def controls_for_run(
         setattr(job, attr, out)
     job.releases = [(p["proof_id"], p["release_mono_ns"]) for p in doc["proofs"]]
     job.verdicts = {p["proof_id"]: p["verdict"] for p in doc["proofs"]}
+    progress = None if runner.progress is None else Progress(runner.progress, 1, 1, runner.redact)
     try:
         with (run_dir / "logs/harness.jsonl").open("a") as stream:
-            log = JsonlLogger(stream, redactor=runner.redact, mono=runner.clock)
-            return runner._controls(job, log, seed=seed, only=ids)
+            log = JsonlLogger(stream, redactor=runner.redact, mono=runner.clock, on_record=progress)
+            return runner._controls(job, log, seed=seed, only=ids, part=part)
     finally:
         shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
 
 
 def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:
     """`iproofs controls RUN_DIR --merge PART...`: the `controls.json` of a suite run in parts
-    (RFC-0008 §Split suites). Every part must be valid `controls-part/1` and made against this
-    run (its run id and the digest of its manifest.json); `merge_parts` checks the rest. The
-    document is checked against `controls/1` and written once, never over an existing one."""
+    (RFC-0008 §Split suites). RUN_DIR needs run.json, manifest.json and the controls-seed.json
+    the parts ran with. Every part must be valid `controls-part/1` and made against this run
+    (its run id, the digest of its manifest.json and of its seed record); `merge_parts` checks
+    the rest. The document is checked against `controls/1` and written once, never over an
+    existing one."""
     target = run_dir / "controls.json"
     if target.exists():
         raise IProofsError(ErrorKind.CONFIG, f"{target} exists; it is never overwritten")
     run_id = json.loads((run_dir / "run.json").read_text())["run_id"]
     manifest = file_digest(run_dir / "manifest.json")
+    seed, seed_digest = read_seed(registry, run_dir)
     docs: dict[str, dict[str, object]] = {}
     for path in parts:
         if str(path) in docs:
@@ -1993,8 +2182,11 @@ def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path
         errors = registry.errors("controls-part/1", doc)
         if errors:
             raise IProofsError(ErrorKind.CONFIG, f"{path} fails controls-part/1: {errors[0]}")
-        if (doc["run_id"], doc["run_manifest_digest"]) != (run_id, manifest):
+        made_for = (doc["run_id"], doc["run_manifest_digest"])
+        if made_for != (run_id, manifest):
             raise IProofsError(ErrorKind.CONFIG, f"{path} was not made against {run_dir}")
+        if (doc["control_seed"], doc["seed_record_digest"]) != (seed, seed_digest):
+            raise IProofsError(ErrorKind.CONFIG, f"{path} did not run with {run_dir / SEED_RECORD}")
         docs[str(path)] = doc
     merged = merge_parts(docs)
     errors = registry.errors("controls/1", merged)

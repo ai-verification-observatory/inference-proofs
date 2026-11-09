@@ -43,6 +43,7 @@ class Event(StrEnum):
     CGROUP_STALE_CLEANUP = "cgroup.stale_cleanup"
     POLICY_WARNING = "policy.warning"
     VERIFY_RESULT = "verify.result"
+    CONTROL_CALL = "control.call"
     CONTROL_TRIAL = "control.trial"
     CONTROL_TWIN_MISMATCH = "control.twin_mismatch"
     CONTROL_DISCLOSURE_PENDING = "control.disclosure_pending"
@@ -146,8 +147,8 @@ class JsonlLogger:
 
 class Progress:
     """docs/spec/05 §Progress output: one stderr line per written state, release, verify,
-    failure and write record, built only from the record, so it says nothing harness.jsonl
-    does not."""
+    control call, failure and write record, built only from the record, so it says nothing
+    harness.jsonl does not."""
 
     def __init__(
         self, stream: TextIO, repetition: int, repetitions: int, redactor: Redactor = _identity
@@ -170,6 +171,11 @@ class Progress:
             line = f"{'prove':<8} running   {hms}  proofs {record['index']}/{record['of']}"
         elif event == Event.VERIFY_RESULT:
             line = f"{'verify':<8} proof {record['index']}/{record['of']} {record['verdict']}"
+        elif event == Event.CONTROL_CALL:
+            trial = "" if record.get("trial") is None else f" trial {record['trial']}"
+            seconds = float(str(record["seconds"]))
+            line = (f"{'controls':<8} {record['subcommand']} {record['control']}{trial}  {hms}"
+                    f"  exit {record['exit_code']}  {seconds:.0f} s")  # fmt: skip
         elif event == Event.JOB_FAILED:
             line = f"{record['step']!s:<8} failed    {hms}  {record['kind']}"
         elif event == Event.JOB_WRITTEN:

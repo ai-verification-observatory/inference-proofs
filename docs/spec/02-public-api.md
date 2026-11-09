@@ -30,9 +30,10 @@ iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR
             [--in-process]                  # test systems only: run the entrypoint as a local process
             [--image IMAGE_ID]              # a local image by ID, digest_kind config (RFC-0014)
             [--runner HANDLE] [--runner-org ORG] [--affiliated SYSTEM ...]   # declared runner (RFC-0007)
-iproofs controls RUN_DIR [--seed SEED]
-            [--only ID[,ID...]]             # a part of the suite, for --merge (RFC-0008 §Split suites)
-            [--hosted] [--gpu INDEX]        # in the run's pinned image; --gpu for prover-side ids
+iproofs controls RUN_DIR [--hosted] [--gpu INDEX] [--provider NAME]   # the whole suite; --hosted: in the run's pinned image
+iproofs controls RUN_DIR --draw-seed                # the split suite's one seed, into RUN_DIR/controls-seed.json, once (RFC-0008 §Split suites)
+iproofs controls RUN_DIR --only ID[,ID...] [--seed SEED] [--hosted] [--gpu INDEX] [--provider NAME]
+                                                    # a part, with the recorded seed (--seed only confirms it); --gpu for prover-side ids
 iproofs controls RUN_DIR --merge PART [PART...]     # controls.json from parts that cover the suite once
 iproofs controls --prepare-perturbed WORKLOAD --system S --profile P [--image IMAGE_ID | --in-process] [--results DIR]
 iproofs machine-record [--selftest]

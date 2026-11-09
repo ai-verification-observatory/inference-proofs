@@ -64,6 +64,7 @@ All schemas use JSON Schema Draft 2020-12. Each lives at `schema/<name>/<major>.
 | `manifest` | `schema/manifest/1.schema.json` | generated JSON | `results/.../<run-id>/manifest.json` | RFC-0014 |
 | `controls` | `schema/controls/1.schema.json` | generated JSON | `results/.../<run-id>/controls.json` | RFC-0008 |
 | `controls-part` | `schema/controls-part/1.schema.json` | generated JSON | `<run-dir>/controls-part-<seed>-<subset>.json`, a working file never in `results/` | RFC-0008 §Split suites |
+| `controls-seed` | `schema/controls-seed/1.schema.json` | generated JSON | `<run-dir>/controls-seed.json`, written once before the first part, never in `results/` | RFC-0008 §Split suites |
 | `review` | `schema/review/1.schema.json` | generated JSON | `results/.../<run-id>/reviews/<reviewer>-<date>.json` | RFC-0007 |
 | `reproduction` | `schema/reproduction/1.schema.json` | generated JSON | `results/.../<run-id>/reproductions/<repro-run-id>.json` | RFC-0007 |
 | `perturbed-commitment` | `schema/perturbed-commitment/1.schema.json` | generated JSON | `results/<release>/<system>/_controls/<workload>/perturbed.json` | RFC-0008 |
