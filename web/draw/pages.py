@@ -58,7 +58,6 @@ from .words import (
     FAIL_KIND,
     FAIL_STEP,
     FAMILY_WORD,
-    NOT_READ,
     NOT_READ_HEAD,
     OUTCOME_SHORT,
     OUTCOME_VERB,
@@ -67,6 +66,7 @@ from .words import (
     STATE_ORDER,
     STATE_WORD,
     STATUS_WORD,
+    TAMPERS,
     amount,
     count_word,
     e,
@@ -211,12 +211,13 @@ def accepted_words(cfg):
     """Which control each stored `accepted` outcome is, by its id (the block under the tally
     names it in words), and whether its own expected set holds acceptance: a system's
     weakened-prover control expects it, a tampered proof does not (RFC-0008); one that tampered
-    only with a part the system declares verify does not read tests nothing (RFC-0008,
-    amendment of 2026-11-09). Listed from the records, never counted."""
+    only with a part the system declares verify does not read is named alone, its block saying
+    it tests nothing (RFC-0008, amendment of 2026-11-09). Listed from the records, never
+    counted."""
     out = []
     for a in cfg["accepted"]:
         if a.get("not_read"):
-            out.append(f"{a['control']}, {NOT_READ}")
+            out.append(a["control"])
         else:
             out.append(ACCEPTED_WHY[(a["source"], a["passed"] is True)].format(id=a["control"]))
     return "; ".join(out)
@@ -233,18 +234,19 @@ def tamper_words(cfg):
     said = []
     for k, w in OUTCOME_WORDS:
         if counts.get(k):
-            if k != "accepted":
-                said.append(w.format(n=counts[k]))
-            elif all(a.get("not_read") for a in cfg["accepted"]):
-                said.append(f"{w.format(n=counts[k])}, {NOT_READ}")
-            else:
-                said.append(f"{w.format(n=counts[k])} ({accepted_words(cfg)})")
+            # each count in the weight of a figure, its words in the reading voice
+            count = w.format(n="\x00").replace("\x00", f"<b>{counts[k]:,}</b>")
+            words = e(readable(count.replace("<b>", "\x01").replace("</b>", "\x02")))
+            words = words.replace("\x01", "<b>").replace("\x02", "</b>")
+            if k == "accepted" and not all(a.get("not_read") for a in cfg["accepted"]):
+                words += f" ({e(accepted_words(cfg))})"
+            said.append(words)
     if not said:
-        return "No tamper test ran on this setup."
+        return ""
     runs = cfg["control_runs"]
     refs = ", ".join(run_ref(r["run_id"], r["record"]) for r in runs)
     word = "run" if len(runs) == 1 else "runs"
-    return f"In {len(runs)} {word} ({refs}): {e(readable(' · '.join(said)))}"
+    return f"In {len(runs)} {word} ({refs}): {'\u00a0· '.join(said)}"
 
 
 def control_tests(cfg):
@@ -484,10 +486,13 @@ def unexpected_full(cfg):
             items = "".join(trial_html(t) for t in trials)
             rows.append((label, f'<ol class="trials">{items}</ol>', ""))
         for o in u.get("others") or []:
-            note = (f" ({', '.join(o['parts_not_read'])} declared not read)"
+            # the outcome over the run's trials, and where its trials were kept (RFC-0008 READ-3)
+            tamper = TAMPERS.get(u["control"], "changes")
+            note = (f" ({tamper} kept off {', '.join(o['parts_not_read'])}, declared not read)"
                     if o["parts_not_read"] else "")  # fmt: skip
-            rows.append(("other run", f"{e(OUTCOME_SHORT[o['outcome']])}{e(note)} · "
-                                      f"{run_ref(o['run_id'], o['record'])}", ""))  # fmt: skip
+            count = f"{o['trials_same']} of {o['trials']} trials " if o.get("trials") else ""
+            rows.append(("other run", f"{e(readable(count + OUTCOME_SHORT[o['outcome']] + note))}"
+                                      f" · {run_ref(o['run_id'], o['record'])}", ""))  # fmt: skip
         items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" if k else
                         f'<div class="ul"><dd{f' title="{e(t)}"' if t else ""}>{v}</dd></div>'
                         for k, v, t in rows)  # fmt: skip
@@ -500,8 +505,10 @@ def config_tamper(cfg, many):
     """One configuration's tamper tests: its setup (where a page holds several), each stored
     outcome count, every outcome outside its expected set, then the system's own controls."""
     head = setup_heading(cfg, f"t-{row_id(cfg)}") if many else ""
-    return (f'{head}<p class="tamper">{tamper_words(cfg)}</p>{unexpected_full(cfg)}'
-            f"{control_tests(cfg)}")  # fmt: skip
+    tally = tamper_words(cfg)
+    said = (f'<p class="tamper">{tally}</p>' if tally
+            else '<p class="tamper none">No tamper test ran on this setup.</p>')  # fmt: skip
+    return f"{head}{said}{unexpected_full(cfg)}{control_tests(cfg)}"
 
 
 # what a system page holds, by the plate that holds it, as its description names it

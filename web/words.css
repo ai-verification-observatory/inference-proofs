@@ -511,7 +511,11 @@ html:has(.top.s-on) { overflow: hidden; }
 /* a value and its unit on one line, the column as narrow as its widest value */
 .mtab .mv { white-space: nowrap; width: 1%; }
 .mtab .mv .fig { flex-wrap: nowrap; }
-.tamper { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 16px; text-wrap: pretty; }
+/* the tally in the reading voice of the claims and control lines, its counts in the weight of a figure, so the
+   setup's heading leads; no test at all a quiet line, as every absence */
+.tamper { font: 400 14px/1.5 var(--mono); max-width: 80ch; margin-top: 12px; text-wrap: pretty; }
+.tamper b { font-weight: 600; }
+.tamper.none { font-size: 12px; color: var(--muted); }
 /* reference page */
 .reflead { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 26px; text-wrap: pretty; }
 .refsys { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule); scroll-margin-top: 12px; }
@@ -720,7 +724,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
   .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
   .rose[data-hot="4"] .rp[data-n="4"], .rose[data-hot="5"] .rp[data-n="5"], .rose[data-hot="6"] .rp[data-n="6"] { background: var(--line); box-shadow: -8px 0 0 var(--line), 8px 0 0 var(--line); }
-  .tamper, .reflead { font-size: 18px; }
+  .reflead { font-size: 18px; }
   .plates-sys .plate { padding-bottom: 16px; }
   .cs div { grid-template-columns: 112px minmax(0, 1fr); }
   /* criteria: a jump index of the six properties under the band */

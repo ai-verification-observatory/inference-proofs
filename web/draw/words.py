@@ -152,7 +152,8 @@ ACCEPTED_WHY = {
 }
 # an accepted trial that tampered with a part the system declares its verify step does not read
 # (RFC-0008, amendment of 2026-11-09: a gap in the control design, not a finding)
-NOT_READ = "tests nothing"
+# a control's trials in a word, where its other runs kept them off the parts verify does not read
+TAMPERS = {"C5": "truncations", "C6": "flips", "C8": "drops"}
 NOT_READ_HEAD = "accepted only on {parts}, which <code>verify</code> does not read; tests nothing"
 COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
               8: "eight", 9: "nine", 10: "ten"}  # fmt: skip

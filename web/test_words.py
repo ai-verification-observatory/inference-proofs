@@ -166,3 +166,43 @@ def test_serving_runs_name_what_their_statistics_leave_out(site):
     )
     cfg["runs"]["completed"] = runs[1:]
     assert b.serving_runs(cfg) == "4 runs"
+
+
+def test_tamper_tests_say_each_thing_once(site):
+    """RFC-0008: the tally prints each count once, in the weight of a figure; an accepted record
+    that tampered only with a part verify does not read is counted bare, its block saying once
+    that it tests nothing; the same control in another run reads as its trials and where they
+    were kept (READ-3), not as a cause (by hand, after releases/v0.1 FlashProve b1)."""
+    b = site.build
+    rid = "2026-11-0{}-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-{}"
+    one, two = rid.format(8, 3), rid.format(9, 2)
+    cfg = {
+        "controls": {"counts": {"rejected": 9, "accepted": 1, "not_applicable": 8}},
+        "accepted": [{"control": "C6", "not_read": ["response.y"]}],
+        "control_runs": [{"run_id": one, "record": "r/1/controls.json"},
+                         {"run_id": two, "record": "r/2/controls.json"}],
+        "unexpected": [{
+            "control": "C6", "run_id": one, "outcome": "accepted", "record": "r/1/controls.json",
+            "stored": {"expected": ["rejected", "invalid_call"], "trials": []},
+            "not_read": ["response.y"],
+            "others": [{"run_id": two, "outcome": "rejected", "record": "r/2/controls.json",
+                        "trials": 5, "trials_same": 5, "parts_not_read": ["response.y"]}],
+        }],
+    }  # fmt: skip
+
+    def text(h):
+        return re.sub(r'<span class="sr">.*?</span>|<[^>]+>', "", h).replace(
+            "\N{NO-BREAK SPACE}", " "
+        )
+
+    tally = b.tamper_words(cfg)
+    assert text(tally).endswith("rejected 9 · accepted 1 · did not apply 8")
+    assert "<b>1</b>" in tally
+    assert "tests nothing" not in tally
+    full = text(b.unexpected_full(cfg))
+    assert full.count("tests nothing") == 1
+    assert (
+        "5 of 5 trials rejected (flips kept off response.y, declared not read) · 2026-11-09 · 2"
+        in full
+    )
+    assert b.tamper_words({"controls": {"counts": {}}, "accepted": [], "control_runs": []}) == ""

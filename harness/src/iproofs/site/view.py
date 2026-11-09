@@ -330,8 +330,12 @@ def _unexpected(
             same = next((c for c in (held or {"controls": []})["controls"]
                          if c["id"] == x["control_id"]), None)  # fmt: skip
             if same is not None:
+                trials = same.get("trials") or []
                 others.append({"run_id": other, "outcome": same["outcome"],
                                "record": _record(records, other, "controls.json"),
+                               "trials": len(trials),
+                               "trials_same": sum(t.get("outcome") == same["outcome"]
+                                                  for t in trials),
                                "parts_not_read": [str(p["part"]) for p in
                                                   same.get("parts_not_read") or []]})  # fmt: skip
         out.append({"control": x["control_id"], "run_id": rid, "outcome": x["outcome"],

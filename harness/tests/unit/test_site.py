@@ -1146,16 +1146,28 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
     """RFC-0008, AGENTS.md rule 10: an accepted outcome is never printed as a bare count. Each
     "it accepted N" names the controls it counts and whether each one's own expected set holds
     acceptance, so a system's weakened-prover control (which expects acceptance) never reads as
-    a tampered proof the checker took; the control line says it was expected."""
+    a tampered proof the checker took; the control line says it was expected. Where every
+    accepted record tampered only with a part verify does not read, the count stands alone: the
+    record's own block under it says it tests nothing, once."""
     seen = 0
     for system in site.view["orders"]["benchmarked"]:
         text = plain(site.pages[f"{system}.html"])
         for cfg in system_configs(site, system):
             for a in cfg["accepted"]:
                 assert a["control"] in text, (system, a["control"])
-        for m in re.finditer(r"accepted (\d+)", text):
-            after = text[m.end() : m.end() + 16]
-            assert after.startswith((" (", ", tests nothing")), text[m.start() : m.end() + 40]
+        for cfg in system_configs(site, system):
+            accepted = cfg["controls"]["counts"].get("accepted")
+            if not accepted:
+                continue
+            tallies = [plain(t) for t in re.findall(r'<p class="tamper">(.*?)</p>',
+                                                    site.pages[f"{system}.html"])]  # fmt: skip
+            mine = next(t for t in tallies if f"accepted {accepted}" in t)
+            after = mine[mine.index(f"accepted {accepted}") + len(f"accepted {accepted}") :]
+            if all(a.get("not_read") for a in cfg["accepted"]):
+                assert not after.startswith((" (", ",")), mine
+                assert "tests nothing" not in mine, mine
+            else:
+                assert after.startswith(" ("), mine
             seen += 1
         for a in (a for c in system_configs(site, system) for a in c["accepted"]):
             if a["source"] == "system" and a["passed"]:
