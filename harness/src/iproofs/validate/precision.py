@@ -72,10 +72,11 @@ SERVE_FLAGS = ("--tensor-parallel-size", "--max-model-len", "--max-num-seqs")
 
 
 def serve_entry_problems(entry: ReferenceWorkload, wl: Workload) -> list[str]:
-    """SRV-3 and SRV-6 on one production-serving entry: flag and value pairs of the allowlist,
-    each once; `--tensor-parallel-size` is the entry's GPU count; `--max-model-len` is prompt
-    plus output tokens; `--max-num-seqs` is the workload's batch size at matched load and absent
-    at high load, where `batch_size` names the batch."""
+    """SRV-1, SRV-3 and SRV-6 on one production-serving entry: flag and value pairs of the
+    allowlist, each once; `--tensor-parallel-size` is the entry's GPU count; `--max-model-len`
+    is prompt plus output tokens; `--max-num-seqs` is the workload's batch size at matched load
+    and absent at high load, where `batch_size` names the batch; a matched session runs at least
+    the workload's batches."""
     args = list(entry.engine_args)
     flags = [a for i, a in enumerate(args) if i % 2 == 0]
     values = [a for i, a in enumerate(args) if i % 2 == 1]
@@ -89,6 +90,11 @@ def serve_entry_problems(entry: ReferenceWorkload, wl: Workload) -> list[str]:
         want["--max-num-seqs"] = str(wl.shape.batch_size)
         if entry.batch_size is not None:
             problems.append(f"{entry.id}: a matched entry runs the workload's batch size")
+        run = entry.batches_per_session_run
+        if run is not None and run < wl.shape.batches_per_session:
+            problems.append(f"{entry.id}: batches_per_session_run {run} is below the "
+                            f"workload's {wl.shape.batches_per_session} (SRV-1: that count, or "
+                            "more)")  # fmt: skip
     elif entry.batch_size is None:
         problems.append(f"{entry.id}: a high-load entry names its batch_size")
     elif entry.batches_per_session_run is not None:

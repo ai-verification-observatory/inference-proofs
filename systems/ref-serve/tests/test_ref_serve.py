@@ -161,6 +161,22 @@ def test_batches_released_per_request(adapter: ModuleType) -> None:
     assert released == want
 
 
+def test_lengthened_session_serves_every_batch(adapter: ModuleType) -> None:
+    """TC-SRV-LENGTHEN-REPLAY in the adapter (SRV-1): a matched job whose `batches` (the run's
+    `batches_per_session_run`, 7) exceeds the workload's `batches_per_session` (5) serves all 7
+    batches of 2 from the prompt file, in file order."""
+    adapter.make_serve_engine = Replay
+    Replay.calls = []
+    io = Path(adapter.host("/io"))
+    adapter.os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+    (io / "prompts.jsonl").write_text("".join(json.dumps([i, i]) + "\n" for i in range(14)))
+    doc = job(io, "fp-maverick-w1024-b24", 2, 5, 1, gpus=4) | {"batches": 7}
+    out = run(adapter, "prove", doc)
+    assert Replay.calls == [(2, 1)] * 7
+    assert [p["request_index"] for p in out["proofs"]] == list(range(14))
+    assert json.loads((io / "proofs/req-13/outputs.json").read_text())["batch"] == 6
+
+
 def test_too_few_prompts_refused(adapter: ModuleType) -> None:
     adapter.make_serve_engine = Replay
     io = Path(adapter.host("/io"))

@@ -255,6 +255,14 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--include", action="append", required=True, metavar="GLOB",
                    help="mirror paths to pin (repeat)")  # fmt: skip
     p.set_defaults(handler=serving_pin)
+    p = command(
+        "size-session",
+        "compute batches_per_session_run from a stored matched capture (RFC-0015 SRV-1)",
+        serving_sub,
+        "serving size-session",
+    )
+    p.add_argument("run_dir", type=Path)
+    p.set_defaults(handler=serving_size_session)
 
     reproduce = sub.add_parser("reproduce", help="reproduction records (RFC-0007)")
     reproduce_sub = reproduce.add_subparsers(
@@ -979,6 +987,66 @@ def serving_pin(args: argparse.Namespace) -> int:
     text = pin_record(path.read_text(), dict(load_yaml(path)), args.include, _hub_get)
     path.write_text(text)
     print(path)
+    return 0
+
+
+def serving_size_session(args: argparse.Namespace) -> int:
+    """`iproofs serving size-session RUN_DIR` (RFC-0015 SRV-1): the `batches_per_session_run`
+    of the capture's (workload, GPU count), computed from its run.json and manifest.json and
+    the workload record's `batches_per_session` (never typed, AGENTS.md rule 3). Prints JSON;
+    the expected seconds are projections from the capture (grade projected)."""
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.serialize import dumps  # noqa: PLC0415
+    from iproofs.serving import session_size  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    docs = []
+    for name in ("run.json", "manifest.json"):
+        path = args.run_dir / name
+        try:
+            docs.append(json.loads(path.read_text()))
+        except (OSError, ValueError) as e:
+            raise IProofsError(ErrorKind.CONFIG, f"{path}: not a readable run record ({e})") from e
+    run, manifest = docs
+    root = repo_root(Path.cwd())
+    wl_ref = manifest.get("workload") or {}
+    wl = load_workload(str(wl_ref.get("id")), wl_ref.get("version"), root=root,
+                       registry=SchemaRegistry.from_tree(root / "schema"))  # fmt: skip
+    size = session_size(run, manifest, wl.shape.batches_per_session)
+    source = f"{args.run_dir.resolve().name}/run.json#/metrics/prove_steady_seconds"
+    out = {
+        "batches_per_session_run": size.batches,
+        "workload": size.workload,
+        "load_point": "matched",
+        "gpus": size.gpus,
+        "batch_size": size.batch_size,
+        "prompt_count_run": size.prompt_count,
+        "steady_batches": size.steady_batches,
+        "target_prove_steady_seconds": size.target_s,
+        "capture": {
+            "run_id": size.run_id,
+            "profile": run.get("profile"),
+            "batches": size.capture_batches,
+            "prove_steady_seconds": size.capture_steady_s,
+            "prove_session_seconds": size.capture_session_s,
+            "seconds_per_steady_batch": size.seconds_per_batch,
+            "grade": "measured",
+            "source": source,
+        },
+        "expected": {
+            "prove_steady_seconds": size.expected_steady_s,
+            "prove_session_seconds": size.expected_session_s,
+            "grade": "projected",
+            "basis": f"the capture's seconds per steady batch x {size.batches - 1} steady "
+            f"batches; the session adds {size.batches - size.capture_batches} batches to the "
+            "capture's prove.session",
+        },
+    }
+    sys.stdout.write(dumps(out).decode())
+    print(f"system.yaml {size.workload} matched gpus {size.gpus}: batches_per_session_run: "
+          f"{size.batches}  # iproofs serving size-session on {size.run_id}",
+          file=sys.stderr)  # fmt: skip
     return 0
 
 
