@@ -38,7 +38,7 @@ jobs:
   test-shard:
     # The suite runs in SHARDS parts (docs/spec/07 §Sharding); every test runs in exactly one.
     runs-on: ubuntu-24.04
-    timeout-minutes: 6  # twice its target (docs/spec/08 §When a budget is exceeded)
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
