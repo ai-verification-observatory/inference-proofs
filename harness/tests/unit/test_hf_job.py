@@ -524,3 +524,18 @@ def test_every_job_uploads_through_the_bucket_api(tmp_path: Path, profile: str) 
     assert "upload: out/ to the mounted bucket" not in log
     assert not (bucket / "runs").exists() or not any((bucket / "runs").iterdir())
     assert "hf_secret_x" not in log
+
+
+def test_runbook_helpers_upload_alike() -> None:
+    """docs/runbooks/hf-jobs.md: the prover and the serving job helpers both pass the secrets
+    file and IPROOFS_UPLOAD_BUCKET, so every job takes the checked API upload; S2 replays a b24
+    run that records the batch-membership steady rule."""
+    text = (ROOT / "docs/runbooks/hf-jobs.md").read_text()
+    flags = ('--secrets-file "$HOME/.config/iproofs/hf-job.secrets" '
+             '-e IPROOFS_UPLOAD_BUCKET="$NS/iproofs-dev-runs"')  # fmt: skip
+    for helper in ("iproofs_job() {", "iproofs_serving_job() {"):
+        body = text[text.index(helper) : text.index("\n}\n", text.index(helper))]
+        assert flags in body, helper
+    assert '"fp-maverick-w1024-b24:1:from=$FP_B24_RUN"' in text
+    assert '"sash-l31-8b-c1024:1:from=$SASH_RUN"' in text
+    assert '["workload"].get("steady_rule")' in text

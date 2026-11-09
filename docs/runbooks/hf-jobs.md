@@ -106,6 +106,7 @@ iproofs_job() {  # FLAVOR TIMEOUT_SECONDS IMAGE LABEL then hf-job.sh's arguments
   local flavor=$1 timeout=$2 image=$3 label=$4; shift 4
   hf jobs run --detach --flavor "$flavor" --timeout "$timeout" --name "iproofs-$label" \
     --label "iproofs=$label" "${UPLOAD[@]}" "${EXTRA[@]}" \
+    --secrets-file "$HOME/.config/iproofs/hf-job.secrets" -e IPROOFS_UPLOAD_BUCKET="$NS/iproofs-dev-runs" \
     -e IPROOFS_COMMIT="$IPROOFS_COMMIT" -e IPROOFS_JOB_BUDGET_S="$((timeout - 600))" \
     -e IPROOFS_LABEL="$label" \
     "$image" -- bash -c "$BOOT" hf-job "$@"
@@ -122,9 +123,9 @@ What happens inside, in order (`hf-job.sh`):
 4. **Binding check.** The CPUs `iproofs run --gpu` would bind on `prover-h200-hosted` (`GpuEnvironment`, RFC-0006 §CPU and memory selection). It fails when the GPU has no NUMA node or fewer than 15 usable CPUs sit on it; `iproofs run` then refuses before any step, and `--allow-nonconforming` does not change that. A `run` job stops here, before any weights are fetched.
 5. **Self-test.** `iproofs machine-record --hosted --selftest` (RFC-0011), into `out/selftest.json` and the results directory.
 6. **Development install**, only with `IPROOFS_DEV_IMAGE` ([Production serving](#production-serving-from-the-engine-image-rfc-0015-srv-6)): `systems/<system>/dev_install.py` puts the adapter into the engine image the job started from and checks the engine, the environment and the bound GPUs, and the runs pass `--image` and `--keep-io`. A failed install or check stops the job before any weights are fetched.
-6. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
-7. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite] [--keep-io]`, under `timeout` so it stops 15 minutes before the script's budget (60 minutes with `keep-io`, see stage 2). A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
-8. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the self-test record and the run directories, then the proof archives (left out with `keep-io`, whose `io/proofs` holds the same proof; its digest stays in `digests.txt`), then the log again. A copy that ends without an error writes `upload.done` (the bytes sent) into the folder; the `seed`, `controls` and `merge` modes refuse a stored run whose folder has none, since its copy may be partial.
+7. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
+8. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite] [--keep-io]`, under `timeout` so it stops 15 minutes before the script's budget (60 minutes with `keep-io`, see stage 2). A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
+9. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the self-test record and the run directories, then the proof archives (left out with `keep-io`, whose `io/proofs` holds the same proof; its digest stays in `digests.txt`), then the log again. A copy that ends without an error writes `upload.done` (the bytes sent) into the folder; the `seed`, `controls` and `merge` modes refuse a stored run whose folder has none, since its copy may be partial.
 
 A STEP is `WORKLOAD:REPETITIONS`, with options after further colons: `controls` runs the control suite in the job (`--control-suite`), and `keep-io` keeps the completed run directory's `io/` (prompts, adapter outputs, state, proofs) and commitment store (`--keep-io`), so both are uploaded and a later `controls` job can run from the bucket (stage 5). The job log prints the size of each kept directory. `keep-io` is refused for FlashProve before the probe: its `io/` holds a copy of the weights and its commitment store the prover's secret key.
 
@@ -380,13 +381,14 @@ iproofs_serving_job() {  # FLAVOR TIMEOUT_SECONDS PROFILE LABEL then hf-job.sh's
   local flavor=$1 timeout=$2 profile=$3 label=$4; shift 4
   hf jobs run --detach --flavor "$flavor" --timeout "$timeout" --name "iproofs-$label" \
     --label "iproofs=$label" "${UPLOAD[@]}" \
+    --secrets-file "$HOME/.config/iproofs/hf-job.secrets" -e IPROOFS_UPLOAD_BUCKET="$NS/iproofs-dev-runs" \
     -e IPROOFS_COMMIT="$IPROOFS_COMMIT" -e IPROOFS_JOB_BUDGET_S="$((timeout - 600))" \
     -e IPROOFS_LABEL="$label" -e IPROOFS_DEV_IMAGE="$VLLM_IMAGE" -e IPROOFS_PROFILE="$profile" \
     "$VLLM_IMAGE" -- bash -c "$BOOT_ENGINE" hf-job "$@"
 }
 ```
 
-`IPROOFS_COMMIT` must contain this section's `hf-job.sh`, `systems/_dev/` and `systems/ref-serve/dev_install.py` (the merge of that change, or later).
+Both helpers upload the same way: the secrets file gives the job `HF_TOKEN` and `IPROOFS_UPLOAD_BUCKET` names the bucket, so `hf-job.sh` sends `out/` through the bucket API and checks it file by file ([Uploads](#uploads-through-the-bucket-api-checked-2026-11-09)); the mount in `UPLOAD` stays, for reading the replayed run (`:from=`). `IPROOFS_COMMIT` must contain this section's `hf-job.sh`, `systems/_dev/` and `systems/ref-serve/dev_install.py`, and RFC-0004 INV-SCOPE-5 (the merge of that change, or later).
 
 **S0, the image without a GPU** (`cpu-basic`, timeout 15 min, cap under 0.01 USD): that Jobs pulls it by digest, that the command replaces its `ENTRYPOINT` (`vllm serve`; if it does not, the job fails at once with the server's usage message), the user, `import vllm`, whether `git` and `uv` are present, `apt-get`, `/dev/shm`, and which engine variables the provider adds:
 
@@ -401,23 +403,33 @@ hf jobs run --detach --flavor cpu-basic --timeout 15m --name iproofs-serving-s0 
 
 A variable in the `env` lines that the image's ENV does not hold (compare with `inputs.json` `image_env` of S1, or the registry config) makes every serving job refuse itself (`config`, SRV-3): stop and put it to the owner.
 
-**S1, Llama 3.1 8B BF16 on `h200`** (TP1, `serving-h200x1-hosted`), matched load, one repetition, replaying the SASH run of stage 2 (copy its folder from the bucket listing; SASH's steady scope is not externally observable, so this run's figure joins no overhead, and S1 tests the adapter, the BF16 record and the 1-GPU path):
+**S1, Llama 3.1 8B BF16 on `h200`** (TP1, `serving-h200x1-hosted`), matched load, one repetition, replaying the completed SASH run of stage 2 (label `sash-c1024-r1`, on `prover-h200-hosted`). The workload has batch size 1 and one batch a session, so S1 serves the SASH run's one prompt: 1,024 prompt tokens and 64 output tokens. SASH's steady scope is not externally observable, so this run feeds SASH's session overhead, D-OVERHEAD-SESSION, start-up included on both sides (RFC-0004 INV-DERIVE-10), and no steady one. Find the run: its folder ends in `-sash-c1024-r1` and holds `upload.done`, and its run directory is the one SASH run under it:
 
 ```sh
-SASH_RUN=runs/<stage-2 folder>/dev-results/v0.1/sash/<run id>
+hf buckets list "$NS/iproofs-dev-runs/runs" -h
+hf buckets list "$NS/iproofs-dev-runs/runs/<UTC time>-sash-c1024-r1/dev-results/v0.1/sash" -h
+SASH_RUN=runs/<UTC time>-sash-c1024-r1/dev-results/v0.1/sash/<date>-sash-sash-l31-8b-c1024-prover-h200-hosted-1
 iproofs_serving_job h200 3600 serving-h200x1-hosted serving-l31-bf16-s1 \
   run ref-serve "sash-l31-8b-c1024:1:from=$SASH_RUN"
 ```
 
+`iproofs run` refuses, before any step, a `from=` run that did not complete or ran another workload version (`recorded_seed`).
+
 Timeout 1 h: cap 1 h x 5.00 = 5.00 USD. Estimate (projected): pull and install 600 s (assumed, as stage 3); weights 16.07 GB, about 60 s (assumed); `fetch-model`'s hash about 16 s (1 GB/s, assumed); the run's rehash about 28 s (scaled from the 395 to 418 s for 232.1 GB, measured, tier reported, n = 6, stage 3 table); engine load and compile 300 s (assumed); requests about 62 s (assumed); the tokenizer check before the weights about 30 s (assumed): about 1,096 s (0.30 h), 1.52 USD.
 
-**S2, Llama 4 Maverick FP8 on `h200x4`** (TP4, `serving-h200x4-hosted`), matched then high load, one repetition each, replaying FlashProve's b24 run (stage 4.3):
+**S2, Llama 4 Maverick FP8 on `h200x4`** (TP4, `serving-h200x4-hosted`), matched then high load, one repetition each, replaying a completed FlashProve b24 run made with this harness: stage 4.3 (label `fp-b24-r1`, on `prover-h200-hosted`) run at an `IPROOFS_COMMIT` that contains RFC-0004 INV-SCOPE-5, so that its `manifest.json` records `workload.steady_rule: "batch-membership"`. A b24 run recorded before the rule joins no overhead (INV-DERIVE-2 (f)), and `iproofs run` refuses to replay one at batch size 24 (`config`, before any step or weight); if stage 4.3 ran at an earlier commit, run it again at this one first (its command, cap 35.00 USD). Find the run and check the rule before starting the job:
 
 ```sh
-FP_B24_RUN=runs/<stage-4.3 folder>/dev-results/v0.1/flashprove/<run id>
+hf buckets list "$NS/iproofs-dev-runs/runs" -h
+hf buckets list "$NS/iproofs-dev-runs/runs/<UTC time>-fp-b24-r1/dev-results/v0.1/flashprove" -h
+FP_B24_RUN=runs/<UTC time>-fp-b24-r1/dev-results/v0.1/flashprove/<date>-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1
+hf buckets cp "hf://buckets/$NS/iproofs-dev-runs/$FP_B24_RUN/manifest.json" - |
+  python3 -c 'import json, sys; print(json.load(sys.stdin)["workload"].get("steady_rule"))'  # batch-membership
 iproofs_serving_job h200x4 10800 serving-h200x4-hosted serving-mav-fp8-s2 \
   run ref-serve "fp-maverick-w1024-b24:1:from=$FP_B24_RUN" "fp-maverick-w1024-b24:1:high:from=$FP_B24_RUN"
 ```
+
+The matched step serves the prover's 120 prompts in 5 batches of 24 (while `batches_per_session_run` is unset, RFC-0015 SRV-1); the high-load step serves 5 batches of 1,024: the prover's 120 prompts plus 5,000 further windows of the same seeded generator (SRV-8; workload facts, not results). The matched step's figures feed FlashProve's D-OVERHEAD-S (steady) and D-OVERHEAD-SESSION; the high-load step's, D-OVERHEAD-HIGH-S.
 
 Timeout 3 h: cap 3 h x 20.00 = 60.00 USD. Estimate (projected): pull and install 600 s (assumed); weights 416.8 GB, about 862 s (scaled from about 8 min for 232.1 GB, reported, n = 1); `fetch-model`'s hash 417 s (1 GB/s, assumed); per repetition the rehash about 731 s (scaled as in S1), loading 397,449 MiB to 4 GPUs with compilation and CUDA graphs 900 s (assumed, never measured), requests about 65 s matched and 300 s high (5 x 1,024 x 1,025 tokens at an assumed 30,000 token/s); the tokenizer check before the weights about 30 s (assumed): about 5,536 s (1.54 h), 30.76 USD. The second step skips `fetch-model` (the first step fetched and checked the files) and the run's own rehash checks them again, so the files are read three times after the download, not four.
 

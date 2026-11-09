@@ -417,7 +417,10 @@ def run(args: argparse.Namespace) -> int:
     if args.gpus and args.gpu is not None:
         raise IProofsError(ErrorKind.CONFIG, "give --gpu or --gpus, not both")
     seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
-    recompute = load_yaml(system_file).get("reference_role") == "recompute"
+    role = load_yaml(system_file).get("reference_role")
+    recompute = role == "recompute"
+    if role == "serve" and args.prompts_from:  # before any step or weight
+        _replay_steady_rule(args.prompts_from, wl.shape.batch_size)
     if recompute and not args.prompts_from:  # RFC-0015 RC-1, before any step
         raise IProofsError(ErrorKind.CONFIG, f"{args.system} needs --prompts-from a system run")
     claims = recorded_claims(args.prompts_from) if args.prompts_from and recompute else None
@@ -524,6 +527,21 @@ def gpu_list(text: str) -> list[int]:
     if not found or len(set(found)) != len(found) or min(found) < 0:
         raise argparse.ArgumentTypeError(f"{text!r}: distinct non-negative GPU indices")
     return found
+
+
+def _replay_steady_rule(run_dir: Path, batch_size: int) -> None:
+    """RFC-0004 INV-SCOPE-5 and INV-DERIVE-2 (f): at a batch size above 1, a system run recorded
+    without `workload.steady_rule` joins no overhead, so a production-serving job replaying it
+    could feed none; it is refused (`config`) before the engine starts or a weight is fetched."""
+    from iproofs.derive import STEADY_RULE  # noqa: PLC0415
+
+    manifest = run_dir / "manifest.json"
+    workload = json.loads(manifest.read_text()).get("workload", {}) if manifest.is_file() else {}
+    if batch_size > 1 and workload.get("steady_rule") != STEADY_RULE:
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} was recorded without workload."
+                           f"steady_rule {STEADY_RULE!r} at batch size {batch_size} (before "
+                           "RFC-0004 INV-SCOPE-5): it joins no overhead, so replaying it would "
+                           "feed none; replay a run recorded with the rule")  # fmt: skip
 
 
 def _prompt_digest(run_dir: Path) -> str | None:

@@ -245,3 +245,24 @@ def test_engine_command_problem(tmp_path: Path) -> None:
     stale = [*args[:3], "24", *args[4:]]
     assert "recorded: " in str(engine_command_problem(tmp_path, stale, required=False))
     assert engine_command_problem(tmp_path, ["x", *args], required=True) is not None
+
+
+def test_serving_replay_needs_the_steady_rule(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """RFC-0004 INV-SCOPE-5 and INV-DERIVE-2 (f): at batch size 2 (fake-tiny-ci), a production-
+    serving job that replays a run recorded without `workload.steady_rule` is refused (config)
+    before any step, since that run joins no overhead; a run with the rule replays."""
+    monkeypatch.setattr("iproofs.cli._containers", _in_process_any)
+    assert run("fake", repo / "results") == 0
+    source = only_run(repo / "results", "fake")
+    before = tmp_path / "before"
+    shutil.copytree(source, before)
+    manifest = json.loads((before / "manifest.json").read_text())
+    del manifest["workload"]["steady_rule"]
+    (before / "manifest.json").write_text(json.dumps(manifest))
+    args = ("--allow-nonconforming", "--prompts-from")
+    assert run("fake-ref", repo / "old", *args, str(before)) == 2
+    assert "recorded without workload.steady_rule" in capsys.readouterr().err
+    assert not (repo / "old").exists()
+    assert run("fake-ref", repo / "new", *args, str(source)) == 0
