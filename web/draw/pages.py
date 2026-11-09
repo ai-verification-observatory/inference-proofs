@@ -15,7 +15,7 @@ from .claims import (
     read_entries,
     run_ref,
 )
-from .hexagon import hex_svg, key_mini
+from .hexagon import hex_svg, key_mini, sized
 from .overview import model_line, plate_prefix, shape_words
 from .plates import (
     COLS,
@@ -517,7 +517,7 @@ def build_criteria():
         note = f'<p class="cnote">{e(words(p["not_here"]))}</p>' if p.get("not_here") else ""
         secs += (
             f'<section class="crit" id="{e(p["id"])}" aria-labelledby="h-{e(p["id"])}">'
-            f'<div class="ch">{key_mini(i + 1)}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
+            f'<div class="ch">{sized(lambda s, n=i + 1: key_mini(n, s), (48, 32))}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
             f'<p class="cq">{e(p["question"])}</p></div><dl class="cs">{states}</dl>{note}</section>'
         )
     body = f"""

@@ -68,11 +68,11 @@ The fixture's test-only cases (`extras=True`: a target, two overrides, a second 
 
 ## Design
 
-Dark ground, paper text. Violet is the benchmark's own frame: the six properties and page titles, never a value or a state. Green, amber, red and grey mean Yes, Partly, No and Not stated, and appear only in the glyph's slots and the state squares. The grey (`--unstated`) has no hue, so it never reads as a fourth state colour. Archivo for display, IBM Plex Mono for data. No cards, shadows or double rules; no helper sentences, taglines or captions.
+Dark ground, paper text. Violet is the benchmark's own frame: the six properties and page titles, never a value or a state. Green, amber and red mean Yes, Partly and No, and appear only in the glyph's slots and the state squares; Not stated is a ghost slot, a near-ground fill (`--ghost`) inside a grey outline (`--unstated`), so it reads as the absence of a state, never as a fourth state colour. The inks were tuned so the four states stay apart in luminance under protanopia, deuteranopia, tritanopia and greyscale (Machado matrices on the inks: the smallest ratio between any two states goes from 1.02:1, No against Not stated under protanopia, to 1.63:1, Yes against Partly under deuteranopia); `draw/inks.py` holds every step at 1.7:1 or more in normal vision. Archivo for display, IBM Plex Mono for data. No cards, shadows or double rules; no helper sentences, taglines or captions.
 
 Narrow screens follow one scale of widths, desktop first as the base rules are. Breakpoints (px): 1240 1180 1099 1000 960 920 760 635 560 400 360 349. `words.css` opens one `@media` block per width, wide to narrow, and sets each selector once in it, so at the same specificity a narrower block overrides a wider one. One block also takes a min-width, one px above a width of the scale, and sits last: 350 to 560 px (a plate's label beside its value); 349 is on the scale only as its lower edge. The hover, reduced-motion, forced-colours and landscape (`max-height`) rules are not width blocks and keep their places; a width inside one (the landscape rule's 960 px) is still a width of the scale. `test_breakpoints.py` checks the blocks against the scale, which this list and the comment at the top of `words.css` both give.
 
-Each system is drawn as the **hex asterisk**: six triangles that make a point-top hexagon, one per property, clockwise from twelve (Weights hidden, Model bound, Whole output checked, Formally verified, Security level, No trusted party), so 1 to 3 sit on the right and 4 to 6 on the left, on a pie's own 60-degree axes. The cuts between the triangles widen toward the centre, so the ground they leave draws an asterisk, the footnote mark that sends a reader to the fine print. Every slot is always filled, Not stated in the grey, so the hexagon is always whole. The glyph is drawn in device pixels (`hex_svg` in `draw/hexagon.py`): gaps and lines are sized for each size, and up to 40 px the centre and the flat sides sit on the pixel grid. In one colour (`mark_svg`, wider cuts so the asterisk leads) it is the logo, the favicon and the touch icon. It was chosen in a study of six directions (hexagon, ring, pinwheel, asterisk, pixel disc, cut pie) judged on reading, brand and fit. The properties carry no numbers anywhere.
+Each system is drawn as the **hex asterisk**: six triangles that make a point-top hexagon, one per property, clockwise from twelve (Weights hidden, Model bound, Whole output checked, Formally verified, Security level, No trusted party), so 1 to 3 sit on the right and 4 to 6 on the left, on a pie's own 60-degree axes. The cuts between the triangles widen toward the centre, so the ground they leave draws an asterisk, the footnote mark that sends a reader to the fine print. Every slot is always drawn, Not stated as a ghost slot whose outline sits inside its cuts, so the hexagon is always whole. The glyph is drawn in device pixels (`hex_svg` in `draw/hexagon.py`): gaps and lines are sized for each size, a page carries one copy per size it shows (`sized`; words.css shows the one for the width in use), and up to 128 px (40 px for the one-colour mark) the centre and the flat sides sit on the pixel grid. On a phone's system page a name on a Not stated slot is in muted ink. In one colour (`mark_svg`, wider cuts so the asterisk leads) it is the logo, the favicon and the touch icon. It was chosen in a study of six directions (hexagon, ring, pinwheel, asterisk, pixel disc, cut pie) judged on reading, brand and fit. The properties carry no numbers anywhere.
 
 ### Header and footer
 
@@ -150,17 +150,17 @@ An unknown address answers the site's own page with status 404: the header and t
 
 ### Accessibility
 
-axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practice` rules). Beyond it: no duplicate ids, row headings hold only the system's name (its six states follow as text for screen readers), arrows are not read aloud, page titles carry the site's name, the band's name keeps every letter under text-spacing overrides, nothing overflows at 320 px (400 % zoom), and under forced colours (Windows high contrast) the state squares keep their inks and Not stated stays empty.
+axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practice` rules). Beyond it: no duplicate ids, row headings hold only the system's name (its six states follow as text for screen readers), arrows are not read aloud, page titles carry the site's name, the band's name keeps every letter under text-spacing overrides, nothing overflows at 320 px (400 % zoom), and under forced colours (Windows high contrast) the state squares keep their inks, Not stated stays a ghost slot, and a key glyph's lit wedge stays the one in CanvasText, the others outlined.
 
 ## Inks and contrast (computed by the build, `draw/inks.py`)
 
 <!-- ladder -->
 | Word | Ink | Luminance | Contrast on the ground `#0b0b0c` | Step from the state below |
 |---|---|---|---|---|
-| Not stated | `#67635c` (a grey, no hue) | 0.126 | 3.29:1 |  |
-| No | `#e8332a` | 0.197 | 4.63:1 | 1.40:1 |
-| Partly | `#e89400` | 0.383 | 8.12:1 | 1.76:1 |
-| Yes | `#7cf29a` | 0.701 | 14.08:1 | 1.73:1 |
+| Not stated | `#1f1e1e` inside a `#67635c` outline (no hue) | 0.013 | 1.18:1 (outline 3.29:1) |  |
+| No | `#e03c44` | 0.195 | 4.59:1 | 3.88:1 |
+| Partly | `#e49921` | 0.394 | 8.32:1 | 1.81:1 |
+| Yes | `#6ffeb7` | 0.777 | 15.49:1 | 1.86:1 |
 
 | Pair | Contrast |
 |---|---|
@@ -168,9 +168,10 @@ axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practic
 | muted text on ground (`#9b978e` on `#0b0b0c`) | 6.76:1 |
 | black text on violet (`#0b0b0c` on `#c45cff`) | 5.92:1 |
 | violet text on ground (`#c45cff` on `#0b0b0c`) | 5.92:1 |
-| ground text on Yes (`#0b0b0c` on `#7cf29a`) | 14.08:1 |
-| ground text on Partly (`#0b0b0c` on `#e89400`) | 8.12:1 |
-| ground text on No (`#0b0b0c` on `#e8332a`) | 4.63:1 |
+| ground text on Yes (`#0b0b0c` on `#6ffeb7`) | 15.49:1 |
+| ground text on Partly (`#0b0b0c` on `#e49921`) | 8.32:1 |
+| ground text on No (`#0b0b0c` on `#e03c44`) | 4.59:1 |
+| muted name on a Not stated slot (`#9b978e` on `#1f1e1e`) | 5.71:1 |
 <!-- /ladder -->
 
 ## Files

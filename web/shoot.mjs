@@ -127,16 +127,20 @@ const sortBy = async (p, col, dir) => {
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
-  // a Not stated slot is filled like the others, in its own grey, and lifts like them
-  const sb = await p.locator('#sash .pie .h1').boundingBox();
+  // a Not stated slot is a ghost slot (a near-ground fill inside a grey outline) and lifts like the others
+  const sb = await p.locator('#sash .pie .w96 .h1').boundingBox();
   await p.mouse.move(sb.x + sb.width * 0.6, sb.y + sb.height * 0.4); await p.waitForTimeout(400);
   const emp = await p.evaluate(() => {
     const pie = document.querySelector('#sash .pie'); const s = pie.querySelector('.s1'); const cs = getComputedStyle(s);
-    const grey = getComputedStyle(document.documentElement).getPropertyValue('--unstated').trim();
-    const rgb = '#' + cs.fill.match(/\d+/g).map((v) => (+v).toString(16).padStart(2, '0')).join('');
-    return { hot: pie.dataset.hot, unstated: s.classList.contains('unstated'), fill: rgb, grey, moved: cs.transform !== 'none', loose: pie.querySelectorAll('svg > path:not(.sl)').length };
+    const root = getComputedStyle(document.documentElement);
+    const hex = (c) => '#' + c.match(/\d+/g).slice(0, 3).map((v) => (+v).toString(16).padStart(2, '0')).join('');
+    const rest = getComputedStyle(pie.querySelector('.w96 .sl.unstated:not(.s1)') || s);
+    return { hot: pie.dataset.hot, unstated: s.classList.contains('unstated'), fill: hex(cs.fill), ghost: root.getPropertyValue('--ghost').trim(), stroke: hex(rest.stroke), grey: root.getPropertyValue('--unstated').trim(), moved: cs.transform !== 'none', loose: pie.querySelectorAll('svg > path:not(.sl)').length };
   });
-  ok(emp.hot === '1' && emp.unstated && emp.fill === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is filled in its own grey and lifts like the others', emp);
+  ok(emp.hot === '1' && emp.unstated && emp.fill === emp.ghost && emp.stroke === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is a ghost slot in a grey outline and lifts like the others', emp);
+  // one copy of each glyph per size shown, and only the copy for this width on screen
+  const copies = await p.evaluate(() => [...document.querySelectorAll('.row .pie, .nbpie, .q')].every((x) => [...x.querySelectorAll('svg')].filter((v) => v.getBoundingClientRect().width).length === 1));
+  ok(copies, 'each glyph shows one copy, the one drawn for its size');
   await p.mouse.move(0, 0);
   // the labels ride in each figure's title: sample size and range for the three with a spread, the
   // overhead's pairs; under each figure at most its scope in a few words

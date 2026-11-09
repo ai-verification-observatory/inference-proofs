@@ -13,10 +13,11 @@ from .words import STATE_CLS, e
 # Six triangles make a point-top hexagon, one per property, clockwise from twelve: segment i spans
 # the side from vertex 60*i to vertex 60*(i+1), so 1 to 3 sit on the right and 4 to 6 on the left,
 # on the pie's own 60-degree axes. The cuts between them widen toward the centre, so the ground
-# they leave draws an asterisk, the footnote mark. Every slot is always filled: Not stated in a grey
-# of its own (--unstated), so the hexagon is always whole.
-# Drawn in device pixels (viewBox 0 0 size size): every gap and line is sized for the size it is
-# shown at, and up to 40 px the centre and the flat sides sit on the pixel grid.
+# they leave draws an asterisk, the footnote mark. Every slot is always drawn: Not stated as a ghost
+# slot (a near-ground fill inside a grey outline, --ghost and --unstated), so the hexagon is always
+# whole. Drawn in device pixels (viewBox 0 0 size size): every gap and line is sized for the size it
+# is shown at (a page draws one copy per size it shows), and up to 128 px the centre and the flat
+# sides sit on the pixel grid.
 C30 = math.cos(math.radians(30))
 
 
@@ -49,10 +50,16 @@ def _seg(i, R, wr, wc, inset=0.0):
     return [_cross(*e0, s0, s1), _cross(*e1, s0, s1), _cross(*e0, *e1)]
 
 
-def _frame(size):
-    """Centre and circumradius in px. Up to 40 px the centre sits on a pixel centre and the
-    vertical sides on pixel edges, so the cut at twelve and both flat sides are crisp."""
-    if size <= 40:
+# an empty (Not stated) slot is drawn this far inside its cut, so the outline's 1.25 px stroke,
+# centred on the edge, stays inside the slot and the asterisk keeps its width
+GHOST_INSET = 0.625
+
+
+def _frame(size, snap=True):
+    """Centre and circumradius in px. Snapped (up to 40 px, and up to 128 px for a glyph in state
+    inks), the centre sits on a pixel centre and the vertical sides on pixel edges, so the cut at
+    twelve and both flat sides are crisp."""
+    if snap:
         half = math.floor(size * 0.5 * C30 - 0.5) + 0.5
         return (size / 2 + 0.5, size / 2), half / C30
     return (size / 2, size / 2), size / 2 * 0.985
@@ -83,7 +90,7 @@ def _name_lines(name, outer_first):
     return list(min(fits or cuts, key=lambda ab: len(ab[0 if outer_first else 1])))
 
 
-def _names_svg(names, c, R):
+def _names_svg(names, c, R, states=None):
     out = []
     for i, name in enumerate(names):
         mid = 60 * i + 30
@@ -117,7 +124,9 @@ def _names_svg(names, c, R):
                 )
                 + "</g>"
             )
-        out.append(f'<g class="t s{i + 1}">{body}</g>')
+        # a name on a Not stated slot takes muted ink, as the ghost fill under it is near the ground
+        empty = " unstated" if states and states[i] == "not_stated" else ""
+        out.append(f'<g class="t s{i + 1}{empty}">{body}</g>')
     return f'<g class="tx">{"".join(out)}</g>'
 
 
@@ -125,12 +134,12 @@ def hex_svg(
     size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg", names=None
 ):
     """The glyph: six filled triangles, always. states: six RFC-0016 state ids, inked by words.css
-    (.sl.yes ... .sl.unstated, a grey of its own). key: n, the legend key (slot n in full ink, the other five faint). mono:
+    (.sl.yes ... .sl.unstated, a ghost slot in a grey outline). key: n, the legend key (slot n in full ink, the other five faint). mono:
     every slot in currentColor (the logo). cells: each slot carries its property's name and state
     word (read by words.js). hit: a still copy of the six triangles on top takes the pointer, so a
     lifted slot never slips from under it. names: each slot's property name set in it (shown on
     phone system pages only)."""
-    c, R = _frame(size)
+    c, R = _frame(size, size <= 40 or (size <= 128 and not mono))
     wr, wc = (
         (max(1.0, size * 0.016), max(3.0, size * 0.10))
         if mono
@@ -138,7 +147,8 @@ def hex_svg(
     )
     parts = []
     for i in range(6):
-        d = _d(_seg(i, R, wr, wc), c)
+        empty = bool(states) and not key and not mono and states[i] == "not_stated"
+        d = _d(_seg(i, R, wr, wc, GHOST_INSET if empty else 0.0), c)
         if mono:
             parts.append(f'<path d="{d}"/>')
         elif key:
@@ -151,7 +161,7 @@ def hex_svg(
                 f'<path class="sl s{i + 1} {STATE_CLS[states[i]]}" data-n="{i + 1}"{extra} d="{d}"/>'
             )
     if names:
-        parts.append(_names_svg(names, c, R))
+        parts.append(_names_svg(names, c, R, states))
     if hit:
         parts.append(
             '<g class="hit">'
@@ -165,6 +175,13 @@ def hex_svg(
         f'<svg class="{cls}" viewBox="0 0 {size} {size}" width="{size}" height="{size}" '
         f'aria-hidden="true" focusable="false">{"".join(parts)}</svg>'
     )
+
+
+def sized(draw, sizes):
+    """One copy of a glyph per size a page shows it at, each marked with its size (`w<size>`):
+    words.css shows the copy for the width in use, so its cuts and sides sit on the pixel grid
+    instead of being scaled between pixels. draw: size -> svg."""
+    return "".join(draw(s).replace('<svg class="', f'<svg class="w{s} ', 1) for s in sizes)
 
 
 def pie_svg(states, size, cells=None, hit=False):

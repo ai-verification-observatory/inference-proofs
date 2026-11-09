@@ -1,6 +1,7 @@
 /* MADE OF WORDS. No data in this file. Colour meanings:
    violet field = the benchmark's own frame (the six properties, page titles); never a value or a state.
-   green / amber / red = the three states, only in slices and state squares. Not stated = empty.
+   green / amber / red = the three states, only in slices and state squares. Not stated = a ghost slot:
+   a near-ground fill inside a grey outline, so it reads as the absence of a state, never a fourth hue.
    Everything else is paper, muted or rule on the ground. */
 /* Breakpoints (px): 1240 1180 1099 1000 960 920 760 635 560 400 360 349
    Desktop first: the base rules are for wide screens; the narrower section holds one block per width. */
@@ -24,10 +25,13 @@
   --rule: #6f6a62;
   --line: #2a2927;
   --violet: #c45cff;
-  --yes: #7cf29a;
-  --partly: #e89400;
-  --no: #e8332a;
-  --unstated: #67635c;  /* Not stated: a filled slot in a grey of its own */
+  /* the state inks, tuned so the four states stay apart in luminance under protanopia, deuteranopia,
+     tritanopia and greyscale (ghost to No 3.88:1, No to Partly 1.81:1, Partly to Yes 1.86:1) */
+  --yes: #6ffeb7;
+  --partly: #e49921;
+  --no: #e03c44;
+  --unstated: #67635c;  /* Not stated: the outline of an empty slot (3.29:1 on the ground) */
+  --ghost: #1f1e1e;  /* Not stated: the fill inside that outline, near the ground (1.18:1) */
   --disp: "Archivo", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --ease: cubic-bezier(.16, .84, .24, 1);
@@ -55,7 +59,7 @@ p { margin: 0; }
 /* state squares */
 .sw { display: inline-block; width: .72em; height: .72em; margin-right: .42em; vertical-align: baseline; }
 .sw.yes { background: var(--yes); } .sw.partly { background: var(--partly); } .sw.no { background: var(--no); }
-.sw.unstated { background: var(--unstated); }
+.sw.unstated { background: var(--ghost); box-shadow: inset 0 0 0 1.25px var(--unstated); }
 
 /* ---------------------------------------------------------------- top bar */
 .top { display: flex; align-items: center; gap: 32px; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
@@ -105,7 +109,7 @@ html:not(.js) .search { display: none; }
 /* the option the arrows chose: a paper edge as well, so it reads at 3:1 and more */
 .so.on { box-shadow: inset 3px 0 0 var(--paper); }
 .sp .pie-svg, .sp .kmini { display: block; width: 28px; height: 28px; overflow: visible; }
-.sp .kmini .off { fill: var(--paper); opacity: .16; }
+.sp .kmini .off { fill: var(--paper); opacity: .3; }
 .sp .kmini .on { fill: var(--paper); }
 .sn { display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
 .so .sm { display: block; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -128,8 +132,10 @@ html:not(.js) .search { display: none; }
 .map { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; }
 .q { display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 14px; align-items: start; }
 .kmini { display: block; grid-row: span 2; width: 48px; height: 48px; overflow: visible; }
+/* a glyph drawn once per size it is shown at: the copy for the width in use (draw/hexagon.py sized) */
+.q .kmini.w40, .q .kmini.w32, .q .kmini.w22 { display: none; }
 .kmini .on { fill: var(--ground); }
-.kmini .off { fill: var(--ground); opacity: .2; }
+.kmini .off { fill: var(--ground); opacity: .35; }  /* 1.93:1 on violet; lit against off 3.07:1 */
 .qw { display: block; padding-top: 2px; font: 900 32px/1 var(--disp); font-stretch: 66%; letter-spacing: -.004em; white-space: nowrap; }
 .qq { display: block; font: 500 13px/17px var(--mono); margin-top: 5px; max-width: 46ch; text-wrap: balance; }
 
@@ -150,6 +156,7 @@ html:not(.js) .search { display: none; }
 .nb { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .nbpie, .nbpie .pie-svg { display: block; width: 56px; height: 56px; }
 .nbpie { -webkit-tap-highlight-color: transparent; }
+.nbpie > .w52 { display: none; }
 .nbt { display: grid; min-width: 0; }
 .nbn { font: 800 22px/1.05 var(--disp); font-stretch: 78%; margin: 2px 0 4px; }
 .nbn a { text-decoration: none; }
@@ -187,10 +194,11 @@ html:not(.js) .search { display: none; }
 .r-main { align-items: start; }
 .pie { position: relative; display: block; width: 136px; height: 136px; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
 .row .pie { width: 96px; height: 96px; }
+.row .pie > .w64, .row .pie > .w52 { display: none; }
 .pie-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .sl { transition: transform .22s var(--ease), stroke .18s; }
 .sl.yes { fill: var(--yes); } .sl.partly { fill: var(--partly); } .sl.no { fill: var(--no); }
-.sl.unstated { fill: var(--unstated); }
+.sl.unstated { fill: var(--ghost); stroke: var(--unstated); stroke-width: 1.25px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 /* each slice's lift direction, the bisector of its wedge (build.py checks these against the geometry) */
 .s1 { --dx: 0.5; --dy: -0.866; }
 .s2 { --dx: 1; --dy: 0; }
@@ -380,6 +388,8 @@ html:not(.js) .search { display: none; }
 .rpie .tx { display: none; }
 .rpie .t { pointer-events: none; transition: transform .22s var(--ease); }
 .rpie .t text { fill: var(--ground); stroke: none; font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
+/* a name on an empty (Not stated) slot in muted ink: 5.71:1 on the ghost fill */
+.rpie .t.unstated text { fill: var(--muted); }
 /* a property under the pointer lifts its slice; a slice under the pointer marks its property */
 @media (hover: hover) {
   .rose:has(.rp[data-n="1"]:hover) .s1, .rose:has(.rp[data-n="2"]:hover) .s2, .rose:has(.rp[data-n="3"]:hover) .s3,
@@ -425,7 +435,7 @@ html:not(.js) .search { display: none; }
 section.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 .crit .ch { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; align-content: start; }
 .crit .kmini { grid-row: span 2; }
-.crit .kmini .off { fill: var(--paper); opacity: .16; }
+.crit .kmini .off { fill: var(--paper); opacity: .3; }  /* 2.41:1 on the ground; lit against off 7.11:1 */
 .crit .kmini .on { fill: var(--paper); }
 .cq { font: 500 13px/1.45 var(--mono); color: var(--muted); margin-top: 6px; text-wrap: balance; }
 .cs { margin: 0; font: 400 13px/1.5 var(--mono); }
@@ -435,6 +445,7 @@ section.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7f
 .cs dd { margin: 0; text-wrap: pretty; }
 .cnote { grid-column: 2; font: 400 12px/1.5 var(--mono); color: var(--muted); margin-top: 8px; text-wrap: pretty; }
 .crit .kmini { width: 48px; height: 48px; }
+.crit .kmini.w32 { display: none; }
 .cs dt { white-space: nowrap; }
 .cidx { display: none; }
 
@@ -498,6 +509,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sysc { grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; }
   .hsys { padding-left: 78px; }
   .row .pie { width: 64px; height: 64px; }
+  .row .pie > .w96 { display: none; }
+  .row .pie > .w64 { display: block; }
   .board .name { font-size: 34px; }
   .fig { --nfs: 36px; }
 }
@@ -512,6 +525,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; }
   .sysc .pie { grid-row: auto; }
   .row .pie { width: 52px; height: 52px; }
+  .row .pie > .w64 { display: none; }
+  .row .pie > .w52 { display: block; }
   .board .pie[data-hot="1"] .s1, .board .pie[data-hot="2"] .s2, .board .pie[data-hot="3"] .s3, .board .pie[data-hot="4"] .s4, .board .pie[data-hot="5"] .s5, .board .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke-width: 1.5; }
   .who { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-top: 0; }
   .board .name { font-size: 32px; }
@@ -532,6 +547,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .hc[data-col="overhead"] .gw { display: block; position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; margin-top: 3px; font: 400 11px/1.3 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; text-wrap: balance; }
   .q { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
   .q .kmini { width: 40px; height: 40px; }
+  .q .kmini.w48 { display: none; }
+  .q .kmini.w40 { display: block; }
   .qw { font-size: 28px; }
   .qq { font-size: 12px; line-height: 16px; }
   .map { gap: 18px 24px; }
@@ -584,6 +601,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .map { margin-top: 16px; gap: 16px 14px; }
   .q { grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; }
   .q .kmini { grid-row: auto; width: 32px; height: 32px; }
+  .q .kmini.w40 { display: none; }
+  .q .kmini.w32 { display: block; }
   .qw { padding-top: 0; align-self: center; font-size: 20px; line-height: 1.05; white-space: normal; }
   .qq { grid-column: 1 / -1; font-size: 12px; line-height: 15px; margin-top: 6px; }
   body { font-size: 14px; }
@@ -629,7 +648,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .cidx a { display: flex; align-items: center; gap: 8px; min-height: 36px; text-decoration: none; color: var(--paper); }
   .cidx .kmini { width: 22px; height: 22px; flex: none; grid-row: auto; }
   .cidx .kmini .on { fill: var(--paper); }
-  .cidx .kmini .off { fill: var(--paper); opacity: .16; }
+  .cidx .kmini .off { fill: var(--paper); opacity: .3; }
   .cidx + section.crit { margin-top: 24px; }
   .mtab thead { display: none; }
   .mtab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; border-top: 1px solid var(--line); padding: 8px 0; }
@@ -656,6 +675,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .nbgrid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); column-gap: 18px; }
   .nb { grid-template-columns: 52px minmax(0, 1fr); column-gap: 12px; padding: 10px 0; }
   .nbpie, .nbpie .pie-svg { width: 52px; height: 52px; }
+  .nbpie > .w56 { display: none; }
+  .nbpie > .w52 { display: block; }
   .nbn { font-size: 19px; margin: 0 0 2px; }
   .nbm { font-size: 11px; line-height: 1.4; }
 }
@@ -677,6 +698,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .map { grid-template-columns: repeat(2, auto); gap: 10px 12px; margin-top: 12px; }
   .q { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto; column-gap: 10px; align-items: center; }
   .q .kmini { grid-row: auto; width: 22px; height: 22px; margin-top: 0; }
+  .q .kmini.w32 { display: none; }
+  .q .kmini.w22 { display: block; }
   .qw { font-size: 18px; line-height: 1; align-self: center; white-space: normal; }
   .qq { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* the header on one line: the logo's glyph alone and GitHub's mark alone (both names still read
@@ -713,6 +736,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .pgb { margin-top: 0; border-top: 1px solid var(--rule); padding-top: 14px; }
   .crit .ch { grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; }
   .crit .kmini { width: 32px; height: 32px; }
+  .crit .kmini.w48 { display: none; }
+  .crit .kmini.w32 { display: block; }
   /* the board: every figure of a system on one line, smaller, under its head; the labels in
      short (scope, n and range) */
   .heads, .vals { column-gap: 10px; }
@@ -755,6 +780,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .map { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 20px; margin-top: 10px; }
   .q { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto; column-gap: 8px; align-content: start; }
   .q .kmini { width: 22px; height: 22px; grid-row: span 2; }
+  .q .kmini.w48, .q .kmini.w40, .q .kmini.w32 { display: none; }
+  .q .kmini.w22 { display: block; }
   .qw { font-size: 18px; white-space: normal; }
   .qq { grid-column: 2; font-size: 11px; line-height: 14px; margin-top: 2px; }
 }
@@ -776,11 +803,11 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* touch: a property's name shows it is a link */
 @media (hover: none) { .rn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
 /* forced colours (Windows high contrast): the state squares keep their inks so they still match the
-   slices, Not stated grey included */
+   slices, the Not stated ghost and its outline included */
 @media (forced-colors: active) {
   .sw, .rpie .t text { forced-color-adjust: none; }
-  .kmini .off, .crit .kmini .off, .sp .kmini .off { fill: GrayText; opacity: 1; }
-  .kmini .on, .crit .kmini .on, .sp .kmini .on { fill: CanvasText; }
+  .kmini .off, .crit .kmini .off, .sp .kmini .off, .cidx .kmini .off { fill: Canvas; stroke: CanvasText; stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: 1; }
+  .kmini .on, .crit .kmini .on, .sp .kmini .on, .cidx .kmini .on { fill: CanvasText; }
   .sfield { border: 1px solid CanvasText; }
   .sfield:focus-within { outline: 2px solid Highlight; outline-offset: 1px; }
   .slist { border: 1px solid CanvasText; }

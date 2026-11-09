@@ -9,7 +9,7 @@ import re
 
 from . import state as S
 from .chrome import footer, header, masthead, page
-from .hexagon import pie_svg
+from .hexagon import pie_svg, sized
 from .plates import (
     BOARD,
     BOARD_GROUPS,
@@ -33,6 +33,11 @@ from .plates import (
 from .words import FAMILY_WORD, PER_BIT_LIMIT, PER_GBIT, STATUS_WORD, e, gpu_words
 
 # ------------------------------------------------------------------ home rows
+
+# the sizes a row's glyph and a not-benchmarked glyph are shown at (words.css: above 1180 px,
+# 1100 to 1180 px, 1099 px and below; above 635 px, 635 px and below)
+ROW_PIE = (96, 64, 52)
+NB_PIE = (56, 52)
 
 
 def size_words(n):
@@ -155,7 +160,7 @@ def board_row(cfg):
 <div class="row" id="{e(sid)}" role="row" data-name="{e(name.lower())}" data-k="{keys}">
   <div class="r-main">
     <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
-      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=g["cells"], hit=True)}<span class="tip"></span></a>
+      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{sized(lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == ROW_PIE[0] else None, hit=True), ROW_PIE)}<span class="tip"></span></a>
       <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}" title="pinned at {e(upstream(cfg)["commit"][:8])}">{e(name)}</a></h3>{said}</div>
       {model_lines(cfg)}
     </div>
@@ -211,7 +216,7 @@ def nb_card(rid):
     )
     return (
         f'<li class="nb" id="nb-{e(rid)}"><span class="nbpie" role="img" aria-label="{e(aria(g, r["name"]))}">'
-        f"{pie_svg(g['states'], 56, cells=g['cells'], hit=True)}</span>"
+        f"{sized(lambda s: pie_svg(g['states'], s, cells=g['cells'] if s == NB_PIE[0] else None, hit=True), NB_PIE)}</span>"
         f'<div class="nbt"><h4 class="nbn">{name}</h4><div class="nbms">{lines}</div>'
         f'<p class="tip" aria-hidden="true"></p></div></li>'
     )

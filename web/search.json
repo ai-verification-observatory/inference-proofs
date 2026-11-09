@@ -5,7 +5,7 @@
       "kind": "system",
       "meta": "Proved · Llama 4 Maverick",
       "name": "FlashProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "flashprove proved · llama 4 maverick proved: hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside anthropics/flashprove zk proof cryptographic",
       "tier": 0,
       "url": "/flashprove"
@@ -15,7 +15,7 @@
       "kind": "system",
       "meta": "Proved · Llama 3.1 8B",
       "name": "SASH",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "sash proved · llama 3.1 8b proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover zk proof cryptographic",
       "tier": 0,
       "url": "/sash"
@@ -35,7 +35,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · Gemma 4 31B",
       "name": "Attestable prover",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "attestable prover proved · gemma 4 31b no repository gemma 4 31b no public code closed source zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-attestable"
@@ -45,7 +45,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · GPT-2, Gemma 3, Llama 2; google/gemma-3-1b-it; meta-llama/Llama-2-7b-hf",
       "name": "DeepProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "deepprove proved · gpt-2, gemma 3, llama 2; google/gemma-3-1b-it; meta-llama/llama-2-7b-hf gpt-2, gemma 3, llama 2 google/gemma-3-1b-it (model id as given) meta-llama/llama-2-7b-hf (model id as given) restricted licence sumcheck / gkr interactive proofs zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-deepprove"
@@ -55,7 +55,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · nanoGPT example (size not stated)",
       "name": "EZKL",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "ezkl proved · nanogpt example (size not stated) nanogpt example (size not stated) no licence file circuit compiled to a plonkish snark (halo2) zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-ezkl"
@@ -65,7 +65,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · GPT-2 (125M); Qwen/Qwen2-0.5B",
       "name": "JOLT Atlas",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "jolt atlas proved · gpt-2 (125m); qwen/qwen2-0.5b gpt-2 (125m) qwen/qwen2-0.5b (model id as given) restricted licence lookup-centric (jolt-style) with sumcheck zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-jolt-atlas"
@@ -75,7 +75,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · LeNet demo; no LLM",
       "name": "JSTprove",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "jstprove proved · lenet demo; no llm lenet demo; no llm restricted licence sumcheck / gkr interactive proofs zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-jstprove"
@@ -85,7 +85,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · No LLM named",
       "name": "LuminAIR",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "luminair proved · no llm named no llm named open licence stark over an execution trace (circle stark) zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-luminair"
@@ -95,7 +95,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · Model not named",
       "name": "NanoZK",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 yes\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 yes\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "nanozk proved · model not named no repository not named no public code closed source zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-nanozk"
@@ -105,7 +105,7 @@
       "kind": "unbenchmarked",
       "meta": "Re-executed · LLaMA (branch \"llama\"), size not stated",
       "name": "opML",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "opml re-executed · llama (branch \"llama\"), size not stated unmaintained llama (branch \"llama\"), size not stated open licence rerun re-execution recompute optimistic dispute not benchmarked",
       "tier": 3,
       "url": "/#nb-opml"
@@ -115,7 +115,7 @@
       "kind": "unbenchmarked",
       "meta": "Attested · Model not named",
       "name": "Private ML SDK",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "private ml sdk attested · model not named archived not named open licence tee enclave hardware attestation confidential not benchmarked",
       "tier": 3,
       "url": "/#nb-private-ml-sdk"
@@ -125,7 +125,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · No LLM named",
       "name": "Remainder (Community Edition)",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "remainder (community edition) proved · no llm named no llm named open licence sumcheck / gkr interactive proofs zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-remainder"
@@ -135,7 +135,7 @@
       "kind": "unbenchmarked",
       "meta": "Attested · Model not named",
       "name": "Tinfoil",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "tinfoil attested · model not named not named open licence tee enclave hardware attestation confidential not benchmarked",
       "tier": 3,
       "url": "/#nb-tinfoil"
@@ -145,7 +145,7 @@
       "kind": "unbenchmarked",
       "meta": "Fingerprinted · Llama 3.1-8B-Instruct",
       "name": "TOPLOC",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "toploc fingerprinted · llama 3.1-8b-instruct llama 3.1-8b-instruct open licence fingerprint not benchmarked",
       "tier": 3,
       "url": "/#nb-toploc"
@@ -155,7 +155,7 @@
       "kind": "unbenchmarked",
       "meta": "Re-executed · Model not named",
       "name": "Verde (with RepOps)",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "verde (with repops) re-executed · model not named no repository not named no public code closed source rerun re-execution recompute optimistic dispute not benchmarked",
       "tier": 3,
       "url": "/#nb-verde"
@@ -175,7 +175,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · GPT-2",
       "name": "zkGPT",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "zkgpt proved · gpt-2 no repository gpt-2 no public code closed source zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-zkgpt"
@@ -185,7 +185,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · Llama-2-7B and Llama-2-13B",
       "name": "zkLLM",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "zkllm proved · llama-2-7b and llama-2-13b archived llama-2-7b and llama-2-13b open licence zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-zkllm"
@@ -195,7 +195,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · A distilled GPT-2",
       "name": "ZKML",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "zkml proved · a distilled gpt-2 unmaintained a distilled gpt-2 open licence circuit compiled to a plonkish snark (halo2) zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-zkml"
@@ -205,7 +205,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · Llama-3 (8B parameters); VGG-16",
       "name": "zkPyTorch",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 unstated\" data-n=\"6\" d=\"M4.79 7.05L13.33 2.12L13.05 11.49Z\"/></svg>",
       "terms": "zkpytorch proved · llama-3 (8b parameters); vgg-16 no repository llama-3 (8b parameters) vgg-16 no public code closed source zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-zkpytorch"
@@ -215,7 +215,7 @@
       "kind": "unbenchmarked",
       "meta": "Proved · MLPerf Edge Inference v4.1 models, LLMs included; no LLM named",
       "name": "ZKTorch",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "zktorch proved · mlperf edge inference v4.1 models, llms included; no llm named mlperf edge inference v4.1 models, llms included; no llm named open licence accumulation / folding of repeated blocks zk proof cryptographic not benchmarked",
       "tier": 3,
       "url": "/#nb-zktorch"

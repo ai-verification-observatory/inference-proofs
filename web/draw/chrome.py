@@ -10,7 +10,7 @@ import json
 import re
 
 from . import state as S
-from .hexagon import key_mini, mark_svg
+from .hexagon import key_mini, mark_svg, sized
 from .inks import GROUND
 from .plates import first_config, glyph, name_of, readable, upstream
 from .words import e
@@ -184,10 +184,15 @@ def page(title, desc, body, cls, path, card):
     )
 
 
+# the sizes the legend's key glyphs are shown at (words.css: above 1099 px, to 760 px, to 560 px,
+# then on phones and phones held sideways)
+KEY_SIZES = (48, 40, 32, 22)
+
+
 def masthead():
     """A plain legend: nothing in it can be pointed at or pressed."""
     items = "".join(
-        f'<li class="q">{key_mini(i + 1)}<span class="qw">{e(p["name"])}</span><span class="qq">{e(p["question"])}</span></li>'
+        f'<li class="q">{sized(lambda s, n=i + 1: key_mini(n, s), KEY_SIZES)}<span class="qw">{e(p["name"])}</span><span class="qq">{e(p["question"])}</span></li>'
         for i, p in enumerate(S.PROPS)
     )
     return f"""
