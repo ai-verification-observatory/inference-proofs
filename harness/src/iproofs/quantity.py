@@ -91,6 +91,7 @@ TIME_UNITS = frozenset({
     Unit.GPU_S_PER_TOKEN,
 })  # fmt: skip
 
+
 def statistic_problems(q: Mapping[str, object]) -> list[str]:
     """INV-QTY-8 checks the schema cannot express: value equals stats.mean."""
     stats = q.get("stats")
