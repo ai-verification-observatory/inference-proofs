@@ -701,11 +701,11 @@ for (const w of [320, 390, 768, 1440]) {
     ok(g <= 390, `${name}-844x390: the whole glyph on the first screen`, g);
     await ctx.close();
   }
-  // the 404 page on a phone: the one-row header, the site's pages listed, search from the button
+  // the 404 page on a phone: the one-row header, the systems listed (the header and footer link the rest), search from the button
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + 'nope', { waitUntil: 'networkidle' });
   const f = await p.evaluate(() => ({ h: Math.round(document.querySelector('.top').getBoundingClientRect().height), links: document.querySelectorAll('.lost a').length, focus: document.activeElement.tagName }));
-  ok(f.h <= 60 && f.links >= 4 && f.focus === 'BODY', '404-390: the header on one row, the pages listed, nothing focused', f);
+  ok(f.h <= 60 && f.links === 2 && f.focus === 'BODY', '404-390: the header on one row, the systems listed, nothing focused', f);
   await p.tap('.sopen'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   ok(new URL(p.url()).pathname === '/sash', '404-390: search leads on from the 404 page', p.url());
   await ctx.close();

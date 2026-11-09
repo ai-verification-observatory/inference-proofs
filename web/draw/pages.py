@@ -5,7 +5,7 @@ facts, figures and tamper tests), the reference page, the criteria page and the 
 import re
 
 from . import state as S
-from .chrome import CRIT_PAGE, REF_PAGE, RELEASE_PAGE, footer, header, page, ref_label
+from .chrome import CRIT_PAGE, footer, header, page, ref_label
 from .claims import (
     card_fact,
     card_full,
@@ -792,22 +792,19 @@ def build_criteria():
 
 
 def build_404():
-    """Not found: the site's pages as plain links, the benchmarked systems with their glyphs."""
+    """Not found: the benchmarked systems, each with its glyph. The header, its logo and the
+    footer already link every other page."""
     systems = "".join(
         f'<li><a href="{e(S.PAGE[sid])}">{pie_svg(glyph(sid)["states"], 28)}<span>{e(name_of(sid))}</span></a></li>'
         for sid in S.V["orders"]["benchmarked"]
     )
-    rel = S.V["release"]
-    pages = "".join(f'<li><a href="{href}"><span>{e(w)}</span></a></li>' for href, w in (
-        ("/", "Overview"), (REF_PAGE, ref_label()), (CRIT_PAGE, "Criteria"),
-        (RELEASE_PAGE, f"Release {rel['id']}")))  # fmt: skip
     body = f"""
 {header(None)}
 <main id="main" class="sys">
   <section class="mast mast-sys" aria-labelledby="h-name">
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Not found</span></h1></div>
   </section>
-  <div class="wrap"><ul class="lost" aria-label="Pages">{systems}{pages}</ul></div>
+  <div class="wrap"><ul class="lost" aria-label="Systems">{systems}</ul></div>
 </main>
 {footer()}"""
     return page("Not found", "No page at this address.", body, "system notfound", "404", None)

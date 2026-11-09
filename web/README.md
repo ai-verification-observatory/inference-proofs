@@ -144,7 +144,7 @@ No figures are drawn: a picture travels without its labels. The build writes eac
 
 ### 404
 
-An unknown address answers the site's own page with status 404: the one-row header and the violet band, "Not found", then the site's pages as plain links (the benchmarked systems with their glyphs, the overview, the reference, the criteria and the release). It is never shared (`noindex`, no preview card).
+An unknown address answers the site's own page with status 404: the one-row header and the violet band, "Not found", then the benchmarked systems, each with its glyph; the header (logo, reference, criteria, search) and the footer (the release) already link every other page, so none is listed twice. It is never shared (`noindex`, no preview card).
 
 ### Accessibility
 
