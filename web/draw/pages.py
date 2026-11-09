@@ -22,6 +22,7 @@ from .plates import (
     COLS,
     EXT,
     MORE,
+    PER_GBIT,
     PER_GBIT_COLS,
     aria,
     blob,
@@ -39,6 +40,7 @@ from .plates import (
     readable,
     row_id,
     runs_counts,
+    setup_diff,
     setup_dl,
     setup_parts,
     setup_shared,
@@ -307,8 +309,17 @@ def setup_words(cfg):
 
 
 def setup_heading(cfg, hid):
-    return (f'<h3 id="{e(hid)}" class="sect sm setup" title="{e(config_where(cfg))}">'
-            f"{keep(readable(setup_words(cfg)))}</h3>")  # fmt: skip
+    """A setup's heading. On a page of several setups it prints only the words that set this
+    one apart ("24 requests per batch"), so it stays one line; the full line is read aloud and
+    rides in its title with the ids."""
+    full = setup_words(cfg)
+    title = f"{full} · {config_where(cfg)}"
+    if len(configs_of(cfg["system"])) == 1:
+        return f'<h3 id="{e(hid)}" class="sect sm setup" title="{e(title)}">{keep(readable(full))}</h3>'
+    short = " · ".join(setup_diff(cfg))
+    return (f'<h3 id="{e(hid)}" class="sect sm setup" title="{e(title)}">'
+            f'<span aria-hidden="true">{keep(readable(short))}</span>'
+            f'<span class="sr">{e(full)}</span></h3>')  # fmt: skip
 
 
 def left_out(cfg):
@@ -357,11 +368,13 @@ def runs_lead(cfg):
     return said + (f", {', '.join(out)} (not counted)" if out else "")
 
 
-def config_figures(cfg, name, one):
+def config_figures(cfg, name, one, basis=True):
     """One configuration's figures under a heading naming its setup: what they are over and the
     runs left out (S7), the labels its figures share, a plate per overview column with what
-    qualifies the overhead under them, the per-Gbit basis once under its three plates, and the
-    other figures in a table."""
+    qualifies the overhead under them, the per-Gbit basis under its three plates (basis: False
+    where the page prints it once for every setup), and the other figures in a table. On a page
+    of several setups each is a section of its own, its heading held at the top of the screen
+    while its figures scroll (words.css), so a figure link's landing names its setup."""
     rid = row_id(cfg)
     shared = setup_shared(cfg)
     pre = plate_prefix(cfg)
@@ -371,10 +384,24 @@ def config_figures(cfg, name, one):
         f"{setup_heading(cfg, f'h-{rid}')}"
         f'<p class="lead">{e(readable(runs_lead(cfg)))}</p>{left_out(cfg)}{setup_dl(cfg, shared)}'
         f'<div class="plates plates-sys">{raw}</div>{overhead_notes(cfg)}'
-        f'<div class="plates plates-sys pgb">{per_gbit}</div>{per_gbit_basis(cfg)}'
+        f'<div class="plates plates-sys pgb">{per_gbit}</div>{per_gbit_basis(cfg) if basis else ""}'
         f"{more_table(cfg, f'More numbers for {name}, with spread, scope and source', shared)}"
     )
-    return body if one else f'<div class="cfgfigs" id="{e(rid)}">{body}</div>'
+    return (body if one else
+            f'<section class="cfgfigs" id="{e(rid)}" aria-labelledby="h-{e(rid)}">{body}</section>')  # fmt: skip
+
+
+def figures_body(cfgs, name):
+    """Every setup's figures. The per-Gbit basis (weight bits, note, limit) is grouped by what it
+    says: where every setup of a page of several shares it, it prints once, under the Figures
+    heading with the name of the basis, before the setups it qualifies; otherwise under each
+    setup's per-Gbit plates."""
+    one = len(cfgs) == 1
+    bases = {per_gbit_basis(c) for c in cfgs}
+    once = not one and len(bases) == 1
+    head = (f'<p class="lbl basis-h">{e(PER_GBIT[:1].upper() + PER_GBIT[1:])}</p>{bases.pop()}'
+            if once else "")  # fmt: skip
+    return head + "".join(config_figures(c, name, one, basis=not once) for c in cfgs)
 
 
 def trial_html(t):
@@ -507,7 +534,7 @@ def build_system(sid):
     {claims_section(sid, cfgs, g, facts)}
     <section class="blk" id="figures" aria-labelledby="h-figs">
       <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2></div>
-      {"".join(config_figures(c, name, one) for c in cfgs)}
+      {figures_body(cfgs, name)}
     </section>
     <section class="blk" id="tamper" aria-labelledby="h-tamper">
       <h2 id="h-tamper" class="sect">Tamper tests</h2>

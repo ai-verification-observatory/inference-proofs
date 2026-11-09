@@ -81,7 +81,9 @@ TITLE_SPREAD = re.compile(
 )
 # a plate's spread (S3; the setup's runs line names n): the range with its unit once and the
 # mean, then the sd; a constant once, with its run count
-SPREAD = re.compile(r"\S+ \S+ in all \d+ runs(?: · sd .+)?|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?")
+SPREAD = re.compile(
+    r"\S+ \S+ in all \d+ runs(?: · sd .+)?|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?"
+)
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
 SCALE = {"tokens": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
          "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
@@ -155,7 +157,7 @@ def system_configs(build: Build, system: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     where = r'<h3 id="h-[^"]+" class="sect sm setup" title="([^"]*)">'
     for named in re.findall(where, text, re.S):
-        configuration, workload, _, profile = html.unescape(named).split(" · ")
+        configuration, workload, _, profile = html.unescape(named).split(" · ")[-4:]
         found = [c for c in build.view["configurations"] if c["system"] == system
                  and (c["configuration"], c["workload"]["id"], c["profile"])
                  == (configuration, workload, profile)]  # fmt: skip
@@ -278,9 +280,11 @@ def test_every_number_has_labels(site: Build) -> None:
             assert {"workload", "source"} <= shared[i]
             prefix = f"configurations/{cfg['position']}/statistics/"
             assert prefix in flat(re.findall(r'<dl class="tlab setl">(.*?)</dl>', text, re.S)[i])
-        # RFC-0004 INV-DERIVE-7: under each setup's per-Gbit plates, the width, note and limit
+        # RFC-0004 INV-DERIVE-7: the width, note and limit under each setup's per-Gbit plates,
+        # or once under the Figures heading where every setup of the page shares them
         basis = re.findall(r'<dl class="tlab notes basis"[^>]*>(.*?)</dl>', text, re.S)
-        assert len(basis) == len(configs)
+        assert len(basis) == len(set(basis))
+        assert len(basis) == len(configs) or len(basis) == 1
         assert all({"weight bits", "limit"} <= {dt for dt, _ in DD.findall(b)} for b in basis)
         for pid, col, body in plates:
             cfg = plate_config(site, system, pid)
@@ -492,7 +496,7 @@ def quote_words_printed(body: str) -> str:
     quotes = re.findall(r'<blockquote class="eq">(.*?)</blockquote>', body, re.S)
     said = flat(" | ".join(q.replace("</td><td>", " ") for q in quotes))
     said = said.replace("\N{NARROW NO-BREAK SPACE}", " ")
-    return re.sub(r"\s+", " ", re.sub("[\u201c\u201d\"]", "", said))
+    return re.sub(r"\s+", " ", re.sub('[\u201c\u201d"]', "", said))
 
 
 def _quotes_printed(
@@ -1140,6 +1144,34 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
                 assert "the control test below, which expects acceptance" in text
                 assert "accepted the proof, as this control expects" in text
     assert seen >= 1  # the deployed SASH's weakened-prover control; the extras FlashProve's C1
+
+
+def test_setup_headings_say_what_differs(site: Build) -> None:
+    """A page of one setup heads its figures with the full setup line. On a page of several,
+    each setup is a section of its own whose heading prints only the words that set it apart
+    (so it stays one line), the full line read aloud and in its title with the ids."""
+    for system in site.view["orders"]["benchmarked"]:
+        text = site.pages[f"{system}.html"]
+        configs = system_configs(site, system)
+        where = r'<h3 id="[ht]-[^"]+" class="sect sm setup" title="([^"]*)">(.*?)</h3>'
+        heads = re.findall(where, text, re.S)
+        assert len(heads) == len(configs) * (1 if len(configs) == 1 else 2)  # figures, tamper
+        shown = []
+        for title, inner in heads:
+            full = " · ".join(html.unescape(title).split(" · ")[:-4])
+            if len(configs) == 1:
+                assert flat(inner) == full, (system, inner)
+                continue
+            assert f'<span class="sr">{html.escape(full, quote=True)}</span>' in inner, inner
+            visible = flat(re.search(r'<span aria-hidden="true">(.*?)</span><span class="sr">',
+                                     inner, re.S)[1])  # type: ignore[index]  # fmt: skip
+            assert visible != full
+            # the words that differ, or the workload id where none does (both in the title)
+            assert set(visible.split(" · ")) <= set(html.unescape(title).split(" · ")), visible
+            shown.append(visible)
+        if len(configs) > 1:
+            assert len(set(shown)) == len(configs), shown  # each figures and tamper heading
+            assert text.count('<section class="cfgfigs"') == len(configs)
 
 
 def test_tally_names_its_runs(site: Build) -> None:

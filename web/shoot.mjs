@@ -633,6 +633,28 @@ for (const w of [320, 360, 390]) {
     await ctx.close();
   }
 }
+// a figure link from the overview to a page of several setups lands under that setup's heading, held at the top
+// in one line, never over the plate's label
+for (const w of [320, 390, 768, 1440]) {
+  const { ctx, p } = await pg(w, 844);
+  await p.goto(BASE, { waitUntil: 'networkidle' });
+  const hrefs = await p.evaluate(() => [...document.querySelectorAll('a.val')].map((a) => a.getAttribute('href')).filter((h) => /--/.test(h)));
+  const bad = [];
+  for (const href of hrefs) {
+    await p.goto(BASE + href.slice(1), { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => {
+      const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      const h = t.closest('.cfgfigs')?.querySelector('h3.setup');
+      if (!h) return { href: location.hash, none: true };
+      const hb = h.getBoundingClientRect(); const lb = t.querySelector('.lbl').getBoundingClientRect();
+      const lh = parseFloat(getComputedStyle(h).fontSize) * 1.6;
+      return { href: location.hash, top: Math.round(hb.top), one: h.querySelector('[aria-hidden]').getBoundingClientRect().height < lh, clear: lb.top >= hb.bottom };
+    });
+    if (r.none || r.top !== 0 || !r.one || !r.clear) bad.push(r);
+  }
+  ok(hrefs.length > 0 && !bad.length, `figure links-${w}: the landing names its setup in one line at the top, over no label`, { n: hrefs.length, bad });
+  await ctx.close();
+}
 {
   // inline links on every page: hit boxes 24 px tall or more, none overlapping another
   for (const w of [390, 320]) {

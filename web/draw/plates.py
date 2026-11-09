@@ -575,6 +575,11 @@ def plate(cfg, col, pid="", shared=None):
     )
 
 
+def dates_html(html):
+    """A date (2026-11-08) in text that never breaks at its hyphens."""
+    return re.sub(r"\b\d{4}-\d{2}-\d{2}\b", lambda m: f'<span class="nw">{m[0]}</span>', html)
+
+
 def flags_html(html):
     """Engine flags (`--max-model-len 1025`) as code that never breaks inside."""
     return re.sub(
@@ -608,7 +613,7 @@ def per_gbit_basis(cfg):
     wb = cfg["workload"]["precision"].get("weight_bits") or {}
     rows = [("weight bits", link_or_text(readable(bits_words(cfg)), wb.get("source")))]
     if wb.get("note"):
-        rows.append(("note", with_rule(readable(wb["note"]))))
+        rows.append(("note", flags_html(dates_html(with_rule(readable(wb["note"]))))))
     rows.append(("limit", e(limit_words())))
     items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
     return f'<dl class="tlab notes basis" aria-label="{e(PER_GBIT)}">{items}</dl>'
