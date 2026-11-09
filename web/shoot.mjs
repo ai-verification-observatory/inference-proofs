@@ -254,6 +254,22 @@ const sortBy = async (p, col, dir) => {
     const first = await p.evaluate(() => document.querySelector('#q-list .so')?.querySelector('.sn')?.textContent);
     ok(!!first, `"${q}" finds something (pages, hardware, engines are indexed)`, { q, first, want });
   }
+  // a system page's sections are found by what they hold, under the system's name; an absence is never a match
+  await type('proof size');
+  const ps = await opts();
+  ok(ps[0]?.name === 'Figures' && ps[0]?.group === 'FlashProve' && !ps.some((o) => o.name === 'EZKL'), '"proof size" finds each system\'s Figures first, no system by "size not stated"', ps.map((o) => `${o.group}:${o.name}`));
+  await type('check time');
+  const ct = await opts();
+  ok(ct.length === 2 && ct.every((o) => o.name === 'Figures'), '"check time" finds the two Figures and nothing one typo away ("tied")', ct.map((o) => `${o.group}:${o.name}`));
+  await type('model');
+  const md = await opts();
+  ok(!md.some((o) => ['NanoZK', 'Tinfoil', 'Verde (with RepOps)', 'Private ML SDK'].includes(o.name)), '"model" finds no system by "Model not named"', md.map((o) => o.name));
+  await type('reference');
+  const rf = await opts();
+  ok(rf[0]?.name === 'Production serving' && !rf.some((o) => o.name === 'Reference'), '"reference" finds the one reference once, no page entry beside it', rf.map((o) => o.name));
+  await type('w8a8');
+  const wa = await opts();
+  ok(wa.length === 1 && wa[0].name === 'SASH', '"w8a8" finds the system that proves at that precision, and only it', wa.map((o) => o.name));
   await type('stark');
   ok(JSON.stringify((await opts()).map((o) => o.name)) === '["SASH","LuminAIR"]', '"stark" finds only the systems whose stated technique is one');
   await type('a');

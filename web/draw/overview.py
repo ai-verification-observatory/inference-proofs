@@ -170,18 +170,34 @@ def board_row(cfg):
 </div>'''
 
 
+ID_NOTE = " (model id as given)"
+
+
+def family(text):
+    """A model's name for comparing families: lower case, notes in brackets and separators out
+    ("Gemma 3" and "gemma-3-1b-it" both start "gemma 3")."""
+    return re.sub(r"[\s_-]+", " ", re.sub(r"\([^)]*\)", "", text).lower()).strip()
+
+
+def nb_split(r):
+    """A system's models: (the names its sources give, the ids printed beside them, the ids left
+    out because a name already gives their family; their title holds them)."""
+    names = [g for g in r["models"] if not g.endswith(ID_NOTE)]
+    fams = [f for g in names for x in re.split(r",|;|\band\b", g) if (f := family(x))]
+    shown, left = [], []
+    for given in (g.removesuffix(ID_NOTE) for g in r["models"] if g.endswith(ID_NOTE)):
+        model = family(given.rsplit("/", 1)[-1])
+        (left if any(model.startswith(f) for f in fams) else shown).append(given)
+    return names, shown, left
+
+
 def nb_models(r):
-    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed."""
-    out = []
-    for given in r["models"]:
-        m = given.replace(" (model id as given)", "")
-        out.append(
-            "Model " + m
-            if m.startswith("not named")
-            else m[:1].upper() + m[1:]
-            if m.startswith("no ")
-            else m
-        )
+    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed;
+    an id only where no name gives its family."""
+    names, shown, _ = nb_split(r)
+    out = ["Model " + m if m.startswith("not named")
+           else m[:1].upper() + m[1:] if m.startswith("no ") else m
+           for m in [*names, *shown]]  # fmt: skip
     return "; ".join(out)
 
 
@@ -212,7 +228,9 @@ def nb_card(rid):
     name = (f'<a href="{e(href)}">{e(r["name"])}<span class="xa" aria-hidden="true">\u00a0↗</span></a>'
             if href else e(r["name"]))  # fmt: skip
     meta = nb_meta(rid)
-    lines = f'<p class="nbm">{keep(nb_models(r))}</p>' + (
+    left = nb_split(r)[2]
+    title = f' title="{e("; ".join(left))}"' if left else ""
+    lines = f'<p class="nbm"{title}>{keep(nb_models(r))}</p>' + (
         f'<p class="nbm">{keep(meta)}</p>' if meta else ""
     )
     return (

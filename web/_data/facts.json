@@ -80,7 +80,7 @@
     "jstprove": {
       "code": "restricted_licence",
       "models": [
-        "LeNet demo; no LLM"
+        "LeNet demo; no LLM named"
       ],
       "name": "JSTprove",
       "status": {

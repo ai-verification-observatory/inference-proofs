@@ -140,27 +140,31 @@
       const [s, l] = a.length < b.length ? [a, b] : [b, a];
       return s.slice(i) === l.slice(i + 1);
     };
-    // how one query word matches a list of words: 0 starts one, 1 sits inside one, 2 one typo away
-    const wordScore = (q, ws, typo) => {
+    // how one query word matches a list of words: 0 starts one, 1 sits inside one, 2 one typo away. A typo is
+    // tried from 4 letters in a name ("sahs" finds SASH) and from 5 in the other words, where a short word
+    // has too many neighbours ("time" is one letter from "tied")
+    const wordScore = (q, ws, typo, least = 5) => {
       let best = 9;
       for (const w of ws) {
         if (w.startsWith(q)) return 0;
         if (q.length >= 3 && w.includes(q)) best = Math.min(best, 1);
-        else if (typo && q.length >= 4 && w[0] === q[0] && [q.length - 1, q.length, q.length + 1].some((L) => near(q, w.slice(0, L)))) best = Math.min(best, 2);
+        else if (typo && q.length >= least && w[0] === q[0] && [q.length - 1, q.length, q.length + 1].some((L) => near(q, w.slice(0, L)))) best = Math.min(best, 2);
       }
       return best;
     };
+    const nameScore = (q, ws, typo) => wordScore(q, ws, typo, 4);
     const rank = (x, qs, whole, typo) => {
       if (x.n.startsWith(whole)) return [0, 0];
-      const inName = qs.map((q, k) => wordScore(q, x.nw, typo[k]));
+      const inName = qs.map((q, k) => nameScore(q, x.nw, typo[k]));
       if (inName.every((s) => s < 9)) return [1, inName.reduce((a, b) => a + b, 0)];
       if (whole.length < 2) return null;  // one letter: names only
-      const inAll = qs.map((q, k) => Math.min(wordScore(q, x.nw, typo[k]), wordScore(q, x.tw, typo[k])));
+      const inAll = qs.map((q, k) => Math.min(nameScore(q, x.nw, typo[k]), wordScore(q, x.tw, typo[k])));
       if (inAll.every((s) => s < 9)) return [2, inAll.reduce((a, b) => a + b, 0)];
       return null;
     };
-    // every match, by group (benchmarked first, not benchmarked last), within a group where the words
-    // matched (a name that starts with the query first), then how closely, then the name
+    // every match, by group (benchmarked first, not benchmarked last; a system's sections under its name, the
+    // systems A to Z), within a group where the words matched (a name that starts with the query first), then
+    // how closely, then the name
     const results = (q) => {
       const whole = norm(q);
       if (!whole) return entries.filter((x) => x.kind === 'system');
@@ -168,7 +172,7 @@
       // a word some entry has is matched as typed; only a word no entry has gets typo matching
       const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
       return entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
-        .sort((a, b) => a.x.tier - b.x.tier || a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
+        .sort((a, b) => a.x.tier - b.x.tier || a.x.group.localeCompare(b.x.group) || a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
         .map((m) => m.x);
     };
     const note = (text) => {

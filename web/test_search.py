@@ -15,12 +15,17 @@ def entries(site):
     return json.loads((site.out / "search.json").read_text())["entries"]
 
 
-def test_every_kind(entries):
-    # search finds systems, references, properties and the pages its label promises
-    assert {x["kind"] for x in entries} == {"system", "reference", "unbenchmarked", "property",
-                                            "page"}  # fmt: skip
+def test_every_kind(site, entries):
+    # search finds systems, their sections, references, properties and the pages its label
+    # promises; while /reference holds one reference, its entry stands for the page
+    assert {x["kind"] for x in entries} == {"system", "section", "reference", "unbenchmarked",
+                                            "property", "page"}  # fmt: skip
     pages = {x["url"] for x in entries if x["kind"] == "page"}
-    assert pages == {"/reference", "/criteria", "/release"}
+    one = len(site.view["orders"]["reference"]) == 1
+    assert pages == {"/criteria", "/release"} | (set() if one else {"/reference"})
+    if one:
+        (ref,) = (x for x in entries if x["kind"] == "reference")
+        assert "reference" in ref["terms"].split()
 
 
 def test_found_by_what_they_ran(site, entries):
@@ -36,8 +41,10 @@ def test_found_by_what_they_ran(site, entries):
 
 
 def test_every_entry_once(site, entries):
+    # each name once in its group (every system has its own "Figures")
+    keys = [(x["group"], x["name"]) for x in entries]
+    assert len(keys) == len(set(keys))
     names = [x["name"] for x in entries]
-    assert len(names) == len(set(names))
     orders, rows = site.view["orders"], site.view["facts"]["rows"]
     want = {
         *(rows[s]["name"] for s in orders["benchmarked"]),
@@ -70,3 +77,46 @@ def test_family_words(entries):
     # a system is found by the words people use for its family, not only by its own
     fp = next(x for x in entries if x["name"] == "FlashProve")
     assert "zk" in fp["terms"].split()
+
+
+def test_sections_found_by_what_they_hold(site, entries):
+    """Each system page's sections, under the system's name, each leading to its anchor; the
+    figures found by their names ("proof size", "check time"), and a system by the precision it
+    proved."""
+    b = site.build
+    for sid in site.view["orders"]["benchmarked"]:
+        name = site.view["facts"]["rows"][sid]["name"]
+        mine = {x["name"]: x for x in entries if x["kind"] == "section" and x["group"] == name}
+        assert set(mine) == {"Figures", "Tamper tests", "How we read it", "Claim card in full"}
+        assert mine["Figures"]["url"] == f"/{sid}#figures"
+        for col in (*b.COLS, *b.PER_GBIT_COLS):
+            assert b.HEAD[col].lower() in mine["Figures"]["terms"], col
+        system = next(x for x in entries if x["kind"] == "system" and x["name"] == name)
+        for c in (c for c in site.view["configurations"] if c["system"] == sid):
+            assert c["workload"]["precision"]["proved"].lower() in system["terms"].split()
+    # words.js lists a group's entries together: the sort puts the group after the tier
+    js = (site.web / "words.js").read_text()
+    assert js.count("a.x.tier - b.x.tier || a.x.group.localeCompare(b.x.group)") == 1
+
+
+def test_no_absence_is_searched_by(entries):
+    """What a system's facts say is absent ("not named", "no LLM named", "size not stated",
+    "model id as given", "no repository") shows on its card and is never a word it is found
+    by."""
+    for x in (x for x in entries if x["kind"] == "unbenchmarked"):
+        for absent in ("not named", "no llm", "size not stated", "model id as given",
+                       "no repository", "no public code"):  # fmt: skip
+            assert absent not in x["terms"], (x["name"], absent)
+
+
+def test_model_ids_beside_names(site):
+    """An id a name already gives the family of is left to the line's title; an id the system
+    names no other way is printed (by hand)."""
+    b = site.build
+    deep = {"models": ["GPT-2, Gemma 3, Llama 2", "google/gemma-3-1b-it (model id as given)",
+                       "meta-llama/Llama-2-7b-hf (model id as given)"]}  # fmt: skip
+    assert b.nb_models(deep) == "GPT-2, Gemma 3, Llama 2"
+    assert b.nb_split(deep)[2] == ["google/gemma-3-1b-it", "meta-llama/Llama-2-7b-hf"]
+    jolt = {"models": ["GPT-2 (125M)", "Qwen/Qwen2-0.5B (model id as given)"]}
+    assert b.nb_models(jolt) == "GPT-2 (125M); Qwen/Qwen2-0.5B"
+    assert b.nb_models({"models": ["not named"]}) == "Model not named"

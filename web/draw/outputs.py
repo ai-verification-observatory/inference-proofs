@@ -22,7 +22,7 @@ from .hexagon import key_mini, mark_svg, pie_svg
 from .inks import GHOST, GROUND, MUTED, PAPER, UNSTATED, VIOLET, ratio
 from .overview import kind_words, nb_meta, nb_models
 from .pages import SIDE
-from .plates import first_config, glyph, name_of, upstream
+from .plates import COLS, HEAD, MORE, PER_GBIT_COLS, first_config, glyph, name_of, upstream
 from .words import FAMILY_WORD, STATE_CLS, e
 
 # ------------------------------------------------------------------ search
@@ -41,21 +41,46 @@ TERMS = {
 }
 # words for what the facts' code field says about a system's source
 CODE_TERMS = {"no_public_code": "closed source"}
-TIER = {"system": 0, "reference": 1, "property": 2, "page": 3, "unbenchmarked": 4}
+TIER = {"system": 0, "section": 1, "reference": 2, "property": 3, "page": 4, "unbenchmarked": 5}
 GROUP = {"system": "Benchmarked", "reference": "References", "property": "Properties",
          "page": "Pages", "unbenchmarked": "Not benchmarked"}  # fmt: skip
+# a system page's sections, each found by what it holds; listed under the system's name
+SECTIONS = (
+    ("Figures", "figures", "figures numbers measured spread runs"),
+    ("Tamper tests", "tamper", "tamper tests controls negative accepted rejected"),
+    ("How we read it", "how-we-read", "how we read it quotes sources read"),
+    ("Claim card in full", "card-{configuration}", "claim card residual quality gap"),
+)
+# what a not-benchmarked system's facts say is absent: shown on its card, never searched by
+ABSENT = re.compile(r"^(?:no |not named|model not named)", re.I)
+ABSENT_NOTES = re.compile(r"\s*\((?:model id as given|size not stated)\)|,\s*size not stated")
+
+
+def model_terms(models):
+    """A system's models as words to search by: each name, its notes and every phrase that says
+    a model is absent ("not named", "no LLM named", "size not stated") left out."""
+    out = []
+    for given in models:
+        for part in given.split(";"):
+            said = ABSENT_NOTES.sub("", part).strip()
+            if said and not ABSENT.match(said):
+                out.append(said)
+    return " ".join(out)
 
 
 def search_entries():
     out = []
 
-    def add(kind, name, url, meta, pie, terms, fam=""):
-        words_ = " ".join([name, meta, terms, TERMS.get(fam, ""), fam])
+    def add(kind, name, url, meta, pie, terms, fam="", group=None):
+        """One entry. Its context line is searched by too, except a not-benchmarked system's,
+        which may show an absence ("Model not named"); its terms say what it does name."""
+        shown = "" if kind == "unbenchmarked" else meta
+        words_ = " ".join([name, shown, terms, TERMS.get(fam, ""), fam])
         out.append(
             {
                 "kind": kind,
                 "tier": TIER[kind],
-                "group": GROUP[kind],
+                "group": group or GROUP[kind],
                 "name": name,
                 "url": url,
                 "meta": meta,
@@ -65,11 +90,18 @@ def search_entries():
         )
 
     def ran(sid):
-        """What a system's or reference's configurations ran: workloads, models, GPUs, engines."""
+        """What a system's or reference's configurations ran: workloads, models, the precision
+        proved (with its words), GPUs, engines."""
         out_ = []
         for c in (c for c in S.CONFIGS if c["system"] == sid):
             sv = c.get("serving") or {}
-            out_ += [c["workload"]["id"], S.MODEL_NAME[c["workload"]["model"]["digest"]],
+            digest = c["workload"]["model"]["digest"]
+            # the precision a prover proved; serving names the precision it served (below)
+            proved = (
+                (c["workload"]["precision"].get("proved") or "") if c["kind"] == "prover" else ""
+            )
+            said = S.V["facts"]["models"].get(digest, {}).get("precision_words", {}).get(proved)
+            out_ += [c["workload"]["id"], S.MODEL_NAME[digest], proved, said or "",
                      c["gpu"]["short"] or "", c["gpu"]["model"] or "", c["profile"],
                      sv.get("engine") or "", sv.get("precision") or ""]  # fmt: skip
         return " ".join(dict.fromkeys(x for x in out_ if x))
@@ -87,6 +119,14 @@ def search_entries():
             f"{kind_title} {upstream(cfg)['repo']} {ran(sid)}",
             fam.lower(),
         )
+    for sid in S.V["orders"]["benchmarked"]:
+        cfg = first_config(sid)
+        cols = [c for c in (*COLS, *PER_GBIT_COLS)]
+        figures = " ".join([*(HEAD[c] for c in cols), *(label for _, label in MORE)])
+        for title, anchor, terms in SECTIONS:
+            add("section", title, f"{S.PAGE[sid]}#{anchor.format(configuration=cfg['configuration'])}",
+                "", "", f"{figures if anchor == 'figures' else ''} {terms}",
+                group=name_of(sid))  # fmt: skip
     for gid in S.V["orders"]["reference"]:
         add(
             "reference",
@@ -94,7 +134,7 @@ def search_entries():
             f"{REF_PAGE}#{gid}",
             kind_words(gid),
             pie_svg(glyph(gid)["states"], 28),
-            f"reference baseline {ran(gid)}",
+            f"reference references baseline {ran(gid)}",
         )
     for rid in S.V["orders"]["not_benchmarked"]:
         r = S.V["facts"]["rows"][rid]
@@ -105,12 +145,12 @@ def search_entries():
             f"/#nb-{rid}",
             nb_models(r),
             pie_svg(glyph(rid)["states"], 28),
-            # status, models, source and stated technique; not the people behind it
+            # status, models, source and stated technique, never an absence ("not named", "no
+            # repository", "no public code"); not the people behind it
             " ".join(
                 [
-                    nb_meta(rid),
-                    *r["models"],
-                    (r.get("code") or "").replace("_", " "),
+                    "" if r["status"]["state"] == "no_repository" else nb_meta(rid),
+                    model_terms(r["models"]),
                     CODE_TERMS.get(r.get("code"), ""),
                     r.get("technique") or "",
                 ]
@@ -120,9 +160,11 @@ def search_entries():
     for i, p in enumerate(S.PROPS):
         add("property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(i + 1, 28), "")
     rel = S.V["release"]
-    pages = [(ref_label(), REF_PAGE, ", ".join(name_of(g) for g in S.V["orders"]["reference"]),
-              "reference baseline serving"),
-             ("Criteria", CRIT_PAGE, "What each state means for each property",
+    refs = S.V["orders"]["reference"]
+    # while /reference holds one reference, its entry is the page's: one entry, not two
+    pages = [(ref_label(), REF_PAGE, ", ".join(name_of(g) for g in refs),
+              "reference baseline serving")] if len(refs) > 1 else []  # fmt: skip
+    pages += [("Criteria", CRIT_PAGE, "What each state means for each property",
               "criteria states rules yes partly no not stated"),
              (f"Release {rel['id']}", RELEASE_PAGE, "Its runs, claim cards and reference file",
               "release runs records index overhead cost price")]  # fmt: skip
