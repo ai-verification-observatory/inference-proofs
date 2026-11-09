@@ -32,6 +32,7 @@ from .plates import (
     glyph,
     has_figures,
     keep,
+    metric_of,
     name_of,
     overhead_notes,
     path_html,
@@ -68,6 +69,7 @@ from .words import (
     amount,
     count_word,
     e,
+    gpu_words,
     labels,
     scope_words,
     shown,
@@ -482,8 +484,25 @@ def config_tamper(cfg, many):
             f"{control_tests(cfg)}")  # fmt: skip
 
 
+# what a system page holds, by the plate that holds it, as its description names it
+DESC_FIGURES = (("overhead", "overhead against production serving"), ("per_bit", "proving time"),
+                ("proof_size", "proof size"), ("check_time", "check time"))  # fmt: skip
+
+
 def system_desc(sid):
-    return f"{name_of(sid)}: six properties of one proof and the benchmark's own figures with their labels."
+    """A system page's description (search results, link previews), from the view, no number:
+    the system, the models and GPUs it ran, and what the page holds, each figure only where a
+    setup has a value for it."""
+    cfgs = configs_of(sid)
+    models = " and ".join(
+        dict.fromkeys(S.MODEL_NAME[c["workload"]["model"]["digest"]] for c in cfgs)
+    )
+    gpus = " or ".join(dict.fromkeys(gpu_words(c) for c in cfgs))
+    held = ["what one proof establishes"]
+    held += [w for col, w in DESC_FIGURES
+             if any(c["figures"][metric_of(c, col)]["value"] is not None for c in cfgs)]  # fmt: skip
+    said = ", ".join(held[:-1]) + f" and {held[-1]}" if len(held) > 1 else held[0]
+    return f"{name_of(sid)} proving {models} on {gpus}: {said}."
 
 
 def claims_section(sid, cfgs, g, facts):

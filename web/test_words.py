@@ -2,6 +2,7 @@
 word kept, only marks rendered. Run from the repository root: uv run pytest web -q
 """
 
+import html
 import re
 
 import pytest
@@ -129,3 +130,20 @@ def test_labels_read_whole(site):
     assert b.source_words(cost, {"source": "x#/s/"}) == "cost_per_1k_tokens_prove.session × 1,000"
     rate = {"unit": "token/s", "source": "x#/s/rate_prove.session"}
     assert b.source_words(rate, {"source": "x#/s/"}) == "rate_prove.session"
+
+
+def test_system_descriptions_say_what_the_page_holds(site):
+    """A system page's description names the system, the models and GPUs it ran and what the
+    page holds, from the view: no number of its own and no words about itself."""
+    b = site.build
+    for sid in site.view["orders"]["benchmarked"]:
+        cfgs = [c for c in site.view["configurations"] if c["system"] == sid]
+        said = b.system_desc(sid)
+        assert said.startswith(f"{site.view['facts']['rows'][sid]['name']} proving ")
+        for c in cfgs:
+            assert b.S.MODEL_NAME[c["workload"]["model"]["digest"]] in said
+            assert b.gpu_words(c) in said
+        assert "what one proof establishes" in said
+        assert "benchmark's own" not in said
+        text = (site.out / f"{sid}.html").read_text()
+        assert f'<meta name="description" content="{html.escape(said)}">' in text
