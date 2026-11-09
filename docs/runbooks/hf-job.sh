@@ -5,23 +5,32 @@
 #
 #   hf-job.sh probe                          host probe, harness install, binding check, self-test
 #   hf-job.sh run SYSTEM STEP [STEP...]      the same, then each STEP in order
-#   hf-job.sh controls SYSTEM RUN_PATH SEED ID[,ID...]
-#                                            the same, then one part of a run's control suite
+#   hf-job.sh seed SYSTEM RUN_PATH           the harness only, then the seed record of a stored
+#                                            run's split control suite, written once
+#   hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]
+#                                            probe and install, then one part of that suite
+#   hf-job.sh merge SYSTEM RUN_PATH          the harness only, then controls.json from the parts
 #
 # A STEP is WORKLOAD:REPETITIONS with options after further colons: `controls` (the control
 # suite, in this job) and `keep-io` (the run directory keeps io/, with its proofs, and its
-# commitment store, and both are uploaded, so that `controls` jobs can run from the bucket),
+# commitment store, and both are uploaded, so that `controls` jobs can run from the bucket;
+# the proof archive under .archive/ is then left out, since io/proofs holds the same proof),
 # for example `fp-maverick-w1024-b1:2:controls` or `sash-l31-8b-c1024:1:keep-io`. `keep-io` is
 # refused for flashprove: its io/ holds a copy of the weights and its commitment store the
 # prover's secret key. Every run is a development run on prover-h200-hosted
 # (--allow-nonconforming until RFC-0006 Q5 pins the driver), written outside the checkout and
-# never copied into results/ (POL-4).
+# never copied into results/ (POL-4). An upload that copied everything ends with upload.done in
+# its bucket folder; `seed`, `controls` and `merge` refuse a stored run whose folder has none.
 #
-# `controls` (RFC-0008 §Split suites) copies the run directory runs/<UTC>-<label>/dev-results/
-# <release>/SYSTEM/<run id> (RUN_PATH) from the mounted bucket, runs `iproofs controls --hosted
-# --only ID[,ID...] --seed SEED` against it, and uploads the part file and the logs under
-# controls/. With a GPU the job binds it and fetches the weights (prover-side ids); without one
-# it is a verifier host, which runs verifier-side ids only.
+# `seed`, `controls` and `merge` (RFC-0008 §Split suites) work on a stored run, RUN_PATH =
+# runs/<UTC>-<label>/dev-results/<release>/SYSTEM/<run id> in the mounted bucket. `seed` runs
+# `iproofs controls --draw-seed` and writes controls-seed.json into the stored run, once.
+# `controls` copies the stored run (from IPROOFS_STORED_DIR, a read-only mount of it, if set),
+# runs `iproofs controls --hosted --only ID[,ID...]` against the copy with the recorded seed,
+# and uploads the part and the logs under controls/. With a GPU the job binds it and fetches
+# the weights (prover-side ids); without one it is a verifier host, which runs verifier-side
+# ids only. `merge` merges every part of that seed found under runs/*/controls/ and writes
+# controls.json, and the parts under controls-parts/, into the stored run, once.
 #
 # Environment (set with `hf jobs run -e`):
 #   IPROOFS_COMMIT        the full commit hash the job command checked out (required)
@@ -36,6 +45,8 @@
 #                         who can read that secret in the container
 #   IPROOFS_LABEL         a short label for the upload folder (default: the mode)
 #   IPROOFS_GPU           the bound GPU index (default: the probe's suggestion, else 0)
+#   IPROOFS_STORED_DIR    controls only: a read-only mount of the stored run (`hf jobs run -v
+#                         hf://buckets/<namespace>/<bucket>/RUN_PATH:/stored:ro`)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
 set -uo pipefail
 
@@ -49,6 +60,7 @@ PROFILE=prover-h200-hosted
 PROVIDER="Hugging Face Jobs"
 BUDGET=${IPROOFS_JOB_BUDGET_S:-1200}
 RESERVE=900                          # seconds kept for the upload at the end
+KEEP_IO=0                            # a step keeps io/: .archive stays out of the upload
 MODE=${1:-}
 [ $# -gt 0 ] && shift
 has_opt() { case ":$1:" in *":$2:"*) return 0 ;; esac; return 1; }  # STEP options
@@ -77,6 +89,34 @@ prune() {  # what a run stopped at the deadline leaves in its staging directory 
   done
 }
 
+dev_bytes() {  # the bytes copy_dev sends
+  if [ "$KEEP_IO" = 1 ]; then
+    du -sb --exclude=.archive "$DEV" | cut -f1
+  else
+    du -sb "$DEV" | cut -f1
+  fi
+}
+
+copy_dev() {  # DEST: the self-test record, the run directories, then the proof archive
+  local dest=$1 item failed=0
+  mkdir -p "$dest" || return 1
+  if [ -f "$DEV/.selftest.json" ]; then
+    cp "$DEV/.selftest.json" "$dest/" || failed=1
+  fi
+  for item in "$DEV"/*; do
+    [ -e "$item" ] || continue
+    cp -R "$item" "$dest/" || failed=1
+  done
+  if [ -d "$DEV/.archive" ]; then
+    if [ "$KEEP_IO" = 1 ]; then  # the same bytes as io/proofs/<first>; digests.txt keeps its digest
+      log "upload: .archive left out ($(du -sh "$DEV/.archive" | cut -f1)): with keep-io, io/proofs holds that proof"
+    else
+      cp -R "$DEV/.archive" "$dest/" || failed=1
+    fi
+  fi
+  return "$failed"
+}
+
 upload() {
   local status=$?
   prune
@@ -92,8 +132,10 @@ upload() {
     # the small files first, so a slow copy of the runs still leaves the log and the probe
     cp "$OUT"/*.json "$OUT/job.log" "$dest/" 2>/dev/null || true
     [ -d "$OUT/controls" ] && cp -R "$OUT/controls" "$dest/"
-    if cp -R "$DEV" "$dest/"; then
-      log "upload: done; exit $status"
+    if copy_dev "$dest/dev-results"; then
+      # what seed, controls and merge check first: this copy ended, with this many bytes
+      printf 'dev-results bytes %s\n' "$(dev_bytes)" > "$dest/upload.done"
+      log "upload: done ($(cat "$dest/upload.done")); exit $status"
     else
       log "upload: failed; exit $status"
     fi
@@ -107,7 +149,7 @@ upload() {
   log "upload: out/ to dataset $IPROOFS_UPLOAD, folder $folder; exit $status"
   local py="$PY"
   [ -x "$py" ] || py="uv run --no-project --with huggingface_hub==0.36.2 python"
-  IPROOFS_FOLDER="$folder" IPROOFS_OUT="$OUT" $py - <<'EOF' || log "upload: failed"
+  IPROOFS_FOLDER="$folder" IPROOFS_OUT="$OUT" IPROOFS_KEEP_IO="$KEEP_IO" $py - <<'EOF' || log "upload: failed"
 import os
 from huggingface_hub import HfApi
 
@@ -121,6 +163,8 @@ api.upload_folder(repo_id=repo, repo_type="dataset", folder_path=out, path_in_re
 api.upload_folder(repo_id=repo, repo_type="dataset", folder_path=out, path_in_repo=folder,
                   allow_patterns=["dev-results/**"],
                   ignore_patterns=["**/.staging-*/io/**", "**/.staging-*/prover-ro/**",
+                                   *(["dev-results/.archive/**"]
+                                     if os.environ.get("IPROOFS_KEEP_IO") == "1" else []),
                                    "**/.staging-*/verify/**", "**/.staging-*/controls-io/**",
                                    "**/.staging-*/commitment/**"],
                   commit_message=message)
@@ -157,30 +201,140 @@ if [ "$MODE" = run ] && [ $# -ge 1 ]; then
       log "keep-io is refused for flashprove: io/ holds a weights copy, commitment/ the prover's key"
       exit 2
     fi
-    # a kept SASH run holds its 44.6 GB proof (the H100 run's manifest); the bucket's write speed
-    # is not documented: 3,600 s is enough at 12.4 MB/s or more, an assumption
+    # a kept SASH run uploads its 44.6 GB proof (the H100 run's manifest) and io/state, not the
+    # .archive copy; the bucket's write speed is not documented: 3,600 s is enough for the proof
+    # at 12.4 MB/s or more, an assumption (hf-jobs.md stage 2)
     RESERVE=3600
+    KEEP_IO=1
   done
 fi
-if [ "$MODE" = controls ]; then
-  if [ $# -ne 4 ]; then
-    log "usage: hf-job.sh controls SYSTEM RUN_PATH SEED ID[,ID...]"
-    exit 2
-  fi
-  CSYSTEM=$1 RUN_PATH=${2%/} SEED=$3 IDS=$4
+stored_checks() {  # SYSTEM RUN_PATH: a stored run that seed, controls and merge can use
+  CSYSTEM=$1 RUN_PATH=${2%/}
   if [ -z "${IPROOFS_UPLOAD_DIR:-}" ]; then
-    log "controls reads the run from the mounted bucket: set IPROOFS_UPLOAD_DIR"
+    log "$MODE reads the run from the mounted bucket: set IPROOFS_UPLOAD_DIR"
     exit 2
   fi
   case "$RUN_PATH" in
     runs/*/dev-results/*/"$CSYSTEM"/*) ;;
     *) log "RUN_PATH must be runs/<folder>/dev-results/<release>/$CSYSTEM/<run id>"; exit 2 ;;
   esac
-  STORED="$IPROOFS_UPLOAD_DIR/$RUN_PATH"
-  if [ ! -f "$STORED/run.json" ] || [ ! -d "$STORED/io/proofs" ] || [ ! -d "$STORED/commitment" ]; then
-    log "no kept run at $RUN_PATH: it needs run.json, io/proofs and commitment/ (a run made with keep-io)"
+  STORED="$IPROOFS_UPLOAD_DIR/$RUN_PATH"   # read-write: seed and merge write here, once
+  local folder="${RUN_PATH%%/dev-results/*}"
+  if [ ! -f "$STORED/run.json" ] || [ ! -f "$STORED/manifest.json" ]; then
+    log "no stored run at $RUN_PATH (run.json and manifest.json)"
     exit 2
   fi
+  if [ ! -f "$IPROOFS_UPLOAD_DIR/$folder/upload.done" ]; then
+    log "the upload of $folder did not finish (no upload.done): its copy may be partial"
+    exit 2
+  fi
+  if [ -e "$STORED/controls.json" ]; then
+    log "$RUN_PATH already has controls.json: its suite has run (RFC-0008, once per configuration)"
+    exit 2
+  fi
+}
+
+record_seed() {  # FILE: the control_seed of a controls-seed.json, with the system python3
+  python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["control_seed"])' "$1"
+}
+
+# Arguments of seed, controls and merge, refused before anything is installed or billed for long.
+case "$MODE" in
+  seed|merge)
+    if [ $# -ne 2 ]; then
+      log "usage: hf-job.sh $MODE SYSTEM RUN_PATH"
+      exit 2
+    fi
+    stored_checks "$1" "$2"
+    if [ "$MODE" = seed ] && [ -e "$STORED/controls-seed.json" ]; then
+      log "$RUN_PATH already has controls-seed.json: its seed is drawn once (SPLIT-1)"
+      exit 2
+    fi
+    if [ "$MODE" = merge ] && [ ! -f "$STORED/controls-seed.json" ]; then
+      log "$RUN_PATH has no controls-seed.json: no part can have run"
+      exit 2
+    fi
+    ;;
+  controls)
+    if [ $# -ne 3 ]; then
+      log "usage: hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
+      exit 2
+    fi
+    stored_checks "$1" "$2"
+    IDS=$3
+    READ_FROM=${IPROOFS_STORED_DIR:-$STORED}   # a read-only mount of the run, if given
+    if [ ! -d "$READ_FROM/io/proofs" ] || [ ! -d "$READ_FROM/commitment" ]; then
+      log "no kept run at $RUN_PATH: it needs io/proofs and commitment/ (a run made with keep-io)"
+      exit 2
+    fi
+    if [ ! -f "$READ_FROM/controls-seed.json" ]; then
+      log "$RUN_PATH has no controls-seed.json: draw it once with hf-job.sh seed $CSYSTEM $RUN_PATH"
+      exit 2
+    fi
+    known=" C1 C2 C3 C4 C5 C6 C7 C8 P1 P2 "
+    if [ -f "systems/$CSYSTEM/controls.yaml" ]; then
+      known+="$(sed -n 's/^  - id: "\(.*\)"$/\1/p' "systems/$CSYSTEM/controls.yaml" | tr '\n' ' ')"
+    fi
+    IFS=, read -ra asked <<< "$IDS"
+    for id in "${asked[@]}"; do
+      case "$known" in
+        *" $id "*) ;;
+        *) log "unknown control id '$id'; this suite is:$known"; exit 2 ;;
+      esac
+    done
+    ;;
+esac
+
+if [ "$MODE" = seed ] || [ "$MODE" = merge ]; then
+  # no probe, GPU or self-test: these read and write a few small files
+  log "install the harness"
+  if ! uv sync --frozen --no-dev; then
+    log "uv sync failed; stopping"
+    exit 3
+  fi
+  LOCAL="$WORK/stored/$(basename "$RUN_PATH")"
+  mkdir -p "$LOCAL" "$OUT/controls"
+  for f in run.json manifest.json controls-seed.json; do
+    if [ -f "$STORED/$f" ]; then cp "$STORED/$f" "$LOCAL/"; fi
+  done
+  if [ "$MODE" = seed ]; then
+    "$IP" controls "$LOCAL" --draw-seed || exit 2
+    if [ -e "$STORED/controls-seed.json" ]; then  # another job drew one meanwhile
+      log "$RUN_PATH has controls-seed.json now; this draw is discarded"
+      exit 2
+    fi
+    cp "$LOCAL/controls-seed.json" "$STORED/controls-seed.json"
+    cp "$LOCAL/controls-seed.json" "$OUT/controls/"
+    log "seed $(record_seed "$STORED/controls-seed.json") written to $RUN_PATH/controls-seed.json"
+    exit 0
+  fi
+  SEED=$(record_seed "$LOCAL/controls-seed.json")
+  parts=()
+  for part in "$IPROOFS_UPLOAD_DIR"/runs/*/controls/controls-part-"${SEED#0x}"-*.json; do
+    [ -f "$part" ] || continue
+    folder=$(basename "$(dirname "$(dirname "$part")")")
+    mkdir -p "$WORK/parts/$folder"
+    cp "$part" "$WORK/parts/$folder/"
+    parts+=("$WORK/parts/$folder/$(basename "$part")")
+    log "part $folder/$(basename "$part")"
+  done
+  if [ "${#parts[@]}" -eq 0 ]; then
+    log "no part of seed $SEED under runs/*/controls/"
+    exit 2
+  fi
+  "$IP" controls "$LOCAL" --merge "${parts[@]}"
+  rc=$?
+  log "merge exit $rc (2: refused, nothing written; the message names the part or the control)"
+  [ "$rc" -eq 0 ] || exit "$rc"
+  if [ -e "$STORED/controls.json" ]; then
+    log "$RUN_PATH has controls.json now; this merge is discarded"
+    exit 2
+  fi
+  cp "$LOCAL/controls.json" "$OUT/controls/"
+  mkdir -p "$STORED/controls-parts" && cp -R "$WORK/parts/." "$STORED/controls-parts/"
+  cp "$LOCAL/controls.json" "$STORED/controls.json"
+  log "controls.json written to $RUN_PATH, its ${#parts[@]} parts to $RUN_PATH/controls-parts/"
+  exit 0
 fi
 
 log "probe"
@@ -239,19 +393,43 @@ fi
 [ "$MODE" = probe ] && exit 0
 if [ "$MODE" = controls ]; then
   # RFC-0008 §Split suites: one part of the suite, against a copy of the stored run on this disk
+  SEED=$(record_seed "$READ_FROM/controls-seed.json")
+  # a prover-side id where no prove can run is refused here, before the copy and the weights
+  if ! "$PY" - "$CSYSTEM" "$IDS" "$NGPU" <<'EOF'
+import sys
+from pathlib import Path
+
+from iproofs.runner import control_suite
+from iproofs.schema import SchemaRegistry
+
+system, ids, ngpu = sys.argv[1], sys.argv[2].split(","), int(sys.argv[3])
+root = Path.cwd()
+sides = dict(control_suite(root, SchemaRegistry.from_tree(root / "schema"), system))
+prover = [cid for cid in ids if sides.get(cid) == "prover"]
+if prover and ngpu == 0:
+    print(f"prover-side ids {', '.join(prover)} need a GPU flavor; this host has none")
+    sys.exit(2)
+EOF
+  then
+    log "refused before the copy"
+    exit 2
+  fi
+  if [ "$NGPU" -gt 0 ] && [ "$BOUND" -ne 0 ]; then
+    log "the binding check failed; stopping before the copy and the weights"
+    exit 3
+  fi
   RUN="$WORK/stored/dev-results/${RUN_PATH#*/dev-results/}"
   mkdir -p "$(dirname "$RUN")"
-  log "copy $RUN_PATH from the bucket ($(du -sh "$STORED" | cut -f1)), at most $(left) s"
-  if ! timeout --kill-after=60 "$(left)" cp -R "$STORED" "$RUN"; then
+  log "copy $RUN_PATH from the bucket ($(du -sh "$READ_FROM" | cut -f1)), at most $(left) s"
+  copy_start=$(date +%s)
+  if ! timeout --kill-after=60 "$(left)" cp -R "$READ_FROM" "$RUN"; then
     log "the copy failed or reached the deadline; stopping"
     exit 3
   fi
+  # the bucket's read speed is not documented: this line measures it, for the spend log
+  log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
   extra=()
-  if [ "$NGPU" -gt 0 ]; then
-    if [ "$BOUND" -ne 0 ]; then
-      log "the binding check failed; stopping before any weights are fetched"
-      exit 3
-    fi
+  if [ "$NGPU" -gt 0 ]; then  # the binding check passed (above)
     workload=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["workload"]["id"])' "$RUN/run.json")
     log "fetch-model $workload, at most $(left) s"
     if ! env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fetch-model "$workload"; then
@@ -260,12 +438,14 @@ if [ "$MODE" = controls ]; then
     fi
     extra=(--gpu "$GPU")
   fi
-  log "controls $IDS, seed $SEED, ${extra[*]:-no GPU}, at most $(left) s"
+  log "controls $IDS, seed $SEED (from controls-seed.json), ${extra[*]:-no GPU}, at most $(left) s"
+  # a progress line per control call that returns (control.call): what a rerun's timeout is
+  # sized from if this job stops at its deadline (SPLIT-6)
   env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" controls "$RUN" --hosted "${extra[@]}" \
-    --only "$IDS" --seed "$SEED"
+    --provider "$PROVIDER" --only "$IDS" --seed "$SEED"
   rc=$?
-  # 0 the part is written; 2 refused (a prover-side id on a verifier host, an unknown id, a part
-  # that exists); 124 or 137 stopped at the deadline: no part, the controls run again (SPLIT-6).
+  # 0 the part is written; 2 refused (a prover-side id on a verifier host, a GPU other than the
+  # run's, a part that exists); 124 or 137 stopped at the deadline: no part (SPLIT-6).
   log "controls exit $rc"
   mkdir -p "$OUT/controls"
   cp "$RUN"/controls-part-*.json "$OUT/controls/" 2>/dev/null || log "no part written"
@@ -274,7 +454,7 @@ if [ "$MODE" = controls ]; then
 fi
 if [ "$MODE" != run ] || [ $# -lt 2 ]; then
   log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io]..."
-  log "       hf-job.sh controls SYSTEM RUN_PATH SEED ID[,ID...]"
+  log "       hf-job.sh seed|merge SYSTEM RUN_PATH | hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
   exit 2
 fi
 if [ "$BOUND" -ne 0 ]; then
