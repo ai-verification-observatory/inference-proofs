@@ -1,0 +1,9 @@
+sash: /usr/local/bin/zk-prover-simd model-roots exited 101
+model-roots: --table-bits 23 --round even --diagonal-block --gkr-key-tiles --gkr-dequant --gkr-residual-stream --gkr-freivalds --gkr-attnout --witness results/v0.1/sash/.staging-2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1/io/state/commit-witness/witness_B10_L12 --ser-tag B10L12
+--witness results/v0.1/sash/.staging-2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1/io/state/commit-witness/witness_B10_L12: the layer witness did not load: No such file or directory (os error 2)
+refusing to fall back to a synthetic layer; drop --witness to prove one
+
+
+thread 'main' panicked at prover/src/cli.rs<redacted:ip>
+model-roots: expect-root failed on a plan line
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace

@@ -239,6 +239,11 @@ def _controls_of(index: dict[str, Any], config: dict[str, Any]) -> dict[str, Any
     names no configuration, RFC-0009 §Release record); exactly one must match."""
     key = (config["system"], config["workload"], config["profile"])
     found = [c for c in index["controls"] if (c["system"], c["workload"], c["profile"]) == key]
+    if len(found) > 1 and len(index["controls"]) == len(index["configurations"]):
+        # two load points of one serving configuration share the key; the release writes
+        # controls[] in configuration order, so take the entry at the configuration's position
+        at = next(i for i, c in enumerate(index["configurations"]) if c is config)
+        found = [index["controls"][at]]
     if len(found) != 1:
         raise _config(f"{len(found)} controls entries for {config['system']} on "
                       f"{config['workload']['id']} ({config['profile']}); the index names no "

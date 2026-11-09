@@ -1,0 +1,242 @@
+{
+  "claim": {
+    "card_version": 1,
+    "configuration": "sound-defaults",
+    "system": "sash"
+  },
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/sash/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-08T23:00:23Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/sash/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-08T23:00:23Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/sash/entrypoint",
+        "commit",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 1,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-08T23:00:23Z",
+      "step": "commit"
+    }
+  ],
+  "commitment": null,
+  "control": false,
+  "harness": {
+    "git_commit": "14e9d34c3183e360d32a5ec44a8d4fb8eeaab10e",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": true,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted"
+    },
+    "cpu": {
+      "bound_prover": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62
+      ],
+      "bound_verifier": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "bound_verifier_single": [
+        63
+      ],
+      "cgroup_quota_cpus": 23.0,
+      "logical_cpus": 192,
+      "model": "Intel(R) Xeon(R) Platinum 8488C",
+      "physical_cores": 96,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 29519946747904
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.0",
+      "driver_version": "580.178.04",
+      "memory_total_mib": 143771,
+      "model": "NVIDIA H200",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.12.113-138.209.amzn2023.x86_64"
+    },
+    "memory": {
+      "available_bytes_at_start": 2020340875264,
+      "cgroup_limit_bytes": 256000000000,
+      "total_bytes": 2147443212288
+    },
+    "numa": {
+      "bound_mems": [
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "Hugging Face Jobs",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h200-hosted",
+    "reference_digest": "sha256:f53face597c3ae122735259880c66ad54697ac430a42ce2a4b9b801eb1cea676",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [],
+  "provider": "Hugging Face Jobs",
+  "release": "v0.1",
+  "run_id": "2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "system": {
+    "adapter_commit": "aa3fbb2cd5f9f53fadf7966f02784492aaca5392",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:6da4277315a62e0fd5110e593825fdc20e66be6d86fc54382ed78f694ed4cf15",
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/sash@sha256:bf548d5666b10d653babb23612d670dfa7c86f7b75f3784da0451d53ec90f577"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:80f0f749ef6dc34419dd8f9451ffa7d729a6a84bd17d6334a2b44055185a6f5f",
+        "name": "zk-inference-prover",
+        "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover.git#eb95bfa887299d1637550228d42086c27cbb2b3b"
+      },
+      {
+        "digest": "sha256:ac0a04b2bb6ca1e69c959e9b941ea4362dfaa005b9a9c86444aa434bca396a08",
+        "name": "rust-nightly-2025-07-14",
+        "url": "https://static.rust-lang.org/dist/2025-07-14/rust-nightly-x86_64-unknown-linux-gnu.tar.xz"
+      }
+    ],
+    "name": "sash",
+    "system_manifest_digest": "sha256:e3c830c62390da13f6e93eda1de324991a2fd32449d9a599cda7f62ffb3c081a",
+    "upstream": {
+      "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+      "repo": "sg-ai-safety-hub/zk-inference-prover"
+    }
+  },
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:21e74c54b23202503709a3202db66093760cebbfda328c4d3a66dc5bba669895",
+    "id": "sash-l31-8b-c1024",
+    "model": {
+      "digest": "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7",
+      "revision": "4699cc75b550f9c6f3173fb80f4703b62d946aa5",
+      "source": "huggingface:unsloth/Llama-3.1-8B-Instruct"
+    },
+    "prompt_seed": "0x1140f6b6cf22bfa1",
+    "prompt_set_digest": "sha256:b54800980e3fa6e8163b2741ee7118a7bf4de1fa10d2aa3eff4df2a19486fd06",
+    "version": 1
+  }
+}

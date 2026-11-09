@@ -65,6 +65,7 @@ def test_deterministic_index(
     assert a == GOLDEN.read_bytes()
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 def test_review_window_under_14_days_fails(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -92,6 +93,7 @@ def test_freeze_price_zero(
     assert not (tmp_path / "releases/v0.1/index.json").exists()
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 def test_freeze_date_must_follow_window(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

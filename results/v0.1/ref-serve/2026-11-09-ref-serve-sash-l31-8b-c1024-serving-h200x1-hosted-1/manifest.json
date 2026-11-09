@@ -1,0 +1,476 @@
+{
+  "claim": null,
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0,1",
+      "network": "provider",
+      "started_at": "2026-11-09T06:23:59Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0,1",
+      "network": "provider",
+      "started_at": "2026-11-09T06:23:59Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0,1",
+      "network": "provider",
+      "started_at": "2026-11-09T06:23:59Z",
+      "step": "prove"
+    }
+  ],
+  "commitment": null,
+  "control": false,
+  "engine": {
+    "image": "docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
+    "interface": "vllm serve",
+    "name": "vllm",
+    "observed": {
+      "build_commit": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "max_num_batched_tokens": 1088,
+      "version": "0.32.0"
+    },
+    "version": "0.32.0"
+  },
+  "harness": {
+    "git_commit": "097fe43507712414e4493f1e150f6add0150eec1",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": true,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted",
+      "shm_bytes": 2144787120128
+    },
+    "cpu": {
+      "bound_prover": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191
+      ],
+      "bound_verifier": [],
+      "bound_verifier_single": [],
+      "cgroup_quota_cpus": 23.0,
+      "logical_cpus": 192,
+      "model": "Intel(R) Xeon(R) Platinum 8488C",
+      "physical_cores": 96,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 29347681267712
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.0",
+      "driver_version": "580.178.04",
+      "memory_total_mib": 143771,
+      "model": "NVIDIA H200",
+      "numa_node": 0
+    },
+    "kernel": {
+      "release": "6.12.113-138.209.amzn2023.x86_64"
+    },
+    "memory": {
+      "available_bytes_at_start": 1978414698496,
+      "cgroup_limit_bytes": 256000000000,
+      "total_bytes": 2147443163136
+    },
+    "numa": {
+      "bound_mems": [
+        0,
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "Hugging Face Jobs",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "serving-h200x1-hosted",
+    "reference_digest": "sha256:5a6639f10a7db4536d7ef2d3eeca2cc6356302f0eb0ba02d2ea38ba450bed3f9",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:9aae6fc5f41f9ffdff4cb71e322aa0179642bfeb2446d4c755a26bf555ff5536",
+      "parts": [
+        {
+          "bytes": 398,
+          "digest": "sha256:e076f17cc2a4a46ffb1504749bdf4bf2ddcbe61b628c6861a8d4188e4f3719af",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-0"
+    }
+  ],
+  "provider": "Hugging Face Jobs",
+  "release": "v0.1",
+  "run_id": "2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "serving_model": {
+    "digest": "sha256:67e1fb8b9abdeaa297e44ca89e686503daf987e8663d7e5f3ae599f3ae817d48",
+    "id": "llama-3.1-8b-instruct-bf16",
+    "publisher": {
+      "repo": "meta-llama/Llama-3.1-8B-Instruct",
+      "revision": "0e9e39f249a16976918f6564b8830bc894c89659"
+    },
+    "source": {
+      "repo": "NousResearch/Meta-Llama-3.1-8B-Instruct",
+      "revision": "d10aef7999a2b5ba950ab3974312feeedbfe0b77"
+    },
+    "version": 1
+  },
+  "system": {
+    "adapter_commit": "097fe43507712414e4493f1e150f6add0150eec1",
+    "adapter_dirty": false,
+    "claim_digest": null,
+    "image": {
+      "digest_kind": "config",
+      "ref": "local/docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
+        "name": "engine image (development install)",
+        "url": "docker://docker.io/vllm/vllm-openai"
+      },
+      {
+        "digest": "sha256:dd7ae551457836c6e9ee6888052feec08901e5b97786ad5f5be68637f212bc02",
+        "name": "systems/fake/write_inputs.py (development install)",
+        "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/097fe43507712414e4493f1e150f6add0150eec1/systems/fake/write_inputs.py"
+      },
+      {
+        "digest": "sha256:25ba505e4b322be3aba506d2596b8810b1d2355579edc63416679d1bc77f4d7b",
+        "name": "systems/ref-serve/entrypoint (development install)",
+        "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/097fe43507712414e4493f1e150f6add0150eec1/systems/ref-serve/entrypoint"
+      },
+      {
+        "digest": "sha256:d7129b74191ff14c9fc28a59ff4dda47ff8fdc3747e8a103dd80d159fb70c01d",
+        "name": "systems/ref-serve/system.yaml (development install)",
+        "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/097fe43507712414e4493f1e150f6add0150eec1/systems/ref-serve/system.yaml"
+      }
+    ],
+    "name": "ref-serve",
+    "system_manifest_digest": "sha256:d7129b74191ff14c9fc28a59ff4dda47ff8fdc3747e8a103dd80d159fb70c01d",
+    "upstream": null
+  },
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "batch_size_run": 1,
+    "batches_per_session_run": 1,
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:21e74c54b23202503709a3202db66093760cebbfda328c4d3a66dc5bba669895",
+    "id": "sash-l31-8b-c1024",
+    "load_point": "matched",
+    "model": {
+      "digest": "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7",
+      "revision": "4699cc75b550f9c6f3173fb80f4703b62d946aa5",
+      "source": "huggingface:unsloth/Llama-3.1-8B-Instruct"
+    },
+    "prompt_count_run": 1,
+    "prompt_seed": "0x81e7f5b88026f6fb",
+    "prompt_set_digest": "sha256:61686eec23588b7eef086566740be961c46cf416f9bead06540f3d95047f2908",
+    "steady_rule": "batch-membership",
+    "version": 1
+  }
+}

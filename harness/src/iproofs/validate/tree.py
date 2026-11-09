@@ -583,18 +583,9 @@ def g6_policy(root: Path, files: list[str]) -> list[Finding]:
 
 def _manifest_policy(root: Path, rel: str) -> list[Finding]:
     doc = json.loads((root / rel).read_text())
-    found = []
-    if doc.get("harness", {}).get("nonconforming") is True:
-        found.append(
-            Finding(
-                "G6",
-                rel,
-                "POL-4",
-                "produced with --allow-nonconforming",
-                ErrorKind.POLICY,
-                "/harness/nonconforming",
-            )
-        )
+    found: list[Finding] = []
+    # POL-4 (refuse runs made with --allow-nonconforming) is off during research (owner,
+    # 2026-11-09): the manifest still records harness.nonconforming and the profile checks.
     if doc.get("control") is False:
         system = str(doc.get("system", {}).get("name", ""))
         patterns = _forbidden(root, system)

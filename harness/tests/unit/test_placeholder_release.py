@@ -299,8 +299,13 @@ def test_site_workflow_runs_this_command() -> None:
     doc = yaml.safe_load((ROOT / ".github/workflows/site.yml").read_text())
     on = doc.get("on", doc.get(True))  # YAML 1.1 reads the key `on` as true
     steps = doc["jobs"]["built"]["steps"]
-    build = next(s for s in steps if "fixtures.placeholder_release" in s.get("run", ""))
-    assert build["run"] == f"PYTHONPATH=harness/tests uv run python {' '.join(SITE_ARGS)} web"
+    build = next(
+        s for s in steps if "site build" in s.get("run", "") or "placeholder" in s.get("run", "")
+    )
+    if (ROOT / "releases/v0.1/index.json").exists():  # the frozen release is built as such
+        assert build["run"] == "uv run iproofs site build"
+    else:
+        assert build["run"] == f"PYTHONPATH=harness/tests uv run python {' '.join(SITE_ARGS)} web"
     assert on["pull_request"]["paths"] == on["push"]["paths"]
     paths = set(on["push"]["paths"])
     # a top-level file by its name (MAINTAINERS.md), anything else by its top folder
@@ -312,6 +317,10 @@ def test_site_workflow_runs_this_command() -> None:
 @pytest.mark.skipif(
     "def render(" not in (ROOT / "web/build.py").read_text(),
     reason="iproofs site build calls the web/build.py renderer from step B2 of #320",
+)
+@pytest.mark.skipif(
+    (ROOT / "releases/v0.1/index.json").exists(),
+    reason="a frozen release exists: site.yml runs `iproofs site build`",
 )
 def test_site_command_runs(tmp_path: Path) -> None:
     """The exact site.yml command, in a subprocess: exits 0 and writes index.html."""

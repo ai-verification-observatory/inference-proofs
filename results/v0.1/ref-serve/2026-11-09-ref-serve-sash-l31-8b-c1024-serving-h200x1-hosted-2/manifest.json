@@ -1,0 +1,1068 @@
+{
+  "claim": null,
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0,1",
+      "network": "provider",
+      "started_at": "2026-11-09T09:01:06Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0,1",
+      "network": "provider",
+      "started_at": "2026-11-09T09:01:06Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+        "setpriv",
+        "--reuid=10001",
+        "--regid=10001",
+        "--clear-groups",
+        "--inh-caps=-all",
+        "--bounding-set=-all",
+        "--no-new-privs",
+        "python3",
+        "/opt/ref-serve/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0,1",
+      "network": "provider",
+      "started_at": "2026-11-09T09:01:06Z",
+      "step": "prove"
+    }
+  ],
+  "commitment": null,
+  "control": false,
+  "engine": {
+    "image": "docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
+    "interface": "vllm serve",
+    "name": "vllm",
+    "observed": {
+      "build_commit": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "max_num_batched_tokens": 1088,
+      "version": "0.32.0"
+    },
+    "version": "0.32.0"
+  },
+  "harness": {
+    "git_commit": "2d001fc8b20f731478b0da1908a072431ad00c89",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": true,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted",
+      "shm_bytes": 2144787120128
+    },
+    "cpu": {
+      "bound_prover": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        46,
+        47,
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62,
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70,
+        71,
+        72,
+        73,
+        74,
+        75,
+        76,
+        77,
+        78,
+        79,
+        80,
+        81,
+        82,
+        83,
+        84,
+        85,
+        86,
+        87,
+        88,
+        89,
+        90,
+        91,
+        92,
+        93,
+        94,
+        95,
+        96,
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105,
+        106,
+        107,
+        108,
+        109,
+        110,
+        111,
+        112,
+        113,
+        114,
+        115,
+        116,
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124,
+        125,
+        126,
+        127,
+        128,
+        129,
+        130,
+        131,
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        138,
+        139,
+        140,
+        141,
+        142,
+        143,
+        144,
+        145,
+        146,
+        147,
+        148,
+        149,
+        150,
+        151,
+        152,
+        153,
+        154,
+        155,
+        156,
+        157,
+        158,
+        159,
+        160,
+        161,
+        162,
+        163,
+        164,
+        165,
+        166,
+        167,
+        168,
+        169,
+        170,
+        171,
+        172,
+        173,
+        174,
+        175,
+        176,
+        177,
+        178,
+        179,
+        180,
+        181,
+        182,
+        183,
+        184,
+        185,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191
+      ],
+      "bound_verifier": [],
+      "bound_verifier_single": [],
+      "cgroup_quota_cpus": 23.0,
+      "logical_cpus": 192,
+      "model": "Intel(R) Xeon(R) Platinum 8488C",
+      "physical_cores": 96,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 29562692993024
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.0",
+      "driver_version": "580.178.04",
+      "memory_total_mib": 143771,
+      "model": "NVIDIA H200",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.12.113-138.209.amzn2023.x86_64"
+    },
+    "memory": {
+      "available_bytes_at_start": 1988502802432,
+      "cgroup_limit_bytes": 256000000000,
+      "total_bytes": 2147443163136
+    },
+    "numa": {
+      "bound_mems": [
+        0,
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "Hugging Face Jobs",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "serving-h200x1-hosted",
+    "reference_digest": "sha256:5a6639f10a7db4536d7ef2d3eeca2cc6356302f0eb0ba02d2ea38ba450bed3f9",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": "2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-1",
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:74e6ad9fedd36defcfd2f00d88d8e20d239171d47d6bcc5c404244a020717fa2",
+      "parts": [
+        {
+          "bytes": 409,
+          "digest": "sha256:791156540eae567f0365c24093cfef252d5f32e049460eb299b8c85457302b78",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-0"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:817048c30f815a4c4c392fc7d5ca96c959146144380e8cadb8ebe25e6510922f",
+      "parts": [
+        {
+          "bytes": 406,
+          "digest": "sha256:51ba3f6858298d1315ab140ca29cfff248736328ba39bad616fec9bac54232fc",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-1"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:7642d66f18b4f27de4386bba1621a25b004d38c3e72e7859616a8a0e05aaafbf",
+      "parts": [
+        {
+          "bytes": 399,
+          "digest": "sha256:84f8ecfee815c6c6558be39a81614b379c18ad60afe193e8af9b6da0bf24256c",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-2"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:1aadf54feb74238840d367d1537f0a57bbcb6a682ca1c6ce996c2962b90cd54f",
+      "parts": [
+        {
+          "bytes": 398,
+          "digest": "sha256:1e6c9d204967cafcda9cbab8019e503b671ae369b2a7dae3d8c13ae8cce9808f",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-3"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:6fccc8b461b403dfa1b5542d46ce5dfea016596cb718d2e4d464595bbb395c5d",
+      "parts": [
+        {
+          "bytes": 388,
+          "digest": "sha256:c0d2c13d1bda7bc1eb2db8b68a573c190a25a934554ea05dd50ef37c7d5c1c11",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-4"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:25c51337461f6248225686104a5ae30e51764d1e2f54677901c3309191fddd5c",
+      "parts": [
+        {
+          "bytes": 392,
+          "digest": "sha256:de4d76b5df3bf5e24fcdeb0207215ca7443657e434442871d238d1948329ddfe",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-5"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:4607b5079b581a25abc4e65bc123775a1689c3f8f18b20248a8cd068218dea44",
+      "parts": [
+        {
+          "bytes": 399,
+          "digest": "sha256:76660a931990b74abcd6b3cdd8c7ec2cf6016fdf0ae453897419f9fcff90bfcd",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-6"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:7a224ba24bd8bf3077f32ffb91b9ea3153618338d970c64efef69e83644a03cd",
+      "parts": [
+        {
+          "bytes": 407,
+          "digest": "sha256:c68568bbde5f396c858a04d4f35738e23957870e3023434d9c70f64d3566a249",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-7"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:c1aec8852ebce5596d4ac4eb3028192aa47e9a8ec87e4f11b252b0d7c827028c",
+      "parts": [
+        {
+          "bytes": 407,
+          "digest": "sha256:c449ddfbf516329a4de5006e605ed9bdb9ad8b10f8af916ec4312be18552e4ad",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-8"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:87143597665b82f5fd5ee79dc357c3639066b863727afc9aec4e607815da8bc5",
+      "parts": [
+        {
+          "bytes": 401,
+          "digest": "sha256:92a9eeea97a2c1438335b043cbc2d09960214ec77d09fcea4a5bdcf142dea82f",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-9"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:6a1214f51161b21da7e0a8e19080f57670683be67ac4d9d597e724ef3615997c",
+      "parts": [
+        {
+          "bytes": 414,
+          "digest": "sha256:1e04b6aa7d54334fa73c018ff0ab57b703b6f04cd38dfc2fc000f724a110173f",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-10"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:81e5bbf868cf60adf18cef26653264be2fb759eda94630e731071dc5232bb19a",
+      "parts": [
+        {
+          "bytes": 398,
+          "digest": "sha256:547e0bebf53797933f3022478ee29e29dedec6b797e44cf637289e80c25332d5",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-11"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:7ae74ec70545bb2c230854c2d6ed87f9039889f3aed0ba04c004f51b7d595f71",
+      "parts": [
+        {
+          "bytes": 407,
+          "digest": "sha256:1840633c3bad76afacbdda2379797456909a67debf1d55e299b89f5ff1d06ab7",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-12"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:8306ca904bb68a209602534dcacb8c2210cf4e366f06b8f5c99007e4e7aa2e9e",
+      "parts": [
+        {
+          "bytes": 399,
+          "digest": "sha256:7d8a65140ad9b722c995cc99135473c034426eefcc25247ee4412df0c958e1cd",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-13"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:c711ec5a2dbdc13bda78735a4ca75473560ca95a38e43c6c8761f670d7be09fe",
+      "parts": [
+        {
+          "bytes": 389,
+          "digest": "sha256:422bfabbd7cfedced27605fce237e973ffa904c8924301d063e30cb2c4bc6792",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-14"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:650a29bff53d3ce803dbb8e88c4ffa30e23eaf2c491797ac30972a8b1da8107f",
+      "parts": [
+        {
+          "bytes": 406,
+          "digest": "sha256:038b91f759c1552a6649214cae9c9724bb44757ad952d74269816851f96406bb",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-15"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:578e648d2cbbe1a52f3c3a3dbbefbdd12726c8c14a56b09e15eb99176340128a",
+      "parts": [
+        {
+          "bytes": 401,
+          "digest": "sha256:9ad2167603ade8a2a54c5f63c7f1748ab7daa8c72db4bcbfe6fa58f6735b64d9",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-16"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:2c1c1119c3307d9a897fbe25dd340c507b4c2acfa3026a9be232e00a22f07649",
+      "parts": [
+        {
+          "bytes": 398,
+          "digest": "sha256:e8e9895c26e6db9f9a1933c40cf541b59c92b521102f91ae2834f94ebb25b9a2",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-17"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:5f2c68722febd20a657094a29c6a335c7f19fbada10e09228da1d3eea6212c5a",
+      "parts": [
+        {
+          "bytes": 405,
+          "digest": "sha256:666576fb6acf5b90f848a689f5180426a1f43c761f9ed1236085580b2347f60d",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-18"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:9a0546390806c51ad16a854ece041af244166142a1c4c7454623b699a54cff10",
+      "parts": [
+        {
+          "bytes": 395,
+          "digest": "sha256:d772e9fcaf2b58186f55c0407d67883fea24ca85e992acc276a2496462bbeffb",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-19"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:9efe6cca5274d05a5dd29ceba1a255bb5488364dca8501278c736be98d146cec",
+      "parts": [
+        {
+          "bytes": 411,
+          "digest": "sha256:d241194e1e997921e4cf9fa14563be36292cd236f96650f14b31686a305b9062",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-20"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:5787a748be58ceb442b6636ea1ec75225d3a22c935486c5938029c8eb747a953",
+      "parts": [
+        {
+          "bytes": 397,
+          "digest": "sha256:179384799bc39805b57aa515b9962d17a68c03d94dcd716b216220b1fb15aa49",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-21"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:1874d43b32878c54ca915fc7570ba5674447baa58adacc460065c4df2517d7f0",
+      "parts": [
+        {
+          "bytes": 391,
+          "digest": "sha256:4166f79bf0203f527c7c50db520aa7db1e46f622dbf62989dbc41b0bc7ee422f",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-22"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:406d33a98ee7920344b3969272710f1489c1121ed2fc00459933f7b88b7c4df2",
+      "parts": [
+        {
+          "bytes": 391,
+          "digest": "sha256:77aaeaa8dc242fc2d2d4645a44dc0b7cc7d87d1d0d09f619cf49f4cc2fed0e3d",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-23"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:15bb810872ab21316a3e4094cd965653241a722d6596137c90b28cbac818916b",
+      "parts": [
+        {
+          "bytes": 396,
+          "digest": "sha256:443e7c8ae7708e5722e53295d27dc1a0ae57ec0e9c341c252366f618b3e21435",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-24"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:24c8342e9ef037b4a2678ccde8f31d4ca4db2aee67b6b121b91313c23bb59e38",
+      "parts": [
+        {
+          "bytes": 389,
+          "digest": "sha256:35e955484370cba5bdd7b484fee6d6b30d56d922af96403d430ca7f8e7116d53",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-25"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:4e74894a4429e1fbd02705bc975446d2f797029481605d03362a5e3c09d0824a",
+      "parts": [
+        {
+          "bytes": 393,
+          "digest": "sha256:7dbc9d1f632b768b1c6cf013f5652fad9c80caad8f163aec3721d801aacab775",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-26"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:0ed520758b79309e2670df9adb5dbe89a7cb23e4756268a92552bdd00bb4a99f",
+      "parts": [
+        {
+          "bytes": 400,
+          "digest": "sha256:50b05b43ce3aaab55d6338418bcbfddf1ea5475898df87433a97a8e17bb8e3da",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-27"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:8f91b10e66c88977125be32c30905e83dd43de566493b3dade48189522936087",
+      "parts": [
+        {
+          "bytes": 408,
+          "digest": "sha256:17c43b0368b558a3d95e5630e7a3b4d8d0757b0381234d8b5007ca186315b165",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-28"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:1d11430ebf726aa9b1fc5263b7f4ad38bb57cbd5ba5f628b7344201a22a2261b",
+      "parts": [
+        {
+          "bytes": 410,
+          "digest": "sha256:09c52813d4abce46769ba4fcd74895efab011da1b770aaf5f43bc15fe2cc6411",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-29"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:2cab9c5a80e6475cb21aa78e5df7b7fc948dbdf140dec319e358a11e00caf810",
+      "parts": [
+        {
+          "bytes": 404,
+          "digest": "sha256:91843f89d53d1bb93ba269b6fedf7fe448bf3775f1dda75b85904471d3fc8b77",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-30"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:8aad161d721c7a78956eb6e8334b6462cfdcb379ff983a48b4c9165bb7e70a26",
+      "parts": [
+        {
+          "bytes": 403,
+          "digest": "sha256:2cc572adcd264a0d82e9a2b59ccf5d42db18f8884d1187cbdca87582dc4296dc",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-31"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:c149747d13b5380bc34f4e61bce9489d309ebe2c058a42a2f0352a640c7acdee",
+      "parts": [
+        {
+          "bytes": 397,
+          "digest": "sha256:8124f8cb0fdf932cc7a9d3b4620996dfa6f999ba278df405531a1595e184e053",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-32"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:762b85c66b2a677abf357f39d5840c532dacf22c465d03780c46ed4cfe9c51d5",
+      "parts": [
+        {
+          "bytes": 399,
+          "digest": "sha256:f51e91e9a098d280d538376fcd5866e33e6a22ca901801b2b09cb038cb908496",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-33"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:793cca8ea2863da6a6c8717a78d42506775714bbe0a6535d7728414205fd9468",
+      "parts": [
+        {
+          "bytes": 405,
+          "digest": "sha256:2ae3c70640657db89b11d7cb07862c2db6a5aa9ba7dc7d2c978fc2dff5021db9",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-34"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:4f2808e68519ff01c9af421220504d9dd5bbf926896c64270352eef67a188181",
+      "parts": [
+        {
+          "bytes": 373,
+          "digest": "sha256:092e74113f0491d166410f40f669ff3128bde9a74b9b52d3d36016e6e61ffd5f",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-35"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:a01df6bbd56baf91a27a7856ae70d3a3b3b27f3996d30baf659f37153227ddd2",
+      "parts": [
+        {
+          "bytes": 408,
+          "digest": "sha256:fa9faa7961ca21dc37e74b321c04e550e4166cbbd479fa0df78b5d9f747acb05",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-36"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:c94078a2a656e32c6bef20c4531c70d9fc56a4c1a9687712fecd8eab75a6b9e1",
+      "parts": [
+        {
+          "bytes": 404,
+          "digest": "sha256:30a2a9bf5f7c7db02780f2737ca01b8f10568f91d830bda64db29f3395a6cf78",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-37"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:bb6b3d743296e0a2076c0e1161745a8dc52fcd94868839c784c6884a6e089d83",
+      "parts": [
+        {
+          "bytes": 394,
+          "digest": "sha256:c72a9575ab219f9d2b614f08c8cc65e52b76af896d941e30cf287819d7a5412e",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-38"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:3418298de779f1ef9d86e8df2989926ec7c2ffd977d14f4dec6e34dc4b4f9d3e",
+      "parts": [
+        {
+          "bytes": 413,
+          "digest": "sha256:8a61f8fe857498d7db7a8d2a79e35e6953ba44dc21baafa23dac911218bd2ba8",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-39"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:9e008a26cfef11ef57b44d95633f5ae3727e0ef88eff1f79fc1ebc049d1e013d",
+      "parts": [
+        {
+          "bytes": 402,
+          "digest": "sha256:caa532fd1ce12d5da17baabe13cab9a05428d71072af10834e01b10a586444f3",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-40"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:84272a9bf019b17166c26b14fb321290d9cc0cdf605454b49236bc9fdb3c25f4",
+      "parts": [
+        {
+          "bytes": 396,
+          "digest": "sha256:be7809422364d07e74b8739d27a64c94991ae828596d912e0c3b19d384c56221",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-41"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:25bfc6693418f72df8b10778a3e38cd73f7e10ecdc87ce401c0ae93e4b70955b",
+      "parts": [
+        {
+          "bytes": 400,
+          "digest": "sha256:92673c880290bc2c9ac91019e5f5a2fb21ec5cad3a9cb874a7508c5a361dff8d",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-42"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:82df7db9d6b9627cb3f43a715aed439d35e8e960db7cabcaefd53d2a80a9403f",
+      "parts": [
+        {
+          "bytes": 397,
+          "digest": "sha256:9045166b796d168ba93c8cd608845e1663b6a03892e83ae40f2740e6665d0c2a",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-43"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:bb83db0b8c147579d8ac6a9f7577fb8d0dab03ad0cd473b8278902821b73de7f",
+      "parts": [
+        {
+          "bytes": 405,
+          "digest": "sha256:3a49d5ab207d9694f442303bd086d8228a6c83ca04ae885069de67ac3033ee9f",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-44"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:a7f6bec67238a2605d8cd15808251612c8c8b04847d033d36f8d590b03e0da5a",
+      "parts": [
+        {
+          "bytes": 405,
+          "digest": "sha256:89dcecfff2a10f7d69f25ae31f44741dff4ecc4ceed89f4cae4e542acbd6942d",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-45"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:3451ef41fead2700d33b33f0ca82f9f597a8a80f33b53a32566ee0e795d1f20c",
+      "parts": [
+        {
+          "bytes": 406,
+          "digest": "sha256:cad9ebe8e0af31ca3547a38c6fe0778591c1539cd6b00cc304abfa62c9788173",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-46"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:6fdf045289eb96fcc83070c0b424a6acee6de4532001b5abc8119134c6b47301",
+      "parts": [
+        {
+          "bytes": 401,
+          "digest": "sha256:d7ff027eb7e05a84ab586ca027fe24f47f0bb31d71b52fd11ce2c0a634c2e7bf",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-47"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:86d3f1bcdde66787d907cfdb2c9ca39274b63219f9e1e43fcdd5793543583324",
+      "parts": [
+        {
+          "bytes": 397,
+          "digest": "sha256:ce65c054f9ba1571e9eae7759cd14bf0a0e32da22436262a179dadde8ab450ce",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-48"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:f9b3ef1eadef41a54a54e6d0656d3a9414b24abd969983c8c3bea0f1e8704248",
+      "parts": [
+        {
+          "bytes": 399,
+          "digest": "sha256:74a4cddb25ceeba34e8710508490d7aeee8f3d29388f3a9bfeca5ba67accf8cf",
+          "name": "outputs.json"
+        }
+      ],
+      "proof_id": "req-49"
+    }
+  ],
+  "provider": "Hugging Face Jobs",
+  "release": "v0.1",
+  "run_id": "2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-2",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "serving_model": {
+    "digest": "sha256:67e1fb8b9abdeaa297e44ca89e686503daf987e8663d7e5f3ae599f3ae817d48",
+    "id": "llama-3.1-8b-instruct-bf16",
+    "publisher": {
+      "repo": "meta-llama/Llama-3.1-8B-Instruct",
+      "revision": "0e9e39f249a16976918f6564b8830bc894c89659"
+    },
+    "source": {
+      "repo": "NousResearch/Meta-Llama-3.1-8B-Instruct",
+      "revision": "d10aef7999a2b5ba950ab3974312feeedbfe0b77"
+    },
+    "version": 1
+  },
+  "system": {
+    "adapter_commit": "2d001fc8b20f731478b0da1908a072431ad00c89",
+    "adapter_dirty": false,
+    "claim_digest": null,
+    "image": {
+      "digest_kind": "config",
+      "ref": "local/docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34",
+        "name": "engine image (development install)",
+        "url": "docker://docker.io/vllm/vllm-openai"
+      },
+      {
+        "digest": "sha256:dd7ae551457836c6e9ee6888052feec08901e5b97786ad5f5be68637f212bc02",
+        "name": "systems/fake/write_inputs.py (development install)",
+        "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/2d001fc8b20f731478b0da1908a072431ad00c89/systems/fake/write_inputs.py"
+      },
+      {
+        "digest": "sha256:25ba505e4b322be3aba506d2596b8810b1d2355579edc63416679d1bc77f4d7b",
+        "name": "systems/ref-serve/entrypoint (development install)",
+        "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/2d001fc8b20f731478b0da1908a072431ad00c89/systems/ref-serve/entrypoint"
+      },
+      {
+        "digest": "sha256:4fe13d333815654d4514c0ef992b945069dae50d45e301e396b9ffafd942e9b2",
+        "name": "systems/ref-serve/system.yaml (development install)",
+        "url": "https://github.com/ai-verification-observatory/inference-proofs/blob/2d001fc8b20f731478b0da1908a072431ad00c89/systems/ref-serve/system.yaml"
+      }
+    ],
+    "name": "ref-serve",
+    "system_manifest_digest": "sha256:4fe13d333815654d4514c0ef992b945069dae50d45e301e396b9ffafd942e9b2",
+    "upstream": null
+  },
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'",
+    "sizing capture: it sizes batches_per_session_run and joins no overhead (RFC-0015 SRV-1)",
+    "steady scope under 60 s"
+  ],
+  "workload": {
+    "batch_size_run": 1,
+    "batches_per_session_run": 50,
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:21e74c54b23202503709a3202db66093760cebbfda328c4d3a66dc5bba669895",
+    "id": "sash-l31-8b-c1024",
+    "load_point": "matched",
+    "model": {
+      "digest": "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7",
+      "revision": "4699cc75b550f9c6f3173fb80f4703b62d946aa5",
+      "source": "huggingface:unsloth/Llama-3.1-8B-Instruct"
+    },
+    "prompt_count_run": 50,
+    "prompt_prefix_digest": "sha256:f5ac1c5e3eea519c491b43aa5dbae2fcf14bd94376f5a28d9313f29d203a2d3a",
+    "prompt_seed": "0xa302ff69953855e8",
+    "prompt_set_digest": "sha256:60135965323acf1b1aae5b2a630144c48603a6072c2c1f3124ca8a10917fa727",
+    "sizing_capture": true,
+    "steady_rule": "batch-membership",
+    "version": 1
+  }
+}

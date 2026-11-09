@@ -1,0 +1,2565 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 30849352035155
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 30849416183811
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 30849427002363
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 31469986521102
+    },
+    {
+      "event": "commit.start",
+      "mono_ns": 31470006300293
+    },
+    {
+      "event": "commit.end",
+      "mono_ns": 33207938013835
+    },
+    {
+      "event": "prove.start",
+      "mono_ns": 33212354647686
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 34153560256692
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378066548
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378208384
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378360401
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378479161
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378590728
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378745330
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378859827
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460378988492
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379096054
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379246793
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379373668
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379485418
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379596792
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379728129
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379861056
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460379974455
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380128185
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380243403
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380394512
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380505270
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380668640
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380779485
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460380888145
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33460381034456
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002209155
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002359431
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002464392
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002582966
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002700128
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002815021
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630002930890
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003046991
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003167147
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003310626
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003427554
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003581039
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003662804
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630003934731
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630004089652
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630004402020
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630004558882
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630004699328
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630004867098
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630005142327
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630005316183
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630005639302
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630005793941
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33630006027084
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799536843220
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537044652
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537226618
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537344756
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537479452
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537669440
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537820410
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799537974066
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538105115
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538220546
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538333084
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538451176
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538620737
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538734975
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538882212
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799538995755
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799539125352
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799539290778
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799539421784
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799539569727
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799539720073
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799539833261
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799540025224
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33799550263851
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968890351964
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968890496348
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968890614024
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968890735458
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968890920913
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891047867
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891162397
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891277839
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891392668
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891530014
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891642372
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891755657
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891869961
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968891987107
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892121691
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892235630
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892419946
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892538569
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892652347
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892802133
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968892926541
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968893044389
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968893156567
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 33968893271240
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138170868167
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171011686
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171137603
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171253979
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171371324
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171489631
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171601984
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171721385
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171828607
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138171946269
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172065467
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172183277
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172298491
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172417190
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172532396
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172648054
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172762502
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172874525
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138172986849
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138173101601
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138173214585
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138173327518
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138173439258
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 34138173550128
+    }
+  ],
+  "failure": null,
+  "inputs": {
+    "active_parameters_per_token": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fp-maverick-w1024-b24.yaml#/model/parameters/active_per_token"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 17000000000
+    },
+    "weight_bits": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fp-maverick-w1024-b24.yaml#/precision/weight_bits"
+      },
+      "tier": "reported",
+      "unit": "bit/weight",
+      "value": 4.83916475612899
+    }
+  },
+  "metrics": {
+    "active_param_tokens_per_second_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/rate_prove.session",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 2256337599599.688
+    },
+    "active_param_tokens_per_second_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/rate_prove.steady",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 3056308355816.147
+    },
+    "active_param_tokens_per_second_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/rate_whole_wall",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 782919436601.7279
+    },
+    "commit_cpu_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 5120.043229
+    },
+    "commit_gpu_energy": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "J",
+      "value": 873031.931
+    },
+    "commit_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": 137787.875
+    },
+    "commit_gpu_util_mean": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 77.47779084317078
+    },
+    "commit_gpu_util_p95": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 100.0
+    },
+    "commit_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 287410401280
+    },
+    "commit_host_memory_peak_kernel": {
+      "grade": "measured",
+      "null_reason": "not_measurable_on_profile",
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": null
+    },
+    "commit_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 1737.931713542
+    },
+    "commit_seconds_per_token_h1": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/commit_seconds",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 1.6971989390058593
+    },
+    "commit_seconds_per_token_h1000": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/commit_seconds",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1000@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.0016971989390058592
+    },
+    "cost_per_1k_tokens_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.session",
+          "reference/v0.1.yaml#/costs/h200/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.01118639240078959
+    },
+    "cost_per_1k_tokens_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.steady",
+          "reference/v0.1.yaml#/costs/h200/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.008258419910329268
+    },
+    "cost_per_1k_tokens_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_whole_wall",
+          "reference/v0.1.yaml#/costs/h200/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.03223866543323223
+    },
+    "info_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064148656
+    },
+    "proof_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "stats": {
+        "max": 18798104.0,
+        "mean": 18776109.066666666,
+        "min": 18756216.0,
+        "n": 120,
+        "n_failed": 0,
+        "stdev": 9195.482584503368
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 18776109.066666666
+    },
+    "proof_bytes_per_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/proof_bytes_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-BPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "B/token",
+      "value": 18336.044010416666
+    },
+    "proof_bytes_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 2253133088.0
+    },
+    "proofs_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 120
+    },
+    "prove_call_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 941.205609006
+    },
+    "prove_cpu_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 1134.159936
+    },
+    "prove_gpu_energy": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "J",
+      "value": 359677.539
+    },
+    "prove_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": 73435.875
+    },
+    "prove_gpu_util_mean": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 77.15519828637557
+    },
+    "prove_gpu_util_p95": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 100.0
+    },
+    "prove_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 257325903872
+    },
+    "prove_host_memory_peak_kernel": {
+      "grade": "measured",
+      "null_reason": "not_measurable_on_profile",
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": null
+    },
+    "prove_session_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 925.818902442
+    },
+    "prove_steady_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 677.79548358
+    },
+    "prover_keep_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 2153994240
+    },
+    "rate_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/prove_session_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 132.72574115292284
+    },
+    "rate_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_steady",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/prove_steady_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 179.78284445977334
+    },
+    "rate_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/whole_wall_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 46.054084505983994
+    },
+    "requests_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 120
+    },
+    "seconds_per_active_weight_bit_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.session",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 9.15852448737548e-14
+    },
+    "seconds_per_active_weight_bit_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.steady",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 6.761334509456429e-14
+    },
+    "seconds_per_active_weight_bit_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_whole_wall",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 2.6394443912920666e-13
+    },
+    "seconds_per_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/prove_session_seconds",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.007534333515966797
+    },
+    "seconds_per_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/prove_steady_seconds",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_steady"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.005562265982635242
+    },
+    "seconds_per_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/whole_wall_seconds",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.021713600665974934
+    },
+    "setup_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 620.559518739
+    },
+    "tokens_covered_output": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 0
+    },
+    "tokens_covered_per_proof": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/proofs_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-TPP@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 1024.0
+    },
+    "tokens_covered_prompt": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 122880
+    },
+    "tokens_covered_steady": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 121856
+    },
+    "tokens_covered_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 122880
+    },
+    "verdicts_accept_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 120
+    },
+    "verifier_download_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 6469548
+    },
+    "verify_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/raw/verify"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 4203532288
+    },
+    "verify_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/verifier"
+      },
+      "stats": {
+        "max": 17.340623674,
+        "mean": 16.6932254829,
+        "min": 16.436610171,
+        "n": 120,
+        "n_failed": 0,
+        "stdev": 0.15318764687350223
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 16.6932254829
+    },
+    "verify_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/verify_seconds_total",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.016301978010644532
+    },
+    "verify_seconds_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/verifier"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 2003.187057948
+    },
+    "verify_single_thread_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "verify.single_thread",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/verifier"
+      },
+      "stats": {
+        "max": 24.147496774,
+        "mean": 24.147496774,
+        "min": 24.147496774,
+        "n": 1,
+        "n_failed": 0,
+        "stdev": null
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 24.147496774
+    },
+    "verify_single_thread_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "verify.single_thread",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/metrics/verify_single_thread_seconds",
+          "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/proofs/0/tokens_covered"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT-1T@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.023581539818359375
+    },
+    "whole_wall_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 2668.167249835
+    }
+  },
+  "profile": "prover-h200-hosted",
+  "proofs": [
+    {
+      "claimed_output": [
+        622
+      ],
+      "proof_id": "req-0",
+      "release_mono_ns": 33460378066548,
+      "request_index": 0,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1740
+      ],
+      "proof_id": "req-1",
+      "release_mono_ns": 33460378208384,
+      "request_index": 1,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        323
+      ],
+      "proof_id": "req-3",
+      "release_mono_ns": 33460378360401,
+      "request_index": 3,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        636
+      ],
+      "proof_id": "req-4",
+      "release_mono_ns": 33460378479161,
+      "request_index": 4,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        128646
+      ],
+      "proof_id": "req-5",
+      "release_mono_ns": 33460378590728,
+      "request_index": 5,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2107
+      ],
+      "proof_id": "req-8",
+      "release_mono_ns": 33460378745330,
+      "request_index": 8,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        7177
+      ],
+      "proof_id": "req-9",
+      "release_mono_ns": 33460378859827,
+      "request_index": 9,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        38
+      ],
+      "proof_id": "req-11",
+      "release_mono_ns": 33460378988492,
+      "request_index": 11,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        323
+      ],
+      "proof_id": "req-12",
+      "release_mono_ns": 33460379096054,
+      "request_index": 12,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        80
+      ],
+      "proof_id": "req-13",
+      "release_mono_ns": 33460379246793,
+      "request_index": 13,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1610
+      ],
+      "proof_id": "req-14",
+      "release_mono_ns": 33460379373668,
+      "request_index": 14,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        372
+      ],
+      "proof_id": "req-15",
+      "release_mono_ns": 33460379485418,
+      "request_index": 15,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        21987
+      ],
+      "proof_id": "req-16",
+      "release_mono_ns": 33460379596792,
+      "request_index": 16,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        450
+      ],
+      "proof_id": "req-18",
+      "release_mono_ns": 33460379728129,
+      "request_index": 18,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1745
+      ],
+      "proof_id": "req-20",
+      "release_mono_ns": 33460379861056,
+      "request_index": 20,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1017
+      ],
+      "proof_id": "req-21",
+      "release_mono_ns": 33460379974455,
+      "request_index": 21,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        290
+      ],
+      "proof_id": "req-22",
+      "release_mono_ns": 33460380128185,
+      "request_index": 22,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        449
+      ],
+      "proof_id": "req-23",
+      "release_mono_ns": 33460380243403,
+      "request_index": 23,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1065
+      ],
+      "proof_id": "req-26",
+      "release_mono_ns": 33460380394512,
+      "request_index": 26,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        26
+      ],
+      "proof_id": "req-27",
+      "release_mono_ns": 33460380505270,
+      "request_index": 27,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        812
+      ],
+      "proof_id": "req-31",
+      "release_mono_ns": 33460380668640,
+      "request_index": 31,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2237
+      ],
+      "proof_id": "req-32",
+      "release_mono_ns": 33460380779485,
+      "request_index": 32,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        3469
+      ],
+      "proof_id": "req-33",
+      "release_mono_ns": 33460380888145,
+      "request_index": 33,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        650
+      ],
+      "proof_id": "req-36",
+      "release_mono_ns": 33460381034456,
+      "request_index": 36,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1626
+      ],
+      "proof_id": "req-2",
+      "release_mono_ns": 33630002209155,
+      "request_index": 2,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        436
+      ],
+      "proof_id": "req-6",
+      "release_mono_ns": 33630002359431,
+      "request_index": 6,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        618
+      ],
+      "proof_id": "req-7",
+      "release_mono_ns": 33630002464392,
+      "request_index": 7,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        811
+      ],
+      "proof_id": "req-10",
+      "release_mono_ns": 33630002582966,
+      "request_index": 10,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        536
+      ],
+      "proof_id": "req-17",
+      "release_mono_ns": 33630002700128,
+      "request_index": 17,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        59262
+      ],
+      "proof_id": "req-19",
+      "release_mono_ns": 33630002815021,
+      "request_index": 19,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        341
+      ],
+      "proof_id": "req-24",
+      "release_mono_ns": 33630002930890,
+      "request_index": 24,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        323
+      ],
+      "proof_id": "req-25",
+      "release_mono_ns": 33630003046991,
+      "request_index": 25,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        511
+      ],
+      "proof_id": "req-28",
+      "release_mono_ns": 33630003167147,
+      "request_index": 28,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1108
+      ],
+      "proof_id": "req-29",
+      "release_mono_ns": 33630003310626,
+      "request_index": 29,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        11619
+      ],
+      "proof_id": "req-30",
+      "release_mono_ns": 33630003427554,
+      "request_index": 30,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        536
+      ],
+      "proof_id": "req-34",
+      "release_mono_ns": 33630003581039,
+      "request_index": 34,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2551
+      ],
+      "proof_id": "req-35",
+      "release_mono_ns": 33630003662804,
+      "request_index": 35,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        101733
+      ],
+      "proof_id": "req-45",
+      "release_mono_ns": 33630003934731,
+      "request_index": 45,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        68557
+      ],
+      "proof_id": "req-48",
+      "release_mono_ns": 33630004089652,
+      "request_index": 48,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        702
+      ],
+      "proof_id": "req-60",
+      "release_mono_ns": 33630004402020,
+      "request_index": 60,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        334
+      ],
+      "proof_id": "req-63",
+      "release_mono_ns": 33630004558882,
+      "request_index": 63,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        17369
+      ],
+      "proof_id": "req-65",
+      "release_mono_ns": 33630004699328,
+      "request_index": 65,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        19886
+      ],
+      "proof_id": "req-69",
+      "release_mono_ns": 33630004867098,
+      "request_index": 69,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        115198
+      ],
+      "proof_id": "req-79",
+      "release_mono_ns": 33630005142327,
+      "request_index": 79,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        93840
+      ],
+      "proof_id": "req-83",
+      "release_mono_ns": 33630005316183,
+      "request_index": 83,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        6767
+      ],
+      "proof_id": "req-96",
+      "release_mono_ns": 33630005639302,
+      "request_index": 96,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1278
+      ],
+      "proof_id": "req-98",
+      "release_mono_ns": 33630005793941,
+      "request_index": 98,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        4226
+      ],
+      "proof_id": "req-105",
+      "release_mono_ns": 33630006027084,
+      "request_index": 105,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        111150
+      ],
+      "proof_id": "req-38",
+      "release_mono_ns": 33799536843220,
+      "request_index": 38,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        544
+      ],
+      "proof_id": "req-42",
+      "release_mono_ns": 33799537044652,
+      "request_index": 42,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        108620
+      ],
+      "proof_id": "req-47",
+      "release_mono_ns": 33799537226618,
+      "request_index": 47,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        17308
+      ],
+      "proof_id": "req-49",
+      "release_mono_ns": 33799537344756,
+      "request_index": 49,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        8988
+      ],
+      "proof_id": "req-51",
+      "release_mono_ns": 33799537479452,
+      "request_index": 51,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        18533
+      ],
+      "proof_id": "req-56",
+      "release_mono_ns": 33799537669440,
+      "request_index": 56,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        328
+      ],
+      "proof_id": "req-58",
+      "release_mono_ns": 33799537820410,
+      "request_index": 58,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        33243
+      ],
+      "proof_id": "req-62",
+      "release_mono_ns": 33799537974066,
+      "request_index": 62,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        906
+      ],
+      "proof_id": "req-66",
+      "release_mono_ns": 33799538105115,
+      "request_index": 66,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        19047
+      ],
+      "proof_id": "req-67",
+      "release_mono_ns": 33799538220546,
+      "request_index": 67,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        220
+      ],
+      "proof_id": "req-68",
+      "release_mono_ns": 33799538333084,
+      "request_index": 68,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        6394
+      ],
+      "proof_id": "req-70",
+      "release_mono_ns": 33799538451176,
+      "request_index": 70,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        4619
+      ],
+      "proof_id": "req-74",
+      "release_mono_ns": 33799538620737,
+      "request_index": 74,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        420
+      ],
+      "proof_id": "req-75",
+      "release_mono_ns": 33799538734975,
+      "request_index": 75,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        379
+      ],
+      "proof_id": "req-78",
+      "release_mono_ns": 33799538882212,
+      "request_index": 78,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        26
+      ],
+      "proof_id": "req-80",
+      "release_mono_ns": 33799538995755,
+      "request_index": 80,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        323
+      ],
+      "proof_id": "req-82",
+      "release_mono_ns": 33799539125352,
+      "request_index": 82,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        20898
+      ],
+      "proof_id": "req-87",
+      "release_mono_ns": 33799539290778,
+      "request_index": 87,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        290
+      ],
+      "proof_id": "req-89",
+      "release_mono_ns": 33799539421784,
+      "request_index": 89,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        24
+      ],
+      "proof_id": "req-92",
+      "release_mono_ns": 33799539569727,
+      "request_index": 92,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1924
+      ],
+      "proof_id": "req-95",
+      "release_mono_ns": 33799539720073,
+      "request_index": 95,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2377
+      ],
+      "proof_id": "req-97",
+      "release_mono_ns": 33799539833261,
+      "request_index": 97,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        328
+      ],
+      "proof_id": "req-102",
+      "release_mono_ns": 33799540025224,
+      "request_index": 102,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        19551
+      ],
+      "proof_id": "req-103",
+      "release_mono_ns": 33799550263851,
+      "request_index": 103,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2064
+      ],
+      "proof_id": "req-37",
+      "release_mono_ns": 33968890351964,
+      "request_index": 37,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        9817
+      ],
+      "proof_id": "req-39",
+      "release_mono_ns": 33968890496348,
+      "request_index": 39,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        33514
+      ],
+      "proof_id": "req-40",
+      "release_mono_ns": 33968890614024,
+      "request_index": 40,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        310
+      ],
+      "proof_id": "req-41",
+      "release_mono_ns": 33968890735458,
+      "request_index": 41,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1814
+      ],
+      "proof_id": "req-46",
+      "release_mono_ns": 33968890920913,
+      "request_index": 46,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        19886
+      ],
+      "proof_id": "req-50",
+      "release_mono_ns": 33968891047867,
+      "request_index": 50,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        24
+      ],
+      "proof_id": "req-52",
+      "release_mono_ns": 33968891162397,
+      "request_index": 52,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        14414
+      ],
+      "proof_id": "req-53",
+      "release_mono_ns": 33968891277839,
+      "request_index": 53,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        39
+      ],
+      "proof_id": "req-54",
+      "release_mono_ns": 33968891392668,
+      "request_index": 54,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1752
+      ],
+      "proof_id": "req-57",
+      "release_mono_ns": 33968891530014,
+      "request_index": 57,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        446
+      ],
+      "proof_id": "req-59",
+      "release_mono_ns": 33968891642372,
+      "request_index": 59,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1082
+      ],
+      "proof_id": "req-61",
+      "release_mono_ns": 33968891755657,
+      "request_index": 61,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        198
+      ],
+      "proof_id": "req-64",
+      "release_mono_ns": 33968891869961,
+      "request_index": 64,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        373
+      ],
+      "proof_id": "req-71",
+      "release_mono_ns": 33968891987107,
+      "request_index": 71,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        26
+      ],
+      "proof_id": "req-73",
+      "release_mono_ns": 33968892121691,
+      "request_index": 73,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        18446
+      ],
+      "proof_id": "req-76",
+      "release_mono_ns": 33968892235630,
+      "request_index": 76,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        12315
+      ],
+      "proof_id": "req-86",
+      "release_mono_ns": 33968892419946,
+      "request_index": 86,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        290
+      ],
+      "proof_id": "req-88",
+      "release_mono_ns": 33968892538569,
+      "request_index": 88,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        536
+      ],
+      "proof_id": "req-90",
+      "release_mono_ns": 33968892652347,
+      "request_index": 90,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        178014
+      ],
+      "proof_id": "req-94",
+      "release_mono_ns": 33968892802133,
+      "request_index": 94,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        372
+      ],
+      "proof_id": "req-99",
+      "release_mono_ns": 33968892926541,
+      "request_index": 99,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        16740
+      ],
+      "proof_id": "req-100",
+      "release_mono_ns": 33968893044389,
+      "request_index": 100,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        88205
+      ],
+      "proof_id": "req-101",
+      "release_mono_ns": 33968893156567,
+      "request_index": 101,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        511
+      ],
+      "proof_id": "req-104",
+      "release_mono_ns": 33968893271240,
+      "request_index": 104,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        812
+      ],
+      "proof_id": "req-43",
+      "release_mono_ns": 34138170868167,
+      "request_index": 43,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        4175
+      ],
+      "proof_id": "req-44",
+      "release_mono_ns": 34138171011686,
+      "request_index": 44,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2562
+      ],
+      "proof_id": "req-55",
+      "release_mono_ns": 34138171137603,
+      "request_index": 55,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2377
+      ],
+      "proof_id": "req-72",
+      "release_mono_ns": 34138171253979,
+      "request_index": 72,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        300
+      ],
+      "proof_id": "req-77",
+      "release_mono_ns": 34138171371324,
+      "request_index": 77,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        328
+      ],
+      "proof_id": "req-81",
+      "release_mono_ns": 34138171489631,
+      "request_index": 81,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        806
+      ],
+      "proof_id": "req-84",
+      "release_mono_ns": 34138171601984,
+      "request_index": 84,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        812
+      ],
+      "proof_id": "req-85",
+      "release_mono_ns": 34138171721385,
+      "request_index": 85,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1753
+      ],
+      "proof_id": "req-91",
+      "release_mono_ns": 34138171828607,
+      "request_index": 91,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1020
+      ],
+      "proof_id": "req-93",
+      "release_mono_ns": 34138171946269,
+      "request_index": 93,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        21729
+      ],
+      "proof_id": "req-106",
+      "release_mono_ns": 34138172065467,
+      "request_index": 106,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        11511
+      ],
+      "proof_id": "req-107",
+      "release_mono_ns": 34138172183277,
+      "request_index": 107,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        27349
+      ],
+      "proof_id": "req-108",
+      "release_mono_ns": 34138172298491,
+      "request_index": 108,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        10538
+      ],
+      "proof_id": "req-109",
+      "release_mono_ns": 34138172417190,
+      "request_index": 109,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        14119
+      ],
+      "proof_id": "req-110",
+      "release_mono_ns": 34138172532396,
+      "request_index": 110,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        583
+      ],
+      "proof_id": "req-111",
+      "release_mono_ns": 34138172648054,
+      "request_index": 111,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        11081
+      ],
+      "proof_id": "req-112",
+      "release_mono_ns": 34138172762502,
+      "request_index": 112,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        2645
+      ],
+      "proof_id": "req-113",
+      "release_mono_ns": 34138172874525,
+      "request_index": 113,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1013
+      ],
+      "proof_id": "req-114",
+      "release_mono_ns": 34138172986849,
+      "request_index": 114,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        552
+      ],
+      "proof_id": "req-115",
+      "release_mono_ns": 34138173101601,
+      "request_index": 115,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        1107
+      ],
+      "proof_id": "req-116",
+      "release_mono_ns": 34138173214585,
+      "request_index": 116,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        18951
+      ],
+      "proof_id": "req-117",
+      "release_mono_ns": 34138173327518,
+      "request_index": 117,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        87311
+      ],
+      "proof_id": "req-118",
+      "release_mono_ns": 34138173439258,
+      "request_index": 118,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        607
+      ],
+      "proof_id": "req-119",
+      "release_mono_ns": 34138173550128,
+      "request_index": 119,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    }
+  ],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 1,
+  "replaces": null,
+  "run_id": "2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1",
+  "schema": "run/1",
+  "status": "completed",
+  "system": "flashprove",
+  "system_kind": "prover",
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "id": "fp-maverick-w1024-b24",
+    "version": 1
+  }
+}

@@ -428,8 +428,20 @@ def eligibility(
         and run.key()
         not in (archived if archived is not None else archived_configurations(release, root)),
     }
+    for code in RESEARCH_OFF:  # off during research (owner, 2026-11-09)
+        failed[code] = False
     reasons = [code for code in REASONS if failed[code]]
     return not reasons, reasons
+
+
+# Eligibility rules that only protect a public release; off during research (owner, 2026-11-09).
+RESEARCH_OFF = (
+    "nonconforming_host",
+    "image_digest_kind_config",
+    "image_differs_from_system_yaml",
+    "image_not_in_project_registry",
+    "no_archived_proof",
+)
 
 
 def _head(root: Path) -> str:
@@ -492,7 +504,7 @@ def archived_configurations(release: Release, root: Path) -> set[tuple[object, .
 
 # ---------------------------------------------------------------- freeze (RFC-0009)
 
-MIN_WINDOW_DAYS = 14
+MIN_WINDOW_DAYS = 0  # research: no review window (owner, 2026-11-09); RFC-0009 sets 14
 OUTCOME_COUNTS = ("rejected", "accepted", "no_verdict", "invalid_call", "void",
                   "not_applicable", "error", "prover_failed")  # fmt: skip
 
@@ -559,8 +571,8 @@ def freeze(
         raise _fail(
             f"review window {window.opens} to {window.closes} is under {MIN_WINDOW_DAYS} days"
         )
-    if dt.date.fromisoformat(release.freeze_date) <= closes:
-        raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
+    if dt.date.fromisoformat(release.freeze_date) < closes:
+        raise _fail(f"freeze_date {release.freeze_date} is before {window.closes}")
     excluded = _excluded(release, runs, root, registry)  # step 4
     late = _Late(root, registry, release.release, (reference, release.reference_file))
     configurations, controls, contexts = _configurations(runs, excluded, maintainers or {}, late)

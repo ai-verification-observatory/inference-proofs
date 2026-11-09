@@ -1,0 +1,854 @@
+{
+  "claim": {
+    "card_version": 1,
+    "configuration": "exact-match-cp-verify",
+    "system": "flashprove"
+  },
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T01:39:30Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T01:39:30Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "commit",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T01:49:51Z",
+      "step": "commit"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:20:04Z",
+      "step": "prove"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:23:11Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:23:28Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:23:52Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:24:09Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:24:26Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:24:42Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:24:59Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:25:16Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:25:32Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:25:49Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:25:52Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:26:08Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:26:25Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:26:27Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:26:44Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:26:54Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:27:11Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:27:27Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:27:29Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:27:38Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:27:44Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:27:53Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "63,64,65,66,67,68,69,70",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "63,64,65,66,67,68,69,70",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-09T02:28:10Z",
+      "step": "verify"
+    }
+  ],
+  "commitment": {
+    "commitment_id": "d4da183caf68b04db70a07cac4bbd04f3c1b456f06bbfd22b42182e6ac88e7a2",
+    "prover_files": [
+      {
+        "bytes": 2153984000,
+        "digest": "sha256:ae0e5e6530dce4ca51c95ce04578caeb4f1115fb42d5bb496950e859e4bad269",
+        "name": "isk.tar"
+      }
+    ],
+    "verifier_files": [
+      {
+        "bytes": 2629,
+        "digest": "sha256:91803480b032dc993722b50d552703024f2e78a991c7a239852855177772ee0d",
+        "name": "policy.txt"
+      },
+      {
+        "bytes": 2784,
+        "digest": "sha256:df29bd823d62431945c3124138ed52e1f677db9224c4196505a91663ac48ab1a",
+        "name": "KL.bin"
+      },
+      {
+        "bytes": 224975,
+        "digest": "sha256:a99b964bbd3648d6e3b4007fc9370b5c70c7e9668848daa039820bc9e03e8f80",
+        "name": "layout.txt"
+      },
+      {
+        "bytes": 3293024,
+        "digest": "sha256:501208985fb1cd4562e2f3ed839b5c51940db3a2aac66593b54d33beb7e2e20c",
+        "name": "key.bin"
+      },
+      {
+        "bytes": 2944544,
+        "digest": "sha256:3d376099e8c27e93e214462077e258fa0dc64b455f8a0c57de712d8145771bcd",
+        "name": "0.bin"
+      }
+    ]
+  },
+  "control": false,
+  "harness": {
+    "git_commit": "230cae24d809a9716292027161a235e3bca7153c",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": true,
+    "version": "0.1.0.dev0"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted"
+    },
+    "cpu": {
+      "bound_prover": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62
+      ],
+      "bound_verifier": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "bound_verifier_single": [
+        63
+      ],
+      "cgroup_quota_cpus": 46.0,
+      "logical_cpus": 192,
+      "model": "Intel(R) Xeon(R) Platinum 8488C",
+      "physical_cores": 96,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 28654128709632
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 2,
+      "cuda_driver_api": "13.0",
+      "driver_version": "580.178.04",
+      "memory_total_mib": 143771,
+      "model": "NVIDIA H200",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.12.113-138.209.amzn2023.x86_64"
+    },
+    "memory": {
+      "available_bytes_at_start": 1782861824000,
+      "cgroup_limit_bytes": 512000000000,
+      "total_bytes": 2147443138560
+    },
+    "numa": {
+      "bound_mems": [
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "Hugging Face Jobs",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h200-hosted",
+    "reference_digest": "sha256:f53face597c3ae122735259880c66ad54697ac430a42ce2a4b9b801eb1cea676",
+    "reference_file": "reference/v0.1.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:f6672596c83ffec0a40fd43bdeefb0e4e5327a31aaf369ad815121845804f78b",
+      "parts": [
+        {
+          "bytes": 18770428,
+          "digest": "sha256:4532b20d6bbf386fe3f4bf2d1673a285c4320abd878444f377118dc6e6728552",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:172398de1bbb66c8938446db4cc4ae2f6c036f19a667b2c24be5ac993b70c7ec",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-0"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:2165576be21284315ef5e05ba4c09244e213b87ff6366de04a4fcaa7e0c63b15",
+      "parts": [
+        {
+          "bytes": 18783796,
+          "digest": "sha256:826169ddcde95a8b35d92c87a8d594c99629630f7b5270a2eb93b30d8044235f",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:17fa9c7f5e9039a2d46e73e17d8e094a796ee4c313199bad42db4ee1dc30d865",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-1"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:bb2de79a6692e087d3e05f235c47759927e22e8d73192dddd9fd05c1c4106582",
+      "parts": [
+        {
+          "bytes": 18772044,
+          "digest": "sha256:a0d55b47425292f26bd354afd2c3ed5955bfeba67e5f52f2f32f9b6047a717c7",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:41861785fea46d064fbf7b5ea5d6a8f3bde0a71ad4213ece1299a8b098b456f8",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-2"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:93153808b3047851527619e995833bea45a619a0ce289a0d3b111cb5b992ba6e",
+      "parts": [
+        {
+          "bytes": 18778580,
+          "digest": "sha256:0147dffb3a4d90464639b561c19deaacf4307a24504d30843085b7446fc2cca6",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:a2cb61afec1cdbb2c55160bae6e7c4904e04ae1b33ab8276f2e4ee20c8c9d29c",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-3"
+    },
+    {
+      "archive": null,
+      "digest": "sha256:26fdab32b3bed4bbbde1c2f6854eb459e5d4eb4cea31160873b94ace764d6dcd",
+      "parts": [
+        {
+          "bytes": 18778076,
+          "digest": "sha256:29127715998e6760e32844940822d6e66837c82b7a97b0aa849e1e685100a0b7",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:177b22ea3803765782b468bd53e7426b233db8cdd945f5b5a4fd8e812f0112b8",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-4"
+    }
+  ],
+  "provider": "Hugging Face Jobs",
+  "release": "v0.1",
+  "run_id": "2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "system": {
+    "adapter_commit": "4f1a295e06d52e0e3484f3c88005a1dcdcbd59fb",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e",
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/flashprove@sha256:7ca6c9ee8c6568b9b925a5c8a8d8eb2f3cd7e394b0f047cde3096d99145a91f8"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
+        "name": "FlashProve",
+        "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+      },
+      {
+        "digest": "sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7",
+        "name": "wikitext-2-raw-v1-train",
+        "url": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet"
+      },
+      {
+        "digest": "sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+        "name": "llama2-tokenizer",
+        "url": "https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json"
+      },
+      {
+        "digest": "sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4",
+        "name": "llama4-tokenizer",
+        "url": "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json"
+      }
+    ],
+    "name": "flashprove",
+    "system_manifest_digest": "sha256:a2efe3ab7f28f6a5c559f87ac724cde778b4619aa0125c4fcaa4b420947e2e83",
+    "upstream": {
+      "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+      "repo": "anthropics/FlashProve"
+    }
+  },
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:aa7fbed9f4e237c22cfc81af6caa609ec26c12c7b196af3bd24b03ab7973457e",
+    "id": "fp-maverick-w1024-b1",
+    "model": {
+      "digest": "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114",
+      "revision": "41032e5471dd6ea5b349062d978626215d6c5bba",
+      "source": "huggingface:unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF"
+    },
+    "prompt_seed": "0xfdb06f5c034c0800",
+    "prompt_set_digest": "sha256:8a48e2b0f85bf015094a4011bb061a56b9cbccc65ffcefb03fd1f8031e9a5412",
+    "version": 1
+  }
+}

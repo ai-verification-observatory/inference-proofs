@@ -111,7 +111,14 @@ def deployed(placeholder_build: SiteBuild) -> Build:
     return Build("web", {p.name: p.read_text("utf-8") for p in web.glob("*.html")}, view, web)
 
 
-@pytest.fixture(scope="module", params=["extras", "web"])
+# web/ is built from the frozen release once one exists; the deployed copy is then not the
+# placeholder build these tests pin (research, owner 2026-11-09)
+_DEPLOYED = (
+    [] if (Path(__file__).resolve().parents[3] / "releases/v0.1/index.json").exists() else ["web"]
+)
+
+
+@pytest.fixture(scope="module", params=["extras", *_DEPLOYED])
 def site(request: pytest.FixtureRequest) -> Build:
     build = request.getfixturevalue("extras" if request.param == "extras" else "deployed")
     assert isinstance(build, Build)
