@@ -2,7 +2,12 @@
 # Maverick workloads, Meta's FP8 release. Meta's repository is gated; RedHatAI's copy is not,
 # and every pinned file has the same git blob id in both at the pinned revisions (RFC-0014 SM-1
 # to SM-3; Hub tree listings read 2026-11-09). The copy lacks Meta's tokenizer_config.json and
-# chat_template.jinja; tokenizer_config.json waits for RFC-0015 Q7. The file list, digest,
+# chat_template.jinja; tokenizer_config.json waits for RFC-0015 Q7. special_tokens_map.json is
+# left out: Meta's file (blob d2b717ab, the same in both repositories) is not valid JSON (a
+# trailing comma before its closing brace), and without tokenizer_config.json the pinned
+# engine's transformers reads it and fails to load the tokenizer (RFC-0015 Q7). Every pinned
+# file is still Meta's bytes; the prompts are token ids, so no special token is looked up by
+# name (SRV-2). The file list, digest,
 # vocab_size and shape are written by `iproofs serving pin`, never typed. tokenizer.json has the
 # sha256 the Maverick workloads pin as tokenizer_source, so the prompts' token ids are this
 # release's. The precision statement is copied from the release's config.json
@@ -117,9 +122,8 @@ model:
     - {path: "model.safetensors.index.json", sha256: "956bbc824aba5d7b8b2fb57ddc24496308eef05b871e8de6bdc150f4be3efb6e", bytes: 2260097, storage: "git", publisher_blob: "b90fc4feb776b04fe99a7c55f784a5843ed071cb"}
     - {path: "preprocessor_config.json", sha256: "11a1b41f43161e324bf8302299bce8d59aba671d1505137d9d01179ae9aeacde", bytes: 636, storage: "git", publisher_blob: "4eef772357a282205fface45491471dc35ad030d"}
     - {path: "processor_config.json", sha256: "bfc23f929e2a90ba534426072b2e0288909820f34ae79d8ff3934edda29e1f3a", bytes: 128, storage: "git", publisher_blob: "2f3cae49c25616991dc8876e733fde78cfb354f8"}
-    - {path: "special_tokens_map.json", sha256: "bb9ba704970ab9d949d163d6f001dc8fe5f0f14b3900ab7049e0f8d112aeb0ac", bytes: 449, storage: "git", publisher_blob: "d2b717abbff7dbc93603a7e5300866bfd2569481"}
     - {path: "tokenizer.json", sha256: "172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4", bytes: 27948578, storage: "lfs", publisher_blob: "b1fde397c877f796b68ca425082644bb07a20535"}
-  digest: "sha256:881be14c27404fad327d15bcd610e01b36ef63a8704a5745b408aaad9eb0f19f"
+  digest: "sha256:126d0efacbe9a5ca10ca8817bea86a61d3eb757f875548f429ec3488142d9d76"
   licence: {name: "Llama 4 Community License", url: "https://huggingface.co/RedHatAI/Llama-4-Maverick-17B-128E-Instruct-FP8/blob/f56c1930905103a65333cec765775dee747351d3/LICENSE", gated: false}
   vocab_size: 202048
   shape: {layers: 48, attention_heads: 40, kv_heads: 8, head_dim: 128, kv_dtype: "bfloat16"}

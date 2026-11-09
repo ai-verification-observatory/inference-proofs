@@ -194,8 +194,9 @@ else
   GPU_ARGS=(--gpu "$GPU")
 fi
 
-# An engine image (IPROOFS_DEV_IMAGE) has no uv: the pinned release, its sha256 checked. An
-# adapter image has its own (hf-jobs.md), so nothing is downloaded for one.
+# An image without uv gets the pinned release, its sha256 checked. The adapter images and the
+# pinned vLLM image ship their own (pinned by the image digest; job.log records `uv --version`),
+# so nothing is downloaded for them.
 UV_VERSION=0.11.18
 UV_SHA256=588f3e360f69ce02b6982aa99f2240e803933a6b7e176ac01617830adf955add
 if [ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv >/dev/null; then
@@ -213,7 +214,10 @@ if [ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv >/dev/null; then
 fi
 uv --version
 log "install the harness"
-if ! uv sync --frozen --no-dev --extra gpu --extra fetch --extra prompts; then
+# the image's pip-interface settings (the vLLM image sets UV_OVERRIDE and UV_INDEX_STRATEGY for
+# its own packages) never reach the harness install, which is the lock file's alone
+if ! env -u UV_OVERRIDE -u UV_INDEX_STRATEGY -u UV_CONSTRAINT \
+    uv sync --frozen --no-dev --extra gpu --extra fetch --extra prompts; then
   log "uv sync failed; stopping"
   exit 3
 fi
@@ -262,6 +266,25 @@ if [ "$BOUND" -ne 0 ]; then
 fi
 SYSTEM=$1
 shift
+case "$PROFILE" in
+  serving-*)  # RFC-0006 PC-SHM before any weights: a tensor-parallel engine's workers share
+    # /dev/shm (vLLM's message queues), and a small one fails only after the fetch
+    need=$("$PY" -c 'import sys
+from pathlib import Path
+from iproofs.model import load_reference
+from iproofs.schema import SchemaRegistry
+root = Path.cwd()
+p = load_reference(sys.argv[2], root, SchemaRegistry.from_tree(root / "schema")).profiles[sys.argv[1]]
+print(int((getattr(p, "shm_gib_min", None) or 0) * 2**30) if p.gpu.count > 1 else 0)' \
+      "$PROFILE" "$RELEASE" 2>/dev/null || echo unknown)
+    have=$(df -B1 --output=size /dev/shm 2>/dev/null | tail -1 | tr -d ' ')
+    log "PC-SHM: /dev/shm ${have:-unread} bytes, the profile needs ${need}"
+    if [ "$need" = unknown ] || { [ "$need" -gt 0 ] && [ "${have:-0}" -lt "$need" ]; }; then
+      log "/dev/shm below the serving profile's shm_gib_min, or unread; stopping before any weights"
+      exit 3
+    fi
+    ;;
+esac
 image_args=()
 if [ -n "${IPROOFS_DEV_IMAGE:-}" ]; then
   log "development install of $SYSTEM into $IPROOFS_DEV_IMAGE, from this checkout"
@@ -273,6 +296,7 @@ if [ -n "${IPROOFS_DEV_IMAGE:-}" ]; then
   image_args=(--image "$IPROOFS_DEV_IMAGE" --keep-io)
 fi
 failed=0
+FETCHED=" "   # serving records fetched and checked by an earlier step of this job
 for step in "$@"; do
   IFS=: read -r workload reps rest <<< "$step"
   extra=()
@@ -302,13 +326,32 @@ root = Path.cwd()
 if reference_role(root, sys.argv[1]) == "serve":
     found = record_for(root, SchemaRegistry.from_tree(root / "schema"), sys.argv[2])
     print(found.id if found else "")' "$SYSTEM" "$workload" 2>/dev/null)
-  fetch=(env -u HF_TOKEN timeout --kill-after=60 "$remaining" "$IP" fetch-model "$workload")
-  [ -n "$record" ] && fetch=(timeout --kill-after=60 "$remaining" "$IP" fetch-model --serving "$record")
-  log "fetch-model ${record:-$workload}, at most $remaining s"
-  if ! "${fetch[@]}"; then
-    log "fetch-model $workload failed or reached the deadline; next step"
-    failed=1
-    continue
+  if [ -n "$record" ] && [ -n "${IPROOFS_DEV_IMAGE:-}" ] && [ "${FETCHED#* "$record" }" = "$FETCHED" ]; then
+    # the engine's tokenizer and processor load from the record's files without the weights,
+    # as the adapter is dropped: a file the engine cannot read stops the job before the fetch
+    small="$WORK/no-weights/$record"
+    log "tokenizer check of $record, before its weights"
+    if ! timeout --kill-after=60 600 "$IP" fetch-model --serving "$record" --no-weights "$small" \
+      || ! python3 "systems/$SYSTEM/dev_install.py" --tokenizer-check "$small"; then
+      log "the tokenizer check of $record failed; next step, no weights fetched"
+      failed=1
+      continue
+    fi
+  fi
+  if [ -n "$record" ] && [ "${FETCHED#* "$record" }" != "$FETCHED" ]; then
+    # fetched and checked (SM-2) by an earlier step of this job; the run rehashes it at its
+    # start (RFC-0014), so a second check here would read every byte once more
+    log "fetch-model $record: done by an earlier step; the run rehashes it"
+  else
+    fetch=(env -u HF_TOKEN timeout --kill-after=60 "$remaining" "$IP" fetch-model "$workload")
+    [ -n "$record" ] && fetch=(timeout --kill-after=60 "$remaining" "$IP" fetch-model --serving "$record")
+    log "fetch-model ${record:-$workload}, at most $remaining s"
+    if ! "${fetch[@]}"; then
+      log "fetch-model $workload failed or reached the deadline; next step"
+      failed=1
+      continue
+    fi
+    [ -n "$record" ] && FETCHED="$FETCHED$record "
   fi
   remaining=$(left)
   if [ "$remaining" -le 600 ]; then

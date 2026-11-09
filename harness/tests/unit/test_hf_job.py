@@ -169,6 +169,10 @@ echo "uv $*" >> "$STUB_LOG"
 STUB_PYTHON = """#!/usr/bin/env bash
 echo "python $*" >> "$STUB_LOG"
 if [ "${1:-}" = - ] && [ $# -gt 1 ]; then cat > /dev/null; exit 0; fi  # the binding check
+case "${2:-}" in
+  *shm_gib_min*) echo "${STUB_SHM_NEED:-0}"; exit 0 ;;  # the profile's PC-SHM minimum
+  *record_for*) echo "${STUB_RECORD:-}"; exit 0 ;;  # the serving record of a serve-role step
+esac
 exec "$STUB_REAL_PYTHON" "$@"  # the extras' import and the dataset upload, on stub modules
 """
 STUB_IPROOFS = """#!/usr/bin/env bash
@@ -179,7 +183,8 @@ exit 0
 STUB_DEV_INSTALL = """import os, sys
 with open(os.environ["STUB_LOG"], "a") as f:
     f.write("dev_install " + " ".join(sys.argv[1:]) + "\\n")
-sys.exit(int(os.environ.get("STUB_DEV_RC", "0")))
+rc = "STUB_TOK_RC" if sys.argv[1:2] == ["--tokenizer-check"] else "STUB_DEV_RC"
+sys.exit(int(os.environ.get(rc, "0")))
 """
 STUB_HF = """import json, os
 class HfApi:
@@ -298,3 +303,47 @@ def test_step_fields_high_and_replay(tmp_path: Path) -> None:
               IPROOFS_JOB_BUDGET_S="5000", **env2)  # fmt: skip
     assert bad.returncode == 2
     assert "unknown step field fast" in log_of(repo2, "upload: skipped")
+
+
+def test_serving_shm_below_the_profile_stops_before_the_weights(tmp_path: Path) -> None:
+    """RFC-0006 PC-SHM on a serving profile of several GPUs: /dev/shm below `shm_gib_min` (or
+    unread) stops the job before any weights are fetched; a 1-GPU profile needs none."""
+    repo, head, env = stubbed(tmp_path)
+    done = job(repo, "run", "ref-serve", "fp-maverick-w1024-b24:1", IPROOFS_COMMIT=head,
+               IPROOFS_JOB_BUDGET_S="5000", IPROOFS_PROFILE="serving-h200x4-hosted",
+               STUB_SHM_NEED=str(10**18), **env)  # fmt: skip
+    assert done.returncode == 3
+    assert "stopping before any weights" in log_of(repo, "upload: skipped")
+    assert not [c for c in calls(tmp_path) if c.startswith(("iproofs fetch-model", "iproofs run"))]
+
+
+def test_serving_record_tokenizer_check_then_one_fetch(tmp_path: Path) -> None:
+    """A serve-role step's record: its files without the weights and the engine's tokenizer
+    load first, then the weights once; a later step on the same record fetches nothing (the
+    run rehashes them). A failed tokenizer check fetches no weights."""
+    repo, head, env = stubbed(tmp_path)
+    steps = ("fp-maverick-w1024-b24:1", "fp-maverick-w1024-b24:1:high")
+    done = job(repo, "run", "ref-serve", *steps, IPROOFS_COMMIT=head, IPROOFS_JOB_BUDGET_S="5000",
+               IPROOFS_PROFILE="serving-h200x4-hosted", STUB_RECORD="rec", **env)  # fmt: skip
+    log = log_of(repo, "upload: skipped")
+    assert done.returncode == 0, log
+    seen = calls(tmp_path)
+    small = f"{repo.parent}/no-weights/rec"
+    order = [seen.index(f"iproofs fetch-model --serving rec --no-weights {small}"),
+             seen.index(f"dev_install --tokenizer-check {small}"),
+             seen.index("iproofs fetch-model --serving rec")]  # fmt: skip
+    assert order == sorted(order)
+    assert [c for c in seen if c.startswith("iproofs fetch-model")] == [
+        f"iproofs fetch-model --serving rec --no-weights {small}",
+        "iproofs fetch-model --serving rec",
+    ]
+    assert len([c for c in seen if c.startswith("iproofs run ")]) == 2
+    assert "done by an earlier step; the run rehashes it" in log
+    repo2, head2, env2 = stubbed(tmp_path / "again")
+    bad = job(repo2, "run", "ref-serve", steps[0], IPROOFS_COMMIT=head2,
+              IPROOFS_JOB_BUDGET_S="5000", STUB_RECORD="rec", STUB_TOK_RC="1", **env2)  # fmt: skip
+    assert bad.returncode == 1
+    assert "the tokenizer check of rec failed" in log_of(repo2, "upload: skipped")
+    seen = calls(tmp_path / "again")
+    assert "iproofs fetch-model --serving rec" not in seen
+    assert not [c for c in seen if c.startswith("iproofs run ")]

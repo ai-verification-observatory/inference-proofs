@@ -209,6 +209,43 @@ def ensure_serving_model(
     return target
 
 
+def fetch_no_weights(
+    record: ServingModel,
+    directory: Path,
+    *,
+    download: Download,
+    retry: Callable[[Callable[[], None]], None] = lambda op: op(),
+    token: str | None = None,
+) -> list[str]:
+    """`fetch-model --serving RECORD --no-weights DIR`: every file of the record but the
+    `.safetensors` weights, each checked as SM-2 checks it (sha256, size, git blob id), so the
+    engine's tokenizer and processor load can be tried before the weights are fetched. Returns
+    the paths written."""
+    small = [f for f in record.model.files if not f.path.endswith(".safetensors")]
+    directory.mkdir(parents=True, exist_ok=True)
+    mirror = [f.path for f in small if f.source != "publisher"]
+    publisher = [f.path for f in small if f.source == "publisher"]
+    if mirror:
+        src = record.model.source.repo, record.model.revision
+        retry(lambda: download(*src, mirror, directory, None))
+    if publisher:
+        pub = record.publisher.release.repo, record.publisher.release.revision
+        retry(lambda: download(*pub, publisher, directory, token))
+    shutil.rmtree(directory / ".cache", ignore_errors=True)
+    for f in small:
+        got = directory / f.path
+        if (not got.is_file() or got.stat().st_size != f.bytes
+                or file_digest(got) != f"sha256:{f.sha256}"):  # fmt: skip
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{record.id}: {f.path} is not the record's (SM-2)"
+            )
+        if f.storage == "git" and git_blob_id(got.read_bytes()) != f.publisher_blob:
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{record.id}: {f.path} is not the publisher's bytes (SM-2)"
+            )
+    return [f.path for f in small]
+
+
 # ---------------------------------------------------------------- SM-3 and pin (network)
 
 

@@ -178,6 +178,13 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         " RFC-0014 SM-2)",
     )
     p.add_argument(
+        "--no-weights",
+        type=Path,
+        metavar="DIR",
+        help="with --serving: fetch every file of the record but the .safetensors weights into"
+        " DIR, each checked as SM-2 checks it, for a tokenizer check before the weights",
+    )
+    p.add_argument(
         "--headers-only",
         action="store_true",
         help="fetch no weights: recompute a computed weight width from the GGUF headers alone,"
@@ -719,7 +726,9 @@ def fetch_model(args: argparse.Namespace) -> int:
     root = repo_root(Path.cwd())
     registry = SchemaRegistry.from_tree(root / "schema")
     if args.serving is not None:
-        return _fetch_serving(root, registry, args.serving)
+        return _fetch_serving(root, registry, args.serving, args.no_weights)
+    if args.no_weights is not None:
+        raise IProofsError(ErrorKind.CONFIG, "--no-weights is for --serving RECORD")
     if args.workload is None:
         raise IProofsError(ErrorKind.CONFIG, "give a WORKLOAD or --serving RECORD")
     wl = load_workload(args.workload, root=root, registry=registry)
@@ -751,19 +760,31 @@ def _serving_record(root: Path, registry: "SchemaRegistry", record: str) -> "Ser
     return doc
 
 
-def _fetch_serving(root: Path, registry: "SchemaRegistry", record: str) -> int:
-    """`iproofs fetch-model --serving RECORD` (RFC-0014 SM-2): HF_TOKEN reaches only the files
-    the record fetches from the publisher (`source: publisher`)."""
+def _fetch_serving(
+    root: Path, registry: "SchemaRegistry", record: str, no_weights: Path | None = None
+) -> int:
+    """`iproofs fetch-model --serving RECORD [--no-weights DIR]` (RFC-0014 SM-2): HF_TOKEN
+    reaches only the files the record fetches from the publisher (`source: publisher`)."""
     import os  # noqa: PLC0415
 
     from iproofs.runner import retry_fetch  # noqa: PLC0415
-    from iproofs.serving import ensure_serving_model, sm1_problems  # noqa: PLC0415
+    from iproofs.serving import (  # noqa: PLC0415
+        ensure_serving_model,
+        fetch_no_weights,
+        sm1_problems,
+    )
     from iproofs.workloads import default_cache, hub_download  # noqa: PLC0415
 
     doc = _serving_record(root, registry, record)
     problems = sm1_problems(doc)
     if problems:
         raise IProofsError(ErrorKind.CONFIG, problems[0])
+    if no_weights is not None:
+        fetch_no_weights(doc, no_weights, download=hub_download,
+                         retry=lambda op: retry_fetch(op, f"serving files {doc.id}"),
+                         token=os.environ.get("HF_TOKEN"))  # fmt: skip
+        print(no_weights)
+        return 0
     path = ensure_serving_model(doc, default_cache(), download=hub_download,
                                 retry=lambda op: retry_fetch(op, f"serving model {doc.id}"),
                                 token=os.environ.get("HF_TOKEN"))  # fmt: skip

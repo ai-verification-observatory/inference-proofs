@@ -69,11 +69,11 @@ def test_pinned_records_hold_sm1(name: str) -> None:
 
 
 def test_pinned_record_facts() -> None:
-    """The pinned sets (Hub listings of 2026-11-09, external): 91 files of 416,785,754,237 B for
+    """The pinned sets (Hub listings of 2026-11-09, external): 90 files of 416,785,753,788 B for
     Maverick FP8 and 9 files of 16,069,667,318 B for Llama 3.1 8B BF16, summed here from the
     records, not typed into them."""
     mav, l31 = record(MAVERICK), record(LLAMA)
-    assert (len(mav.model.files), sum(f.bytes for f in mav.model.files)) == (91, 416785754237)
+    assert (len(mav.model.files), sum(f.bytes for f in mav.model.files)) == (90, 416785753788)
     assert (len(l31.model.files), sum(f.bytes for f in l31.model.files)) == (9, 16069667318)
     # the prompts are token ids of the workloads' own vocabulary and tokenizer
     tok = next(f for f in mav.model.files if f.path == "tokenizer.json")

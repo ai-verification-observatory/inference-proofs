@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import sys
+from typing import Any
 
 import pytest
 
@@ -133,3 +134,26 @@ def test_gpus_list() -> None:
             "--load", "high"]  # fmt: skip
     args = build_parser().parse_args(argv)
     assert (args.gpus, args.load) == ([4, 5], "high")
+
+
+def test_fetch_model_no_weights(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: "object", capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`fetch-model --serving RECORD --no-weights DIR` fetches the record's files without the
+    weights into DIR (the tokenizer check before the weights); without --serving it is
+    `config`."""
+    import iproofs.serving  # noqa: PLC0415
+
+    seen: list[tuple[str, str]] = []
+
+    def fake(doc: Any, d: object, **kw: object) -> list[str]:
+        seen.append((doc.id, str(d)))
+        return []
+
+    monkeypatch.setattr(iproofs.serving, "fetch_no_weights", fake)
+    out = f"{tmp_path}/small"
+    rc = cli.main(["fetch-model", "--serving", "llama-3.1-8b-instruct-bf16", "--no-weights", out])
+    assert rc == 0
+    assert seen == [("llama-3.1-8b-instruct-bf16", out)]
+    assert capsys.readouterr().out.strip() == out
+    assert cli.main(["fetch-model", "sash-l31-8b-c1024", "--no-weights", out]) != 0

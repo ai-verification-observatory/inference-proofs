@@ -156,16 +156,47 @@ def test_engine_checks(ref: ModuleType) -> None:
 
 
 def test_gpu_check(ref: ModuleType) -> None:
-    """As uid 10001 with only the bound GPUs visible; the count and peer access decide."""
+    """Under the hosted adapter's exact privilege drop, with only the bound GPUs visible; the
+    count, peer access and the NCCL all-reduce (in the script it runs from a file) decide."""
+    from iproofs.adapter import DROP_TO_ADAPTER  # noqa: PLC0415
+
+    assert tuple(ref.AS_ADAPTER) == DROP_TO_ADAPTER
     seen: list[Any] = []
 
     def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
         seen.append((argv, kw["env"]["CUDA_VISIBLE_DEVICES"]))
-        return done("4 True\n")
+        return done("4 True\nnccl all_reduce 4 ok\n")
 
     ref.check_gpus("0,1,2,3", run)
-    assert seen[0][0][:4] == ref.AS_ADAPTER
-    assert seen[0][0][-1] == "4"
+    argv = seen[0][0]
+    assert argv[: len(ref.AS_ADAPTER)] == ref.AS_ADAPTER
+    assert argv[-1] == "4"
     assert seen[0][1] == "0,1,2,3"
+    script = Path(argv[-2])
+    assert script.read_text() == ref.GPU_CHECK
+    assert 'init_process_group("nccl"' in ref.GPU_CHECK
+    assert "all_reduce" in ref.GPU_CHECK
+    compile(ref.GPU_CHECK, "gpu_check.py", "exec")
     with pytest.raises(SystemExit, match="did not see 4 GPU"):
         ref.check_gpus("0,1,2,3", lambda *a, **k: done("3 True\n", 1))
+
+
+def test_tokenizer_check(ref: ModuleType, tmp_path: Path) -> None:
+    """The engine's tokenizer load from the files without the weights, offline, dropped as
+    the adapter is, without the token; a load error stops before the weights."""
+    seen: list[Any] = []
+
+    def run(argv: list[str], **kw: Any) -> subprocess.CompletedProcess[str]:
+        seen.append((argv, kw["env"]))
+        return done("tokenizer TokenizersBackend 201134\nprocessor Llama4Processor\n")
+
+    ref.check_tokenizer(str(tmp_path), run)
+    argv, env = seen[0]
+    assert argv[: len(ref.AS_ADAPTER)] == ref.AS_ADAPTER
+    assert argv[-1] == str(tmp_path)
+    assert Path(argv[-2]).read_text() == ref.TOKENIZER_CHECK
+    assert (env["HF_HUB_OFFLINE"], env["TRANSFORMERS_OFFLINE"]) == ("1", "1")
+    assert "HF_TOKEN" not in env
+    compile(ref.TOKENIZER_CHECK, "tokenizer_check.py", "exec")
+    with pytest.raises(SystemExit, match="cannot load the tokenizer"):
+        ref.check_tokenizer(str(tmp_path), lambda *a, **k: done("JSONDecodeError\n", 1))
