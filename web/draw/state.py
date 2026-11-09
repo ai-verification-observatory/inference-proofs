@@ -16,7 +16,6 @@ PROPS: list = []
 CONFIGS: list = []
 PROVERS: list = []
 PAGE: dict = {}
-MODELS: list = []
 MODEL_NAME: dict = {}
 INK: dict = {}
 FACES: list = []

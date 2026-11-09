@@ -66,6 +66,11 @@
         "name": {
           "$ref": "#/$defs/text"
         },
+        "overview_workload": {
+          "description": "the workload id of the system's one row on the overview, when it runs more than one (owner decision, RFC-0009 S6)",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "type": "string"
+        },
         "status": {
           "additionalProperties": false,
           "dependentRequired": {

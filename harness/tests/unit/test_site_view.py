@@ -18,7 +18,7 @@ from iproofs.release import not_measurable_on_profile
 from iproofs.schema import SchemaRegistry
 from iproofs.site import build, inputs
 from iproofs.site import view as site_view_module
-from iproofs.site.view import FIGURES, MORE, check_rows, site_view
+from iproofs.site.view import FIGURES, MORE, PER_BIT, check_rows, site_view
 from iproofs.validate import resolve
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -103,7 +103,7 @@ def test_absent_metric_not_recorded(view: dict[str, Any]) -> None:
     f = configuration(view, "flashprove")["figures"]["prove_gpu_memory_peak"]
     assert f == {"metric": "prove_gpu_memory_peak", "recorded": False, "value": None,
                  "sort_key": None}  # fmt: skip
-    assert set(configuration(view, "flashprove")["figures"]) == {*FIGURES, *MORE}
+    assert set(configuration(view, "flashprove")["figures"]) == {*FIGURES, *PER_BIT, *MORE}
 
 
 def test_runs_left_out_listed(view: dict[str, Any]) -> None:

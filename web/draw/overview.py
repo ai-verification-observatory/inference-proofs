@@ -1,39 +1,34 @@
-"""The overview page (index.html): one sortable table per model and workload (S6), the models
-largest first and no table across models, so each row is on the page once; the references and
-the systems not benchmarked yet, and the helpers the other pages share with it
-(model sizes, shapes, pins).
+"""The overview page (index.html): one sortable table across models, one row per benchmarked
+system on its overview workload (S5, S6), default-sorted by overhead against production serving;
+then the systems not benchmarked yet; and the helpers the other pages share with it (model
+sizes, shapes, pins).
 """
 
 import json
 import re
-from itertools import groupby
 
 from . import state as S
-from .chrome import REF_PAGE, footer, header, masthead, page
+from .chrome import footer, header, masthead, page
 from .hexagon import pie_svg
 from .plates import (
-    COLS,
+    BOARD,
     HEAD,
     SORT_WORDS,
     aria,
     configs_of,
-    first_config,
     glyph,
-    has_figures,
     keep,
     metric_of,
     name_of,
     readable,
     row_id,
-    runs_counts,
     sentence_case,
     states_said,
     upstream,
     value_link,
-    with_rule,
     words,
 )
-from .words import FAMILY_WORD, NATIVE_HEADER, STATUS_WORD, e, gpu_words, slug
+from .words import FAMILY_WORD, STATUS_WORD, e, gpu_words
 
 # ------------------------------------------------------------------ home rows
 
@@ -58,53 +53,46 @@ def kind_words(rid):
 
 def row_keys(cfg):
     """{col: the stored value in its base unit, or None}: the sort keys of one row (S4)."""
-    return {col: cfg["figures"][metric_of(cfg, col)]["sort_key"] for col in COLS}
+    return {col: cfg["figures"][metric_of(cfg, col)]["sort_key"] for col in BOARD}
 
 
-def row_html(rid, name, g, href, idle, right, table=False, keys=None):
-    """One home row: pie, name and its pin (or a reference's kind), then `right`, the four figures.
-    The model is the section's own heading, so a system row does not repeat it."""
-    # the row header is named by the system's name alone, not by the six states and pin it also holds
-    # a row under a pending disclosure draws no state and no text (RFC-0016 OVR-8)
-    said = f'<p class="sr">{e(states_said(g))}</p>' if g["drawn"] else ""
-    cells = g["cells"] if g["drawn"] else None
-    cell = f' role="rowheader" aria-labelledby="{e(rid)}-name"' if table else ""
-    hid = f' id="{e(rid)}-name"' if table else ""
-    attrs = ' role="row"' if table else ""
-    if table and keys is not None:  # a sortable table's row: its name and sort keys (S4, S5)
-        attrs += (
-            f' data-name="{e(name.lower())}" data-k="{e(json.dumps(keys, separators=(",", ":")))}"'
-        )
-    return f'''
-<div class="row" id="{e(rid)}"{attrs}>
-  <div class="r-main">
-    <div class="sysc"{cell}>
-      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=cells, hit=True)}<span class="tip"></span></a>
-      <div class="who"><h3 class="name"{hid}><a href="{e(href)}">{e(name)}</a></h3>{said}{idle}</div>
-    </div>
-    {right}
-  </div>
-</div>'''
+def board_configs():
+    """S6: the overview's rows, one per benchmarked system: its configuration on the workload
+    `facts.json` names for it (`overview_workload`), or its only configuration. A system with
+    more than one and none named, or a named workload it did not run, stops the build."""
+    out = []
+    for sid in S.V["orders"]["benchmarked"]:
+        cfgs = [c for c in S.PROVERS if c["system"] == sid]
+        named = S.V["facts"]["rows"][sid].get("overview_workload")
+        if named is not None:
+            cfgs = [c for c in cfgs if c["workload"]["id"] == named]
+        if len(cfgs) != 1:
+            raise RuntimeError(f"{sid}: {len(cfgs)} configurations for its overview row; name one "
+                               "workload as `overview_workload` in web/_data/facts.json")  # fmt: skip
+        out.append(cfgs[0])
+    return board_order(out)
 
 
-def figures(cfg, base, table, who=""):
-    """The four figures of a home row; each links to its own plate, at base + "-" + its column."""
-    cell = ' role="cell"' if table else ""
-    return (
-        '<div class="vals">'
-        + "".join(
-            f'<div class="vc"{cell} data-col="{c}">{value_link(cfg, c, f"{base}-{c}", who)}</div>'
-            for c in COLS
-        )
-        + "</div>"
-    )
+def board_order(cfgs):
+    """S5: the default order, overhead against production serving ascending (the stored value);
+    a row with no overhead last; ties by system name, then profile, then index position."""
+
+    def key(c):
+        k = row_keys(c)["overhead"]
+        return (k is None, k or 0.0, name_of(c["system"]).lower(), c["profile"], c["position"])
+
+    return sorted(cfgs, key=key)
+
+
+DEFAULT_COL = "overhead"
 
 
 def sort_heads():
-    """The column heads of the sortable table: each one a button with its sort glyph."""
+    """The column heads: System and each figure a button with its sort glyph; Model is not
+    sorted (a model is not a result)."""
 
     def head(col, label, cls=""):
-        on = col == "system"
+        on = col == DEFAULT_COL
         w = SORT_WORDS[col]
         return (
             f'<div class="hc{cls}" role="columnheader" data-col="{col}"'
@@ -116,9 +104,51 @@ def sort_heads():
 
     return (
         f'<div class="heads" role="row">{head("system", "System", " hsys")}'
-        + "".join(head(c, e(HEAD[c])) for c in COLS)
+        '<div class="hc hmod" role="columnheader"><span>Model</span></div>'
+        + "".join(head(c, e(HEAD[c])) for c in BOARD)
         + "</div>"
     )
+
+
+def model_cell(cfg):
+    """The row's model: its name, total and active parameters, and what the workload ran."""
+    p = cfg["workload"]["model"]["parameters"]
+    total, active = p["total"], p["active_per_token"]
+    size = (f"{size_words(total)}, dense" if total == active
+            else f"{size_words(total)} total, {size_words(active)} active")  # fmt: skip
+    shape = shape_words(cfg)
+    if cfg["workload"]["division"] != "native":
+        shape += f" · {cfg['workload']['division']} division"
+    return (
+        '<div class="mc" role="cell" data-col="model"><span class="lbl">Model</span>'
+        f'<p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
+        f'<p class="ms">{e(readable(size))}</p><p class="ms">{facts_line(readable(shape))}</p></div>'
+    )
+
+
+def board_row(cfg):
+    """One overview row: the row header (glyph, name, pin), the model, then the figures, each a
+    link to its own plate on the system page."""
+    sid = cfg["system"]
+    name, g, href = name_of(sid), glyph(sid), claims_href(cfg)
+    said = f'<p class="sr">{e(states_said(g))}</p>' if g["drawn"] else ""  # OVR-8: no state
+    cells = g["cells"] if g["drawn"] else None
+    keys = e(json.dumps(row_keys(cfg), separators=(",", ":")))
+    vals = "".join(
+        f'<div class="vc" role="cell" data-col="{c}">{value_link(cfg, c, fig_href(cfg, c), name)}</div>'
+        for c in BOARD
+    )
+    return f'''
+<div class="row" id="{e(sid)}" role="row" data-name="{e(name.lower())}" data-k="{keys}">
+  <div class="r-main">
+    <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
+      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=cells, hit=True)}<span class="tip"></span></a>
+      <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}">{e(name)}</a></h3>{said}<p class="wl">{pin_link(cfg)}</p></div>
+    </div>
+    {model_cell(cfg)}
+    <div class="vals">{vals}</div>
+  </div>
+</div>'''
 
 
 def nb_models(r):
@@ -168,15 +198,6 @@ def shape_words(cfg):
     ])  # fmt: skip
 
 
-def model_sizes(cfg):
-    """The model's size from its workload record, so a row never reads as a 17B model."""
-    p = cfg["workload"]["model"]["parameters"]
-    total, active = p["total"], p["active_per_token"]
-    if total == active:
-        return f"{size_words(total)} parameters"
-    return f"{size_words(total)} parameters, {size_words(active)} active per token"
-
-
 def model_line(cfg):
     """The model fact of a system page: name, size and the precision proved."""
     m = cfg["workload"]["model"]
@@ -194,79 +215,6 @@ def facts_line(text):
     return '<span class="sep">\u00a0· </span>'.join(
         f"<span>{e(x)}</span>" for x in re.split(r"[ \u00a0]· ", text)
     )
-
-
-def models_by_size(provers, names):
-    """S6: the models of the system rows, in the order of their tables: total parameters as the
-    workload record states them (`workload.model.parameters.total`), largest first, then name. A
-    size of the model proved, read from stored values, never a figure or a glyph state: no
-    system's result moves its table (S5)."""
-    totals = {}
-    for c in provers:
-        model = c["workload"]["model"]
-        totals.setdefault(model["digest"], set()).add(model["parameters"]["total"])
-    for d, seen in totals.items():
-        assert len(seen) == 1, f"{d}: workloads disagree on parameters.total {sorted(seen)}"
-    size = {d: next(iter(seen)) for d, seen in totals.items()}
-    return sorted(size, key=lambda d: (-size[d], names[d]))
-
-
-def by_name(cfgs):
-    """S5: a table's rows A to Z by system name, then profile id, then the configuration's
-    position in the release's `index.json`."""
-    return sorted(cfgs, key=lambda c: (name_of(c["system"]).lower(), c["profile"], c["position"]))
-
-
-# S6: a model's native tables first, then its closed and open tables, each apart
-DIVISIONS = ("native", "closed", "open")
-
-
-def tables():
-    """S6: one table per model, largest first (`models_by_size`), then one per workload of that
-    model: its native workloads by id, then its closed ones, then its open ones (RFC-0003
-    §Divisions). Each system row is in the table of its workload and in no other: there is no
-    table across models, so no row is repeated (owner decision of 2026-11-08, #333)."""
-    out = []
-    for d in S.MODELS:
-        division = {c["workload"]["id"]: c["workload"]["division"]
-                    for c in S.PROVERS if c["workload"]["model"]["digest"] == d}  # fmt: skip
-        wls = sorted(division, key=lambda w: (DIVISIONS.index(division[w]), w))
-        for wid in wls:
-            rows = by_name(c for c in S.PROVERS if c["workload"]["id"] == wid)
-            sid = slug(S.MODEL_NAME[d]) if len(wls) == 1 else f"{slug(S.MODEL_NAME[d])}-{slug(wid)}"
-            out.append((d, sid, rows))
-    return out
-
-
-def is_native(rows):
-    return rows[0]["workload"]["division"] == "native"
-
-
-def under_header(parts):
-    """S6: the overview's tables in page order, each `(native, html)`. Where the page holds more
-    than one native table (two workloads on one model, or a page across models), each run of
-    adjacent native tables sits in a group headed by the native header, so the header is printed
-    once while no closed or open table comes between native ones. A closed or open table sits
-    outside every group: it never counts toward the header and never sits under it, since its
-    rows compare directly within its workload."""
-    natives = sum(native for native, _ in parts)
-    out = ""
-    for i, (native, run) in enumerate(groupby(parts, key=lambda p: p[0]), 1):
-        body = "".join(h for _, h in run)
-        if native and natives > 1:
-            hid = f"nat-{i}"
-            head = f'<p class="sec-l nat" id="{hid}">{e(NATIVE_HEADER)}</p>'
-            body = f'\n  <div class="natives" role="group" aria-labelledby="{hid}">{head}{body}\n  </div>'
-        out += body
-    return out.lstrip()  # the page indents the first
-
-
-def division_words(rows):
-    """The heading line of a closed or open table (S6): its workload, its division and the
-    profiles of its rows, as the system page names them."""
-    wl = rows[0]["workload"]
-    profiles = ", ".join(sorted({r["profile"] for r in rows}))
-    return f"{wl['id']} · {wl['division']} division · {profiles}"
 
 
 def plate_prefix(cfg):
@@ -288,84 +236,30 @@ def fig_href(cfg, col):
     return f"{S.PAGE[cfg['system']]}#{plate_prefix(cfg)}{col}"
 
 
-def pin_line(r, rows):
-    """A row header's pin, and the card's `configuration` where the table holds two rows of the
-    system (RFC-0009 S1): the card's identity, no claim text."""
-    two = sum(x["system"] == r["system"] for x in rows) > 1
-    cfg = f'<span class="nw"> · {e(r["configuration"])}</span>' if two else ""
-    return f'<p class="wl">{pin_link(r)}{cfg}</p>'
-
-
 # the overview's description, in its meta and share tags
-HOME_DESC = "Six properties of one proof per system (draft criteria), and the benchmark's own figures per model, sortable by column."
+HOME_DESC = ("Six properties of one proof per system (draft criteria), and one row per system: "
+             "overhead against production serving, prover time per active weight bit, proof size "
+             "and check time, sortable by column.")  # fmt: skip
 
 
 def build_index():
-    first = f"System, {SORT_WORDS['system']['asc']}"
-    all_tables = tables()
-    parts = []
-    for d, sid_, rows in all_tables:
-        name = S.MODEL_NAME[d]
-        apart = ""
-        if not is_native(rows):  # S6: closed and open tables apart, named by their division
-            apart = f'<p class="sec-l">{facts_line(division_words(rows))}</p>'
-        body_rows = "".join(
-            row_html(
-                row_id(r),
-                name_of(r["system"]),
-                glyph(r["system"]),
-                claims_href(r),
-                pin_line(r, rows),
-                '<div class="vals">'
-                + "".join(
-                    f'<div class="vc" role="cell" data-col="{c}">{value_link(r, c, fig_href(r, c), name_of(r["system"]))}</div>'
-                    for c in COLS
-                )
-                + "</div>",
-                True,
-                row_keys(r),
-            )
-            for r in rows
-        )
-        sec = f"""
-  <section class="sec bench" id="{sid_}" aria-labelledby="h-{sid_}">
-    <div class="sec-h"><h2 id="h-{sid_}" class="sect">{e(name)}</h2><p class="sec-l">{facts_line(readable(model_sizes(rows[0]) + " · " + shape_words(rows[0])))}</p>{apart}</div>
-    <div class="tbl" role="table" aria-labelledby="h-{sid_}" aria-describedby="sort-now" data-col="system" data-dir="asc">
-      {sort_heads()}
-      <div class="rows" role="rowgroup">{body_rows}</div>
-    </div>
-  </section>"""
-        parts.append((is_native(rows), sec))
-    secs = under_header(parts)  # S6: the native header above native tables only
-    refs = ""
-    for rid in S.V["orders"]["reference"]:
-        cfg = first_config(rid)
-        counts = "".join(f'<p class="wl">{with_rule(readable(runs_counts(c)))}</p>'
-                         for c in S.CONFIGS if c["system"] == rid and not has_figures(c))  # fmt: skip
-        refs += row_html(
-            rid,
-            name_of(rid),
-            glyph(rid),
-            f"{REF_PAGE}#{rid}",
-            f'<p class="wl"><span>{e(kind_words(rid))}</span></p>{counts}',
-            figures(cfg, f"{REF_PAGE}#{rid}-fig", True, who=name_of(rid)),
-            True,
-        )
+    rows = board_configs()
+    first = f"{HEAD[DEFAULT_COL]}, {SORT_WORDS[DEFAULT_COL]['asc']}"
+    n = len(rows)
     nb_count = len(S.V["orders"]["not_benchmarked"])
     body = f"""
 {header("home")}
 <main id="main">
 {masthead()}
 <div class="wrap">
-  {secs}
-  <p id="sort-now" hidden>{e(first)}</p>
-  <section class="sec refs" id="references" aria-labelledby="h-refs">
-    <div class="sec-h"><h2 id="h-refs" class="sect">References</h2></div>
-    <div role="table" aria-labelledby="h-refs">
-    {plain_heads("Reference")}
-    {refs}
+  <section class="sec board" id="benchmarked" aria-labelledby="h-bench">
+    <div class="sec-h"><h2 id="h-bench" class="sect">Benchmarked<sup aria-hidden="true">{n}</sup><span class="sr">, {n} systems</span></h2></div>
+    <div class="tbl" role="table" aria-labelledby="h-bench" aria-describedby="sort-now" data-col="{DEFAULT_COL}" data-dir="asc">
+      {sort_heads()}
+      <div class="rows" role="rowgroup">{"".join(board_row(c) for c in rows)}</div>
     </div>
   </section>
+  <p id="sort-now" hidden>{e(first)}</p>
   <section class="sec" id="not-yet" aria-labelledby="h-nb">
     <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet<sup aria-hidden="true">{nb_count}</sup><span class="sr">, {nb_count} systems</span></h2></div>
     {nb_grid()}
@@ -380,14 +274,4 @@ def build_index():
         "home",
         "",
         "home",
-    )
-
-
-def plain_heads(first):
-    """Column heads for a table that does not sort: the same columns, not pressable (S9: each
-    cell has one column header)."""
-    return (
-        f'<div class="heads plain" role="row"><span class="hsys" role="columnheader">{e(first)}</span>'
-        + "".join(f'<span role="columnheader">{e(HEAD[c])}</span>' for c in COLS)
-        + "</div>"
     )

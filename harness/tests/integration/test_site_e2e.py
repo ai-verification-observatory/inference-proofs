@@ -28,7 +28,7 @@ ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" da
 PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
 SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0,
+         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0, "ps": 1e-12,
          # more numbers: token/s, and USD per 1,000 tokens (the row names the basis)
          "positions/s": 1.0, "USD": 1.0}  # fmt: skip
 MORE_ROW = re.compile(r'<tr><th scope="row">.*?</tr>', re.S)
@@ -37,7 +37,18 @@ COLUMN = {
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
+    "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
 }
+
+
+def column(statistics: dict[str, Any], headline: dict[str, Any] | None, col: str) -> str:
+    """The statistic an overview column shows: the overhead the index names as the headline,
+    prover time per active weight bit at `prove.steady`, else at `prove.session`."""
+    if col == "overhead" and headline:
+        return str(headline["metric"])
+    if col == "per_bit" and (statistics.get(COLUMN[col]) or {}).get("value") is None:
+        return "seconds_per_active_weight_bit_token_prove.session"
+    return COLUMN[col]
 
 
 @pytest.fixture(scope="module")
@@ -92,8 +103,8 @@ def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
     assert systems == {"flashprove", "sash", "ref-serve", "ref-recompute"}
     rows = {rid for rid, _ in ROW.findall(site["index.html"])}
     for c in doc["configurations"]:
-        if c["system"].startswith("ref-"):
-            assert f'<div class="row" id="{c["system"]}" role="row">' in site["index.html"]
+        if c["system"].startswith("ref-"):  # the baseline, on /reference, not an overview row
+            assert f'<div class="row" id="{c["system"]}"' not in site["index.html"]
             assert f'id="{c["system"]}" aria-labelledby' in site["reference.html"]
         else:
             assert c["system"] in rows
@@ -160,11 +171,17 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
             assert spread in re.sub(r"<[^>]+>", "", row).replace("\N{NO-BREAK SPACE}", " ")
             more += 1
     assert more >= 6  # two systems: proving rate, GPU cost, commit once
-    for rid, keys in ROW.findall(site["index.html"]):
+    _keys_are_stored(doc, site["index.html"])
+
+
+def _keys_are_stored(doc: dict[str, Any], index_html: str) -> None:
+    """Each overview sort key is the value the index stores for that row's column."""
+    for rid, keys in ROW.findall(index_html):
         position = next(i for i, c in enumerate(doc["configurations"]) if c["system"] == rid)
         statistics = doc["configurations"][position]["statistics"]
+        headline = doc["configurations"][position].get("overhead_headline")
         for col, key in json.loads(html.unescape(keys)).items():
-            stored = statistics.get(COLUMN[col], {}).get("value")
+            stored = statistics.get(column(statistics, headline, col), {}).get("value")
             assert key == stored, (rid, col)
 
 

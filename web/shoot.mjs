@@ -53,14 +53,11 @@ const expected = (p, col, dir) => p.evaluate(([col, dir]) => [...document.queryS
   const none = rows.filter((r) => r.k == null).sort(byName);
   return [...have, ...none].map((r) => r.id);
 }), [col, dir]);
-// the tables as sorted sets: each model's heading, its size as printed (400B is 4e11) and its rows A to Z,
-// and every system a row header links; a sort reorders rows within a table and never moves a table or a row
-const layout = (p) => p.evaluate(() => [...document.querySelectorAll('.bench')].map((s) => ({
-  model: s.querySelector('h2').textContent,
-  // NaN when no size is printed or its unit is unknown, so the order check fails and prints the tables
-  size: ((m) => (m ? Math.round(+m[1] * { T: 1e12, B: 1e9, M: 1e6, K: 1e3 }[m[2]]) : NaN))((s.querySelector('.sec-l')?.textContent ?? '').match(/([\d.]+)([TBMK]) parameters/)),
+// the table as a sorted set: its rows A to Z and every system a row header links; a sort reorders rows and
+// never adds or drops one
+const layout = (p) => p.evaluate(() => [...document.querySelectorAll('.board')].map((s) => ({
   rows: [...s.querySelectorAll('.tbl .rows > .row')].map((r) => r.id).sort(),
-  systems: [...s.querySelectorAll('.tbl .rows > .row .name a')].map((a) => new URL(a.href).pathname),
+  systems: [...s.querySelectorAll('.tbl .rows > .row .name a')].map((a) => new URL(a.href).pathname).sort(),
 })));
 const sortState = (p) => p.evaluate(() => ({
   aria: [...new Set([...document.querySelectorAll('.hc[aria-sort]')].map((h) => `${h.dataset.col}:${h.getAttribute('aria-sort')}`))],
@@ -96,8 +93,8 @@ const sortBy = async (p, col, dir) => {
     select: document.querySelectorAll('select, #sort, .sortc').length,
     toggles: document.querySelectorAll('[aria-pressed], [role=tab], .vk').length,
     quotes: document.querySelectorAll('blockquote').length,
-    tables: [...document.querySelectorAll('.bench')].map((s) => `${s.querySelector('h2').textContent}:${[...s.querySelectorAll('.tbl .row')].map((r) => r.id).join('+')}`),
-    refs: [...document.querySelectorAll('.refs .row')].map((r) => r.id),
+    tables: [...document.querySelectorAll('.board')].map((s) => [...s.querySelectorAll('.tbl .row')].map((r) => r.id).join('+')),
+    refs: [...document.querySelectorAll('.row[id^="ref-"]')].map((r) => r.id),
     wip: document.querySelectorAll('#wip, .wip, .mwip').length + (/work in progress/i.test(document.body.innerText) ? 1 : 0),
     sameAsAbove: /same as above/i.test(document.body.innerText),
     nb: document.querySelectorAll('#not-yet .nb').length,
@@ -105,15 +102,13 @@ const sortBy = async (p, col, dir) => {
   }));
   ok(shape.select === 0 && shape.toggles === 0, 'no sort control, no view toggle, no tabs', shape);
   ok(shape.quotes === 0, 'no quotes on the home');
-  ok(shape.tables.join() === 'Llama 4 Maverick:flashprove,Llama 3.1 8B:sash' && shape.wip === 0, 'two tables, Llama 4 Maverick (FlashProve) then Llama 3.1 8B (SASH); no work-in-progress label', shape.tables);
+  ok(shape.tables.join() === 'flashprove+sash' && shape.wip === 0, 'one table across models, FlashProve then SASH (overhead ascending); no work-in-progress label', shape.tables);
   const lay = await layout(p);
-  const sizes = lay.map((t) => t.size);
-  ok(sizes.length === 2 && sizes.every((n, i) => n > 0 && (i === 0 || n < sizes[i - 1])), 'tables by model size, largest first, from the sizes they print', lay.map((t) => `${t.model} ${t.size}`));
   const systems = lay.flatMap((t) => t.systems);
   const pies = await p.evaluate(() => [...document.querySelectorAll('main .pie[href]')].map((a) => new URL(a.href).pathname).filter((x) => x !== '/reference'));
-  ok(systems.length === 2 && new Set(systems).size === systems.length && JSON.stringify(pies) === JSON.stringify(systems), 'no table across models: each system once on the overview, its glyph once', { systems, pies });
-  ok(shape.refs.join() === 'ref-serve,ref-recompute' && !shape.sameAsAbove, 'two reference rows after the models, no "same as above"', shape.refs);
-  ok(shape.sections.join() === 'llama-4-maverick,llama-3-1-8b,references,not-yet' && shape.nb === 19 && /Native workloads differ/.test(await p.locator('.nat').innerText()), 'sections in order, largest model first, under the native workloads header; 19 not benchmarked yet', shape.sections);
+  ok(systems.length === 2 && new Set(systems).size === systems.length && JSON.stringify([...pies].sort()) === JSON.stringify(systems), 'one row per system on the overview, its glyph once', { systems, pies });
+  ok(shape.refs.length === 0 && !shape.sameAsAbove, 'no reference row on the overview (the baseline is named in each overhead cell), no "same as above"', shape.refs);
+  ok(shape.sections.join() === 'benchmarked,not-yet' && shape.nb === 19, 'sections in order: benchmarked, then 19 not benchmarked yet', shape.sections);
   // row slice hover: lift and a positioned label; no row moves; the other slices keep their ink
   const h0 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   const pie = await p.locator('#flashprove .pie').boundingBox();
@@ -136,7 +131,7 @@ const sortBy = async (p, col, dir) => {
   await p.mouse.move(0, 0);
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: /.test(a.title))
     .map((a) => /\d+\s+completed, \d+\s+failed/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
-  // two systems, three measured figures each: One proof covers carries its spread too (D-TPP, #320)
+  // two systems, three figures with a spread each: per-bit time, proof size, check time
   ok(spreads.length === 6 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);
   await ctx.close();
 }
@@ -147,14 +142,14 @@ const sortBy = async (p, col, dir) => {
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const st0 = await sortState(p);
   const lay0 = JSON.stringify(await layout(p));
-  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'system', 'asc')) && st0.aria.join() === 'system:ascending' && st0.heads === st0.tables && st0.hash === '', 'default: System A to Z in every table, one sorted head per table, empty hash', st0);
-  for (const col of ['system', 'covers', 'proof_size', 'check_time', 'overhead']) {
+  ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'overhead', 'asc')) && st0.aria.join() === 'overhead:ascending' && st0.heads === st0.tables && st0.hash === '', 'default: overhead ascending, one sorted head, empty hash', st0);
+  for (const col of ['system', 'overhead', 'per_bit', 'proof_size', 'check_time']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(p, col, dir);
       const got = await order(p);
       const st = await sortState(p);
       ok(JSON.stringify(got) === JSON.stringify(await expected(p, col, dir)) && st.heads === st.tables && st.aria.join() === `${col}:${dir === 'asc' ? 'ascending' : 'descending'}`
-        && (col === 'system' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`) && JSON.stringify(await layout(p)) === lay0, `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
+        && (col === 'overhead' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`) && JSON.stringify(await layout(p)) === lay0, `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
     }
   }
   await sortBy(p, 'proof_size', 'desc');
@@ -166,7 +161,7 @@ const sortBy = async (p, col, dir) => {
   await r.p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
   const st2 = await sortState(r.p);
   ok(st2.aria.join() === 'check_time:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'check_time', 'desc')), 'hash round-trip', st2);
-  ok(JSON.stringify(await layout(r.p)) === lay0, 'a sort from the hash keeps the tables in model-size order, each with its own rows');
+  ok(JSON.stringify(await layout(r.p)) === lay0, 'a sort from the hash keeps every row');
   ok(await cls(r.p) === 0, 'CLS on load with a sort hash is 0');
   await r.p.evaluate(() => { location.hash = 'sort=overhead-desc'; }); await r.p.waitForTimeout(400);
   ok((await sortState(r.p)).aria.join() === 'overhead:descending', 'hashchange applies a new order');
@@ -177,17 +172,17 @@ const sortBy = async (p, col, dir) => {
   await bk.p.evaluate(() => { location.hash = 'sort=check_time-desc'; }); await bk.p.waitForTimeout(300);
   await bk.p.goBack(); await bk.p.waitForTimeout(400);
   const stb = await sortState(bk.p);
-  ok(stb.aria.join() === 'system:ascending' && stb.hash === '', 'Back to no hash restores the default order', stb);
+  ok(stb.aria.join() === 'overhead:ascending' && stb.hash === '', 'Back to no hash restores the default order', stb);
   // sorting that can fail: rows that differ in every column, with missing values among them
   await bk.p.evaluate(() => {
     const box = document.querySelector('.tbl .rows');
     const src = box.querySelector('.row');
-    [['zz-a', 'aaa', { covers: 512, proof_size: null, check_time: 9, overhead: 3 }],
-     ['zz-b', 'zzz', { covers: 2048, proof_size: 1, check_time: null, overhead: 7 }]].forEach(([id, name, k]) => {
+    [['zz-a', 'aaa', { per_bit: 5e-13, proof_size: null, check_time: 9, overhead: 3 }],
+     ['zz-b', 'zzz', { per_bit: null, proof_size: 1, check_time: null, overhead: 7 }]].forEach(([id, name, k]) => {
       const r = src.cloneNode(true); r.id = id; r.dataset.name = name; r.dataset.k = JSON.stringify(k); box.appendChild(r);
     });
   });
-  for (const col of ['covers', 'proof_size', 'check_time', 'overhead']) {
+  for (const col of ['per_bit', 'proof_size', 'check_time', 'overhead']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(bk.p, col, dir);
       const got = (await order(bk.p))[0];
@@ -201,7 +196,7 @@ const sortBy = async (p, col, dir) => {
   const z = await pg(1440, 900);
   await z.p.goto(BASE + '#sort=bogus-asc', { waitUntil: 'networkidle' }); await z.p.waitForTimeout(600);
   const stz = await sortState(z.p);
-  ok(stz.aria.join() === 'system:ascending' && stz.hash === '', 'unknown sort in the hash falls back and clears it', stz.hash);
+  ok(stz.aria.join() === 'overhead:ascending' && stz.hash === '', 'unknown sort in the hash falls back and clears it', stz.hash);
   await z.ctx.close();
 }
 
@@ -442,8 +437,8 @@ for (const w of [1440, 390]) {
   await ctx.close();
   const ls = await pg(844, 390, { touch: true });
   await ls.p.goto(BASE, { waitUntil: 'networkidle' }); await ls.p.waitForTimeout(settle);
-  const hb = await ls.p.evaluate(() => Math.round(document.querySelector('.bench .sect').getBoundingClientRect().bottom));
-  ok(hb <= 390, 'landscape phone: the model heading shows on landing', hb);
+  const hb = await ls.p.evaluate(() => Math.round(document.querySelector('.board .sect').getBoundingClientRect().bottom));
+  ok(hb <= 390, 'landscape phone: the table heading shows on landing', hb);
   await ls.ctx.close();
 }
 
@@ -507,27 +502,25 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   // 375 x 667: the first glyph whole; 320 x 568: the first row starts on screen
   const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
   ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
-  // the board: System on its own line, the four column heads on one line above their own figures, every
-  // button at least 32 px tall; each row two lines (name, figures), so several systems fit on one screen
+  // the table on a phone: the heads a strip of sort buttons 32 px tall or more; in each row every figure
+  // shows its label and its scope line (the labels a number carries stay in view)
   const s = await p.evaluate(() => {
     const r = (x) => x.getBoundingClientRect();
-    const t = document.querySelector('.bench');  // the first table
-    const b = [...t.querySelectorAll('.hc:not(.hsys) .sb')];
-    const sys = r(t.querySelector('.hsys .sb'));
-    const row = t.querySelector('.row');
-    const lefts = b.map((x) => Math.round(r(x).left));
-    const cols = [...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).left));
-    return { sysAlone: sys.bottom <= Math.min(...b.map((x) => r(x).top)) + 1, bottoms: new Set(b.map((x) => Math.round(r(x).bottom))).size, aligned: lefts.every((x, i) => Math.abs(x - cols[i]) <= 1), h: Math.min(...[sys, ...b.map(r)].map((x) => Math.round(x.height))), rowH: Math.round(r(row).height), lefts, cols };
+    const t = document.querySelector('.board');
+    const b = [...t.querySelectorAll('.hc .sb')];
+    const shown = (x) => x && getComputedStyle(x).clipPath !== 'inset(50%)' && r(x).height > 0;
+    const cells = [...t.querySelectorAll('.row .vc')];
+    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => shown(c.querySelector('.lbl'))), subs: cells.every((c) => !c.querySelector('.fig') || shown(c.querySelector('.sub'))), n: cells.length };
   });
-  ok(s.sysAlone && s.bottoms === 1 && s.aligned && s.h >= 32 && s.rowH <= 140, `home-${w}: a board, each head above its own column, buttons 32 px tall or more, rows 140 px or less`, s);
+  ok(s.h >= 32 && s.labels && s.subs && s.n === 8, `home-${w}: sort buttons 32 px tall or more; every figure with its label and its lines in view`, s);
   await ctx.close();
 }
 {
   // touch: the first tap on a triangle names it, the second follows the link; the sorted figure is marked in each row
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c.querySelector('.n, .na')).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
-  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_time') ? 'on' : 'off')), 'home-390: the sorted column is in paper in every row, the others muted', mk);
+  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c.querySelector('.lbl')).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
+  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_time') ? 'on' : 'off')), 'home-390: the sorted column\'s label is in paper in every row, the others muted', mk);
   await p.locator('#flashprove .pie').scrollIntoViewIfNeeded();
   const bx = await p.locator('#flashprove .pie').boundingBox();
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
