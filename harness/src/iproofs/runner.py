@@ -1411,14 +1411,17 @@ class Runner:
 
     def _perturbed(self, job: Job) -> PerturbedCommitmentRecord | str:
         """The workload's perturbed commitment for this release and system, or why there is
-        none (RFC-0008 C3 and P1 are then `not_applicable` with that reason)."""
+        none (RFC-0008 C3 and P1 are then `not_applicable` with that reason). The note records
+        the reason only; the command that makes one goes to the progress stream."""
         assert job.workload is not None
         spec = job.spec
         path = perturbed_dir(Path(spec.results_root), spec.release, spec.system, spec.workload)
         if not (path / "perturbed.json").is_file():
-            return (
-                "no perturbed commitment; run iproofs controls --prepare-perturbed " + spec.workload
-            )
+            if self.progress is not None:
+                print(f"controls: no perturbed commitment for {spec.workload}, so C3 and P1 do "
+                      f"not apply; iproofs controls --prepare-perturbed {spec.workload} makes "
+                      "one", file=self.progress)  # fmt: skip
+            return "no perturbed commitment for this workload"
         record = load(path / "perturbed.json", self.registry)
         assert isinstance(record, PerturbedCommitmentRecord)
         made_for = (record.source_model_digest, record.workload["version"])

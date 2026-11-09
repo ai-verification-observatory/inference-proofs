@@ -382,7 +382,8 @@ html:has(.top.s-on) { overflow: hidden; }
 .eq p { color: var(--muted); white-space: pre-line; }
 /* a quoted Markdown table row: its cells as the source draws them, ruled, no head the quote does not hold */
 .qrow { border-collapse: collapse; margin: 0 0 4px; }
-.qrow td { border: 1px solid var(--line); padding: 3px 8px; vertical-align: top; color: var(--muted); overflow-wrap: break-word; }
+.qrow td, .qrow th { border: 1px solid var(--line); padding: 3px 8px; vertical-align: top; color: var(--muted); overflow-wrap: break-word; }
+.qrow th { font-weight: 500; text-align: left; }
 .eqs:has(.qrow) { align-items: start; }
 .eqs:has(.qrow) > .ek { padding-top: 4px; }
 .es { display: flex; flex-wrap: wrap; column-gap: 12px; font-size: 11px; }
@@ -402,6 +403,9 @@ html:has(.top.s-on) { overflow: hidden; }
 .hw dd > :first-child { margin-top: 0; }
 .hw .eq p, .hw .qrow td { color: var(--paper); }
 .eb { min-width: 0; }
+/* a property's tamper tests: one line per outcome its controls share, under one label */
+.ec .cg { display: block; }
+.ec .cg + .cg { margin-top: 2px; }
 .ek { color: var(--muted); }
 .rd { display: block; }
 .qsrc { display: inline-block; padding-block: 4px; line-height: 16px; color: var(--muted); text-decoration: none; }
@@ -930,6 +934,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .ec .eb, .plate dd:has(a.run) { line-height: 24px; }
   .tamper { line-height: max(1.3em, 26px); }
   .ec a.run, .tamper a.run, .plate a.run { padding-block: 0; margin-block: 0; }
+  /* a control line's run set: its box its 24 px line */
+  .ec a.psrc { display: inline-block; }
   /* a failed run's last line opens below its run's box, never under it */
   .runs .ll { margin-top: 6px; }
 }

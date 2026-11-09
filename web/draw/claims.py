@@ -20,6 +20,7 @@ from .plates import (
     path_html,
     readable,
     run_ref,
+    run_short,
     setup_diff,
     source_html,
     source_label,
@@ -33,6 +34,7 @@ from .words import (
     e,
     labels,
     mean_words,
+    note_words,
     sig4,
     spread_line,
     why_words,
@@ -71,17 +73,27 @@ def quote_source(q):
     )
 
 
-# a Markdown table row quoted on its own ("a | b | c"): printed as a one-row table
+# a Markdown table row quoted on its own ("a | b | c"), or several, the first its table's head
 TABLE_ROW = re.compile(r"^[^|\n]+(?: \| [^|\n]+)+$")
 
 
 def quote_html(q):
     """The quote, verbatim (its line breaks kept, words.css `.eq p`), its inline marks rendered
-    (`card_text`), with its source under it; a quoted table row as a one-row table."""
+    (`card_text`), with its source under it; a quoted table row as a one-row table, and a row
+    quoted with its table's head (its first line, "L19, L32") under that head, so each cell
+    says what it answers."""
     text = q["text"]
-    if TABLE_ROW.match(text):
-        cells = "".join(f"<td>{card_text(x)}</td>" for x in text.split(" | "))
-        body = f'<table class="qrow"><tr>{cells}</tr></table>'
+    rows = text.split("\n")
+    if all(TABLE_ROW.match(r) for r in rows):
+        head = ""
+        if len(rows) > 1:
+            head = "".join(f'<th scope="col">{card_text(x)}</th>' for x in rows[0].split(" | "))
+            head, rows = f"<thead><tr>{head}</tr></thead>", rows[1:]
+        body = "".join(
+            "<tr>" + "".join(f"<td>{card_text(x)}</td>" for x in r.split(" | ")) + "</tr>"
+            for r in rows
+        )
+        body = f'<table class="qrow">{head}<tbody>{body}</tbody></table>'
     else:
         body = f"<p>“{card_text(text)}”</p>"
     return f'<blockquote class="eq">{body}</blockquote><p class="es">{quote_source(q)}</p>'
@@ -148,6 +160,17 @@ def setup_key(rid):
     return ", ".join(setup_diff(c)) if c else ""
 
 
+def run_list_words(runs, labelled, full=False):
+    """Runs in words for a title: "2026-11-08 · 1, 2026-11-08 · 2 (1 request per batch); ..."
+    by setup where the card row reads several; full: each run's whole id, as a screen reader
+    hears it."""
+    by = {}
+    for r in runs:
+        rid = r["run_id"] if full else run_short(r["run_id"])
+        by.setdefault(setup_key(r["run_id"]) if labelled else "", []).append(rid)
+    return "; ".join(", ".join(ids) + (f" ({k})" if k else "") for k, ids in by.items())
+
+
 def run_refs(runs, silent, labelled):
     """The runs of one control line, each by its date and ordinal linked to its record (its
     `run.json` where it recorded no control, `silent`). Runs of several setups share dates and
@@ -165,34 +188,70 @@ def run_refs(runs, silent, labelled):
     )
 
 
+def outcome_words(o):
+    """One control's outcome in one run, with the reason a stored note gives where it does not
+    apply, was void or failed ("did not apply (the workload declares one precision)")."""
+    w = OUTCOME_SHORT[o["outcome"]]
+    if o.get("note") and o["outcome"] in ("not_applicable", "void", "error"):
+        w += f" ({note_words(o['note'])})"
+    return w
+
+
 def control_lines(pc, prop):
-    """RFC-0016 OVR-7: each control the map ties to the property, with its outcome in every run
-    read: one line per outcome the runs share ("C1 (changed output token), C2 (changed prompt
-    token): rejected in 2 runs"), each run linked to its `controls.json` (or its `run.json`
-    where it recorded none, "not run"). A property no control tests has no line; nor does a
-    card row that reads no run, which OVR-5 makes an error for review to catch."""
+    """RFC-0016 OVR-7: the controls the map ties to the property with their outcome in every run
+    read, under one label. The runs that recorded tamper tests are named once, as a set linked
+    to the tamper tests that list them ("in the 2 tamper-test runs", then "in them"); a line per
+    outcome the controls share over that set ("C1 (changed output token), C2 (changed prompt
+    token): rejected in the 2 tamper-test runs"), runs listed by date and ordinal only where outcomes
+    differ between them; then one line for the runs that recorded none ("none run in the other
+    7"), each run in its title and read aloud. Where no run read recorded any, one line says so
+    ("not run in the 4 runs read"). A property no control tests has no line; nor does a card row
+    that reads no run, which OVR-5 makes an error for review to catch."""
     entry = pc["properties"][prop]
     if not entry["mapped"] or not pc["runs"]:
         return ""
-    groups = {}  # (outcome words, controls) -> runs
-    for run in pc["runs"]:
-        found = [o for o in entry["outcomes"] if o["run_id"] == run["run_id"]]
-        by = {}
-        for o in found:
-            w = OUTCOME_SHORT[o["outcome"]]
-            if o.get("note") and o["outcome"] in ("not_applicable", "void", "error"):
-                w += f" ({o['note']})"
-            by.setdefault(w, []).append(o["control"])
-        for w, cids in by.items():
-            groups.setdefault((w, tuple(cids)), []).append(run)
     labelled = len({setup_key(r["run_id"]) for r in pc["runs"]}) > 1
-    out = []
-    for (w, cids), runs in groups.items():
-        refs = run_refs(runs, w == OUTCOME_SHORT["not_run"], labelled)
-        word = "run" if len(runs) == 1 else f"{len(runs)} runs"
-        said = ", ".join(control_label(x) for x in cids)
-        out.append(ev_line("ec", "tamper tests", f"{said}: {flags_html(e(w))} in {word}: {refs}"))
-    return "".join(out)
+    tested = [r for r in pc["runs"] if r["controls"]]
+    other = [r for r in pc["runs"] if not r["controls"]]
+    said = {(o["control"], o["run_id"]): outcome_words(o) for o in entry["outcomes"]}
+    names = {cid: control_label(cid) for cid in entry["mapped"]}
+    lines = []
+    if tested:
+        n = len(tested)
+        where = "the tamper-test run" if n == 1 else f"the {n} tamper-test runs"
+        link = (f'<a class="psrc" href="#tamper" title="{e(run_list_words(tested, labelled))}">'
+                f'{e(where)}<span class="sr"> ({e(run_list_words(tested, labelled, True))})'
+                "</span></a>")  # fmt: skip
+        shared, mixed = {}, []
+        for cid in entry["mapped"]:
+            words = [said[(cid, r["run_id"])] for r in tested]
+            if len(set(words)) == 1:
+                shared.setdefault(words[0], []).append(cid)
+            else:
+                mixed.append(cid)
+        for i, (w, cids) in enumerate(shared.items()):
+            head, _, why = w.partition(" (")
+            them = link if not i else ("it" if n == 1 else "them")  # the set named once
+            lines.append(f"{', '.join(names[c] for c in cids)}: {e(head)} in {them}"
+                         + (f" ({flags_html(e(why))}" if why else ""))  # fmt: skip
+        for cid in mixed:
+            by = {}
+            for r in tested:
+                by.setdefault(said[(cid, r["run_id"])], []).append(r)
+            parts = "; ".join(f"{flags_html(e(w))} in {run_refs(rs, False, labelled)}"
+                              for w, rs in by.items())  # fmt: skip
+            lines.append(f"{names[cid]}: {parts}")
+    if other:
+        runs = (f'<span class="nw" title="{e(run_list_words(other, labelled))}">{{count}}'
+                f'<span class="sr"> ({e(run_list_words(other, labelled, True))})</span></span>')  # fmt: skip
+        if tested:
+            count = f"the other {len(other)}" if len(other) > 1 else "the other run"
+            lines.append(f"none run in {runs.format(count=e(count))}")
+        else:
+            count = f"the {len(other)} runs read" if len(other) > 1 else "the run read"
+            lines.append(f"{', '.join(names.values())}: not run in {runs.format(count=e(count))}")
+    body = "".join(f'<span class="cg">{x}</span>' for x in lines)
+    return ev_line("ec", "tamper tests", body)
 
 
 def contradicted_line(cell, pc, prop):

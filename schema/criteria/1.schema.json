@@ -369,7 +369,8 @@
           "$ref": "#/$defs/text"
         },
         "lines": {
-          "pattern": "^L[0-9]+(-L[0-9]+)?$",
+          "description": "the lines quoted: one line or range, or several (a table row with its head: L19, L32)",
+          "pattern": "^L[0-9]+(-L[0-9]+)?(, L[0-9]+(-L[0-9]+)?)*$",
           "type": "string"
         },
         "meets": {

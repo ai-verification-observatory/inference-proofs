@@ -8,6 +8,7 @@ import hashlib
 import html
 import html.parser
 import json
+import re
 import struct
 from pathlib import Path
 
@@ -141,3 +142,12 @@ def test_404_is_never_shared():
     assert t.get("robots") == "noindex"
     assert "og:image" not in t
     assert "canonical" not in t
+
+
+def test_pages_print_no_operator_command(pages):
+    """A page prints results, never an operator's instruction: no `iproofs` command, whatever a
+    stored control note says (a runner before 2026-11-09 wrote "no perturbed commitment; run
+    iproofs controls --prepare-perturbed ..." into P1's note; the record keeps it)."""
+    for page in [*pages, "release.html", "404.html"]:
+        text = html.unescape(re.sub(r"<[^>]+>", " ", (WEB / page).read_text()))
+        assert not re.search(r"\biproofs\s+[a-z]", text), page

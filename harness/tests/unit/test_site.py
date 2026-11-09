@@ -496,10 +496,10 @@ def quote_words(text: str) -> str:
 
 
 def quote_words_printed(body: str) -> str:
-    """The words of every quote an entry prints, its marks rendered and quotes curly, read back
-    as `quote_words` writes them."""
+    """The words of every quote an entry prints, its marks rendered and quotes curly, a quoted
+    table's cells and rows apart, read back as `quote_words` writes them."""
     quotes = re.findall(r'<blockquote class="eq">(.*?)</blockquote>', body, re.S)
-    said = flat(" | ".join(q.replace("</td><td>", " ") for q in quotes))
+    said = flat(" | ".join(re.sub(r"</t[dhr]>(?=.)", " ", q) for q in quotes))  # cells apart
     said = said.replace("\N{NARROW NO-BREAK SPACE}", " ")
     return re.sub(r"\s+", " ", re.sub('[\u201c\u201d"]', "", said))
 

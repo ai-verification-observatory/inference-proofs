@@ -133,13 +133,25 @@ CONTROL_WORDS = {
     "C7": "proofs of two requests swapped", "C8": "dropped part",
     "P1": "proved with other weights", "P2": "proved at another precision",
 }  # fmt: skip
+# a control's stored note as a reader reads it: an operator's remedy ("; run iproofs controls
+# --prepare-perturbed ...", written by runners before 2026-11-09) is not a result, and the same
+# reason reads in the same words whatever control recorded it; the record keeps the note
+REMEDY = re.compile(r";\s*run\s+iproofs\b.*$")
+NOTE_WORDS = {"no perturbed commitment": "no perturbed commitment for this workload"}
+
+
+def note_words(note):
+    said = REMEDY.sub("", str(note)).strip()
+    return NOTE_WORDS.get(said, said)
+
+
 OUTCOME_VERB = {"accepted": "accepted", "rejected": "rejected", "invalid_call": "refused",
                 "no_verdict": "gave no verdict on", "error": "failed on"}  # fmt: skip
 # one control's outcome in a run, as a property's list on the system page prints it (RFC-0016 OVR-7)
 OUTCOME_SHORT = {
     "rejected": "rejected", "accepted": "accepted", "invalid_call": "refused as malformed",
     "no_verdict": "no verdict", "prover_failed": "the prover would not build it",
-    "error": "error", "void": "void", "not_applicable": "does not apply", "not_run": "not run",
+    "error": "error", "void": "void", "not_applicable": "did not apply", "not_run": "not run",
 }  # fmt: skip
 # a listed run's status on the release page
 RUN_STATUS = {"completed": "completed", "failed": "failed"}

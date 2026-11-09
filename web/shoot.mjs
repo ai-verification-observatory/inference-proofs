@@ -725,6 +725,23 @@ for (const w of [1440, 1240, 390]) {
     await ctx.close();
   }
 }
+// how we read it: one tamper-tests label per property, the run set named once (a link to the tamper tests), never a
+// run list repeated from line to line; the open fold's height at 320 px recorded
+for (const name of ['flashprove', 'sash']) {
+  const { ctx, p } = await pg(320, 844, { touch: true });
+  await p.goto(BASE + name, { waitUntil: 'networkidle' });
+  await p.tap('details.howread summary'); await p.waitForTimeout(200);
+  const hw = await p.evaluate(() => {
+    const entries = [...document.querySelectorAll('.hw > div')];
+    const labels = entries.map((d) => d.querySelectorAll('.ec').length);
+    const runs = entries.map((d) => [...d.querySelectorAll('.ec a.run')].map((a) => a.title));
+    const sets = [...document.querySelectorAll('.ec a.psrc')].map((a) => a.getAttribute('href'));
+    return { labels, repeated: runs.filter((r) => r.length !== new Set(r).size).length, sets: [...new Set(sets)], fold: Math.round(document.querySelector('.howread').getBoundingClientRect().height) };
+  });
+  log(`${name}-320 how we read it open: ${hw.fold} px`);
+  ok(hw.labels.every((n) => n <= 1) && !hw.repeated && hw.sets.every((h) => h === '#tamper'), `${name}-320: one tamper-tests label per property, no run listed twice, the run set linked to the tamper tests`, hw);
+  await ctx.close();
+}
 // from 1241 px the facts sit beside the glyph and how we read it: opening the fold moves neither
 for (const w of [1280, 1440]) {
   for (const name of ['flashprove', 'sash']) {

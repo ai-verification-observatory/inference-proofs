@@ -516,12 +516,12 @@
               "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
               "decides": true,
               "kind": "repository",
-              "label": "docs/statement.md L32 · eb95bfa8",
-              "lines": "L32",
+              "label": "docs/statement.md L19, L32 · eb95bfa8",
+              "lines": "L19, L32",
               "path": "docs/statement.md",
               "repo": "sg-ai-safety-hub/zk-inference-prover",
-              "text": "each matmul's input times the pinned weights into its accumulator | bound | nothing: it is the Freivalds check itself",
-              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md?plain=1#L32"
+              "text": "# | edge | default | turned off by\n12 | each matmul's input times the pinned weights into its accumulator | bound | nothing: it is the Freivalds check itself",
+              "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md?plain=1#L19-L32"
             },
             {
               "checked": true,

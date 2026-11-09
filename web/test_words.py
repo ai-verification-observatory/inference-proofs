@@ -35,6 +35,11 @@ def test_table_row_quote_is_a_one_row_table(site):
                                                     "nothing: the check itself"]  # fmt: skip
     assert "“" not in said
     assert "|" not in said
+    # a row quoted with its table's head: the head over it, so each cell says what it answers
+    q["text"] = "# | edge | default\n12 | each matmul's input | bound"
+    said = b.quote_html(q)
+    assert re.findall(r'<th scope="col">(.*?)</th>', said) == ["#", "edge", "default"]
+    assert re.findall(r"<td>(.*?)</td>", said) == ["12", "each matmul&#x27;s input", "bound"]
     q["text"] = "One bit per request is revealed."
     assert "<p>“One bit per request is revealed.”</p>" in b.quote_html(q)
 
@@ -206,3 +211,17 @@ def test_tamper_tests_say_each_thing_once(site):
         in full
     )
     assert b.tamper_words({"controls": {"counts": {}}, "accepted": [], "control_runs": []}) == ""
+
+
+def test_control_notes_read_as_results(site):
+    """A control's stored note as the page prints it: an operator's remedy left out, one reason
+    in one set of words whichever control recorded it (by hand)."""
+    b = site.build
+    old = "no perturbed commitment; run iproofs controls --prepare-perturbed fp-maverick-w1024-b1"
+    assert b.note_words(old) == "no perturbed commitment for this workload"
+    assert b.note_words("no perturbed commitment for this workload") == (
+        "no perturbed commitment for this workload"
+    )
+    assert b.note_words("the workload declares one precision") == (
+        "the workload declares one precision"
+    )

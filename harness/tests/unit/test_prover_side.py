@@ -1,6 +1,7 @@
 """RFC-0008 §Shared controls, prover side: the perturbed commitment, C3 and P1 on the fake."""
 
 import hashlib
+import io
 import json
 import shutil
 import subprocess
@@ -112,12 +113,17 @@ def test_prover_side_p1_and_c3_reject_perturbed_weights(tmp_path: Path, cache: P
 
 
 def test_prover_side_without_perturbed_commitment(tmp_path: Path, cache: Path) -> None:
+    """With no perturbed commitment C3 and P1 do not apply: the record keeps the reason, the
+    command that makes one goes to the progress stream, never into the published note."""
     r = repo(tmp_path)
-    doc = json.loads((runner(r).run(spec(r, True)) / "controls.json").read_text())
+    run = runner(r)
+    run.progress = io.StringIO()
+    doc = json.loads((run.run(spec(r, True)) / "controls.json").read_text())
     assert doc["perturbed_commitment"] is None
     for cid in ("C3", "P1"):
         assert control(doc, cid)["outcome"] == "not_applicable"
-    assert "--prepare-perturbed fake-tiny-ci" in str(control(doc, "P1")["note"])
+        assert control(doc, cid)["note"] == "no perturbed commitment for this workload"
+    assert "iproofs controls --prepare-perturbed fake-tiny-ci" in run.progress.getvalue()
 
 
 def test_prover_side_weights_missing_on_host(tmp_path: Path, cache: Path) -> None:
