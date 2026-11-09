@@ -20,5 +20,15 @@ workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
 profile: "prover-h100"
 deterministic_proofs: false
 incremental_proofs: true
-proofs: {granularity: "request", tokens_covered: "window", steady_boundary: "first_proof", steady_approximate: true}
+proofs:
+  granularity: "request"
+  tokens_covered: "window"
+  steady_boundary: "first_proof"
+  steady_approximate: true
+  # RFC-0008 §Parts the verifier reads; why: README.md §Values for system.yaml
+  verify_reads:
+    read: ["response.proof"]
+    not_read:
+      - part: "response.y"
+        reason: "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
 forbidden_flags: ["-public-weights", "-keep-for-the-audit"]

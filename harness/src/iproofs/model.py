@@ -876,11 +876,26 @@ class ReferenceWorkload(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PartNotRead(Document):
+    part: str
+    reason: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class VerifyReads(Document):
+    """RFC-0008 §Parts the verifier reads, when some part is not read."""
+
+    read: tuple[str, ...]
+    not_read: tuple[PartNotRead, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ProofsSpec(Document):
     granularity: str
     tokens_covered: str
     steady_boundary: str
     steady_approximate: bool
+    verify_reads: str | VerifyReads | None = None  # "all", or absent: every part is read
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1082,6 +1097,7 @@ class ControlResult(Document):
     outcome: str
     passed: bool | None
     note: str | None
+    parts_not_read: tuple[PartNotRead, ...] | None = None  # C5, C6, C8 (RFC-0008 READ-4)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

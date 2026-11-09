@@ -1,0 +1,306 @@
+{
+  "control_seed": "0x0123456789abcdef",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "index": 0,
+            "token": 33
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C2",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "position": 4,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C3",
+      "note": "no perturbed commitment for this workload",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C4",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "request_of": "req-1"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C5",
+      "note": null,
+      "outcome": "invalid_call",
+      "parts_not_read": [
+        {
+          "part": "note.bin",
+          "reason": "verify never reads it (systems/<name>/system.yaml proofs.verify_reads)"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "bytes": 16,
+            "part": "body.bin"
+          },
+          "outcome": "invalid_call",
+          "raw_exit_code": 2,
+          "raw_last_line": "part missing or truncated",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "invalid_call"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C6",
+      "note": null,
+      "outcome": "rejected",
+      "parts_not_read": [
+        {
+          "part": "note.bin",
+          "reason": "verify never reads it (systems/<name>/system.yaml proofs.verify_reads)"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "bit_offset": 22,
+            "part": "body.bin"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 157,
+            "part": "tag.bin"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 199,
+            "part": "body.bin"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 140,
+            "part": "body.bin"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 3,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 115,
+            "part": "tag.bin"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 4,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C7",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "proof_of": "req-1",
+            "request_of": "req-0"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C8",
+      "note": null,
+      "outcome": "invalid_call",
+      "parts_not_read": [
+        {
+          "part": "note.bin",
+          "reason": "verify never reads it (systems/<name>/system.yaml proofs.verify_reads)"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "dropped": "body.bin"
+          },
+          "outcome": "invalid_call",
+          "raw_exit_code": 2,
+          "raw_last_line": "part missing or truncated",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "invalid_call"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "disclosure_pending": false,
+  "image": "iproofs-fake@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "perturbed_commitment": null,
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "controls/1",
+  "summary": {
+    "accepted": 0,
+    "error": 0,
+    "invalid_call": 2,
+    "no_verdict": 0,
+    "not_applicable": 1,
+    "passed": 7,
+    "prover_failed": 0,
+    "rejected": 5,
+    "run": 8,
+    "void": 0
+  },
+  "verifier_profile": "ci-cpu"
+}

@@ -38,6 +38,7 @@ from iproofs.controls import (
     parse_only,
     part_document,
     part_name,
+    parts_read,
     perturb_model,
     prover_side_record,
     run_shared_controls,
@@ -1344,6 +1345,7 @@ class Runner:
 
         proofs = self.honest_proofs(job)
         dirs = {p.proof_id: job.staging / "io/proofs" / p.proof_id for p in proofs}
+        reads = parts_read(job.system)  # refused before any call when it does not fit
         records = run_shared_controls(
             proofs,
             dirs,
@@ -1355,6 +1357,7 @@ class Runner:
             work=work / "mutations",
             check=lambda proof_id: self._check_proof(job, proof_id, "controls"),
             only=only,
+            reads=reads,
         )
         for r in records:
             for t in r["trials"]:  # type: ignore[attr-defined]
