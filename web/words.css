@@ -331,10 +331,10 @@ html:not(.js) .search { display: none; }
 .blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 /* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
 .over { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; padding-top: 32px; }
-/* how we read it follows the properties in reading order (RFC-0009 S1 item 1): under the pie and the facts, full width,
-   its rule like the card in full's just below it */
-.over > .howread { grid-column: 1 / -1; grid-row: 2; }
-.over > .facts { grid-column: 2; grid-row: 1; }
+/* how we read it follows the properties in reading order (RFC-0009 S1 item 1), and the eye follows the keyboard: it sits
+   under the pie in the first column, the facts beside both in the second, so focus goes pie, how we read it, facts */
+.over > .howread { grid-column: 1; grid-row: 2; }
+.over > .facts { grid-column: 2; grid-row: 1 / span 2; }
 /* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
    from its top */
 .wrap > .claims:first-child { scroll-margin-top: 100vh; }
@@ -432,7 +432,8 @@ html:not(.js) .search { display: none; }
 .runs .rid, .runs .rw { display: block; }
 .runs .rw { color: var(--muted); }
 /* the release's runs: an inline list of dates and ordinals, a status only where one is not completed */
-.runs.rl { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 20px; font: 400 12px/1.6 var(--mono); max-width: 110ch; }
+/* short tokens, not prose: the row runs the column's width */
+.runs.rl { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 20px; font: 400 12px/1.6 var(--mono); max-width: none; }
 .runs.rl .rw { display: inline; color: var(--paper); }
 .rgh { font: 500 12px/1.4 var(--mono); margin-top: 26px; }
 .rgh:first-of-type { margin-top: 16px; }
@@ -551,10 +552,10 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
    web/test_breakpoints.py checks this. */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
-  /* how we read it, closed or open, opens on its rule; the facts' first rule closes it */
-  /* the glyph, its facts, then both folds together, as on wide screens */
-  .over > .facts { grid-column: auto; grid-row: 2; }
-  .over > .howread { grid-column: auto; grid-row: 3; margin-top: 0; }
+  /* one column in reading order: the glyph, how we read it (one line while closed; it opens on its rule), then the
+     facts, whose first rule closes it */
+  .over > .facts { grid-column: auto; grid-row: auto; }
+  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; }
   .cardfull { margin-top: 44px; }
   .rose { max-width: 980px; margin-inline: auto; }
   .facts { columns: 2; column-gap: 32px; }

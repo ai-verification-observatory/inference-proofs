@@ -633,6 +633,21 @@ for (const w of [320, 360, 390]) {
     await ctx.close();
   }
 }
+// the claims block in the order focus takes (WCAG 2.4.3): the glyph, then how we read it under it, then the facts, beside
+// both on wide screens and under them below 1241 px
+for (const w of [1440, 1240, 390]) {
+  for (const name of ['flashprove', 'sash']) {
+    const { ctx, p } = await pg(w, 900);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const o = await p.evaluate(() => {
+      const b = (s) => document.querySelector(s).getBoundingClientRect();
+      const rose = b('.over > .rose'); const how = b('.over > .howread'); const facts = b('.over > .facts');
+      return { under: how.top >= rose.bottom - 1, facts: facts.top >= how.bottom - 1 || facts.left >= how.right - 1 };
+    });
+    ok(o.under && o.facts, `${name}-${w}: the glyph, how we read it, the facts, in focus order`, o);
+    await ctx.close();
+  }
+}
 // a figure link from the overview to a page of several setups lands under that setup's heading, held at the top
 // in one line, never over the plate's label
 for (const w of [320, 390, 768, 1440]) {
