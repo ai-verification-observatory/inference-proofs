@@ -131,19 +131,19 @@
             ]
           },
           "overhead_headline": {
-            "$comment": "RFC-0004 INV-DERIVE-10: which overhead statistic is a system configuration's headline, its scope and whether start-up is inside it; written by release code for every system configuration with an overhead statistic",
+            "$comment": "RFC-0004 INV-DERIVE-10, -11: which overhead statistic is a system configuration's headline, the prover's scope and serving's scope in it, and whose start-up is inside it (excluded: neither side's; prover_only: the prover's session, D-OVERHEAD-WARM); written by release code for every system configuration with an overhead statistic",
             "additionalProperties": false,
             "properties": {
               "formula": {
                 "enum": [
                   "D-OVERHEAD-S",
-                  "D-OVERHEAD-SESSION"
+                  "D-OVERHEAD-WARM"
                 ]
               },
               "metric": {
                 "enum": [
                   "overhead_vs_production_prove.steady",
-                  "overhead_vs_production_prove.session"
+                  "overhead_vs_production_warm"
                 ]
               },
               "scope": {
@@ -152,10 +152,15 @@
                   "prove.session"
                 ]
               },
+              "serving_scope": {
+                "enum": [
+                  "prove.steady"
+                ]
+              },
               "start_up": {
                 "enum": [
                   "excluded",
-                  "included"
+                  "prover_only"
                 ]
               }
             },
@@ -163,6 +168,7 @@
               "formula",
               "metric",
               "scope",
+              "serving_scope",
               "start_up"
             ],
             "type": "object"

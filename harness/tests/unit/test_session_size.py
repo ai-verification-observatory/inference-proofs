@@ -88,6 +88,21 @@ def test_sash_capture_refused() -> None:
     assert "at least 2 batches" in e.value.message
 
 
+def test_sizing_capture_of_one_request_workload() -> None:
+    """TC-SRV-SIZE-RUN (RFC-0015 Q10, fixture values, not a result): a sizing capture of
+    sash-l31-8b-c1024 at TP1 serves 50 batches of 1 (`--sizing-batches 50`); with
+    prove.steady 24.5 s over its 49 steady batches, 0.5 s per batch, 120 / 0.5 = 240 steady
+    batches reach the target exactly (not rounded up), so the count is 241 (expected steady
+    120 s, projected)."""
+    run, manifest = capture("sizing", "sash-l31-8b-c1024", 1, 50, 1, 24.5, 80.0)
+    manifest["workload"]["sizing_capture"] = True
+    size = session_size(run, manifest, workload_batches=1)
+    assert (size.capture_batches, size.seconds_per_batch) == (50, 0.5)
+    assert (size.steady_batches, size.batches, size.prompt_count) == (240, 241, 241)
+    assert size.expected_steady_s == 120.0
+    assert size.expected_session_s == 80.0 + 0.5 * 191
+
+
 def test_high_load_and_failed_captures_refused() -> None:
     """The high-load capture of fp-maverick-w1024-b24 (5 batches of 1,024, prove.steady
     87.416497502 s) is not lengthened; a failed run sizes nothing; a record without the run's
@@ -181,8 +196,9 @@ def test_cli(
     assert out["expected"]["grade"] == "projected"
     assert out["target_prove_steady_seconds"] == 120
     assert "batches_per_session_run: 214" in captured.err
+    assert out["capture"]["sizing_capture"] is False
     sash = capture(SASH_RUN, "sash-l31-8b-c1024", 1, 1, 1, None, 58.464736204)
     assert main(["serving", "size-session", str(write(tmp_path / SASH_RUN, *sash))]) == 2
-    assert "no steady scope" in capsys.readouterr().err
+    assert "--sizing-batches N" in capsys.readouterr().err
     assert main(["serving", "size-session", str(tmp_path / "missing")]) == 2
     assert "not a readable run record" in capsys.readouterr().err

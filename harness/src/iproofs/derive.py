@@ -448,6 +448,9 @@ FORMULAS = {
     "D-OVERHEAD-SESSION": "mean(system gpu_seconds_per_token_prove.session) / "
     "mean(production-serving gpu_seconds_per_token_prove.session, matched load), start-up "
     "included on both sides",
+    "D-OVERHEAD-WARM": "mean(system gpu_seconds_per_token_prove.session) / "
+    "mean(production-serving gpu_seconds_per_token_prove.steady, matched load): the prover's "
+    "start-up included, serving warm",
     "D-AGREE": "agreement_positions / (agreement_positions + disagreement_positions), "
     "summed over paired ref-recompute runs",
     "D-PROVIDER-SPREAD": "largest provider mean rate_<S> / smallest provider mean rate_<S>",
@@ -705,9 +708,12 @@ def _nulled(out: QuantityTree, reason: NullReason) -> QuantityTree:
     return {**out, "value": None, "null_reason": str(reason)}
 
 
-def overhead_formula(scope: Scope, *, high: bool = False) -> str:
-    """The formula id of an overhead quantity (RFC-0004 catalogue): D-OVERHEAD-HIGH-S at high
-    load, D-OVERHEAD-SESSION at matched load and `prove.session`, else D-OVERHEAD-S."""
+def overhead_formula(scope: Scope, *, high: bool = False, warm: bool = False) -> str:
+    """The formula id of an overhead quantity (RFC-0004 catalogue): D-OVERHEAD-WARM for the
+    prover's session over serving's steady scope, D-OVERHEAD-HIGH-S at high load,
+    D-OVERHEAD-SESSION at matched load and `prove.session`, else D-OVERHEAD-S."""
+    if warm:
+        return "D-OVERHEAD-WARM"
     if high:
         return "D-OVERHEAD-HIGH-S"
     return "D-OVERHEAD-SESSION" if scope is Scope.PROVE_SESSION else "D-OVERHEAD-S"
@@ -719,18 +725,22 @@ def overhead(
     scope: Scope,
     *,
     high: bool = False,
+    warm: bool = False,
     reason: NullReason | None = None,
     version: str,
 ) -> QuantityTree:
     """D-OVERHEAD-S (or D-OVERHEAD-HIGH-S with `high`): the mean of the system's per-repetition
     `gpu_seconds_per_token_<S>` over the mean of production serving's (RFC-0004 INV-DERIVE-2,
     -8, -9). At matched load and `prove.session` it is D-OVERHEAD-SESSION, the same ratio with
-    start-up inside both sessions (INV-DERIVE-10). `system` and `serving` hold one (pointer,
+    start-up inside both sessions (INV-DERIVE-10). With `warm` it is D-OVERHEAD-WARM
+    (INV-DERIVE-11): `system` holds the prover's `prove.session` values, `serving` production
+    serving's `prove.steady` values, and the quantity's scope is the prover's, `prove.session`
+    (the serving scope is the formula's). `system` and `serving` hold one (pointer,
     quantity) per successful repetition; the result carries `pairs` {n_system, n_serving, min,
     max}, the range over every pair of repetitions. `reason` is the join's null reason (no
     paired configuration, another profile, NM-1), applied after the system's own null reason,
     which goes first (SASH's steady scope)."""
-    formula = overhead_formula(scope, high=high)
+    formula = overhead_formula(scope, high=high, warm=warm)
     n = len(system)
 
     def ratio(x: list[float]) -> float:

@@ -376,6 +376,11 @@ Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving):
 - `quantity/1`: unit `gpu_s/token`, the metric ids `gpu_seconds_per_token_<S>`, `overhead_vs_production_<S>` and `overhead_vs_production_high_<S>` (and no longer `overhead_vs_serving_<S>`), optional `pairs` (RFC-0004 INV-DERIVE-9);
 - `release-index/1`: optional `overhead_conditions` per system configuration (RFC-0004 INV-DERIVE-9), with the high load's settings, GPU count and profile and each engine's batched-token limit; optional `steady_boundary` per configuration (RFC-0004 INV-SCOPE-5); optional `overhead_headline` per system configuration, `{metric, formula, scope, start_up}` with `metric` `overhead_vs_production_prove.steady` or `overhead_vs_production_prove.session` (RFC-0004 INV-DERIVE-10, Draft amendment of the same date, with valid and invalid examples).
 
+Amendment of 2026-11-09 (Draft, owner direction, RFC-0004 INV-DERIVE-11 and RFC-0015 SRV-1). No frozen release index exists, so the narrowed enums below change no stored record:
+- `quantity/1`: the metric id `overhead_vs_production_warm` (D-OVERHEAD-WARM);
+- `release-index/1`: `overhead_headline` gains the required `serving_scope` (`prove.steady`); `formula` is `D-OVERHEAD-S` or `D-OVERHEAD-WARM`, `metric` `overhead_vs_production_prove.steady` or `overhead_vs_production_warm`, `start_up` `excluded` or `prover_only` (the session headline's `D-OVERHEAD-SESSION`, `overhead_vs_production_prove.session` and `included` leave the enums); `overhead_conditions.warm` is true when serving's start-up is outside its scope; the valid example becomes `warm-headline.json`;
+- `manifest/1`: optional `workload.sizing_capture` (`const: true`), a matched production-serving run of a declared sizing count of batches (RFC-0015 SRV-1), with an invalid example (`false`).
+
 ## Testing Strategy
 
 Unit tests in `harness/tests/unit/`:

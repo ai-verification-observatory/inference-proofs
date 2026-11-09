@@ -939,6 +939,10 @@
         "prompt_set_digest": {
           "$ref": "../quantity/1.schema.json#/$defs/digest"
         },
+        "sizing_capture": {
+          "$comment": "RFC-0015 SRV-1: a matched production-serving run of a declared sizing count of batches (`iproofs run --sizing-batches N`), made while the entry's batches_per_session_run is null so that `iproofs serving size-session` can size it; it joins no overhead (RFC-0004 INV-DERIVE-2)",
+          "const": true
+        },
         "steady_rule": {
           "$comment": "RFC-0004 INV-SCOPE-5: the steady-scope rule the run's steady figures follow; absent on runs recorded before 2026-11-09 (first-proof boundary)",
           "enum": [

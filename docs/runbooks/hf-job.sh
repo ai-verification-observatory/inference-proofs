@@ -16,10 +16,13 @@
 # suite, in this job), `keep-io` (the run directory keeps io/, with its proofs, and its
 # commitment store, and both are uploaded, so that `controls` jobs can run from the bucket;
 # the proof archive under .archive/ is then left out, since io/proofs holds the same proof),
-# `high` (a production-serving job at high load, RFC-0015 SRV-1) and `from=DIR` (replay the
-# prompts of the run directory DIR, relative to the mounted bucket, RFC-0015 SRV-8), for example
-# `fp-maverick-w1024-b1:2:controls`, `sash-l31-8b-c1024:1:keep-io` or
-# `fp-maverick-w1024-b24:1:high:from=runs/X/dev-results/v0.1/flashprove/R`. `keep-io` is
+# `high` (a production-serving job at high load, RFC-0015 SRV-1), `sizing=N` (a matched
+# production-serving sizing capture of N batches while system.yaml's batches_per_session_run is
+# null, for `iproofs serving size-session`; it joins no overhead, RFC-0015 SRV-1) and `from=DIR`
+# (replay the prompts of the run directory DIR, relative to the mounted bucket, RFC-0015 SRV-8),
+# for example `fp-maverick-w1024-b1:2:controls`, `sash-l31-8b-c1024:1:keep-io`,
+# `fp-maverick-w1024-b24:1:high:from=runs/X/dev-results/v0.1/flashprove/R` or
+# `sash-l31-8b-c1024:1:sizing=50:from=runs/X/dev-results/v0.1/sash/R`. `keep-io` is
 # refused for flashprove: its io/ holds a copy of the weights and its commitment store the
 # prover's secret key. Every run is a development run on IPROOFS_PROFILE
 # (--allow-nonconforming until RFC-0006 Q5 pins the driver), written outside the checkout and
@@ -605,7 +608,7 @@ EOF
   exit "$rc"
 fi
 if [ "$MODE" != run ] || [ $# -lt 2 ]; then
-  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:from=DIR]..."
+  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR]..."
   log "       hf-job.sh seed|merge SYSTEM RUN_PATH | hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
   exit 2
 fi
@@ -655,6 +658,7 @@ for step in "$@"; do
       controls) extra+=(--control-suite) ;;
       keep-io) extra+=(--keep-io) ;;
       high) extra+=(--load high) ;;
+      sizing=*) extra+=(--sizing-batches "${flag#sizing=}") ;;
       from=*) extra+=(--prompts-from "${IPROOFS_UPLOAD_DIR:-/upload}/${flag#from=}") ;;
       *) log "unknown step field $flag in $step"; exit 2 ;;
     esac

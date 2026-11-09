@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from iproofs.derive import agreement_rate, overhead, overhead_formula, provider_spread
+from iproofs.derive import FORMULAS, agreement_rate, overhead, overhead_formula, provider_spread
 from iproofs.model import Workload, load
 from iproofs.quantity import NullReason, Scope, Tier
-from iproofs.release import RunView, _Context, _release_rows, _serving_nm1, headline_scope
+from iproofs.release import WARM, RunView, _Context, _release_rows, _serving_nm1, headline_scope
 from iproofs.schema import SchemaRegistry
 
 ROLES = {"ref-serve": "serve", "ref-recompute": "recompute"}
@@ -113,7 +113,7 @@ def view(system: str, run_id: str, metrics: Mapping[str, object], *, failure: st
          prompts_from: str | None = None, profile: str = "prover-h200-hosted",
          digest: str = DIGEST, image: str = IMAGE, warnings: tuple[str, ...] = (),
          evidence: tuple[str, ...] = (KV,), rule: str | None = "batch-membership",
-         observed: str = COMMIT) -> RunView:  # fmt: skip
+         observed: str = COMMIT, sizing: bool = False) -> RunView:  # fmt: skip
     failed = {"kind": failure, "last_lines": list(evidence)} if failure else None
     run: dict[str, object] = {"run_id": run_id, "system": system, "metrics": metrics,
            "status": "failed" if failure else "completed", "profile": profile,
@@ -131,6 +131,8 @@ def view(system: str, run_id: str, metrics: Mapping[str, object], *, failure: st
                               "observed": {"version": "0.32.0", "build_commit": observed,
                                            "max_num_batched_tokens": 8192}}  # fmt: skip
         workload |= {"prompt_count_run": 120, "batches_per_session_run": 5}
+        if sizing:  # RFC-0015 SRV-1: a sizing capture
+            workload["sizing_capture"] = True
     return RunView(Path("results/v0.1") / system / run_id, run, manifest, None)
 
 
@@ -431,6 +433,23 @@ def test_overhead_session_formula() -> None:
     assert overhead_formula(Scope.PROVE_STEADY) == "D-OVERHEAD-S"
 
 
+def test_overhead_warm_formula() -> None:
+    """TC-OVERHEAD-WARM, D-OVERHEAD-WARM (RFC-0004 INV-DERIVE-11) by hand: the prover's session
+    of 0.5 gpu_s/token (544 s for 1,088 tokens on 1 GPU, its start-up inside) over warm
+    serving's steady 0.0005 gpu_s/token (0.544 s per 1,088-token request on 1 GPU) is 1,000. The
+    quantity carries the prover's scope; the formula names serving's."""
+    out = overhead([("sys", session_q(544 / 1088))], [("srv", gspt(0.544 / 1088))],
+                   Scope.PROVE_SESSION, warm=True, version="1")  # fmt: skip
+    assert out["value"] == pytest.approx(1000.0, rel=1e-12)
+    assert (out["scope"], out["unit"], out["grade"]) == ("prove.session", "ratio", "derived")
+    assert out["source"]["ref"] == "derive:D-OVERHEAD-WARM@1"  # type: ignore[index]
+    assert out["pairs"] == {"n_system": 1, "n_serving": 1, "min": pytest.approx(1000.0),
+                            "max": pytest.approx(1000.0)}  # fmt: skip
+    assert REGISTRY.errors("quantity/1", out, def_name="quantity") == []
+    assert overhead_formula(Scope.PROVE_SESSION, warm=True) == "D-OVERHEAD-WARM"
+    assert "prove.steady, matched load" in FORMULAS["D-OVERHEAD-WARM"]
+
+
 def test_overhead_both_figures_flashprove_like() -> None:
     """A FlashProve-like row has both figures (fixture values): steady 0.01 / (0.000025 x 4) =
     100, session 0.02 / (0.0001 x 4) = 50 (start-up in both sessions makes the per-token cost
@@ -451,54 +470,93 @@ def test_overhead_both_figures_flashprove_like() -> None:
     assert entry is not None
     assert entry["overhead_headline"] == {"metric": "overhead_vs_production_prove.steady",
                                           "formula": "D-OVERHEAD-S", "scope": "prove.steady",
+                                          "serving_scope": "prove.steady",
                                           "start_up": "excluded"}  # fmt: skip
     assert entry["overhead_conditions"]["warm"] is True  # type: ignore[index]
+    assert WARM not in stats  # INV-DERIVE-11: a system with a steady scope has no warm figure
 
 
-def test_overhead_session_headline_sash_like() -> None:
-    """A SASH-like row: its steady scope is not externally observable (RFC-0004 Q2), so its
-    D-OVERHEAD-S is null with that reason, and the headline is D-OVERHEAD-SESSION: 0.5 / 0.0025
-    = 200 (fixture values), start-up included on both sides, with its conditions (not warm)."""
-    sash = ctx([view("sash", "s-0", {GSPT: gspt(None, "not_externally_observable"),
-                                     SESSION: session_q(0.5)})])  # fmt: skip
-    found = [sash, with_session(serve_ctx("m", (None,)), (0.0025,))]
-    found[1].kept[0].run["metrics"][GSPT] = gspt(None, "fewer_than_two_proofs")  # type: ignore[index]
+def sash_ctx(session: float | None = 0.5) -> _Context:
+    """A SASH-like system row: one proof per request, so its steady scope is not externally
+    observable (RFC-0004 Q2); its session is 0.5 gpu_s/token (544 s for 1,088 tokens on 1 GPU,
+    fixture values)."""
+    return ctx([view("sash", "s-0", {GSPT: gspt(None, "not_externally_observable"),
+                                     SESSION: session_q(session)})])  # fmt: skip
+
+
+def lengthened(steady: float | None, session: float, **keys: Any) -> _Context:
+    """A matched serving row replaying the SASH-like run, lengthened per RFC-0015 SRV-1: its
+    steady figure (None: one batch, no steady scope) and its session figure, start-up inside."""
+    found = with_session(serve_ctx("m", (None,), **keys), (session,))
+    found.kept[0].run["metrics"][GSPT] = (gspt(steady) if steady is not None  # type: ignore[index]
+                                          else gspt(None, "fewer_than_two_proofs"))  # fmt: skip
+    return found
+
+
+def test_overhead_warm_headline_sash_like() -> None:
+    """TC-OVERHEAD-WARM, a SASH-like row: D-OVERHEAD-S null `not_externally_observable`, so the
+    headline is D-OVERHEAD-WARM, the prover's session over warm serving's steady scope: 0.5 /
+    0.0005 = 1,000 (fixture values). D-OVERHEAD-SESSION stays computed, 0.5 / 0.0025 = 200,
+    and is not the headline. The conditions are written for the warm figure, serving warm."""
+    sash = sash_ctx()
+    found = [sash, lengthened(0.0005, 0.0025)]
     stats = join(found)
     steady = stats["overhead_vs_production_prove.steady"]
     assert (steady["value"], steady["null_reason"]) == (None, "not_externally_observable")  # type: ignore[index]
     session = stats["overhead_vs_production_prove.session"]
     assert session["value"] == pytest.approx(200.0, rel=1e-12)  # type: ignore[index]
-    pairs = session["pairs"]  # type: ignore[index]
-    assert (pairs["n_system"], pairs["n_serving"]) == (1, 1)
-    assert (pairs["min"], pairs["max"]) == (pytest.approx(200.0), pytest.approx(200.0))
+    assert session["source"]["ref"].startswith("derive:D-OVERHEAD-SESSION@")  # type: ignore[index]
+    warm = stats[WARM]
+    assert isinstance(warm, dict)
+    assert warm["value"] == pytest.approx(1000.0, rel=1e-12)
+    assert warm["source"]["ref"].startswith("derive:D-OVERHEAD-WARM@")
+    assert warm["source"]["inputs"] == [
+        f"results/v0.1/sash/s-0/run.json#/metrics/{SESSION}",
+        f"results/v0.1/ref-serve/m-0/run.json#/metrics/{GSPT}",
+    ]
+    assert warm["pairs"] == {"n_system": 1, "n_serving": 1, "min": pytest.approx(1000.0),
+                             "max": pytest.approx(1000.0)}  # fmt: skip
     entry = sash.entry
     assert entry is not None
     assert entry["overhead_headline"] == {
-        "metric": "overhead_vs_production_prove.session",
-        "formula": "D-OVERHEAD-SESSION",
+        "metric": WARM,
+        "formula": "D-OVERHEAD-WARM",
         "scope": "prove.session",
-        "start_up": "included",
+        "serving_scope": "prove.steady",
+        "start_up": "prover_only",
     }
     conditions = entry["overhead_conditions"]
     assert isinstance(conditions, dict)
-    assert conditions["warm"] is False
+    assert conditions["warm"] is True
     assert conditions["serving_configuration"] == "releases/v0.1/index.json#/configurations/1"
-    assert isinstance(session, dict)
-    assert REGISTRY.errors("quantity/1", session, def_name="quantity") == []
+    assert REGISTRY.errors("quantity/1", warm, def_name="quantity") == []
 
 
-def test_overhead_session_null_without_serving() -> None:
-    """The null case: a SASH-like row with no production-serving run has no figure at either
-    scope; the headline is still the session one, null `missing_input`, and no conditions."""
-    sash = ctx([view("sash", "s-0", {GSPT: gspt(None, "not_externally_observable"),
-                                     SESSION: session_q(0.5)})])  # fmt: skip
+def test_overhead_warm_nulls() -> None:
+    """TC-OVERHEAD-WARM null cases, the SASH-like row: no production-serving run gives
+    `missing_input` (headline still the warm figure, no conditions); a serving run of one batch
+    (no steady scope) gives its own reason, `fewer_than_two_proofs`, while D-OVERHEAD-SESSION
+    keeps its value; a serving run with the warning "steady scope under 60 s" and a sizing
+    capture (RFC-0015 SRV-1) enter no mean, `missing_input`; a failed prover session passes
+    its reason on first."""
+    sash = sash_ctx()
     stats = join([sash])
-    session = stats["overhead_vs_production_prove.session"]
-    assert (session["value"], session["null_reason"]) == (None, "missing_input")  # type: ignore[index]
-    entry = sash.entry
-    assert entry is not None
-    assert entry["overhead_headline"]["metric"] == "overhead_vs_production_prove.session"  # type: ignore[index]
-    assert "overhead_conditions" not in entry
+    for key in ("overhead_vs_production_prove.session", WARM):
+        out = stats[key]
+        assert (out["value"], out["null_reason"]) == (None, "missing_input")  # type: ignore[index]
+    assert sash.entry is not None
+    assert sash.entry["overhead_headline"]["metric"] == WARM  # type: ignore[index]
+    assert "overhead_conditions" not in sash.entry
+    one = [sash_ctx(), lengthened(None, 0.0025)]
+    assert overhead_of(one, WARM) == (None, "fewer_than_two_proofs")
+    session = "overhead_vs_production_prove.session"
+    assert overhead_of(one, session) == (pytest.approx(200.0), None)
+    short = [sash_ctx(), lengthened(0.0005, 0.0025, warnings=("steady scope under 60 s",))]
+    assert overhead_of(short, WARM) == (None, "missing_input")
+    sizing = [sash_ctx(), lengthened(0.0005, 0.0025, sizing=True)]
+    assert overhead_of(sizing, WARM) == (None, "missing_input")
+    failed = [sash_ctx(None), lengthened(0.0005, 0.0025)]
+    assert overhead_of(failed, WARM) == (None, "step_failed")
 
 
 def test_headline_scope_rule() -> None:

@@ -116,6 +116,14 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         help="the load point of a production-serving job (RFC-0015 SRV-1)",
     )
     p.add_argument(
+        "--sizing-batches",
+        type=int,
+        metavar="N",
+        help="a sizing capture: a matched production-serving job of N batches (at least 2) "
+        "while system.yaml's batches_per_session_run is null, for `iproofs serving "
+        "size-session`; it joins no overhead (RFC-0015 SRV-1)",
+    )
+    p.add_argument(
         "--hosted",
         action="store_true",
         help="the provider started this container from the system's pinned image; run each "
@@ -429,6 +437,9 @@ def run(args: argparse.Namespace) -> int:
     recompute = role == "recompute"
     if role == "serve" and args.prompts_from:  # before any step or weight
         _replay_steady_rule(args.prompts_from, wl.shape.batch_size)
+    if args.sizing_batches is not None and role != "serve":  # RFC-0015 SRV-1, before any step
+        raise IProofsError(ErrorKind.CONFIG, "--sizing-batches is for production serving "
+                           "(RFC-0015 SRV-1)")  # fmt: skip
     if recompute and not args.prompts_from:  # RFC-0015 RC-1, before any step
         raise IProofsError(ErrorKind.CONFIG, f"{args.system} needs --prompts-from a system run")
     claims = recorded_claims(args.prompts_from) if args.prompts_from and recompute else None
@@ -456,6 +467,7 @@ def run(args: argparse.Namespace) -> int:
         hosted=args.hosted,
         load=args.load,
         source_prompt_digest=_prompt_digest(args.prompts_from) if args.prompts_from else None,
+        sizing_batches=args.sizing_batches,
     )
     spec = JobSpec(
         args.system,
@@ -1028,6 +1040,7 @@ def serving_size_session(args: argparse.Namespace) -> int:
             "run_id": size.run_id,
             "profile": run.get("profile"),
             "batches": size.capture_batches,
+            "sizing_capture": (manifest.get("workload") or {}).get("sizing_capture") is True,
             "prove_steady_seconds": size.capture_steady_s,
             "prove_session_seconds": size.capture_session_s,
             "seconds_per_steady_batch": size.seconds_per_batch,

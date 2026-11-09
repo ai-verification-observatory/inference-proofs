@@ -212,6 +212,11 @@ def placement_problem(
 # scope at 120 s, twice the 60 s join minimum, so a run up to twice as slow per batch as its
 # capture still clears 60 s. The join minimum stays 60 s (SHORT_STEADY).
 SESSION_TARGET_S = 120
+# RFC-0015 SRV-1: a sizing capture (`iproofs run --sizing-batches N`) serves N batches while the
+# entry's count is null; it has a steady scope from 2 batches on, and joins no overhead.
+SIZING_MIN_BATCHES = 2
+SIZING_WARNING = ("sizing capture: it sizes batches_per_session_run and joins no overhead "
+                  "(RFC-0015 SRV-1)")  # fmt: skip
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -260,11 +265,15 @@ def session_size(
     the boundary); the count adds the first batch, which the steady scope excludes, and is never
     below the workload's `batches_per_session`.
 
-    A capture without a steady scope (one batch: one request at batch size 1, or a single
-    batch) is refused (`config`). Its record cannot give the time per batch after start-up: the
-    one batch's releases follow engine start-up inside the same `prove` call, and neither
-    run.json nor manifest.json timestamps the end of start-up (the adapter's command record
-    holds the engine's launch time, and its engine log has wall-clock seconds at best)."""
+    A sizing capture (`iproofs run --sizing-batches N`, manifest `workload.sizing_capture`)
+    is sized like any other matched capture: it serves N batches while the count is null, so a
+    workload of one batch (the SASH workloads) gets a steady scope to size from (RFC-0015 Q10,
+    resolved). A capture without a steady scope (one batch: one request at batch size 1, or a
+    single batch) is refused (`config`). Its record cannot give the time per batch after
+    start-up: the one batch's releases follow engine start-up inside the same `prove` call,
+    and neither run.json nor manifest.json timestamps the end of start-up (the adapter's
+    command record holds the engine's launch time, and its engine log has wall-clock seconds
+    at best)."""
     run_id = str(run.get("run_id"))
     wl = manifest.get("workload") or {}
     if run.get("status") != "completed":
@@ -296,7 +305,9 @@ def session_size(
                            "engine start-up in the same prove call, and the record does not "
                            "timestamp the end of start-up, so its time per batch after start-up "
                            "cannot be told from start-up. Size the session from a matched "
-                           "capture of at least 2 batches (RFC-0015 SRV-1)")  # fmt: skip
+                           "capture of at least 2 batches: for a workload of one batch, a "
+                           "sizing capture (`iproofs run --sizing-batches N`, RFC-0015 "
+                           "SRV-1)")  # fmt: skip
     capture_steady_batches = batches - 1
     n = math.ceil(Fraction(target_s) * capture_steady_batches / Fraction(steady))
     total = max(workload_batches, n + 1)

@@ -305,6 +305,20 @@ def test_step_fields_high_and_replay(tmp_path: Path) -> None:
     assert "unknown step field fast" in log_of(repo2, "upload: skipped")
 
 
+def test_step_field_sizing_with_replay(tmp_path: Path) -> None:
+    """A step's `:sizing=N` is a matched sizing capture of N batches (`--sizing-batches N`,
+    RFC-0015 SRV-1), and it composes with `:from=DIR` (SRV-8)."""
+    repo, head, env = stubbed(tmp_path)
+    step = "sash-l31-8b-c1024:1:sizing=50:from=runs/t/dev-results/v0.1/sash/r1"
+    done = job(repo, "run", "ref-serve", step, IPROOFS_COMMIT=head, IPROOFS_JOB_BUDGET_S="5000",
+               IPROOFS_PROFILE="serving-h200x1-hosted", IPROOFS_GPUS="0", **env)  # fmt: skip
+    assert done.returncode == 0, log_of(repo, "upload: skipped")
+    (run,) = [c for c in calls(tmp_path) if c.startswith("iproofs run ")]
+    assert "--workload sash-l31-8b-c1024 " in run
+    assert "--sizing-batches 50 --prompts-from /upload/runs/t/dev-results/v0.1/sash/r1" in run
+    assert "--load" not in run
+
+
 def test_serving_shm_below_the_profile_stops_before_the_weights(tmp_path: Path) -> None:
     """RFC-0006 PC-SHM on a serving profile of several GPUs: /dev/shm below `shm_gib_min` (or
     unread) stops the job before any weights are fetched; a 1-GPU profile needs none."""
@@ -538,4 +552,6 @@ def test_runbook_helpers_upload_alike() -> None:
         assert flags in body, helper
     assert '"fp-maverick-w1024-b24:1:from=$FP_B24_RUN"' in text
     assert '"sash-l31-8b-c1024:1:from=$SASH_RUN"' in text
+    assert '"sash-l31-8b-c1024:1:sizing=50:from=$SASH_RUN"' in text  # RFC-0015 SRV-1, Q10
+    assert '"sash-l31-8b-c1024:3:from=$SASH_RUN"' in text
     assert '["workload"].get("steady_rule")' in text

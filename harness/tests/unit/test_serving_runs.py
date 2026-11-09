@@ -25,6 +25,7 @@ from iproofs.runner import (
     profile_gpu_count,
 )
 from iproofs.schema import SchemaRegistry
+from iproofs.serving import SIZING_WARNING, session_size
 
 ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
@@ -186,6 +187,52 @@ def test_lengthened_matched_replay(repo: Path) -> None:
         spec(repo, "ci-serving-x2")
     )
     assert "SRV-8" in read(other, "run")["failure"]["message"]  # another seed is refused
+
+
+def test_sizing_capture(repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """TC-SRV-SIZE-RUN (SRV-1, RFC-0015 Q10): with the matched entry's
+    `batches_per_session_run` null, `--sizing-batches 4` replaying a run serves 4 x 2 = 8
+    prompts, whose first 6 are the source run's set; the manifest marks the sizing capture,
+    run.json warns that it joins no overhead, and `iproofs serving size-session` sizes from its
+    steady scope (3 steady batches). Refused (`config`, before any step): fewer than 2 batches,
+    the high load, an entry whose count is set, and a system that is not production serving."""
+    source = read(runner(repo, (0, 1), replay_seed=7).run(spec(repo, "ci-serving-x2")),
+                  "manifest")["workload"]["prompt_set_digest"]  # fmt: skip
+    run_dir = runner(repo, (0, 1), replay_seed=7, source_prompt_digest=source,
+                     sizing_batches=4).run(spec(repo, "ci-serving-x2"))  # fmt: skip
+    doc, manifest = read(run_dir, "run"), read(run_dir, "manifest")
+    assert doc["status"] == "completed", doc["failure"]
+    wl = manifest["workload"]
+    assert (wl["load_point"], wl["batch_size_run"], wl["batches_per_session_run"]) == (
+        "matched", 2, 4)  # fmt: skip
+    assert (wl["prompt_count_run"], wl["prompt_prefix_digest"]) == (8, source)
+    assert wl["sizing_capture"] is True
+    assert SIZING_WARNING in doc["warnings"]
+    assert doc["metrics"]["requests_count"]["value"] == 8
+    assert REGISTRY.errors("manifest/1", manifest) == []
+    assert REGISTRY.errors("run/1", doc) == []
+    size = session_size(doc, manifest, workload_batches=3)
+    assert size.capture_batches == 4
+    assert size.seconds_per_batch == doc["metrics"]["prove_steady_seconds"]["value"] / 3
+    for kw, words in (({"sizing_batches": 1}, "at least 2 batches"),
+                      ({"sizing_batches": 4, "load": "high"}, "matched load only")):  # fmt: skip
+        failed = read(runner(repo, (0, 1), replay_seed=7, **kw).run(spec(repo, "ci-serving-x2")),
+                      "run")["failure"]  # fmt: skip
+        assert (failed["kind"], failed["step"]) == ("config", "resolved"), failed
+        assert words in failed["message"]
+    fake = runner(repo, (), replay_seed=7, sizing_batches=4).run(spec(repo, "ci-cpu", "fake"))
+    assert "--sizing-batches is for production serving" in read(fake, "run")["failure"]["message"]
+    path = repo / "systems/fake-ref/system.yaml"
+    system = json.loads(path.read_text())
+    for entry in system["workloads"]:
+        if entry["load_point"] == "matched":
+            entry["batches_per_session_run"] = 5
+    path.write_text(json.dumps(system))
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    subprocess.run([*git, "commit", "-qam", "lengthen", "--no-gpg-sign"], check=True)
+    set_count = runner(repo, (0, 1), replay_seed=7, sizing_batches=4).run(
+        spec(repo, "ci-serving-x2"))  # fmt: skip
+    assert "already has batches_per_session_run 5" in read(set_count, "run")["failure"]["message"]
 
 
 def test_bound_gpu_count_and_placement(repo: Path) -> None:

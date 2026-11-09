@@ -4,6 +4,7 @@ Until v0.1 the runs are placeholders (harness/tests/fixtures/placeholder_release
 the value the placeholder index stores. Run from the repository root: uv run pytest web -q
 """
 
+import copy
 import html
 import json
 import re
@@ -63,7 +64,7 @@ def test_covers_in_positions(site, keys):
 def test_overhead_missing(site, keys):
     # the placeholder's production-serving runs are on a prover profile, so they pair with no row
     # (RFC-0015 SRV-10): no overhead for FlashProve; SASH's steady scope is not observable, so
-    # its row shows the session figure (RFC-0004 INV-DERIVE-10), null for want of a baseline
+    # its row shows the warm figure (RFC-0004 INV-DERIVE-11), null for want of a baseline
     assert keys["flashprove"]["overhead"] is None
     assert keys["sash"]["overhead"] is None
     provers = [c for c in site.view["configurations"] if c["kind"] == "prover"]
@@ -72,8 +73,25 @@ def test_overhead_missing(site, keys):
     assert figures["sash"]["null_reason"] == "not_externally_observable"
     shown = {c["system"]: c["figures"][site.build.metric_of(c, "overhead")] for c in provers}
     assert shown["flashprove"]["metric"] == "overhead_vs_production_prove.steady"
-    assert shown["sash"]["metric"] == "overhead_vs_production_prove.session"
+    assert shown["sash"]["metric"] == "overhead_vs_production_warm"
     assert shown["sash"]["null_reason"] == "missing_input"
+
+
+def test_warm_overhead_names_both_scopes(site):
+    # RFC-0004 INV-DERIVE-11, RFC-0009 S2: SASH's headline is the warm figure; with a value (a
+    # fixture value, not a result) its cell and its plate print both scopes, and without one the
+    # plate still prints them, with why the steady figure is null
+    b = site.build
+    cfg = copy.deepcopy(next(c for c in b.PROVERS if c["system"] == "sash"))
+    warm = cfg["figures"][b.metric_of(cfg, "overhead")]
+    assert warm["metric"] == b.WARM
+    assert b.readable(b.WARM_LINE) in b.plate(cfg, "overhead")
+    assert "steady state" in b.plate(cfg, "overhead")
+    warm["value"] = 1000.0
+    assert b.cell_words(cfg, "overhead")[1] == [b.WARM_LINE]
+    plate = b.plate(cfg, "overhead")
+    assert f"<dt>scope</dt><dd>{b.readable(b.WARM_LINE)}</dd>" in plate
+    assert "start-up included on both sides" not in plate
 
 
 def test_units_normalise(site):

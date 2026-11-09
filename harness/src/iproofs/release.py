@@ -1268,10 +1268,12 @@ def _declared_counts(system_doc: Mapping[str, object], workload: str) -> set[int
 
 def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],  # noqa: PLR0912, PLR0915
                serving: _Serving) -> None:  # fmt: skip
-    """RFC-0004 INV-DERIVE-2: D-OVERHEAD-S (matched load), D-OVERHEAD-HIGH-S (high load) and
-    D-OVERHEAD-SESSION (matched load at `prove.session`) of one system configuration, in
-    GPU-seconds per token, its `overhead_headline` (INV-DERIVE-10) and the headline's
-    `overhead_conditions` (INV-DERIVE-9). Absent when the workload names no serve-role system.
+    """RFC-0004 INV-DERIVE-2: D-OVERHEAD-S (matched load), D-OVERHEAD-HIGH-S (high load),
+    D-OVERHEAD-SESSION (matched load at `prove.session`) and D-OVERHEAD-WARM (the prover's
+    `prove.session` over matched serving's `prove.steady`, INV-DERIVE-11) of one system
+    configuration, in GPU-seconds per token, its `overhead_headline` (INV-DERIVE-10, -11) and
+    the headline's `overhead_conditions` (INV-DERIVE-9). Absent when the workload names no
+    serve-role system.
 
     The placement comes from the matched load (RFC-0015 SRV-6): the joined matched
     configuration is the smallest GPU count with a joinable run whose every smaller count,
@@ -1301,11 +1303,13 @@ def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],  # n
         return c.load_point or "matched"
 
     def joinable(c: _Context) -> list[RunView]:
-        """(e) observed, (f) paired by prompts, SRV-1's 60 s minimum, INV-SCOPE-5's rule."""
+        """(e) observed, (f) paired by prompts, SRV-1's 60 s minimum, INV-SCOPE-5's rule, and
+        no sizing capture (SRV-1: it sizes the session and joins no overhead)."""
         size = batch if point(c) == "matched" else 2  # a high-load batch is above 1 (SRV-1)
         return [r for r in c.kept if r.ok and _serving_keys(r, record, engine)
                 and _observed(r, engine) and r.get("manifest", "prompts_from") in mine
                 and SHORT_STEADY not in _strings(r.get("run", "warnings"))
+                and r.get("manifest", "workload", "sizing_capture") is not True
                 and _steady_rule(r, size)]  # fmt: skip
 
     by_count: dict[int, list[tuple[bool, object]]] = {}
@@ -1367,33 +1371,47 @@ def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],  # n
     steady = _metric_inputs(conforming or done, f"gpu_seconds_per_token_{Scope.PROVE_STEADY}",
                             ctx.tiers, ctx.late)  # fmt: skip
     scope = headline_scope(steady)
-    key = f"overhead_vs_production_{scope}"
+    warm = scope is Scope.PROVE_SESSION  # no steady scope of its own: the warm figure
+    session = _metric_inputs(conforming or done, f"gpu_seconds_per_token_{Scope.PROVE_SESSION}",
+                             ctx.tiers, ctx.late)  # fmt: skip
+    if warm and session:  # INV-DERIVE-11: the prover's session over warm serving's steady scope
+        found = chosen.get("matched")
+        warm_in = [] if found is None else _metric_inputs(
+            found[2], f"gpu_seconds_per_token_{Scope.PROVE_STEADY}", found[1].tiers,
+            found[1].late)  # fmt: skip
+        ctx.statistics[WARM] = overhead(session, warm_in, Scope.PROVE_SESSION, warm=True,
+                                        reason=reasons.get("matched"),
+                                        version=__version__)  # fmt: skip
+    key = WARM if warm else f"overhead_vs_production_{scope}"
     headline = ctx.statistics.get(key)
     if ctx.entry is None or not isinstance(headline, dict):
         return
     ctx.entry["overhead_headline"] = {
         "metric": key,
-        "formula": overhead_formula(scope),
+        "formula": overhead_formula(scope, warm=warm),
         "scope": str(scope),
-        "start_up": "included" if scope is Scope.PROVE_SESSION else "excluded",
+        "serving_scope": str(Scope.PROVE_STEADY),
+        "start_up": "prover_only" if warm else "excluded",
     }
     if headline["value"] is not None:
         ctx.entry["overhead_conditions"] = _conditions(
-            index, ctx, mine_index, chosen, record, engine, serving, scope
+            index, ctx, mine_index, chosen, record, engine, serving, Scope.PROVE_STEADY
         )
 
 
 # INV-SCOPE-2 and -3: the null reasons of a system that has no steady scope of its own
 NO_STEADY = frozenset({NullReason.NOT_EXTERNALLY_OBSERVABLE, NullReason.FEWER_THAN_TWO_PROOFS})
+WARM = "overhead_vs_production_warm"  # RFC-0004 INV-DERIVE-11, D-OVERHEAD-WARM
 
 
 def headline_scope(steady: Sequence[tuple[str, Mapping[str, object] | None]]) -> Scope:
-    """RFC-0004 INV-DERIVE-10: the scope of a system row's headline overhead. `prove.steady`
-    (D-OVERHEAD-S), unless the system has no steady scope: every successful repetition's
-    `gpu_seconds_per_token_prove.steady` is null with `not_externally_observable` or
-    `fewer_than_two_proofs` (SASH, RFC-0004 Q2), or none records it. Then `prove.session`
-    (D-OVERHEAD-SESSION), start-up included on both sides. A steady figure null for a join
-    reason (no paired serving run, another profile) stays the headline, with that reason."""
+    """RFC-0004 INV-DERIVE-10, -11: the prover's scope in a system row's headline overhead.
+    `prove.steady` (D-OVERHEAD-S), unless the system has no steady scope: every successful
+    repetition's `gpu_seconds_per_token_prove.steady` is null with `not_externally_observable`
+    or `fewer_than_two_proofs` (SASH, RFC-0004 Q2), or none records it. Then `prove.session`:
+    the headline is D-OVERHEAD-WARM, the prover's session (its start-up included) over warm
+    serving's steady scope. A steady figure null for a join reason (no paired serving run,
+    another profile) stays the headline, with that reason."""
     values = [q for _, q in steady if q is not None]
     if values and any(q.get("value") is not None or q.get("null_reason") not in NO_STEADY
                       for q in values):  # fmt: skip
@@ -1421,12 +1439,14 @@ def _conditions(
     record: "ServingModel | None",
     engine: Mapping[str, object],
     serving: _Serving,
-    scope: Scope = Scope.PROVE_STEADY,
+    serving_scope: Scope = Scope.PROVE_STEADY,
 ) -> dict[str, object]:
-    """RFC-0004 INV-DERIVE-9: the conditions of the headline overhead at `scope` (INV-DERIVE-10),
+    """RFC-0004 INV-DERIVE-9: the conditions of the headline overhead (INV-DERIVE-10, -11),
     every value read from records (the runs' manifests, the serving record, the system and
     workload files, the reference file); the site prints its strings from this block and types
-    none. `warm` is true when start-up is outside the scope (steady), false for a session."""
+    none. `warm` is true when serving's start-up is outside the serving scope (`prove.steady`):
+    a steady headline, or a warm one (INV-DERIVE-11, the prover's session over serving's steady
+    scope)."""
     wl = ctx.where["workload"]
     assert isinstance(wl, Mapping)
     matched, high = chosen.get("matched"), chosen.get("high")
@@ -1477,7 +1497,7 @@ def _conditions(
                        "high": _int(run_field(high, "manifest", "engine", "observed",
                                               "max_num_batched_tokens"))}},
         "decoding": "greedy",
-        "warm": scope is not Scope.PROVE_SESSION,
+        "warm": serving_scope is not Scope.PROVE_SESSION,
         "runtime": serving.runtime(ctx.where["profile"]),
         "serving_model": None if record is None else {
             "id": record.id, "version": record.version, "digest": record.model.digest,

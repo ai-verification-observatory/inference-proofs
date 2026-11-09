@@ -11,6 +11,7 @@ import re
 
 from . import state as S
 from .words import (
+    SCOPE_LINES,
     STATE_WORD,
     e,
     gpu_words,
@@ -132,13 +133,12 @@ METRIC = {
 def metric_of(cfg, col):
     """The stored statistic behind one overview column of a configuration: the overhead column
     shows the row's headline overhead, which release code names (`overhead_metric`: the steady
-    figure, or the session figure for a system with no steady scope, RFC-0004 INV-DERIVE-10)."""
+    figure, or the warm figure for a system with no steady scope, RFC-0004 INV-DERIVE-11)."""
     if col == "overhead":
         return cfg.get("overhead_metric") or METRIC[col]
     return METRIC[col]
 
 
-SESSION_LINE = "proving session, start-up included on both sides"
 # how each order reads aloud
 SORT_WORDS = {
     "system": {"asc": "A to Z", "desc": "Z to A"},
@@ -340,8 +340,8 @@ def cell_words(cfg, col):
         if unit_line
         else []
     )
-    if col == "overhead" and f.get("scope") == "prove.session":  # RFC-0009 S1: its scope in view
-        tail = [SESSION_LINE]
+    if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
+        tail = [SCOPE_LINES[f["metric"]]]
     title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
                         f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
                        else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
@@ -381,8 +381,8 @@ def plate(cfg, col, pid=""):
         if f["value"] is None:
             val = '<span class="na">No value</span>'
             kv += [("workload", *workload_link(cfg)), ("why", why_words(f, cfg), None)]
-            if col == "overhead" and f["metric"] != METRIC[col]:  # INV-DERIVE-10, a session
-                kv.append(("scope", SESSION_LINE, None))
+            if col == "overhead" and f["metric"] in SCOPE_LINES:  # INV-DERIVE-11, warm
+                kv.append(("scope", SCOPE_LINES[f["metric"]], None))
         else:
             val = fig(shown(f["value"], f["unit"]))
             if f.get("stats"):

@@ -23,8 +23,10 @@ from iproofs.site.reply import reply_html
 # The figures each configuration prints: the overview columns, then More numbers (#320 §1).
 FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
            "overhead_vs_production_prove.steady",
-           "overhead_vs_production_prove.session")  # fmt: skip
+           "overhead_vs_production_prove.session",
+           "overhead_vs_production_warm")  # fmt: skip
 OVERHEAD = "overhead_vs_production_prove.steady"  # RFC-0004 INV-DERIVE-9, the headline
+WARM = "overhead_vs_production_warm"  # RFC-0004 INV-DERIVE-11: no steady scope of its own
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
@@ -367,10 +369,14 @@ def _scoped(q: dict[str, Any]) -> str:
     return f"{q['scope']} scope" if q.get("scope") else "scope not recorded"
 
 
+WARM_NOTE = "per proving session with the prover's start-up, against warm serving (steady)"
+
+
 def overhead_metric(config: dict[str, Any]) -> str:
-    """RFC-0004 INV-DERIVE-10: the statistic a system row shows as its overhead, as the release
-    index's `overhead_headline` names it (release code chooses it); D-OVERHEAD-S at
-    `prove.steady` for an index without that block."""
+    """RFC-0004 INV-DERIVE-10, -11: the statistic a system row shows as its overhead, as the
+    release index's `overhead_headline` names it (release code chooses it: D-OVERHEAD-S, or
+    D-OVERHEAD-WARM for a system with no steady scope); D-OVERHEAD-S at `prove.steady` for an
+    index without that block."""
     headline = config.get("overhead_headline") or {}
     return str(headline.get("metric") or OVERHEAD)
 
@@ -382,9 +388,11 @@ def overhead_words(
     metric: str = OVERHEAD,
 ) -> dict[str, str] | None:
     """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
-    of a system row's headline overhead `metric` (INV-DERIVE-10), every value from the release
-    index's `overhead_conditions`, the stored quantities and the workload record; None without a
-    value (nothing to qualify). A session figure says that start-up is inside it, on both sides."""
+    of a system row's headline overhead `metric` (INV-DERIVE-10, -11), every value from the
+    release index's `overhead_conditions`, the stored quantities and the workload record; None
+    without a value (nothing to qualify). A session figure says that start-up is inside it, on
+    both sides; a warm figure names both scopes: the prover's session with its start-up, and
+    serving's steady scope, its engine already running."""
     q = stats.get(metric)
     if not conditions or not isinstance(q, dict) or q.get("value") is None:
         return None
@@ -398,12 +406,20 @@ def overhead_words(
     def known(value: object) -> str:
         return "not recorded" if value is None else str(value)
 
-    session = q.get("scope") == "prove.session"
+    warm = metric == WARM
+    session = q.get("scope") == "prove.session" and not warm
     start = ("start-up included on both sides: the prover's from the start of its prove call, "
              "production serving's from the start of its engine, each to its last token"
              if session else "start-up excluded on both sides")  # fmt: skip
+    scoped = f"{_scoped(q)} ({start})"
+    if warm:
+        scoped = (f"{q.get('scope') or 'scope not recorded'} scope for the prover, from the start "
+                  "of its prove call to its last proof (its start-up included: it releases no "
+                  "proof before the whole request is proved), prove.steady scope for production "
+                  "serving, from its first batch's last release to its last (its engine already "
+                  "running, as a provider's server is)")  # fmt: skip
     line = "; ".join([
-        f"{_scoped(q)} ({start})",
+        scoped,
         f"{batch['matched']} requests a batch on both sides, {known(per['system'])} batches for "
         f"the prover and {known(per['serving_matched'])} for serving",
         f"prompts: the prover's {count['system']}, replayed"
@@ -413,7 +429,8 @@ def overhead_words(
                 "seeded generator)"),
         f"{engine['name']} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
         f" {engine['settings']}",
-        "greedy decoding, " + ("warm" if c.get("warm", True) else "cold: engine and prover "
+        "greedy decoding, " + ("warm serving, the prover's start-up inside its session" if warm
+                               else "warm" if c.get("warm", True) else "cold: engine and prover "
                                "start-up inside the session"),
         f"{c['runtime']}",
         f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
@@ -429,11 +446,13 @@ def overhead_words(
         f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
         f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
         f"release, in GPU-seconds per token, "
-        f"{'per proving session with start-up' if session else 'steady'}, "
+        f"{WARM_NOTE if warm else 'per proving session with start-up' if session else 'steady'}, "
         f"at {batch['matched']} requests a batch."
     )
     out = {"conditions": line, "precision": note}
-    high = stats.get(f"overhead_vs_production_high_{q.get('scope') or 'prove.steady'}")
+    # INV-DERIVE-11: no high-load figure pairs the prover's session with serving's steady scope
+    scope = q.get("scope") or "prove.steady"
+    high = None if warm else stats.get(f"overhead_vs_production_high_{scope}")
     if isinstance(high, dict) and high.get("value") is not None:
         extra = ""
         if count.get("serving_high") and count["serving_high"] > count["system"]:
