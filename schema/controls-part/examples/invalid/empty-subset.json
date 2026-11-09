@@ -1,0 +1,123 @@
+{
+  "control_seed": "0x0123456789abcdef",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "index": 0,
+            "token": 33
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C4",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "request_of": "req-1"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "harness_commit": "0000000000000000000000000000000000000000",
+  "harness_dirty": false,
+  "harness_version": "0.1.0",
+  "host": {
+    "machine": {
+      "cpu": {
+        "model": "Example CPU",
+        "logical_cpus": 16,
+        "physical_cores": 8,
+        "sockets": 1,
+        "smt_active": true,
+        "bound_prover": [],
+        "bound_verifier": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "bound_verifier_single": [
+          0
+        ]
+      },
+      "memory": {
+        "total_bytes": 133143986176,
+        "available_bytes_at_start": 128849018880
+      },
+      "numa": {
+        "bound_mems": [
+          0
+        ],
+        "nodes": 1
+      },
+      "provider": "Hugging Face Jobs",
+      "verifier_host": "separate"
+    },
+    "nonconforming": []
+  },
+  "image": "iproofs-fake@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "only": [],
+  "perturbed_commitment": null,
+  "profile": "ci-cpu",
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "run_manifest_digest": "sha256:abababababababababababababababababababababababababababababababab",
+  "schema": "controls-part/1",
+  "seed_record_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "suite": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5",
+    "C6",
+    "C7",
+    "C8"
+  ],
+  "verifier_cpus": 1,
+  "verifier_profile": "ci-cpu"
+}

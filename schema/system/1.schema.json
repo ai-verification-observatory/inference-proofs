@@ -280,6 +280,56 @@
             "prompt_plus_output",
             "declared_per_proof"
           ]
+        },
+        "verify_reads": {
+          "$comment": "RFC-0008 §Parts the verifier reads: the proof parts the adapter's verify step reads. \"all\" (also when absent): every part. Otherwise the parts read and each part not read with its reason; C5, C6 and C8 choose only among the parts read",
+          "else": {
+            "additionalProperties": false,
+            "properties": {
+              "not_read": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "part": {
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+                      "type": "string"
+                    },
+                    "reason": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "part",
+                    "reason"
+                  ],
+                  "type": "object"
+                },
+                "minItems": 1,
+                "type": "array"
+              },
+              "read": {
+                "items": {
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+                  "type": "string"
+                },
+                "minItems": 1,
+                "type": "array",
+                "uniqueItems": true
+              }
+            },
+            "required": [
+              "read",
+              "not_read"
+            ],
+            "type": "object"
+          },
+          "if": {
+            "type": "string"
+          },
+          "then": {
+            "const": "all"
+          }
         }
       },
       "required": [

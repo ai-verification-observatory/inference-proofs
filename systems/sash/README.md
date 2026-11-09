@@ -140,7 +140,8 @@ The figures SASH publishes for the 4,096 + 512 shape (rates and times in its `lo
 ```yaml
 deterministic_proofs: true
 incremental_proofs: false
-proofs: {granularity: "segment_grid", tokens_covered: "prompt_plus_output", steady_boundary: "not_observable", steady_approximate: false}
+proofs: {granularity: "segment_grid", tokens_covered: "prompt_plus_output", steady_boundary: "not_observable", steady_approximate: false,
+         verify_reads: "all"}
 forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
 ```
 
@@ -148,6 +149,7 @@ forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
 - `proofs.tokens_covered: prompt_plus_output`. A grid proves every prompt and continuation position of its sequence, so one proof covers `prompt_tokens + output_tokens` positions: 4,608 and 1,088 for the two shapes, a function of the shape whatever the block length.
 - `incremental_proofs: false` and `proofs.steady_boundary: not_observable`. A job proves one sequence, so its one grid is released once; release times carry no steady-state information, and `prove.steady` is null for SASH rows (INV-ADAPTER-10). Segment files appear one by one, but a segment is not the benchmark's proof.
 - `proofs.steady_approximate: false`: no steady scope is reported.
+- `proofs.verify_reads: "all"`: `verify` reads every part of the proof directory, so C5, C6 and C8 choose among all of them ([RFC-0008 §Parts the verifier reads](../../rfcs/0008-negative-controls.md#parts-the-verifier-reads)). `boundary-grid --plan` reads `plan.txt` and takes the grid's tags from its `--ser-tag` set ([boundary.rs](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1222-L1224), [#L1060-L1071](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1060-L1071)); for every tag it reads `<tag>.fixed.json` and `<tag>.proof.json` ([#L1250-L1252](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1250-L1252)), and under `--verify` `<tag>.claims.json` as well ([#L1492-L1495](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/boundary.rs#L1492-L1495)). Every segment file in the directory is one `compose-chunks` wrote for a tag of that plan (§`prove`), and the adapter also reads `B<B-1>L0.fixed.json` for the claimed output check (§`verify`).
 - `deterministic_proofs: true`. Upstream gates every change on reproducing recorded proof digests on both backends: "A change that should not alter the proof reproduces the recorded digests on both backends before it merges" ([README.md](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md#L60-L66)).
 - `forbidden_flags`: the `--unsound-skip-` prefix and `--unsound-argmax-lax`, each of which unbinds or weakens an edge of the binding table ([statement.md](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md#L19-L36), [#L153-L160](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md#L153-L160)).
 

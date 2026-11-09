@@ -5,20 +5,21 @@ INV-CTRL-3: every mutation is a deterministic function of `control_seed`, the co
 the honest inputs.
 """
 
+import hashlib
 import json
 import math
 import os
 import random
 import re
 import shutil
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import SystemControl, Workload
+from iproofs.model import System, SystemControl, VerifyReads, Workload
 from iproofs.serialize import load_yaml
 
 CONTROL_SEED_RE = re.compile(r"^0x[0-9a-f]{16}$")
@@ -27,6 +28,22 @@ CONTROL_SEED_RE = re.compile(r"^0x[0-9a-f]{16}$")
 def new_control_seed() -> str:
     """A fresh 64-bit seed from the OS, written as `0x` plus 16 lowercase hex digits."""
     return f"0x{int.from_bytes(os.urandom(8), 'big'):016x}"
+
+
+SEED_TEXT_RE = re.compile(r"^(0[xX][0-9a-fA-F]{1,16}|[0-9]{1,20})$")
+
+
+def parse_control_seed(text: str) -> str:
+    """`--seed`: a 64-bit value in hex (`0x` and 1 to 16 digits) or in decimal, returned in the
+    recorded form, `0x` plus 16 lowercase hex digits (RFC-0008 §Seeds)."""
+    if not SEED_TEXT_RE.fullmatch(text):
+        raise IProofsError(
+            ErrorKind.CONFIG, f"--seed {text!r}: give a 64-bit value in hex (0x...) or decimal"
+        )
+    value = int(text, 16) if text[:2] in ("0x", "0X") else int(text)
+    if value >= 1 << 64:
+        raise IProofsError(ErrorKind.CONFIG, f"--seed {text!r} is above 2**64 - 1")
+    return f"0x{value:016x}"
 
 
 def rng(control_seed: str, control_id: str, k: int) -> random.Random:
@@ -75,7 +92,9 @@ def select(proofs: Sequence[HonestProof]) -> Selection:
 # ---------------------------------------------------------------- verifier-side mutations
 
 SHARED_VERIFIER_CONTROLS = ("C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8")
+SHARED_PROVER_CONTROLS = ("P1", "P2")
 C6_TRIALS = 5
+PART_CONTROLS = ("C5", "C6", "C8")  # choose a part among those the verify step reads
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +114,67 @@ class VerifyCall:
 
 class NotApplicable(Exception):
     """A control's precondition fails; the message is the recorded reason."""
+
+
+@dataclass(frozen=True, slots=True)
+class PartsRead:
+    """RFC-0008 §Parts the verifier reads: the proof parts the adapter declares its verify step
+    reads (`read`; None for every part) and each part it declares not read, with the reason.
+    C5, C6 and C8 choose their part among the parts read only."""
+
+    system: str = ""
+    read: frozenset[str] | None = None
+    not_read: tuple[tuple[str, str], ...] = ()  # (part, reason), sorted by part
+
+    def check(self, proof_id: str, names: Collection[str]) -> None:
+        """Refuse a declaration that does not fit the proof: a declared part the proof does not
+        have, or a part of the proof the declaration does not place (`config`)."""
+        if self.read is None:
+            return
+        declared = self.read | {part for part, _ in self.not_read}
+        where = f"systems/{self.system}/system.yaml proofs.verify_reads"
+        if missing := sorted(declared - set(names)):
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"{where} names {', '.join(missing)}, which proof {proof_id} does not have",
+            )
+        if unplaced := sorted(set(names) - declared):
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"{where} does not say whether verify reads {', '.join(unplaced)} "
+                f"of proof {proof_id}",
+            )
+
+    def chosen(self, proof_id: str, parts: Sequence[Path]) -> list[Path]:
+        """The parts a part control may choose, in the order given: the parts read."""
+        self.check(proof_id, [p.name for p in parts])
+        return [p for p in parts if self.read is None or p.name in self.read]
+
+    def record(self) -> list[dict[str, str]]:
+        """`parts_not_read` of a C5, C6 or C8 record in controls.json."""
+        return [{"part": part, "reason": reason} for part, reason in self.not_read]
+
+
+EVERY_PART = PartsRead()
+
+
+def parts_read(system: System | None) -> PartsRead:
+    """The declaration of `system.yaml` `proofs.verify_reads`; absent or "all": every part.
+    A part both read and not read, or not read twice, is a `config` error."""
+    declared = system.proofs.verify_reads if system and system.proofs else None
+    if not isinstance(declared, VerifyReads):
+        return PartsRead(system.name if system else "")
+    assert system is not None
+    names = [n.part for n in declared.not_read]
+    twice = sorted({n for n in names if names.count(n) > 1} | (set(declared.read) & set(names)))
+    if twice:
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"systems/{system.name}/system.yaml proofs.verify_reads places "
+            f"{', '.join(twice)} twice",
+        )
+    not_read = tuple(sorted((n.part, n.reason) for n in declared.not_read))
+    return PartsRead(system.name, frozenset(declared.read), not_read)
 
 
 def _parts(proof_dir: Path) -> list[Path]:
@@ -184,9 +264,12 @@ def c4(target: HonestProof, other: HonestProof | None, commit: str, proof_dir: P
     )
 
 
-def c5(target: HonestProof, commit: str, src: Path, dst: Path) -> VerifyCall:
-    """Truncate the largest part to floor(size / 2) bytes; ties broken by name."""
-    largest = sorted(_parts(src), key=lambda p: (-p.stat().st_size, p.name))[0]
+def c5(
+    target: HonestProof, commit: str, src: Path, dst: Path, reads: PartsRead = EVERY_PART
+) -> VerifyCall:
+    """Truncate the largest part read to floor(size / 2) bytes; ties broken by name."""
+    read = reads.chosen(target.proof_id, _parts(src))
+    largest = sorted(read, key=lambda p: (-p.stat().st_size, p.name))[0]
     _copy_proof(src, dst)
     data = largest.read_bytes()
     cut = data[: len(data) // 2]
@@ -204,9 +287,17 @@ def c5(target: HonestProof, commit: str, src: Path, dst: Path) -> VerifyCall:
     )
 
 
-def c6(target: HonestProof, commit: str, src: Path, dst: Path, seed: str, s: int) -> VerifyCall:
-    """Trial s of five: flip one bit at a seeded offset in a seeded part."""
-    parts = _parts(src)
+def c6(
+    target: HonestProof,
+    commit: str,
+    src: Path,
+    dst: Path,
+    seed: str,
+    s: int,
+    reads: PartsRead = EVERY_PART,
+) -> VerifyCall:
+    """Trial s of five: flip one bit at a seeded offset in a seeded part read."""
+    parts = reads.chosen(target.proof_id, _parts(src))
     part = parts[seeded_index(seed, "C6", 2 * s, len(parts))]
     data = bytearray(part.read_bytes())
     if not data:
@@ -253,11 +344,14 @@ def c7(a: HonestProof, b: HonestProof, commit: str, b_proof_dir: Path) -> Verify
     )
 
 
-def c8(target: HonestProof, commit: str, src: Path, dst: Path, seed: str) -> VerifyCall:
-    """Drop one seeded part of the proof."""
-    parts = _parts(src)
-    if len(parts) < 2:
+def c8(
+    target: HonestProof, commit: str, src: Path, dst: Path, seed: str, reads: PartsRead = EVERY_PART
+) -> VerifyCall:
+    """Drop one seeded part read of the proof; the proof keeps at least one part."""
+    all_parts = _parts(src)
+    if len(all_parts) < 2:
         raise NotApplicable("the proof has a single part")
+    parts = reads.chosen(target.proof_id, all_parts)
     dropped = parts[seeded_index(seed, "C8", 0, len(parts))]
     _copy_proof(src, dst, skip=dropped.name)
     return VerifyCall(
@@ -445,13 +539,21 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
     verify: Verifier,
     work: Path,
     check: Callable[[str], None] = lambda proof_id: None,
+    only: Collection[str] | None = None,
+    reads: PartsRead = EVERY_PART,
 ) -> list[dict[str, object]]:
     """C1 to C8 over a run's honest proofs, each after its honest twins (RFC-0008). `check`
-    rechecks a proof's digest immediately before each control mutates it (RFC-0014).
+    rechecks a proof's digest immediately before each control mutates it (RFC-0014). `only`
+    keeps those controls; each still runs with its own twins and its own seeded mutations, so
+    its record does not depend on which other controls ran (RFC-0008 §Split suites). `reads`
+    is the adapter's declaration of the parts its verify step reads: C5, C6 and C8 choose
+    among those, and a declaration that does not fit the target proof is refused before any
+    call (RFC-0008 §Parts the verifier reads).
 
     `vocab_size` and `batch_size` come from the workload record (RFC-0003).
     """
     vocab_size, batch_size = workload.model.vocab_size, workload.shape.batch_size
+    wanted = [cid for cid in SHARED_VERIFIER_CONTROLS if only is None or cid in only]
     chosen = select(proofs)
     target, other = chosen.target, chosen.other
     if target is None:
@@ -467,9 +569,10 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
                 "passed": None,
                 "note": "no accepted proof in the run",
             }
-            for cid in SHARED_VERIFIER_CONTROLS
+            for cid in wanted
         ]
     t_dir = proof_dirs[target.proof_id]
+    reads.check(target.proof_id, _names(t_dir))
 
     def twin(*ps: HonestProof) -> Callable[[], list[VerifyCall]]:
         return lambda: [honest_call(p, commit, proof_dirs[p.proof_id]) for p in ps]
@@ -490,15 +593,16 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
         "C2": (lambda: [c2(target, commit, t_dir, vocab_size, seed)], twin(target)),
         "C3": (lambda: [c3(target, commit, perturbed, t_dir)], twin(target)),
         "C4": (lambda: [c4(target, other, commit, t_dir)], other_twin),
-        "C5": (lambda: [c5(target, commit, t_dir, work / "C5")], twin(target)),
+        "C5": (lambda: [c5(target, commit, t_dir, work / "C5", reads)], twin(target)),
         "C6": (
             lambda: [
-                c6(target, commit, t_dir, work / f"C6-{s}", seed, s) for s in range(C6_TRIALS)
+                c6(target, commit, t_dir, work / f"C6-{s}", seed, s, reads)
+                for s in range(C6_TRIALS)
             ],
             twin(target),
         ),
         "C7": (c7_calls, c7_twins),
-        "C8": (lambda: [c8(target, commit, t_dir, work / "C8", seed)], twin(target)),
+        "C8": (lambda: [c8(target, commit, t_dir, work / "C8", seed, reads)], twin(target)),
     }
 
     def checked(build: Callable[[], list[VerifyCall]]) -> Callable[[], list[VerifyCall]]:
@@ -509,10 +613,135 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
 
         return run
 
-    return [
-        control_record(cid, checked(build), twins, verify)
-        for cid, (build, twins) in builders.items()
+    records = [
+        control_record(cid, checked(builders[cid][0]), builders[cid][1], verify) for cid in wanted
     ]
+    for record in records:
+        if record["id"] in PART_CONTROLS and reads.not_read:
+            record["parts_not_read"] = reads.record()
+    return records
+
+
+# ---------------------------------------------------------------- split suites
+
+PART_SCHEMA = "controls-part/1"
+SEED_SCHEMA = "controls-seed/1"
+SEED_RECORD = "controls-seed.json"  # next to the run's run.json, written once (SPLIT-1)
+# What every part of one suite shares; the merge refuses parts that differ in any of them.
+PART_KEYS = (
+    "run_id",
+    "run_manifest_digest",
+    "control_seed",
+    "seed_record_digest",
+    "suite",
+    "image",
+    "verifier_profile",
+    "profile",
+    "verifier_cpus",
+    "perturbed_commitment",
+    "harness_version",
+    "harness_commit",
+    "harness_dirty",
+)
+
+
+def parse_only(values: Sequence[str], suite: Sequence[str]) -> tuple[str, ...]:
+    """`--only ID[,ID...]` (repeatable): the asked controls in suite order. An empty, unknown or
+    repeated id is a `config` error that names the suite."""
+    asked = [cid.strip() for value in values for cid in value.split(",")]
+    unknown = [cid for cid in asked if cid not in suite]
+    if not asked or unknown:
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"--only: unknown control {', '.join(map(repr, unknown or ['']))}; "
+            f"this suite is {', '.join(suite)}",
+        )
+    repeated = sorted({cid for cid in asked if asked.count(cid) > 1})
+    if repeated:
+        raise IProofsError(ErrorKind.CONFIG, f"--only names {', '.join(repeated)} twice")
+    return tuple(cid for cid in suite if cid in asked)
+
+
+def part_name(control_seed: str, only: Sequence[str]) -> str:
+    """The file a part is written to: its seed and a digest of its subset, so two parts of
+    one run never share a name unless they ran the same controls with the same seed."""
+    subset = hashlib.sha256("\n".join(only).encode()).hexdigest()[:12]
+    return f"controls-part-{control_seed.removeprefix('0x')}-{subset}.json"
+
+
+def seed_document(
+    run_id: str, run_manifest_digest: str, control_seed: str, drawn_at: str
+) -> dict[str, object]:
+    """A `controls-seed/1` document: the one seed of a run's split suite, drawn by the harness
+    before the first part and never drawn again for that run (RFC-0008 SPLIT-1)."""
+    return {
+        "schema": SEED_SCHEMA,
+        "run_id": run_id,
+        "run_manifest_digest": run_manifest_digest,
+        "control_seed": control_seed,
+        "drawn_at": drawn_at,
+    }
+
+
+def part_document(
+    same: Mapping[str, object],
+    host: Mapping[str, object],
+    only: Sequence[str],
+    records: Sequence[Mapping[str, object]],
+) -> dict[str, object]:
+    """A `controls-part/1` document: the records of the controls in `only`, with what every
+    part of the suite must share (`PART_KEYS`) and the host this part ran on, which parts do
+    not share (RFC-0008 SPLIT-4)."""
+    return {
+        "schema": PART_SCHEMA,
+        **{key: same[key] for key in PART_KEYS},
+        "host": dict(host),
+        "only": list(only),
+        "controls": list(records),
+    }
+
+
+def merge_parts(parts: Mapping[str, Mapping[str, Any]]) -> dict[str, object]:
+    """RFC-0008 §Split suites: the `controls.json` document of a suite run in parts, keyed by
+    their file names. Every part shares `PART_KEYS`; each holds the records of its own `only`,
+    in suite order; together they cover the suite exactly once. The records go back in suite
+    order and `summary` and `disclosure_pending` are recomputed, so the document is the one a
+    single run with the same seed writes from the same verify results."""
+    if not parts:
+        raise IProofsError(ErrorKind.CONFIG, "--merge: no part given")
+    names = list(parts)
+    first = parts[names[0]]
+    for name in names[1:]:
+        differ = [key for key in PART_KEYS if parts[name][key] != first[key]]
+        if differ:
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{name} differs from {names[0]} in {', '.join(differ)}"
+            )
+    suite = list(first["suite"])
+    owner: dict[str, str] = {}
+    for name in names:
+        ids = [str(r["id"]) for r in parts[name]["controls"]]
+        if ids != list(parts[name]["only"]):
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{name}: records {ids} are not its subset {parts[name]['only']}"
+            )
+        for cid in ids:
+            if cid in owner:
+                raise IProofsError(ErrorKind.CONFIG, f"{cid} is in both {owner[cid]} and {name}")
+            owner[cid] = name
+    if extra := [cid for cid in owner if cid not in suite]:
+        raise IProofsError(ErrorKind.CONFIG, f"{', '.join(extra)} not in the suite {suite}")
+    if gap := [cid for cid in suite if cid not in owner]:
+        raise IProofsError(ErrorKind.CONFIG, f"no part ran {', '.join(gap)}")
+    by_id = {str(r["id"]): r for name in names for r in parts[name]["controls"]}
+    return controls_document(
+        str(first["run_id"]),
+        str(first["control_seed"]),
+        str(first["image"]),
+        str(first["verifier_profile"]),
+        first["perturbed_commitment"],
+        [by_id[cid] for cid in suite],
+    )
 
 
 # ---------------------------------------------------------------- perturbed weights (C3, P1)

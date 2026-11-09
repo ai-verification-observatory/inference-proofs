@@ -2,7 +2,6 @@
 conformance checks and the container cgroup reader."""
 
 import copy
-import functools
 import os
 import shutil
 import sys
@@ -215,14 +214,13 @@ def test_select_readers_hosted(tmp_path: Path) -> None:
         select_readers(gpu_profile=True, nvml=yes)
 
 
-def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_gpu_environment() -> None:
     """The fixture host has four CPUs: one prover and one verifier CPU stand in for 24 and 8."""
-    from iproofs import provenance, runner  # noqa: PLC0415
-
-    small = functools.partial(provenance.select_cpus, n_verifier=1)
-    monkeypatch.setattr(runner, "select_cpus", small)
     host = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:17:00.0"})
-    env = GpuEnvironment(0, host, n_prover=1)
+    env = GpuEnvironment(0, host, n_prover=1, n_verifier=1)
+    assert len(GpuEnvironment(0, host, n_prover=1, n_verifier=3).binding.verifier) == 3
+    with pytest.raises(IProofsError, match="CPUs"):
+        GpuEnvironment(0, host, n_prover=1)  # the default of 8 verifier CPUs: 4 on the fixture
     prover, mems = env.cpus("prover")
     assert prover == "0"
     assert mems == "0"
@@ -231,16 +229,15 @@ def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     assert set(prover.split(",")).isdisjoint(env.cpus("verifier")[0].split(","))
     lost = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:99:00.0"})
     with pytest.raises(IProofsError, match="no NUMA node"):
-        GpuEnvironment(0, lost, n_prover=1)
+        GpuEnvironment(0, lost, n_prover=1, n_verifier=1)
 
 
-def test_serving_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_serving_environment() -> None:
     """RFC-0006 R6: a serving host binds every listed GPU and gives the server every CPU the
-    container may use (the fixture host's four), with no verifier CPUs."""
+    container may use (the fixture host's four), with no verifier CPUs: it needs none beside
+    the first GPU's node's `n_prover`."""
     from iproofs import provenance, runner  # noqa: PLC0415
 
-    monkeypatch.setattr(runner, "select_cpus", functools.partial(provenance.select_cpus,
-                                                                 n_verifier=1))  # fmt: skip
     host = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:17:00.0"})
     env = runner.ServingEnvironment([0, 1, 2, 3], host, n_prover=1)
     assert (env.gpu(), env.gpus(), runner.bound_gpus(env)) == (0, (0, 1, 2, 3), (0, 1, 2, 3))

@@ -1,0 +1,29 @@
+# Shape only, with the parts verify reads and the one it does not (RFC-0008 §Parts the verifier reads).
+schema: "system/1"
+name: "flashprove"
+kind: "prover"
+contract: "adapter/1"
+upstream:
+  repo: "anthropics/FlashProve"
+  url: "https://github.com/anthropics/FlashProve"
+  commit: "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+  tag: "v0.16.0"
+image: {repository: "ghcr.io/ai-verification-observatory/iproofs-flashprove", digest: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}
+maintainers:
+  - {handle: "example-handle", organisation: "Example Organisation"}
+workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
+profile: "prover-h100"
+deterministic_proofs: false
+incremental_proofs: true
+max_proof_parts: 10000
+max_proof_bytes: 68719476736
+proofs:
+  granularity: "request"
+  tokens_covered: "window"
+  steady_boundary: "first_proof"
+  steady_approximate: false
+  verify_reads:
+    read: ["response.proof"]
+    not_read:
+      - {part: "response.y", reason: "verify writes the token file from claimed_output"}
+forbidden_flags: []

@@ -82,7 +82,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="proof"></a>**Proof.** In this project, the set of files (parts) that one `verify` call checks for one request, released atomically as `/io/proofs/<proof_id>/`. For a segment-grid system it is the set of segment proofs for one sequence plus whatever the grid check needs. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 
-<a id="proof-part"></a>**Proof part.** One file inside a proof directory. Controls C5, C6 and C8 operate on parts.
+<a id="proof-part"></a>**Proof part.** One file inside a proof directory. Controls C5, C6 and C8 operate on the parts the adapter declares its verify step reads (`system.yaml` `proofs.verify_reads`); `controls.json` lists each part not read with its reason. [RFC-0008](../../rfcs/0008-negative-controls.md#parts-the-verifier-reads).
 
 <a id="prover-time-per-bit"></a>**Prover time per bit of active weights.** Prover seconds per token covered divided by the bits of weights one token uses, active parameters per token times [weight bits](#weight-bits) (`D-SPAB-S`, unit `s/bit_token`). Attention cost is not in the normaliser. Shown only with the claim cards. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 

@@ -92,6 +92,9 @@ proofs:
   tokens_covered: "window"            # window | prompt_plus_output | declared_per_proof
   steady_boundary: "first_proof"      # first_proof | first_complete_sequence | not_observable
   steady_approximate: false           # true when the mapping to the upstream scope is approximate (RFC-0004)
+  verify_reads:                       # optional; absent or "all": verify reads every part (RFC-0008)
+    read: ["response.proof"]
+    not_read: [{part: "response.y", reason: "<why verify never reads it>"}]
 forbidden_flags: []                   # literal argument prefixes the adapter must refuse outside control jobs
 timeouts_s:                           # per-step wall limits; defaults below apply when absent
   info: 60
@@ -109,6 +112,7 @@ Field rules:
 - `proofs.granularity` declares what one proof directory contains. `request`: one proof per request. `sequence`: one proof per sequence. `segment_grid`: one proof directory per sequence whose parts are segment proofs plus a grid check record; the proof is released when the whole grid is written (SASH, below).
 - `proofs.tokens_covered` declares how the harness counts tokens covered by one proof ([RFC-0004](0004-metrics-timing-grades.md)). `window`: the window's positions. `prompt_plus_output`: prompt tokens plus generated tokens of the sequence. `declared_per_proof`: the adapter reports `tokens_covered` per proof in out.json and the harness checks it against the workload shape (INV-ADAPTER-7).
 - `proofs.steady_boundary` declares where `prove.steady` starts. `first_proof` reads "the last release of the first batch" for batch size b > 1 (RFC-0004 INV-SCOPE-5, amendment of 2026-11-09). `not_observable` makes the harness report `prove.steady` as null with `null_reason: "not_externally_observable"`.
+- `proofs.verify_reads` (optional, absent means `"all"`) declares which proof parts `verify` reads, and why each other part is not read; controls C5, C6 and C8 mutate only the parts read ([RFC-0008 §Parts the verifier reads](0008-negative-controls.md#parts-the-verifier-reads), amendment of 2026-11-09).
 - `incremental_proofs: false` requires `proofs.steady_boundary: not_observable` (INV-ADAPTER-10): if upstream writes every proof at the end of the call, release times carry no steady-state information ([RFC-0011](0011-measurement-and-sampling.md#proof-release-watcher)).
 - `max_proof_parts` and `max_proof_bytes` default to 10,000 parts and 64 GiB per part (limits, not measurements). A system may declare lower caps, never higher ones; exceeding a cap is an `adapter` failure ([Path safety](#path-safety)).
 - `forbidden_flags` is matched by prefix against every argument the adapter passes to upstream tools; the adapter logs the full command line to `/io/commands.jsonl` (below) so CI can check it independently ([RFC-0013](0013-validation-and-ci.md)).

@@ -20,7 +20,14 @@ workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
 profile: "prover-h100"
 deterministic_proofs: true
 incremental_proofs: false
-proofs: {granularity: "segment_grid", tokens_covered: "prompt_plus_output", steady_boundary: "not_observable", steady_approximate: false}
+proofs:
+  granularity: "segment_grid"
+  tokens_covered: "prompt_plus_output"
+  steady_boundary: "not_observable"
+  steady_approximate: false
+  # RFC-0008 §Parts the verifier reads: boundary-grid reads plan.txt and every segment's three
+  # files (README.md §Values for system.yaml)
+  verify_reads: "all"
 forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
 # RFC-0005 timeouts are limits. verify above the 3,600 s default: on the H100 host, boundary-grid
 # --verify of one sash-l31-8b-c1024 grid took 3,381 s at about 3.9 CPUs (a development call), and

@@ -546,6 +546,20 @@ def select_cpus(
     return CpuBinding(tuple(prover), tuple(verifier), tuple(verifier[:1]), (gpu_numa_node,))
 
 
+def select_verifier_cpus(topology: Topology, n_verifier: int) -> tuple[int, ...]:
+    """A host that only verifies, with no GPU and no prover (RFC-0008 §Split suites):
+    `n_verifier` CPUs taken as `select_cpus` takes the verifier's, NUMA nodes in order and one
+    logical CPU per physical core before SMT siblings."""
+    nodes = sorted({c.node for c in topology.cpus})
+    ordered = [cpu for n in nodes for cpu in _ordered(c for c in topology.cpus if c.node == n)]
+    if len(ordered) < n_verifier:
+        raise IProofsError(
+            ErrorKind.ENVIRONMENT,
+            f"not enough CPUs for the verifier profile: {len(ordered)} < {n_verifier}",
+        )
+    return tuple(ordered[:n_verifier])
+
+
 # ---------------------------------------------------------------- profile conformance (RFC-0006)
 
 

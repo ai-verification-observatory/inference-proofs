@@ -906,11 +906,26 @@ class ReferenceWorkload(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PartNotRead(Document):
+    part: str
+    reason: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class VerifyReads(Document):
+    """RFC-0008 §Parts the verifier reads, when some part is not read."""
+
+    read: tuple[str, ...]
+    not_read: tuple[PartNotRead, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ProofsSpec(Document):
     granularity: str
     tokens_covered: str
     steady_boundary: str
     steady_approximate: bool
+    verify_reads: str | VerifyReads | None = None  # "all", or absent: every part is read
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1127,6 +1142,7 @@ class ControlResult(Document):
     outcome: str
     passed: bool | None
     note: str | None
+    parts_not_read: tuple[PartNotRead, ...] | None = None  # C5, C6, C8 (RFC-0008 READ-4)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1160,6 +1176,48 @@ class Controls(Document):
     controls: tuple[ControlResult, ...]
     summary: ControlSummaryCounts
     disclosure_pending: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlsSeed(Document):
+    """`controls-seed/1`, the one seed of a run's split suite (RFC-0008 SPLIT-1)."""
+
+    schema: str
+    run_id: str
+    run_manifest_digest: str
+    control_seed: str
+    drawn_at: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class PartHost(Document):
+    """The host one part of a split suite ran on (RFC-0008 SPLIT-4)."""
+
+    machine: Mapping[str, object]  # RFC-0006 record; schema manifest $defs/machine
+    nonconforming: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ControlsPart(Document):
+    """`controls-part/1`, one part of a suite split across hosts (RFC-0008 §Split suites)."""
+
+    schema: str
+    run_id: str
+    run_manifest_digest: str
+    control_seed: str
+    seed_record_digest: str
+    suite: tuple[str, ...]
+    only: tuple[str, ...]
+    image: str
+    verifier_profile: str
+    profile: str
+    verifier_cpus: int
+    perturbed_commitment: PerturbedCommitment | None
+    harness_version: str
+    harness_commit: str
+    harness_dirty: bool
+    host: PartHost
+    controls: tuple[ControlResult, ...]
 
 
 # Schema location -> model class. The drift test walks this table and requires every
@@ -1597,6 +1655,9 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("controls/1", "#/$defs/control/properties/twin/anyOf/1"): Twin,
     ("controls/1", "#/properties/perturbed_commitment/anyOf/1"): PerturbedCommitment,
     ("controls/1", "#/properties/summary"): ControlSummaryCounts,
+    ("controls-part/1", "#"): ControlsPart,
+    ("controls-part/1", "#/properties/host"): PartHost,
+    ("controls-seed/1", "#"): ControlsSeed,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
     ("review/1", "#"): ReviewRecord,

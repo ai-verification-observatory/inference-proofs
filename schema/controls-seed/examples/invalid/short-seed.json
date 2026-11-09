@@ -1,0 +1,7 @@
+{
+  "control_seed": "0x5f3c9a12d4e6b78",
+  "drawn_at": "2026-11-09T10:00:00Z",
+  "run_id": "2026-11-09-fake-fake-tiny-ci-ci-cpu-1",
+  "run_manifest_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "schema": "controls-seed/1"
+}

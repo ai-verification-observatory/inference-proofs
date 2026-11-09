@@ -1,0 +1,124 @@
+{
+  "$id": "https://inference-proofs.org/schema/controls-part/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "control_seed": {
+      "$comment": "one seed for every part of a suite, drawn once and recorded (RFC-0008 §Seeds)",
+      "pattern": "^0x[0-9a-f]{16}$",
+      "type": "string"
+    },
+    "controls": {
+      "items": {
+        "$ref": "../controls/1.schema.json#/$defs/control"
+      },
+      "type": "array"
+    },
+    "harness_commit": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "harness_dirty": {
+      "type": "boolean"
+    },
+    "harness_version": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "host": {
+      "$comment": "the host this part ran on; parts of one suite need not share it (RFC-0008 SPLIT-4)",
+      "additionalProperties": false,
+      "properties": {
+        "machine": {
+          "$comment": "the RFC-0006 machine record of this host, its allowlisted fields only",
+          "$ref": "../manifest/1.schema.json#/$defs/machine"
+        },
+        "nonconforming": {
+          "$comment": "one line per profile check this host does not meet; recorded, not refused",
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "machine",
+        "nonconforming"
+      ],
+      "type": "object"
+    },
+    "image": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "only": {
+      "$comment": "the controls this part ran, in suite order",
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/controlId"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "perturbed_commitment": {
+      "$ref": "../controls/1.schema.json#/properties/perturbed_commitment"
+    },
+    "profile": {
+      "$comment": "the run's profile, on whose hosts prover-side controls prove",
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "run_manifest_digest": {
+      "$comment": "sha256 of the run's manifest.json bytes: every part ran against the same run",
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "schema": {
+      "const": "controls-part/1"
+    },
+    "seed_record_digest": {
+      "$comment": "sha256 of the run's controls-seed.json bytes, the record the seed came from (RFC-0008 SPLIT-1)",
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "suite": {
+      "$comment": "every control of the suite, in the order controls.json lists them",
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/controlId"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "verifier_cpus": {
+      "$comment": "a count of the CPUs this part's verify calls were bound to, not a measurement",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "verifier_profile": {
+      "$ref": "../quantity/1.schema.json#/$defs/profileId"
+    }
+  },
+  "required": [
+    "schema",
+    "run_id",
+    "run_manifest_digest",
+    "control_seed",
+    "seed_record_digest",
+    "suite",
+    "only",
+    "image",
+    "verifier_profile",
+    "profile",
+    "verifier_cpus",
+    "perturbed_commitment",
+    "harness_version",
+    "harness_commit",
+    "harness_dirty",
+    "host",
+    "controls"
+  ],
+  "title": "One part of a control suite run split across hosts, merged into controls.json by iproofs controls --merge (RFC-0008 §Split suites)",
+  "type": "object"
+}
