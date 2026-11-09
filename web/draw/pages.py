@@ -649,9 +649,16 @@ def build_reference():
 # ------------------------------------------------------------------ the criteria and the 404
 
 
-# a property's Not stated rule that only says what the shared one says (printed once, under the
-# title): it is left out of that property's rows
-GENERIC_NOT_STATED = re.compile(r"^Not stated in the sources read, or not copied yet\.$")
+# a property's Not stated rule that adds a case to the shared one (printed once, under the
+# title): "Not stated, including <case>, or not copied yet." prints as the case; any other
+# Not stated rule says what the shared rule and the property's note already say, and is left out
+NOT_STATED_CASE = re.compile(r"^Not stated, including (.+?)(?:, or not copied yet)?\.$")
+
+
+def not_stated_case(rule):
+    """The case a property's Not stated rule adds to the shared rule, as a sentence, or None."""
+    m = NOT_STATED_CASE.match(rule)
+    return f"{m[1][:1].upper()}{m[1][1:]}." if m else None
 
 
 def not_stated_rule():
@@ -680,10 +687,12 @@ def build_criteria():
     )
     secs = ""
     for i, p in enumerate(S.PROPS):
+        rules = {s: rule_words(p["rules"][s]) for s in STATE_ORDER if s != "not_stated"}
+        if case := not_stated_case(p["rules"]["not_stated"]):
+            rules["not_stated"] = readable(words(case))
         states = "".join(
-            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</dt><dd>{with_rule(rule_words(p["rules"][s]))}</dd></div>'
-            for s in STATE_ORDER
-            if s != "not_stated" or not GENERIC_NOT_STATED.match(p["rules"][s])
+            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</dt><dd>{with_rule(r)}</dd></div>'
+            for s, r in rules.items()
         )
         note = f'<p class="cnote">{e(words(p["not_here"]))}</p>' if p.get("not_here") else ""
         secs += (

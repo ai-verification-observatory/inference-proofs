@@ -129,7 +129,7 @@ Then the figures, one section per setup under a heading a reader names it by (mo
 
 ### Criteria page
 
-`/criteria`: the Not stated rule every property shares, once under the title; then for each property, its name and question, then what Yes, Partly and No mean for it (without the "The documentation says" lead-in the column makes plain), Not stated only where its rule adds to the shared one, and what it does not cover, from `criteria.json`; rule codes are quiet links. Below 1000 px the states go under the name; at 760 px and below an index of the six properties (key glyph and name) sits under the band and jumps to each; at 560 px and below each state's word sits over its definition at full width. The nav and every property name on a system page link to it.
+`/criteria`: the Not stated rule every property shares, once under the title; then for each property, its name and question, then what Yes, Partly and No mean for it (without the "The documentation says" lead-in the column makes plain), Not stated only where its rule adds a case to the shared one ("Not stated, including <case>", printed as the case: today Whole output checked alone), and what it does not cover, from `criteria.json`; rule codes are quiet links. Below 1000 px the states go under the name; at 760 px and below an index of the six properties (key glyph and name) sits under the band and jumps to each; at 560 px and below each state's word sits over its definition at full width. The nav and every property name on a system page link to it.
 
 ### Preview cards
 

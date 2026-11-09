@@ -61,3 +61,18 @@ def test_deeper_source_keys_read_as_words(site):
     url = "https://github.com/o/r/blob/" + "a" * 40 + "/THEOREM.md#L1"
     said = b.own_sources("security.notion", set(), {"security.notion.formal_name": url})
     assert ">formal name: " in re.sub(r"</?span[^>]*>", "", said)
+
+
+def test_criteria_prints_not_stated_only_for_an_added_case(site):
+    """The shared Not stated rule is printed once; a property's own Not stated row only where
+    its rule adds a case ("Not stated, including <case>"), printed as the case."""
+    b = site.build
+    rule = "Not stated, including a proved run whose output tokens it does not name, or not copied yet."
+    assert b.not_stated_case(rule) == "A proved run whose output tokens it does not name."
+    assert b.not_stated_case("Not stated in the sources read, or not copied yet.") is None
+    assert b.not_stated_case("No level stated for the configuration in the sources read.") is None
+    text = (site.out / "criteria.html").read_text()
+    for p in site.view["criteria"]["properties"]:
+        sec = re.search(rf'<section class="crit" id="{p["id"]}".*?</section>', text, re.S)[0]
+        case = b.not_stated_case(p["rules"]["not_stated"])
+        assert ("Not stated</dt>" in sec) == (case is not None), p["id"]

@@ -488,7 +488,7 @@
             "reason": "Soundness evidence named: human review and negative controls."
           },
           "quotes": [],
-          "reason": "No statement of a machine-checked proof in the sources read.",
+          "reason": "docs/statement.md argues each edge in prose; no passage says how that argument is checked.",
           "sources_read": [
             {
               "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
@@ -628,7 +628,7 @@
             "reason": "Hidden behind a commitment; the proof adds no blinding."
           },
           "quotes": [],
-          "reason": "No statement about hiding the weights in the sources read.",
+          "reason": "Not stated in the sources read.",
           "sources_read": [
             {
               "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
