@@ -71,6 +71,29 @@
             "prover_failed"
           ]
         },
+        "parts_not_read": {
+          "$comment": "RFC-0008 §Parts the verifier reads: on C5, C6 and C8, the target proof's parts the adapter declares its verify step does not read, which these controls never choose, each with the declared reason",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "part": {
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$",
+                "type": "string"
+              },
+              "reason": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "part",
+              "reason"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
         "passed": {
           "type": [
             "boolean",

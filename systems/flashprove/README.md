@@ -116,7 +116,16 @@ Several rows alter what a shared control alters (RFC-0008 §Shared controls, ver
 ```yaml
 deterministic_proofs: false
 incremental_proofs: true
-proofs: {granularity: "request", tokens_covered: "window", steady_boundary: "first_proof", steady_approximate: true}
+proofs:
+  granularity: "request"
+  tokens_covered: "window"
+  steady_boundary: "first_proof"
+  steady_approximate: true
+  verify_reads:
+    read: ["response.proof"]
+    not_read:
+      - part: "response.y"
+        reason: "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
 forbidden_flags: ["-public-weights", "-keep-for-the-audit"]
 ```
 
@@ -126,6 +135,7 @@ forbidden_flags: ["-public-weights", "-keep-for-the-audit"]
 - `steady_approximate: true`. RFC-0004 maps FlashProve's steady rate onto `prove.steady` as approximate, and the release times differ as listed above.
 - `deterministic_proofs: false`. Upstream does not state byte-identical proofs for identical inputs: proofs are masked with values from a random source that must not repeat ([docs/operators-duties.md#L180](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/operators-duties.md#L180)), and of `-memory` it says that it "should not change any byte of a proof, but no test compares the bytes" ([docs/service.md#L482](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/service.md#L482)).
 - `forbidden_flags`. `-public-weights` gives up weight hiding ("With this option the weights are not hidden", [docs/operators-duties.md#L200-L204](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/operators-duties.md#L200-L204)); `-keep-for-the-audit` keeps files that, with the seed, reveal every mask ([#L198](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/operators-duties.md#L198)). Upstream names no option that loosens what `cp_verify` accepts: a call with a lower `-bits` or without `-id` is never accepted ([verifier/README.md#L108-L133](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/verifier/README.md#L108-L133)).
+- `proofs.verify_reads`: `verify` reads `response.proof` and never reads `response.y`. It writes the token file `cp_verify` checks from the job's `claimed_output`, which the harness takes from its own record, never from files sent with a proof (AGENTS.md rule 6, [RFC-0008 §Parts the verifier reads](../../rfcs/0008-negative-controls.md#parts-the-verifier-reads)), as a client writes its own token file ([docs/verifying.md](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/verifying.md)); `response.y` is the prover's copy of that token (§Subcommands and upstream calls, `prove`). A mutated `response.y` therefore never reaches `cp_verify`, so C5, C6 and C8 choose `response.proof` only and `controls.json` lists `response.y` with this reason. The attack a changed token would make is C1, which changes the claimed output token.
 - `max_proof_parts` and `max_proof_bytes`: not stated upstream; the defaults apply (two parts, about 18.78 MB a proof).
 
 
