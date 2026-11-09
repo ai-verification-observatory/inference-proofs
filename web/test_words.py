@@ -112,3 +112,20 @@ def test_pairs_name_their_runs_and_why_others_join_none(site):
     f["pairs"]["n_serving"] = 3  # a count its inputs do not hold stops the build
     with pytest.raises(RuntimeError):
         b.pairs_html(cfg, f)
+
+
+def test_labels_read_whole(site):
+    """A label reads as a phrase (by hand): the weight width with its basis and coverage, the
+    older steady boundary, and a cost's record with the factor its reading unit applies."""
+    b = site.build
+    wb = {"bits": 8, "basis": "stated", "covers": "part"}
+    cfg = {"workload": {"precision": {"weight_bits": wb}},
+           "steady_boundary": "first-proof boundary (before 2026-11-09)"}  # fmt: skip
+    assert b.bits_words(cfg) == (
+        "8 bits per active weight, stated by the system, for part of the active weights"
+    )
+    assert b.boundary_words(cfg) == "steady window from the first proof (runs before 2026-11-09)"
+    cost = {"unit": "USD/1k_token", "source": "x#/s/cost_per_1k_tokens_prove.session"}
+    assert b.source_words(cost, {"source": "x#/s/"}) == "cost_per_1k_tokens_prove.session × 1,000"
+    rate = {"unit": "token/s", "source": "x#/s/rate_prove.session"}
+    assert b.source_words(rate, {"source": "x#/s/"}) == "rate_prove.session"

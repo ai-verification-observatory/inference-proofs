@@ -60,7 +60,7 @@ PER_BIT_LIMIT = ("Attention cost grows with prompt length and is not in this nor
                  "workloads of one model with different prompt lengths differ for that reason too "
                  "({prompts}). Weight bits are as the workload records them, with their basis and "
                  "source.")  # fmt: skip
-BITS_BASIS = {"stated": "as the system states it", "file_size": "from the file size",
+BITS_BASIS = {"stated": "stated by the system", "file_size": "from the file size",
               "computed": "computed from the files"}  # fmt: skip
 GRADE_WORD = {
     "measured": "recorded by our harness",

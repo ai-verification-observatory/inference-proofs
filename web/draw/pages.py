@@ -44,8 +44,8 @@ from .plates import (
     setup_dl,
     setup_parts,
     setup_shared,
-    source_key,
     source_label,
+    source_words,
     upstream,
     with_rule,
     words,
@@ -169,7 +169,7 @@ def more_table(cfg, caption, shared=None):
             lab = with_rule(why_words(f, cfg))
             val = '<span class="na">No value</span>'
         if f["recorded"]:
-            lab += f'\u00a0· <span class="src">source: {path_html(source_key(f, shared))}</span>'
+            lab += f'\u00a0· <span class="src">source: {path_html(source_words(f, shared))}</span>'
         more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv">{val}</td><td class="ml">{lab}</td></tr>'
     return (
         f'<table class="mtab"><caption class="sr">{e(caption)}</caption>'
@@ -584,7 +584,7 @@ def serving_cell(cfg, metric, head):
     st = f.get("stats") or {}
     sub = f"steady · n\u00a0{st['n']}" if st else "steady"
     said = [f"{n} {u}", scope_words(f, cfg), *([spread_line(f, count=True)] if st else []),
-            *(f"{k}: {v}" for k, v in labels(f, cfg)[1:]), f"source: {f['source']}"]  # fmt: skip
+            *(f"{k}: {v}" for k, v in labels(f, cfg)[1:]), f"source: {source_words(f)}"]  # fmt: skip
     if f["unit"] == "USD/1k_token" and cfg.get("price"):
         pr = cfg["price"]
         said.append(f"at {sig4(pr['usd_per_gpu_hour'])} USD per GPU-hour ({pr['date']})")

@@ -193,7 +193,7 @@ def bits_words(cfg):
     if not wb:
         return "weight bits not recorded"
     bits = f"{wb['bits']:.4g} bits" if wb.get("bits") is not None else "bits"
-    part = ", part of the weights" if wb.get("covers") == "part" else ""
+    part = ", for part of the active weights" if wb.get("covers") == "part" else ""
     return f"{bits} per active weight, {BITS_BASIS.get(wb.get('basis'), wb.get('basis'))}{part}"
 
 
@@ -596,7 +596,8 @@ def setup_dl(cfg, shared):
     """The labels a setup's figures share, once, under its runs line."""
     wid, href = workload_link(cfg)
     rows = [("workload", f'<a href="{e(href)}">{path_html(wid, ext=True)}</a> · '
-                         f"{e(cfg['workload']['division'])} · {keep(cfg['profile'])}")]  # fmt: skip
+                         f'<span title="division">{e(cfg["workload"]["division"])}</span> · '
+                         f'<span title="profile">{keep(cfg["profile"])}</span>')]  # fmt: skip
     rows += [(k, e(shared[k])) for k in ("grade", "evidence") if k in shared]
     rows.append(("source", source_html(shared["source"])))
     return (
@@ -612,6 +613,14 @@ def source_key(f, shared):
     if prefix and f["source"].startswith(prefix):
         return f["source"][len(prefix) :]
     return f["source"]
+
+
+def source_words(f, shared=None):
+    """A figure's record as a label reads it: its key, with the factor a reading unit applies
+    to the stored value where the key names another unit (a cost stored per 1k tokens, shown
+    per 1M: "cost_per_1k_tokens_prove.session × 1,000")."""
+    key = source_key(f, shared)
+    return f"{key} × 1,000" if f["unit"] == "USD/1k_token" else key
 
 
 def plate(cfg, col, pid="", shared=None):
@@ -641,7 +650,7 @@ def plate(cfg, col, pid="", shared=None):
             if "workload" not in shared:
                 kv.append(("workload", *workload_link(cfg)))
         if f["recorded"]:
-            kv.append(("source", source_key(f, shared), None))
+            kv.append(("source", source_words(f, shared), None))
     dl = "".join(
         f"<div><dt>{e(k)}</dt><dd>{v if isinstance(v, Html) else path_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
         for k, v, href in kv
