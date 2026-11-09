@@ -31,10 +31,16 @@ DEPLOYED = re.compile(
 class Handler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         path = self.path.split("?", 1)[0]
+        cached = False
         for rx, headers in HEADERS:
             if rx.match(path):
                 for h in headers:
                     self.send_header(h["key"], h["value"])
+                    cached |= h["key"].lower() == "cache-control"
+        # Vercel's own default for what vercel.json leaves alone (the pages): revalidate on every
+        # load, so a rebuild shows on reload rather than a page the browser kept from earlier
+        if not cached:
+            self.send_header("Cache-Control", "public, max-age=0, must-revalidate")
         super().end_headers()
 
     def redirect(self, location, status):
