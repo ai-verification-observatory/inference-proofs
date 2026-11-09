@@ -154,35 +154,51 @@ def price_words(cfg):
     return f'<a href="{e(blob(cfg["price"]["file"]))}">{e(said)}{EXT}</a>' if said else ""
 
 
+def label_cell(key, html):
+    """One label of a more-numbers row: its key, which the column's head names from 761 px and
+    the cell itself where the cells stack (phones), then its words; empty without words."""
+    cls = f"ml m-{key}"
+    return (
+        f'<td class="{cls}"><span class="mk">{key}: </span>{html}</td>'
+        if html
+        else f'<td class="{cls}"></td>'
+    )
+
+
 def more_table(cfg, caption, shared=None):
-    """The other figures, each with the labels its setup's line does not state (S2, S3): the
-    spread, scope when timed, grade and tier where they differ, and the record's key in the
-    release index; a missing one says why, and names its record when the runs recorded the
-    metric. A cost names the price it assumes."""
+    """The other figures, each with the labels its setup's line does not state (S2, S3), one
+    column each, its head printed once: the spread; the scope when timed, with grade and tier
+    where they differ and, for a cost, the price it assumes; the record's key in the release
+    index. A missing one is one row: its name and why, as a plate with no value."""
     shared = shared or {}
     more = ""
     for metric, label in MORE:
         f = cfg["figures"][metric]
-        if f["value"] is not None:
-            parts = [f"{k}: {v}" for k, v, _ in figure_rows(cfg, f) if k not in shared]
-            lab = with_rule(readable(" · ".join(parts)))
-            n, u = amount(f["value"], f["unit"])
-            # "GPU cost per 1M tokens": the row names the basis, so the value keeps its currency
-            val = fig(f"{n} {u.split(' per ')[0]}" if f["unit"] == "USD/1k_token"
-                      else shown(f["value"], f["unit"]))  # fmt: skip
-            if f["unit"] == "USD/1k_token" and (price := price_words(cfg)):
-                lab += f"\u00a0· {price}"
-        else:
-            # only why it is missing: the value cell says "No value", and a missing number has no grade
-            lab = with_rule(why_words(f, cfg))
-            val = '<span class="na">No value</span>'
-        if f["recorded"]:
-            lab += f'\u00a0· <span class="src">source: {path_html(source_words(f, shared))}</span>'
-        said = f' title="{e(mean_words(f))}"' if f["value"] is not None and f.get("stats") else ""
-        more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv"{said}>{val}</td><td class="ml">{lab}</td></tr>'
+        head = f'<th scope="row">{e(readable(label))}</th>'
+        if f["value"] is None:
+            more += (
+                f'<tr>{head}<td class="ml mw" colspan="4">{with_rule(why_words(f, cfg))}</td></tr>'
+            )
+            continue
+        cells = {k: v for k, v, _ in figure_rows(cfg, f) if k not in shared}
+        spread = with_rule(readable(cells.pop("spread", "")))
+        scope = [cells.pop("scope")] if "scope" in cells else []
+        scope = with_rule(readable(" · ".join(scope + [f"{k}: {v}" for k, v in cells.items()])))
+        if f["unit"] == "USD/1k_token" and (price := price_words(cfg)):
+            scope += ("\u00a0· " if scope else "") + price
+        n, u = amount(f["value"], f["unit"])
+        # "GPU cost per 1M tokens": the row names the basis, so the value keeps its currency
+        val = fig(f"{n} {u.split(' per ')[0]}" if f["unit"] == "USD/1k_token"
+                  else shown(f["value"], f["unit"]))  # fmt: skip
+        said = f' title="{e(mean_words(f))}"' if f.get("stats") else ""
+        src = f'<span class="src">{path_html(source_words(f, shared))}</span>'
+        more += (f'<tr>{head}<td class="mv"{said}>{val}</td>{label_cell("spread", spread)}'
+                 f'{label_cell("scope", scope)}{label_cell("source", src)}</tr>')  # fmt: skip
+    heads = "".join(f'<th scope="col">{h}</th>' for h in ("Figure", "Value", "Spread", "Scope",
+                                                          "Source"))  # fmt: skip
     return (
-        f'<table class="mtab"><caption class="sr">{e(caption)}</caption>'
-        f'<thead><tr><th scope="col">Figure</th><th scope="col">Value</th><th scope="col">Labels</th></tr></thead><tbody>{more}</tbody></table>'
+        f'<table class="mtab more"><caption class="sr">{e(caption)}</caption>'
+        f"<thead><tr>{heads}</tr></thead><tbody>{more}</tbody></table>"
     )
 
 

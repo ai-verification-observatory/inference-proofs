@@ -181,7 +181,7 @@ def plate_config(build: Build, system: str, pid: str) -> dict[str, Any]:
 
 def more_rows(text: str) -> list[str]:
     """Every row of every more-numbers table on a page."""
-    return [row for table in re.findall(r'<table class="mtab">(.*?)</table>', text, re.S)
+    return [row for table in re.findall(r'<table class="mtab more">(.*?)</table>', text, re.S)
             for row in re.findall(r'<tr><th scope="row">.*?</tr>', table)]  # fmt: skip
 
 
@@ -306,7 +306,7 @@ def test_every_number_has_labels(site: Build) -> None:
         assert len(rows) == 5 * len(configs)
         for row in rows:  # every label a plate holds, or why there is no value
             said = plain(row)
-            if "No value" in said:
+            if 'class="ml mw"' in row:
                 continue
             for label in ("spread: ", "source: "):
                 assert label in said, (label, said)
@@ -1073,7 +1073,8 @@ def test_table_semantics(site: Build) -> None:
     """S9: every cell of a table across systems has one column header and one row header through
     ARIA roles, a sorted column's header carries `aria-sort`, and every glyph state is a word in
     the row header's cell, read after the system's name; the more-numbers tables use `th` with
-    `scope`."""
+    `scope`, one column per label (spread, scope, source), its head printed once; a figure with
+    no value is one row of its name and why, across the columns."""
     index = site.pages["index.html"]
     for sec in SECTION.findall(index):
         heads = HEAD.findall(sec)
@@ -1087,14 +1088,18 @@ def test_table_semantics(site: Build) -> None:
             assert head.index('class="name"') < head.index('<p class="sr">'), rid
             assert re.search(r'<p class="sr">[^<]*: (Yes|Partly|No|Not stated)', head), rid
     for system in site.view["orders"]["benchmarked"]:
-        tables = re.findall(r'<table class="mtab">(.*?)</table>', site.pages[f"{system}.html"])
+        tables = re.findall(r'<table class="mtab more">(.*?)</table>', site.pages[f"{system}.html"])
         assert tables
         for table in tables:
             rows = re.findall(r"<tr>(.*?)</tr>", table)
-            assert rows[0].count('<th scope="col">') == 3
+            heads = re.findall(r'<th scope="col">([^<]+)</th>', rows[0])
+            assert heads == ["Figure", "Value", "Spread", "Scope", "Source"]
             for row in rows[1:]:
                 assert row.count('<th scope="row">') == 1
-                assert row.count("<td") == 2
+                cols = re.findall(r'<td class="([^"]+)"(?: colspan="(\d)")?', row)
+                assert sum(int(span or 1) for _, span in cols) == len(heads) - 1, row
+                if len(cols) == 1:  # no value: its name and why
+                    assert cols[0] == ("ml mw", "4"), row
 
 
 def local(url: str) -> bool:

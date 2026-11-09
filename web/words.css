@@ -503,7 +503,11 @@ html:has(.top.s-on) { overflow: hidden; }
 .mtab tbody th { font-weight: 600; }
 .mtab .fig { --nfs: 22px; }
 .mtab .na { padding-top: 0; }
-.mtab .ml { color: var(--muted); max-width: 90ch; }
+.mtab .ml { color: var(--muted); }
+/* a spread on one line where the columns have room */
+.mtab .m-spread { white-space: nowrap; }
+/* a more-numbers label's key: its column's head names it; shown where the cells stack (phones) */
+.mtab .mk { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 /* a value and its unit on one line, the column as narrow as its widest value */
 .mtab .mv { white-space: nowrap; width: 1%; }
 .mtab .mv .fig { flex-wrap: nowrap; }
@@ -632,6 +636,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* criteria: the states under the name */
 @media (max-width: 1000px) {
   section.crit { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+  .mtab .m-spread { white-space: normal; }
   .cnote { grid-column: 1; max-width: 80ch; }
   .cs { max-width: 80ch; }
 }
@@ -742,6 +747,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mtab th { border: 0; padding: 0; text-wrap: balance; }
   .mtab td { border: 0; padding: 0; }
   .mtab .ml { grid-column: 1 / -1; margin-top: 4px; }
+  .mtab .ml + .ml { margin-top: 2px; }
+  .mtab .ml:empty { display: none; }
+  .mtab .mk { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
   .ctl .qs { padding-block: 4px; margin-block: -4px; }
   .facts .links { gap: 16px; }
   .reffigs { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--line); }
