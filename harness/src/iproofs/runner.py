@@ -1690,7 +1690,7 @@ class Runner:
         resolved = job.workload and job.system and job.prompt_set_digest
         manifest = self._manifest(job) if resolved else None
         # run.json names the card the manifest records (RFC-0016 OVR-5 reads it)
-        claim = manifest["claim"] if manifest is not None else None
+        claim = manifest.get("claim") if manifest is not None else None
         doc = self._run_doc(job, metrics, claim)
         invalid = {"run.json": (doc, self.registry.errors("run/1", doc))}
         if manifest is not None:
