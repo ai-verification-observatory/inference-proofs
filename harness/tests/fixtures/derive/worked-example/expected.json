@@ -3,6 +3,7 @@
   "commit_seconds_per_token_h1": 0.05,
   "commit_seconds_per_token_h1000": 5e-05,
   "cost_per_1k_tokens_prove.steady": 0.01,
+  "gpu_seconds_per_token_prove.steady": 0.01,
   "proof_bytes_per_token": 2000,
   "prove_session_seconds": 62.5,
   "prove_steady_seconds": 40,

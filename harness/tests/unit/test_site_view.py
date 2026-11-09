@@ -417,3 +417,48 @@ def test_no_release_is_config_error(tmp_path: Path) -> None:
     with pytest.raises(IProofsError, match="placeholder_release") as e:
         inputs.newest_release(tmp_path)
     assert e.value.kind is ErrorKind.CONFIG
+
+
+def test_overhead_conditions_words() -> None:
+    """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load
+    context, built from a conditions block and stored quantities (fixture values, not a
+    result); nothing without a value."""
+    from iproofs.site.view import overhead_words  # noqa: PLC0415
+
+    conditions = {
+        "engine": {"name": "vllm", "version": "0.32.0", "interface": "vllm serve",
+                   "image_digest": None,
+                   "settings": "engine defaults except --max-model-len, --max-num-seqs, "
+                               "--tensor-parallel-size"},
+        "decoding": "greedy", "warm": True, "runtime": "hosted",
+        "serving_model": {"id": "m", "version": 1, "digest": "sha256:" + "0" * 64,
+                          "publisher": "Meta", "precision": "FP8", "release_statement": "q"},
+        "proved_precision": "UD-Q4_K_XL", "weight_bits": "w", "gpus": {"system": 1, "serving": 4},
+        "gpu_model": "NVIDIA H200", "profiles": {"system": "a", "serving": "b"},
+        "batch": {"matched": 24, "high": 1024},
+        "batches_per_session": {"system": 5, "serving_matched": 25, "serving_high": 5},
+        "prompt_count_run": {"system": 120, "serving_matched": 600, "serving_high": 5120},
+        "n": {"system": 3, "serving_matched": 3, "serving_high": 3},
+    }  # fmt: skip
+    pairs = {"n_system": 3, "n_serving": 3, "min": 72.0, "max": 146.0}
+    stats = {
+        "overhead_vs_production_prove.steady": {"value": 100.0, "pairs": pairs},
+        "overhead_vs_production_high_prove.steady": {"value": 200.0, "pairs": pairs},
+    }
+    wl = {"precision": {"weight_bits": {"bits": 4.84, "basis": "computed"}}}
+    words = overhead_words(conditions, stats, wl)
+    assert words is not None
+    assert words["precision"] == (
+        "Proving the UD-Q4_K_XL model (4.84 bits per active weight, computed) costs 100 times "
+        "(range 72 to 146 over 3 \u00d7 3 pairs) serving Meta's FP8 release, in GPU-seconds per "
+        "token, steady, at 24 requests a batch."
+    )
+    line = words["conditions"]
+    gpus = "1 \u00d7 NVIDIA H200 for the prover, 4 for serving"
+    for part in ("steady scope", "vllm 0.32.0, vllm serve", "480 further windows", gpus,
+                 "RFC-0006 C5", "greedy"):  # fmt: skip
+        assert part in line, part
+    assert words["high"].startswith("At 1024 requests a batch: 200\u00d7")
+    assert "the prover's 120 prompts plus 5000 further windows" in words["high"]
+    stats["overhead_vs_production_prove.steady"] = {"value": None, "pairs": pairs}
+    assert overhead_words(conditions, stats, wl) is None

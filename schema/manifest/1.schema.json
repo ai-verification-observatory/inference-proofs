@@ -50,6 +50,11 @@
             "nvidia_container_toolkit": {
               "minLength": 1,
               "type": "string"
+            },
+            "shm_bytes": {
+              "$comment": "RFC-0006 PC-SHM: statvfs of /dev/shm",
+              "minimum": 0,
+              "type": "integer"
             }
           },
           "type": "object"
@@ -128,6 +133,15 @@
               "minimum": 0,
               "type": "integer"
             },
+            "bound_indices": {
+              "$comment": "RFC-0006 R6: every bound GPU; bound_index is the first",
+              "items": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
             "count_visible": {
               "minimum": 0,
               "type": "integer"
@@ -151,6 +165,67 @@
             "numa_node": {
               "minimum": -1,
               "type": "integer"
+            },
+            "numa_nodes": {
+              "$comment": "RFC-0006: the NUMA node of each bound GPU",
+              "items": {
+                "minimum": -1,
+                "type": "integer"
+              },
+              "type": "array"
+            },
+            "nvlink_active_links": {
+              "$comment": "RFC-0006 PC-GPU-LINK (record only): active NVLink links per bound GPU, null where NVML does not report it",
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "minimum": 0,
+                    "type": "integer"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "unbound_samples": {
+              "$comment": "RFC-0006 PC-GPU-IDLE: per visible unbound GPU, the maxima over the job's samples",
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "compute_processes_max": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "index": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "memory_used_mib_max": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "samples": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "util_percent_max": {
+                    "maximum": 100,
+                    "minimum": 0,
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "index",
+                  "samples",
+                  "compute_processes_max",
+                  "memory_used_mib_max",
+                  "util_percent_max"
+                ],
+                "type": "object"
+              },
+              "type": "array"
             }
           },
           "type": "object"
@@ -364,6 +439,44 @@
     "control": {
       "type": "boolean"
     },
+    "engine": {
+      "$comment": "RFC-0015 SRV-3, SRV-6: the production-serving engine as the run's system.yaml pins it, and the interface the adapter built it in; the image digest is a join key of D-OVERHEAD-S (RFC-0004 INV-DERIVE-2 (e))",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "image": {
+              "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "interface": {
+              "enum": [
+                "vllm serve",
+                "LLM class"
+              ]
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "version",
+            "image",
+            "interface"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "harness": {
       "additionalProperties": false,
       "properties": {
@@ -550,6 +663,72 @@
       ],
       "type": "object"
     },
+    "serving_model": {
+      "$comment": "RFC-0015 SRV-6: the serving record whose files the run served; `digest` is a join key of D-OVERHEAD-S, id and version are for display",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            },
+            "id": {
+              "pattern": "^[a-z0-9][a-z0-9.-]{0,95}$",
+              "type": "string"
+            },
+            "publisher": {
+              "additionalProperties": false,
+              "properties": {
+                "repo": {
+                  "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                  "type": "string"
+                },
+                "revision": {
+                  "$ref": "../quantity/1.schema.json#/$defs/commit"
+                }
+              },
+              "required": [
+                "repo",
+                "revision"
+              ],
+              "type": "object"
+            },
+            "source": {
+              "additionalProperties": false,
+              "properties": {
+                "repo": {
+                  "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+                  "type": "string"
+                },
+                "revision": {
+                  "$ref": "../quantity/1.schema.json#/$defs/commit"
+                }
+              },
+              "required": [
+                "repo",
+                "revision"
+              ],
+              "type": "object"
+            },
+            "version": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "id",
+            "version",
+            "digest",
+            "source",
+            "publisher"
+          ],
+          "type": "object"
+        }
+      ]
+    },
     "system": {
       "additionalProperties": false,
       "properties": {
@@ -666,6 +845,16 @@
     "workload": {
       "additionalProperties": false,
       "properties": {
+        "batch_size_run": {
+          "$comment": "RFC-0015 SRV-1: the batch size the run served, when it differs from the workload's",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "batches_per_session_run": {
+          "$comment": "RFC-0015 SRV-1: batches the run served",
+          "minimum": 1,
+          "type": "integer"
+        },
         "corpus_digest": {
           "$ref": "../quantity/1.schema.json#/$defs/digest"
         },
@@ -674,6 +863,13 @@
         },
         "id": {
           "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "load_point": {
+          "$comment": "RFC-0015 SRV-1: a production-serving run's load point",
+          "enum": [
+            "matched",
+            "high"
+          ]
         },
         "model": {
           "additionalProperties": false,
@@ -695,6 +891,15 @@
             "digest"
           ],
           "type": "object"
+        },
+        "prompt_count_run": {
+          "$comment": "RFC-0015 SRV-8: prompts the run processed",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prompt_prefix_digest": {
+          "$comment": "RFC-0015 SRV-8: digest of the first prompts.count prompts of an extended set; equal to the source run's prompt_set_digest",
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
         },
         "prompt_seed": {
           "pattern": "^0x[0-9a-f]{16}$",

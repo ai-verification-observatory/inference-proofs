@@ -105,16 +105,21 @@ def test_tokens_covered_per_proof_statistics(tree: Path) -> None:
 
 
 def test_agreement_null_not_measurable(tree: Path) -> None:
-    """RFC-0015 NM-1: every reference run on FlashProve's workload failed with `resource`. The
-    placeholder holds no reference run on SASH's workload, so the freeze writes neither figure
-    for SASH (not recorded, never the NM-1 sentence)."""
+    """RFC-0015 NM-1: every reference run on FlashProve's workload failed with `resource`, so
+    D-AGREE is `not_measurable_on_profile`. Those ref-serve runs are on a prover profile, not a
+    serving one (SRV-10), so FlashProve's overhead is `not_applicable` (INV-DERIVE-2 (c)), and
+    NM-1 is never judged from them. SASH's steady scope is not externally observable, and that
+    reason goes first (TC-OVERHEAD-SASH); no recompute run replays SASH, so no D-AGREE."""
     doc = index(tree)
-    metrics = ("agreement_rate", "overhead_vs_serving_prove.session")
     stats = config(doc, "flashprove")["statistics"]
-    for metric in metrics:
-        q = stats[metric]
-        assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile"), metric
-    assert not set(metrics) & set(config(doc, "sash")["statistics"])
+    q = stats["agreement_rate"]
+    assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile")
+    q = stats["overhead_vs_production_prove.steady"]
+    assert (q["value"], q["null_reason"]) == (None, "not_applicable")
+    assert "overhead_conditions" not in config(doc, "flashprove")
+    sash = config(doc, "sash")["statistics"]
+    assert sash["overhead_vs_production_prove.steady"]["null_reason"] == "not_externally_observable"
+    assert "agreement_rate" not in sash
 
 
 def test_reference_all_failed(tree: Path) -> None:

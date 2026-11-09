@@ -125,7 +125,7 @@ METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
-    "overhead": "overhead_vs_serving_prove.session",
+    "overhead": "overhead_vs_production_prove.steady",
 }
 # how each order reads aloud
 SORT_WORDS = {
@@ -134,8 +134,8 @@ SORT_WORDS = {
     "proof_size": {"asc": "small to large", "desc": "large to small"},
     "check_time": {"asc": "short to long", "desc": "long to short"},
     "overhead": {
-        "asc": "closer to plain serving first",
-        "desc": "further from plain serving first",
+        "asc": "closer to production serving first",
+        "desc": "further from production serving first",
     },
 }
 # More numbers on a system page, in this order: the stored statistic and its row label
@@ -158,11 +158,11 @@ REF_CELLS = {
 REF_OVERHEAD = {
     "serve": (
         "Baseline",
-        "Plain serving is the baseline of the overhead ratio, whether or not it has run.",
+        "Production serving is the baseline of the overhead ratio, whether or not it has run.",
     ),
     "recompute": ("Does not apply", "A rerun is not the baseline."),
 }
-REF_BASELINE = "by definition"  # the line under plain serving's Baseline, as its sibling cells have
+REF_BASELINE = "by definition"  # the line under production serving's Baseline, as its siblings
 
 # Criteria phrases the site words differently, for a reader who has not read the RFCs. Each must
 # still occur in the criteria or facts file, so a change there shows up here.
@@ -373,6 +373,10 @@ def plate(cfg, col, pid=""):
                 kv.append(("spread", spread_line(f), None))
             kv += [(k, v, None) for k, v in labels(f, cfg)]
             kv.append(("workload", *workload_link(cfg)))
+            words = cfg.get("overhead_words") if col == "overhead" else None
+            for key in ("conditions", "precision", "high"):  # RFC-0004 INV-DERIVE-9
+                if words and words.get(key):
+                    kv.append((key, words[key], None))
         if f["recorded"]:
             kv.append(("source", f["source"], None))
     dl = "".join(

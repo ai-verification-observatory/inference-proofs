@@ -22,7 +22,9 @@ from iproofs.site.reply import reply_html
 
 # The figures each configuration prints: the overview columns, then More numbers (#320 §1).
 FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
-           "overhead_vs_serving_prove.session")  # fmt: skip
+           "overhead_vs_production_prove.steady")  # fmt: skip
+OVERHEAD = "overhead_vs_production_prove.steady"  # RFC-0004 INV-DERIVE-9, the headline
+OVERHEAD_HIGH = "overhead_vs_production_high_prove.steady"
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
@@ -331,6 +333,7 @@ def _configuration(
         "card": _card(root, index, config["system"], config["configuration"]),
         "figures": {m: figure(index_path, position, stats, m, records) for m in (*FIGURES, *MORE)},
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
+        "overhead_words": overhead_words(config.get("overhead_conditions"), stats, wl),
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
         "effective_tier": config["effective_tier"],
@@ -342,6 +345,73 @@ def _configuration(
         "verifier": _verifier(reference, config, records),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
+
+
+def _num(x: float) -> str:
+    """A ratio as the pages print it: three significant figures, never rounded in the record."""
+    return f"{x:,.3g}" if x < 1000 else f"{x:,.0f}"
+
+
+def _range(q: dict[str, Any]) -> str:
+    pairs = q.get("pairs") or {}
+    if pairs.get("min") is None:
+        return f"over {pairs.get('n_system', 0)} \u00d7 {pairs.get('n_serving', 0)} pairs"
+    return (f"range {_num(pairs['min'])} to {_num(pairs['max'])} over {pairs['n_system']} \u00d7 "
+            f"{pairs['n_serving']} pairs")  # fmt: skip
+
+
+def overhead_words(
+    conditions: dict[str, Any] | None, stats: dict[str, Any], wl: dict[str, Any]
+) -> dict[str, str] | None:
+    """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
+    of a system row's overhead, every value from the release index's `overhead_conditions`, the
+    stored quantities and the workload record; None without a value (nothing to qualify)."""
+    q = stats.get(OVERHEAD)
+    if not conditions or not isinstance(q, dict) or q.get("value") is None:
+        return None
+    c = conditions
+    model = c.get("serving_model") or {}
+    engine = c["engine"]
+    bits = (wl.get("precision") or {}).get("weight_bits") or {}
+    gpus, n, count = c["gpus"], c["n"], c["prompt_count_run"]
+    batch, per = c["batch"], c["batches_per_session"]
+    line = "; ".join([
+        "steady scope (start-up excluded on both sides)",
+        f"{batch['matched']} requests a batch on both sides, {per['system']} batches for the "
+        f"prover and {per['serving_matched'] or per['system']} for serving",
+        f"prompts: the prover's {count['system']}, replayed"
+        + ("" if not count.get("serving_matched") or count["serving_matched"] == count["system"]
+           else f" (serving: the prover's {count['system']} plus "
+                f"{count['serving_matched'] - count['system']} further windows of the same "
+                "seeded generator)"),
+        f"{engine['name']} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
+        f" {engine['settings']}",
+        "greedy decoding, warm",
+        f"{c['runtime']}",
+        f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
+        f" release; proving {c['proved_precision']}",
+        f"{gpus['system']} \u00d7 {c['gpu_model']} for the prover, {gpus['serving']} for serving",
+        f"n = {n['system']} prover and {n['serving_matched']} serving repetitions, {_range(q)}",
+        "GPU-seconds only: CPU and host memory are not counted; the prover's GPU comes with its "
+        "host's CPUs and memory (RFC-0006 C5)",
+    ])  # fmt: skip
+    note = (
+        f"Proving the {c['proved_precision']} model ({bits.get('bits')} bits per active weight, "
+        f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
+        f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
+        f"release, in GPU-seconds per token, steady, at {batch['matched']} requests a batch."
+    )
+    out = {"conditions": line, "precision": note}
+    high = stats.get(OVERHEAD_HIGH)
+    if isinstance(high, dict) and high.get("value") is not None:
+        extra = ""
+        if count.get("serving_high") and count["serving_high"] > count["system"]:
+            extra = (f"; at high load: the prover's {count['system']} prompts plus "
+                     f"{count['serving_high'] - count['system']} further windows of the same "
+                     "seeded generator")  # fmt: skip
+        out["high"] = (f"At {batch['high']} requests a batch: {_num(float(high['value']))}\u00d7 "
+                       f"({_range(high)}){extra}.")  # fmt: skip
+    return out
 
 
 def site_view(root: Path) -> dict[str, Any]:

@@ -58,7 +58,7 @@ def reference_system(repo: Path, name: str, role: str) -> None:
         "engine": {"name": "fake", "version": "1", "image": IMAGE},
         "workloads": [
             {"id": "fake-tiny-ci", "precision_used": "int8", "precision_substitution": None,
-             "engine_args": []}
+             "engine_args": []} | ({"load_point": "matched", "gpus": 1} if role == "serve" else {})
         ],
         "deterministic_proofs": True,
         "incremental_proofs": True,

@@ -93,7 +93,15 @@ from iproofs.provenance import (
     select_cpus,
     usable_topology,
 )
-from iproofs.quantity import NullReason, Scope, Unit, check_closed_division
+from iproofs.quantity import (
+    Grade,
+    NullReason,
+    Scope,
+    SourceKind,
+    Tier,
+    Unit,
+    check_closed_division,
+)
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.workloads import (
@@ -545,6 +553,7 @@ class Runner:
         )
         check_card_class(self.root, self.registry, system, wl)
         job.reference, job.reference_file = self._reference(spec)
+        profile_gpu_count(job.reference.profiles[spec.profile], spec.profile)  # INV-DERIVE-8
         job.system, job.workload = system, wl
         job.models = self._models(wl, log)
 
@@ -1513,7 +1522,29 @@ class Runner:
                 for i, (pid, ns) in enumerate(job.releases)
             ],
             "warnings": list(job.warnings),
-        } | ({"inputs": asserted_inputs(job.workload)} if metrics and job.workload else {})
+        } | ({"inputs": self._run_inputs(job)} if metrics and job.workload else {})
+
+    def _run_inputs(self, job: Job) -> dict[str, QuantityTree]:
+        """run.json `inputs`: the workload's asserted inputs (RFC-0003 WB-4) and, for a profile
+        with a GPU, its GPU count (RFC-0004 INV-DERIVE-8)."""
+        assert job.workload is not None
+        out = asserted_inputs(job.workload)
+        if (count := self._gpu_count(job)) is not None:
+            out["gpu_count"] = count
+        return out
+
+    def _gpu_count(self, job: Job) -> QuantityTree | None:
+        """The profile's `gpu.count` as an asserted quantity (RFC-0004 INV-DERIVE-8), or None
+        for a CPU-only test profile (`gpu: null`)."""
+        assert job.reference is not None
+        count = profile_gpu_count(job.reference.profiles[job.spec.profile], job.spec.profile)
+        if count is None:
+            return None
+        ref = f"{job.reference_file}#/profiles/{job.spec.profile}/gpu/count"
+        return {"value": count, "unit": str(Unit.COUNT), "scope": None,
+                "grade": str(Grade.ASSERTED), "tier": str(Tier.REPORTED),
+                "source": {"kind": str(SourceKind.REFERENCE_FILE), "ref": ref},
+                "null_reason": None}  # fmt: skip
 
     def _manifest(self, job: Job) -> dict[str, object]:
         """manifest.json: everything needed to rerun the job (RFC-0014 §manifest.json)."""
@@ -1712,8 +1743,8 @@ class Runner:
             m["verify_single_thread_seconds"] = _statistic(
                 [job.single_thread_seconds], Unit.S, Scope.VERIFY_SINGLE_THREAD, vref
             )
-        profile = job.reference.profiles[job.spec.profile]
-        gpus = profile.gpu.count if isinstance(profile, ProverProfile) and profile.gpu else 0
+        gpu_q = self._gpu_count(job)  # RFC-0004 INV-DERIVE-8, the input of D-GSPT-S
+        gpus = int(str(gpu_q["value"])) if gpu_q is not None else 0
         pointer = job.reference.price_pointer(job.spec.profile)  # RFC-0006 C7
         price_ptr = f"{job.reference_file}#{pointer}"
         price_q = json.loads(json.dumps(_price_tree(self.root / job.reference_file, pointer)))
@@ -1741,6 +1772,7 @@ class Runner:
             weight_bits=(f"{run_json}#/inputs/weight_bits", inputs["weight_bits"]),
             first_proof_tokens=(f"{run_json}#/proofs/0/tokens_covered", first),
             reference=_reference(job),
+            gpu_count=None if gpu_q is None else (f"{run_json}#/inputs/gpu_count", gpu_q),
         )
         if self._substituted(job):  # RFC-0015 PM-2: every quantity of the row is flagged
             for q in m.values():
@@ -1896,6 +1928,19 @@ def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
         shutil.copytree(job.staging / COMMITMENT_STORE, out / "commitment")
         write_json(out / "perturbed.json", record)
     return out / "perturbed.json"
+
+
+def profile_gpu_count(profile: object, name: str) -> int | None:
+    """RFC-0004 INV-DERIVE-8: the GPUs a configuration on `profile` holds, `gpu.count`; None for
+    a CPU-only test profile (`gpu: null`). A GPU profile without a positive count is `config`
+    (the schema requires one; this holds for every profile class)."""
+    gpu = getattr(profile, "gpu", None)
+    if gpu is None:
+        return None
+    count = getattr(gpu, "count", None)
+    if not isinstance(count, int) or count < 1:
+        raise IProofsError(ErrorKind.CONFIG, f"profile {name} has GPU count {count!r}, not >= 1")
+    return count
 
 
 def _batch_size(job: Job) -> int:

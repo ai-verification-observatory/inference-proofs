@@ -131,7 +131,8 @@ def test_engine_options_verbatim(adapter: ModuleType) -> None:
     """SRV-3: the options come from system.yaml only."""
     doc = yaml.safe_load((SYSTEM / "system.yaml").read_text())
     for entry in doc["workloads"]:
-        assert adapter.engine_args(entry["id"]) == entry["engine_args"]
+        found = adapter.engine_args(entry["id"], entry["load_point"], entry["gpus"])
+        assert found == entry["engine_args"]
     with pytest.raises(SystemExit, match=r"not in system\.yaml"):
         adapter.engine_args("fake-tiny-ci")
 

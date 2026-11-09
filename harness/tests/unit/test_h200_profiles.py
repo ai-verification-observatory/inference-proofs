@@ -10,11 +10,12 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import yaml
 
 from iproofs import cli, provenance
 from iproofs.adapter import HostedRunner, image_environment
 from iproofs.errors import IProofsError
-from iproofs.model import ProverProfile, VerifierProfile, load_reference
+from iproofs.model import ProverProfile, ServingProfile, VerifierProfile, load_reference
 from iproofs.provenance import Cpu, Host, Topology, check_profile, select_cpus, usable_topology
 from iproofs.schema import SchemaRegistry
 
@@ -103,7 +104,7 @@ def test_h200_profiles_declared() -> None:
     assert hosted.container_runtime == profile("prover-h100-hosted").container_runtime
     assert (hosted.driver, hosted.cost) == ("unpinned", "h200")
     h200 = [pid for pid, found in REF.profiles.items()
-            if isinstance(found, ProverProfile) and found.gpu
+            if isinstance(found, ProverProfile) and found.gpu and found.kind == "prover"
             and "H200" in found.gpu.model]  # fmt: skip
     assert h200 == ["prover-h200", "prover-h200-hosted"]
     assert {"prover-h200", "prover-h200-hosted", "prover-h100"} <= set(
@@ -257,3 +258,24 @@ def test_hf_jobs_names_stay_out_of_the_adapter_environment() -> None:
     assert image_environment(environ) == {
         "PATH": "/usr/bin", "HF_HOME": "/data/hf", "IPROOFS_ADAPTER_COMMIT": "abc"
     }  # fmt: skip
+
+
+def test_serving_profile_pairs() -> None:
+    """TC-SERVING-PROFILE (PAIR-1, RFC-0006 R6): the v0.1 serving profiles pair with
+    prover-h200-hosted; pairing with an H100 profile, a docker profile or a verifier fails."""
+    from iproofs.validate.cost import pair_problems  # noqa: PLC0415
+
+    profiles = yaml.safe_load((ROOT / "reference/v0.1.yaml").read_text())["profiles"]
+    assert pair_problems("r", profiles) == []
+    serving = REF.profiles["serving-h200x4-hosted"]
+    assert isinstance(serving, ServingProfile)
+    assert (serving.gpu.count, serving.pairs_with, serving.shm_gib_min) == (
+        4, ("prover-h200-hosted",), 8)  # fmt: skip
+    for other, words in (("prover-h100-hosted", "has GPU 'NVIDIA H100 80GB HBM3'"),
+                         ("prover-h200", "runs docker host, the serving profile hosted"),
+                         ("verifier-cpu", "is not a prover profile")):  # fmt: skip
+        edited = {**profiles, "serving-h200x4-hosted": {
+            **profiles["serving-h200x4-hosted"], "pairs_with": [other]}}  # fmt: skip
+        [found] = pair_problems("r", edited)
+        assert words in found.message, found.message
+        assert found.rule == "PAIR-1"

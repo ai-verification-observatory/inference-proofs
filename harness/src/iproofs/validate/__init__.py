@@ -236,14 +236,21 @@ def _gpus(root: Path, inputs: list[str], profile: str) -> int:
 
 
 def _substituted_row(root: Path, doc: Mapping[str, object]) -> bool:
-    """Is the run a reference row with a declared precision substitution (RFC-0015 PM-2)?"""
+    """Is the run a reference row with a declared precision substitution (RFC-0015 PM-2): as
+    system.yaml declares it now, or as the run recorded it (a row stored before the declaration
+    was withdrawn, such as the plain-serving runs of RFC-0015 SRV-10, keeps its flags)?"""
     from iproofs.validate.precision import substituted  # noqa: PLC0415
 
     workload = doc.get("workload")
     if doc.get("system_kind") != "reference" or not isinstance(workload, Mapping):
         return False
+    metrics = doc.get("metrics")
+    recorded = isinstance(metrics, Mapping) and any(  # the row as the runner recorded it
+        isinstance(q, Mapping) and (q.get("quality") or {}).get("precision_substituted")
+        for q in metrics.values()
+    )
     registry = SchemaRegistry.from_tree(root / "schema")
-    return substituted(root, str(doc.get("system")), str(workload.get("id")), registry)
+    return recorded or substituted(root, str(doc.get("system")), str(workload.get("id")), registry)
 
 
 def check_derived(path: Path, root: Path) -> list[Finding]:

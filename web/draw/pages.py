@@ -508,7 +508,7 @@ def build_reference():
 {footer()}"""
     return page(
         "References",
-        "The references: plain serving and a rerun by a weights holder, their six properties and their figures.",
+        "The references: production serving and a rerun by a weights holder, their six properties and their figures.",
         body,
         "system reference",
         "reference",

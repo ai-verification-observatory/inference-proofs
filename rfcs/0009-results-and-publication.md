@@ -356,7 +356,7 @@ The author's affiliations and any interest in a measured system are declared in 
 
 No results exist yet. v0.1-alpha lands the run directory writer with the fake systems; v0.1-beta lands the first real runs; v0.1 lands freeze, site and report. The draft's storage layout is kept; additions are `reviews/`, `reproductions/`, `replaces`, `releases/`, caps and the freeze algorithm.
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): in the display rules, the system row's overhead column becomes "Overhead vs production serving" (`overhead_vs_production_prove.steady`), with the RFC-0004 INV-DERIVE-9 conditions line and precision note generated from the release index's `overhead_conditions`, never typed. A SASH row prints that it has no steady figure, with its reason. S6 is unchanged (no table across models).
+Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): in the display rules, the system row's overhead column shows the overhead against production serving (`overhead_vs_production_prove.steady`; its words name production serving), with the RFC-0004 INV-DERIVE-9 conditions line and precision note generated from the release index's `overhead_conditions`, never typed. A SASH row prints that it has no steady figure, with its reason. S6 is unchanged (no table across models).
 
 ## Testing Strategy
 

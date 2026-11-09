@@ -61,8 +61,9 @@ NULL_WORD = {
     "not_measurable_on_profile": "Not measurable on {gpu} (RFC-0015 NM-1).",
     "missing_input": "A number this one is calculated from is missing.",
 }
-# A missing overhead names its baseline: overhead divides by plain serving's time (D-OVERHEAD-S).
-NM1_OVERHEAD = "Plain serving could not run this model on {gpu}, so there is no baseline to divide by (RFC-0015 NM-1)."
+# A missing overhead names its baseline: overhead divides by production serving's GPU-seconds (D-OVERHEAD-S).
+NM1_OVERHEAD = "Production serving could not run this model on the serving GPUs, so there is no baseline to divide by (RFC-0015 NM-1)."
+NO_SERVING_OVERHEAD = "No production-serving run on this profile's GPU model is in the release, so there is no baseline to divide by (RFC-0015 SRV-6)."
 NOT_RECORDED = "Not recorded in these runs."
 FAIL_KIND = {
     "config": "a configuration error",
@@ -125,7 +126,7 @@ COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7:
               8: "eight", 9: "nine", 10: "ten"}  # fmt: skip
 # RFC-0009 S6: above tables of different native workloads side by side (two workloads on one model)
 NATIVE_HEADER = "Native workloads differ: rows are not a head-to-head comparison"
-REF_LEAD = "The same model, task and GPU without a proof: plain serving checks nothing, a rerun needs the weights; they are baselines, not systems."
+REF_LEAD = "The same model and task without a proof: production serving checks nothing, a rerun needs the weights; they are baselines, not systems."
 
 
 def count_word(n):
@@ -199,7 +200,11 @@ def why_words(f, cfg):
     if not f["recorded"]:
         return NOT_RECORDED
     if f["null_reason"] == "not_measurable_on_profile" and f["metric"].startswith("overhead_"):
-        return NM1_OVERHEAD.format(gpu=gpu_words(cfg))
+        return NM1_OVERHEAD
+    if f["null_reason"] in ("not_applicable", "missing_input") and f["metric"].startswith(
+        "overhead_"
+    ):
+        return NO_SERVING_OVERHEAD
     return NULL_WORD[f["null_reason"]].format(gpu=gpu_words(cfg))
 
 

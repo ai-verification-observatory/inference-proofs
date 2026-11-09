@@ -60,17 +60,17 @@ def test_covers_in_positions(site, keys):
 
 
 def test_overhead_missing(site, keys):
-    # plain serving could not run Llama 4 Maverick on one H100 (RFC-0015 NM-1): no overhead for
-    # FlashProve; the placeholder holds no reference run on SASH's workload: not recorded
+    # the placeholder's production-serving runs are on a prover profile, so they pair with no row
+    # (RFC-0015 SRV-10): no overhead for FlashProve; SASH's steady scope is not observable
     assert keys["flashprove"]["overhead"] is None
     assert keys["sash"]["overhead"] is None
     figures = {
-        c["system"]: c["figures"]["overhead_vs_serving_prove.session"]
+        c["system"]: c["figures"]["overhead_vs_production_prove.steady"]
         for c in site.view["configurations"]
         if c["kind"] == "prover"
     }
-    assert figures["flashprove"]["null_reason"] == "not_measurable_on_profile"
-    assert figures["sash"]["recorded"] is False
+    assert figures["flashprove"]["null_reason"] == "not_applicable"
+    assert figures["sash"]["null_reason"] == "not_externally_observable"
 
 
 def test_units_normalise(site):
@@ -128,7 +128,7 @@ def test_two_models(site):
 
 def test_reference_cells(site):
     # a reference makes no proof (RFC-0015 REF-2): covers follows the system, a proof's figures do
-    # not apply, plain serving is the baseline of the overhead, the rerun's overhead does not apply
+    # not apply, production serving is the overhead's baseline, the rerun's overhead does not apply
     got = {}
     for gid in site.view["orders"]["reference"]:
         cfg = site.build.first_config(gid)

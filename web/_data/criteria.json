@@ -915,7 +915,7 @@
       },
       "family": "unchecked",
       "id": "ref-serve",
-      "name": "Plain serving (reference)",
+      "name": "Production serving (reference)",
       "source_class": "reference_rfc_0015",
       "tab": "benchmarked",
       "workloads": [

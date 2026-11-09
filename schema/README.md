@@ -30,7 +30,8 @@ Schemas in the RFC-0012 catalogue that have landed, with their Python model in `
 | `corpus/1` | `workloads/prompts/corpus.yaml` | `Corpus` |
 | `system/1` | `systems/<name>/system.yaml` | `System` |
 | `system-controls/1` | `systems/<name>/controls.yaml` | `SystemControls` |
-| `reference/1` | `reference/<release>.yaml` | `ReferenceFile` |
+| `reference/1` | `reference/<release>.yaml` | `ReferenceFile`, `ProverProfile`, `ServingProfile` |
+| `serving-model/1` | `workloads/serving/<id>.yaml` | `ServingModel`, `ServingFiles`, `ServingFile` |
 | `adapter-job/1` | `/io/job.json` inside an adapter container | `AdapterJob` |
 | `adapter-out/1` | `/io/out.json` inside an adapter container | `AdapterOut`, `ProofEntry`, `CommandLine` |
 | `controls/1` | `results/<release>/<system>/<run-id>/controls.json` | `Controls` |

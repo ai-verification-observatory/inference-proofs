@@ -19,7 +19,7 @@ from iproofs.errors import ErrorKind, IProofsError, Phase, exit_code
 
 if TYPE_CHECKING:
     from iproofs.adapter import ContainerRunner
-    from iproofs.model import Workload
+    from iproofs.model import ServingModel, Workload
     from iproofs.runner import Environment, RunnerIdentity
     from iproofs.schema import SchemaRegistry
 
@@ -155,7 +155,13 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.set_defaults(handler=machine_record_command)
 
     p = command("fetch-model", "fetch a workload's weights and check every hash (RFC-0014)")
-    p.add_argument("workload")
+    p.add_argument("workload", nargs="?")
+    p.add_argument(
+        "--serving",
+        metavar="RECORD",
+        help="fetch a production-serving record's files instead (workloads/serving/RECORD.yaml,"
+        " RFC-0014 SM-2)",
+    )
     p.add_argument(
         "--headers-only",
         action="store_true",
@@ -173,6 +179,27 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--seed", required=True, help="the 64-bit seed, decimal or 0x hex")
     p.add_argument("--out", type=Path, default=Path("prompts.jsonl"), help="where to write")
     p.set_defaults(handler=prompts_build)
+
+    serving = sub.add_parser("serving", help="production-serving records (RFC-0015 SRV-6)")
+    serving_sub = serving.add_subparsers(dest="serving_command", required=True, metavar="ACTION")
+    p = command(
+        "check-mirror",
+        "check that the mirror's files are the publisher's, by git blob id (RFC-0014 SM-3)",
+        serving_sub,
+        "serving check-mirror",
+    )
+    p.add_argument("record")
+    p.set_defaults(handler=serving_check_mirror)
+    p = command(
+        "pin",
+        "write a record's file list, digest and shape from the two tree listings (network)",
+        serving_sub,
+        "serving pin",
+    )
+    p.add_argument("record")
+    p.add_argument("--include", action="append", required=True, metavar="GLOB",
+                   help="mirror paths to pin (repeat)")  # fmt: skip
+    p.set_defaults(handler=serving_pin)
 
     reproduce = sub.add_parser("reproduce", help="reproduction records (RFC-0007)")
     reproduce_sub = reproduce.add_subparsers(
@@ -627,7 +654,12 @@ def fetch_model(args: argparse.Namespace) -> int:
     )
 
     root = repo_root(Path.cwd())
-    wl = load_workload(args.workload, root=root, registry=SchemaRegistry.from_tree(root / "schema"))
+    registry = SchemaRegistry.from_tree(root / "schema")
+    if args.serving is not None:
+        return _fetch_serving(root, registry, args.serving)
+    if args.workload is None:
+        raise IProofsError(ErrorKind.CONFIG, "give a WORKLOAD or --serving RECORD")
+    wl = load_workload(args.workload, root=root, registry=registry)
     if wl.model.source.hub == "repository":
         raise IProofsError(ErrorKind.CONFIG, f"{wl.id} uses toy data in this repository")
     if args.headers_only:
@@ -640,6 +672,81 @@ def fetch_model(args: argparse.Namespace) -> int:
     )
     if wl.model.tokenizer_source is not None:  # a run builds its prompts offline, so fetch it now
         retry_fetch(lambda: tokenizer_file(root, wl, default_cache()), f"tokenizer {wl.id}")
+    print(path)
+    return 0
+
+
+def _serving_record(root: Path, registry: "SchemaRegistry", record: str) -> "ServingModel":
+    from iproofs.model import ServingModel, load  # noqa: PLC0415
+    from iproofs.serving import SERVING_DIR  # noqa: PLC0415
+
+    path = root / SERVING_DIR / f"{record}.yaml"
+    if not path.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"no serving record {path.relative_to(root)}")
+    doc = load(path, registry)
+    assert isinstance(doc, ServingModel)
+    return doc
+
+
+def _fetch_serving(root: Path, registry: "SchemaRegistry", record: str) -> int:
+    """`iproofs fetch-model --serving RECORD` (RFC-0014 SM-2): HF_TOKEN reaches only the files
+    the record fetches from the publisher (`source: publisher`)."""
+    import os  # noqa: PLC0415
+
+    from iproofs.runner import retry_fetch  # noqa: PLC0415
+    from iproofs.serving import ensure_serving_model, sm1_problems  # noqa: PLC0415
+    from iproofs.workloads import default_cache, hub_download  # noqa: PLC0415
+
+    doc = _serving_record(root, registry, record)
+    problems = sm1_problems(doc)
+    if problems:
+        raise IProofsError(ErrorKind.CONFIG, problems[0])
+    path = ensure_serving_model(doc, default_cache(), download=hub_download,
+                                retry=lambda op: retry_fetch(op, f"serving model {doc.id}"),
+                                token=os.environ.get("HF_TOKEN"))  # fmt: skip
+    print(path)
+    return 0
+
+
+def _hub_get(url: str) -> bytes:
+    from iproofs.workloads import http_get  # noqa: PLC0415
+
+    return http_get(url, timeout_s=120.0)
+
+
+def serving_check_mirror(args: argparse.Namespace) -> int:
+    """`iproofs serving check-mirror RECORD` (SM-3): one line per problem, exit 1 on any."""
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
+    from iproofs.serving import check_mirror  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    doc = _serving_record(root, SchemaRegistry.from_tree(root / "schema"), args.record)
+    problems = check_mirror(doc, _hub_get)
+    for line in problems:
+        print(line)
+    rev = doc.model.revision[:12]
+    print(f"serving check-mirror {doc.id}: {len(doc.model.files)} files, {len(problems)} "
+          f"problems ({doc.model.source.repo}@{rev} against "
+          f"{doc.publisher.release.repo}@{doc.publisher.release.revision[:12]})",
+          file=sys.stderr)  # fmt: skip
+    return 1 if problems else 0
+
+
+def serving_pin(args: argparse.Namespace) -> int:
+    """`iproofs serving pin RECORD --include GLOB...`: rewrite the record's `model.files`,
+    `digest`, `vocab_size` and `shape` from the mirror's and the publisher's tree listings and
+    the mirror's config.json (never typed, AGENTS.md rule 3); prints the record path."""
+    from iproofs.serialize import load_yaml  # noqa: PLC0415
+    from iproofs.serving import SERVING_DIR, pin_record  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    path = root / SERVING_DIR / f"{args.record}.yaml"
+    if not path.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"no serving record {path.relative_to(root)}")
+    text = pin_record(path.read_text(), dict(load_yaml(path)), args.include, _hub_get)
+    path.write_text(text)
     print(path)
     return 0
 

@@ -123,6 +123,325 @@
           "insufficient_repetitions": {
             "type": "boolean"
           },
+          "load_point": {
+            "$comment": "RFC-0015 SRV-1: a production-serving configuration's load point (absent: matched)",
+            "enum": [
+              "matched",
+              "high"
+            ]
+          },
+          "overhead_conditions": {
+            "$comment": "RFC-0004 INV-DERIVE-9: the conditions of a system configuration's overhead, each generated from the records; the site prints every conditions string from this block",
+            "additionalProperties": false,
+            "properties": {
+              "batch": {
+                "additionalProperties": false,
+                "properties": {
+                  "high": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "matched": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "high",
+                  "matched"
+                ],
+                "type": "object"
+              },
+              "batches_per_session": {
+                "additionalProperties": false,
+                "properties": {
+                  "serving_high": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "serving_matched": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "system": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "serving_high",
+                  "serving_matched",
+                  "system"
+                ],
+                "type": "object"
+              },
+              "decoding": {
+                "const": "greedy"
+              },
+              "engine": {
+                "additionalProperties": false,
+                "properties": {
+                  "image_digest": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "interface": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "settings": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "version": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "image_digest",
+                  "interface",
+                  "name",
+                  "settings",
+                  "version"
+                ],
+                "type": "object"
+              },
+              "gpu_model": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "gpus": {
+                "additionalProperties": false,
+                "properties": {
+                  "serving": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "system": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "serving",
+                  "system"
+                ],
+                "type": "object"
+              },
+              "high_configuration": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "n": {
+                "additionalProperties": false,
+                "properties": {
+                  "serving_high": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "serving_matched": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "system": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "serving_high",
+                  "serving_matched",
+                  "system"
+                ],
+                "type": "object"
+              },
+              "profiles": {
+                "additionalProperties": false,
+                "properties": {
+                  "serving": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "system": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "serving",
+                  "system"
+                ],
+                "type": "object"
+              },
+              "prompt_count_run": {
+                "additionalProperties": false,
+                "properties": {
+                  "serving_high": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "serving_matched": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
+                  "system": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "serving_high",
+                  "serving_matched",
+                  "system"
+                ],
+                "type": "object"
+              },
+              "proved_precision": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "runtime": {
+                "enum": [
+                  "hosted",
+                  "docker host"
+                ]
+              },
+              "serving_configuration": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "serving_model": {
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "additionalProperties": false,
+                    "properties": {
+                      "digest": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "id": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "precision": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "publisher": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "release_statement": {
+                        "type": [
+                          "string",
+                          "null"
+                        ]
+                      },
+                      "version": {
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "digest",
+                      "id",
+                      "precision",
+                      "publisher",
+                      "release_statement",
+                      "version"
+                    ],
+                    "type": "object"
+                  }
+                ]
+              },
+              "warm": {
+                "type": "boolean"
+              },
+              "weight_bits": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "batch",
+              "batches_per_session",
+              "decoding",
+              "engine",
+              "gpu_model",
+              "gpus",
+              "high_configuration",
+              "n",
+              "profiles",
+              "prompt_count_run",
+              "proved_precision",
+              "runtime",
+              "serving_configuration",
+              "serving_model",
+              "warm",
+              "weight_bits"
+            ],
+            "type": "object"
+          },
           "profile": {
             "$ref": "../quantity/1.schema.json#/$defs/profileId"
           },

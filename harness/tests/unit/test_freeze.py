@@ -302,3 +302,27 @@ def test_closed_workload_of_one_system_stops_freeze(
     assert "closed workload l31-8b-c1024 has completed runs of 1 proving system(s)" in err
     assert "(sash)" in err
     assert not (tmp_path / "releases/v0.1/index.json").exists()
+
+
+def test_freeze_gspt_from_the_profile_gpu_count() -> None:
+    """TC-GSPT-FREEZE (RFC-0004 Q3): a stored run without `gpu_seconds_per_token_<S>` gets it
+    at freeze from its recorded `seconds_per_token_<S>` and its profile's `gpu.count` in the
+    reference file: 0.01 s/token x 1 GPU on prover-h200-hosted (fixture values)."""
+    from iproofs.model import ReferenceFile, load  # noqa: PLC0415
+
+    registry = SchemaRegistry.from_tree(ROOT / "schema")
+    reference = load(ROOT / "reference/v0.1.yaml", registry)
+    assert isinstance(reference, ReferenceFile)
+    old = stored_run(1, late_keys=True, inputs=fake_inputs())
+    old.run["profile"] = "serving-h200x4-hosted"
+    late = _Late(ROOT, registry, "v0.1", (reference, "reference/v0.1.yaml"))
+    stats = _statistics([old], {old.run_id: Tier.REPORTED}, late)
+    q = late.values[old.run_id]["gpu_seconds_per_token_prove.steady"]
+    assert q["value"] == 0.01 * 4
+    assert q["source"]["inputs"] == [  # type: ignore[index]
+        f"{_rel(old)}/run.json#/metrics/seconds_per_token_prove.steady",
+        "reference/v0.1.yaml#/profiles/serving-h200x4-hosted/gpu/count",
+    ]
+    stat = stats["gpu_seconds_per_token_prove.steady"]
+    assert isinstance(stat, dict)
+    assert stat["stats"]["n"] == 1

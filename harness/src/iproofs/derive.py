@@ -216,11 +216,18 @@ def _amortised(h: int) -> Callable[[list[float], int], float]:
     return f
 
 
+def _cost(x: list[float], gpus: int) -> float:
+    """D-COST-1K-S: inputs (D-SPT-S, price, gpu_count); a run stored before run.json carried
+    `inputs.gpu_count` names two inputs, and its GPU count is the profile's (`gpus`)."""
+    return x[0] * 1000 * (x[2] if len(x) > 2 else gpus) * x[1] / 3600
+
+
 # Formula id -> evaluation over input values in `source.inputs` order (RFC-0004 catalogue).
 COMPUTE: dict[str, Callable[[list[float], int], float]] = {
     "D-RATE-S": _ratio,
     "D-SPT-S": _ratio,
-    "D-COST-1K-S": lambda x, gpus: x[0] * 1000 * gpus * x[1] / 3600,
+    "D-COST-1K-S": _cost,
+    "D-GSPT-S": lambda x, gpus: x[0] * nonzero(x[1]),
     "D-APT-S": lambda x, gpus: x[0] * x[1],
     "D-SPAB-S": lambda x, gpus: x[0] / nonzero(x[1] * x[2]),
     "D-COMMIT-AMORT-H1": _amortised(1),
@@ -243,13 +250,17 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
     weight_bits: Input,
     first_proof_tokens: Input,
     reference: bool = False,
+    gpu_count: Input | None = None,
 ) -> dict[str, QuantityTree]:
     """Every repetition-level formula of RFC-0004 over one repetition's recorded metrics.
 
     `price`, `active_parameters`, `weight_bits` and `first_proof_tokens` are (pointer,
     quantity) pairs from the reference file, run.json `inputs` (the workload record's
     `model.parameters` and `precision.weight_bits` as copied at run time, RFC-0003 WB-4) and
-    run.json `proofs[0]`; a quantity of None is a missing input. Each formula is evaluated
+    run.json `proofs[0]`; a quantity of None is a missing input. `gpu_count` is run.json
+    `inputs.gpu_count`, the profile's GPU count (INV-DERIVE-8), input of D-GSPT-S and
+    D-COST-1K-S; without it (a CPU-only test profile) D-COST-1K-S takes `gpus` and there is no
+    D-GSPT-S. Each formula is evaluated
     left to right as written in the RFC table (INV-DERIVE-5). `reference` is true for a
     `kind: reference` system (RFC-0015), whose D-TPP and D-SPAB-S are null (INV-DERIVE-6,
     INV-DERIVE-7).
@@ -277,8 +288,16 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
             "D-COST-1K-S",
             Unit.USD_PER_1K_TOKEN,
             scope,
-            [metric(f"seconds_per_token_{scope}"), price],
+            [metric(f"seconds_per_token_{scope}"), price, *([gpu_count] if gpu_count else [])],
         )
+        if gpu_count is not None:  # a CPU-only test profile has no GPU count (INV-DERIVE-8)
+            put(
+                f"gpu_seconds_per_token_{scope}",
+                "D-GSPT-S",
+                Unit.GPU_S_PER_TOKEN,
+                scope,
+                [metric(f"seconds_per_token_{scope}"), gpu_count],
+            )
         put(
             f"active_param_tokens_per_second_{scope}",
             "D-APT-S",
@@ -336,7 +355,7 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
 PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S"})
 
 # RFC-0004 Q3: formulas a release freeze evaluates for a run stored before they existed.
-FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S"})
+FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S", "D-GSPT-S"})
 
 
 def freeze_values(
@@ -347,10 +366,12 @@ def freeze_values(
     active_parameters: Input,
     weight_bits: Input,
     reference: bool,
+    gpu_count: Input | None = None,
 ) -> dict[str, QuantityTree]:
     """RFC-0004 Q3: the FREEZE_FORMULAS values a stored run lacks, from its recorded metrics
-    (pointers into its unchanged run.json) and the workload record at the release commit. A
-    value whose run.json input the run does not hold is null with `missing_input`."""
+    (pointers into its unchanged run.json), the workload record and, for D-GSPT-S, the profile's
+    GPU count in the reference file at the release commit (`gpu_count`). A value whose run.json
+    input the run does not hold is null with `missing_input`."""
     out = derive_repetition(
         metrics,
         run_json=run_json,
@@ -361,6 +382,7 @@ def freeze_values(
         weight_bits=weight_bits,
         first_proof_tokens=("", None),
         reference=reference,
+        gpu_count=gpu_count,
     )
     stored = f"{run_json}#/metrics/"
     late = {}
@@ -386,7 +408,8 @@ MIN_REPETITIONS = 3
 FORMULAS = {
     "D-RATE-S": "T(S) / sec(S)",
     "D-SPT-S": "sec(S) / T(S)",
-    "D-COST-1K-S": "D-SPT-S * 1000 * gpus * price / 3600",
+    "D-COST-1K-S": "D-SPT-S * 1000 * gpus * price / 3600 (gpus: inputs.gpu_count)",
+    "D-GSPT-S": "D-SPT-S * gpus (gpus: inputs.gpu_count, the profile's gpu.count)",
     "D-COMMIT-AMORT-H1": "commit_seconds / (tokens_covered_total / requests_count * 1)",
     "D-COMMIT-AMORT-H1000": "commit_seconds / (tokens_covered_total / requests_count * 1000)",
     "D-APT-S": "D-RATE-S * active_parameters_per_token",
@@ -397,7 +420,10 @@ FORMULAS = {
     "D-TPP": "tokens_covered_total / proofs_count",
     "D-STAT": "over successful repetitions in repetition order: statistics.mean, "
     "statistics.stdev (n - 1, null when n < 2), min, max",
-    "D-OVERHEAD-S": "mean(ref-serve rate_<S>) / mean(system rate_<S>)",
+    "D-OVERHEAD-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
+    "gpu_seconds_per_token_<S>, matched load)",
+    "D-OVERHEAD-HIGH-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
+    "gpu_seconds_per_token_<S>, high load)",
     "D-AGREE": "agreement_positions / (agreement_positions + disagreement_positions), "
     "summed over paired ref-recompute runs",
     "D-PROVIDER-SPREAD": "largest provider mean rate_<S> / smallest provider mean rate_<S>",
@@ -648,16 +674,53 @@ def _nulled(out: QuantityTree, reason: NullReason) -> QuantityTree:
 
 
 def overhead(
-    ref: Input, system: Input, scope: Scope, *, joined: bool, measurable: bool, version: str
+    system: Sequence[Input],
+    serving: Sequence[Input],
+    scope: Scope,
+    *,
+    high: bool = False,
+    reason: NullReason | None = None,
+    version: str,
 ) -> QuantityTree:
-    """D-OVERHEAD-S: mean ref-serve `rate_<S>` over mean system `rate_<S>`. Null with
-    `not_measurable_on_profile` when the ref-serve configuration could not run (NM-1), and
-    with `not_applicable` when the rows do not join (INV-DERIVE-2)."""
-    out = derived("D-OVERHEAD-S", version, Unit.RATIO, scope, [ref, system],
-                  lambda x: x[0] / nonzero(x[1]))  # fmt: skip
-    if not measurable:
-        return _nulled(out, NullReason.NOT_MEASURABLE_ON_PROFILE)
-    return out if joined else _nulled(out, NullReason.NOT_APPLICABLE)
+    """D-OVERHEAD-S (or D-OVERHEAD-HIGH-S with `high`): the mean of the system's per-repetition
+    `gpu_seconds_per_token_<S>` over the mean of production serving's (RFC-0004 INV-DERIVE-2,
+    -8, -9). `system` and `serving` hold one (pointer, quantity) per successful repetition; the
+    result carries `pairs` {n_system, n_serving, min, max}, the range over every pair of
+    repetitions. `reason` is the join's null reason (no paired configuration, another profile,
+    NM-1), applied after the system's own null reason, which goes first (SASH)."""
+    formula = "D-OVERHEAD-HIGH-S" if high else "D-OVERHEAD-S"
+    n = len(system)
+
+    def ratio(x: list[float]) -> float:
+        return statistics.mean(x[:n]) / nonzero(statistics.mean(x[n:]))
+
+    sys_vals = [_maybe(q) for _, q in system]
+    serve_vals = [_maybe(q) for _, q in serving]
+    sys_null = next((q for _, q in system if q is not None and q["value"] is None), None)
+    if not system or sys_null is not None:
+        why = NullReason(str(sys_null["null_reason"])) if sys_null else NullReason.MISSING_INPUT
+        out = derived(formula, version, Unit.RATIO, scope, [*system, *serving], lambda _: 0.0)
+        out = _nulled(out, why)
+    elif reason is not None or not serving:
+        out = derived(formula, version, Unit.RATIO, scope, [*system, *serving], lambda _: 0.0)
+        out = _nulled(out, reason or NullReason.MISSING_INPUT)
+    else:
+        out = derived(formula, version, Unit.RATIO, scope, [*system, *serving], ratio)
+    xs = [v for v in sys_vals if v is not None]
+    ys = [v for v in serve_vals if v is not None]
+    fine = out["value"] is not None and xs and ys and min(ys) > 0
+    out["pairs"] = {
+        "n_system": len(xs),
+        "n_serving": len(ys),
+        "min": min(xs) / max(ys) if fine else None,
+        "max": max(xs) / min(ys) if fine else None,
+    }
+    return out
+
+
+def _maybe(q: Mapping[str, object] | None) -> float | None:
+    v = None if q is None else q.get("value")
+    return float(v) if isinstance(v, int | float) else None
 
 
 def agreement_rate(

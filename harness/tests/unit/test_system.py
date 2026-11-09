@@ -33,6 +33,8 @@ def test_timeout_defaults_and_overrides(registry: SchemaRegistry) -> None:
 def test_reference_workloads_are_objects(registry: SchemaRegistry) -> None:
     ref = system("ref-serve-shape", registry)
     assert isinstance(ref.workloads[0], ReferenceWorkload)
-    assert ref.workloads[0].engine_args == ("--max-num-seqs", "1")
-    assert ref.workload_ids() == ("sash-l31-8b-c4096",)
+    want = ("--tensor-parallel-size", "1", "--max-model-len", "4608", "--max-num-seqs", "1")
+    assert ref.workloads[0].engine_args == want
+    assert (ref.workloads[0].load_point, ref.workloads[0].gpus) == ("matched", 1)
+    assert ref.workload_ids() == ("sash-l31-8b-c4096", "sash-l31-8b-c4096")
     assert system("fake", registry).workload_ids() == ("fake-tiny-ci",)

@@ -11,6 +11,7 @@ from iproofs.derive import (
     derive_repetition,
     freeze_values,
     measured,
+    recompute,
     scope_seconds,
 )
 from iproofs.errors import ErrorKind, IProofsError
@@ -77,7 +78,53 @@ def derive(
         ),
         first_proof_tokens=(f"{RUN}#/proofs/0/tokens_covered", q("tokens_covered_total", 1000)),
         reference=reference,
+        gpu_count=(GPUS_REF, asserted(gpus, Unit.COUNT, GPUS_REF)),
     )
+
+
+GPUS_REF = f"{RUN}#/inputs/gpu_count"
+
+
+def test_gpu_seconds_per_token_x4() -> None:
+    """TC-GSPT-WORKED and TC-GSPT-X4 (RFC-0004 INV-DERIVE-8): D-GSPT = D-SPT x gpus, 0.01 x 1
+    on the worked example and 0.01 x 4 on a 4-GPU serving profile (fixture values); D-COST-1K
+    reads the same `inputs.gpu_count` pointer, so 0.01 x 1,000 x 4 x 3.60 / 3,600 = 0.04."""
+    metrics, out = worked_example()
+    assert out["gpu_seconds_per_token_prove.steady"]["value"] == 0.01
+    x4 = derive(dict(metrics), gpus=4)
+    gspt = x4["gpu_seconds_per_token_prove.steady"]
+    assert gspt["value"] == pytest.approx(0.04, rel=1e-12)
+    assert (gspt["unit"], gspt["scope"], gspt["grade"]) == (
+        "gpu_s/token",
+        "prove.steady",
+        "derived",
+    )
+    assert gspt["source"]["inputs"] == [f"{RUN}#/metrics/seconds_per_token_prove.steady", GPUS_REF]  # type: ignore[index]
+    cost = x4["cost_per_1k_tokens_prove.steady"]
+    assert cost["value"] == pytest.approx(0.04, rel=1e-12)
+    assert cost["source"]["inputs"][2] == GPUS_REF  # type: ignore[index]
+    spt = x4["seconds_per_token_prove.steady"]
+    inputs = [(f"{RUN}#/metrics/seconds_per_token_prove.steady", spt),
+              (GPUS_REF, asserted(4, Unit.COUNT, GPUS_REF))]  # fmt: skip
+    assert recompute(gspt, inputs, 0) == gspt  # G4 recomputes it from its stored inputs
+
+
+def test_gspt_without_gpu_count_is_absent() -> None:
+    """A CPU-only test profile records no GPU count: no D-GSPT-S, and D-COST-1K-S keeps its
+    two stored inputs and the profile's count (a run stored before 2026-11-09 recomputes so)."""
+    metrics, _ = worked_example()
+    out = derive_repetition(
+        metrics, run_json=RUN, harness_version="0.1.0", gpus=2,
+        price=("p", asserted(3.6, Unit.USD_PER_GPU_HOUR, "p")),
+        active_parameters=(PARAMS_REF, asserted(8e9, Unit.COUNT, PARAMS_REF)),
+        weight_bits=(BITS_REF, asserted(8.0, Unit.BIT_PER_WEIGHT, BITS_REF)),
+        first_proof_tokens=("t", None),
+    )  # fmt: skip
+    assert not [k for k in out if k.startswith("gpu_seconds")]
+    assert out["cost_per_1k_tokens_prove.steady"]["value"] == pytest.approx(0.02, rel=1e-12)
+    source = out["cost_per_1k_tokens_prove.steady"]["source"]
+    assert isinstance(source, dict)
+    assert len(source["inputs"]) == 2
 
 
 def test_worked_example() -> None:
@@ -220,7 +267,8 @@ def test_formula_registry_names_every_emitted_id() -> None:
     """INV-QTY-6: every formula id derive emits is in FORMULAS, so a page can name it."""
     _, out = worked_example()
     emitted = {str(v["source"]["ref"]).split(":")[1].split("@")[0] for v in out.values()}  # type: ignore[index]
-    assert emitted | {"D-STAT", "D-OVERHEAD-S", "D-AGREE", "D-PROVIDER-SPREAD"} <= set(FORMULAS)
+    assert emitted | {"D-STAT", "D-OVERHEAD-S", "D-OVERHEAD-HIGH-S", "D-AGREE",
+                      "D-PROVIDER-SPREAD"} <= set(FORMULAS)  # fmt: skip
     assert set(COMPUTE) <= set(FORMULAS)
 
 

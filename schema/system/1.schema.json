@@ -96,6 +96,55 @@
           "image"
         ]
       }
+    },
+    {
+      "$comment": "RFC-0015 SRV-3, SRV-6: a production-serving entry names its load point and GPU count, substitutes no precision, and passes only the three allowlisted engine options",
+      "else": {
+        "properties": {
+          "workloads": {
+            "items": {
+              "properties": {
+                "batch_size": false,
+                "batches_per_session_run": false,
+                "gpus": false,
+                "load_point": false
+              }
+            }
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "reference_role": {
+            "const": "serve"
+          }
+        },
+        "required": [
+          "reference_role"
+        ]
+      },
+      "then": {
+        "properties": {
+          "workloads": {
+            "items": {
+              "properties": {
+                "engine_args": {
+                  "items": {
+                    "pattern": "^(--tensor-parallel-size|--max-model-len|--max-num-seqs|[1-9][0-9]*)$"
+                  }
+                },
+                "precision_substitution": {
+                  "type": "null"
+                }
+              },
+              "required": [
+                "load_point",
+                "gpus"
+              ]
+            }
+          }
+        }
+      }
     }
   ],
   "properties": {
@@ -306,14 +355,43 @@
           {
             "additionalProperties": false,
             "properties": {
+              "batch_size": {
+                "$comment": "RFC-0015 SRV-1: the high-load batch (serve role, `high` only)",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "batches_per_session_run": {
+                "$comment": "RFC-0015 SRV-1: batches per session of a serving run, when it differs from the workload's; null until the first capture sets it",
+                "anyOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "minimum": 1,
+                    "type": "integer"
+                  }
+                ]
+              },
               "engine_args": {
                 "items": {
                   "type": "string"
                 },
                 "type": "array"
               },
+              "gpus": {
+                "$comment": "RFC-0015 SRV-6: the serving profile's GPU count this entry runs on (serve role only)",
+                "minimum": 1,
+                "type": "integer"
+              },
               "id": {
                 "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+              },
+              "load_point": {
+                "$comment": "RFC-0015 SRV-1: the production-serving load point (serve role only)",
+                "enum": [
+                  "matched",
+                  "high"
+                ]
               },
               "precision_substitution": {
                 "anyOf": [

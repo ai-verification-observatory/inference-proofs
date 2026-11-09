@@ -1,4 +1,4 @@
-# Shape only (RFC-0015 §Reference systems). The engine pin is #136.
+# Shape only (RFC-0015 §Reference systems, SRV-1, SRV-3, SRV-6). The engine pin is #136.
 schema: "system/1"
 name: "ref-serve"
 kind: "reference"
@@ -7,9 +7,19 @@ reference_role: "serve"
 engine: {name: "vllm", version: "0.0.0", image: "docker.io/vllm/vllm-openai@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
 workloads:
   - id: "sash-l31-8b-c4096"
-    precision_used: "W8A8"
+    load_point: "matched"
+    gpus: 1
+    batches_per_session_run: null
+    precision_used: "BF16"
     precision_substitution: null
-    engine_args: ["--max-num-seqs", "1"]
+    engine_args: ["--tensor-parallel-size", "1", "--max-model-len", "4608", "--max-num-seqs", "1"]
+  - id: "sash-l31-8b-c4096"
+    load_point: "high"
+    gpus: 1
+    batch_size: 1024
+    precision_used: "BF16"
+    precision_substitution: null
+    engine_args: ["--tensor-parallel-size", "1", "--max-model-len", "4608"]
 deterministic_proofs: false
 incremental_proofs: true
 forbidden_flags: []

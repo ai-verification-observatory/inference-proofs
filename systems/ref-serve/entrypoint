@@ -48,12 +48,15 @@ def system() -> dict:
     return yaml.safe_load(SYSTEM_YAML.read_text())
 
 
-def engine_args(workload_id: str) -> list[str]:
-    """The workload's options, verbatim from system.yaml (SRV-3)."""
+def engine_args(workload_id: str, load_point: str | None = None, gpus: int | None = None) -> list:
+    """The options of the workload's entry, verbatim from system.yaml (SRV-3): for production
+    serving the entry of the job's load point and GPU count (SRV-1, SRV-6)."""
     for entry in system()["workloads"]:
-        if entry["id"] == workload_id:
+        point = entry.get("load_point") in (None, load_point or "matched")
+        if entry["id"] == workload_id and point and gpus in (None, entry.get("gpus", gpus)):
             return list(entry["engine_args"])
-    raise SystemExit(f"ref-serve: workload {workload_id!r} is not in system.yaml")
+    raise SystemExit(f"ref-serve: workload {workload_id!r} ({load_point}, {gpus} GPUs) is not in"
+                     " system.yaml")  # fmt: skip
 
 
 def model_path(model_dir: Path) -> str:
