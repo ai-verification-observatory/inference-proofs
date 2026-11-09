@@ -846,7 +846,10 @@ def test_each_figure_names_its_scope(site: Build) -> None:
         assert under["size_bit"] == under["check_bit"] == "", rid
         header = HEADER.search(body)
         assert header, rid
-        assert "per active weight" in plain(header[1]), rid
+        # the width in short in view, in full in the model cell's title
+        wb = cfg["workload"]["precision"]["weight_bits"]
+        assert f"{wb['bits']:.2g}-bit" in plain(header[1]), rid
+        assert "per active weight" in html.unescape(header[1]), rid
 
 
 def test_deployed_figures_by_hand() -> None:
