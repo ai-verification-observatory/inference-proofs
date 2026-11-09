@@ -108,7 +108,7 @@ PROFILES: dict[str, dict[str, Any]] = {
         "gpu_model": "NVIDIA H200",
         "gpu_memory_mib_min": 140000,
         "gpu_count": 4,
-        "logical_cpus_on_gpu_numa_node": 60,
+        "logical_cpus_on_gpu_numa_node": 15,
         "logical_cpus_total_min": 92,
         "host_memory_gib_min": 800,
         "disk_free_gib_min": 1000,

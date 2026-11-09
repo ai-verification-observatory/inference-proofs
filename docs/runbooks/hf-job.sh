@@ -230,14 +230,16 @@ from pathlib import Path
 
 from iproofs.model import load_reference
 from iproofs.provenance import Host
-from iproofs.runner import ServingEnvironment
+from iproofs.runner import GpuEnvironment, ServingEnvironment
 from iproofs.schema import SchemaRegistry
 
 gpus, profile, release = [int(g) for g in sys.argv[1].split(",")], sys.argv[2], sys.argv[3]
 root = Path.cwd()
 found = load_reference(release, root, SchemaRegistry.from_tree(root / "schema")).profiles[profile]
-n = found.cpu.logical_cpus_on_gpu_numa_node
-binding = ServingEnvironment(gpus, Host(hosted=True), n).binding
+n, host = found.cpu.logical_cpus_on_gpu_numa_node, Host(hosted=True)
+serving = found.kind == "serving"
+env = ServingEnvironment(gpus, host, n) if serving else GpuEnvironment(gpus[0], host, n)
+binding = env.binding
 print(f"binding: GPUs {gpus}, {len(binding.prover)} prover CPUs on NUMA node "
       f"{binding.mems[0]}, {len(binding.verifier)} verifier CPUs")
 EOF

@@ -82,6 +82,7 @@ from iproofs.model import (
 )
 from iproofs.provenance import (
     ConformanceFailure,
+    CpuBinding,
     Host,
     archive_proof,
     check_profile,
@@ -217,14 +218,18 @@ class GpuEnvironment:
 
 
 class ServingEnvironment(GpuEnvironment):
-    """A hosted serving host (RFC-0006 R6): `gpu.count` GPUs bound by index (`--gpus`); the
-    prover CPUs are those of the first GPU's NUMA node, as `GpuEnvironment` binds them, and no
-    verifier runs (a reference runs no `verify`)."""
+    """A hosted serving host (RFC-0006 R6): `gpu.count` GPUs bound by index (`--gpus`). No
+    verifier runs (a reference runs no `verify`), so the server and its tensor-parallel workers
+    get every CPU the container may use, over every NUMA node; the first GPU's node must still
+    hold `n_prover` of them (PC-CPU-NUMA)."""
 
     def __init__(self, gpu_indices: Sequence[int], host: Host, n_prover: int) -> None:
         if not gpu_indices or len(set(gpu_indices)) != len(gpu_indices):
             raise IProofsError(ErrorKind.CONFIG, f"--gpus {list(gpu_indices)}: distinct indices")
         super().__init__(gpu_indices[0], host, n_prover)
+        cpus = usable_topology(host).cpus
+        every, nodes = tuple(sorted(c.id for c in cpus)), tuple(sorted({c.node for c in cpus}))
+        self.binding = CpuBinding(prover=every, verifier=(), verifier_1=(), mems=nodes)
         self._gpus = tuple(gpu_indices)
 
     def gpus(self) -> tuple[int, ...]:

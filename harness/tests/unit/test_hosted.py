@@ -234,6 +234,23 @@ def test_gpu_environment(monkeypatch: pytest.MonkeyPatch) -> None:
         GpuEnvironment(0, lost, n_prover=1)
 
 
+def test_serving_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RFC-0006 R6: a serving host binds every listed GPU and gives the server every CPU the
+    container may use (the fixture host's four), with no verifier CPUs."""
+    from iproofs import provenance, runner  # noqa: PLC0415
+
+    monkeypatch.setattr(runner, "select_cpus", functools.partial(provenance.select_cpus,
+                                                                 n_verifier=1))  # fmt: skip
+    host = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:17:00.0"})
+    env = runner.ServingEnvironment([0, 1, 2, 3], host, n_prover=1)
+    assert (env.gpu(), env.gpus(), runner.bound_gpus(env)) == (0, (0, 1, 2, 3), (0, 1, 2, 3))
+    prover, _ = env.cpus("prover")
+    assert prover == ",".join(str(c.id) for c in provenance.read_topology(FIXTURE).cpus)
+    assert env.cpus("verifier")[0] == ""
+    with pytest.raises(IProofsError, match="distinct indices"):
+        runner.ServingEnvironment([0, 0], host, n_prover=1)
+
+
 def test_disk_of_a_results_directory_not_made_yet(tmp_path: Path) -> None:
     host = Host(FIXTURE, run=lambda _: None, dev_of=lambda _: (259, 0))
     free = host.disk(tmp_path / "results" / "v0.1")["free_bytes_at_start"]
