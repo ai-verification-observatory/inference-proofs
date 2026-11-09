@@ -71,6 +71,21 @@ mkdir -p ~/.config/iproofs && chmod 700 ~/.config/iproofs
 
 Jobs passes it to the container as an encrypted secret (`--secrets-file`). `hf-job.sh` uses it for the upload only; the harness, the adapter and `fetch-model` run without it (both models are ungated), and the hosted runner drops any name containing `TOKEN` from the adapter's environment. That keeps the token from the adapter only when the job runs as root, because the hosted runner then drops the adapter to uid 10001. If the job runs as the images' own user 10001 (stage 1a shows it), the adapter and the upstream prover run under the same uid as the job script and can read the token from `/proc/1/environ` (RFC-0006 Q6). The token's scope, write access to that one dataset, is then all that limits it.
 
+## Uploads: through the bucket API, checked (2026-11-09)
+
+On 2026-11-08 SASH's first run (`sash-c1024-r1`) completed with its proof accepted, but its run directory never reached the bucket: the copy into the mounted bucket returned in 38 s and the job ended while the mount was still sending its proof archive in the background, so the archive and everything queued behind it were dropped (the mount's own flush on shutdown is bounded, [hf-mount](https://github.com/huggingface/hf-mount) `--flush-shutdown-timeout-ms`, default 45 s; Jobs does not document its mount's write mode). Small outputs (FlashProve's 18 MB proofs) were not affected.
+
+Every job now uploads through the bucket API when it has a token: `hf-job.sh` runs `hf buckets sync` (huggingface_hub 2.4.0) twice, the records first (no proof archive, no `io/`), then the rest, checks every file of `out/` against the bucket's listing by size, and only then writes `upload.done`. A failed or incomplete upload says so in the log. Proof archives (`.tar`, a full copy of one proof) stay out unless `IPROOFS_UPLOAD_ARCHIVES=1`; with keep-io the proofs are in `io/proofs`.
+
+What the owner sets up once: a dedicated, revocable token with write access, in a file only they can read:
+
+```sh
+mkdir -p ~/.config/iproofs && chmod 700 ~/.config/iproofs
+( umask 077; printf 'HF_TOKEN=%s\n' '<token>' > ~/.config/iproofs/hf-job.secrets )
+```
+
+and every job command adds `--secrets-file ~/.config/iproofs/hf-job.secrets -e IPROOFS_UPLOAD_BUCKET=$NS/iproofs-dev-runs` (the mount may stay for reading stored runs). The token reaches the job as an encrypted secret and is never printed; the adapter and the prover run under the same uid in these images and could read it (RFC-0006 Q6), so it is a dedicated token, deleted after the campaign.
+
 ## The job command
 
 Set once per shell. `IPROOFS_COMMIT` is the full hash of a commit on `main` that contains `docs/runbooks/hf-job.sh` (the merge of this change, or later); every job of a campaign uses the same one. `keep-io` and the `seed`, `controls` and `merge` modes exist only at or after the merge of the split-suite change, so the campaign's commit moves to that merge (or later) at stage 2, before any later job: stage 2, the stage 5 jobs and the stages after them use that one commit, whose `systems/sash/system.yaml` pins the image `SASH_IMAGE` names (`iproofs controls --hosted` refuses a run made with another image, and the merge refuses parts of another harness commit). Write it in the campaign notes. The stage 1 probe ran on an earlier commit; its findings about the flavor (GPU, NUMA, memory, disk, uid) still hold, and the stage 2 job repeats the probe, the binding check and the self-test at the new commit anyway.

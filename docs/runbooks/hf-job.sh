@@ -117,12 +117,82 @@ copy_dev() {  # DEST: the self-test record, the run directories, then the proof 
   return "$failed"
 }
 
+HFCLI_VERSION=2.4.0                  # the hf CLI the API upload runs (its bucket commands)
+hfcli() { uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf "$@"; }
+
+verify_upload() {  # FOLDER: every file of out/ is in the bucket with its size (job.log excepted)
+  local folder=$1
+  hfcli buckets ls "$IPROOFS_UPLOAD_BUCKET" --recursive > "$WORK/remote.txt" 2>/dev/null || return 1
+  python3 - "$OUT" "$folder" "$WORK/remote.txt" <<'PYEOF'
+import os
+import sys
+
+out, folder, listing = sys.argv[1:]
+archives = os.environ.get("IPROOFS_UPLOAD_ARCHIVES", "0") == "1"
+remote = {}
+for line in open(listing):
+    parts = line.split()
+    if len(parts) >= 2 and parts[0].isdigit():
+        remote[parts[-1]] = int(parts[0])
+wrong = []
+for root, _dirs, files in os.walk(out):
+    for name in files:
+        path = os.path.join(root, name)
+        rel = os.path.relpath(path, out)
+        if rel in ("job.log", "upload.done") or (rel.endswith(".tar") and not archives):
+            continue
+        size = os.path.getsize(path)
+        got = remote.get(f"{folder}/{rel}")
+        if got != size:
+            wrong.append((rel, size, got))
+for rel, size, got in wrong[:20]:
+    print(f"upload check: {rel}: {size} bytes here, {got} in the bucket")
+print(f"upload check: {len(wrong)} of the files in out/ missing or of another size")
+sys.exit(1 if wrong else 0)
+PYEOF
+}
+
+upload_api() {  # STATUS FOLDER: through the bucket API, which returns once the files are sent
+  local status=$1 folder=$2 ok=1
+  local dest="hf://buckets/$IPROOFS_UPLOAD_BUCKET/$folder"
+  local tars=(--exclude '*.tar')
+  [ "${IPROOFS_UPLOAD_ARCHIVES:-0}" = 1 ] && tars=()
+  log "upload: out/ through the bucket API to $dest (proof archives: ${IPROOFS_UPLOAD_ARCHIVES:-0})"
+  # the records first (no proof archive, no io/), so they arrive even if a large file fails
+  if hfcli buckets sync "$OUT" "$dest" --exclude '*.tar' --exclude '*/io/*' --quiet; then
+    log "upload: records sent"
+  else
+    ok=0
+    log "upload: records FAILED"
+  fi
+  if ! hfcli buckets sync "$OUT" "$dest" ${tars[@]+"${tars[@]}"} --quiet; then
+    ok=0
+    log "upload: large files FAILED"
+  fi
+  if [ "$ok" = 1 ] && verify_upload "$folder"; then
+    printf 'dev-results bytes %s\n' "$(dev_bytes)" > "$OUT/upload.done"
+    if hfcli buckets cp "$OUT/upload.done" "$dest/upload.done" --quiet; then
+      log "upload: done and checked file by file ($(cat "$OUT/upload.done")); exit $status"
+    else
+      log "upload: sent and checked, but the upload.done marker FAILED; exit $status"
+    fi
+  else
+    log "upload: FAILED or incomplete (see the check above); exit $status"
+  fi
+  hfcli buckets cp "$OUT/job.log" "$dest/job.log" --quiet || true
+}
+
 upload() {
   local status=$?
   prune
   local folder
   folder="runs/$(date -u +%Y%m%dT%H%M%SZ)-${IPROOFS_LABEL:-$MODE}"
+  if [ -n "${HF_TOKEN:-}" ] && [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ]; then
+    upload_api "$status" "$folder"
+    return
+  fi
   if [ -n "${IPROOFS_UPLOAD_DIR:-}" ]; then
+    log "upload: WARNING the bucket mount sends large files in the background and may drop them when the job ends (SASH r1, 2026-11-08); set HF_TOKEN and IPROOFS_UPLOAD_BUCKET for a checked upload"
     local dest="$IPROOFS_UPLOAD_DIR/$folder"
     log "upload: out/ to the mounted bucket, folder $folder"
     if ! mkdir -p "$dest"; then
