@@ -19,6 +19,12 @@ def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
+def curly(text):
+    """Straight double quotes curly: opening at the start or after a space or bracket, closing
+    elsewhere (`LLaMA (branch "llama")` reads `LLaMA (branch “llama”)`)."""
+    return re.sub(r'(?:^|(?<=[\s(\[{]))"', "“", text).replace('"', "”")
+
+
 # ------------------------------------------------------------------ words
 # The fixed words a stored value prints as (RFC-0009 S2: the generator may word a stored value;
 # it never changes it). Keyed by the stored ids, so an id with no words stops the build.
@@ -47,10 +53,11 @@ WARM_LINE = ("proving session (start-up included; it proves one request at a tim
 STEADY_LINE = "steady state on both sides, start-up excluded"
 # the scope line of an overhead, by its stored statistic
 SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE, WARM: WARM_LINE}
-# the overview's scopes in short, the one line under a figure (the full words ride in its title)
-SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "with start-up",
+# the overview's scopes in short, the one line under a figure, each the scope's name ("steady",
+# "session"); the full words ride in its title and are read aloud
+SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "session",
                "verify": "{cpus} threads", "overhead_vs_production_prove.steady": "steady",
-               WARM: "with start-up vs warm"}  # fmt: skip
+               WARM: "session vs warm"}  # fmt: skip
 # RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns; a
 # value per bit prints per Gbit (x 1e9), in seconds or bytes with their own prefix
 PER_GBIT = "per token, per Gbit of active weights"

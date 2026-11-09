@@ -100,11 +100,11 @@ def test_sections_found_by_what_they_hold(site, entries):
 
 
 def test_no_absence_is_searched_by(entries):
-    """What a system's facts say is absent ("not named", "no LLM named", "size not stated",
-    "model id as given", "no repository") shows on its card and is never a word it is found
-    by."""
+    """What a system's facts say is absent ("not named", "no LLM named", "none named", "size not
+    stated", "model id as given", "no repository") shows on its card and is never a word it is
+    found by."""
     for x in (x for x in entries if x["kind"] == "unbenchmarked"):
-        for absent in ("not named", "no llm", "size not stated", "model id as given",
+        for absent in ("not named", "none named", "no llm", "size not stated", "model id as given",
                        "no repository", "no public code"):  # fmt: skip
             assert absent not in x["terms"], (x["name"], absent)
 
@@ -120,3 +120,7 @@ def test_model_ids_beside_names(site):
     jolt = {"models": ["GPT-2 (125M)", "Qwen/Qwen2-0.5B (model id as given)"]}
     assert b.nb_models(jolt) == "GPT-2 (125M); Qwen/Qwen2-0.5B"
     assert b.nb_models({"models": ["not named"]}) == "Model not named"
+    # quotes curly, as card text prints them
+    assert b.nb_models({"models": ['LLaMA (branch "llama"), size not stated']}) == (
+        "LLaMA (branch “llama”), size not stated"
+    )

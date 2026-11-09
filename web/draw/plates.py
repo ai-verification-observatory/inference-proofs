@@ -401,14 +401,16 @@ def blob(path):
 
 def cell_words(cfg, col):
     """(value html, lines, title, measured) for one overview figure of a configuration. The line
-    under it is its scope in one word (steady, with start-up, the checker's threads); its title
+    under it is its scope in one word (steady, session, the checker's threads), each line a pair
+    (short words, full words read aloud); its title
     holds the value, its scope, its runs and range, grade and evidence, and the plate it links
     holds every label with its record (S2, S3)."""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
         if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
-            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
+            return (f'<span class="na">{e(word)}</span>', [(REF_BASELINE, REF_BASELINE)],
+                    no_rule(line), False)  # fmt: skip
         return f'<span class="na">{e(word)}</span>', [], no_rule(line), False
     f = cfg["figures"][metric_of(cfg, col)]
     if f["value"] is None:
@@ -417,7 +419,7 @@ def cell_words(cfg, col):
     parts = [f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value]
     lines = []
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
-        lines = [SCOPE_SHORT[f["metric"]]]
+        lines = [(SCOPE_SHORT[f["metric"]], SCOPE_LINES[f["metric"]])]
         parts.append(SCOPE_LINES[f["metric"]])  # both sides' scope (INV-DERIVE-11)
         if pairs := pairs_words(f):
             parts.append(pairs)
@@ -430,7 +432,8 @@ def cell_words(cfg, col):
             short = SCOPE_SHORT.get(f["scope"])
             cpus = cfg["verifier"]["logical_cpus"]
             if short and col in ("per_bit", "check_bit") and ("{cpus}" not in short or cpus):
-                lines = [short.format(cpus=cpus)]  # steady, with start-up, the checker's threads
+                # steady, session, the checker's threads
+                lines = [(short.format(cpus=cpus), scope_words(f, cfg))]
         if spread := title_spread(f):
             parts.append(spread)
     parts += [GRADE_WORD[f["grade"]], f"evidence: {TIER_WORD[f['tier']]}"]
@@ -517,10 +520,14 @@ def spread_kv(f):
 
 def value_link(cfg, col, href, who=""):
     """A figure on the overview row: a link to the figure's own plate, its scope in one word
-    under it where it has one; its labels ride in the title."""
+    under it where it has one, its full words read aloud; its labels ride in the title."""
     inner, lines, title, measured = cell_words(cfg, col)
     title = sentence_case(readable(title) if measured else title)
-    sub = "".join(f"<span>{keep(ln)}</span>" for ln in lines if ln)
+    sub = "".join(
+        f"<span>{keep(short)}</span>" if full == short else
+        f'<span aria-hidden="true">{keep(short)}</span><span class="sr">{e(full)}</span>'
+        for short, full in lines if short
+    )  # fmt: skip
     name = f'<span class="sr">, {e(who)}</span>' if who else ""
     return (
         f'<a class="val" href="{e(href)}" title="{e(title)}">'

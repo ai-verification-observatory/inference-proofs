@@ -243,7 +243,7 @@
     {
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
-      "meta": "LLaMA (branch \"llama\"), size not stated",
+      "meta": "LLaMA (branch “llama”), size not stated",
       "name": "opML",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
       "terms": "opml unmaintained llama (branch \"llama\") rerun re-execution recompute optimistic dispute re-executed",
@@ -353,10 +353,10 @@
     {
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
-      "meta": "MLPerf Edge Inference v4.1 models, LLMs included; no LLM named",
+      "meta": "MLPerf Edge Inference v4.1 models, LLMs among them, none named",
       "name": "ZKTorch",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 unstated\" data-n=\"3\" d=\"M24.21 20.95L15.67 25.88L15.95 16.51Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "zktorch mlperf edge inference v4.1 models, llms included accumulation / folding of repeated blocks zk proof cryptographic proved",
+      "terms": "zktorch mlperf edge inference v4.1 models, llms among them accumulation / folding of repeated blocks zk proof cryptographic proved",
       "tier": 5,
       "url": "/#nb-zktorch"
     },

@@ -173,12 +173,15 @@ html:not(.js) .search { display: none; }
 .nbn a { text-decoration: none; }
 .nbn a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
 .nbn .xa { font: 500 .55em/1 var(--mono); color: var(--muted); vertical-align: .45em; }
-.nbm { font: 400 12px/1.45 var(--mono); color: var(--muted); }
+.nbm { color: var(--muted); }
 .nbm, .ms { text-wrap: pretty; }
-/* a named petal: its name and state in place of the lines under the name, over nothing */
-.nbms, .nbt .tip { grid-area: 2 / 1; }
-.nbt .tip { position: static; transform: none; width: auto; max-width: none; }
-.nb:has(.nbpie[data-hot]) .nbt .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
+/* a named petal: its name and state in place of the lines under the name, over nothing, in the
+   model line's type; the lines keep room for two, so a name that wraps moves no card */
+.nbms, .nbt .tip { grid-area: 2 / 1; font: 400 12px/1.45 var(--mono); }
+.nbms { min-height: 2lh; }
+.nbt .tip { position: static; transform: none; width: auto; max-width: none; color: var(--paper); }
+.nbt .tip b { display: inline; text-transform: none; letter-spacing: 0; }
+.nb:has(.nbpie[data-hot]) .nbt .tip { display: block; }
 .nb:has(.nbpie[data-hot]) .nbms { visibility: hidden; }
 
 /* ---------------------------------------------------------------- rows */
@@ -741,7 +744,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .nbpie > .w56 { display: none; }
   .nbpie > .w52 { display: block; }
   .nbn { font-size: 19px; margin: 0 0 2px; }
-  .nbm { font-size: 11px; line-height: 1.4; }
+  .nbms, .nbt .tip { font-size: 11px; line-height: 1.4; }
 }
 /* phones */
 @media (max-width: 560px) {
@@ -758,6 +761,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
      are read aloud here and shown on the criteria page. Columns sized by their names, so each name
      keeps one line where both fit (390 px up) and wraps below */
   .mast-in { padding: 12px 0 14px; }
+  /* not benchmarked yet in one track, wide enough for a named petal's one line: no room kept for a second */
+  .nbgrid { grid-template-columns: minmax(0, 1fr); }
+  .nbms { min-height: 0; }
   .map { grid-template-columns: repeat(2, auto); gap: 10px 12px; margin-top: 12px; }
   .q { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto; column-gap: 10px; align-items: center; }
   .q .kmini { grid-row: auto; width: 22px; height: 22px; margin-top: 0; }

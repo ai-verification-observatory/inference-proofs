@@ -29,6 +29,7 @@ from .words import (
     CONTROL_WORDS,
     OUTCOME_SHORT,
     STATE_WORD,
+    curly,
     e,
     labels,
     sig4,
@@ -331,8 +332,7 @@ def card_text(v):
         codes.append(m[1])
         return f"\x00{len(codes) - 1}\x00"
 
-    t = re.sub(r"`([^`]+)`", hold, str(v))
-    t = re.sub(r'(?:^|(?<=[\s(\[{]))"', "“", t).replace('"', "”")
+    t = curly(re.sub(r"`([^`]+)`", hold, str(v)))
     t = re.sub(r"(\d) (?=[%‰])", "\\1\u202f", t)
     t = e(t)
     t = re.sub(r"\*\*([^*\s][^*]*?)\*\*", r"<strong>\1</strong>", t)

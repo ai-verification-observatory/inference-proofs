@@ -14,7 +14,8 @@
   // not-benchmarked card in place of the lines under its name. The others keep their ink. The pointer is read on
   // the still .hit copy of the wedges, so a lifted slice never slips out from under it.
   $$('.row .pie, .nb .nbpie').forEach((pie) => {
-    const tip = $('.tip', pie) || $('.tip', pie.closest('.nb'));
+    const card = pie.closest('.nb');
+    const tip = $('.tip', pie) || $('.tip', card);
     let hot = 0;
     const set = (n) => {
       if (n === hot) return;
@@ -26,6 +27,8 @@
       if (tip && sl && sl.dataset.word) {
         const b = document.createElement('b');
         b.textContent = sl.dataset.name;
+        // a not-benchmarked card: one line in the model line's place ("Whole output checked: not stated")
+        if (card) { tip.replaceChildren(b, document.createTextNode(`: ${sl.dataset.word.toLowerCase()}`)); return; }
         const sw = document.createElement('i');
         // the slice's state class (yes, partly, no, unstated) is the one besides sl, sN
         sw.className = `sw ${[...sl.classList].find((c) => c !== 'sl' && !/^s\d$/.test(c)) || ''}`;

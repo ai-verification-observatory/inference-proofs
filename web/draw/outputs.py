@@ -53,7 +53,7 @@ SECTIONS = (
 )
 # what a not-benchmarked system's facts say is absent: shown on its card, never searched by
 ABSENT = re.compile(r"^(?:no |not named|model not named)", re.I)
-ABSENT_NOTES = re.compile(r"\s*\((?:model id as given|size not stated)\)|,\s*size not stated")
+ABSENT_NOTES = re.compile(r"\s*\((?:model id as given|size not stated)\)|,\s*(?:size not stated|none named)")
 
 
 def model_terms(models):

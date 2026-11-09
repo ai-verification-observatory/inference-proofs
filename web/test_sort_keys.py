@@ -64,7 +64,7 @@ def test_warm_overhead_names_both_scopes(site):
     assert b.readable(b.WARM_LINE) in b.plate(cfg, "overhead")
     assert "<dt>steady state</dt>" in b.overhead_notes(cfg)  # why the steady figure is null
     warm["value"] = 1000.0
-    assert b.cell_words(cfg, "overhead")[1] == [b.SCOPE_SHORT[b.WARM]]
+    assert b.cell_words(cfg, "overhead")[1] == [(b.SCOPE_SHORT[b.WARM], b.WARM_LINE)]
     assert b.WARM_LINE in b.cell_words(cfg, "overhead")[2]
     plate = b.plate(cfg, "overhead")
     assert f"<dt>scope</dt><dd>{b.readable(b.WARM_LINE)}</dd>" in plate

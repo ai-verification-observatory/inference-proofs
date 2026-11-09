@@ -780,8 +780,8 @@ def test_each_figure_names_its_scope(site: Build) -> None:
     title (scope, grade, tier and the spread where it has one; its record on its plate); the
     overhead's title names its scope (both sides', or the warm pairing's), its prover and serving
     run counts and what each side ran, and the cell its scope in a word; proving time per token
-    per Gbit names its scope in a word (steady, or with start-up where the steady figure is
-    null), check time its
+    per Gbit names its scope in a word (steady, or session where the steady figure is null), its
+    full words read aloud, check time its
     scope in its title; the row header names the weight width they divide by. Nothing else sits
     under a figure: the full details are on the plate it links."""
     b = renderer(ROOT).draw
@@ -793,7 +793,10 @@ def test_each_figure_names_its_scope(site: Build) -> None:
         said = {c: plain(html.unescape(t[1])) if (t := title.search(v)) else ""
                 for c, v in cells.items()}  # fmt: skip
         sub = re.compile(r'<span class="sub">(.*?)</span></a>')
-        under = {c: plain(m[1]) if (m := sub.search(v)) else "" for c, v in cells.items()}
+        under = {c: plain(re.sub(r'<span class="sr">.*?</span>', "", m[1])) if (m := sub.search(v))
+                 else "" for c, v in cells.items()}  # fmt: skip
+        aloud = {c: plain("".join(re.findall(r'<span class="sr">(.*?)</span>', m[1])))
+                 if (m := sub.search(v)) else "" for c, v in cells.items()}  # fmt: skip
         over = cfg["figures"][cfg["overhead_metric"]]
         if over["value"] is not None:
             assert plain(b.words.SCOPE_LINES[over["metric"]]) in said["overhead"], rid
@@ -802,6 +805,7 @@ def test_each_figure_names_its_scope(site: Build) -> None:
             assert f"{pairs['n_serving']} serving run" in said["overhead"], rid
             assert plain(cfg["overhead_words"]["brief"]) in said["overhead"], rid
             assert under["overhead"] == b.words.SCOPE_SHORT[over["metric"]], rid
+            assert aloud["overhead"] == plain(b.words.SCOPE_LINES[over["metric"]]), rid
         bit = cfg["figures"][cfg["per_bit_metric"]]
         steady = cfg["figures"][METRIC["per_bit"]]
         assert cfg["per_bit_metric"] == (
@@ -814,7 +818,7 @@ def test_each_figure_names_its_scope(site: Build) -> None:
             assert scope[bit["scope"]] in said["per_bit"], rid
             assert (
                 under["per_bit"]
-                == {"prove.steady": "steady", "prove.session": "with start-up"}[bit["scope"]]
+                == {"prove.steady": "steady", "prove.session": "session"}[bit["scope"]]
             ), rid
             assert f"{bit['stats']['n']} completed" in said["per_bit"], rid
         check = cfg["figures"][METRIC["check_bit"]]

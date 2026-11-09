@@ -31,7 +31,7 @@ from .plates import (
     value_link,
     words,
 )
-from .words import FAMILY_WORD, PER_GBIT, STATUS_WORD, e, gpu_words
+from .words import FAMILY_WORD, PER_GBIT, STATUS_WORD, curly, e, gpu_words
 
 # ------------------------------------------------------------------ home rows
 
@@ -192,13 +192,13 @@ def nb_split(r):
 
 
 def nb_models(r):
-    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed;
-    an id only where no name gives its family."""
+    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed,
+    quotes curly as on the cards; an id only where no name gives its family."""
     names, shown, _ = nb_split(r)
     out = ["Model " + m if m.startswith("not named")
            else m[:1].upper() + m[1:] if m.startswith("no ") else m
            for m in [*names, *shown]]  # fmt: skip
-    return "; ".join(out)
+    return curly("; ".join(out))
 
 
 def nb_meta(rid):

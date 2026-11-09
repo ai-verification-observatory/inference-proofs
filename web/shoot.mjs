@@ -152,6 +152,35 @@ const sortBy = async (p, col, dir) => {
   await ctx.close();
 }
 
+// not benchmarked yet: a named petal takes the model line's place in one sentence, and no card moves, at four cards a
+// row (1440) and where the longest name wraps (1340)
+for (const w of [1340, 1440]) {
+  const { ctx, p } = await pg(w, 900);
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  const nb = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll('.nb')];
+    const h0 = cards.map((c) => c.getBoundingClientRect().height);
+    const moved = []; let named = 0; let said = '';
+    cards.forEach((c, i) => {
+      const pie = c.querySelector('.nbpie');
+      for (let n = 1; n <= 6; n++) {
+        const hit = [...pie.querySelectorAll(`.hit path[data-n="${n}"]`)].find((x) => x.getBoundingClientRect().width);
+        const r = hit.getBoundingClientRect();
+        hit.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+        const t = c.querySelector('.tip');
+        if (getComputedStyle(t).display !== 'none' && /^[A-Z][a-z].*: [a-z ]+$/.test(t.textContent)) named++;
+        if (c.id === 'nb-remainder' && n === 3) said = t.textContent;
+        const h = c.getBoundingClientRect().height;
+        if (Math.abs(h - h0[i]) > 0.5) moved.push(`${c.id}:${n}:${Math.round(h - h0[i])}`);
+        pie.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+      }
+    });
+    return { cards: cards.length, named, said, moved };
+  });
+  ok(nb.named === nb.cards * 6 && nb.said === 'Whole output checked: not stated' && !nb.moved.length, `home-${w}: a named petal reads "Property: state" in the model line's place, and no card moves`, nb);
+  await ctx.close();
+}
+
 // ---------------------------------------------------------------- sorting by the column heads: every column, both directions
 {
   const { ctx, p } = await pg(1440, 900);

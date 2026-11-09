@@ -249,7 +249,7 @@
     "zktorch": {
       "code": "open_licence",
       "models": [
-        "MLPerf Edge Inference v4.1 models, LLMs included; no LLM named"
+        "MLPerf Edge Inference v4.1 models, LLMs among them, none named"
       ],
       "name": "ZKTorch",
       "status": {
