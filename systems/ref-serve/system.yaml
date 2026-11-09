@@ -51,8 +51,10 @@ workloads:
   gpus: 1
   # The first capture (2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1) serves
   # one request: no steady scope, so `iproofs serving size-session` refuses it (SRV-1). Set from
-  # a sizing capture of 50 batches (`--sizing-batches 50`, SRV-1, docs/runbooks/hf-jobs.md S1b).
-  batches_per_session_run: null
+  # the sizing capture 2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1 (50 batches,
+  # development bucket, runs/20261109T090222Z-serving-l31-bf16-sizing/) by `iproofs serving
+  # size-session`: 359 steady batches reach the 120 s target, plus the first batch.
+  batches_per_session_run: 360
   precision_used: BF16
   precision_substitution: null
   engine_args:
