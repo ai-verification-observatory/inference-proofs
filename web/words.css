@@ -18,6 +18,15 @@
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:500;font-display:block;src:url(/fonts/plex-mono-500-arrows.001854c4e1.woff2) format("woff2");unicode-range:U+d7, U+2190-2193, U+2195, U+2197, U+2248}
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:600;font-display:block;src:url(/fonts/plex-mono-600-arrows.b24a689f1a.woff2) format("woff2");unicode-range:U+d7, U+2190-2193, U+2195, U+2197, U+2248}
 /* /fonts */
+/* THE DESIGN LANGUAGE: one look per role, everywhere.
+   Colour: --paper for everything read (sentences, quotes, values); --muted only for what frames it
+   (labels, keys, column heads, meta lines under a name or a figure, and source links); --violet for
+   property names and the brand; the four state inks only for states.
+   Type: the display face for names, headings and figures; Plex Mono for the rest, in five roles:
+   --f-label (uppercase keys and heads), --read (sentences and quotes), --data (label-value lists and
+   tables), --f-meta (lines under a name or figure), --f-source (source links: muted, underlined).
+   Links: in text, paper and underlined; a source, muted and underlined; a name or a figure, no
+   underline until hovered. */
 :root {
   --ground: #0b0b0c;
   --paper: #f1efe9;
@@ -38,6 +47,9 @@
   --read-lh: 1.6;
   --data: 13px;
   --data-lh: 1.5;
+  --f-label: 500 12px/1.3 var(--mono);
+  --f-meta: 400 12px/1.5 var(--mono);
+  --f-source: 400 11px/1.45 var(--mono);
   --raised: #171716;  /* a layer over the page: the glyph's petal card */
   --ghost: #1f1e1e;  /* Not stated: the fill inside that outline, near the ground (1.18:1) */
   --disp: "Archivo", system-ui, sans-serif;
@@ -71,7 +83,7 @@ p { margin: 0; }
 .mast :focus-visible { outline-color: var(--ground); }
 .wrap { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; }
 /* the site's own links to the RFC that defines a rule, in place of its bare code */
-.rule { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.rule { white-space: nowrap; }
 
 /* state squares */
 .sw { display: inline-block; width: .72em; height: .72em; margin-right: .42em; vertical-align: baseline; }
@@ -150,7 +162,8 @@ html:has(.top.s-on) { overflow: hidden; }
 /* ---------------------------------------------------------------- masthead: a plain legend, black on violet
    Six small pies, one per property: its own wedge filled in ground ink, the others in line, its name and question beside it.
    Nothing here reacts to the pointer. */
-.mast { background: var(--violet); color: var(--ground); }
+.mast { background: var(--violet); color: var(--ground); position: relative; isolation: isolate; overflow: hidden; }
+.juice { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
 .mast-in { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; padding: 20px 0; }
 .kick { font: 600 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; margin: 0; }
 .map { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; }
@@ -196,6 +209,22 @@ html:has(.top.s-on) { overflow: hidden; }
 .nbt .tip b { display: inline; text-transform: none; letter-spacing: 0; }
 .nb:has(.nbpie[data-hot]) .nbt .tip { display: block; }
 .nb:has(.nbpie[data-hot]) .nbms { visibility: hidden; }
+
+/* ---------------------------------------------------------------- a system page's side column
+   the facts and the page's sections; beside the page from 1241 px, held in view while it scrolls */
+.side { margin-top: 44px; }
+.side .facts { align-self: auto; }
+.toc { margin-top: 20px; }
+.toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font: var(--f-label); text-transform: uppercase; letter-spacing: var(--track); }
+.toc a { color: var(--muted); text-decoration: none; display: inline-block; padding-block: 4px; }
+.toc a:hover, .toc a:focus-visible { color: var(--paper); }
+@media (min-width: 1241px) {
+  .syswrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 64px; align-items: start; }
+  .syswrap > * { grid-column: 1; min-width: 0; }
+  .syswrap > .side { grid-column: 2; grid-row: 1 / span 9; align-self: stretch; margin-top: 0; }
+  .side-in { position: sticky; top: 0; padding-top: 32px; max-height: 100vh; overflow-y: auto; }
+  .toc ul { display: block; border-top: 1px solid var(--line); padding-top: 10px; }
+}
 
 /* ---------------------------------------------------------------- rows */
 /* the board: the system (its model under its name), then the four figures */
@@ -262,7 +291,7 @@ html:has(.top.s-on) { overflow: hidden; }
 /* the model under the system's name: its name, its size and weight width, what the workload ran */
 .mc { grid-column: 2; min-width: 0; padding-top: 12px; }
 .mn { font: 800 22px/1.05 var(--disp); font-stretch: 80%; margin: 0; }
-.ms { font: 400 12px/1.5 var(--mono); color: var(--muted); margin: 4px 0 0; }
+.ms { font: var(--f-meta); color: var(--muted); margin: 4px 0 0; }
 .ms + .ms { margin-top: 2px; }
 .vals { display: contents; }
 .vc { min-width: 0; }
@@ -283,11 +312,11 @@ html:has(.top.s-on) { overflow: hidden; }
 .na.word { color: var(--paper); }
 .na { font: 600 22px/1.2 var(--disp); font-stretch: 84%; color: var(--muted); display: inline-block; padding-top: 14px; text-wrap: balance; }
 /* the one line under a figure: its scope in a word, where it has one (every label is in its title and on its plate) */
-.sub { display: block; font: 400 12px/1.5 var(--mono); color: var(--muted); margin-top: 6px; }
+.sub { display: block; font: var(--f-meta); color: var(--muted); margin-top: 6px; }
 .qs { display: inline-block; font: 400 12px/1.45 var(--mono); color: var(--muted); margin-top: 8px; }
 .plates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
 .plate { min-width: 0; position: relative; }
-.plate .lbl { font: 500 12px/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 10px; }
+.plate .lbl { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 10px; }
 .plate .lbl .lid { text-transform: none; letter-spacing: 0; }
 /* the plate a figure link names: the violet edge a landed card takes */
 .plate:target:before { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; width: 3px; background: var(--violet); }
@@ -321,7 +350,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .runs .tl { display: flex; flex-wrap: wrap; column-gap: 2ch; row-gap: 12px; }
 .ll summary { width: max-content; min-height: 24px; padding-block: 3px; cursor: pointer; color: var(--muted); }
 .ll summary:hover { color: var(--paper); }
-.ll p { color: var(--muted); overflow-wrap: anywhere; margin: 4px 0 0; }
+.ll p { overflow-wrap: anywhere; margin: 4px 0 0; }
 .sect.sm.setup { margin-top: 40px; }
 .blk > .sect + .sect.sm.setup, .blk > .sec-h + .sect.sm.setup { margin-top: 24px; }
 /* a page of several setups: each setup's one-line heading stays at the top of the screen while its figures scroll,
@@ -329,7 +358,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .cfgfigs > .sect.sm.setup { position: sticky; top: 0; z-index: 2; background: var(--ground); padding: 8px 0 7px; border-bottom: 1px solid var(--line); }
 .cfgfigs .plates-sys .plate { scroll-margin-top: 52px; }
 /* the per-Gbit basis every setup of the page shares, once under the Figures heading */
-.basis-h { font: 500 12px/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin: 24px 0 8px; }
+.basis-h { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin: 24px 0 8px; }
 .basis-h + .tlab.notes { margin-top: 0; }
 .tlab > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
 .tlab dt { color: var(--muted); }
@@ -351,12 +380,10 @@ html:has(.top.s-on) { overflow: hidden; }
 .sect.sm { font-size: 22px; margin-top: 32px; }
 .blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 /* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
-.over { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; padding-top: 32px; }
+.over { padding-top: 32px; }
 /* how we read it follows the properties in reading order (RFC-0009 S1 item 1), and the eye follows the keyboard: it sits
    under the pie in the first column, the facts beside both in the second, so focus goes pie, how we read it, facts */
-.over > .howread { grid-column: 1; grid-row: 2; }
 /* the facts start at the glyph's top and stay there when how we read it opens under the glyph */
-.over > .facts { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
 /* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
    from its top */
 .wrap > .claims:first-child { scroll-margin-top: 100vh; }
@@ -372,30 +399,32 @@ html:has(.top.s-on) { overflow: hidden; }
 .rp[data-n="1"], .rp[data-n="6"] { align-self: end; } .rp[data-n="3"], .rp[data-n="4"] { align-self: start; }
 .rn { font: 600 12px/1.2 var(--mono); letter-spacing: var(--track); text-transform: uppercase; color: var(--violet); }
 .rn a { color: inherit; text-decoration: none; }
-.rn a:hover, .rn a:focus-visible { text-decoration: underline; }
+.rn a:hover, .rn a:focus-visible, .rp:hover .rn a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.rp:hover { cursor: pointer; }
 .rs { font: 750 22px/1.1 var(--disp); font-stretch: 84%; margin-top: 4px; }
 /* a state word that is the link (no reason line): 24 px clear of the name's link above it */
 .rs:has(> a) { margin-top: 6px; }
 .rp .rs .sw { display: none; }
-.rs a, .rr a.psrc { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: var(--line); }
-.rs a:hover, .rr a.psrc:hover { text-decoration-color: currentColor; }
 /* a property's link under keyboard focus lifts its slice, as pointing does */
 .rose:has(.rp[data-n="1"]:focus-within) .s1, .rose:has(.rp[data-n="2"]:focus-within) .s2, .rose:has(.rp[data-n="3"]:focus-within) .s3,
 .rose:has(.rp[data-n="4"]:focus-within) .s4, .rose:has(.rp[data-n="5"]:focus-within) .s5, .rose:has(.rp[data-n="6"]:focus-within) .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
 .rp:focus-within .rn { color: var(--paper); }
-.rr { font: 400 12px/1.42 var(--mono); color: var(--muted); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
+.rr { font: 400 13px/1.45 var(--mono); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
 .rp.l .rr { margin-left: auto; }
 /* after a property's reason, a quiet link to its entry in how we read it; under it, only for an overridden
    cell, its stated state and what contradicts it */
-.ev .psrc { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.ev .psrc:hover { color: var(--paper); }
-.ev { font: 400 11px/1.45 var(--mono); color: var(--muted); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
+.ev .psrc { white-space: nowrap; }
+.qsrc, .rule, .ev .psrc { font: var(--f-source); color: var(--muted); }
+.rule, .ev .psrc { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.qsrc:hover, .rule:hover, .ev .psrc:hover { color: var(--paper); }
+.ev { font: 400 12px/1.45 var(--mono); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
 .rp.l .ev { margin-left: auto; }
 .eq { margin: 0; }
-.eq p { color: var(--muted); white-space: pre-line; }
+.eq p { white-space: pre-line; }
 /* a quoted Markdown table row: its cells as the source draws them, ruled, no head the quote does not hold */
 .qrow { border-collapse: collapse; margin: 0 0 4px; }
-.qrow td, .qrow th { border: 1px solid var(--line); padding: 3px 8px; vertical-align: top; color: var(--muted); overflow-wrap: break-word; }
+.qrow td, .qrow th { border: 1px solid var(--line); padding: 3px 8px; vertical-align: top; overflow-wrap: break-word; }
+.qrow th { color: var(--muted); }
 .qrow th { font-weight: 500; text-align: left; }
 .eqs:has(.qrow) { align-items: start; }
 .eqs:has(.qrow) > .ek { padding-top: 4px; }
@@ -421,7 +450,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .ec .cg + .cg { margin-top: 2px; }
 .ek { color: var(--muted); }
 .rd { display: block; }
-.qsrc { display: inline-block; padding-block: 4px; line-height: 16px; color: var(--muted); text-decoration: none; }
+.qsrc { display: inline-block; padding-block: 4px; line-height: 16px; text-decoration: none; }
 .qsrc .seg { display: inline-block; max-width: 100%; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .qsrc:hover { color: var(--paper); }
 .qsrc:hover .seg { text-decoration-thickness: 2px; }
@@ -461,7 +490,7 @@ html:has(.top.s-on) { overflow: hidden; }
    folded card's body */
 .gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line); }
 .facts.gapone { margin-top: 32px; max-width: 880px; }
-.gapf dd { max-width: 100ch; color: var(--muted); font-size: var(--read); line-height: var(--read-lh); }
+.gapf dd { max-width: 100ch; font-size: var(--read); line-height: var(--read-lh); }
 .agree { display: grid; row-gap: 24px; }
 /* runs left out of the figures, and the release's runs: each id over its status */
 .runs .rid, .runs .rw { display: block; }
@@ -532,7 +561,7 @@ html:has(.top.s-on) { overflow: hidden; }
 /* a figure with no value: its name, then why, quiet; no value line */
 .plates-sys .plate.nil { display: block; }
 .plate.nil dl > div:first-child { padding-top: 0; border-top: 0; }
-.plate.nil dd { color: var(--muted); }
+
 .mtab { width: 100%; border-collapse: collapse; margin-top: 32px; font: 400 var(--data)/var(--data-lh) var(--mono); }
 .mtab th, .mtab td { text-align: left; vertical-align: top; padding: 8px 16px 8px 0; border-top: 1px solid var(--line); }
 .mtab thead th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: var(--track); }
@@ -553,7 +582,7 @@ html:has(.top.s-on) { overflow: hidden; }
    setup's heading leads; no test at all a quiet line, as every absence */
 .tamper { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 80ch; margin-top: 12px; text-wrap: pretty; }
 .tamper b { font-weight: 600; }
-.tamper.none { font-size: var(--data); color: var(--muted); }
+.tamper.none { font-size: var(--data); }
 /* reference page */
 .reflead { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 26px; text-wrap: pretty; }
 .refsys { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule); scroll-margin-top: 12px; }
@@ -569,13 +598,13 @@ section.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7f
 .crit .kmini { grid-row: span 2; }
 .crit .kmini .off { fill: var(--paper); opacity: .3; }  /* 2.41:1 on the ground; lit against off 7.11:1 */
 .crit .kmini .on { fill: var(--paper); }
-.cq { font: 500 13px/1.45 var(--mono); color: var(--muted); margin-top: 6px; text-wrap: balance; }
+.cq { font: 400 var(--read)/1.5 var(--mono); margin-top: 6px; text-wrap: balance; }
 .cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
 .cs div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
 .cs div:first-child { border-top: 0; padding-top: 0; }
 .cs dt { font: 750 18px/1.2 var(--disp); font-stretch: 84%; }
 .cs dd { margin: 0; text-wrap: pretty; }
-.cnote { grid-column: 2; font: 400 var(--read)/var(--read-lh) var(--mono); color: var(--muted); margin-top: 8px; text-wrap: pretty; }
+.cnote { grid-column: 2; font: 400 var(--read)/var(--read-lh) var(--mono); margin-top: 8px; text-wrap: pretty; }
 .crit .kmini { width: 48px; height: 48px; }
 .crit .kmini.w32 { display: none; }
 .cs dt { white-space: nowrap; }

@@ -94,22 +94,20 @@ def rose_item(c, pre, ev="", src=""):
     On a system page the reason is the link to the property's entry in "How we read it" (`src`,
     its id), or the state word where there is no reason; for an overridden cell, the one line
     that changes its state follows (`ev`, draw/claims.py); nothing else. The state's square is
-    shown only where the rows sit away from the glyph (phones; the slice beside it has the ink)."""
+    shown only where the rows sit away from the glyph (phones; the slice beside it has the ink).
+    The name is the property's one link: on a system page to its entry in "How we read it"
+    (`src`), elsewhere to what its states mean; the state and the reason are plain text."""
     generic = (
         c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
     )
     why = "" if generic else e(words(c["reason"]))
-    sr = f'<span class="sr">: how we read {e(c["name"])}</span>'
     word = e(c["word"])
-    if src and why:
-        why = f'<a class="psrc" href="#{e(src)}">{why}{sr}</a>'
-    elif src:
-        word = f'<a class="psrc" href="#{e(src)}">{word}{sr}</a>'
+    href = f"#{e(src)}" if src else f"{CRIT_PAGE}#{e(c['prop'])}"
     reason = f'<p class="rr">{why}</p>' if why else ""
     state = f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{word}</p>'
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
-        f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
+        f'<p class="rn"><a href="{href}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
         f"{state}{reason}{ev}</li>"
     )
 
@@ -549,11 +547,27 @@ def claims_section(sid, cfgs, g, facts):
     entries = read_entries(sid, pc, order)
     src = {prop: f"read-{prop}" for prop in entries}
     name = name_of(sid)
-    return (
+    claims = (
         f'<section class="claims" id="claims-{e(cfg["configuration"])}" aria-labelledby="h-props">'
         f'<div class="over" id="properties">{rose(g, "h-props", name, ev=evidence_of(sid, pc, order), src=src)}'
-        f"{how_we_read(entries)}{facts_dl(facts)}</div>"
-        f"{card_full(cfg, sid)}{gap_block(cfgs)}</section>"
+        f"{how_we_read(entries)}</div></section>"
+    )
+    card = f'<section class="cardblk">{card_full(cfg, sid)}{gap_block(cfgs)}</section>'
+    return claims, card
+
+
+def side(name, facts, cfgs, card_id, read):
+    """The side column: the facts, then the page's sections, held in view beside the page on wide
+    screens (words.css), after the glyph and How we read it on narrow ones."""
+    links = [("properties", "Properties")]
+    if read:
+        links.append(("how-we-read", "How we read it"))
+    links += [(card_id, "Claim card in full"), ("figures", "Figures"), ("tamper", "Tamper tests")]
+    toc = "".join(f'<li><a href="#{e(i)}">{e(t)}</a></li>' for i, t in links)
+    return (
+        f'<aside class="side" aria-label="{e(name)}: facts and sections"><div class="side-in">'
+        f'{facts_dl(facts)}<nav class="toc" aria-label="On this page"><ul>{toc}</ul></nav>'
+        "</div></aside>"
     )
 
 
@@ -587,14 +601,17 @@ def system_page(sid):
             f'<a href="{e(cfg["adapter_readme"])}">{path_html(f"systems/{sid}/README.md", ext=True)}</a>',
         ),
     ]
+    claims, card = claims_section(sid, cfgs, g, facts)
     body = f"""
 {header(sid)}
 <main id="main" class="sys">
   <section class="mast mast-sys" aria-labelledby="h-name">
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(name)}</span></h1></div>
   </section>
-  <div class="wrap">
-    {claims_section(sid, cfgs, g, facts)}
+  <div class="wrap syswrap">
+    {claims}
+    {side(name, facts, cfgs, f"card-{cfg['configuration']}", "how-we-read" in claims)}
+    {card}
     <section class="blk" id="figures" aria-labelledby="h-figs">
       <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2></div>
       {figures_body(cfgs, name)}

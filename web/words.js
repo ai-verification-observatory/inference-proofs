@@ -9,6 +9,71 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
+  // ------------------------------------------------------------ the header band: a slow gradient of violets, pinks and
+  // indigos moving with value noise, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
+  // text above 4.5:1. Still under reduced motion; paused when the band is out of view or the tab hidden.
+  $$('.mast').forEach((band) => {
+    const cv = document.createElement('canvas');
+    cv.className = 'juice';
+    cv.setAttribute('aria-hidden', 'true');
+    band.prepend(cv);
+    const cx = cv.getContext('2d');
+    if (!cx) return;
+    const INKS = [[122, 92, 255], [158, 92, 255], [196, 92, 255], [232, 92, 240], [255, 92, 180]];
+    const P = new Uint8Array(512);
+    for (let i = 0, s = 7; i < 256; i++) P[i] = i;
+    for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
+    for (let i = 0; i < 256; i++) P[i + 256] = P[i];
+    const h = (x, y, z) => P[P[P[x & 255] + (y & 255)] + (z & 255)] / 255;
+    const f = (t) => t * t * (3 - 2 * t);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const noise = (x, y, z) => {
+      const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+      const u = f(x - xi), v = f(y - yi), w = f(z - zi);
+      const a = lerp(lerp(h(xi, yi, zi), h(xi + 1, yi, zi), u), lerp(h(xi, yi + 1, zi), h(xi + 1, yi + 1, zi), u), v);
+      const b = lerp(lerp(h(xi, yi, zi + 1), h(xi + 1, yi, zi + 1), u), lerp(h(xi, yi + 1, zi + 1), h(xi + 1, yi + 1, zi + 1), u), v);
+      return lerp(a, b, w);
+    };
+    const ink = (t) => {
+      const k = Math.min(INKS.length - 1.001, Math.max(0, t * (INKS.length - 1)));
+      const i = Math.floor(k), r = k - i, A = INKS[i], B = INKS[i + 1];
+      return [lerp(A[0], B[0], r), lerp(A[1], B[1], r), lerp(A[2], B[2], r)];
+    };
+    const CELL = 14;
+    let img = null;
+    const size = () => {
+      const w = Math.max(8, Math.ceil(band.clientWidth / CELL)), hh = Math.max(4, Math.ceil(band.clientHeight / CELL));
+      if (cv.width !== w || cv.height !== hh) { cv.width = w; cv.height = hh; img = cx.createImageData(w, hh); }
+    };
+    const draw = (t) => {
+      size();
+      const { width: w, height: hh } = cv; const d = img.data;
+      for (let y = 0; y < hh; y++) {
+        for (let x = 0; x < w; x++) {
+          const nx = x * 0.075, ny = y * 0.11;
+          let n = 0.62 * noise(nx + t * 0.9, ny, t) + 0.38 * noise(nx * 2.1 - t * 0.6, ny * 2.1 + 3.7, t * 1.6 + 9);
+          n = Math.min(1, Math.max(0, (n - 0.22) / 0.56));
+          const [r, g, b] = ink(n); const o = (y * w + x) * 4;
+          d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
+        }
+      }
+      cx.putImageData(img, 0, 0);
+    };
+    let seen = true, raf = 0, last = 0, t = 0;
+    const tick = (now) => {
+      raf = 0;
+      if (!seen || document.hidden) return;
+      if (now - last > 50) { t += Math.min(now - last, 100) * 0.00012; last = now; draw(t); }
+      raf = requestAnimationFrame(tick);
+    };
+    const go = () => { if (!raf && !reduce) { last = performance.now(); raf = requestAnimationFrame(tick); } };
+    draw(0);
+    if (reduce) { addEventListener('resize', () => draw(0)); return; }
+    try { new IntersectionObserver(([en]) => { seen = en.isIntersecting; if (seen) go(); }).observe(band); } catch (_) { /* always on */ }
+    document.addEventListener('visibilitychange', go);
+    go();
+  });
+
   // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
   // glyph: the slice under the pointer lifts, and its property's name and state show in a card under a row's glyph
   // (its pointer on the petal), on a not-benchmarked card or the reference page in place of the line beside the glyph;
