@@ -433,8 +433,6 @@ html:has(.top.s-on) { overflow: hidden; }
    folded card's body */
 .gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line); }
 .facts.gapone { margin-top: 32px; max-width: 880px; }
-.gapc { min-width: 0; }
-.gapc .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 10px; }
 .gapf dd { max-width: 100ch; color: var(--muted); font-size: 11px; }
 .agree { display: grid; row-gap: 24px; }
 /* runs left out of the figures, and the release's runs: each id over its status */
@@ -492,6 +490,13 @@ html:has(.top.s-on) { overflow: hidden; }
 .plates-sys { margin-top: 26px; row-gap: 0; }
 .plates-sys .plate { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; align-content: start; padding-bottom: 24px; }
 .plates-sys .pv { margin-bottom: 12px; min-height: 48px; }
+/* the three per-Gbit plates under the basis they share, said once on a line ruled across them, as the overview's
+   head does; each plate's label in short */
+.pgh { grid-column: 1 / -1; width: calc(75% - 6px); font: 400 12px/1.35 var(--mono); color: var(--muted); padding-bottom: 5px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
+/* a figure with no value: its name, then why, quiet; no value line */
+.plates-sys .plate.nil { display: block; }
+.plate.nil dl > div:first-child { padding-top: 0; border-top: 0; }
+.plate.nil dd { color: var(--muted); }
 .mtab { width: 100%; border-collapse: collapse; margin-top: 32px; font: 400 12px/1.45 var(--mono); }
 .mtab th, .mtab td { text-align: left; vertical-align: top; padding: 8px 16px 8px 0; border-top: 1px solid var(--line); }
 .mtab thead th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: var(--track); }
@@ -661,6 +666,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 @media (max-width: 920px) {
   .plates, .plates-sys { grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  .pgh { width: auto; }
   .fig { --nfs: 34px; }
   .facts { columns: 1; }
 }
@@ -849,6 +855,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* phones from 350 px: a label beside its value (below, the source parts no longer fit beside one) */
 @media (min-width: 350px) and (max-width: 560px) {
   .plate dl div { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 10px; }
+  .plate.nil dl > div:first-child { display: block; }
   .facts div { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
 }
 /* phones held sideways: the legend in three short columns, so the first table shows on landing */

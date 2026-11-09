@@ -392,7 +392,8 @@ def config_figures(cfg, name, one, basis=True):
         f"{setup_heading(cfg, f'h-{rid}')}"
         f'<p class="lead">{e(readable(runs_lead(cfg)))}</p>{left_out(cfg)}{setup_dl(cfg, shared)}'
         f'<div class="plates plates-sys">{raw}</div>{overhead_notes(cfg)}'
-        f'<div class="plates plates-sys pgb">{per_gbit}</div>{per_gbit_basis(cfg) if basis else ""}'
+        f'<div class="plates plates-sys pgb"><p class="pgh">{e(PER_GBIT[:1].upper() + PER_GBIT[1:])}</p>'
+        f"{per_gbit}</div>{per_gbit_basis(cfg) if basis else ''}"
         f"{more_table(cfg, f'More numbers for {name}, with spread, scope and source', shared)}"
     )
     return (body if one else

@@ -435,19 +435,14 @@ def gap_items(body, field):
 
 def agreement_plate(cfg, label, setup=None):
     """RFC-0015 RC-5, RC-6: the agreement rate with a rerun by a weights holder, every label in
-    view (S2, S3), or why it has no value; a rate the release does not record names no record."""
+    view (S2, S3); a missing rate is a row of the gap's list (`gap_block`)."""
     f = cfg["agreement"]
     kv = []
-    if f["value"] is None:
-        val = '<span class="na">No value</span>'
-        kv.append(("why", with_rule(readable(why_words(f, cfg)))))
-    else:
-        val = f'<span class="fig"><span class="n">{e(sig4(f["value"]))}</span></span>'
-        if f.get("stats"):
-            kv.append(("spread", e(spread_line(f, count=True))))
-        kv += [(k, e(v)) for k, v in labels(f, cfg)]
-    if f["recorded"]:
-        kv.append(("source", source_html(f["source"])))
+    val = f'<span class="fig"><span class="n">{e(sig4(f["value"]))}</span></span>'
+    if f.get("stats"):
+        kv.append(("spread", e(spread_line(f, count=True))))
+    kv += [(k, e(v)) for k, v in labels(f, cfg)]
+    kv.append(("source", source_html(f["source"])))
     dl = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
     return (f'<div class="plate" id="agree-{e(cfg["configuration"])}-{e(cfg["workload"]["id"])}">'
             f'<p class="lbl">{e(label)}{setup_id(setup)}</p>'
@@ -468,29 +463,20 @@ def stated(v):
 
 
 def gap_block(cfgs):
-    """S1 item 5: after the card, its `quality_gap` and `residual` under a label of their own,
-    with the agreement rate beside them (RFC-0015 RC-6): one plate per distinct reason a rate is
-    missing, naming its setups only where they differ, or the rate of each configuration. When
-    the card states neither field and no rate is recorded for one reason, one line says so
-    ("not stated" where the card is silent, AGENTS.md rule 9)."""
+    """S1 item 5: after the card, its `quality_gap` and `residual` with the agreement rate
+    (RFC-0015 RC-6), one list whose rows name themselves: the two fields as the card states
+    them ("not stated" where it is silent, AGENTS.md rule 9; one row for both when it states
+    neither), then a missing rate as one row of why, one per distinct reason, naming its setup
+    only where reasons differ. A recorded rate is a plate beside the list, one per
+    configuration."""
     body = cfgs[0]["card"]["body"]
     agree = [c["agreement"] for c in cfgs]
     missing = {why_words(f, c) for f, c in zip(agree, cfgs, strict=True) if f["value"] is None}
-    if (
-        not stated(body.get("quality_gap"))
-        and not stated(body.get("residual"))
-        and all(f["value"] is None for f in agree)
-        and len(missing) == 1
-    ):
-        why = next(iter(missing)).rstrip(".")
-        return ('<dl class="facts gapf gapone"><div><dt>quality gap, residual</dt><dd>not stated'
-                f"</dd></div><div><dt>agreement with a rerun</dt><dd>{with_rule(readable(why[:1].lower() + why[1:]))}"
-                "</dd></div></dl>")  # fmt: skip
-    gap = (
-        '<div class="gapc"><p class="lbl">Quality gap and residual</p><dl class="facts gapf">'
-        f"<div><dt>quality gap</dt><dd>{gap_items(body, 'quality_gap')}</dd></div>"
-        f"<div><dt>residual</dt><dd>{gap_items(body, 'residual')}</dd></div></dl></div>"
-    )
+    if not stated(body.get("quality_gap")) and not stated(body.get("residual")):
+        rows = [("quality gap, residual", "not stated")]
+    else:
+        rows = [("quality gap", gap_items(body, "quality_gap")),
+                ("residual", gap_items(body, "residual"))]  # fmt: skip
     plates, seen = "", set()
     for c in cfgs:
         f = c["agreement"]
@@ -499,13 +485,18 @@ def gap_block(cfgs):
             if why in seen:
                 continue
             seen.add(why)
-            setup = None if len(missing) == 1 else c["workload"]["id"]
+            label = "agreement with a rerun" + (
+                f" · {c['workload']['id']}" if len(missing) > 1 else ""
+            )
+            rows.append((label, with_rule(readable(why[:1].lower() + why[1:].rstrip(".")))))
         else:
             setup = c["workload"]["id"] if len(cfgs) > 1 else None
-        plates += agreement_plate(c, "Agreement with a rerun", setup)
-    return (
-        f'<div class="gapblk">{gap}{f'<div class="agree">{plates}</div>' if plates else ""}</div>'
-    )
+            plates += agreement_plate(c, "Agreement with a rerun", setup)
+    items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
+    if not plates:
+        return f'<dl class="facts gapf gapone">{items}</dl>'
+    return (f'<div class="gapblk"><dl class="facts gapf">{items}</dl>'
+            f'<div class="agree">{plates}</div></div>')  # fmt: skip
 
 
 def property_controls_of(cfgs):

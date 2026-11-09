@@ -19,6 +19,7 @@ from .words import (
     SCOPE_SHORT,
     STATE_WORD,
     TIER_WORD,
+    WARM,
     boundary_words,
     e,
     gpu_words,
@@ -631,13 +632,26 @@ def source_words(f, shared=None):
     return f"{key} × 1,000" if f["unit"] == "USD/1k_token" else key
 
 
+def plate_label(col, tag="p"):
+    """A plate's label: its figure's name; a per-Gbit figure's in short ("Proving time") under
+    the basis its group head names once, the full name in its title and read aloud, so a plate
+    reached alone (a figure link, search) still carries its basis (RFC-0004 INV-DERIVE-7)."""
+    if col in PER_GBIT_COLS:
+        return (f'<{tag} class="lbl" title="{e(HEAD[col])}">{e(BOARD_HEAD[col])}'
+                f'<span class="sr"> {e(PER_GBIT)}</span></{tag}>')  # fmt: skip
+    return f'<{tag} class="lbl">{e(HEAD[col])}</{tag}>'
+
+
 def plate(cfg, col, pid="", shared=None):
     """One figure's plate (S2, S3): its value and the labels it does not share with the rest of
     its setup (shared: setup_shared, printed once above the plates); pid: an id prefix, so an
-    overview figure can link to its own plate."""
+    overview figure can link to its own plate. A figure with no value is one row, its name and
+    why (its rule linked): no value line, no record; the warm overhead keeps its scope
+    (RFC-0004 INV-DERIVE-11)."""
     shared = shared or {}
     kv = []
     said = ""  # what the number is: the mean of the runs, where it has a spread
+    pid_attr = f' id="{e(pid)}{col}"' if pid else ""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
@@ -646,27 +660,23 @@ def plate(cfg, col, pid="", shared=None):
     else:
         f = cfg["figures"][metric_of(cfg, col)]
         if f["value"] is None:
-            val = '<span class="na">No value</span>'
-            if "workload" not in shared:
-                kv.append(("workload", *workload_link(cfg)))
-            kv.append(("why", why_words(f, cfg), None))
-            if col == "overhead" and f["metric"] in SCOPE_LINES:  # INV-DERIVE-11, warm
-                kv.append(("scope", SCOPE_LINES[f["metric"]], None))
-        else:
-            val = fig(shown(f["value"], f["unit"]))
-            said = mean_words(f)
-            kv += [(k, pairs_html(cfg, f) if k == "pairs" else v, h)
-                   for k, v, h in figure_rows(cfg, f) if k not in shared]  # fmt: skip
-            if "workload" not in shared:
-                kv.append(("workload", *workload_link(cfg)))
-        if f["recorded"]:
-            kv.append(("source", source_words(f, shared), None))
+            rows = f"<div>{plate_label(col, 'dt')}<dd>{with_rule(readable(why_words(f, cfg)))}</dd></div>"
+            if f["metric"] == WARM:  # INV-DERIVE-11: the warm figure names its scope, valued or not
+                rows += f"<div><dt>scope</dt><dd>{e(readable(SCOPE_LINES[WARM]))}</dd></div>"
+            return f'<div class="plate nil"{pid_attr} data-col="{col}"><dl>{rows}</dl></div>'
+        val = fig(shown(f["value"], f["unit"]))
+        said = mean_words(f)
+        kv += [(k, pairs_html(cfg, f) if k == "pairs" else v, h)
+               for k, v, h in figure_rows(cfg, f) if k not in shared]  # fmt: skip
+        if "workload" not in shared:
+            kv.append(("workload", *workload_link(cfg)))
+        kv.append(("source", source_words(f, shared), None))
     dl = "".join(
         f"<div><dt>{e(k)}</dt><dd>{v if isinstance(v, Html) else path_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
         for k, v, href in kv
     )
     return (
-        f'<div class="plate"{f' id="{e(pid)}{col}"' if pid else ""} data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
+        f'<div class="plate"{pid_attr} data-col="{col}">{plate_label(col)}'
         f'<p class="pv"{f' title="{e(said)}"' if said else ""}>{val}</p><dl>{dl}</dl></div>'
     )
 

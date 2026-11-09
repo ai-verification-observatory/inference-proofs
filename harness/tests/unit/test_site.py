@@ -72,7 +72,10 @@ TABLE = re.compile(
 SECTION = re.compile(r'<section class="sec board" id="[^"]+".*?</section>', re.S)
 HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
 HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
-PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
+# a plate; one with no value (`nil`) is one row, its name and why
+PLATE = re.compile(
+    r'<div class="plate(?: nil)?" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S
+)
 DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u(?: x)?">([^<]+)</span>')
 # an overview cell's title: sample size and range (S3); the plate it links holds the sd
@@ -292,9 +295,13 @@ def test_every_number_has_labels(site: Build) -> None:
                 assert {"grade", "evidence", "workload", "source"} <= dts, pid
                 assert ("spread" in dts) or ("pairs" in dts), pid
                 assert ("scope" in dts) == (f["scope"] is not None), pid  # a timed number
-            else:  # a null value names its record; a metric the runs did not record has none
-                assert "why" in dts, pid
-                assert ("source" in body) == f["recorded"], pid
+            else:  # one row, its name and why: no value line, no record; the warm overhead
+                # keeps its scope (RFC-0004 INV-DERIVE-11)
+                own = {dt for dt, _ in DD.findall(body)}
+                assert body.startswith('<dl><div><dt class="lbl"'), pid
+                assert '<p class="pv"' not in body, pid
+                assert "source" not in own, pid
+                assert ("scope" in own) == (f["metric"] == "overhead_vs_production_warm"), pid
         rows = more_rows(text)
         assert len(rows) == 5 * len(configs)
         for row in rows:  # every label a plate holds, or why there is no value
@@ -325,7 +332,7 @@ def test_glyph_before_numbers(site: Build) -> None:
         assert f'<div class="row" id="{ref}"' not in index, ref
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
-        assert text.index('class="rpie"') < text.index('class="plate"'), system
+        assert text.index('class="rpie"') < text.index('class="plate'), system
     ref = site.pages["reference.html"]
     for gid in site.view["orders"]["reference"]:
         sec = ref[ref.index(f'id="{gid}" aria-labelledby') :]
@@ -383,7 +390,7 @@ def _validated_claims(site: Build, system: str) -> None:
     configs = system_configs(site, system)
     cfg = configs[0]
     card = cfg["card"]
-    first_figure = re.search(r'class="plate" id="[^"]*fig-', text).start()  # type: ignore[union-attr]
+    first_figure = re.search(r'class="plate(?: nil)?" id="[^"]*fig-', text).start()  # type: ignore[union-attr]
     claims = text.index(f'id="claims-{cfg["configuration"]}"')
     identity = text.index(f'href="{card["link"]}"')
     folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
@@ -963,7 +970,7 @@ def test_runs_left_out_listed(site: Build) -> None:
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         leads = [m.start() for m in re.finditer('<p class="lead">', text)]
-        plates = [m.start() for m in re.finditer('class="plate" id="[^"]*fig-', text)]
+        plates = [m.start() for m in re.finditer('class="plate(?: nil)?" id="[^"]*fig-', text)]
         configs = system_configs(site, system)
         assert len(leads) == len(configs)
         for i, (cfg, at) in enumerate(zip(configs, leads, strict=True)):
@@ -1218,7 +1225,7 @@ def test_figures_link_their_own_plate(site: Build) -> None:
             assert plates[frag][0] == col, href
             source = re.sub(r"<[^>]+>", "", plates[frag][1])
             f = cfg["figures"][metric(cfg, col)]
-            if f["recorded"]:  # its record is this configuration's: the key under its prefix
+            if f["value"] is not None:  # its record is this configuration's: its key, prefixed
                 assert f["source"].rsplit("/statistics/", 1)[1] in source, href
                 assert f"#/configurations/{cfg['position']}/statistics/" in flat(text), href
             linked += 1
@@ -1264,3 +1271,25 @@ def test_overview_says_each_thing_once(site: Build) -> None:
             assert said.lower().count(rows[rid]["status"]["state"].replace("_", " ")) == 1, rid
         if crit[rid].get("own_sources"):
             assert '<h4 class="nbn"><a href="https://' in card[1], rid
+
+
+def test_per_gbit_basis_said_once_per_group(site: Build) -> None:
+    """RFC-0004 INV-DERIVE-7, owner decisions of 2026-11-09: a system page prints the per-Gbit
+    basis once over each setup's three per-Gbit plates (as the overview's heads do) and once
+    with its width and limit where every setup shares them, never in each plate's label; each
+    plate keeps it in its title and reads it aloud, so a plate reached alone still carries it."""
+    basis = "per token, per Gbit of active weights"
+    for system in site.view["orders"]["benchmarked"]:
+        text = site.pages[f"{system}.html"]
+        configs = system_configs(site, system)
+        shown = re.sub(r'<span class="sr">.*?</span>|title="[^"]*"', "", text)
+        heads = re.findall(r'<p class="pgh">([^<]*)</p>', text)
+        assert [h.lower() for h in heads] == [basis.lower()] * len(configs), system
+        once = text.count('<p class="lbl basis-h">')  # the width and limit every setup shares
+        assert plain(shown).lower().count(basis.lower()) == len(heads) + once, system
+        for pid, col, body in PLATE.findall(text):
+            if col in ("per_bit", "size_bit", "check_bit"):
+                label = re.search(r'class="lbl" title="([^"]+)">(.*?)</(?:p|dt)>', body)
+                assert label, pid
+                assert html.unescape(label[1]).endswith(basis), pid
+                assert f'<span class="sr"> {basis}</span>' in label[2], pid
