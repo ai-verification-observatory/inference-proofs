@@ -14,7 +14,6 @@ from .hexagon import pie_svg
 from .plates import (
     COLS,
     HEAD,
-    METRIC,
     SORT_WORDS,
     aria,
     configs_of,
@@ -22,6 +21,7 @@ from .plates import (
     glyph,
     has_figures,
     keep,
+    metric_of,
     name_of,
     readable,
     row_id,
@@ -58,7 +58,7 @@ def kind_words(rid):
 
 def row_keys(cfg):
     """{col: the stored value in its base unit, or None}: the sort keys of one row (S4)."""
-    return {col: cfg["figures"][METRIC[col]]["sort_key"] for col in COLS}
+    return {col: cfg["figures"][metric_of(cfg, col)]["sort_key"] for col in COLS}
 
 
 def row_html(rid, name, g, href, idle, right, table=False, keys=None):

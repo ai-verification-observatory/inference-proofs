@@ -10,10 +10,10 @@ from typing import Any
 
 import pytest
 
-from iproofs.derive import agreement_rate, overhead, provider_spread
+from iproofs.derive import agreement_rate, overhead, overhead_formula, provider_spread
 from iproofs.model import Workload, load
 from iproofs.quantity import NullReason, Scope, Tier
-from iproofs.release import RunView, _Context, _release_rows, _serving_nm1
+from iproofs.release import RunView, _Context, _release_rows, _serving_nm1, headline_scope
 from iproofs.schema import SchemaRegistry
 
 ROLES = {"ref-serve": "serve", "ref-recompute": "recompute"}
@@ -26,6 +26,7 @@ COMMIT = "5df63a7203cdb9328d824a27b682e77c7b9928be"
 KV = ("KV cache size: 20,000 tokens, Maximum concurrency for 1,025 tokens per request: "
       "19.51x")  # fmt: skip
 GSPT = "gpu_seconds_per_token_prove.steady"
+SESSION = "gpu_seconds_per_token_prove.session"
 WHOLE = "gpu_seconds_per_token_whole_wall"
 
 
@@ -399,3 +400,115 @@ def test_agreement_joined_and_other_failure() -> None:
     _release_rows("v0.1", [system, failed], ROLES, None)
     out = system.statistics["agreement_rate"]
     assert (out["value"], out["null_reason"]) == (None, "step_failed")  # type: ignore[index]
+
+
+def session_q(value: float | None, reason: str | None = None) -> dict[str, object]:
+    """A repetition's `gpu_seconds_per_token_prove.session` (fixture value)."""
+    out = q(value, "gpu_s/token", "prove.session")
+    if value is None:
+        out["null_reason"] = reason or "step_failed"
+    return out
+
+
+def with_session(found: _Context, values: tuple[float | None, ...]) -> _Context:
+    for run, v in zip(found.kept, values, strict=True):
+        run.run["metrics"][SESSION] = session_q(v)  # type: ignore[index]
+    return found
+
+
+def test_overhead_session_formula() -> None:
+    """D-OVERHEAD-SESSION (RFC-0004 INV-DERIVE-10) by hand: a system session of 0.5 gpu_s/token
+    (544 s for 1,088 tokens on 1 GPU) over a serving session of 0.0025 gpu_s/token (engine start
+    to last token, 2.72 s for 1,088 tokens on 1 GPU) is 200; the high-load session figure keeps
+    D-OVERHEAD-HIGH-S and the steady one D-OVERHEAD-S."""
+    out = overhead([("sys", session_q(544 / 1088))], [("srv", session_q(2.72 / 1088))],
+                   Scope.PROVE_SESSION, version="1")  # fmt: skip
+    assert out["value"] == pytest.approx(200.0, rel=1e-12)
+    assert (out["scope"], out["unit"]) == ("prove.session", "ratio")
+    assert out["source"]["ref"] == "derive:D-OVERHEAD-SESSION@1"  # type: ignore[index]
+    assert REGISTRY.errors("quantity/1", out, def_name="quantity") == []
+    assert overhead_formula(Scope.PROVE_SESSION, high=True) == "D-OVERHEAD-HIGH-S"
+    assert overhead_formula(Scope.PROVE_STEADY) == "D-OVERHEAD-S"
+
+
+def test_overhead_both_figures_flashprove_like() -> None:
+    """A FlashProve-like row has both figures (fixture values): steady 0.01 / (0.000025 x 4) =
+    100, session 0.02 / (0.0001 x 4) = 50 (start-up in both sessions makes the per-token cost
+    larger on each side). The steady figure is the headline, start-up excluded."""
+    found = [with_session(system_ctx(), (0.02,)),
+             with_session(serve_ctx("m", (0.000025 * 4,)), (0.0001 * 4,))]  # fmt: skip
+    stats = join(found)
+    steady = stats["overhead_vs_production_prove.steady"]
+    session = stats["overhead_vs_production_prove.session"]
+    assert steady["value"] == pytest.approx(100.0, rel=1e-12)  # type: ignore[index]
+    assert session["value"] == pytest.approx(50.0, rel=1e-12)  # type: ignore[index]
+    assert session["source"]["ref"].startswith("derive:D-OVERHEAD-SESSION@")  # type: ignore[index]
+    assert session["source"]["inputs"] == [  # type: ignore[index]
+        f"results/v0.1/flashprove/s-0/run.json#/metrics/{SESSION}",
+        f"results/v0.1/ref-serve/m-0/run.json#/metrics/{SESSION}",
+    ]
+    entry = found[0].entry
+    assert entry is not None
+    assert entry["overhead_headline"] == {"metric": "overhead_vs_production_prove.steady",
+                                          "formula": "D-OVERHEAD-S", "scope": "prove.steady",
+                                          "start_up": "excluded"}  # fmt: skip
+    assert entry["overhead_conditions"]["warm"] is True  # type: ignore[index]
+
+
+def test_overhead_session_headline_sash_like() -> None:
+    """A SASH-like row: its steady scope is not externally observable (RFC-0004 Q2), so its
+    D-OVERHEAD-S is null with that reason, and the headline is D-OVERHEAD-SESSION: 0.5 / 0.0025
+    = 200 (fixture values), start-up included on both sides, with its conditions (not warm)."""
+    sash = ctx([view("sash", "s-0", {GSPT: gspt(None, "not_externally_observable"),
+                                     SESSION: session_q(0.5)})])  # fmt: skip
+    found = [sash, with_session(serve_ctx("m", (None,)), (0.0025,))]
+    found[1].kept[0].run["metrics"][GSPT] = gspt(None, "fewer_than_two_proofs")  # type: ignore[index]
+    stats = join(found)
+    steady = stats["overhead_vs_production_prove.steady"]
+    assert (steady["value"], steady["null_reason"]) == (None, "not_externally_observable")  # type: ignore[index]
+    session = stats["overhead_vs_production_prove.session"]
+    assert session["value"] == pytest.approx(200.0, rel=1e-12)  # type: ignore[index]
+    pairs = session["pairs"]  # type: ignore[index]
+    assert (pairs["n_system"], pairs["n_serving"]) == (1, 1)
+    assert (pairs["min"], pairs["max"]) == (pytest.approx(200.0), pytest.approx(200.0))
+    entry = sash.entry
+    assert entry is not None
+    assert entry["overhead_headline"] == {
+        "metric": "overhead_vs_production_prove.session",
+        "formula": "D-OVERHEAD-SESSION",
+        "scope": "prove.session",
+        "start_up": "included",
+    }
+    conditions = entry["overhead_conditions"]
+    assert isinstance(conditions, dict)
+    assert conditions["warm"] is False
+    assert conditions["serving_configuration"] == "releases/v0.1/index.json#/configurations/1"
+    assert isinstance(session, dict)
+    assert REGISTRY.errors("quantity/1", session, def_name="quantity") == []
+
+
+def test_overhead_session_null_without_serving() -> None:
+    """The null case: a SASH-like row with no production-serving run has no figure at either
+    scope; the headline is still the session one, null `missing_input`, and no conditions."""
+    sash = ctx([view("sash", "s-0", {GSPT: gspt(None, "not_externally_observable"),
+                                     SESSION: session_q(0.5)})])  # fmt: skip
+    stats = join([sash])
+    session = stats["overhead_vs_production_prove.session"]
+    assert (session["value"], session["null_reason"]) == (None, "missing_input")  # type: ignore[index]
+    entry = sash.entry
+    assert entry is not None
+    assert entry["overhead_headline"]["metric"] == "overhead_vs_production_prove.session"  # type: ignore[index]
+    assert "overhead_conditions" not in entry
+
+
+def test_headline_scope_rule() -> None:
+    """INV-DERIVE-10: steady unless every repetition's steady figure is null for the system's
+    own want of a steady scope (or none records it)."""
+    assert headline_scope([("a", gspt(0.01))]) is Scope.PROVE_STEADY
+    assert headline_scope([("a", gspt(None, "missing_input"))]) is Scope.PROVE_STEADY
+    none = [("a", gspt(None, "not_externally_observable")),
+            ("b", gspt(None, "fewer_than_two_proofs"))]  # fmt: skip
+    assert headline_scope(none) is Scope.PROVE_SESSION
+    assert headline_scope([("a", gspt(None, "fewer_than_two_proofs")),
+                           ("b", gspt(0.01))]) is Scope.PROVE_STEADY  # fmt: skip
+    assert headline_scope([]) is Scope.PROVE_SESSION

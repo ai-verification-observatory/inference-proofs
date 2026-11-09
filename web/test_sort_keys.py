@@ -32,7 +32,8 @@ def test_keys_are_the_stored_values(site, keys):
     for cfg in site.view["configurations"]:
         if cfg["kind"] != "prover":
             continue
-        for col, metric in site.build.METRIC.items():
+        for col in site.build.METRIC:
+            metric = site.build.metric_of(cfg, col)  # the overhead: the row's headline
             assert keys[cfg["system"]][col] == cfg["figures"][metric]["value"], (cfg["system"], col)
 
 
@@ -61,16 +62,18 @@ def test_covers_in_positions(site, keys):
 
 def test_overhead_missing(site, keys):
     # the placeholder's production-serving runs are on a prover profile, so they pair with no row
-    # (RFC-0015 SRV-10): no overhead for FlashProve; SASH's steady scope is not observable
+    # (RFC-0015 SRV-10): no overhead for FlashProve; SASH's steady scope is not observable, so
+    # its row shows the session figure (RFC-0004 INV-DERIVE-10), null for want of a baseline
     assert keys["flashprove"]["overhead"] is None
     assert keys["sash"]["overhead"] is None
-    figures = {
-        c["system"]: c["figures"]["overhead_vs_production_prove.steady"]
-        for c in site.view["configurations"]
-        if c["kind"] == "prover"
-    }
+    provers = [c for c in site.view["configurations"] if c["kind"] == "prover"]
+    figures = {c["system"]: c["figures"]["overhead_vs_production_prove.steady"] for c in provers}
     assert figures["flashprove"]["null_reason"] == "not_applicable"
     assert figures["sash"]["null_reason"] == "not_externally_observable"
+    shown = {c["system"]: c["figures"][site.build.metric_of(c, "overhead")] for c in provers}
+    assert shown["flashprove"]["metric"] == "overhead_vs_production_prove.steady"
+    assert shown["sash"]["metric"] == "overhead_vs_production_prove.session"
+    assert shown["sash"]["null_reason"] == "missing_input"
 
 
 def test_units_normalise(site):
@@ -165,7 +168,7 @@ def test_home_figures_show_spread(site):
     seen = 0
     for cfg in site.build.PROVERS:
         for col in site.build.COLS:
-            f = cfg["figures"][site.build.METRIC[col]]
+            f = cfg["figures"][site.build.metric_of(cfg, col)]
             if f["value"] is None:
                 continue
             lines = site.build.cell_words(cfg, col)[1]

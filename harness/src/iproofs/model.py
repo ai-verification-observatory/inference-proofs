@@ -440,6 +440,7 @@ class IndexConfiguration(Document):
     evidence: Evidence
     load_point: str | None = None  # RFC-0015 SRV-1 (absent: matched)
     overhead_conditions: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-9
+    overhead_headline: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-10
     steady_boundary: str | None = None  # RFC-0004 INV-SCOPE-5 label of earlier runs (APP-1)
 
 

@@ -130,6 +130,43 @@
               "high"
             ]
           },
+          "overhead_headline": {
+            "$comment": "RFC-0004 INV-DERIVE-10: which overhead statistic is a system configuration's headline, its scope and whether start-up is inside it; written by release code for every system configuration with an overhead statistic",
+            "additionalProperties": false,
+            "properties": {
+              "formula": {
+                "enum": [
+                  "D-OVERHEAD-S",
+                  "D-OVERHEAD-SESSION"
+                ]
+              },
+              "metric": {
+                "enum": [
+                  "overhead_vs_production_prove.steady",
+                  "overhead_vs_production_prove.session"
+                ]
+              },
+              "scope": {
+                "enum": [
+                  "prove.steady",
+                  "prove.session"
+                ]
+              },
+              "start_up": {
+                "enum": [
+                  "excluded",
+                  "included"
+                ]
+              }
+            },
+            "required": [
+              "formula",
+              "metric",
+              "scope",
+              "start_up"
+            ],
+            "type": "object"
+          },
           "overhead_conditions": {
             "$comment": "RFC-0004 INV-DERIVE-9: the conditions of a system configuration's overhead, each generated from the records; the site prints every conditions string from this block",
             "additionalProperties": false,

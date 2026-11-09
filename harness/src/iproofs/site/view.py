@@ -22,9 +22,9 @@ from iproofs.site.reply import reply_html
 
 # The figures each configuration prints: the overview columns, then More numbers (#320 §1).
 FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
-           "overhead_vs_production_prove.steady")  # fmt: skip
+           "overhead_vs_production_prove.steady",
+           "overhead_vs_production_prove.session")  # fmt: skip
 OVERHEAD = "overhead_vs_production_prove.steady"  # RFC-0004 INV-DERIVE-9, the headline
-OVERHEAD_HIGH = "overhead_vs_production_high_prove.steady"
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
@@ -333,7 +333,10 @@ def _configuration(
         "card": _card(root, index, config["system"], config["configuration"]),
         "figures": {m: figure(index_path, position, stats, m, records) for m in (*FIGURES, *MORE)},
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
-        "overhead_words": overhead_words(config.get("overhead_conditions"), stats, wl),
+        "overhead_metric": overhead_metric(config),
+        "overhead_words": overhead_words(
+            config.get("overhead_conditions"), stats, wl, overhead_metric(config)
+        ),
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
         "effective_tier": config["effective_tier"],
@@ -364,13 +367,25 @@ def _scoped(q: dict[str, Any]) -> str:
     return f"{q['scope']} scope" if q.get("scope") else "scope not recorded"
 
 
+def overhead_metric(config: dict[str, Any]) -> str:
+    """RFC-0004 INV-DERIVE-10: the statistic a system row shows as its overhead, as the release
+    index's `overhead_headline` names it (release code chooses it); D-OVERHEAD-S at
+    `prove.steady` for an index without that block."""
+    headline = config.get("overhead_headline") or {}
+    return str(headline.get("metric") or OVERHEAD)
+
+
 def overhead_words(
-    conditions: dict[str, Any] | None, stats: dict[str, Any], wl: dict[str, Any]
+    conditions: dict[str, Any] | None,
+    stats: dict[str, Any],
+    wl: dict[str, Any],
+    metric: str = OVERHEAD,
 ) -> dict[str, str] | None:
     """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
-    of a system row's overhead, every value from the release index's `overhead_conditions`, the
-    stored quantities and the workload record; None without a value (nothing to qualify)."""
-    q = stats.get(OVERHEAD)
+    of a system row's headline overhead `metric` (INV-DERIVE-10), every value from the release
+    index's `overhead_conditions`, the stored quantities and the workload record; None without a
+    value (nothing to qualify). A session figure says that start-up is inside it, on both sides."""
+    q = stats.get(metric)
     if not conditions or not isinstance(q, dict) or q.get("value") is None:
         return None
     c = conditions
@@ -383,8 +398,12 @@ def overhead_words(
     def known(value: object) -> str:
         return "not recorded" if value is None else str(value)
 
+    session = q.get("scope") == "prove.session"
+    start = ("start-up included on both sides: the prover's from the start of its prove call, "
+             "production serving's from the start of its engine, each to its last token"
+             if session else "start-up excluded on both sides")  # fmt: skip
     line = "; ".join([
-        f"{_scoped(q)} (start-up excluded on both sides)",
+        f"{_scoped(q)} ({start})",
         f"{batch['matched']} requests a batch on both sides, {known(per['system'])} batches for "
         f"the prover and {known(per['serving_matched'])} for serving",
         f"prompts: the prover's {count['system']}, replayed"
@@ -394,7 +413,8 @@ def overhead_words(
                 "seeded generator)"),
         f"{engine['name']} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
         f" {engine['settings']}",
-        "greedy decoding, warm",
+        "greedy decoding, " + ("warm" if c.get("warm", True) else "cold: engine and prover "
+                               "start-up inside the session"),
         f"{c['runtime']}",
         f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
         f" release; proving {c['proved_precision']}",
@@ -408,10 +428,12 @@ def overhead_words(
         f"Proving the {c['proved_precision']} model ({bits.get('bits')} bits per active weight, "
         f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
         f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
-        f"release, in GPU-seconds per token, steady, at {batch['matched']} requests a batch."
+        f"release, in GPU-seconds per token, "
+        f"{'per proving session with start-up' if session else 'steady'}, "
+        f"at {batch['matched']} requests a batch."
     )
     out = {"conditions": line, "precision": note}
-    high = stats.get(OVERHEAD_HIGH)
+    high = stats.get(f"overhead_vs_production_high_{q.get('scope') or 'prove.steady'}")
     if isinstance(high, dict) and high.get("value") is not None:
         extra = ""
         if count.get("serving_high") and count["serving_high"] > count["system"]:

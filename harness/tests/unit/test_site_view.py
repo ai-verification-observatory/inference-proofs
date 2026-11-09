@@ -479,3 +479,57 @@ def test_overhead_conditions_words() -> None:
     assert "5 batches for the prover and not recorded for serving" in again["conditions"]
     stats["overhead_vs_production_prove.steady"] = {"value": None, "pairs": pairs}
     assert overhead_words(conditions, stats, wl) is None
+
+
+def test_overhead_session_words() -> None:
+    """RFC-0004 INV-DERIVE-10: a row whose headline is the session figure (SASH) says that
+    start-up is inside it on both sides, and its high-load context is the session one too
+    (fixture values, not a result); the index's `overhead_headline` names the statistic."""
+    from iproofs.site.view import overhead_metric, overhead_words  # noqa: PLC0415
+
+    conditions = {
+        "engine": {"name": "vllm", "version": "0.32.0", "interface": "vllm serve",
+                   "image_digest": None, "settings": "engine defaults except x",
+                   "settings_high": None,
+                   "max_num_batched_tokens": {"matched": 8192, "high": None}},
+        "decoding": "greedy", "warm": False, "runtime": "hosted",
+        "serving_model": {"id": "m", "version": 1, "digest": "sha256:" + "0" * 64,
+                          "publisher": "Meta", "precision": "BF16", "release_statement": "q"},
+        "proved_precision": "BF16", "weight_bits": None,
+        "gpus": {"system": 1, "serving": 1, "serving_high": None},
+        "gpu_model": "NVIDIA H200",
+        "profiles": {"system": "a", "serving": "b", "serving_high": None},
+        "batch": {"matched": 1, "high": None},
+        "batches_per_session": {"system": 1, "serving_matched": 1, "serving_high": None},
+        "prompt_count_run": {"system": 1, "serving_matched": 1, "serving_high": None},
+        "n": {"system": 1, "serving_matched": 1, "serving_high": 0},
+    }  # fmt: skip
+    pairs = {"n_system": 1, "n_serving": 1, "min": 200.0, "max": 200.0}
+    session = "overhead_vs_production_prove.session"
+    stats = {
+        "overhead_vs_production_prove.steady": {"value": None, "pairs": pairs,
+                                                "scope": "prove.steady"},
+        session: {"value": 200.0, "pairs": pairs, "scope": "prove.session"},
+        "overhead_vs_production_high_prove.steady": {"value": 9.0, "pairs": pairs,
+                                                     "scope": "prove.steady"},
+    }  # fmt: skip
+    wl = {"precision": {"weight_bits": {"bits": 16, "basis": "computed"}}}
+    headline = {"overhead_headline": {"metric": session, "formula": "D-OVERHEAD-SESSION",
+                                      "scope": "prove.session",
+                                      "start_up": "included"}}  # fmt: skip
+    assert overhead_metric(headline) == session
+    assert overhead_metric({}) == "overhead_vs_production_prove.steady"
+    words = overhead_words(conditions, stats, wl, session)
+    assert words is not None
+    assert words["conditions"].startswith(
+        "prove.session scope (start-up included on both sides: the prover's from the start of "
+        "its prove call, production serving's from the start of its engine, each to its last "
+        "token)"
+    )
+    assert "greedy decoding, cold: engine and prover start-up inside the session" in (
+        words["conditions"])  # fmt: skip
+    assert words["precision"].endswith(
+        "in GPU-seconds per token, per proving session with start-up, at 1 requests a batch."
+    )
+    assert "high" not in words  # the steady high-load figure is not this row's context
+    assert overhead_words(conditions, stats, wl) is None  # the steady figure has no value
