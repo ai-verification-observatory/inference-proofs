@@ -120,19 +120,27 @@ def sort_heads():
 
 
 def model_lines(cfg):
-    """The row's model under the system's name: its name, total and active parameters with the
-    weight width the per-Gbit figures divide by, and what the workload ran."""
+    """The row's model under the system's name, only what a comparison needs: its name, then its
+    active parameters, the weight width the per-Gbit figures divide by and the batch size (and a
+    closed or open workload's division). The rest (total parameters, the width's basis, prompt
+    and output lengths, GPUs) is in the cell's title and on the system page."""
     p = cfg["workload"]["model"]["parameters"]
     total, active = p["total"], p["active_per_token"]
+    wb = cfg["workload"]["precision"].get("weight_bits") or {}
+    bits = f"{wb['bits']:.2g}-bit" if wb.get("bits") is not None else "bits not recorded"
+    short = [
+        f"{size_words(active)} active",
+        bits,
+        f"batch\u00a0{cfg['workload']['shape']['batch_size']:,}",
+    ]
+    if cfg["workload"]["division"] != "native":
+        short.append(f"{cfg['workload']['division']} division")
     size = (f"{size_words(total)}, dense" if total == active
             else f"{size_words(total)} total, {size_words(active)} active")  # fmt: skip
-    size += f" · {bits_words(cfg)}"
-    shape = shape_words(cfg)
-    if cfg["workload"]["division"] != "native":
-        shape += f" · {cfg['workload']['division']} division"
+    title = " · ".join([size, bits_words(cfg), shape_words(cfg)])
     return (
-        f'<div class="mc"><p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
-        f'<p class="ms">{facts_line(readable(size))}</p><p class="ms">{facts_line(readable(shape))}</p></div>'
+        f'<div class="mc" title="{e(title)}"><p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
+        f'<p class="ms">{facts_line(readable(" · ".join(short)))}</p></div>'
     )
 
 

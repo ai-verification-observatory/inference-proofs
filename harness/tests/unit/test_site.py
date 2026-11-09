@@ -81,8 +81,8 @@ SPREAD = re.compile(
     r" · sd \S+(?: \S+)?"
 )
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
-SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0,
+SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
+         "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
          "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
 
 
@@ -692,14 +692,14 @@ def _strings(value: object) -> list[str]:
 
 def test_statistics_shown(site: Build) -> None:
     """S3: every statistic shows its six values (completed, failed, minimum, maximum, mean, sd)
-    on system pages, and its counts and range on the overview, equal to the stored ones; a
-    reference whose runs all failed shows its counts and "below minimum repetitions" on the
-    overview and on `/reference`; each more-numbers row shows the six values too."""
+    on system pages, and the same in the title of its overview cell (owner decision of
+    2026-11-09: nothing but a scope word under an overview figure), equal to the stored ones; a
+    reference whose runs all failed shows its counts and "below minimum repetitions" on
+    `/reference`; each more-numbers row shows the six values too."""
     for _, title, inner in VAL.findall(site.pages["index.html"]):
-        if "spread: " not in html.unescape(title):
+        if 'class="fig"' not in inner or "spread: " not in html.unescape(title):
             continue
-        assert re.search(r"\d+ completed, \d+ failed", plain(inner)), inner
-        assert " to " in plain(inner), inner
+        assert SPREAD.search(plain(html.unescape(title))), title
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         for pid, col, body in PLATE.findall(text):
@@ -767,7 +767,9 @@ def test_sort_key_is_stored_value(site: Build) -> None:
             assert printed, (rid, col)
             number, unit = printed[1], printed[2]
             assert _significant(number) == 4 or float(number.replace(",", "")).is_integer()
-            # per token, per Gbit of active weights: ms and kB per 1e9 bits
+            # no leading zero where a prefix can avoid one: 68.21 µs, not 0.06821 ms
+            assert float(number.replace(",", "")) >= 1 or unit in ("B", "\N{MULTIPLICATION SIGN}")
+            # per token, per Gbit of active weights: seconds and bytes per 1e9 bits
             per_gbit = 1e-9 if col in PER_GBIT_COLS else 1.0
             value = float(number.replace(",", "")) * SCALE[unit] * per_gbit
             exponent = math.floor(math.log10(abs(value)))
@@ -798,25 +800,31 @@ def test_default_order_by_overhead(site: Build) -> None:
 
 
 def test_each_figure_names_its_scope(site: Build) -> None:
-    """S2, owner decision of 2026-11-09: on the overview the overhead cell names its scope (both
-    sides', or the warm pairing's), its prover and serving run counts and what each side ran
-    (the precision proved and served); proving time and check time per token per Gbit name the
-    scope they show (proving steady, or session where the steady figure is null; checking), and
-    the row header the weight width they divide by. A phone's compact lines repeat the scope,
-    n and range in short."""
+    """S2, owner decisions of 2026-11-09: on the overview each figure carries every label in its
+    title (scope, grade, tier, source, and the spread where it has one); the overhead's title
+    names its scope (both sides', or the warm pairing's), its prover and serving run counts and
+    what each side ran, and the cell its scope in a word; proving time per token per Gbit names
+    its scope in a word (steady, or session where the steady figure is null), check time its
+    scope in its title; the row header names the weight width they divide by. Nothing else sits
+    under a figure: the full details are on the plate it links."""
     b = renderer(ROOT).draw
+    title = re.compile(r'title="([^"]*)"')
     rows = ROW.findall(site.pages["index.html"])
     for rid, _, _, body in rows:
         cfg = row_config(site.view, rid)
         cells = dict(re.findall(r'data-col="([^"]+)">(<a class="val".*?</a>)</div>', body, re.S))
+        said = {c: plain(html.unescape(t[1])) if (t := title.search(v)) else ""
+                for c, v in cells.items()}  # fmt: skip
+        sub = re.compile(r'<span class="sub">(.*?)</span></a>')
+        under = {c: plain(m[1]) if (m := sub.search(v)) else "" for c, v in cells.items()}
         over = cfg["figures"][cfg["overhead_metric"]]
         if over["value"] is not None:
-            sub = plain(cells["overhead"])
-            assert plain(b.words.SCOPE_LINES[over["metric"]]) in sub, rid
+            assert plain(b.words.SCOPE_LINES[over["metric"]]) in said["overhead"], rid
             pairs = over["pairs"]
-            assert f"{pairs['n_system']} prover run" in sub, rid
-            assert f"{pairs['n_serving']} serving run" in sub, rid
-            assert f"{cfg['overhead_words']['brief']}" in plain(cells["overhead"]), rid
+            assert f"{pairs['n_system']} prover run" in said["overhead"], rid
+            assert f"{pairs['n_serving']} serving run" in said["overhead"], rid
+            assert plain(cfg["overhead_words"]["brief"]) in said["overhead"], rid
+            assert under["overhead"] == b.words.SCOPE_SHORT[over["metric"]], rid
         bit = cfg["figures"][cfg["per_bit_metric"]]
         steady = cfg["figures"][METRIC["per_bit"]]
         assert cfg["per_bit_metric"] == (
@@ -825,32 +833,36 @@ def test_each_figure_names_its_scope(site: Build) -> None:
             else "seconds_per_active_weight_bit_token_prove.session"
         )
         if bit["value"] is not None:
-            scope = {"prove.steady": "Proving, steady state", "prove.session": "Proving session"}
-            assert scope[bit["scope"]] in plain(cells["per_bit"]), rid
-            short = {"prove.steady": "steady", "prove.session": "session"}[bit["scope"]]
-            compact = re.search(r'<span class="subc">(.*?)</span></a>', cells["per_bit"])
-            assert compact, rid
-            assert short in plain(compact[1]), rid
-            assert f"n={bit['stats']['n']}" in plain(compact[1]), rid
+            scope = {"prove.steady": "proving, steady state", "prove.session": "proving session"}
+            assert f"scope: {scope[bit['scope']]}" in said["per_bit"], rid
+            assert (
+                under["per_bit"]
+                == {"prove.steady": "steady", "prove.session": "session"}[bit["scope"]]
+            ), rid
+            assert f"{bit['stats']['n']} completed" in said["per_bit"], rid
         check = cfg["figures"][METRIC["check_bit"]]
         if check["value"] is not None:
-            assert "Checking (" in plain(cells["check_bit"]), rid
+            assert "scope: checking (" in said["check_bit"], rid
+        assert under["size_bit"] == under["check_bit"] == "", rid
         header = HEADER.search(body)
         assert header, rid
-        assert "per active weight" in plain(header[1]), rid
+        # the width in short in view, in full in the model cell's title
+        wb = cfg["workload"]["precision"]["weight_bits"]
+        assert f"{wb['bits']:.2g}-bit" in plain(header[1]), rid
+        assert "per active weight" in html.unescape(header[1]), rid
 
 
 def test_deployed_figures_by_hand() -> None:
     """The deployed release's overview figures, against the values its `index.json` stores
     (Hugging Face H200 runs, `reported` tier): FlashProve on fp-maverick-w1024-b24 shows the
     steady overhead (D-OVERHEAD-S) and the steady proving time per token per Gbit of active
-    weights, 6.82e-14 s/bit_token printed as 0.06821 ms (x 1e9 bits per Gbit, x 1e3 ms per s);
+    weights, 6.82e-14 s/bit_token printed as 68.21 µs (x 1e9 bits per Gbit, x 1e6 µs per s);
     SASH shows the warm overhead (D-OVERHEAD-WARM) and, with no steady scope, the session time,
     7.54e-11 s/bit_token printed as 75.41 ms. Proof size per token per Gbit (D-BPAB):
-    FlashProve 18,335.17 B/token / (17e9 x 4.83916 bits) = 2.2288e-7 B/bit_token, 0.2229 kB;
+    FlashProve 18,335.17 B/token / (17e9 x 4.83916 bits) = 2.2288e-7 B/bit_token, 222.9 B;
     SASH 41,105,525 B/token / (8,030,261,248 x 8 bits) = 6.3985e-4 B/bit_token, 639.9 kB. Check
     time per token per Gbit (D-VSPAB): FlashProve 0.0163436 s/token / 8.22658e10 bits =
-    1.9867e-13 s/bit_token, 0.1987 ms; SASH 3.279154 s/token / 6.42421e10 bits =
+    1.9867e-13 s/bit_token, 198.7 µs; SASH 3.279154 s/token / 6.42421e10 bits =
     5.1044e-11 s/bit_token, 51.04 ms."""
     index = ROOT / "releases/v0.1/index.json"
     if not index.exists():
@@ -863,14 +875,14 @@ def test_deployed_figures_by_hand() -> None:
     assert fp["per_bit_metric"].endswith("prove.steady")
     assert sash["per_bit_metric"].endswith("prove.session")
     assert sash["overhead_metric"] == "overhead_vs_production_warm"
-    assert b.words.shown(6.82085750604253e-14, "s/bit_token") == "0.06821 ms"
+    assert b.words.shown(6.82085750604253e-14, "s/bit_token") == "68.21 \N{MICRO SIGN}s"
     assert b.words.shown(7.540596017714907e-11, "s/bit_token") == "75.41 ms"
     assert math.isclose(fp["figures"][fp["per_bit_metric"]]["value"], 6.82085750604253e-14)
     assert math.isclose(sash["figures"][sash["per_bit_metric"]]["value"], 7.540596017714907e-11)
     size, check = METRIC["size_bit"], METRIC["check_bit"]
     for cfg, bits, bpt, vspt, size_shown, check_shown in (
         (fp, 17e9 * 4.83916475612899, 18335.170963541666, 0.016343559571372478,
-         "0.2229 kB", "0.1987 ms"),
+         "222.9 B", "198.7 \N{MICRO SIGN}s"),
         (sash, 8030261248 * 8, 41105524.851715684, 3.279154322772059, "639.9 kB", "51.04 ms"),
     ):  # fmt: skip
         assert math.isclose(cfg["figures"][size]["value"], bpt / bits, rel_tol=1e-9)

@@ -14,18 +14,14 @@ from .words import (
     BITS_BASIS,
     PER_BIT_LIMIT,
     PER_GBIT,
-    RANGE_DASH,
     SCOPE_LINES,
     SCOPE_SHORT,
     STATE_WORD,
     e,
     gpu_words,
     labels,
-    scope_words,
     shown,
-    sig4,
     spread_line,
-    spread_parts,
     why_words,
 )
 
@@ -361,83 +357,75 @@ def blob(path):
 
 
 def cell_words(cfg, col):
-    """(value html, lines, title, measured, compact lines) for one overview figure of a
-    configuration; the compact lines are what a phone shows under it (scope, n and range)."""
+    """(value html, lines, title, measured) for one overview figure of a configuration. The line
+    under it is its scope in one word where the rows of its column differ in it (steady, session,
+    session vs warm), else none; every label rides in its title, and the plate it links holds
+    them all in view (S2, S3)."""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
         if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
-            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False, []
-        return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False, []
+            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
+        return f'<span class="na">{e(word)}</span>', [], no_rule(line), False
     f = cfg["figures"][metric_of(cfg, col)]
     if f["value"] is None:
-        why = why_words(f, cfg)
-        return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False, []
+        return '<span class="na">No value</span>', [], no_rule(why_words(f, cfg)), False
     value = shown(f["value"], f["unit"])
-    unit_line = {"covers": "{n} token{s} checked", "proof_size": "per proof",
-                 "check_time": "per check"}.get(col)  # fmt: skip
-    out_tokens = cfg["workload"]["shape"]["output_tokens"]
-    tail = (
-        [unit_line.format(n=f"{out_tokens:,}", s="" if out_tokens == 1 else "s")]
-        if unit_line
-        else []
-    )
-    short = [*compact_spread(f)]
+    said = [*(f"{k}: {v}" for k, v in labels(f, cfg))]
+    lines = []
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
-        pairs = f.get("pairs") or {}
-        words = cfg.get("overhead_words") or {}
-        runs, short = [], [SCOPE_SHORT[f["metric"]]]
-        if pairs.get("n_system") is not None:
-            ns, nv = pairs["n_system"], pairs["n_serving"]
-            runs.append(
-                f"{ns} prover run{'s' if ns != 1 else ''} × {nv} serving run{'s' if nv != 1 else ''}"
-            )
-            short.append(f"{ns}×{nv} runs")
-        if pairs.get("min") is not None:
-            runs.append(f"{shown(pairs['min'], 'ratio')} to {shown(pairs['max'], 'ratio')}")
-            short.append(f"{sig4(pairs['min'])}{RANGE_DASH}{shown(pairs['max'], 'ratio')}")
-        tail = [SCOPE_LINES[f["metric"]], *runs, *([words["brief"]] if words.get("brief") else [])]
-        short += [words["short"]] if words.get("short") else []
-    if col in ("per_bit", "check_bit"):  # its timing scope (RFC-0004 INV-SCOPE-1)
-        scope = scope_words(f, cfg)
-        tail = [scope[:1].upper() + scope[1:]]
-        short = [SCOPE_SHORT[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"]), *short]
+        lines = [SCOPE_SHORT[f["metric"]]]
+        said[0] = f"scope: {SCOPE_LINES[f['metric']]}"  # both sides' scope (INV-DERIVE-11)
+        if pairs := pairs_words(f):
+            said.append(f"pairs: {pairs}")
+        brief = (cfg.get("overhead_words") or {}).get("brief")
+        if brief:
+            said.append(f"ran: {brief}")
+    if (
+        col == "per_bit"
+    ):  # steady, or session where the steady figure is null (RFC-0004 INV-SCOPE-1)
+        lines = [SCOPE_SHORT[f["scope"]]]
     # the basis and its limit ride in the title (RFC-0004 INV-DERIVE-7)
     value_said = f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value
-    title = " · ".join([value_said, *(f"{k}: {v}" for k, v in labels(f, cfg)),
-                        f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
-                       else [value_said, *(f"{k}: {v}" for k, v in labels(f, cfg)),
-                             f"source: {f['source']}"])  # fmt: skip
+    title = " · ".join([value_said, *said, f"source: {f['source']}",
+                        *([f"spread: {spread_line(f)}"] if f.get("stats") else [])])  # fmt: skip
     if col in PER_GBIT_COLS:
         title += f" · weight bits: {bits_words(cfg)} · {PER_BIT_LIMIT}"
-    return fig(value), [*spread_parts(f), *tail], title, True, short
+    return fig(value), lines, title, True
 
 
-def compact_spread(f):
-    """The sample size and the range in short, for a phone: "n=4", "n=3, 1 failed", and the
-    range's two ends in the figure's reading unit (the figure above names the unit)."""
-    st = f.get("stats")
-    if not st:
-        return []
-    n = f"n={st['n']}" + (f", {st['n_failed']} failed" if st["n_failed"] else "")
-    lo, hi = (shown(st[k], f["unit"]).rsplit(" ", 1)[0] for k in ("min", "max"))
-    return [n, f"{lo}{RANGE_DASH}{hi}"]
+def pairs_words(f):
+    """An overhead's runs and range: its prover runs times its serving runs, and the least and
+    greatest ratio over those pairs; "" when the figure holds none."""
+    pairs = f.get("pairs") or {}
+    if pairs.get("n_system") is None:
+        return ""
+    ns, nv = pairs["n_system"], pairs["n_serving"]
+    out = f"{ns} prover run{'s' if ns != 1 else ''} × {nv} serving run{'s' if nv != 1 else ''}"
+    if pairs.get("min") is not None:
+        out += f", {shown(pairs['min'], 'ratio')} to {shown(pairs['max'], 'ratio')}"
+    return out
+
+
+def spread_kv(f):
+    """A plate's spread: n, range, mean and sd; an overhead's runs and range over its pairs."""
+    if f.get("stats"):
+        return [("spread", spread_line(f), None)]
+    pairs = pairs_words(f)
+    return [("pairs", pairs, None)] if pairs else []
 
 
 def value_link(cfg, col, href, who=""):
-    """A figure on the overview row: a link to the figure's own plate; its labels ride in the
-    title. The lines under it are plain text (a link cannot hold the rule links the plates carry);
-    a phone shows the compact lines instead (words.css)."""
-    inner, shown_lines, title, measured, short = cell_words(cfg, col)
+    """A figure on the overview row: a link to the figure's own plate, its scope in one word
+    under it where it has one; its labels ride in the title."""
+    inner, lines, title, measured = cell_words(cfg, col)
     title = sentence_case(readable(title) if measured else title)
-    lines = "".join(f"<span>{keep(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
-    compact = "".join(f"<span>{keep(ln)}</span>" for ln in short if ln)
+    sub = "".join(f"<span>{keep(ln)}</span>" for ln in lines if ln)
     name = f'<span class="sr">, {e(who)}</span>' if who else ""
     return (
         f'<a class="val" href="{e(href)}" title="{e(title)}">'
         f'<span class="lbl">{e(HEAD[col])}{name}</span><span class="vm">{inner}</span>'
-        f'<span class="sub">{lines}</span>'
-        + (f'<span class="subc">{compact}</span>' if compact else "")
+        + (f'<span class="sub">{sub}</span>' if sub else "")
         + "</a>"
     )
 
@@ -464,8 +452,7 @@ def plate(cfg, col, pid=""):
                 kv.append(("scope", SCOPE_LINES[f["metric"]], None))
         else:
             val = fig(shown(f["value"], f["unit"]))
-            if f.get("stats"):
-                kv.append(("spread", spread_line(f), None))
+            kv += spread_kv(f)
             kv += [(k, v, None) for k, v in labels(f, cfg)]
             kv.append(("workload", *workload_link(cfg)))
             words = cfg.get("overhead_words") if col == "overhead" else None

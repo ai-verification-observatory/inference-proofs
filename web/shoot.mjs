@@ -7,6 +7,14 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 let AxeBuilder = null;
 try { AxeBuilder = (await import(process.env.AXE_MODULE || '@axe-core/playwright')).default; } catch (_) { /* reported below */ }
 const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
+// a row's glyph tip in the page: shown, its words, and any visible text of the row it covers
+const tipSeen = (row) => {
+  const pie = document.querySelector(`${row} .pie`); const t = pie.querySelector('.tip'); const tr = t.getBoundingClientRect();
+  const hit = (b) => b.width && b.height && b.left < tr.right && tr.left < b.right && b.top < tr.bottom && tr.top < b.bottom;
+  const clipped = (x) => { for (let e = x; e; e = e.parentElement) if (getComputedStyle(e).clipPath === 'inset(50%)') return true; return false; };
+  const over = [...document.querySelectorAll(`${row} .sysc *, ${row} .vals *`)].filter((x) => !t.contains(x) && !x.closest('.pie') && getComputedStyle(x).visibility === 'visible' && x.childElementCount === 0 && x.textContent.trim() && !clipped(x) && hit(x.getBoundingClientRect())).map((x) => x.textContent.trim());
+  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, text: t.textContent, sw: !!t.querySelector('.sw'), over };
+};
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
 const PAGES = ['', 'flashprove', 'sash', 'reference', 'criteria', 'release', 'sponsors'];  // clean addresses, as on the site
@@ -113,8 +121,9 @@ const sortBy = async (p, col, dir) => {
   const h0 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   const pie = await p.locator('#flashprove .pie').boundingBox();
   await p.mouse.move(pie.x + pie.width * 0.8, pie.y + pie.height * 0.5); await p.waitForTimeout(400);
-  const tip = await p.evaluate(() => { const t = document.querySelector('#flashprove .tip'); return { shown: getComputedStyle(t).display !== 'none', text: t.textContent, pos: getComputedStyle(t).position }; });
-  ok(tip.shown && tip.pos === 'absolute' && tip.text.length > 3, 'row slice hover shows its name and state', tip.text);
+  // the name and state sit in the glyph's empty column, over no text of the row
+  const tip = await p.evaluate(tipSeen, '#flashprove');
+  ok(tip.shown && tip.pos === 'absolute' && tip.text.length > 3 && !tip.over.length, 'row slice hover shows its name and state, over no text', tip);
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
@@ -129,10 +138,11 @@ const sortBy = async (p, col, dir) => {
   });
   ok(emp.hot === '1' && emp.unstated && emp.fill === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is filled in its own grey and lifts like the others', emp);
   await p.mouse.move(0, 0);
-  const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => /spread: /.test(a.title))
-    .map((a) => /\d+\s+completed, \d+\s+failed/.test(a.querySelector('.sub').textContent) && / to /.test(a.querySelector('.sub').textContent)));
-  // two systems, three figures with a spread each: per-bit time, proof size, check time
-  ok(spreads.length === 6 && spreads.every(Boolean), 'figures with a spread show sample size and range', spreads);
+  // the labels ride in each figure's title: sample size and range for the three with a spread, the
+  // overhead's pairs; under each figure at most its scope in a word
+  const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => a.querySelector('.fig'))
+    .map((a) => ({ t: /scope: /.test(a.title) && (/\d+\s+completed, \d+\s+failed\s·\s.+\sto\s/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 3 })));
+  ok(spreads.length === 8 && spreads.every((x) => x.t && x.sub), 'each figure carries its labels in its title, at most a scope word under it', spreads);
   await ctx.close();
 }
 
@@ -503,18 +513,16 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
   ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
   // the table on a phone: the heads a grid of sort buttons 32 px tall or more; each system's four figures
-  // on one line, under their heads (each cell's label read aloud), each with its compact lines in view
-  // (scope, n and range: the labels a number carries stay in view)
+  // on one line, under their heads (each cell's label read aloud), each with its labels in its title
   const s = await p.evaluate(() => {
     const r = (x) => x.getBoundingClientRect();
     const t = document.querySelector('.board');
     const b = [...t.querySelectorAll('.hc .sb')];
-    const shown = (x) => x && getComputedStyle(x).clipPath !== 'inset(50%)' && r(x).height > 0;
     const cells = [...t.querySelectorAll('.row .vc')];
     const line = [...t.querySelectorAll('.row')].every((row) => new Set([...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).top))).size === 1);
-    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || shown(c.querySelector('.subc'))), line, n: cells.length };
+    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /scope: /.test(c.querySelector('.val').title)), line, n: cells.length };
   });
-  ok(s.h >= 32 && s.labels && s.subs && s.line && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each with its compact lines in view`, s);
+  ok(s.h >= 32 && s.labels && s.subs && s.line && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each with its labels in its title`, s);
   await ctx.close();
 }
 {
@@ -527,8 +535,8 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   const bx = await p.locator('#flashprove .pie').boundingBox();
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
   await p.touchscreen.tap(...at); await p.waitForTimeout(300);
-  const tip = await p.evaluate(() => { const pie = document.querySelector('#flashprove .pie'); const t = pie.querySelector('.tip'); return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', text: t.textContent, sw: !!t.querySelector('.sw') }; });
-  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw, 'touch: a first tap on a triangle names it and stays on the page', tip);
+  const tip = await p.evaluate(tipSeen, '#flashprove');
+  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && !tip.over.length, 'touch: a first tap on a triangle names it, over no text, and stays on the page', tip);
   await p.touchscreen.tap(...at); await p.waitForTimeout(800);
   ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
   // the system page: the glyph once, wide, each triangle carrying its property's name and never a state

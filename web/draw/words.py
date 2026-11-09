@@ -50,15 +50,14 @@ STEADY_LINE = "steady state on both sides, start-up excluded"
 # the scope line of an overhead, by its stored statistic
 SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE,
                "overhead_vs_production_prove.session": SESSION_LINE, WARM: WARM_LINE}  # fmt: skip
-# the overview's scopes in short, for a phone's compact lines (the full words ride beside them)
+# the overview's scopes in short, the one line under a figure (the full words ride in its title)
 SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "session", "verify": "{cpus} threads",
                "overhead_vs_production_prove.steady": "steady",
                "overhead_vs_production_prove.session": "session", WARM: "session vs warm"}  # fmt: skip
-# RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns, and
-# its reading unit for every row (1e-12 s per bit is 1 ms per Gbit, 1e-6 B per bit 1 kB per Gbit)
+# RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns; a
+# value per bit prints per Gbit (x 1e9), in seconds or bytes with their own prefix
 PER_GBIT = "per token, per Gbit of active weights"
-PER_GBIT_UNIT = {"s/bit_token": (1e12, "ms"), "B/bit_token": (1e6, "kB")}
-RANGE_DASH = "\u2013"  # a range's two ends in short, on a phone
+PER_GBIT_BASE = {"s/bit_token": "s", "B/bit_token": "B"}
 # RFC-0004 INV-DERIVE-7: printed beside a figure per active weight bit wherever it is shown
 PER_BIT_LIMIT = ("Attention cost grows with prompt length and is not in this normaliser, so two "
                  "workloads of one model with different prompt lengths differ for that reason too "
@@ -168,23 +167,52 @@ def sig4(v):
     return f"{round(v, places):,.0f}"  # 122880 prints 122,900: four digits, then zeros
 
 
+# the SI prefixes a reading unit may take, largest first
+SI = ((1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "k"), (1.0, ""), (1e-3, "m"), (1e-6, "µ"),
+      (1e-9, "n"))  # fmt: skip
+IEC = ((1024.0**2, "Ti"), (1024.0, "Gi"), (1.0, "Mi"), (1 / 1024, "Ki"))  # from MiB
+
+
+def prefixed(v, base, steps=SI, lo=1e-9, hi=1e12):
+    """(number, unit) with the prefix that puts the number between 1 and 1000 where one can:
+    68.21 µs, not 0.06821 ms. The value is rounded to four digits first, so 999.96 µs prints
+    1.000 ms, not 1,000 µs."""
+    r = float(f"{v:.4g}")
+    if r == 0:
+        return "0", base
+    steps = [(f, p) for f, p in steps if lo <= f <= hi]
+    f, p = next(((f, p) for f, p in steps if abs(r) >= f), steps[-1])
+    return sig4(r / f), p + base
+
+
+def seconds(v):
+    """A time: ns to s with their prefix, then minutes and hours."""
+    r = float(f"{v:.4g}")
+    if abs(r) < 1e3:
+        return prefixed(v, "s", hi=1.0)
+    return (sig4(v / 60), "min") if abs(r) < 6e4 else (sig4(v / 3600), "h")
+
+
+# the stored units that take a prefix: (base unit, prefixes, smallest factor)
+PREFIXED = {"B": ("B", SI, 1.0), "MiB": ("B", IEC, 1 / 1024), "J": ("J", SI, 1e-9)}
+UNIT_WORDS = {"token": "positions", "token/s": "positions/s", "USD/1k_token": "USD / 1k positions"}
+
+
 def amount(v, unit):
-    """(number, unit words) for a stored value in its stored unit."""
-    if unit == "B":
-        f, u = next(((f, u) for f, u in ((1e12, "TB"), (1e9, "GB"), (1e6, "MB"), (1e3, "kB"))
-                     if abs(v) >= f), (1, "B"))  # fmt: skip
-        return sig4(v / f), u
+    """(number, unit words) for a stored value in its stored unit, in the unit that reads it with
+    no leading zeros (S4)."""
+    if unit in PER_GBIT_BASE:  # per bit, printed per Gbit; the basis is in the column's head
+        return amount(v * 1e9, PER_GBIT_BASE[unit])
     if unit == "s":
-        if v and abs(v) < 1:
-            return sig4(v * 1e3), "ms"
-        if abs(v) < 1e3:
-            return sig4(v), "s"
-        return (sig4(v / 60), "min") if abs(v) < 6e4 else (sig4(v / 3600), "h")
-    if unit in PER_GBIT_UNIT:
-        scale, words = PER_GBIT_UNIT[unit]
-        return sig4(v * scale), words
-    words = {"token": "positions", "token/s": "positions/s", "USD/1k_token": "USD / 1k positions"}
-    return sig4(v), words.get(unit, unit)
+        return seconds(v)
+    if unit in PREFIXED:
+        base, steps, lo = PREFIXED[unit]
+        return prefixed(v, base, steps, lo)
+    base, slash, per = unit.partition("/")
+    if slash and base in ("s", "B"):  # s/token, B/token: the numerator takes the prefix
+        n, u = amount(v, base)
+        return n, f"{u}/{per}"
+    return sig4(v), UNIT_WORDS.get(unit, unit)
 
 
 def shown(v, unit):
