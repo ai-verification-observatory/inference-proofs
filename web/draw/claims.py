@@ -70,12 +70,20 @@ def quote_source(q):
     )
 
 
+# a Markdown table row quoted on its own ("a | b | c"): printed as a one-row table
+TABLE_ROW = re.compile(r"^[^|\n]+(?: \| [^|\n]+)+$")
+
+
 def quote_html(q):
-    """The quote, verbatim (its line breaks kept, words.css `.eq p`), with its source under it."""
-    return (
-        f'<blockquote class="eq"><p>“{e(q["text"])}”</p></blockquote>'
-        f'<p class="es">{quote_source(q)}</p>'
-    )
+    """The quote, verbatim (its line breaks kept, words.css `.eq p`), its inline marks rendered
+    (`card_text`), with its source under it; a quoted table row as a one-row table."""
+    text = q["text"]
+    if TABLE_ROW.match(text):
+        cells = "".join(f"<td>{card_text(x)}</td>" for x in text.split(" | "))
+        body = f'<table class="qrow"><tr>{cells}</tr></table>'
+    else:
+        body = f"<p>“{card_text(text)}”</p>"
+    return f'<blockquote class="eq">{body}</blockquote><p class="es">{quote_source(q)}</p>'
 
 
 def deciding_quotes(sid, prop, cell):
@@ -333,11 +341,23 @@ def card_key(k):
 
 
 def card_text(v):
-    """Card text as the system wrote it, its inline code and emphasis marks rendered, no word
-    changed (AGENTS.md rule 9)."""
-    t = e(v)
-    t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
-    return re.sub(r"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", r"<em>\1</em>", t)
+    """Card or quote text as the system wrote it, no word changed (AGENTS.md rule 9): its inline
+    code, strong and emphasis marks rendered; its straight double quotes curly, opening after a
+    space or bracket and closing elsewhere (never inside code); a number's space before % or ‰
+    one that never breaks."""
+    codes = []
+
+    def hold(m):
+        codes.append(m[1])
+        return f"\x00{len(codes) - 1}\x00"
+
+    t = re.sub(r"`([^`]+)`", hold, str(v))
+    t = re.sub(r'(?:^|(?<=[\s(\[{]))"', "“", t).replace('"', "”")
+    t = re.sub(r"(\d) (?=[%‰])", "\\1\u202f", t)
+    t = e(t)
+    t = re.sub(r"\*\*([^*\s][^*]*?)\*\*", r"<strong>\1</strong>", t)
+    t = re.sub(r"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", r"<em>\1</em>", t)
+    return re.sub(r"\x00(\d+)\x00", lambda m: f"<code>{e(codes[int(m[1])])}</code>", t)
 
 
 def own_sources(path, children, sources):
@@ -351,21 +371,31 @@ def own_sources(path, children, sources):
         elif key.startswith(path + "."):
             rest = key[len(path) + 1 :]
             if rest.split(".", 1)[0] not in children:
-                out.append(source_link(url, f"{rest}: "))
+                out.append(source_link(url, f"{' '.join(card_key(x) for x in rest.split('.'))}: "))
     return f'<p class="es">{"".join(out)}</p>' if out else ""
+
+
+def has_source(path, sources):
+    """True when the card's `sources` name the field at `path` or anything under it."""
+    return any(k == path or k.startswith(path + ".") for k in sources)
 
 
 def card_value(v, path="", sources=None):
     """One card value as stored, with its sources (the card's `sources` keyed by `path`): text,
     a link for a source URL, a list one item per line, a mapping as its own keys and values.
-    A field's own sources follow a text value and head a list or mapping, above its items."""
+    A field's own sources follow a text value and head a mapping, above its items. A list's own
+    sources head it when none of its items has a source; when some have, they follow each item
+    that has none, so every item reads quote then source."""
     sources = sources or {}
     if isinstance(v, list):
         own = own_sources(path, {str(i) for i in range(len(v))}, sources)
+        sourced = [has_source(f"{path}.{i}", sources) for i in range(len(v))]
+        after = bool(own) and any(sourced)
         items = "".join(
-            f"<li>{card_value(x, f'{path}.{i}', sources)}</li>" for i, x in enumerate(v)
+            f"<li>{card_value(x, f'{path}.{i}', sources)}{own if after and not sourced[i] else ''}</li>"
+            for i, x in enumerate(v)
         )
-        return own + (f'<ul class="cl">{items}</ul>' if v else "none")
+        return ("" if after else own) + (f'<ul class="cl">{items}</ul>' if v else "none")
     if isinstance(v, dict):
         own = own_sources(path, set(v), sources)
         rows = "".join(f"<div><dt>{e(card_key(k))}</dt><dd>{card_value(x, f'{path}.{k}', sources)}</dd></div>"
@@ -410,7 +440,7 @@ def gap_items(body, field):
     sources = body.get("sources") or {}
     if field == "quality_gap":
         items = "".join(
-            f"<li>{e(x['metric'])}: {e(x['value'])}"
+            f"<li>{card_text(x['metric'])}: {card_text(x['value'])}"
             + (f'<p class="es">{source_link(x["source"])}</p>' if x.get("source") else "")
             + "</li>"
             for x in v

@@ -478,6 +478,23 @@ def _property_claims(
         assert x["run_id"] in flat(entry[0]), (system, p["id"], x["run_id"])
 
 
+def quote_words(text: str) -> str:
+    """A stored quote's words, its inline marks (code, strong, emphasis), double quotes and a
+    table row's cell bars left out: what the page prints, every word in place."""
+    t = re.sub(r"\*\*|`", "", text)
+    t = re.sub(r"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", r"\1", t)
+    return re.sub(r"\s+", " ", t.replace(" | ", " ").replace('"', "")).strip()
+
+
+def quote_words_printed(body: str) -> str:
+    """The words of every quote an entry prints, its marks rendered and quotes curly, read back
+    as `quote_words` writes them."""
+    quotes = re.findall(r'<blockquote class="eq">(.*?)</blockquote>', body, re.S)
+    said = flat(" | ".join(q.replace("</td><td>", " ") for q in quotes))
+    said = said.replace("\N{NARROW NO-BREAK SPACE}", " ")
+    return re.sub(r"\s+", " ", re.sub("[\u201c\u201d\"]", "", said))
+
+
 def _quotes_printed(
     system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
 ) -> None:
@@ -487,10 +504,11 @@ def _quotes_printed(
     deciding = [q for q in cell["quotes"] if q.get("decides")]
     if cell["state"] != "not_stated":
         assert len(deciding) == 1, (system, p["id"])  # a stated cell prints the quote it rests on
+    printed = quote_words_printed(body)
     for q in [q for q in cell["quotes"] if q not in deciding]:  # a non-deciding quote: not here
-        assert cell["conflict"] or q["text"] not in html.unescape(body), (system, p["id"])
+        assert cell["conflict"] or quote_words(q["text"]) not in printed, (system, p["id"])
     for q in deciding:  # verbatim, with its source at the pin
-        assert q["text"] in html.unescape(body), (system, p["id"])
+        assert quote_words(q["text"]) in printed, (system, p["id"])
         assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
         where = f"@{q['commit'][:8]} {q['path']} {q['lines']}"
         assert f"{q['repo'].rsplit('/', 1)[-1]}{where}" in said, (system, p["id"])
@@ -900,7 +918,10 @@ def test_no_ranking(site: Build) -> None:
     assert heads
     assert not [w for w in heads if re.search(r"score|rank|total|overall|best", w, re.I)]
     for name, text in site.pages.items():
-        assert "<strong>" not in text, name
+        # the systems' own marks, in their quotes and cards, are their words, not ours
+        ours = re.sub(r'<blockquote class="eq">.*?</blockquote>', "", text, flags=re.S)
+        ours = re.sub(r'<details class="cardfull".*?</details>', "", ours, flags=re.S)
+        assert "<strong>" not in ours, name
         assert not re.search(r'class="[^"]*\b(best|winner|rank|medal|podium|leader)\b', text), name
         assert not re.search("[\U0001f947-\U0001f949\U0001f3c6]", text), name  # medals, cup
         assert not re.search(r"#\s?1\b|\b1st\b", plain(text)), name

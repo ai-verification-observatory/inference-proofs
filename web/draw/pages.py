@@ -259,17 +259,20 @@ def control_tests(cfg):
 
 
 def status_words(st, cfg):
-    """A status fact in one form for every system: the state, then its last push (where it was
-    read in the title) or the system's own words about it, linked to its README at the pin."""
-    out = e(STATUS_WORD[st["state"]])
+    """A status fact in one form for every system: the system's own words about it, linked to
+    its README at the pin, the state word in the link's title; or, without them, the state
+    word; then its last push (where it was read in the title)."""
+    word = STATUS_WORD[st["state"]]
+    if st.get("quote"):
+        up = upstream(cfg)
+        href = f"https://github.com/{up['repo']}/blob/{up['commit']}/README.md"
+        out = f'<a href="{e(href)}" title="{e(word)}">“{e(st["quote"])}”{EXT}</a>'
+    else:
+        out = e(word)
     if st.get("last_push"):
         src = f"{st['source']}, retrieved {st['retrieved']}" if st.get("source") else ""
         out += (f' · <span class="nw" title="{e(src)}">last push {e(st["last_push"])}</span>'
                 if src else f" · last push {e(st['last_push'])}")  # fmt: skip
-    if st.get("quote"):
-        up = upstream(cfg)
-        href = f"https://github.com/{up['repo']}/blob/{up['commit']}/README.md"
-        out += f': <a href="{e(href)}">“{e(st["quote"])}”{EXT}</a>'
     return out
 
 

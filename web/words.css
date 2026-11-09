@@ -359,6 +359,11 @@ html:not(.js) .search { display: none; }
 .rp.l .ev { margin-left: auto; }
 .eq { margin: 0; }
 .eq p { color: var(--muted); white-space: pre-line; }
+/* a quoted Markdown table row: its cells as the source draws them, ruled, no head the quote does not hold */
+.qrow { border-collapse: collapse; margin: 0 0 4px; }
+.qrow td { border: 1px solid var(--line); padding: 3px 8px; vertical-align: top; color: var(--muted); overflow-wrap: break-word; }
+.eqs:has(.qrow) { align-items: start; }
+.eqs:has(.qrow) > .ek { padding-top: 4px; }
 .es { display: flex; flex-wrap: wrap; column-gap: 12px; font-size: 11px; }
 .ev .ex { margin-top: 2px; }
 .ev .ex .ek { margin-right: 1ch; }
@@ -374,7 +379,7 @@ html:not(.js) .search { display: none; }
 .er { align-items: start; }
 .er > .ek { padding-top: 4px; line-height: 16px; }
 .hw dd > :first-child { margin-top: 0; }
-.hw .eq p { color: var(--paper); }
+.hw .eq p, .hw .qrow td { color: var(--paper); }
 .eb { min-width: 0; }
 .ek { color: var(--muted); }
 .rd { display: block; }
