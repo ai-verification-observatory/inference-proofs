@@ -2,7 +2,7 @@
 
 `build_placeholder(root, repetitions=3, extras=False)` writes a git repository at `root` and
 returns its `releases/v0.1/release.yaml`. The tree holds copies of the real `schema/`,
-`reference/`, `rfcs/`, `MAINTAINERS.md`, `LICENSES/`, the tracked files of `web/` (less
+`reference/`, `rfcs/`, `LICENSES/`, the tracked files of `web/` (less
 `shots/`), the workloads `fp-maverick-w1024-b24` and `sash-l31-8b-c1024` and the system
 directories of `flashprove`, `sash`, `ref-serve` and `ref-recompute`, so the deployed pages keep
 the real names, pins, claim cards and criteria rows. Only the runs are synthetic: PLACEHOLDER
@@ -29,17 +29,17 @@ failure records carry no invented log line. The
 rerun reference replays FlashProve's runs only: a replay of SASH's run on the Maverick workload is
 refused by the runner (`recorded_seed`, RFC-0015 RC-1).
 
-`extras=True` adds cases the site tests need and the deployed build must not carry (a reply written
-by no system maintainer, a target, a criteria copy naming the release with a pending disclosure and
-an override, an ineligible run, a withdrawn run, an unexpected control, a second workload, the
-closed Llama 3.1 8B workload `l31-8b-c1024` run by SASH and by a second test prover, a review and a
-reproduction record); they edit the tree's copies of SASH's `system.yaml`, the closed workload and
-the data files, never the real ones. The second prover, `fixture-closed` ("Fixture prover"), exists
-in no real tree: it is SASH's system file and claim card copied under another name, with SASH's
-criteria and facts rows, so the closed table holds two proving systems of its claim class, as
-`iproofs release freeze` requires (RFC-0003 Q7); real SASH has no row on that workload yet. The
-extras hold no second claim card of one system: the renderer draws one glyph per system page, so
-`iproofs site build` refuses a system with two card configurations (RFC-0016 SRC-1).
+`extras=True` adds cases the site tests need and the deployed build must not carry (a target, a
+criteria copy naming the release with a pending disclosure and an override, an ineligible run, a
+withdrawn run, an unexpected control, a second workload, the closed Llama 3.1 8B workload
+`l31-8b-c1024` run by SASH and by a second test prover); they edit the tree's copies of SASH's
+`system.yaml`, the closed workload and the data files, never the real ones. The second prover,
+`fixture-closed` ("Fixture prover"), exists in no real tree: it is SASH's system file and claim card
+copied under another name, with SASH's criteria and facts rows, so the closed table holds two
+proving systems of its claim class, as `iproofs release freeze` requires (RFC-0003 Q7); real SASH
+has no row on that workload yet. The extras hold no second claim card of one system: the renderer
+draws one glyph per system page, so `iproofs site build` refuses a system with two card
+configurations (RFC-0016 SRC-1).
 
 Command (site.yml, until #146): `PYTHONPATH=harness/tests uv run python -m
 fixtures.placeholder_release --site OUT` builds the tree in a temporary directory, freezes it
@@ -102,11 +102,9 @@ RUN_DATE = "2026-11-25"
 RFC_COMMIT = "39662bf6dd02b1ee8586c78f9a3b7f77b0d06ec1"
 SYSTEMS = ("flashprove", "sash", "ref-serve", "ref-recompute")
 SYSTEM_FILES = ("system.yaml", "claim.yaml", "controls.yaml", "external.yaml", "README.md")
-COPY = ("schema", "reference", "rfcs", "MAINTAINERS.md", "LICENSES", f"workloads/{WORKLOAD}.yaml",
+COPY = ("schema", "reference", "rfcs", "LICENSES", f"workloads/{WORKLOAD}.yaml",
         f"workloads/{SASH_WORKLOAD}.yaml")  # fmt: skip
 WEB_SKIP = ("shots", ".tools", "node_modules", "__pycache__", ".vercel", ".env*", ".DS_Store")
-REVIEW_WINDOW = {"opens": "2026-12-01", "closes": "2026-12-15"}
-FREEZE_DATE = "2026-12-16"
 CONTROL_SEED = "0x0123456789abcdef"
 PLACEHOLDER_LINE = "placeholder record: no run was made"
 
@@ -703,10 +701,6 @@ def build_placeholder(root: Path, *, repetitions: int = 3, extras: bool = False)
         "runs": runs,
         "superseded_runs": [],
         "claim_cards": cards,
-        "review_window": dict(REVIEW_WINDOW),
-        "freeze_date": FREEZE_DATE,
-        "replies": {},
-        "sponsors": [],
     }
     if extras:
         _extras_runs(root, release, adapter, configs)
@@ -726,25 +720,18 @@ def _release_yaml(release: dict[str, Any]) -> str:
 # ---------------------------------------------------------------- extras (tests only)
 
 
-REPLY = "systems/sash/replies/v0.1.md"
-REPLY_TEXT = (
-    "Fixture text for the site tests, written by no SASH maintainer and never deployed.\n\n"
-    "<b>Markup in a reply</b> is printed as text, not run.\n"
-)
 TARGET = "targets/example-lab/verify-under-60s.yaml"
 DISCLOSURE_URL = "https://example.org/placeholder/fixture-disclosure"
 
 
 def _extras_tree(root: Path) -> None:
-    """Extras committed with the systems: a reply, a target, and SASH on the closed workload
+    """Extras committed with the systems: a target, and SASH on the closed workload
     (its system.yaml lists it; facts.json names the model, which SASH's native workload shares)."""
     _edit_yaml(
         root / "systems/sash/system.yaml",
         lambda d: d.__setitem__("workloads", [*d["workloads"], CLOSED_WORKLOAD]),
     )
     _fixture_prover(root)
-    (root / REPLY).parent.mkdir(parents=True)
-    (root / REPLY).write_text(REPLY_TEXT)
     target = (ROOT / "schema/target/examples/valid/verify-under-60s.yaml").read_text()
     (root / TARGET).parent.mkdir(parents=True)
     (root / TARGET).write_text(
@@ -815,41 +802,7 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
                                    "digest": digest})  # fmt: skip
     second = Config(FIXTURE, CLOSED_WORKLOAD, card["configuration"], card["card_version"], digest)
     release["runs"] += _prover_runs(root, second, adapter, 3, SASH_CONTROLS).dirs
-    release["replies"] = {sash.system: REPLY}
-    _records(root, fp, first)
     _criteria(root, first, sash_first)
-
-
-def _records(root: Path, fp: Config, first: str) -> None:
-    """An approved review and a within-tolerance reproduction of FlashProve's first run."""
-    run_dir = root / f"results/{RELEASE}/{fp.system}/{first}"
-    review = json.loads((ROOT / "schema/review/examples/valid/approved.json").read_text())
-    review |= {
-        "run_id": first,
-        "date": "2026-12-05",
-        "reviewer": {"handle": "example-reviewer", "organisation": "Example Review Org"},
-    }
-    (run_dir / "reviews").mkdir()
-    write_json(run_dir / "reviews/example-reviewer-2026-12-05.json", review)
-    path = ROOT / "schema/reproduction/examples/valid/ineligible-same-machine.json"
-    repro = json.loads(path.read_text())
-    others = [run_id(fp.system, fp.workload, n) for n in (1, 2, 3)]
-    again = [f"2026-12-06-{fp.system}-{fp.workload}-{PROFILE}-{n}" for n in (1, 2, 3)]
-    stats = {"mean": 103.6, "n": 3, "stdev": 0.55}
-    repro |= {
-        "outcome": "within_tolerance",
-        "original_run_ids": others,
-        "reproduction_run_ids": again,
-        "fresh_seed_runs": again[:1],
-        "eligibility": {**repro["eligibility"], "different_machine": True},
-        "comparisons": [{"bound": 0.1, "difference": 0.0, "metric": "rate_prove.session",
-                         "original": stats, "reproduction": stats, "scope": "prove.session",
-                         "unit": "token/s", "within": True}],
-        "runner": {"affiliated_systems": [], "handle": "example-reproducer",
-                   "organisation": "Example Reproduction Lab"},
-    }  # fmt: skip
-    (run_dir / "reproductions").mkdir()
-    write_json(run_dir / f"reproductions/{again[0]}.json", repro)
 
 
 def _criteria(root: Path, first: str, sash_first: str) -> None:

@@ -445,9 +445,6 @@ FORMULAS = {
     "gpu_seconds_per_token_<S>, matched load)",
     "D-OVERHEAD-HIGH-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
     "gpu_seconds_per_token_<S>, high load)",
-    "D-OVERHEAD-SESSION": "mean(system gpu_seconds_per_token_prove.session) / "
-    "mean(production-serving gpu_seconds_per_token_prove.session, matched load), start-up "
-    "included on both sides",
     "D-OVERHEAD-WARM": "mean(system gpu_seconds_per_token_prove.session) / "
     "mean(production-serving gpu_seconds_per_token_prove.steady, matched load): the prover's "
     "start-up included, serving warm",
@@ -710,13 +707,11 @@ def _nulled(out: QuantityTree, reason: NullReason) -> QuantityTree:
 
 def overhead_formula(scope: Scope, *, high: bool = False, warm: bool = False) -> str:
     """The formula id of an overhead quantity (RFC-0004 catalogue): D-OVERHEAD-WARM for the
-    prover's session over serving's steady scope, D-OVERHEAD-HIGH-S at high load,
-    D-OVERHEAD-SESSION at matched load and `prove.session`, else D-OVERHEAD-S."""
+    prover's session over serving's steady scope, D-OVERHEAD-HIGH-S at high load, else
+    D-OVERHEAD-S."""
     if warm:
         return "D-OVERHEAD-WARM"
-    if high:
-        return "D-OVERHEAD-HIGH-S"
-    return "D-OVERHEAD-SESSION" if scope is Scope.PROVE_SESSION else "D-OVERHEAD-S"
+    return "D-OVERHEAD-HIGH-S" if high else "D-OVERHEAD-S"
 
 
 def overhead(
@@ -731,14 +726,13 @@ def overhead(
 ) -> QuantityTree:
     """D-OVERHEAD-S (or D-OVERHEAD-HIGH-S with `high`): the mean of the system's per-repetition
     `gpu_seconds_per_token_<S>` over the mean of production serving's (RFC-0004 INV-DERIVE-2,
-    -8, -9). At matched load and `prove.session` it is D-OVERHEAD-SESSION, the same ratio with
-    start-up inside both sessions (INV-DERIVE-10). With `warm` it is D-OVERHEAD-WARM
+    -8, -9). With `warm` it is D-OVERHEAD-WARM
     (INV-DERIVE-11): `system` holds the prover's `prove.session` values, `serving` production
     serving's `prove.steady` values, and the quantity's scope is the prover's, `prove.session`
     (the serving scope is the formula's). `system` and `serving` hold one (pointer,
     quantity) per successful repetition; the result carries `pairs` {n_system, n_serving, min,
     max}, the range over every pair of repetitions. `reason` is the join's null reason (no
-    paired configuration, another profile, NM-1), applied after the system's own null reason,
+    paired configuration, another profile), applied after the system's own null reason,
     which goes first (SASH's steady scope)."""
     formula = overhead_formula(scope, high=high, warm=warm)
     n = len(system)
@@ -776,14 +770,13 @@ def _maybe(q: Mapping[str, object] | None) -> float | None:
 
 
 def agreement_rate(
-    agree: Sequence[Input], disagree: Sequence[Input], *, measurable: bool, version: str
+    agree: Sequence[Input], disagree: Sequence[Input], *, version: str
 ) -> QuantityTree:
     """D-AGREE (RFC-0015 RC-5): agreement positions over compared positions, summed over the
-    paired ref-recompute runs; null with `not_measurable_on_profile` under NM-1."""
+    paired ref-recompute runs."""
     n = len(agree)
-    out = derived("D-AGREE", version, Unit.RATIO, None, [*agree, *disagree],
-                  lambda x: sum(x[:n]) / nonzero(sum(x)))  # fmt: skip
-    return out if measurable else _nulled(out, NullReason.NOT_MEASURABLE_ON_PROFILE)
+    return derived("D-AGREE", version, Unit.RATIO, None, [*agree, *disagree],
+                   lambda x: sum(x[:n]) / nonzero(sum(x)))  # fmt: skip
 
 
 def provider_spread(

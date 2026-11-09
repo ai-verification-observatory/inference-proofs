@@ -65,8 +65,6 @@ All schemas use JSON Schema Draft 2020-12. Each lives at `schema/<name>/<major>.
 | `controls` | `schema/controls/1.schema.json` | generated JSON | `results/.../<run-id>/controls.json` | RFC-0008 |
 | `controls-part` | `schema/controls-part/1.schema.json` | generated JSON | `<run-dir>/controls-part-<seed>-<subset>.json`, a working file never in `results/` | RFC-0008 §Split suites |
 | `controls-seed` | `schema/controls-seed/1.schema.json` | generated JSON | `<run-dir>/controls-seed.json`, written once before the first part, never in `results/` | RFC-0008 §Split suites |
-| `review` | `schema/review/1.schema.json` | generated JSON | `results/.../<run-id>/reviews/<reviewer>-<date>.json` | RFC-0007 |
-| `reproduction` | `schema/reproduction/1.schema.json` | generated JSON | `results/.../<run-id>/reproductions/<repro-run-id>.json` | RFC-0007 |
 | `perturbed-commitment` | `schema/perturbed-commitment/1.schema.json` | generated JSON | `results/<release>/<system>/_controls/<workload>/perturbed.json` | RFC-0008 |
 | `site-facts` | `schema/site-facts/1.schema.json` | authored JSON | `web/_data/facts.json` | RFC-0009 |
 | `criteria` | `schema/criteria/1.schema.json` | authored JSON | `web/_data/criteria.json` | RFC-0016 |
@@ -87,7 +85,7 @@ A change to a schema is classified by these rules, applied in order. The first r
 
 | Change | Classification |
 |---|---|
-| Remove a property, rename a property, change a type, narrow an enum, add a `required` entry, tighten a pattern or bound, change the meaning of a value | major: new file `<major+1>.schema.json`, needs an RFC (RFC-0001 §Changes to methodology) |
+| Remove a property, rename a property, change a type, narrow an enum, add a `required` entry, tighten a pattern or bound, change the meaning of a value | major: new file `<major+1>.schema.json`, with the RFC that owns it updated |
 | Add an optional property, widen an enum, relax a pattern or bound, add a `$defs` entry | additive: edit the current file in place, no RFC, CHANGELOG entry required |
 | Edit `description` or `examples` only | editorial: no CHANGELOG entry |
 
@@ -215,10 +213,10 @@ Optional fields: `upstream_scope` (the scope name as the upstream source states 
 - **INV-QTY-1** A quantity has all seven required keys; no key is omitted, including `scope` and `null_reason`, which are present as `null` when they do not apply.
 - **INV-QTY-2** `value` is null if and only if `null_reason` is a non-null member of its enum.
 - **INV-QTY-3** If `unit` is one of `s`, `ns`, `token/s`, `s/token`, `USD`, `USD/1k_token`, `param_token/s`, `s/bit_token`, then `scope` is non-null. If `unit` is `ratio` and the quantity is derived from one or more scoped quantities, `scope` is non-null and equals the scope of the rate in its denominator; this second half is checked by [RFC-0013 §G5](0013-validation-and-ci.md#g5-label-check), not by the schema, because it needs the derivation graph.
-- **INV-QTY-4** In a `run.json` or `controls.json`, `tier` is `reported`. Effective tiers appear only in `releases/<release>/index.json` (RFC-0009).
+- **INV-QTY-4** In a `run.json` or `controls.json`, `tier` is `reported`.
 - **INV-QTY-5** `grade: external` implies `source.kind: upstream`, `upstream_scope` and `mapping` present, and `source.ref` contains a 40-hex commit hash or an immutable archive URL (RFC-0014 §Pin rules).
 - **INV-QTY-6** `grade: derived` implies `source.kind: derivation`, a non-empty `source.inputs`, and that the formula id exists in the harness's formula registry at the named version.
-- **INV-QTY-6a** The tier of a derived quantity is the lowest tier among its inputs, in the order `reported` < `peer-reviewed` < `reproduced` (RFC-0004). In `run.json` this is always `reported`; in a release index it is computed per input.
+- **INV-QTY-6a** The tier of a derived quantity is the lowest tier among its inputs, in the order `reported` < `peer-reviewed` < `reproduced` (RFC-0004). During the research phase every tier is `reported` (RFC-0007).
 - **INV-QTY-7** `grade: measured` implies `source.kind` is `harness` or `adapter`.
 - **INV-QTY-8** A statistic satisfies `stats.n >= 0`, `stats.n_failed >= 0`, `value == stats.mean`, and `stats.stdev` is null when `stats.n < 2`. When `stats.n == 0`, `value` is null with `null_reason: step_failed`.
 - **INV-QTY-9** `quality` appears only on `measured` and `derived` quantities. The harness sets it on measured quantities; a derived quantity carries `quality.degraded` and `quality.precision_substituted` equal to the logical OR over its inputs, so a flag cannot be lost through a formula. G5 checks the OR.
@@ -354,7 +352,7 @@ Validation uses `jsonschema.Draft202012Validator` with `format_checker=Draft2020
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 
@@ -406,7 +404,7 @@ Schema example tests: every file in `examples/valid/` validates; every file in `
 
 ## Open Questions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: RFC-0001 decision on the permanent home, target 2027-03-31): the host used in `$id`. Default until resolved: `https://inference-proofs.org/` as a placeholder that is never dereferenced. Changing it is an editorial change to every schema, because validators resolve locally.
+- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-03-31, with RFC-0001 Q1): the host used in `$id`. Default until resolved: `https://inference-proofs.org/` as a placeholder that is never dereferenced. Changing it is an editorial change to every schema, because validators resolve locally.
 - OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2026-12-01): whether the drift test should also compare JSON types against dataclass annotations. Default: names and required-ness only; type comparison is added if a type drift bug is found.
 
 ## References

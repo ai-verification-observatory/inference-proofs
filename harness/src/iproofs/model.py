@@ -387,19 +387,6 @@ class SupersededRun(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReviewWindow(Document):
-    opens: str
-    closes: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Sponsor(Document):
-    name: str
-    provided: str
-    period: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Release(Document):
     schema: str
     release: str
@@ -409,22 +396,12 @@ class Release(Document):
     runs: tuple[str, ...]
     superseded_runs: tuple[SupersededRun, ...]
     claim_cards: tuple[ReleaseCard, ...]
-    review_window: ReviewWindow
-    freeze_date: str
-    replies: Mapping[str, str]
-    sponsors: tuple[Sponsor, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Ineligible(Document):
     run_id: str
     reasons: tuple[str, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Evidence(Document):
-    reviews: tuple[str, ...]
-    reproductions: tuple[str, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -437,8 +414,6 @@ class IndexConfiguration(Document):
     ineligible: tuple[Ineligible, ...]
     insufficient_repetitions: bool
     statistics: Mapping[str, Quantity | Statistic]
-    effective_tier: Tier
-    evidence: Evidence
     load_point: str | None = None  # RFC-0015 SRV-1 (absent: matched)
     overhead_conditions: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-9
     overhead_headline: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-10
@@ -1225,94 +1200,6 @@ class ControlsPart(Document):
 # Schema location -> model class. The drift test walks this table and requires every
 # document schema in the tree to appear here.
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Reviewer(Document):
-    handle: str
-    organisation: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReviewChecks(Document):
-    pins: str
-    configuration: str
-    logs: str
-    derived_numbers: str
-    controls: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Objection(Document):
-    check: str
-    text: str
-    issue: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReviewRecord(Document):
-    """`review/1`, a peer review of one run (RFC-0007 §Review record). `Review` is the claim
-    card's reviewed_by entry."""
-
-    schema: str
-    run_id: str
-    reviewer: Reviewer
-    date: str
-    checks: ReviewChecks
-    objections: tuple[Objection, ...]
-    outcome: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReproductionEligibility(Document):
-    same_release: bool
-    same_image_digest: bool
-    same_workload_digests: bool
-    same_profile: bool
-    different_machine: bool
-    clean_build: bool
-    repetitions: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ComparedStats(Document):
-    mean: float | None
-    stdev: float | None
-    n: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Comparison(Document):
-    metric: str
-    unit: str
-    scope: str | None
-    original: ComparedStats
-    reproduction: ComparedStats
-    bound: float | None
-    difference: float | None
-    within: bool | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class DigestMatch(Document):
-    required: bool
-    matched: bool | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReproductionRecord(Document):
-    """`reproduction/1`, one configuration's reproduction (RFC-0007 §Reproduction record)."""
-
-    schema: str
-    original_run_ids: tuple[str, ...]
-    reproduction_run_ids: tuple[str, ...]
-    runner: RunnerRecord
-    eligibility: ReproductionEligibility
-    comparisons: tuple[Comparison, ...]
-    verdicts_match: bool
-    digests: DigestMatch
-    fresh_seed_runs: tuple[str, ...]
-    outcome: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ExternalFigure(Document):
     id: str  # the upstream's own name for the figure
     metric: str
@@ -1418,7 +1305,7 @@ class CriteriaProperty(Document):
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class CriteriaRow(Document):
-    """One row; its cells stay as validated trees (CRIT-1 to CRIT-14 read them)."""
+    """One row; its cells stay as validated trees (the site reads them)."""
 
     id: str
     name: str
@@ -1567,8 +1454,6 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("release/1", "#"): Release,
     ("release/1", "#/$defs/card"): ReleaseCard,
     ("release/1", "#/properties/superseded_runs/items"): SupersededRun,
-    ("release/1", "#/properties/review_window"): ReviewWindow,
-    ("release/1", "#/properties/sponsors/items"): Sponsor,
     ("release-index/1", "#"): ReleaseIndex,
     ("release-index/1", "#/$defs/card"): ReleaseCard,
     ("release-index/1", "#/properties/configurations/items"): IndexConfiguration,
@@ -1577,7 +1462,6 @@ MODELS: dict[tuple[str, str], type[Any]] = {
         "release-index/1",
         "#/properties/configurations/items/properties/ineligible/items",
     ): Ineligible,
-    ("release-index/1", "#/properties/configurations/items/properties/evidence"): Evidence,
     ("release-index/1", "#/properties/controls/items"): ControlSummary,
     ("release-index/1", "#/properties/controls/items/properties/counts"): OutcomeCounts,
     ("release-index/1", "#/properties/controls/items/properties/outside_expected/items"): (
@@ -1662,19 +1546,9 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("controls-seed/1", "#"): ControlsSeed,
     ("target/1", "#"): Target,
     ("target/1", "#/properties/author"): Author,
-    ("review/1", "#"): ReviewRecord,
-    ("review/1", "#/properties/reviewer"): Reviewer,
-    ("review/1", "#/properties/checks"): ReviewChecks,
-    ("review/1", "#/properties/objections/items"): Objection,
     ("external/1", "#"): External,
     ("external/1", "#/properties/upstream"): Upstream,
     ("external/1", "#/$defs/figure"): ExternalFigure,
-    ("reproduction/1", "#"): ReproductionRecord,
-    ("reproduction/1", "#/properties/runner"): RunnerRecord,
-    ("reproduction/1", "#/properties/eligibility"): ReproductionEligibility,
-    ("reproduction/1", "#/properties/comparisons/items"): Comparison,
-    ("reproduction/1", "#/$defs/stats"): ComparedStats,
-    ("reproduction/1", "#/properties/digests"): DigestMatch,
     ("perturbed-commitment/1", "#"): PerturbedCommitmentRecord,
     ("site-facts/1", "#"): SiteFacts,
     ("site-facts/1", "#/properties/site"): SiteInfo,

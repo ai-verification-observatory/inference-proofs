@@ -54,7 +54,6 @@ def build(
         m = json.loads((d / "manifest.json").read_text())
         m["system"] |= {"adapter_commit": adapter, "claim_digest": file_digest(card),
                         "image": {"ref": IMAGE, "digest_kind": "manifest"}}  # fmt: skip
-        m["proofs"][0]["archive"] = "https://archive.example.org/v0.1/fake.tar" if i == 0 else None
         m["harness"]["git_dirty"] = i == len(dirs) - 2
         write_json(d / "manifest.json", m)
     controls = (ROOT / "schema/controls/examples/valid/fake.json").read_text()
@@ -67,11 +66,7 @@ def build(
         "claim_cards": [{"system": "fake", "configuration": "default", "card_version": 1,
                          "path": "systems/fake/claims/default.yaml",
                          "digest": file_digest(card)}],
-        "replies": {"fake": "systems/fake/replies/v0.1.md"},
     }  # fmt: skip
-    reply = root / "systems/fake/replies/v0.1.md"
-    reply.parent.mkdir(parents=True)
-    reply.write_text("The fake system is test data; its numbers mean nothing.\n")
     path = root / "releases/v0.1/release.yaml"
     path.parent.mkdir(parents=True)
     path.write_text(yaml.safe_dump(release, sort_keys=False))

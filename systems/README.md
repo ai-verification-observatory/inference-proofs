@@ -6,15 +6,11 @@ This page is for a prover team, or a contributor with the team's consent, who wa
 
 ## 1. Ask first
 
-A system is added only with its team's consent ([RFC-0001 §Adding and removing a system](../rfcs/0001-process-and-governance.md#adding-and-removing-a-system), INV-GOV-5).
-
-1. Open a system inclusion issue. Name the upstream repository, the full commit hash, the workloads the system supports and at least one system maintainer.
-2. A person listed as an author or maintainer upstream at that commit gives consent on the issue, or links a public statement.
-3. The adapter, `system.yaml` and `claim.yaml` land by pull request. The claim card stays unreviewed (`reviewed_by: []`) until the system maintainers review it. System maintainers are added to [MAINTAINERS.md](../MAINTAINERS.md).
+Open an issue naming the upstream repository, the full commit hash and the workloads the system supports. The adapter, `system.yaml` and `claim.yaml` land by pull request. The claim card stays unreviewed (`reviewed_by: []`) until the system maintainers review it.
 
 ## 2. Directory layout
 
-The files are listed in [RFC-0005 §Layout](../rfcs/0005-adapter-contract.md#layout): `Dockerfile`, `entrypoint`, `system.yaml`, `claim.yaml`, optional `external.yaml` and `controls.yaml`, `README.md`, `tests/` and `replies/`. The system name matches `^[a-z][a-z0-9-]{1,31}$`.
+The files are listed in [RFC-0005 §Layout](../rfcs/0005-adapter-contract.md#layout): `Dockerfile`, `entrypoint`, `system.yaml`, `claim.yaml`, optional `external.yaml` and `controls.yaml`, and `README.md` and `tests/`. The system name matches `^[a-z][a-z0-9-]{1,31}$`.
 
 ## 3. `system.yaml`
 
@@ -57,7 +53,7 @@ Map the upstream verifier's own signals onto `accept`, `reject`, `no_verdict` an
 
 ## 9. The Dockerfile
 
-Follow rules B1 to B7 of [RFC-0014 §Adapter image build](../rfcs/0014-provenance-and-integrity.md#adapter-image-build): base images by digest; one `fetch` stage that downloads every input, verified against `systems/<name>/inputs.lock`; `RUN --network=none` after it; no patch or `sed` over upstream source; `/opt/iproofs/inputs.json` returned by `info`; a clean-tree build with the adapter commit baked in; release images pushed to `ghcr.io/ai-verification-observatory/` and referenced by manifest digest. A run is eligible for a release only from a clean build of a pushed image ([RFC-0014 §Eligibility](../rfcs/0014-provenance-and-integrity.md#eligibility)); local builds are recorded with `digest_kind: config` and never are. The `images` workflow (`.github/workflows/images.yml`, run by hand on `main`) builds `systems/<name>` from a clean checkout and pushes it; its summary prints the manifest digest that `system.yaml` pins.
+Follow rules B1 to B7 of [RFC-0014 §Adapter image build](../rfcs/0014-provenance-and-integrity.md#adapter-image-build): base images by digest; one `fetch` stage that downloads every input, verified against `systems/<name>/inputs.lock`; `RUN --network=none` after it; no patch or `sed` over upstream source; `/opt/iproofs/inputs.json` returned by `info`; a clean-tree build with the adapter commit baked in; release images pushed to `ghcr.io/ai-verification-observatory/` and referenced by manifest digest. A run is eligible for a release only from a clean build ([RFC-0014 §Eligibility](../rfcs/0014-provenance-and-integrity.md#eligibility)); local builds are recorded with `digest_kind: config`. The `images` workflow (`.github/workflows/images.yml`, run by hand on `main`) builds `systems/<name>` from a clean checkout and pushes it; its summary prints the manifest digest that `system.yaml` pins.
 
 `systems/<name>/inputs.lock` lists every downloaded input, one per line, `<name>\t<url>\tsha256:<hex>`; the fetch stage uses `ADD --checksum=sha256:<hex> <url>` for each. Pass the adapter commit and dirty flag as build arguments and return them from `info` (`adapter_commit`, `adapter_dirty`), with `image_inputs` read from `/opt/iproofs/inputs.json`. `systems/fake/Dockerfile`, `systems/fake/inputs.lock` and `systems/fake/write_inputs.py` are the reference. Each adapter's `tests/test_dockerfile_rules.py` calls `iproofs.provenance.dockerfile_problems(dockerfile, inputs_lock)`, which checks B1 to B3.
 

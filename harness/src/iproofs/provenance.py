@@ -523,15 +523,13 @@ def select_cpus(
 ) -> CpuBinding:
     """RFC-0006 §CPU and memory selection, a pure function of the topology. `n_prover` is the
     profile's `cpu.logical_cpus_on_gpu_numa_node` and has no default, so no caller binds 24 on a
-    profile that asks for fewer."""
+    profile that asks for fewer. A node with fewer CPUs gives the prover what it has: PC-CPU-NUMA
+    records the shortfall and refuses nothing. The verifier's count stays exact, since the
+    verify figures are labelled with it (RFC-0006 verifier-cpu)."""
     on_node = [c for c in topology.cpus if c.node == gpu_numa_node]
     ordered = _ordered(on_node)
-    if len(ordered) < n_prover:
-        raise IProofsError(
-            ErrorKind.ENVIRONMENT,
-            f"not enough CPUs on GPU NUMA node {gpu_numa_node}: {len(ordered)} < {n_prover}"
-            " (PC-CPU-NUMA)",
-        )
+    if n_prover and not ordered:
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"no CPU on GPU NUMA node {gpu_numa_node}")
     prover = ordered[:n_prover]
     taken = set(prover)
     rest = [c for c in topology.cpus if c.id not in taken]

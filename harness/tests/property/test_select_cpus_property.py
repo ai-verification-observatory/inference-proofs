@@ -36,5 +36,6 @@ def test_select_cpus_deterministic(
     known = {c.id for c in topo.cpus}
     assert set(a.prover) | set(a.verifier) <= known
     assert {c.node for c in topo.cpus if c.id in a.prover} == {node}
-    assert len(a.prover) == n_prover
+    on_node = sum(c.node == node for c in topo.cpus)
+    assert len(a.prover) == min(n_prover, on_node)  # a short node gives what it has (PC-CPU-NUMA)
     assert len(a.verifier) == n_verifier

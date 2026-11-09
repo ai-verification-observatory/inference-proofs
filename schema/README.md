@@ -40,8 +40,6 @@ Schemas in the RFC-0012 catalogue that have landed, with their Python model in `
 | `release/1` | `releases/<release>/release.yaml` | `Release` |
 | `release-index/1` | `releases/<release>/index.json` | `ReleaseIndex` |
 | `target/1` | `targets/<author>/<id>.yaml` | `Target` |
-| `review/1` | `results/<release>/<system>/<run-id>/reviews/<reviewer>-<date>.json` | `ReviewRecord`, `Reviewer`, `ReviewChecks`, `Objection` |
-| `reproduction/1` | `results/<release>/<system>/<run-id>/reproductions/<repro-run-id>.json` | `ReproductionRecord`, `ReproductionEligibility`, `Comparison`, `ComparedStats`, `DigestMatch` |
 | `perturbed-commitment/1` | `results/<release>/<system>/_controls/<workload>/perturbed.json` | `PerturbedCommitmentRecord` |
 | `site-facts/1` | `web/_data/facts.json` | `SiteFacts`, `SiteInfo`, `ModelFacts`, `RowFacts`, `LicenceFacts`, `StatusFacts` |
 | `criteria/1` | `web/_data/criteria.json` | `CriteriaFile`, `CriteriaState`, `CriteriaProperty`, `CriteriaRow` |

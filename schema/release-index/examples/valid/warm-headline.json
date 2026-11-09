@@ -11,13 +11,6 @@
   "configurations": [
     {
       "configuration": "default",
-      "effective_tier": "peer-reviewed",
-      "evidence": {
-        "reproductions": [],
-        "reviews": [
-          "results/v0.1/sash/2026-12-02-sash-sash-l31-8b-c4096-prover-h100-1/reviews/reviewer-2027-02-20.json"
-        ]
-      },
       "ineligible": [],
       "insufficient_repetitions": false,
       "overhead_headline": {

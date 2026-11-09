@@ -83,4 +83,3 @@ def test_shards_cover_the_workflow_matrix() -> None:
     ci = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     shard = ci["jobs"]["test-shard"]
     assert shard["env"]["IPROOFS_SHARD"].endswith(f"/{len(shard['strategy']['matrix']['shard'])}")
-    assert ci["jobs"]["tests"]["needs"] == "test-shard"

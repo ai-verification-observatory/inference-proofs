@@ -14,7 +14,6 @@ from .words import (
     SCOPE_LINES,
     STATE_WORD,
     e,
-    gpu_words,
     labels,
     shown,
     spread_line,
@@ -302,13 +301,9 @@ def source_label(url):
 
 
 def record_html(path, words=None):
-    """A record of the release (a run's `run.json` or `controls.json`): a link to the file once
-    the release is published, its path as text while it is a candidate, since no tracked file
-    holds it yet (#146; as the figures' `index.json` pointers). words: the link's text, when not
-    the path (a run id)."""
-    if not S.V["release"]["candidate"]:
-        return f'<a href="{e(blob(path))}">{path_html(words or path)}{EXT}</a>'
-    return f'<span class="rec">{path_html(words or path)}</span>'
+    """A record of the release (a run's `run.json` or `controls.json`) as a link to the file.
+    words: the link's text, when not the path (a run id)."""
+    return f'<a href="{e(blob(path))}">{path_html(words or path)}{EXT}</a>'
 
 
 def blob(path):
@@ -421,11 +416,9 @@ def has_figures(cfg):
 
 def runs_counts(cfg):
     """A configuration whose kept runs all failed holds no statistic: its counts, whether it has
-    fewer completed runs than a release needs, and RFC-0015 NM-1 when it applies (S3, S7)."""
+    fewer completed runs than a release needs (S3, S7)."""
     runs = cfg["runs"]
     parts = [f"{len(runs['completed'])} completed, {len(runs['failed'])} failed"]
     if cfg["insufficient_repetitions"]:
         parts.append("below minimum repetitions")
-    if runs["not_measurable"]:
-        parts.append(f"not measurable on {gpu_words(cfg)} (RFC-0015 NM-1)")
     return " · ".join(parts)

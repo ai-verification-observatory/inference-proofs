@@ -104,16 +104,16 @@ def test_tokens_covered_per_proof_statistics(tree: Path) -> None:
         assert (q["unit"], q["scope"], q["grade"]) == ("token", None, "derived")
 
 
-def test_agreement_null_not_measurable(tree: Path) -> None:
-    """RFC-0015 NM-1: every reference run on FlashProve's workload failed with `resource`, so
-    D-AGREE is `not_measurable_on_profile`. Those ref-serve runs are on a prover profile, not a
-    serving one (SRV-10), so FlashProve's overhead is `not_applicable` (INV-DERIVE-2 (c)), and
-    NM-1 is never judged from them. SASH's steady scope is not externally observable, and that
-    reason goes first (TC-OVERHEAD-SASH); no recompute run replays SASH, so no D-AGREE."""
+def test_agreement_null_step_failed(tree: Path) -> None:
+    """Every reference run on FlashProve's workload failed with `resource`, so D-AGREE is null
+    `step_failed`, its inputs the failure records. Those ref-serve runs are on a prover profile,
+    not a serving one (SRV-10), so FlashProve's overhead is `not_applicable` (INV-DERIVE-2 (c)).
+    SASH's steady scope is not externally observable, and that reason goes first
+    (TC-OVERHEAD-SASH); no recompute run replays SASH, so no D-AGREE."""
     doc = index(tree)
     stats = config(doc, "flashprove")["statistics"]
     q = stats["agreement_rate"]
-    assert (q["value"], q["null_reason"]) == (None, "not_measurable_on_profile")
+    assert (q["value"], q["null_reason"]) == (None, "step_failed")
     q = stats["overhead_vs_production_prove.steady"]
     assert (q["value"], q["null_reason"]) == (None, "not_applicable")
     assert "overhead_conditions" not in config(doc, "flashprove")
@@ -201,9 +201,8 @@ def test_tree_files_equal_the_real_ones(tree: Path) -> None:
 
 
 def test_deployed_build_has_no_extras(tree: Path) -> None:
-    """No page of the deployed build puts words in a team's name: no reply, no target."""
+    """The deployed build carries none of the test-only extras: no withdrawn run, no target."""
     release = yaml.safe_load((tree / "releases/v0.1/release.yaml").read_text())
-    assert release["replies"] == {}
     assert release["superseded_runs"] == []
     assert not (tree / "targets").exists()
     criteria = json.loads((tree / "web/_data/criteria.json").read_text())
@@ -245,13 +244,7 @@ def test_extras_cases(extras: Path) -> None:
     outside = {(c["system"], o["control_id"]) for c in doc["controls"]
                for o in c["outside_expected"]}  # fmt: skip
     assert outside == {("flashprove", "C1"), ("sash", "C2")}
-    assert fp["evidence"]["reviews"]
-    assert fp["evidence"]["reproductions"]
-    assert fp["effective_tier"] == "reproduced"
     assert [t["target"] for t in doc["targets"]] == [ph.TARGET] * 2  # the two on its workload
-    release = yaml.safe_load((extras / "releases/v0.1/release.yaml").read_text())
-    assert release["replies"] == {"sash": ph.REPLY}
-    assert "written by no SASH maintainer" in (extras / ph.REPLY).read_text()
     criteria = json.loads((extras / "web/_data/criteria.json").read_text())
     assert criteria["release"] == "v0.1"
     rows = {r["id"]: r for r in criteria["rows"]}

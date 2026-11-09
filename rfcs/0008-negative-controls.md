@@ -247,7 +247,7 @@ An accepted control where rejection was expected is a possible soundness or adap
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 
@@ -256,7 +256,7 @@ The author's affiliations and any interest in a measured system are declared in 
 - v0.1-beta: suite runs on SASH and FlashProve rows, plus registered system-specific controls.
 - Split suites (amendment of 2026-11-09) change no control, algorithm, expected set or `controls/1` field; they add the `controls-seed/1` record, the `controls-part/1` working file, the `control.call` log event and the `--draw-seed`, `--only`, `--seed`, `--merge`, `--hosted`, `--gpu` and `--provider` options of `iproofs controls`. A merged file is a `controls.json` like any other (INV-CTRL-7).
 - Parts the verifier reads (amendment of 2026-11-09) changes no control id, applicability rule or expected set and no required field: it narrows the candidate lists of C5, C6 and C8 to the parts the verify step reads and adds the optional `system/1` `proofs.verify_reads` and `controls/1` `parts_not_read`. With `"all"` or no declaration every mutation is unchanged. Stored files stay as recorded (READ-5).
-- A new control or a change to an algorithm or expected set needs an RFC and a new `controls/<major>` if the file shape changes. Past `controls.json` files are never edited; they name the RFC version they ran under ([RFC-0001](0001-process-and-governance.md)).
+- A new control or a change to an algorithm or expected set needs an RFC and a new `controls/<major>` if the file shape changes. Past `controls.json` files are never edited; they name the RFC version they ran under.
 
 ## Testing Strategy
 

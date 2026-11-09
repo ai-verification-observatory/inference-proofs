@@ -8,7 +8,7 @@ view. It holds the drawing and the fixed words the pages print for stored values
 tier, null reasons, units, states, families), as RFC-0009 S2 allows. Standard library only.
 
 `render` writes into `out`: the pages (index, one per system, reference, criteria, release,
-sponsors and conflicts, targets when the release evaluates one, 404),
+targets when the release evaluates one, 404),
 search.json, the preview-card sources and icon in og/, the @font-face block in words.css,
 vercel.json (headers with the inline script's hash, redirects, cache rules) and the contrast
 table in README.md when `out` holds one. The static assets (words.css, words.js, fonts/,
@@ -22,7 +22,7 @@ state (what `setup` reads), words (fixed words, numbers as shown), inks (contras
 (the glyph's geometry), plates (criteria rows, text helpers, one configuration's figures), claims
 (a card's validated claims, the card in full, its quality gap and the agreement rate), chrome
 (header, footer, page frame, fonts, share tags), overview (index.html), pages (system, reference,
-criteria and 404 pages), release (the release, sponsors and conflicts, and targets pages) and outputs (search.json, vercel.json, og/ sources, the fonts block, the
+criteria and 404 pages), release (the release and targets pages) and outputs (search.json, vercel.json, og/ sources, the fonts block, the
 README table). Every name of those modules reads as `build.<name>` too.
 """
 
@@ -135,8 +135,7 @@ def check_stale():
     `python -O` drops)."""
     c = draw.chrome
     pages = {c.file_of("/"), *(c.file_of(p) for p in S.PAGE.values()), c.file_of(c.REF_PAGE),
-             c.file_of(c.CRIT_PAGE), c.file_of(c.RELEASE_PAGE), c.file_of(c.SPONSORS_PAGE),
-             S.HERE / "404.html"}  # fmt: skip
+             c.file_of(c.CRIT_PAGE), c.file_of(c.RELEASE_PAGE), S.HERE / "404.html"}  # fmt: skip
     if c.has_targets():
         pages.add(c.file_of(c.TARGETS_PAGE))
     stale = sorted(q.name for q in set(S.HERE.glob("*.html")) - pages)
@@ -164,7 +163,6 @@ def render(view, out, *, write_json, write_text):
     pages[file_of(draw.chrome.REF_PAGE)] = draw.pages.build_reference()
     pages[file_of(draw.chrome.CRIT_PAGE)] = draw.pages.build_criteria()
     pages[file_of(draw.chrome.RELEASE_PAGE)] = draw.release.build_release()
-    pages[file_of(draw.chrome.SPONSORS_PAGE)] = draw.release.build_sponsors()
     if draw.chrome.has_targets():
         pages[file_of(draw.chrome.TARGETS_PAGE)] = draw.release.build_targets()
     pages[S.HERE / "404.html"] = draw.pages.build_404()

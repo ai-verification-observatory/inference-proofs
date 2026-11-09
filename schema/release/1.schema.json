@@ -41,10 +41,6 @@
       },
       "type": "array"
     },
-    "freeze_date": {
-      "format": "date",
-      "type": "string"
-    },
     "harness_version": {
       "minLength": 1,
       "type": "string"
@@ -55,34 +51,6 @@
     },
     "release": {
       "$ref": "../quantity/1.schema.json#/$defs/releaseId"
-    },
-    "replies": {
-      "additionalProperties": {
-        "pattern": "^systems/[a-z][a-z0-9-]{1,31}/replies/v\\d+\\.\\d+\\.md$",
-        "type": "string"
-      },
-      "propertyNames": {
-        "$ref": "../quantity/1.schema.json#/$defs/systemId"
-      },
-      "type": "object"
-    },
-    "review_window": {
-      "additionalProperties": false,
-      "properties": {
-        "closes": {
-          "format": "date",
-          "type": "string"
-        },
-        "opens": {
-          "format": "date",
-          "type": "string"
-        }
-      },
-      "required": [
-        "opens",
-        "closes"
-      ],
-      "type": "object"
     },
     "rfc_commit": {
       "$ref": "../quantity/1.schema.json#/$defs/commit"
@@ -97,32 +65,6 @@
     },
     "schema": {
       "const": "release/1"
-    },
-    "sponsors": {
-      "items": {
-        "additionalProperties": false,
-        "properties": {
-          "name": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "period": {
-            "minLength": 1,
-            "type": "string"
-          },
-          "provided": {
-            "minLength": 1,
-            "type": "string"
-          }
-        },
-        "required": [
-          "name",
-          "provided",
-          "period"
-        ],
-        "type": "object"
-      },
-      "type": "array"
     },
     "superseded_runs": {
       "items": {
@@ -154,11 +96,7 @@
     "harness_version",
     "runs",
     "superseded_runs",
-    "claim_cards",
-    "review_window",
-    "freeze_date",
-    "replies",
-    "sponsors"
+    "claim_cards"
   ],
   "title": "Release record: releases/<release>/release.yaml (RFC-0009 §Release record)",
   "type": "object"

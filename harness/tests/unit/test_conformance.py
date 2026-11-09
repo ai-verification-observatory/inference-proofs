@@ -2,13 +2,10 @@
 
 import copy
 import json
-import shutil
-import subprocess
 from pathlib import Path
 from typing import Any
 
 import pytest
-import yaml
 
 from iproofs import cli
 from iproofs.model import ContainerRuntime, Disk, GpuSpec, OsSpec, ProverCpu, ProverProfile
@@ -88,43 +85,6 @@ def test_missing_probes_fail_their_checks() -> None:
     )
 
 
-@pytest.fixture
-def prover_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A copy of the fake system declared as a prover, so a failed check refuses the run."""
-    repo = tmp_path / "repo"
-    copied = [
-        "schema",
-        "systems/fake",
-        "systems/fake-broken",
-        "workloads/fake-tiny-ci.yaml",
-        "reference",
-        "harness/tests/fixtures/prompts",
-        "uv.lock",
-        "pyproject.toml",
-    ]
-    for rel in copied:
-        src, dst = ROOT / rel, repo / rel
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(src, dst) if src.is_dir() else shutil.copy(src, dst)
-    system = repo / "systems/fake/system.yaml"
-    doc = yaml.safe_load(system.read_text())
-    doc |= {"kind": "prover", "profile": "prover-h100",
-            "image": {"repository": "ghcr.io/example/iproofs-fake", "digest": "sha256:" + "a" * 64},
-            "maintainers": [{"handle": "m", "organisation": "Org"}]}  # fmt: skip
-    system.write_text(yaml.safe_dump(doc))
-    subprocess.run(["git", "init", "-q", str(repo)], check=True)
-    monkeypatch.chdir(repo)
-    return repo
-
-
-def test_nonconforming_host_exits_3_and_writes_nothing(prover_repo: Path) -> None:
-    results = prover_repo / "results"
-    argv = ["--quiet", "run", "--system", "fake", "--workload", "fake-tiny-ci", "--profile",
-            "prover-h100", "--repetitions", "1", "--results", str(results)]  # fmt: skip
-    assert cli.main(argv) == 3  # no H100 here: environment, before anything is timed
-    assert not results.exists() or not any(results.rglob("*"))
-
-
 def run_fake(tmp_path: Path, *extra: str) -> dict[str, Any]:
     argv = ["--quiet", "run", "--system", "fake", "--workload", "fake-tiny-ci", "--profile",
             "ci-cpu", "--repetitions", "1", "--results", str(tmp_path), "--in-process",
@@ -139,8 +99,8 @@ def run_fake(tmp_path: Path, *extra: str) -> dict[str, Any]:
 def test_test_systems_run_anywhere_and_flag_is_recorded(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A fake run on a host that fails ci-cpu runs, with warnings; --allow-nonconforming also
-    marks the manifest, which the validator refuses in results/ (POL-4)."""
+    """A run on a host that fails its profile runs: the manifest marks it nonconforming and
+    run.json warns; no check refuses it. --allow-nonconforming is accepted and changes nothing."""
     monkeypatch.chdir(ROOT)
     monkeypatch.setattr(
         "iproofs.runner.check_profile",
@@ -151,7 +111,7 @@ def test_test_systems_run_anywhere_and_flag_is_recorded(
         ],
     )
     plain = run_fake(tmp_path / "plain")
-    assert plain["harness"]["nonconforming"] is False
+    assert plain["harness"]["nonconforming"] is True
     assert "conformance: PC-OS: darwin, the profile needs ubuntu 24.04" in plain["_run"]["warnings"]
     flagged = run_fake(tmp_path / "flagged", "--allow-nonconforming")
     assert flagged["harness"]["nonconforming"] is True

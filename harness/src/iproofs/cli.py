@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 Handler = Callable[[argparse.Namespace], int]
 
 # Commands that check stored files report config, integrity and policy findings with exit 1.
-CHECK_COMMANDS = {"validate", "derive", "reproduce compare", "release freeze"}
+CHECK_COMMANDS = {"validate", "derive", "release freeze"}
 
 
 def harness_commit() -> str:
@@ -91,7 +91,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--control-suite", action="store_true")
     p.add_argument("--provider", metavar="NAME")
     p.add_argument("--prompts-from", type=Path, metavar="RUN_DIR")
-    p.add_argument("--allow-nonconforming", action="store_true")
+    p.add_argument("--allow-nonconforming", action="store_true", help=argparse.SUPPRESS)  # no-op
     p.add_argument(
         "--keep-io",
         action="store_true",
@@ -272,17 +272,6 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("run_dir", type=Path)
     p.set_defaults(handler=serving_size_session)
 
-    reproduce = sub.add_parser("reproduce", help="reproduction records (RFC-0007)")
-    reproduce_sub = reproduce.add_subparsers(
-        dest="reproduce_command", required=True, metavar="ACTION"
-    )
-    p = command(
-        "compare", "apply the RFC-0007 tolerance to two runs", reproduce_sub, "reproduce compare"
-    )
-    p.add_argument("orig_run", type=Path)
-    p.add_argument("repro_run", type=Path)
-    p.set_defaults(handler=reproduce_compare)
-
     release = sub.add_parser("release", help="benchmark releases (RFC-0009)")
     release_sub = release.add_subparsers(dest="release_command", required=True, metavar="ACTION")
     p = command("freeze", "write releases/<release>/index.json", release_sub, "release freeze")
@@ -305,36 +294,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
                    help="output folder (default: the repository's web/)")  # fmt: skip
     p.set_defaults(handler=site_build)
 
-    archive = sub.add_parser("archive", help="proof archive (RFC-0014, RFC-0009 Q1)")
-    archive_sub = archive.add_subparsers(dest="archive_command", required=True, metavar="ACTION")
-    p = command(
-        "upload",
-        "upload proof archives and upstream inputs, then record each archive URI",
-        archive_sub,
-        "archive upload",
-    )
-    p.add_argument("--results", type=Path, default=Path("results"))
-    p.add_argument("--repo", default=None, help="the archive dataset (default: the project's)")
-    p.set_defaults(handler=archive_upload)
     return parser
-
-
-def archive_upload(args: argparse.Namespace) -> int:
-    """`iproofs archive upload`: run on the GPU host before the results pull request; prints
-    the uploaded inputs and the changed manifests as JSON (CLI-3). Needs HF_TOKEN."""
-    import os  # noqa: PLC0415
-
-    from iproofs.archive import ARCHIVE_REPO, HubStore, upload_archives, upload_sources  # noqa: PLC0415
-    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
-    from iproofs.serialize import dumps  # noqa: PLC0415
-    from iproofs.validate import repo_root  # noqa: PLC0415
-
-    root = repo_root(Path.cwd())
-    store = HubStore(args.repo or ARCHIVE_REPO, os.environ.get("HF_TOKEN"))
-    inputs = upload_sources(root, args.results, store)
-    manifests = upload_archives(args.results, store, SchemaRegistry.from_tree(root / "schema"))
-    sys.stdout.write(dumps({"inputs": inputs, "manifests": manifests}).decode())
-    return 0
 
 
 def derive(args: argparse.Namespace) -> int:
@@ -452,7 +412,6 @@ def run(args: argparse.Namespace) -> int:
         provider=args.provider or "undeclared",
         progress=None if args.quiet else sys.stderr,
         log_level=args.log_level,
-        allow_nonconforming=args.allow_nonconforming,
         prompts_from=args.prompts_from.resolve().name if args.prompts_from else None,
         replay_seed=seed,
         claims=claims,
@@ -816,7 +775,7 @@ def release_freeze(args: argparse.Namespace) -> int:
     from iproofs.release import freeze  # noqa: PLC0415
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.serialize import write_json  # noqa: PLC0415
-    from iproofs.validate import governance, repo_root  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
     from iproofs.validate.tree import validate_tree  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
@@ -826,12 +785,7 @@ def release_freeze(args: argparse.Namespace) -> int:
         found = validate_tree(root, only=paths)
         return [f.line() for f in found if f.gate in GATES_G2_G7 and not f.warning]
 
-    maintainers: dict[str, list[str]] = {}
-    if (root / governance.PATH).is_file():
-        for row in governance.parse((root / governance.PATH).read_text("utf-8")):
-            for name in filter(None, (s.strip() for s in row.systems.split(","))):
-                maintainers.setdefault(name, []).append(row.organisation)
-    index = freeze(args.release, root, registry, gates, maintainers)
+    index = freeze(args.release, root, registry, gates)
     errors = registry.errors("release-index/1", index)
     if errors:
         raise IProofsError(ErrorKind.INTERNAL, f"index.json fails release-index/1: {errors[0]}")
@@ -1133,38 +1087,6 @@ def machine_record_command(args: argparse.Namespace) -> int:
         failed = [c.name for c in checks if not c.passed]
         raise IProofsError(ErrorKind.ENVIRONMENT, f"self-test failed: {', '.join(failed)}")
     return 0
-
-
-def reproduce_compare(args: argparse.Namespace) -> int:
-    """`iproofs reproduce compare ORIG_RUN REPRO_RUN`: the RFC-0007 record; exit 1 unless the
-    outcome is within_tolerance."""
-    from iproofs.model import System, load  # noqa: PLC0415
-    from iproofs.release import compare, write_reproduction  # noqa: PLC0415
-    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
-    from iproofs.serialize import dumps  # noqa: PLC0415
-    from iproofs.validate import governance, repo_root  # noqa: PLC0415
-
-    root = repo_root(Path.cwd())
-    registry = SchemaRegistry.from_tree(root / "schema")
-    name = json.loads((args.orig_run / "run.json").read_text())["system"]
-    system = load(root / "systems" / name / "system.yaml", registry)
-    assert isinstance(system, System)
-    maintainers = (root / governance.PATH).read_text("utf-8")
-    orgs = [
-        r.organisation
-        for r in governance.parse(maintainers)
-        if name in {s.strip() for s in r.systems.split(",")}
-    ]
-    record = compare(
-        args.orig_run,
-        args.repro_run,
-        deterministic_proofs=bool(system.deterministic_proofs),
-        maintainer_organisations=orgs,
-    )
-    path = write_reproduction(args.orig_run, record, registry)
-    sys.stdout.write(dumps(record).decode())  # CLI-3: data on stdout through the single writer
-    print(f"wrote {path}: {record['outcome']}", file=sys.stderr)
-    return 0 if record["outcome"] == "within_tolerance" else 1
 
 
 def _release(root: Path) -> str:

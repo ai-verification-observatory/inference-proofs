@@ -14,16 +14,14 @@ from iproofs.controls import CONTROL_PROPERTY, runs_read
 from iproofs.derive import formula_of
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import SiteFacts
-from iproofs.release import REASONS, not_measurable_on_profile
+from iproofs.release import REASONS
 from iproofs.schema import SchemaRegistry
 from iproofs.site import inputs
-from iproofs.site.inputs import REPOSITORY, maintainer_rows
-from iproofs.site.reply import reply_html
+from iproofs.site.inputs import REPOSITORY
 
 # The figures each configuration prints: the overview columns, then More numbers (#320 §1).
 FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
            "overhead_vs_production_prove.steady",
-           "overhead_vs_production_prove.session",
            "overhead_vs_production_warm")  # fmt: skip
 OVERHEAD = "overhead_vs_production_prove.steady"  # RFC-0004 INV-DERIVE-9, the headline
 WARM = "overhead_vs_production_warm"  # RFC-0004 INV-DERIVE-11: no steady scope of its own
@@ -127,15 +125,10 @@ def _runs(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> dict[st
             "last_line": lines[-1] if lines else None,
             "record": f"{rec['dir']}/run.json",
         })  # fmt: skip
-    # RFC-0015 NM-1, by the freeze's own rule; the index does not mark it yet (#320 PR notes)
-    nm1 = not_measurable_on_profile([(records[rid]["run"]["status"] == "completed",
-                                      (records[rid]["run"]["failure"] or {}).get("kind"))
-                                     for rid in config["runs"]])  # fmt: skip
     return {
         "completed": completed,
         "failed": failed,
         "left_out": _left_out(config, records),
-        "not_measurable": nm1,
         "records": {rid: f"{records[rid]['dir']}/run.json" for rid in config["runs"]},
     }
 
@@ -346,8 +339,6 @@ def _configuration(
         ),
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
-        "effective_tier": config["effective_tier"],
-        "evidence": config["evidence"],
         "controls": controls,
         "accepted": accepted,
         "unexpected": _unexpected(controls, records),
@@ -395,9 +386,8 @@ def overhead_words(
     """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
     of a system row's headline overhead `metric` (INV-DERIVE-10, -11), every value from the
     release index's `overhead_conditions`, the stored quantities and the workload record; None
-    without a value (nothing to qualify). A session figure says that start-up is inside it, on
-    both sides; a warm figure names both scopes: the prover's session with its start-up, and
-    serving's steady scope, its engine already running."""
+    without a value (nothing to qualify). A warm figure names both scopes: the prover's session
+    with its start-up, and serving's steady scope, its engine already running."""
     q = stats.get(metric)
     if not conditions or not isinstance(q, dict) or q.get("value") is None:
         return None
@@ -412,11 +402,7 @@ def overhead_words(
         return "not recorded" if value is None else str(value)
 
     warm = metric == WARM
-    session = q.get("scope") == "prove.session" and not warm
-    start = ("start-up included on both sides: the prover's from the start of its prove call, "
-             "production serving's from the start of its engine, each to its last token"
-             if session else "start-up excluded on both sides")  # fmt: skip
-    scoped = f"{_scoped(q)} ({start})"
+    scoped = f"{_scoped(q)} (start-up excluded on both sides)"
     if warm:
         scoped = (f"{q.get('scope') or 'scope not recorded'} scope for the prover, from the start "
                   "of its prove call to its last proof (its start-up included: it releases no "
@@ -451,7 +437,7 @@ def overhead_words(
         f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
         f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
         f"release, in GPU-seconds per token, "
-        f"{WARM_NOTE if warm else 'per proving session with start-up' if session else 'steady'}, "
+        f"{WARM_NOTE if warm else 'steady'}, "
         f"at {batch['matched']} requests a batch."
     )
     out = {"conditions": line, "precision": note}
@@ -508,30 +494,21 @@ def site_view(root: Path) -> dict[str, Any]:
         if c["kind"] == "prover" and row and row["source_class"] == "claim_card_at_pin":
             c["property_controls"] = property_controls(root, criteria, row, c["configuration"],
                                                        records)  # fmt: skip
-    replies = {
-        str(system): reply_html((root / str(path)).read_text("utf-8"))
-        for system, path in sorted((release.get("replies") or {}).items())
-    }
     rfcs = sorted(p.name for p in (root / "rfcs").glob("*.md"))
     return {
         "repository": REPOSITORY,
         "link_ref": LINK_REF,
         "release": {
             "id": release_id,
-            "candidate": True,  # #320 plan §1.1: no tracked file records the publication yet
             "rfc_commit": release["rfc_commit"],
             "harness_version": release["harness_version"],
             "reference_file": release["reference_file"],
             "runs": [_listed(records[rid], rid) for rid in records],
             "superseded_runs": [dict(x) for x in release.get("superseded_runs") or []],
             "claim_cards": [dict(c) for c in index["claim_cards"]],
-            "review_window": release["review_window"],
-            "freeze_date": release["freeze_date"],
-            "sponsors": release.get("sponsors") or [],
             "reference": index["reference"],
             "index": f"releases/{release_id}/index.json",
             "licence": facts.site.licence,
-            "replies": replies,
         },
         "rfcs": rfcs,
         "criteria": {
@@ -555,7 +532,6 @@ def site_view(root: Path) -> dict[str, Any]:
         "orders": {"benchmarked": benchmarked, "reference": reference, "not_benchmarked": listed},
         "configurations": configs,
         "targets": _targets(root, index),
-        "maintainers": maintainer_rows(root / "MAINTAINERS.md"),
     }
 
 
@@ -586,9 +562,8 @@ def _targets(root: Path, index: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[str, Any]]) -> None:
-    """What the site checks of the criteria file against the rendered release (CRIT-13 in the
-    validator recomputes the override from the stored files; these checks keep a stale file
-    from being drawn):
+    """What the site checks of the criteria file against the rendered release (these checks
+    keep a stale file from being drawn):
 
     - the file names no release, or the rendered one (OVR-5: a file built for another release
       reads other runs);

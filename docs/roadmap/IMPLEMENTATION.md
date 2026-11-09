@@ -2,7 +2,7 @@
 
 Generated from the specification corpus in [pull request #1](https://github.com/ai-verification-observatory/inference-proofs/pull/1). Every implementable unit of work in [docs/SPEC.md](../SPEC.md), `docs/spec/` and `rfcs/` is filed below as one issue. Each issue is independently shippable as one pull request; cross-issue dependencies are listed in each issue body and summarised at the end of this file.
 
-Implementation pull requests may open against an RFC in Last call and merge once it is Accepted ([RFC-0001](../../rfcs/0001-process-and-governance.md#rfc-lifecycle)). Status reflects the issue state when this file was generated; the issues are the live record.
+The research phase dropped several of these issues ([rfcs/README.md](../../rfcs/README.md#out-for-the-research-phase)). Status reflects the issue state when this file was generated; the issues are the live record.
 
 ## Milestone: v0.1-alpha
 

@@ -45,12 +45,6 @@ def test_deleted_run_rejected(repo: Path) -> None:
     assert commit(repo) == ["APP-1", "APP-1"]
 
 
-def test_added_review_accepted(repo: Path) -> None:
-    (repo / RUN / "reviews").mkdir()
-    (repo / RUN / "reviews/reviewer-2027-02-20.json").write_text("{}\n")
-    assert commit(repo) == []
-
-
 def test_added_other_file_in_existing_run_rejected(repo: Path) -> None:
     (repo / RUN / "extra.json").write_text("{}\n")
     assert commit(repo) == ["APP-1"]

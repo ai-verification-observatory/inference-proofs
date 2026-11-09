@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from iproofs.errors import ErrorKind, IProofsError
+from iproofs.errors import IProofsError
 from iproofs.provenance import (
     Cpu,
     Host,
@@ -36,11 +36,11 @@ def test_select_cpus_two_sockets_smt() -> None:
 
 
 def test_select_cpus_small_node() -> None:
-    """TC-CPU-SMALL-NODE: a node with 16 logical CPUs cannot hold 24 prover CPUs."""
-    with pytest.raises(IProofsError) as e:
-        select_cpus(two_sockets(cores=8), gpu_numa_node=0, n_prover=24)
-    assert e.value.kind is ErrorKind.ENVIRONMENT
-    assert "PC-CPU-NUMA" in e.value.message
+    """TC-CPU-SMALL-NODE: a node with 16 logical CPUs gives the prover its 16 (PC-CPU-NUMA
+    records the shortfall); the verifier still gets its 8 on the other node."""
+    b = select_cpus(two_sockets(cores=8), gpu_numa_node=0, n_prover=24)
+    assert len(b.prover) == 16
+    assert len(b.verifier) == 8
 
 
 def test_select_cpus_smt_off() -> None:

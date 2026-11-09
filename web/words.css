@@ -365,8 +365,6 @@ html:not(.js) .search { display: none; }
 .relpage .blk > .sect.sm { margin-top: 0; }
 .unexp { margin-top: 18px; }
 .facts.relf { max-width: 880px; margin-top: 32px; }
-.replyb { font: 400 14px/1.5 var(--mono); max-width: 70ch; margin-top: 16px; }
-.replyb p + p, .replyb ul { margin-top: 10px; }
 /* each property's own key glyph, its slot in its state's ink: shown only where the properties stack */
 /* each property's name in its own triangle: drawn by build.py, shown on phones only (760 px and below) */
 .rpie .tx { display: none; }

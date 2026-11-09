@@ -23,7 +23,7 @@ A negative control whose expected outcomes exclude `accept`, accepted on a real 
 1. The runner does not open a public pull request with that run. They report privately to the system's maintainers through the channel in the system's security policy, or, when none is published, through the maintainers listed in its `system.yaml`. They also report to the benchmark maintainers through the channel above.
 2. The embargo follows the system's own policy. If it has none, the embargo lasts 90 days from the report or until the upstream publishes a fix or advisory, whichever is earlier.
 3. During the embargo, `controls.json` carries `disclosure_pending: true`, and a release that contains the run says a disclosure is pending, without details.
-4. After the embargo the run is published in full, with the outcome printed in the row and the system maintainers' reply if they write one.
+4. After the embargo the run is published in full, with the outcome printed in the row.
 5. The run is not discarded, and the result is not softened.
 
 Before reporting against a system, the runner checks the adapter. A fault in this repository's verdict mapping is fixed here and the run is redone; it is not a finding against the system.

@@ -4,7 +4,7 @@ An open benchmark for provable inference: the same models, the same reference ha
 
 Several open systems can now prove that a language model produced a given output. Each publishes its own numbers, on its own model, under its own timing rules, for its own claim, so nobody can compare them. This project measures them on equal terms, in the spirit of [Ethproofs](https://ethproofs.org/) for zkVM provers, with one addition that inference needs: a claim card beside every number.
 
-**Status:** design phase. No harness code or results yet. Working name.
+**Status:** research phase. Working name.
 
 ## First systems (v0.1)
 
@@ -19,10 +19,10 @@ Both publish their figures from one NVIDIA H100 80 GB; v0.1 measures them on one
 
 - **Claim first.** No number without a statement of what is proved, under which assumptions, and what a dishonest prover can still do.
 - **Measure, do not rank.** Many axes, no single score, no leaderboard.
-- **Reproduced or labelled.** Every number says whether it was reported by its authors, peer-reviewed, or reproduced independently.
+- **Labelled.** Every number carries its unit, timing scope, grade, tier and source.
 - **Adversarial.** Every verifier faces the same negative controls.
 - **Adapters, not forks.** Provers run unchanged at pinned commits.
-- **Neutral.** Maintainers from several organisations, methodology by RFC, conflicts and sponsors disclosed, right of reply.
+- **Neutral.** Methodology written in RFCs; describe what was measured.
 
 ## Read
 
@@ -63,14 +63,14 @@ See [web/README.md](web/README.md).
 
 ## Contributing
 
-Open an issue or a pull request; methodology changes go through an RFC ([RFC-0001](rfcs/0001-process-and-governance.md)). Sign off your commits (DCO). Prover teams who want their system included: open an issue with your repository and the workloads you support, then follow the adapter guide, [systems/README.md](systems/README.md).
+Open an issue or a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)). Prover teams who want their system included: open an issue with your repository and the workloads you support, then follow the adapter guide, [systems/README.md](systems/README.md).
 
 ## Licence
 
 Code is licensed under Apache-2.0 ([LICENSE](LICENSE)). Specifications, data, results and reports are licensed under CC BY 4.0 ([LICENSES/CC-BY-4.0.txt](LICENSES/CC-BY-4.0.txt)).
 
-The boundary is fixed by [RFC-0001](rfcs/0001-process-and-governance.md#governance-files) (INV-GOV-6):
+The boundary:
 
-- Code (Apache-2.0): `harness/`, `systems/*/` (except `claim.yaml`, `claims/`, `external.yaml` and `replies/`), `site/` templates, `schema/` and CI configuration.
-- Documents and data (CC BY 4.0): `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, and claim cards, external figures and replies.
+- Code (Apache-2.0): `harness/`, `systems/*/` (except `claim.yaml`, `claims/` and `external.yaml`), `site/` templates, `schema/` and CI configuration.
+- Documents and data (CC BY 4.0): `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, and claim cards and external figures.
 - A file that fits neither list is code.

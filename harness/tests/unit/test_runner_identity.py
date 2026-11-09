@@ -1,4 +1,4 @@
-"""RFC-0007 §Tiers: the declared runner in every manifest, and what counts as unaffiliated."""
+"""The declared runner in every manifest."""
 
 import json
 from pathlib import Path
@@ -6,7 +6,6 @@ from pathlib import Path
 import pytest
 
 from iproofs import cli
-from iproofs.release import is_unaffiliated
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -52,22 +51,3 @@ def test_unknown_affiliated_system_rejected(
     monkeypatch.chdir(ROOT)
     assert run(tmp_path, "--affiliated", "no-such-system") != 0
     assert not list(tmp_path.rglob("run.json"))  # refused before any job starts
-
-
-def runner(org: str, *systems: str) -> dict[str, object]:
-    return {"handle": "h", "organisation": org, "affiliated_systems": list(systems)}
-
-
-@pytest.mark.parametrize(
-    ("who", "expected"),
-    [
-        (runner("Org M"), False),  # the organisation of a system maintainer
-        (runner("Org X", "sash"), False),  # the system is in affiliated_systems
-        (runner("Org A"), False),  # the original runner's organisation
-        (runner("undeclared"), False),  # affiliation not declared
-        (runner("Org X", "flashprove"), True),  # unrelated runner
-        (runner("none"), True),  # an unaffiliated individual is their own organisation
-    ],
-)
-def test_is_unaffiliated_cases(who: dict[str, object], expected: bool) -> None:
-    assert is_unaffiliated(who, "sash", runner("Org A"), ["Org M"]) is expected

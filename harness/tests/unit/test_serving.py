@@ -361,32 +361,6 @@ def test_stored_plain_serving_rows_pass_pm() -> None:
     assert precision.check(ROOT, files, REGISTRY) == []
 
 
-def test_placement_rule() -> None:
-    """RFC-0015 SRV-6: `resource` with KV-capacity or out-of-memory evidence exhausts a GPU
-    count; an `adapter` failure is set aside and admits nothing alone; a completed run, a
-    failure without evidence, or a declared count never attempted refuses a larger one."""
-    from iproofs.serving import exhausted, placement_problem, resource_evidence  # noqa: PLC0415
-
-    kv = {"kind": "resource", "last_lines": ["GPU KV cache size: 9 tokens, Maximum"]}
-    oom = {"kind": "resource", "last_lines": ["torch.OutOfMemoryError: CUDA out of memory."]}
-    bare = {"kind": "resource", "last_lines": ["Killed"]}
-    adapter = {"kind": "adapter", "last_lines": []}
-    assert resource_evidence(kv)
-    assert resource_evidence(oom)
-    assert not resource_evidence(bare)
-    assert not resource_evidence(None)
-    assert not resource_evidence({"kind": "adapter", "last_lines": kv["last_lines"]})
-    assert exhausted([(False, kv), (False, adapter)])
-    assert not exhausted([(False, adapter)])
-    assert not exhausted([])
-    assert not exhausted([(False, kv), (True, None)])
-    assert placement_problem({4: [(False, oom)]}, 8) is None
-    assert placement_problem({}, 4) is None  # the first count
-    assert "completed" in str(placement_problem({4: [(True, None)]}, 8))
-    assert "not all `resource`" in str(placement_problem({4: [(False, bare)]}, 8))
-    assert "no attempt on 4 GPU(s)" in str(placement_problem({}, 8, declared=[4]))
-
-
 def test_fetch_no_weights(tmp_path: Path) -> None:
     """`fetch-model --serving R --no-weights DIR`: every file but the .safetensors, each
     checked as SM-2 checks it; the publisher's files with the token only; another byte or a

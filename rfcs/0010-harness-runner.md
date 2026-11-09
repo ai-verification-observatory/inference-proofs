@@ -48,12 +48,11 @@ Scenarios:
 |---|---|---|
 | `iproofs validate [PATH ...] [--all] [--changed-since REF] [--format {text,json}]` | paths to files or directories; default and flags as [RFC-0013](0013-validation-and-ci.md#local-use) defines them | runs every CI check of [RFC-0013](0013-validation-and-ci.md) on the paths |
 | `iproofs derive RUN_DIR [--check]` | one run directory | computes derived metrics and statistics ([RFC-0004](0004-metrics-timing-grades.md)); without `--check` writes them into a new `run.json` only for a run being written; with `--check` recomputes and compares bit for bit |
-| `iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR] [--control-suite] [--provider NAME] [--prompts-from RUN_DIR] [--load matched|high] [--gpus LIST] [--allow-nonconforming]` | `N` default 3, minimum 1 (values below 3 are allowed for tests and marked `repetitions_below_minimum: true`); `DIR` default `results/`; `--provider` records the hosting provider in the machine record ([RFC-0006](0006-reference-hardware-and-cost.md#machine-record)); `--prompts-from` replays the prompt seeds of an earlier run (reference rows and reproductions, [RFC-0015](0015-reference-rows.md#steps-per-job)); `--load` picks the load point of a production-serving job (serve role only; default `matched`, [RFC-0015](0015-reference-rows.md) SRV-1); `--gpus` binds a serving profile's GPUs by index (hosted; `--gpu` stays for prover profiles); `--allow-nonconforming` skips the profile conformance failure for development only and writes `harness.nonconforming: true` into the manifest, which the validator refuses (gate rule POL-4, [RFC-0013](0013-validation-and-ci.md#g6-policy-check)) | runs N jobs sequentially, then derives statistics across them |
+| `iproofs run --system S --workload W --profile P [--repetitions N] [--results DIR] [--control-suite] [--provider NAME] [--prompts-from RUN_DIR] [--load matched|high] [--gpus LIST] [--allow-nonconforming]` | `N` default 3, minimum 1 (values below 3 are allowed for tests and marked `repetitions_below_minimum: true`); `DIR` default `results/`; `--provider` records the hosting provider in the machine record ([RFC-0006](0006-reference-hardware-and-cost.md#machine-record)); `--prompts-from` replays the prompt seeds of an earlier run (reference rows and reruns, [RFC-0015](0015-reference-rows.md#steps-per-job)); `--load` picks the load point of a production-serving job (serve role only; default `matched`, [RFC-0015](0015-reference-rows.md) SRV-1); `--gpus` binds a serving profile's GPUs by index (hosted; `--gpu` stays for prover profiles); `--allow-nonconforming` is accepted and changes nothing: profile conformance is recorded in the manifest (`harness.nonconforming`) and never refuses a run | runs N jobs sequentially, then derives statistics across them |
 | `iproofs controls RUN_DIR [--prepare-perturbed WORKLOAD]` | completed run directory | runs the control suite ([RFC-0008](0008-negative-controls.md)) and writes `controls.json`; with `--draw-seed`, the seed record of a split suite; with `--only`, one part of it, with that seed; and with `--merge`, `controls.json` from the parts ([RFC-0008 §Split suites](0008-negative-controls.md#split-suites)) |
 | `iproofs machine-record [--selftest]` | none | prints the machine record ([RFC-0006](0006-reference-hardware-and-cost.md)) as JSON on stdout; `--selftest` also runs the calibration checks of [RFC-0011](0011-measurement-and-sampling.md#calibration-self-test) and exits 3 if any fails |
 | `iproofs fetch-model WORKLOAD [--headers-only] [--serving RECORD]` | workload id | fetches weights by source and revision, checks every file hash ([RFC-0014](0014-provenance-and-integrity.md)), then recomputes a `computed` weight width from the verified files ([RFC-0003](0003-workloads.md#weight-bits) WB-5); `--headers-only` fetches no weights and recomputes that width from HTTP range reads of the file headers at the pinned revision, printing the result as JSON; `--serving` fetches a production-serving record's files instead (RFC-0014 SM-2) |
 | `iproofs prompts build WORKLOAD --seed SEED` | workload id, 64-bit seed | materialises the prompt set, prints its digest ([RFC-0003](0003-workloads.md)) |
-| `iproofs reproduce compare ORIG_RUN REPRO_RUN` | two run directories or run groups | applies the tolerance rule of [RFC-0007](0007-evidence-tiers-and-reproduction.md), writes a reproduction record |
 | `iproofs release freeze RELEASE` | release id | writes `releases/<release>/index.json` |
 | `iproofs release plan RELEASE` | release id | projects the run-campaign compute budget from external figures with the derivation code ([08](../docs/spec/08-performance-budget.md#run-campaign-compute-budget)); output is `projected`, never a result |
 | `iproofs site build [--out DIR]` | default the repository's `web/` | generates the public site from the newest frozen release (RFC-0009 §Site) |
@@ -65,7 +64,7 @@ Exit codes (all commands):
 | Code | Meaning |
 |---|---|
 | 0 | success |
-| 1 | a check failed: validation error, `derive --check` mismatch, reproduction outside tolerance |
+| 1 | a check failed: validation error, `derive --check` mismatch |
 | 2 | usage error (argparse) |
 | 3 | environment does not meet the profile or a prerequisite (no cgroup v2, other GPU processes, missing Docker) |
 | 4 | at least one job ran and was recorded as failed |
@@ -124,7 +123,7 @@ Each transition emits a `job.state` event ([05-observability](../docs/spec/05-ob
 - All files are written into the staging dir. Each file is written to `<name>.tmp`, flushed, `fsync`ed, then renamed. JSON uses the single writer of [RFC-0012](0012-schemas-and-serialization.md).
 - On `written`, the runner validates `run.json`, `manifest.json` and `controls.json` (if present) against their schemas. If validation fails, the job is recorded as failed `internal` (a harness bug), with the invalid document kept under `logs/invalid/`.
 - The staging dir is renamed to `results/<release>/<system>/<run-id>/` and the parent directory is `fsync`ed. A run directory therefore exists only complete (INV-RUN-2).
-- Job io dirs (`io/`) with proofs are not part of the run directory committed to git; proofs are digested into `digests.txt`, one proof per configuration is archived ([RFC-0014](0014-provenance-and-integrity.md)), and the io dir is deleted after archival unless `--keep-io` is given.
+- Job io dirs (`io/`) with proofs are not part of the run directory committed to git; proofs are digested into `digests.txt` ([RFC-0014](0014-provenance-and-integrity.md)), and the io dir is deleted after the run unless `--keep-io` is given.
 
 ### Crash recovery
 
@@ -265,7 +264,7 @@ class Runner:
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 

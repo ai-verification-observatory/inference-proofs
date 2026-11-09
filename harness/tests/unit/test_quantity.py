@@ -84,15 +84,6 @@ def test_statistic_value_must_equal_mean() -> None:
     assert qty.statistic_problems(bad) == ["INV-QTY-8: value 9.0 != stats.mean 10.0"]
 
 
-def test_lowest_tier() -> None:
-    assert qty.lowest_tier([qty.Tier.REPRODUCED, qty.Tier.REPORTED]) is qty.Tier.REPORTED
-    assert qty.lowest_tier([qty.Tier.REPRODUCED, qty.Tier.PEER_REVIEWED]) is (
-        qty.Tier.PEER_REVIEWED
-    )
-    with pytest.raises(ValueError, match="no input tiers"):
-        qty.lowest_tier([])
-
-
 def test_identifier_patterns(registry: SchemaRegistry) -> None:
     ok = {
         "systemId": "fake-broken", "configurationId": "default", "workloadId": "sash-l31-8b-c4096",

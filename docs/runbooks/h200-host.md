@@ -98,7 +98,7 @@ Both repositories are ungated (`licence.gated: false` in the workload files), so
 
 ## 6. The first runs, in order
 
-Until the driver pin merges, every run on this host is a development run: it needs `--allow-nonconforming`, its manifest records `harness.nonconforming: true`, and the validator refuses it anywhere under `results/` (POL-4, RFC-0013). Keep development runs outside the checkout, with their own self-test:
+Until the driver pin merges, every run on this host records `harness.nonconforming: true` in its manifest (`--allow-nonconforming` is accepted and changes nothing). Keep development runs outside the checkout, with their own self-test:
 
 ```sh
 export DEV="$WORK/dev-results"
@@ -134,10 +134,10 @@ Before each campaign, rerun the probe and copy its `requirements` block, with `c
 
 | Run | `--results` | Enters the repository |
 |---|---|---|
-| development (`--allow-nonconforming`, before the driver pin, or any run on a host that fails a check) | `$WORK/dev-results`, outside the checkout | never (POL-4); do not copy it into `results/` |
+| development (before the driver pin, or any run on a host that fails a check) | `$WORK/dev-results`, outside the checkout | only by a results pull request that names it |
 | campaign (conforming, self-tested) | `results` (default), from the checkout's root | yes, by one results pull request per campaign ([gpu-run.md §Campaign procedure](gpu-run.md#campaign-procedure)) |
 
-`results/` is append-only (RFC-0009, APP-1): a run directory is never edited or deleted once merged, and a failed repetition stays recorded, with its exit code and last lines (AGENTS.md rule 5). Proof bytes stay out of git: archives wait in `results/.archive/` for `iproofs archive upload`, and `--keep-io` directories are ignored.
+`results/` is append-only (RFC-0009, APP-1): a run directory is never edited or deleted once merged, and a failed repetition stays recorded, with its exit code and last lines (AGENTS.md rule 5). Proof bytes stay out of git: `--keep-io` directories are ignored.
 
 ## What never to commit or post
 

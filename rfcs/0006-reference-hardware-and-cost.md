@@ -31,7 +31,7 @@ The v0.1 reference GPU is the NVIDIA H200 141 GB (owner decision of 2026-11-08, 
 - Prover profiles whose jobs use more than one GPU; GPUs other than the H100 and H200 (v0.1 systems need neither; see Open Questions). Serving profiles with more GPUs are R6's.
 - Pricing CPU time, host memory, storage or network (rule C5 below).
 - Measuring the host (RFC-0011 owns sampling; this RFC owns the record and the binding).
-- Choosing providers for compute sponsorship (RFC-0001 governance).
+- Choosing providers for compute sponsorship.
 
 ## Proposed Design
 
@@ -157,7 +157,7 @@ Rules for profiles:
 
 - R6. Serving profiles (amendment of 2026-11-09). A profile of `kind: serving` runs only reference systems with `reference_role: serve` (RFC-0015 SRV-6); any other system on it is a `config` error. Its `gpu.count` is part of the profile: one serving profile per GPU count, named `serving-<gpu><count>[-hosted]`. `pairs_with` lists the prover profiles whose rows its rows may be divided against (RFC-0004 INV-DERIVE-2 (c)). The validator requires each to have the same `gpu.model` and `form_factor` and the same runtime kind (docker or hosted), so the overhead never crosses GPU generations or runtimes. A hosted serving job binds `gpu.count` GPUs by index (`--gpus i,j,k,l`, through `CUDA_VISIBLE_DEVICES`) and gives the server and its tensor-parallel workers every CPU the container may use; no verifier CPUs, since a reference runs no `verify`. The docker binding of a serving container (NUMA cpusets, `--cpuset-mems`, `--shm-size`) is specified when docker serving profiles are declared, after Q7.
 
-  v0.1 serving profiles (in `reference/v0.1.yaml`): the hosted ones only. Docker serving profiles are added when Q7 is answered, and an 8-GPU profile only when every 4-GPU attempt failed `resource` (RFC-0015 NM-1). Each profile has `gpu.model` "NVIDIA H200", form factor SXM, `memory_mib_min` 140,000 and `cost: "h200"`. Driver, OS and kernel are as the paired prover profile; drivers stay `unpinned` until Q5 resolves, so runs on these profiles are nonconforming and stay out of `results/` (POL-4).
+  v0.1 serving profiles (in `reference/v0.1.yaml`): the hosted ones only. Docker serving profiles are added when Q7 is answered, and an 8-GPU profile only when every 4-GPU attempt failed `resource`. Each profile has `gpu.model` "NVIDIA H200", form factor SXM, `memory_mib_min` 140,000 and `cost: "h200"`. Driver, OS and kernel are as the paired prover profile; drivers stay `unpinned` until Q5 resolves, so runs on these profiles record `harness.nonconforming: true`.
 
   | Profile | GPUs | Runtime | CPUs total min | Host memory min | Disk free min | `/dev/shm` min | `pairs_with` |
   |---|---|---|---|---|---|---|---|
@@ -181,7 +181,7 @@ Amendment of 2026-11-08 (owner decision; the RFC stays Draft). The v0.1 referenc
 - FlashProve needs more than this minimum: upstream's `run.sh` does not start `commit` below 330 GB available, committing peaked at 299.6 GB, and it needs `madvise(MADV_WIPEONFORK)` and the CPU's SHA extensions (`systems/flashprove/README.md` §Machine needs, external, reported). Its jobs on `prover-h200-hosted` therefore use a larger host of the profile, such as Hugging Face Jobs' `h200x2` (2x H200, 46 vCPU, 512 GB RAM, 6,000 GB disk, same source), binding one GPU (R1); the second GPU is billed by the provider and is not part of the benchmark's cost (C5). FlashProve's timed runs bind 24 CPUs (FlashProve README §CPU binding); on this profile they get 15, so its rows here are not comparable with `prover-h200` rows on that account either (R5, §Hosted execution).
 - A provider's list price is not this benchmark's price: rows on both profiles cost from `costs.h200` (C7). The Hugging Face Jobs flavors (5.00 USD/h for `h200`, 10.00 USD/h for `h200x2`, billed per minute, same source) do not state their form factor, which C3 requires, so they are not readings of `costs.h200`.
 - NVIDIA Confidential Computing (CC) is a GPU mode set by the host's operator; it is enabled on the research cluster named above (owner's report, 2026-11-08). H200 hosts run with CC mode off, so that every H200 row has one GPU configuration; the CC mode of the GPU behind either v0.1 system's published figures is not stated in its documentation at the pins in RFC-0003. The machine record has no CC field (INV-MR-1), so the mode is checked by the host probe before each campaign and written in the campaign log (Q4). A hosted container may not be able to read it; the probe then reports it unread.
-- Drivers: both profiles are `unpinned` until a host is read. `prover-h200` is pinned on the campaign host under Q3 (issue #77); `prover-h200-hosted` is pinned from the driver a hosted H200 reports (Q5), as `prover-h100-hosted` was. Until then every H200 host fails PC-DRIVER, so H200 runs are development runs made with `--allow-nonconforming`, which POL-4 keeps out of `results/` (RFC-0013).
+- Drivers: both profiles are `unpinned` until a host is read. `prover-h200` is pinned on the campaign host under Q3 (issue #77); `prover-h200-hosted` is pinned from the driver a hosted H200 reports (Q5), as `prover-h100-hosted` was. Until then every H200 host fails PC-DRIVER, which the manifest records.
 - Verifier emulation is allowed on both profiles (`verifier-cpu` `emulation.allowed_on`).
 
 RISK: FlashProve's build guide names an H100 as the GPU it needs (`prover/docs/build.md` at the pin); on an H200 it is not stated. Its `setup` compares a digest of scales fitted in float32 on the GPU, and upstream writes that "its rounding can differ between GPU models, drivers and torch's CUDA libraries" (`systems/flashprove/README.md`). Resolution: an H200 run that stops there is recorded as a failed run with its exit code and last lines (AGENTS.md rule 5); the adapter is not changed to pass it (AGENTS.md rule 1), and the finding goes to an issue and, if needed, an RFC on the reference GPU.
@@ -255,11 +255,11 @@ The function is pure (`iproofs.provenance.select_cpus(topology: Topology, gpu_nu
 
 In v0.1 the verifier profile is emulated on the prover host: no GPU device, 8 bound logical CPUs (1 for `verify.single_thread`), memory limit 32 GiB, `--network none`. The run records `verifier_host: same_as_prover` and the CPU model. A separate CPU-only host MAY be used; proofs are then copied by digest and the record says `verifier_host: separate` with that host's own machine record under `machine_verifier`.
 
-RISK: an emulated verifier shares caches, memory bandwidth and the CPU model of a server; a real 8-core machine (for example a laptop) may verify slower or faster. Resolution: rows print the CPU model beside every verify number; the first release report compares one configuration verified on both an emulated and a separate host and publishes the difference; if it exceeds the reproduction tolerance of RFC-0007, a follow-up RFC requires a separate verifier host.
+RISK: an emulated verifier shares caches, memory bandwidth and the CPU model of a server; a real 8-core machine (for example a laptop) may verify slower or faster. Resolution: rows print the CPU model beside every verify number; the first release report compares one configuration verified on both an emulated and a separate host and publishes the difference; if the difference is large, a follow-up RFC requires a separate verifier host.
 
 ### Profile conformance check
 
-`iproofs.provenance.check_profile(record: MachineRecord, profile: ProverProfile) -> list[ConformanceFailure]` runs before `info`. Any failure aborts the job with kind `environment` and exit code 3 (RFC-0010); nothing is timed. Checks:
+`iproofs.provenance.check_profile(record: MachineRecord, profile: ProverProfile) -> list[ConformanceFailure]` runs before `info`. Every failure is recorded in the manifest (`harness.nonconforming: true` and the list of failures) and the job goes on; no check refuses a run during the research phase. Checks:
 
 | Check id | Fails when |
 |---|---|
@@ -267,7 +267,7 @@ RISK: an emulated verifier shares caches, memory bandwidth and the CPU model of 
 | PC-GPU-MEM | `memory_total_mib` < `memory_mib_min` |
 | PC-GPU-COUNT | fewer visible GPUs than `gpu.count`; on a serving profile, a bound count other than `gpu.count` |
 | PC-GPU-BUSY | another compute process holds a bound GPU (RFC-0011); every bound GPU is checked |
-| PC-GPU-IDLE | on any profile, a visible unbound GPU has a compute process, or memory used or utilisation above the idle baseline, when the machine record is taken before `info`; a compute process on one when the record is taken again after the last step fails the job `environment` (INV-MR-2) (amendment of 2026-11-09). Through every step call the runner also reads each visible unbound GPU once a second on its own thread (`iproofs.measure.IdleWatch`), and a compute process, memory more than 1,024 MiB above its reading before `info`, or utilisation above 5 % at any reading fails the job `environment` at that step, whatever `--allow-nonconforming` says. A use shorter than one second can fall between two readings. The idle baseline is an assumption until the first captures set it: 1,024 MiB used and 5 % utilisation |
+| PC-GPU-IDLE | on any profile, a visible unbound GPU has a compute process, or memory used or utilisation above the idle baseline, when the machine record is taken before `info`; a compute process on one when the record is taken again after the last step, is recorded (amendment of 2026-11-09). Through every step call the runner also reads each visible unbound GPU once a second on its own thread (`iproofs.measure.IdleWatch`), and records a compute process, memory more than 1,024 MiB above its reading before `info`, or utilisation above 5 % at any reading. A use shorter than one second can fall between two readings. The idle baseline is an assumption until the first captures set it: 1,024 MiB used and 5 % utilisation |
 | PC-GPU-LINK | record only: on a serving profile with `gpu.count` > 1, the NVLink state of each bound GPU is recorded, not checked, until the first `h200x4` capture shows whether NVML reports it inside a Hugging Face container. A later amendment makes it a check |
 | PC-SHM | hosted: `container.shm_bytes` below the profile's `shm_gib_min` |
 | PC-DRIVER | driver version differs from `driver` |
@@ -281,7 +281,7 @@ RISK: an emulated verifier shares caches, memory bandwidth and the CPU model of 
 | PC-CGROUP | cgroup version is not 2, or driver is not systemd (hosted: cgroup version is not 2) |
 | PC-RUNTIME | Docker Engine or NVIDIA Container Toolkit below minimum; or the record's `execution` differs from the profile's runtime |
 
-`iproofs run --allow-nonconforming` exists for development only: the run is written with `harness.nonconforming: true` in the manifest (RFC-0014) and the list of failures, and the validator (RFC-0013) refuses it in `results/` for any release.
+`iproofs run --allow-nonconforming` is accepted and changes nothing: every run records its conformance in the manifest (RFC-0014).
 
 ### Hosted execution
 
@@ -348,13 +348,13 @@ All four are list prices of the SXM (HGX) form factor, grade asserted, tier repo
 
 - A single exact driver version per release may exclude hosts whose provider ships another driver; runners must install the pinned one.
 - The emulated verifier is a server CPU, not a relying party's laptop (RISK above).
-- One price for a whole release ignores price changes during the review window.
+- One price for a whole release ignores price changes during the campaign.
 - Two GPU models in one release split its rows: H100 and H200 rows are separate configurations, and the H100 rows already recorded are not comparable with the H200 reference rows (R5).
 - `prover-h200-hosted` is a minimum: two hosts that meet it can differ (one GPU or two, 23 or 46 CPUs, 256 or 512 GB), and FlashProve meets its own memory floor only on the larger one. The machine record in each manifest says which host a row ran on, and hosted rows are noisier evidence than docker rows (§Hosted execution RISK). A provider bills every GPU of the flavor, while derived costs count one (R1, C5).
 
 ## Conflicts of Interest
 
-The author's affiliations and any interest in a measured system are declared in `MAINTAINERS.md` before this RFC enters Last call (RFC-0001).
+None declared.
 
 ## Migration / Rollout
 
@@ -390,7 +390,7 @@ Earlier: no results existed yet. Revisions from the draft of 2026-11-03: the pro
 - Resolved Q2 (2026-11-08, owner decision): a second GPU model is added, the H200, and it becomes the v0.1 reference (§H200 profiles, R5); the H100 profiles stay declared. Profiles whose jobs use more than one GPU are still not declared: a host may show more GPUs than its profile asks for, and they stay idle and unpriced (R1). A multi-GPU profile needs an RFC. Amended 2026-11-09: serving profiles with more than one GPU are declared (R6); prover profiles stay one GPU.
 - OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): which exact NVIDIA driver version is pinned for v0.1? Default until resolved: the newest driver that supports both CUDA 13.2 Update 2 (FlashProve) and CUDA 12.9 (SASH) containers, chosen in the reference file pull request. Amended 2026-11-08: the same question now covers `prover-h200`, pinned on the H200 campaign host.
 - OPEN QUESTION Q4 (owner: AbdelStark, resolve by: 2026-11-30): how is the GPU's Confidential Computing mode recorded in each run? Default until resolved: H200 runs need CC mode off; the host probe (`docs/runbooks/host-probe.py`) reads it from `nvidia-smi conf-compute` before each campaign, and the campaign log in the results pull request records its `cc` line; a host whose mode is on or unread runs no campaign job. Resolution path: an amendment adding a machine record field (`gpu.cc_mode`, from NVML) and a conformance check, with `manifest/1`.
-- OPEN QUESTION Q5 (owner: AbdelStark, resolve by: 2026-11-30): which driver does `prover-h200-hosted` pin? Default until resolved: `unpinned`, so every hosted H200 fails PC-DRIVER and its runs are development runs (`--allow-nonconforming`, kept out of `results/` by POL-4). Resolution path: the driver the probe and `iproofs machine-record --hosted` report on a Hugging Face Jobs H200 container, written in by a pull request, as for `prover-h100-hosted`; a later provider with another driver needs its own pin (R3).
+- OPEN QUESTION Q5 (owner: AbdelStark, resolve by: 2026-11-30): which driver does `prover-h200-hosted` pin? Default until resolved: `unpinned`, so every hosted H200 fails PC-DRIVER, which its manifests record. Resolution path: the driver the probe and `iproofs machine-record --hosted` report on a Hugging Face Jobs H200 container, written in by a pull request, as for `prover-h100-hosted`; a later provider with another driver needs its own pin (R3).
 - OPEN QUESTION Q6 (owner: AbdelStark, resolve by: 2026-11-30): a provider that starts the container as the image's own user (both adapter images declare `USER 10001`) leaves the harness without root, so §Hosted execution cannot drop the adapter's privileges, clear the adapter's `/tmp` between calls, or make the recorded commitment copies root-owned: they are read-only but owned by the uid that runs the adapter. A secret given to such a job is readable by the adapter too, from the first process's environment under the same uid. Default until resolved: such runs are development runs. Hugging Face Jobs does not document which user its containers run as; the probe prints whether it is root.
 
 - OPEN QUESTION Q7 (owner: AbdelStark, resolve by: 2026-12-15; raised 2026-11-09): does the research cluster have four H200 SXM in one NVLink node? Without that, docker Maverick serving cannot run there, and only hosted serving rows (paired with hosted prover rows) exist. Default until resolved: hosted serving profiles only; docker serving profiles are declared when this is answered.
@@ -399,5 +399,5 @@ Earlier: no results existed yet. Revisions from the draft of 2026-11-03: the pro
 
 - docs/PRD.md §4 (G2, G3), §7 (F5), §11.
 - AGENTS.md rule 7.
-- [RFC-0004](0004-metrics-timing-grades.md) for cost formulas; [RFC-0005](0005-adapter-contract.md) for container invocation; [RFC-0007](0007-evidence-tiers-and-reproduction.md) for reproduction on another provider; [RFC-0011](0011-measurement-and-sampling.md) for the GPU busy check and sampling; [RFC-0012](0012-schemas-and-serialization.md) for `reference/1` and `manifest/1`; [RFC-0013](0013-validation-and-ci.md) for the identifiers scan.
+- [RFC-0004](0004-metrics-timing-grades.md) for cost formulas; [RFC-0005](0005-adapter-contract.md) for container invocation; [RFC-0011](0011-measurement-and-sampling.md) for the GPU busy check and sampling; [RFC-0012](0012-schemas-and-serialization.md) for `reference/1` and `manifest/1`; [RFC-0013](0013-validation-and-ci.md) for the identifiers scan.
 - Linux sysfs CPU topology and cgroup v2 documentation (kernel.org, `Documentation/admin-guide/cgroup-v2.rst`).

@@ -1,6 +1,6 @@
 # 01. Architecture
 
-Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Normative detail lives in the RFCs linked from each section; where this document and an Accepted RFC disagree, the RFC takes precedence.
+Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Normative detail lives in the RFCs linked from each section; where this document and an RFC disagree, the RFC takes precedence.
 
 ## System overview
 
@@ -34,7 +34,7 @@ The benchmark has four kinds of component: authored inputs (workloads, systems, 
                               iproofs site build -> web/ (committed)  reports/<release>.md
 ```
 
-The same in prose. Authored inputs live in git and change only by reviewed pull request. A runner invokes `iproofs run` on a host that meets a prover profile ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md)). The runner resolves the workload (fetching weights from their public source and checking every file hash), checks the adapter image by digest, records the machine, and drives the adapter container through its five subcommands while measuring from outside the container. Optionally it runs the negative-control suite against the honest proofs. It writes one run directory per job under `results/`. The runner opens a pull request with those directories; CI validates them and recomputes every derived number. A maintainer cuts a release by authoring `releases/<release>/release.yaml`; `iproofs release freeze` computes effective evidence tiers and target evaluations into `index.json`; `iproofs site build` renders the static site in `web/` from the frozen release. Reports are written by people from the frozen data.
+The same in prose. Authored inputs live in git and change only by reviewed pull request. A runner invokes `iproofs run` on a host that meets a prover profile ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md)). The runner resolves the workload (fetching weights from their public source and checking every file hash), checks the adapter image by digest, records the machine, and drives the adapter container through its five subcommands while measuring from outside the container. Optionally it runs the negative-control suite against the honest proofs. It writes one run directory per job under `results/`. The runner opens a pull request with those directories; CI validates them and recomputes every derived number. A maintainer cuts a release by authoring `releases/<release>/release.yaml`; `iproofs release freeze` computes statistics and target evaluations into `index.json`; `iproofs site build` renders the static site in `web/` from the frozen release. Reports are written by people from the frozen data.
 
 ## Components and responsibilities
 
@@ -48,8 +48,8 @@ The same in prose. Authored inputs live in git and change only by reviewed pull 
 | Test systems | `systems/fake/`, `systems/fake-broken/` | CPU-only toy prover and a verifier that accepts everything, for CI | [RFC-0005](../../rfcs/0005-adapter-contract.md#reference-implementations) |
 | Reference hardware and cost | `reference/<release>.yaml` | profiles and price per release | [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md) |
 | Harness | `harness/src/iproofs/` | run jobs, measure, write and check results, build the site | [RFC-0010](../../rfcs/0010-harness-runner.md), [RFC-0011](../../rfcs/0011-measurement-and-sampling.md) |
-| Results | `results/<release>/` | append-only run directories, review and reproduction records | [RFC-0009](../../rfcs/0009-results-and-publication.md) |
-| Releases | `releases/<release>/` | frozen set of runs and their effective tiers | [RFC-0009](../../rfcs/0009-results-and-publication.md), [RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md) |
+| Results | `results/<release>/` | append-only run directories | [RFC-0009](../../rfcs/0009-results-and-publication.md) |
+| Releases | `releases/<release>/` | frozen set of runs and their statistics | [RFC-0009](../../rfcs/0009-results-and-publication.md) |
 | Targets | `targets/<author>/<id>.yaml` | thresholds published by relying parties | [RFC-0009](../../rfcs/0009-results-and-publication.md#targets) |
 | CI | `.github/workflows/` | the gates of RFC-0013 | [RFC-0013](../../rfcs/0013-validation-and-ci.md) |
 | Site and reports | `web/` (pages written by `iproofs site build`, renderer `web/build.py`), `reports/` | publication | [RFC-0009](../../rfcs/0009-results-and-publication.md) |
@@ -73,13 +73,12 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 4 | `iproofs.serving` | production-serving records: SM-1 to SM-3, `serving pin`, fetch of the publisher's release from an ungated byte-identical copy ([RFC-0015](../../rfcs/0015-reference-rows.md) SRV-6, [RFC-0014](../../rfcs/0014-provenance-and-integrity.md#model-fetch-and-verification)) | layers 0 to 3 |
 | 4 | `iproofs.adapter` | job.json and out.json, `docker run` argv, io dirs, path safety, `ContainerRunner` implementations | layers 0 to 3, and `iproofs.measure` (a container call is timed where it runs, RFC-0011 T-1) |
 | 4 | `iproofs.measure` | monotonic clock, NVML sampler, cgroup sampler, release watcher, proof sizes ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md)) | layers 0 to 3 |
-| 4 | `iproofs.archive` | upload proof archives and upstream inputs, record archive URIs ([RFC-0014](../../rfcs/0014-provenance-and-integrity.md#proof-digests-and-archive), [RFC-0009](../../rfcs/0009-results-and-publication.md) Q1) | layers 0 to 3 |
 | 4 | `iproofs.reference` | pairing reference rows with prover rows for overhead ([RFC-0015](../../rfcs/0015-reference-rows.md)) | layers 0 to 3 |
 | 5 | `iproofs.controls` | mutations, honest twins, classification, `controls.json` ([RFC-0008](../../rfcs/0008-negative-controls.md)) | layers 0 to 4 |
 | 5 | `iproofs.selftest` | the RFC-0011 calibration self-test (`machine-record --selftest`) | layers 0 to 4 |
 | 6 | `iproofs.runner` | job state machine, timeouts, retries, crash recovery ([RFC-0010](../../rfcs/0010-harness-runner.md)) | layers 0 to 5 |
 | 7 | `iproofs.validate` | every CI check ([RFC-0013](../../rfcs/0013-validation-and-ci.md)) | layers 0 to 5 |
-| 7 | `iproofs.release` | freeze, effective tiers, review and reproduction records, target evaluation | layers 0 to 5 |
+| 7 | `iproofs.release` | freeze, eligibility, statistics, target evaluation | layers 0 to 5 |
 | 8 | `iproofs.site` | static site from a frozen release | layers 0 to 5, `release` |
 | 9 | `iproofs.cli` | argparse entry point; translates `IProofsError` to exit codes | every module |
 
@@ -99,8 +98,8 @@ Boundary rules:
 3. **Adapter steps.** For each subcommand the runner writes `job.json`, asks `iproofs.adapter` to run the container, and receives a `StepResult` with the timed window, samples and (for `prove`) proof release times. `commit` yields the commitment record the harness keeps; `verify` receives the commitment from that record only ([RFC-0005](../../rfcs/0005-adapter-contract.md)).
 4. **Controls.** `iproofs.controls` mutates copies of honest proofs and requests and runs `verify` on each with its honest twin ([RFC-0008](../../rfcs/0008-negative-controls.md)).
 5. **Recording.** The runner turns raw observations into labelled quantities (`grade: measured`, `tier: reported`), calls `iproofs.derive` on the stored values, validates, and renames the staging dir into the run dir ([RFC-0010](../../rfcs/0010-harness-runner.md#writing-the-run-directory)).
-6. **Review.** CI runs `iproofs validate` and `iproofs derive --check` on every changed run dir. Review and reproduction records are added as new files ([RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md)).
-7. **Release.** `iproofs release freeze` reads `release.yaml`, collects the listed runs, computes effective tiers and target evaluations, and writes `index.json`. `iproofs site build` renders the public site into `web/` from it, the claim cards and run records it names, the criteria file and `web/_data/facts.json`; the committed pages are what Vercel serves ([RFC-0009](../../rfcs/0009-results-and-publication.md#site)).
+6. **Review.** CI runs `iproofs validate` and `iproofs derive --check` on every changed run dir.
+7. **Release.** `iproofs release freeze` reads `release.yaml`, collects the listed runs, computes statistics and target evaluations, and writes `index.json`. `iproofs site build` renders the public site into `web/` from it, the claim cards and run records it names, the criteria file and `web/_data/facts.json`; the committed pages are what Vercel serves ([RFC-0009](../../rfcs/0009-results-and-publication.md#site)).
 
 Data never flows backwards: nothing downstream of a run dir edits it (INV-ARCH-7, append-only `results/`).
 
@@ -109,11 +108,11 @@ Data never flows backwards: nothing downstream of a run dir edits it (INV-ARCH-7
 - One runner process per host, one job per GPU at a time, sequential steps, sampler threads during timed steps ([RFC-0010](../../rfcs/0010-harness-runner.md#concurrency)).
 - CPU-only commands (`validate`, `derive`, `release`, `site`, the fake system end to end) run on any machine with Python 3.12 or 3.13, including hosted CI.
 - GPU jobs run on a host that meets `prover-h200` (or another declared docker profile, such as `prover-h100`): Linux kernel 5.19 or later, cgroup v2, Docker Engine 25.0 or later with the systemd cgroup driver, NVIDIA Container Toolkit 1.17 or later, and the driver pinned in `reference/<release>.yaml`. Hosted CI never runs GPU jobs.
-- There is no server, database or background service. State is files in git plus archived proofs by digest.
+- There is no server, database or background service. State is files in git; proofs are referenced by digest.
 
 ## Trust boundaries
 
-Three boundaries matter: the adapter container (untrusted code from the measured party's side, isolated with no network, read-only root and dropped capabilities), files written by adapters (untrusted input to the harness, checked for path escape and size), and run directories submitted by runners (trusted only to the extent of their evidence tier). The full threat model is in [06-security](06-security.md).
+Three boundaries matter: the adapter container (untrusted code from the measured party's side, isolated with no network, read-only root and dropped capabilities), files written by adapters (untrusted input to the harness, checked for path escape and size), and run directories submitted by runners (every number `reported`). The full threat model is in [06-security](06-security.md).
 
 ## RISK
 

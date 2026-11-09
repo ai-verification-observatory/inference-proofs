@@ -5,7 +5,7 @@ Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](..
 ## Principles
 
 1. **A failure is a result.** A job that fails is written as a run directory with its failure record and counted in `n_failed`. It is never deleted or retried into success ([AGENTS.md hard rule 5](../../AGENTS.md#hard-rules), PRD N3).
-2. **Fail before measuring, not during.** Everything that can be checked before a timed step (schemas, hashes, image digest, profile, GPU idle) is checked before it, so that a failed precondition costs no GPU time and produces no partial measurement.
+2. **Fail before measuring, not during.** Everything that can be checked before a timed step (schemas, hashes, image digest) is checked before it; profile conformance is checked and recorded, and refuses nothing, so that a failed precondition costs no GPU time and produces no partial measurement.
 3. **Verdicts are not errors.** `accept`, `reject`, `no_verdict` and `invalid_call` are outcomes of a verify call. An adapter that cannot produce one of them has failed.
 4. **One taxonomy, closed.** Every failure has exactly one `ErrorKind`. A new kind needs an RFC.
 5. **No silent degradation.** When a measurement is incomplete (sampler gaps, unobservable proof release), the number is marked `degraded` or null with a `null_reason`, never estimated.
@@ -15,7 +15,7 @@ Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](..
 | Kind | Meaning | Typical step | CLI exit |
 |---|---|---|---|
 | `config` | an input file or argument is invalid | before jobs, `resolved` | 1 or 2 |
-| `environment` | the host does not meet the profile or a prerequisite: the RFC-0006 conformance checks PC-GPU-MODEL, PC-GPU-MEM, PC-GPU-COUNT, PC-GPU-BUSY, PC-DRIVER, PC-CPU-NUMA, PC-CPU-TOTAL, PC-MEM, PC-DISK, PC-OS, PC-KERNEL, PC-CGROUP, PC-RUNTIME (`iproofs.provenance.check_profile`) | before jobs, `machine_recorded` | 3 |
+| `environment` | a prerequisite is missing (NVML on a GPU profile, a lock held by another runner). The RFC-0006 conformance checks PC-* (`iproofs.provenance.check_profile`) are recorded in the manifest and never raise it | before jobs, `machine_recorded` | 3 |
 | `integrity` | a hash, digest or pin does not match | `resolved`, `image_ready`, `info` | 4 (in a job), 1 (validate) |
 | `fetch` | a network fetch failed after 3 attempts | `resolved`, `image_ready` | 4 |
 | `adapter` | the adapter exited non-zero or broke the contract | any adapter step | 4 |
@@ -42,9 +42,9 @@ Each row names a failure, how it is detected, what the system does, and how it i
 | 8 | Image digest differs from `system.yaml` | `docker image inspect` | fail | `integrity` at `image_ready` |
 | 9 | `info` reports an upstream commit other than `system.yaml` | field comparison | fail | `integrity` at `info` |
 | 10 | Unpinned reference (short hash, tag instead of digest) | pin check | reject in CI; refuse to run | `integrity`, exit 1 |
-| 11 | cgroup v1, kernel below 5.19, Docker below 25.0, toolkit below 1.17 | environment probe | stop before any job | `environment`, exit 3 |
-| 12 | Host below profile (GPU model, CPUs on the GPU's NUMA node, memory, disk) | machine record against profile | stop before any job | `environment`, exit 3 |
-| 13 | Another compute process on the bound GPU | NVML process list before each job | stop before the job | `environment`, exit 3 |
+| 11 | cgroup v1, kernel below 5.19, Docker below 25.0, toolkit below 1.17 | environment probe | recorded; the run goes on | manifest `harness.nonconforming: true` |
+| 12 | Host below profile (GPU model, CPUs on the GPU's NUMA node, memory, disk) | machine record against profile | recorded; the run goes on | manifest `harness.nonconforming: true` |
+| 13 | Another compute process on the bound GPU | NVML process list before each job | recorded; the job goes on | manifest profile checks |
 | 14 | Another runner active on the results tree | `flock` on `results/.runner.lock` or live staging dir | stop | `environment`, exit 3 |
 | 15 | Adapter subcommand exits non-zero | container exit status | run failed; continue with next repetition | `adapter` with exit code and last lines |
 | 16 | out.json missing, not JSON, or invalid against `adapter-out/1` | parse and schema validation | run failed | `adapter`; raw file kept in `logs/` |
@@ -76,10 +76,7 @@ Each row names a failure, how it is detected, what the system does, and how it i
 | 42 | Secret or host identifier in a committed file | secrets scan | PR blocked | exit 1 |
 | 43 | Runner killed or host lost power mid-job | stale staging dir on next start | written as failed, never resumed | `internal` at last reached step |
 | 44 | Harness writes a document that fails its own schema | validation at `written` | run failed; invalid file kept in `logs/invalid/` | `internal`, exit 5 |
-| 45 | Reproduction outside tolerance | `iproofs reproduce compare` | published as a failed reproduction with both sets of numbers | reproduction record `outcome: outside_tolerance`, exit 1 |
-| 46 | Verdict sets of original and reproduction differ | `iproofs reproduce compare` | failed reproduction | reproduction record |
-| 47 | Proof digests differ when `deterministic_proofs: true` and same seed | `iproofs reproduce compare` | failed reproduction | reproduction record |
-| 48 | Reference row cannot run on the profile (model does not fit) | adapter failure or declared infeasibility | row recorded failed, overhead null | `null_reason: "not_measurable_on_profile"` |
+| 48 | Reference row cannot run on the profile (model does not fit) | adapter failure or declared infeasibility | row recorded failed, overhead null | the failed run record; overhead `null_reason: "missing_input"` |
 | 49 | No perturbed commitment for the workload (no tensor of at least 1,024 elements, the adapter cannot commit the copy, or the weights are not on this host) | `iproofs controls --prepare-perturbed`; `_perturbed` lookup at control time | C3 and P1 `not_applicable` with the reason | `config` exit 2 from `--prepare-perturbed`; control note |
 
 ## Recovery rules

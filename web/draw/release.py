@@ -1,15 +1,15 @@
-"""The release's own pages: the release record (`/release`), sponsors and conflicts (`/sponsors`)
-and, when the release evaluates one, the targets (`/targets`). RFC-0009 §Site, page table.
+"""The release's own pages: the release record (`/release`) and, when the release evaluates
+one, the targets (`/targets`). RFC-0009 §Site, page table.
 
-Each prints what `release.yaml`, the release index, `MAINTAINERS.md` and the target files hold,
-in the site's words for stored ids; nothing is counted or ranked here.
+Each prints what `release.yaml`, the release index and the target files hold, in the site's
+words for stored ids; nothing is counted or ranked here.
 """
 
 from . import state as S
-from .chrome import RELEASE_PAGE, SPONSORS_PAGE, TARGETS_PAGE, footer, has_targets, header, page
+from .chrome import RELEASE_PAGE, TARGETS_PAGE, footer, has_targets, header, page
 from .claims import run_ref
-from .plates import EXT, blob, keep, name_of, path_html, readable, record_html, source_html
-from .words import FAIL_KIND, PENDING_TAMPER, TIER_WORD, e, labels, shown, spread_line
+from .plates import EXT, blob, keep, name_of, path_html, readable, source_html
+from .words import FAIL_KIND, PENDING_TAMPER, e, labels, shown, spread_line
 
 TARGET_GRADE = "set in the target file"
 RESULT_WORD = {"meets": "meets", "does_not_meet": "does not meet",
@@ -61,24 +61,10 @@ def run_status(run, left):
     return "completed", ""
 
 
-def not_frozen():
-    """While the release is a candidate, the words for a fact only its frozen `release.yaml`
-    sets: until #146 the deployed pages are built from the placeholder release, whose dates and
-    sponsors are a test fixture's, not the release's (web/README.md §Data)."""
-    return f"not set: {S.V['release']['id']} is not frozen (#146)"
-
-
 def release_facts():
     rel = S.V["release"]
     rfc = rel["rfc_commit"]
-    window = rel["review_window"]
-    if rel["candidate"]:
-        freeze, review = e(not_frozen()), e(not_frozen())
-    else:
-        freeze = f'<span class="nw">{e(rel["freeze_date"])}</span>'
-        review = keep(f"{window['opens']} to {window['closes']}")
-    index = (file_link(rel["index"]) if not rel["candidate"]
-             else f'<span class="rec">{path_html(rel["index"])}</span>')  # fmt: skip
+    index = file_link(rel["index"])
     cards = "".join(
         f'<span><span class="nw">{e(c["system"])}</span> · {e(c["configuration"])} · version '
         f"{e(c['card_version'])} · {file_link(c['path'])} · sha256 "
@@ -94,9 +80,7 @@ def release_facts():
         + "</span>"
     )
     rows = [
-        ("release", e(rel["id"] + (" (candidate)" if rel["candidate"] else ""))),
-        ("freeze date", freeze),
-        ("review window", review),
+        ("release", e(rel["id"])),
         (
             "RFCs",
             f'<a href="{e(S.REPO_URL)}/tree/{e(rfc)}/rfcs">rfcs/<span class="nw">@{e(rfc[:8])}</span>{EXT}</a>',
@@ -107,9 +91,6 @@ def release_facts():
         ("systems", systems),
         ("claim cards", f'<span class="links">{cards}</span>'),
     ]
-    replies = rel["replies"]
-    rows.append(("replies", " · ".join(f'<a href="{e(S.PAGE[s])}#reply">{e(name_of(s))}</a>'
-                                       for s in replies) if replies else "none"))  # fmt: skip
     if has_targets():
         rows.append(("targets", f'<a href="{TARGETS_PAGE}">{len(S.V["targets"])} evaluated</a>'))
     return rows_dl(rows, "facts relf")
@@ -139,22 +120,13 @@ def runs_listed():
 
 
 def checked():
-    """Per configuration: what checked it (RFC-0007 effective tier) and the records behind that,
-    and how many of its runs failed."""
+    """Per configuration: how many of its runs completed and failed."""
     rows = []
     order = [*S.V["orders"]["benchmarked"], *S.V["orders"]["reference"]]
     for c in sorted(S.CONFIGS, key=lambda c: (order.index(c["system"]), c["position"])):
-        ev = c["evidence"]
-        records = [*(ev.get("reviews") or []), *(ev.get("reproductions") or [])]
-        said = [keep(f"{c['workload']['id']} · {c['profile']}"), e(TIER_WORD[c["effective_tier"]])]
-        said.append(
-            e(f"{len(c['runs']['completed'])} completed, {len(c['runs']['failed'])} failed")
-        )
-        body = "; ".join(said)
-        if records:
-            body += '<span class="links">' + "".join(
-                f"<span>{record_html(r)}</span>" for r in records) + "</span>"  # fmt: skip
-        rows.append((name_of(c["system"]), body))
+        said = [keep(f"{c['workload']['id']} · {c['profile']}"),
+                e(f"{len(c['runs']['completed'])} completed, {len(c['runs']['failed'])} failed")]  # fmt: skip
+        rows.append((name_of(c["system"]), "; ".join(said)))
     return rows_dl(rows, "tlab runs")
 
 
@@ -188,60 +160,17 @@ def build_release():
   <div class="wrap">
     {release_facts()}
     {section("runs", "Runs", runs_listed())}
-    {section("checked", "Checked", checked())}
+    {section("checked", "Runs per setup", checked())}
     {section("unexpected", "Unexpected outcomes", unexpected_list())}
   </div>
 </main>
 {footer()}"""
     return page(
         f"Release {rel['id']}",
-        f"Release {rel['id']}: its runs, review window, freeze date, claim cards and replies.",
+        f"Release {rel['id']}: its runs, claim cards and reference file.",
         body,
         "system release",
         RELEASE_PAGE.strip("/"),
-        "home",
-    )
-
-
-# ------------------------------------------------------------------ sponsors and conflicts
-
-
-def build_sponsors():
-    rel = S.V["release"]
-    sponsors = rel["sponsors"]
-    if sponsors:
-        sp = rows_dl([(x["name"], e(f"{x['provided']} · {x['period']}")) for x in sponsors])
-    else:
-        sp = f'<p class="lead">No sponsor is listed for release {e(rel["id"])}.</p>'
-    if rel["candidate"]:  # the placeholder's list is a fixture's, not the release's (not_frozen)
-        sp = f'<p class="lead">No sponsor list yet: {e(rel["id"])} is not frozen (#146).</p>'
-    people = [
-        (m["handle"], keep(" · ".join([m["role"], f"organisation: {m['organisation']}",
-                                       f"systems: {m['systems']}",
-                                       f"declared interests: {m['interests']}",
-                                       f"since {m['since']}"])))
-        for m in S.V["maintainers"]
-    ]  # fmt: skip
-    conflicts = (
-        rows_dl(people, "tlab runs")
-        + f'<p class="es"><a class="qsrc" href="{e(blob("MAINTAINERS.md"))}">MAINTAINERS.md{EXT}</a></p>'
-    )
-    body = f"""
-{header("sponsors")}
-<main id="main" class="sys relpage">
-  {band("Sponsors and conflicts")}
-  <div class="wrap">
-    {section("sponsors", "Sponsors", sp, small=True)}
-    {section("conflicts", "Conflicts", conflicts, small=True)}
-  </div>
-</main>
-{footer()}"""
-    return page(
-        "Sponsors and conflicts",
-        f"Who sponsored release {rel['id']}, and the interests each maintainer declares.",
-        body,
-        "system sponsors",
-        SPONSORS_PAGE.strip("/"),
         "home",
     )
 

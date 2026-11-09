@@ -41,13 +41,12 @@ SCOPE_WORD = {
     "verify.single_thread": "checking (one CPU thread)",
     "primitive": "one primitive",
 }
-SESSION_LINE = "proving session, start-up included on both sides"
 # RFC-0004 INV-DERIVE-11: the warm overhead names both scopes wherever it appears
 WARM = "overhead_vs_production_warm"
 WARM_LINE = ("proving session (start-up included; it proves one request at a time) vs warm "
              "serving (steady)")  # fmt: skip
 # the scope line of an overhead other than the steady one, by its stored statistic
-SCOPE_LINES = {"overhead_vs_production_prove.session": SESSION_LINE, WARM: WARM_LINE}
+SCOPE_LINES = {WARM: WARM_LINE}
 GRADE_WORD = {
     "measured": "recorded by our harness",
     "derived": "calculated from recorded numbers",
