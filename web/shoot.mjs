@@ -725,6 +725,19 @@ for (const w of [1440, 1240, 390]) {
     await ctx.close();
   }
 }
+// from 1241 px the facts sit beside the glyph and how we read it: opening the fold moves neither
+for (const w of [1280, 1440]) {
+  for (const name of ['flashprove', 'sash']) {
+    const { ctx, p } = await pg(w, 900);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const at = () => p.evaluate(() => ['.over > .facts', '.over .rpie'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top + scrollY)));
+    const shut = await at();
+    await p.click('.howread summary'); await p.waitForTimeout(200);
+    const open = await at();
+    ok(JSON.stringify(shut) === JSON.stringify(open), `${name}-${w}: opening how we read it leaves the facts and the glyph where they were`, { shut, open });
+    await ctx.close();
+  }
+}
 // a figure link from the overview to a page of several setups lands under that setup's heading, held at the top
 // in one line, never over the plate's label
 for (const w of [320, 390, 768, 1440]) {

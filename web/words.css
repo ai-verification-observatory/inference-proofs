@@ -342,7 +342,8 @@ html:has(.top.s-on) { overflow: hidden; }
 /* how we read it follows the properties in reading order (RFC-0009 S1 item 1), and the eye follows the keyboard: it sits
    under the pie in the first column, the facts beside both in the second, so focus goes pie, how we read it, facts */
 .over > .howread { grid-column: 1; grid-row: 2; }
-.over > .facts { grid-column: 2; grid-row: 1 / span 2; }
+/* the facts start at the glyph's top and stay there when how we read it opens under the glyph */
+.over > .facts { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
 /* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
    from its top */
 .wrap > .claims:first-child { scroll-margin-top: 100vh; }
