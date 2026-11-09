@@ -104,6 +104,18 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.add_argument("--gpu", type=int, metavar="INDEX", help="the bound GPU (NVML index)")
     p.add_argument(
+        "--gpus",
+        type=gpu_list,
+        metavar="LIST",
+        help="the bound GPUs of a serving profile, comma-separated NVML indices (RFC-0006 R6)",
+    )
+    p.add_argument(
+        "--load",
+        choices=["matched", "high"],
+        default="matched",
+        help="the load point of a production-serving job (RFC-0015 SRV-1)",
+    )
+    p.add_argument(
         "--hosted",
         action="store_true",
         help="the provider started this container from the system's pinned image; run each "
@@ -122,7 +134,9 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         "--image",
         metavar="IMAGE_ID",
         help="a locally built image by ID (sha256:<hex>), recorded as local/<system> with "
-        "digest_kind config and never eligible for a release (RFC-0014)",
+        "digest_kind config and never eligible for a release (RFC-0014); with --hosted, also "
+        "the reference <repository>@sha256:<hex> of the image the provider started when the "
+        "adapter was installed into it from this checkout, recorded as local/<reference>",
     )
     p.set_defaults(handler=run)
 
@@ -145,6 +159,7 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--selftest", action="store_true", help="run the RFC-0011 calibration checks")
     p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
     p.add_argument("--gpu", type=int, metavar="INDEX", help="the bound GPU (NVML index)")
+    p.add_argument("--gpus", type=gpu_list, metavar="LIST", help="every bound GPU (RFC-0006 R6)")
     p.add_argument("--results", type=Path, default=Path("results"), help="for disk type and space")
     p.add_argument("--hosted", action="store_true", help="the record of a hosted container")
     p.add_argument(
@@ -359,6 +374,8 @@ def run(args: argparse.Namespace) -> int:
         system_file, args.in_process, args.image, hosted=args.hosted
     )
     wl = load_workload(args.workload, root=root, registry=registry)
+    if args.gpus and args.gpu is not None:
+        raise IProofsError(ErrorKind.CONFIG, "give --gpu or --gpus, not both")
     seed = recorded_seed(args.prompts_from, wl.id, wl.version) if args.prompts_from else None
     recompute = load_yaml(system_file).get("reference_role") == "recompute"
     if recompute and not args.prompts_from:  # RFC-0015 RC-1, before any step
@@ -381,9 +398,12 @@ def run(args: argparse.Namespace) -> int:
         env=_environment(
             args.gpu,
             args.hosted,
-            _prover_cpus(root, args.profile, registry) if args.gpu is not None else 24,
+            _prover_cpus(root, args.profile, registry) if args.gpu is not None or args.gpus else 24,
+            args.gpus,
         ),
         hosted=args.hosted,
+        load=args.load,
+        source_prompt_digest=_prompt_digest(args.prompts_from) if args.prompts_from else None,
     )
     spec = JobSpec(
         args.system,
@@ -423,12 +443,37 @@ def _operator(root: Path, args: argparse.Namespace) -> "RunnerIdentity":
     )
 
 
-def _environment(gpu: int | None, hosted: bool, n_prover: int) -> "Environment | None":
-    """The GPU host for `--gpu`, binding `n_prover` prover CPUs; without it, the CPU-only host."""
+def _environment(
+    gpu: int | None, hosted: bool, n_prover: int, gpus: list[int] | None = None
+) -> "Environment | None":
+    """The GPU host for `--gpu`, or a serving host for `--gpus` (RFC-0006 R6), binding
+    `n_prover` prover CPUs; without either, the CPU-only host."""
     from iproofs.provenance import Host  # noqa: PLC0415
-    from iproofs.runner import GpuEnvironment  # noqa: PLC0415
+    from iproofs.runner import GpuEnvironment, ServingEnvironment  # noqa: PLC0415
 
+    if gpus:
+        return ServingEnvironment(gpus, Host(hosted=hosted), n_prover)
     return None if gpu is None else GpuEnvironment(gpu, Host(hosted=hosted), n_prover)
+
+
+def gpu_list(text: str) -> list[int]:
+    """`--gpus 0,1,2,3`: distinct NVML indices."""
+    try:
+        found = [int(x) for x in text.split(",") if x.strip()]
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(f"{text!r} is not a list of GPU indices") from e
+    if not found or len(set(found)) != len(found) or min(found) < 0:
+        raise argparse.ArgumentTypeError(f"{text!r}: distinct non-negative GPU indices")
+    return found
+
+
+def _prompt_digest(run_dir: Path) -> str | None:
+    """The `--prompts-from` run's prompt set digest (RFC-0015 SRV-8), read from its manifest."""
+    manifest = run_dir / "manifest.json"
+    if not manifest.is_file():
+        return None
+    digest = json.loads(manifest.read_text()).get("workload", {}).get("prompt_set_digest")
+    return str(digest) if digest else None
 
 
 def _prover_cpus(root: Path, profile: str, registry: "SchemaRegistry") -> int:
@@ -455,16 +500,34 @@ def entrypoint_argv(dockerfile: str) -> list[str]:
     return [str(a) for a in argv]
 
 
+def local_image(system: str, image: str, *, hosted: bool) -> str:
+    """`--image` as recorded (RFC-0014: an image never pushed is `local/...` with digest_kind
+    `config`, never eligible for a release). An image ID gives `local/<system>@<id>`. In hosted
+    mode a full reference names the image the provider started, into which the job installed
+    the adapter from this checkout (RFC-0014 development install): it is recorded as
+    `local/<reference>`, so the record names that image and never an adapter image that was
+    not built; the adapter commit is the checkout's. Ported from ref-serve-gguf (258fcb3)."""
+    from iproofs.adapter import LOCAL_IMAGE_PREFIX, check_image  # noqa: PLC0415
+
+    if "@" in image:
+        if not hosted:
+            raise IProofsError(
+                ErrorKind.CONFIG,
+                f"--image {image!r}: a full image reference only with --hosted; docker runs a "
+                "local build by its ID (sha256:<hex>)",
+            )
+        return check_image(f"{LOCAL_IMAGE_PREFIX}{image.removeprefix(LOCAL_IMAGE_PREFIX)}")
+    return check_image(f"{LOCAL_IMAGE_PREFIX}{system}@{image}")
+
+
 def _containers(
     system_file: Path, in_process: bool, image_id: str | None = None, *, hosted: bool = False
 ) -> tuple["ContainerRunner", str | None, "SchemaRegistry"]:
     """The container runner for a system; in process only for test systems."""
     from iproofs.adapter import (  # noqa: PLC0415
-        LOCAL_IMAGE_PREFIX,
         DockerRunner,
         HostedRunner,
         InProcessRunner,
-        check_image,
         image_environment,
     )
     from iproofs.model import System, load  # noqa: PLC0415
@@ -478,11 +541,11 @@ def _containers(
             raise IProofsError(ErrorKind.CONFIG, "--hosted runs an image; drop --in-process")
         argv = entrypoint_argv((system_file.parent / "Dockerfile").read_text())
         environ = image_environment(Path("/proc/1/environ").read_text())
-        local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
-        return HostedRunner(argv, registry, environ), local and check_image(local), registry
+        local = local_image(system.name, image_id, hosted=True) if image_id else None
+        return HostedRunner(argv, registry, environ), local, registry
     if not in_process:
-        local = f"{LOCAL_IMAGE_PREFIX}{system.name}@{image_id}" if image_id else None
-        return DockerRunner(registry), local and check_image(local), registry
+        local = local_image(system.name, image_id, hosted=False) if image_id else None
+        return DockerRunner(registry), local, registry
     if image_id:
         raise IProofsError(ErrorKind.CONFIG, "--image names a container image; drop --in-process")
     if system.kind != "test":
@@ -784,14 +847,17 @@ def machine_record_command(args: argparse.Namespace) -> int:
     from iproofs.provenance import Host, machine_record  # noqa: PLC0415
     from iproofs.serialize import dumps  # noqa: PLC0415
 
+    if args.gpus and args.gpu is not None:
+        raise IProofsError(ErrorKind.CONFIG, "give --gpu or --gpus, not both")
     record = machine_record(
         Host(hosted=args.hosted),
         results=args.results if args.results.exists() else Path.cwd(),
-        gpu_index=args.gpu,
+        gpu_index=args.gpus[0] if args.gpus else args.gpu,
         cpus={},
         mems=[],
         provider=args.provider or "undeclared",
         redact=Redactor.from_host(),
+        gpu_indices=args.gpus or (),
     )
     if not args.selftest:
         sys.stdout.write(dumps(record).decode())

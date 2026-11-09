@@ -218,7 +218,7 @@ Written by `iproofs machine-record` and stored in `manifest.json` `machine` (sch
 | `gpu.bound_indices` | harness choice: every bound GPU (amendment of 2026-11-09); `gpu.bound_index` stays as the first | list of int |
 | `gpu.numa_nodes` | as `gpu.numa_node`, one per bound GPU | list of int |
 | `gpu.nvlink_active_links` | NVML `nvmlDeviceGetNvLinkState` over each bound GPU's links, null where NVML does not report it | list of int or null |
-| `gpu.unbound_samples` | per visible unbound GPU: compute-process count, memory used and utilisation, the maxima over the job's samples (PC-GPU-IDLE) | list of objects |
+| `gpu.unbound_samples` | per visible unbound GPU: compute-process count, memory used and utilisation, the maxima over its readings (PC-GPU-IDLE; one reading per record today) | list of objects |
 | `container.shm_bytes` | `statvfs` of `/dev/shm` | int |
 | `provider` | declared by the runner on the command line (`--provider`) | string |
 | `verifier_host` | `same_as_prover` or `separate` | enum |
@@ -267,7 +267,7 @@ RISK: an emulated verifier shares caches, memory bandwidth and the CPU model of 
 | PC-GPU-MEM | `memory_total_mib` < `memory_mib_min` |
 | PC-GPU-COUNT | fewer visible GPUs than `gpu.count`; on a serving profile, a bound count other than `gpu.count` |
 | PC-GPU-BUSY | another compute process holds a bound GPU (RFC-0011); every bound GPU is checked |
-| PC-GPU-IDLE | on any profile, a visible unbound GPU has a compute process, or memory used or utilisation above the idle baseline, at any sample of the job (amendment of 2026-11-09). The idle baseline is an assumption until the first captures set it: 1,024 MiB used and 5 % utilisation; the job fails `environment` |
+| PC-GPU-IDLE | on any profile, a visible unbound GPU has a compute process, or memory used or utilisation above the idle baseline, when the machine record is taken before `info`; a compute process on one when the record is taken again after the last step fails the job `environment` (INV-MR-2) (amendment of 2026-11-09). The idle baseline is an assumption until the first captures set it: 1,024 MiB used and 5 % utilisation. Sampling the unbound GPUs throughout the job, beside the bound ones, is a later amendment |
 | PC-GPU-LINK | record only: on a serving profile with `gpu.count` > 1, the NVLink state of each bound GPU is recorded, not checked, until the first `h200x4` capture shows whether NVML reports it inside a Hugging Face container. A later amendment makes it a check |
 | PC-SHM | hosted: `container.shm_bytes` below the profile's `shm_gib_min` |
 | PC-DRIVER | driver version differs from `driver` |

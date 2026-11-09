@@ -152,11 +152,15 @@ class Host:
         dev_of: Callable[[Path], tuple[int, int]] | None = None,
         *,
         hosted: bool = False,
+        usage: Callable[[int], dict[str, object] | None] | None = None,
+        shm: Callable[[Path], int | None] | None = None,
     ) -> None:
         self.root = root
         self.run = run or _run
         self.nvml = nvml or _nvml
         self.dev_of = dev_of or _dev_of
+        self.usage = usage or _nvml_usage  # PC-GPU-IDLE and PC-GPU-LINK readings (RFC-0006)
+        self.shm = shm or _statvfs_bytes
         self.hosted = hosted  # RFC-0006 §Hosted execution: the harness runs in the adapter image
 
     def read(self, rel: str) -> str | None:
@@ -258,6 +262,47 @@ class Host:
         out["bound_index"] = index
         return out
 
+    def gpu_usage(self, index: int) -> dict[str, object] | None:
+        """One GPU's compute processes, memory used, utilisation and active NVLink links."""
+        return self.usage(index)
+
+    def shm_bytes(self) -> int | None:
+        """RFC-0006 PC-SHM: the size of /dev/shm (statvfs)."""
+        return self.shm(self.root / "dev/shm")
+
+
+def _statvfs_bytes(path: Path) -> int | None:
+    try:
+        st = os.statvfs(path)
+    except OSError:
+        return None
+    return st.f_frsize * st.f_blocks
+
+
+def _nvml_usage(index: int) -> dict[str, object] | None:
+    try:
+        import pynvml  # noqa: PLC0415 (optional extra, INV-ARCH-6)
+
+        pynvml.nvmlInit()
+        handle = pynvml.nvmlDeviceGetHandleByIndex(index)
+        links = 0
+        try:
+            for link in range(int(pynvml.NVML_NVLINK_MAX_LINKS)):
+                links += int(
+                    pynvml.nvmlDeviceGetNvLinkState(handle, link) == pynvml.NVML_FEATURE_ENABLED
+                )
+            nvlink: int | None = links
+        except pynvml.NVMLError:
+            nvlink = None  # PC-GPU-LINK: recorded as unread, never failed
+        return {
+            "compute_processes": len(pynvml.nvmlDeviceGetComputeRunningProcesses(handle)),
+            "memory_used_mib": int(pynvml.nvmlDeviceGetMemoryInfo(handle).used) // (1024 * 1024),
+            "util_percent": float(pynvml.nvmlDeviceGetUtilizationRates(handle).gpu),
+            "nvlink_active_links": nvlink,
+        }
+    except Exception:
+        return None
+
 
 def sysfs_bus_id(bus: str) -> str:
     """NVML's `busId` has an 8-digit PCI domain (NVML_DEVICE_PCI_BUS_ID_FMT, `%08X:%02X:%02X.0`);
@@ -279,7 +324,7 @@ GPU_FIELDS = (
 )
 
 
-def machine_record(
+def machine_record(  # noqa: PLR0913 (one keyword per record input)
     host: Host,
     *,
     results: Path,
@@ -289,8 +334,12 @@ def machine_record(
     provider: str,
     verifier_host: str = "same_as_prover",
     redact: Callable[[str], str] = lambda s: s,
+    gpu_indices: Sequence[int] = (),
 ) -> dict[str, object]:
-    """RFC-0006 §Machine record: exactly the listed fields, every string redacted."""
+    """RFC-0006 §Machine record: exactly the listed fields, every string redacted.
+    `gpu_indices` lists every bound GPU of a serving job (R6); with more than one, the record
+    adds `bound_indices`, `numa_nodes` and `nvlink_active_links`. Every visible unbound GPU is
+    read for PC-GPU-IDLE (`unbound_samples`), and `/dev/shm` for PC-SHM."""
     cpu = host.cpu() | {
         "bound_prover": list(cpus.get("prover", ())),
         "bound_verifier": list(cpus.get("verifier", ())),
@@ -313,7 +362,26 @@ def machine_record(
     if (release := host.run(["uname", "-r"])) is not None:
         record["kernel"] = {"release": release}
     if gpu_index is not None and (gpu := host.gpu(gpu_index)):
+        bound = list(gpu_indices) or [gpu_index]
+        if len(bound) > 1:
+            gpu["bound_indices"] = bound
+            gpu["numa_nodes"] = [int(str(host.gpu(i).get("numa_node", -1))) for i in bound]
+            gpu["nvlink_active_links"] = [
+                (host.gpu_usage(i) or {}).get("nvlink_active_links") for i in bound
+            ]
+        unbound = []
+        for i in range(int(str(gpu.get("count_visible", 0)))):
+            reading = None if i in bound else host.gpu_usage(i)
+            if reading is not None:
+                unbound.append({"index": i, "samples": 1,
+                                "compute_processes_max": reading["compute_processes"],
+                                "memory_used_mib_max": reading["memory_used_mib"],
+                                "util_percent_max": reading["util_percent"]})  # fmt: skip
+        if unbound:
+            gpu["unbound_samples"] = unbound
         record["gpu"] = gpu
+        if (shm := host.shm_bytes()) is not None and isinstance(record["container"], dict):
+            record["container"]["shm_bytes"] = shm
     clean: dict[str, object] = _redacted(record, redact)
     return clean
 
@@ -496,6 +564,12 @@ def _version(text: object) -> tuple[int, ...]:
     return tuple(int(p) for p in m.group(0).split(".")) if m else ()
 
 
+# RFC-0006 PC-GPU-IDLE: the idle baseline of a visible unbound GPU, an assumption until the
+# first captures set it (a limit, not a measurement)
+IDLE_MIB = 1024
+IDLE_UTIL = 5.0
+
+
 def check_profile(  # noqa: PLR0912, PLR0915 (one branch per RFC-0006 check)
     record: Mapping[str, Any],
     profile: ProverProfile,
@@ -523,6 +597,19 @@ def check_profile(  # noqa: PLR0912, PLR0915 (one branch per RFC-0006 check)
             fail("PC-GPU-MEM", f"{gpu.get('memory_total_mib')} MiB < {spec.memory_mib_min} MiB")
         if gpu.get("count_visible", 0) < spec.count:
             fail("PC-GPU-COUNT", f"{gpu.get('count_visible')} visible GPUs < {spec.count}")
+        bound = gpu.get("bound_indices") or ([gpu["bound_index"]] if "bound_index" in gpu else [])
+        if profile.kind == "serving" and len(bound) != spec.count:  # RFC-0006 R6
+            fail(
+                "PC-GPU-COUNT", f"{len(bound)} bound GPU(s), the serving profile binds {spec.count}"
+            )
+        for idle in gpu.get("unbound_samples") or []:  # PC-GPU-IDLE, every profile
+            if (idle["compute_processes_max"] or idle["memory_used_mib_max"] > IDLE_MIB
+                    or idle["util_percent_max"] > IDLE_UTIL):  # fmt: skip
+                use = (
+                    f"{idle['compute_processes_max']} process(es), "
+                    f"{idle['memory_used_mib_max']} MiB, {idle['util_percent_max']} %"
+                )
+                fail("PC-GPU-IDLE", f"unbound GPU {idle['index']} is in use: {use}")
         if gpu_processes:
             fail("PC-GPU-BUSY", f"{gpu_processes} compute process(es) hold the bound GPU")
         if gpu.get("driver_version") != profile.driver:
@@ -555,6 +642,9 @@ def check_profile(  # noqa: PLR0912, PLR0915 (one branch per RFC-0006 check)
             f" {profile.disk.free_gib_min} GiB on {profile.disk.type}",
         )
     hosted = isinstance(profile.container_runtime, HostedRuntime)
+    shm_min = getattr(profile, "shm_gib_min", None)
+    if hosted and shm_min is not None and box.get("shm_bytes", 0) < shm_min * 1024**3:  # PC-SHM
+        fail("PC-SHM", f"/dev/shm holds {box.get('shm_bytes')} B < {shm_min} GiB")
     if not hosted and (osr.get("id"), osr.get("version_id")) != (
         profile.os.id,
         profile.os.version_id,

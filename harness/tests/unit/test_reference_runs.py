@@ -206,3 +206,42 @@ def test_reference_without_a_served_system_is_refused(
     doc = json.loads((only_run(repo / "results", "fake-ref") / "run.json").read_text())
     assert doc["failure"]["kind"] == "config"
     assert "REF-3" in doc["failure"]["message"]
+
+
+def test_engine_command_must_end_with_the_commits_engine_args(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RFC-0015 SRV-3: system.yaml at the run's commit lists other options than the adapter
+    ran with (an image built from another system.yaml): the run fails with kind config, not as
+    a run of the committed configuration. The fake's engine command is `fake-prover prove`."""
+    monkeypatch.setattr("iproofs.cli._containers", _in_process_any)
+    path = repo / "systems/fake-ref/system.yaml"
+    doc = yaml.safe_load(path.read_text())
+    doc["workloads"][0]["engine_args"] = ["--max-num-seqs", "24"]
+    path.write_text(yaml.safe_dump(doc))
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    subprocess.run([*git, "commit", "-qam", "24 sequences", "--no-gpg-sign"], check=True)
+    assert run("fake-ref", repo / "results", "--allow-nonconforming") != 0
+    failed = json.loads((only_run(repo / "results", "fake-ref") / "run.json").read_text())
+    assert failed["status"] == "failed"
+    assert failed["failure"]["kind"] == "config"
+    assert "does not end with system.yaml's engine_args ['--max-num-seqs', '24']" in str(
+        failed["failure"]
+    )
+
+
+def test_engine_command_problem(tmp_path: Path) -> None:
+    """The check on its own: the recorded argv's tail against engine_args, verbatim."""
+    from iproofs.runner import engine_command_problem  # noqa: PLC0415
+
+    args = ["--tensor-parallel-size", "4", "--max-model-len", "1025", "--max-num-seqs", "24"]
+    assert engine_command_problem(tmp_path, [], required=True) is None  # nothing to compare
+    assert engine_command_problem(tmp_path, args, required=False) is None  # failed before it
+    assert "no engine command" in str(engine_command_problem(tmp_path, args, required=True))
+    served = ["vllm", "serve", "/models"]
+    lines = [{"argv": [*served, *args], "cwd": "/io", "started_mono_ns": 1, "exit_code": 0}]
+    (tmp_path / "commands.jsonl").write_text("not json\n" + json.dumps(lines[0]) + "\n")
+    assert engine_command_problem(tmp_path, args, required=True) is None
+    stale = [*args[:3], "24", *args[4:]]
+    assert "recorded: " in str(engine_command_problem(tmp_path, stale, required=False))
+    assert engine_command_problem(tmp_path, ["x", *args], required=True) is not None

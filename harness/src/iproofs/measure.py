@@ -289,6 +289,13 @@ class GpuBackend(Protocol):
     def compute_processes(self) -> int: ...
 
 
+def _backend(gpu: int | Sequence[int]) -> GpuBackend:
+    """One GPU's NVML backend, or the bound GPUs of a serving job read as one (`ManyGpus`)."""
+    if isinstance(gpu, int):
+        return NvmlBackend(gpu)
+    return NvmlBackend(gpu[0]) if len(gpu) == 1 else ManyGpus([NvmlBackend(i) for i in gpu])
+
+
 class NvmlBackend:
     """`nvidia-ml-py` (the `[gpu]` extra), imported lazily (INV-ARCH-6), bound to one GPU."""
 
@@ -313,6 +320,28 @@ class NvmlBackend:
 
     def compute_processes(self) -> int:
         return len(self.nvml.nvmlDeviceGetComputeRunningProcesses(self.handle))
+
+
+class ManyGpus:
+    """RFC-0011 (amendment of 2026-11-09): the bound GPUs of a serving job read as one: memory
+    the maximum over the GPUs, utilisation the mean over them at each sample (so `_util_mean`
+    and `_p95` are over samples of that mean), energy the sum, compute processes the sum."""
+
+    def __init__(self, backends: Sequence[GpuBackend]) -> None:
+        self.backends = list(backends)
+
+    def memory_used_mib(self) -> float:
+        return max(b.memory_used_mib() for b in self.backends)
+
+    def util_pct(self) -> int:
+        return round(sum(b.util_pct() for b in self.backends) / len(self.backends))
+
+    def energy_mj(self) -> int | None:
+        values = [b.energy_mj() for b in self.backends]
+        return None if any(v is None for v in values) else sum(v for v in values if v is not None)
+
+    def compute_processes(self) -> int:
+        return sum(b.compute_processes() for b in self.backends)
 
 
 @dataclass(frozen=True, slots=True)
@@ -393,14 +422,14 @@ class Sampler:
 
     def __init__(
         self,
-        gpu_index: int | None,
+        gpu_index: int | Sequence[int] | None,
         cgroup: CgroupReader,
         target_hz: float = 20.0,
         *,
         backend: GpuBackend | None = None,
         clock: Callable[[], int] = time.monotonic_ns,
     ) -> None:
-        self.gpu = backend if backend is not None or gpu_index is None else NvmlBackend(gpu_index)
+        self.gpu = backend if backend is not None or gpu_index is None else _backend(gpu_index)
         self.cgroup = cgroup
         self.target_hz = target_hz
         self.clock = clock

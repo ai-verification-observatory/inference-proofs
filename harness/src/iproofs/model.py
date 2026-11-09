@@ -785,6 +785,8 @@ class AdapterJob(Document):
     claimed_output: tuple[int, ...] | None = None
     proof_dir: str | None = None
     claims_file: str | None = None
+    load_point: str | None = None  # RFC-0015 SRV-1 (production serving)
+    gpus: int | None = None  # RFC-0015 SRV-6
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

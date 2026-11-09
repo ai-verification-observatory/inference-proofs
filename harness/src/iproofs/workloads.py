@@ -366,8 +366,19 @@ def model_dir(root: Path, wl: Workload) -> Path:
     return path
 
 
-def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> list[list[int]]:
-    """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer."""
+def materialise_prompts(
+    root: Path,
+    wl: Workload,
+    models: Path,
+    seed: int,
+    *,
+    count: int | None = None,
+    own_tokenizer: bool = False,
+) -> list[list[int]]:
+    """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer.
+    `count` draws more prompts from the same seeded generator, so the first `prompts.count` are
+    the workload's set (RFC-0015 SRV-8); `own_tokenizer` reads the workload's tokenizer file
+    alone, for a job whose model directory holds other files (production serving)."""
     texts = local_corpus(root, wl.prompts.corpus_digest) or pinned_corpus(
         root, wl.prompts.corpus_digest
     )
@@ -376,11 +387,11 @@ def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> li
             ErrorKind.CONFIG, f"{wl.id}: corpus {wl.prompts.corpus_digest} is not available locally"
         )
     path = models / wl.model.tokenizer_file
-    if wl.model.tokenizer_source is not None:  # not in the weights directory
+    if wl.model.tokenizer_source is not None or own_tokenizer:  # not in the weights directory
         path = tokenizer_file(root, wl, default_cache())
     tokenizer = tokenizer_for(path)
     return corpus_window_v1(
-        texts, tokenizer, wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
+        texts, tokenizer, count or wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
     )
 
 
