@@ -1,12 +1,8 @@
 # RFC-0008: Negative controls
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha (harness and fake systems); v0.1-beta (SASH and FlashProve)
 - Requires: RFC-0005, RFC-0010, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -44,7 +40,7 @@ Every control job derives its randomness from one 64-bit `control_seed`, drawn b
 
 ### Split suites
 
-Amendment of 2026-11-09 (owner request of 2026-11-08: every control's data as soon as possible; the RFC stays Draft). A suite may run in parts, on several hosts at once, and be merged into the `controls.json` one run writes. Every other rule of this RFC holds for each control in each part.
+Amendment of 2026-11-09 (every control's data as soon as possible). A suite may run in parts, on several hosts at once, and be merged into the `controls.json` one run writes. Every other rule of this RFC holds for each control in each part.
 
 - SPLIT-1. One seed, drawn once. `iproofs controls RUN_DIR --draw-seed` draws `control_seed` from `os.urandom` and writes it, with the UTC time it was drawn, the run id and the sha256 of the run's `manifest.json`, to `RUN_DIR/controls-seed.json` (`controls-seed/1`, [RFC-0012](0012-schemas-and-serialization.md)). It refuses when that file or `controls.json` exists, so a run has one seed record and one suite. Every part takes its seed from that record (`iproofs controls RUN_DIR --only ID[,ID...]`); `--seed SEED`, hex or decimal, only confirms it and is refused when it differs, and is refused without `--only`. A whole suite is refused once a seed record exists. Every attempt at a part, finished or stopped, is listed in the campaign's record.
 - SPLIT-2. Whole controls. A part runs whole controls, each with its honest twins in the same part (INV-CTRL-2) and its mutations from `control_seed` and its own id (INV-CTRL-3); C6's five trials and its twin stay together. A control's record therefore does not depend on which other controls ran in its part. A part that would record a control differently from a single run is refused before any call: P1 when a perturbed commitment exists but its weights are not in this host's cache.
@@ -112,7 +108,7 @@ C8: parts = sorted(read(target.parts) by name); q = parts[floor(rng("C8",0).rand
 
 ### Parts the verifier reads
 
-Amendment of 2026-11-09 (finding of a development run on Hugging Face Jobs, 2026-11-09; the RFC stays Draft). A control that mutates a part the adapter's `verify` never reads tests nothing: the mutated bytes never reach the verifier, and an `accepted` outcome then says nothing about the system. In that run (FlashProve, `fp-maverick-w1024-b1`, a development `controls.json` kept with the campaign's record, not under `results/`), C6 seeds 0 and 3 flipped bits of `response.proof` and were rejected (`NO: proof-refused`); seeds 1, 2 and 4 flipped bits 9, 16 and 28 of `response.y`, the 4-byte next-token word `cp_prove` writes, and were accepted, so C6 recorded `accepted`. The adapter's `verify` writes the token file `cp_verify` checks from the job's `claimed_output`, taken from the harness record (INV-CTRL-6), and passes `response.proof` alone, so `response.y` never reaches the verifier ([`systems/flashprove/README.md`](../systems/flashprove/README.md#values-for-systemyaml)). C1, which changes the claimed output token, covers the attack a changed `response.y` would stand for. This is a gap in the control design, not a finding against FlashProve: no disclosure follows from it (§Disclosure), and no row shows FlashProve failing a control because of it.
+Amendment of 2026-11-09 (finding of a development run on Hugging Face Jobs, 2026-11-09). A control that mutates a part the adapter's `verify` never reads tests nothing: the mutated bytes never reach the verifier, and an `accepted` outcome then says nothing about the system. In that run (FlashProve, `fp-maverick-w1024-b1`, a development `controls.json` kept with the campaign's record, not under `results/`), C6 seeds 0 and 3 flipped bits of `response.proof` and were rejected (`NO: proof-refused`); seeds 1, 2 and 4 flipped bits 9, 16 and 28 of `response.y`, the 4-byte next-token word `cp_prove` writes, and were accepted, so C6 recorded `accepted`. The adapter's `verify` writes the token file `cp_verify` checks from the job's `claimed_output`, taken from the harness record (INV-CTRL-6), and passes `response.proof` alone, so `response.y` never reaches the verifier ([`systems/flashprove/README.md`](../systems/flashprove/README.md#values-for-systemyaml)). C1, which changes the claimed output token, covers the attack a changed `response.y` would stand for. This is a gap in the control design, not a finding against FlashProve: no disclosure follows from it (§Disclosure), and no row shows FlashProve failing a control because of it.
 
 - READ-1. Declaration. `system.yaml` `proofs.verify_reads` (optional in `system/1`, [RFC-0005](0005-adapter-contract.md#systemyaml)) declares which proof parts the adapter's `verify` reads: `"all"`, or `{read: [part, ...], not_read: [{part, reason}, ...]}` with both lists non-empty and every name a file name of `out.json` `parts[]`. Absent means `"all"`, the rule before this amendment. The declaration is static, reviewed with the adapter, and read by the harness from the checkout without a container call; every part of a split suite reads the same one (SPLIT-3, one harness commit). The adapter README says, with links at the pin, why each part is not read, and a prover adapter declares the field even when it reads every part (a review rule: `system/1` keeps the field optional, so the files written before stay valid).
 - READ-2. Fit. Before any call of the suite, or of a part of it, the harness checks the declaration against the target proof (§Proof selection): a declared part the proof does not have, a part of the proof the declaration does not place, or a part placed twice is refused with a `config` error, and nothing is written.
@@ -201,7 +197,7 @@ Per row the site and release index show: controls run, passed, rejected, accepte
 
 ### Disclosure
 
-An accepted control where rejection was expected is a possible soundness or adapter defect. The harness marks the run `disclosure_pending: true` in `controls.json`, and the runner reports privately to the system maintainers through the channel in the system's security policy, or, when none is published, through the contact in `system.yaml` maintainers. The finding is published in full at the earlier of: upstream publishing a fix or advisory, or 90 days after the report. A system's own published policy applies where it sets a different period. The release that contains such a run states that a disclosure is pending without the details until the embargo ends (`SECURITY.md`, RFC-0001; [06-security](../docs/spec/06-security.md)). Before disclosure, the runner checks the adapter: a fault in the verdict mapping is fixed in this repository and the run is redone; it is not a finding against the system.
+An accepted control where rejection was expected is a possible soundness or adapter defect. The harness marks the run `disclosure_pending: true` in `controls.json` (a computed flag; stored records carry it under that name). The runner first checks the adapter: a fault in the verdict mapping is fixed in this repository and the run is redone; it is not a finding against the system. Otherwise the runner reports it privately to the system's maintainers, through the channel in the system's security policy or, when none is published, through the upstream repository's contact, and opens no public pull request with that run until the embargo in `SECURITY.md` ends; the run is then published in full, its outcome unsoftened ([06-security](../docs/spec/06-security.md)).
 
 ### Invariants
 
@@ -224,7 +220,7 @@ An accepted control where rejection was expected is a possible soundness or adap
 | Mutation produces bytes identical to the original (for example C1 with `vocab_size` 1) | harness asserts the mutated input differs; if not, `error` kind `internal` |
 | Verify timeout during a trial | outcome `error` kind `timeout` |
 | `proofs.verify_reads` does not fit the target proof (READ-2) | `config` error before any call; nothing written |
-| Accepted where rejection expected | `disclosure_pending: true`; private report; embargo rule |
+| Accepted where rejection expected | `disclosure_pending: true`; private report to the upstream |
 
 ## Alternatives Considered
 
@@ -245,18 +241,15 @@ An accepted control where rejection was expected is a possible soundness or adap
 - `proofs.verify_reads` names parts by file name. A system whose part names vary between proofs and that leaves some part unread cannot declare it; it would need a pattern form, in a later amendment. SASH and FlashProve do not need one.
 - The declaration is the adapter author's statement, checked by review against the adapter's `verify` code and README, not by the harness. A part wrongly declared not read is never mutated; its name and reason are printed in every C5, C6 and C8 record, where review can see it.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-- Replaces the draft control list of the initial design commit; IDs C1 to C8, P1, P2 are kept, C6 is fixed at five seeds and gains exact algorithms.
-- v0.1-alpha: harness mutations and classification, tested against `systems/fake` (all shared controls pass) and `systems/fake-broken` (every applicable verifier-side control `accepted`).
-- v0.1-beta: suite runs on SASH and FlashProve rows, plus registered system-specific controls.
+- Replaces the control list of the initial design commit; IDs C1 to C8, P1, P2 are kept, C6 is fixed at five seeds and gains exact algorithms.
+- Harness mutations and classification, tested against `systems/fake` (all shared controls pass) and `systems/fake-broken` (every applicable verifier-side control `accepted`).
+- The suite runs on SASH and FlashProve rows, plus registered system-specific controls.
 - Split suites (amendment of 2026-11-09) change no control, algorithm, expected set or `controls/1` field; they add the `controls-seed/1` record, the `controls-part/1` working file, the `control.call` log event and the `--draw-seed`, `--only`, `--seed`, `--merge`, `--hosted`, `--gpu` and `--provider` options of `iproofs controls`. A merged file is a `controls.json` like any other (INV-CTRL-7).
 - Parts the verifier reads (amendment of 2026-11-09) changes no control id, applicability rule or expected set and no required field: it narrows the candidate lists of C5, C6 and C8 to the parts the verify step reads and adds the optional `system/1` `proofs.verify_reads` and `controls/1` `parts_not_read`. With `"all"` or no declaration every mutation is unchanged. Stored files stay as recorded (READ-5).
-- A new control or a change to an algorithm or expected set needs an RFC and a new `controls/<major>` if the file shape changes. Past `controls.json` files are never edited; they name the RFC version they ran under.
+- A new control or a change to an algorithm or expected set amends this RFC, with a new `controls/<major>` if the file shape changes. Past `controls.json` files are never edited; they name the RFC version they ran under.
 
 ## Testing Strategy
 
@@ -280,13 +273,13 @@ None declared.
 - `test_merge_refuses_*`: parts of another run, another seed record or any other SPLIT-4 field, overlapping or missing controls, records other than the subset (SPLIT-5).
 - `test_prover_side_refused_where_no_prove_can_run`: a prover-side control on a verifier host, or on a GPU profile without `--gpu`, stops before any call (SPLIT-3); `test_prover_part_records_its_host_and_refuses_another_gpu` and `test_p1_part_refused_without_the_perturbed_weights` (SPLIT-2, SPLIT-3).
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-01-31): Controls that target the binding between a proof and served traffic, once any system claims it. Default: none in v0.1.
-- OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-01-31): Whether committing the perturbed Maverick model fits the release compute budget. Default: C3 and P1 run for SASH workloads and for FlashProve on its smallest supported synthetic shape if full-size commit is infeasible, with the substitution declared in the row; otherwise `not_applicable`.
-- OPEN QUESTION Q3: merged into [RFC-0001](0001-process-and-governance.md#open-questions) Q3 (private reporting channel), which owns it. Until resolved, systems without a published policy are contacted through the maintainers listed in `system.yaml`.
-- OPEN QUESTION Q4 (owner: AbdelStark, resolve by: 2027-01-31): upstream rejected-proof examples (for example FlashProve `examples/rejected-proofs`) may come with their own commitment, which conflicts with INV-CTRL-6 (the commitment always comes from a harness record). Default until resolved: such an example is registered only if the harness can regenerate its commitment through the adapter's `commit` step; otherwise it is listed in the adapter README and not run as a control.
-- OPEN QUESTION Q5 (owner: AbdelStark, resolve by: 2027-01-31): how the bytes of a `fixture_proof` control reach the harness (`system-controls/1` names only an upstream `source`, and adapters see only `/io` and `/models`). Default until resolved: a `fixture_proof` control is recorded as `not_applicable` with that reason; `weakened_prover` controls run as specified.
+- Q1. There are no controls on the binding between a proof and served traffic: no v0.1 system claims that binding.
+- Q2. C3 and P1 run for SASH workloads, and for FlashProve on its smallest supported synthetic shape when committing the full-size perturbed Maverick model does not fit the release compute budget, with the substitution declared in the row; otherwise they are `not_applicable`.
+
+- Q4. An upstream rejected-proof example that comes with its own commitment (for example FlashProve `examples/rejected-proofs`) is registered as a control only if the harness can regenerate its commitment through the adapter's `commit` step, since the commitment always comes from a harness record (INV-CTRL-6); otherwise it is listed in the adapter README and not run as a control.
+- Q5. A `fixture_proof` control is recorded as `not_applicable`, with that reason: `system-controls/1` names only an upstream `source`, and adapters see only `/io` and `/models`, so no path brings its bytes to the harness. `weakened_prover` controls run as specified.
 
 ## References
 

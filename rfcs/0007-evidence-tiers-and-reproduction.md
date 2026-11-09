@@ -1,16 +1,12 @@
 # RFC-0007: Evidence tiers
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1
 - Requires: RFC-0004, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
-Every quantity carries a `tier` field saying who stands behind the number. During the research phase every tier is `reported`: produced by one runner and not yet checked. Peer review, reproduction records, the reproduction tolerance and the effective-tier computation at release freeze are out for the research phase (owner decision, 2026-11-09, [rfcs/README.md](README.md#out-for-the-research-phase)); they come back from git history.
+Every quantity carries a `tier` field saying who stands behind the number. Every tier the harness records is `reported`: produced by one runner and not yet checked. Peer review, reproduction records, the reproduction tolerance and an effective-tier computation at release freeze are not defined.
 
 ## Motivation
 
@@ -23,7 +19,7 @@ Published proving numbers are almost always reported by their authors, from scri
 
 ## Non-Goals
 
-- Peer review and reproduction (out for the research phase).
+- Peer review and reproduction.
 - Auditing a system's security claims; tiers concern numbers, not claims.
 - Ranking runners or providers.
 
@@ -45,11 +41,8 @@ None.
 
 ## Drawbacks
 
-No number in the research phase is independently checked.
+No number is independently checked.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
@@ -59,7 +52,7 @@ Stored records already say `reported`; nothing is relabelled.
 
 - LBL-3 (RFC-0013): a `run.json` quantity with another tier fails G5.
 
-## Open Questions
+## Decisions
 
 None.
 

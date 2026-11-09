@@ -1,12 +1,8 @@
 # RFC-0012: Artifact schemas, labelled quantities and serialization
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha
 - Requires: RFC-0001, RFC-0004
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -16,7 +12,7 @@ This RFC fixes the shape of every file the benchmark reads or writes. It defines
 
 AGENTS.md rule 2 says no number is written without its timing scope, grade, evidence tier and source. A rule like that is enforceable only if a number is a typed object, not a bare float in a table. [RFC-0004 §Grades](0004-metrics-timing-grades.md#vocabularies) defines the grade vocabulary and [RFC-0007 §Tiers](0007-evidence-tiers-and-reproduction.md#tiers) the evidence tiers; this RFC gives them a container.
 
-The draft specification listed five kinds of object (claim card, workload, system manifest, run result, control verdicts) and said each has a JSON Schema in `schema/`. It did not say how schemas evolve, how numbers are encoded, how digests are computed, or how a reader tells which schema version a file follows. Without those rules:
+The first specification listed five kinds of object (claim card, workload, system manifest, run result, control verdicts) and said each has a JSON Schema in `schema/`. It did not say how schemas evolve, how numbers are encoded, how digests are computed, or how a reader tells which schema version a file follows. Without those rules:
 
 - A result file written by harness 0.2 cannot be told apart from one written by harness 0.1, and a reader may misread a renamed field.
 - Two runs of `iproofs derive` on two machines may store `0.30000000000000004` and `0.3` for the same ratio, and the CI recompute check ([RFC-0013](0013-validation-and-ci.md)) either fails spuriously or has to use a tolerance that hides real errors.
@@ -36,14 +32,14 @@ The draft specification listed five kinds of object (claim card, workload, syste
 
 - The meaning of each metric, scope or grade. That is [RFC-0004](0004-metrics-timing-grades.md).
 - The content rules of each object (which claim card fields are required, which controls exist). Those belong to the owning RFC listed in the catalogue; this RFC fixes encoding and envelope only.
-- Signing or attesting documents. That is an open question in [RFC-0014](0014-provenance-and-integrity.md#open-questions).
+- Signing or attesting documents ([RFC-0014](0014-provenance-and-integrity.md#decisions) Q1).
 - A general-purpose data format for other projects.
 
 ## Proposed Design
 
 ### Schema catalogue
 
-All schemas use JSON Schema Draft 2020-12. Each lives at `schema/<name>/<major>.schema.json` with `$id` equal to `https://inference-proofs.org/schema/<name>/<major>.schema.json`. The host in `$id` is a placeholder (see [Open Questions](#open-questions)); validators MUST resolve `$id` and `$ref` from the local `schema/` tree and MUST NOT fetch anything over the network.
+All schemas use JSON Schema Draft 2020-12. Each lives at `schema/<name>/<major>.schema.json` with `$id` equal to `https://inference-proofs.org/schema/<name>/<major>.schema.json`. The host in `$id` is never dereferenced ([Q1](#decisions)); validators MUST resolve `$id` and `$ref` from the local `schema/` tree and MUST NOT fetch anything over the network.
 
 | Name | File | Kind | Path of instances | Owner RFC |
 |---|---|---|---|---|
@@ -216,7 +212,7 @@ Optional fields: `upstream_scope` (the scope name as the upstream source states 
 - **INV-QTY-4** In a `run.json` or `controls.json`, `tier` is `reported`.
 - **INV-QTY-5** `grade: external` implies `source.kind: upstream`, `upstream_scope` and `mapping` present, and `source.ref` contains a 40-hex commit hash or an immutable archive URL (RFC-0014 §Pin rules).
 - **INV-QTY-6** `grade: derived` implies `source.kind: derivation`, a non-empty `source.inputs`, and that the formula id exists in the harness's formula registry at the named version.
-- **INV-QTY-6a** The tier of a derived quantity is the lowest tier among its inputs, in the order `reported` < `peer-reviewed` < `reproduced` (RFC-0004). During the research phase every tier is `reported` (RFC-0007).
+- **INV-QTY-6a** The tier of a derived quantity is the lowest tier among its inputs, in the order `reported` < `peer-reviewed` < `reproduced` (RFC-0004). Every recorded tier is `reported` (RFC-0007).
 - **INV-QTY-7** `grade: measured` implies `source.kind` is `harness` or `adapter`.
 - **INV-QTY-8** A statistic satisfies `stats.n >= 0`, `stats.n_failed >= 0`, `value == stats.mean`, and `stats.stdev` is null when `stats.n < 2`. When `stats.n == 0`, `value` is null with `null_reason: step_failed`.
 - **INV-QTY-9** `quality` appears only on `measured` and `derived` quantities. The harness sets it on measured quantities; a derived quantity carries `quality.degraded` and `quality.precision_substituted` equal to the logical OR over its inputs, so a flag cannot be lost through a formula. G5 checks the OR.
@@ -331,7 +327,7 @@ Validation uses `jsonschema.Draft202012Validator` with `format_checker=Draft2020
 
 **Pydantic models as the source of truth, JSON Schema exported.** Considered because it gives typed Python models and validation in one library, and most Python ML projects use it. Rejected because the schemas are the normative interface for adapters and readers in other languages; an exported schema changes whenever the library's export logic changes, so a library upgrade could change a normative artifact. Hand-written schemas plus a drift test keep the normative text stable and the Python side typed.
 
-**RFC 8785 JSON Canonicalization Scheme for all JSON.** Considered because it is a standard canonical form. Rejected for v0.1 because its number serialisation follows ECMAScript rules, which differ from Python `repr` for some exponents, so a pure-stdlib implementation would need a custom float formatter; and we do not need canonical form across writers, only that our one writer is deterministic. The JSON format check gives the same guarantee for files we write. If documents are ever signed by third-party tools (RFC-0014 open question), JCS is the first candidate.
+**RFC 8785 JSON Canonicalization Scheme for all JSON.** Considered because it is a standard canonical form. Rejected for v0.1 because its number serialisation follows ECMAScript rules, which differ from Python `repr` for some exponents, so a pure-stdlib implementation would need a custom float formatter; and we do not need canonical form across writers, only that our one writer is deterministic. The JSON format check gives the same guarantee for files we write. If documents are ever signed by third-party tools (RFC-0014 Q1), JCS is the first candidate.
 
 **A tolerance in the recompute check (for example relative 1e-12).** Considered because floating point is often treated as inexact. Rejected because the computation path is fixed and deterministic; a tolerance would accept a hand-edited value that is close but not computed, which is exactly what AGENTS.md rule 3 forbids.
 
@@ -350,9 +346,6 @@ Validation uses `jsonschema.Draft202012Validator` with `format_checker=Draft2020
 - Closed enums mean every new unit or scope needs at least an additive schema edit, and old readers reject documents using it.
 - PyYAML plus rules relies on schemas catching type traps; a field typed as a free string will accept `"no"` when an author meant `false`. Fields where that matters are typed boolean.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
@@ -364,17 +357,17 @@ No results exist yet, so there is nothing to migrate. Rollout order:
 
 The amendment of 2026-11-08 adds the unit `s/bit_token` (seconds per bit of active weights per token covered, [RFC-0004](0004-metrics-timing-grades.md#derived-metric-catalogue) D-SPAB-S) to the unit enum and to the INV-QTY-3 list, and the optional `precision.weight_bits` object to `workload/1` ([RFC-0003 §Weight bits](0003-workloads.md#weight-bits)). Both are additive: every document valid before stays valid, so neither schema changes major. After review, the same amendment adds: the unit `bit/weight` (bits per weight, the unit of an asserted weight width); `covers` and the computed `file_size` width in `precision.weight_bits`; the optional `run/1` property `inputs` (`active_parameters_per_token` with unit `count` and `weight_bits` with unit `bit/weight`, both `asserted` quantities with `source.kind: reference_file`, copied from the workload record at run time, RFC-0003 WB-4), whose model is `RunInputs`; and the optional `release-index/1` property `freeze_derived` (run id, then metric id, to the quantity the freeze evaluated for a run stored before its formula existed, RFC-0004 Q3). Every addition is optional or widens an enum, so no schema changes major; `workload/1`'s `weight_bits` changed shape before any release used it. The second amendment of 2026-11-08 (RFC-0003 Q5 resolved) widens `precision.weight_bits.basis` with `computed` and adds the optional `method` (enum `gguf-active-mean/1`), required exactly for that basis, which also requires `bits` and `files` and fixes `covers` to `all` (RFC-0003 WB-5); `WeightBits` gains `method`. Both are additive, so `workload/1` stays at major 1.
 
-The existing draft claim card example in the old `docs/SPEC.md` uses `reviewed_by_maintainers` and `security.bits`; RFC-0002's field names (`reviewed_by`, `security.level`) win, and `claim/1` follows RFC-0002.
+The claim card example in the old `docs/SPEC.md` uses `reviewed_by_maintainers` and `security.bits`; RFC-0002's field names (`reviewed_by`, `security.level`) win, and `claim/1` follows RFC-0002.
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): 
+Amendment of 2026-11-09 (RFC-0015 SRV-6 production serving): 
 - new schema `serving-model/1` (`workloads/serving/<id>.yaml`) with valid and invalid examples;
 - `reference/1`: `kind: serving`, `pairs_with`, `shm_gib_min`, `gpu.count` above 1 for serving profiles only;
 - `system/1`: for a serve-role workload entry, `load_point`, `gpus`, `batch_size` (high only) and `batches_per_session_run`; `precision_substitution` must be null for `reference_role: serve`, and `engine_args` holds only the SRV-3 allowlist; optional `engine.commit` (the engine's source commit, RFC-0015 Q1);
 - `manifest/1`: `workload.load_point`, `workload.batch_size_run`, `workload.batches_per_session_run`, `workload.prompt_count_run`, `workload.prompt_prefix_digest`, `workload.steady_rule` (RFC-0004 INV-SCOPE-5), `engine` with optional `engine.observed` (version, build commit, batched-token limit, RFC-0015 SRV-3), `serving_model`; `run/1`: `inputs.gpu_count`;
 - `quantity/1`: unit `gpu_s/token`, the metric ids `gpu_seconds_per_token_<S>`, `overhead_vs_production_<S>` and `overhead_vs_production_high_<S>` (and no longer `overhead_vs_serving_<S>`), optional `pairs` (RFC-0004 INV-DERIVE-9);
-- `release-index/1`: optional `overhead_conditions` per system configuration (RFC-0004 INV-DERIVE-9), with the high load's settings, GPU count and profile and each engine's batched-token limit; optional `steady_boundary` per configuration (RFC-0004 INV-SCOPE-5); optional `overhead_headline` per system configuration, `{metric, formula, scope, start_up}` with `metric` `overhead_vs_production_prove.steady` or `overhead_vs_production_prove.session` (RFC-0004 INV-DERIVE-10, Draft amendment of the same date, with valid and invalid examples).
+- `release-index/1`: optional `overhead_conditions` per system configuration (RFC-0004 INV-DERIVE-9), with the high load's settings, GPU count and profile and each engine's batched-token limit; optional `steady_boundary` per configuration (RFC-0004 INV-SCOPE-5); optional `overhead_headline` per system configuration, `{metric, formula, scope, start_up}` with `metric` `overhead_vs_production_prove.steady` or `overhead_vs_production_prove.session` (RFC-0004 INV-DERIVE-10, amendment of the same date, with valid and invalid examples).
 
-Amendment of 2026-11-09 (Draft, owner direction, RFC-0004 INV-DERIVE-11 and RFC-0015 SRV-1). No frozen release index exists, so the narrowed enums below change no stored record:
+Amendment of 2026-11-09 (RFC-0004 INV-DERIVE-11 and RFC-0015 SRV-1). No frozen release index exists, so the narrowed enums below change no stored record:
 - `quantity/1`: the metric id `overhead_vs_production_warm` (D-OVERHEAD-WARM);
 - `release-index/1`: `overhead_headline` gains the required `serving_scope` (`prove.steady`); `formula` is `D-OVERHEAD-S` or `D-OVERHEAD-WARM`, `metric` `overhead_vs_production_prove.steady` or `overhead_vs_production_warm`, `start_up` `excluded` or `prover_only` (the session headline's `D-OVERHEAD-SESSION`, `overhead_vs_production_prove.session` and `included` leave the enums); `overhead_conditions.warm` is true when serving's start-up is outside its scope; the valid example becomes `warm-headline.json`;
 - `manifest/1`: optional `workload.sizing_capture` (`const: true`), a matched production-serving run of a declared sizing count of batches (RFC-0015 SRV-1), with an invalid example (`false`).
@@ -402,10 +395,10 @@ Property tests in `harness/tests/property/` (Hypothesis):
 
 Schema example tests: every file in `examples/valid/` validates; every file in `examples/invalid/` fails, and the error path or keyword contains the text in its `.reason` file.
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-03-31, with RFC-0001 Q1): the host used in `$id`. Default until resolved: `https://inference-proofs.org/` as a placeholder that is never dereferenced. Changing it is an editorial change to every schema, because validators resolve locally.
-- OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2026-12-01): whether the drift test should also compare JSON types against dataclass annotations. Default: names and required-ness only; type comparison is added if a type drift bug is found.
+- Q1. The host used in `$id` is `https://inference-proofs.org/`, never dereferenced (RFC-0001 Q1). Changing it is an editorial change to every schema, because validators resolve locally.
+- Q2. The drift test compares property names and required-ness only, not JSON types against dataclass annotations; type comparison is added if a type drift bug is found.
 
 ## References
 

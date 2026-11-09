@@ -1,22 +1,18 @@
 # RFC-0014: Provenance, pinning and artifact integrity
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-beta
 - Requires: RFC-0003, RFC-0005, RFC-0006, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
-Every row the benchmark publishes must be rerunnable by a stranger and must be checkable against the exact inputs that produced it. This RFC fixes how inputs are pinned (commits, images, models, prompt corpora, toolchains), how adapter images are built, how weights are fetched and verified before any container sees them, what `manifest.json` records, how the harness keeps the commitment that the verifier checks against (AGENTS.md rule 6), how proofs are digested, and which supply-chain threats the design answers. Signed result files are left as an open question with a default of unsigned for v0.1.
+Every row the benchmark publishes must be rerunnable by a stranger and must be checkable against the exact inputs that produced it. This RFC fixes how inputs are pinned (commits, images, models, prompt corpora, toolchains), how adapter images are built, how weights are fetched and verified before any container sees them, what `manifest.json` records, how the harness keeps the commitment that the verifier checks against (AGENTS.md rule 6), how proofs are digested, and which supply-chain threats the design answers. Result files are unsigned (Q1).
 
 ## Motivation
 
 [RFC-0007 §Motivation](0007-evidence-tiers-and-reproduction.md#motivation) records why provenance matters for the first two systems: FlashProve's performance page states that its measuring scripts are not in the repository and that a reader cannot check the figures against the run records; SASH publishes run manifests, but its headline manifest records that the producing prover tree was dirty. A benchmark has to do better than both, for its own runs.
 
-The draft specification said "pin everything" and "the commitment the verifier checks against comes from the harness's own record". Neither said how. Concrete cases this RFC must handle:
+The first specification said "pin everything" and "the commitment the verifier checks against comes from the harness's own record". Neither said how. Concrete cases this RFC must handle:
 
 - An adapter Dockerfile clones `main` of an upstream repository; a rebuild a month later measures different code under the same row label.
 - A weight file on the model host is replaced under the same revision name; a run silently proves a different model.
@@ -34,7 +30,7 @@ The draft specification said "pin everything" and "the commitment the verifier c
 ## Non-Goals
 
 - Bit-reproducible image builds. A rerun uses the same image digest, not a rebuild. Rebuild reproducibility is desirable and is recorded when it holds, but not required in v0.1.
-- Cryptographic attestation of the runner's host (TEE or measured boot). Open question Q1.
+- Cryptographic attestation of the runner's host (TEE or measured boot). Q1.
 - Auditing upstream code for backdoors. The benchmark pins and records; it does not certify (PRD §5).
 - Hosting weights. Weights are never redistributed (AGENTS.md rule 8).
 
@@ -72,7 +68,7 @@ Each `systems/<name>/Dockerfile` follows these rules (RFC-0005 owns the adapter 
 6. **B6 Clean tree.** The build context is a clean checkout of this repository at a commit; `info` reports `adapter_commit` (this repository's commit) baked in at build time through a build argument. A build from a dirty tree sets `adapter_dirty: true`, and such an image is not eligible for a release (see §Eligibility).
 7. **B7 Publication.** Images that a hosted provider pulls are pushed to the project's container registry, `ghcr.io/ai-verification-observatory/` (Q2), and referenced by manifest digest.
 
-Local images that are not pushed (the fake systems in CI, adapter development) are referenced by their image ID and recorded with `image.digest_kind: "config"`; pushed images record `image.digest_kind: "manifest"`. Both kinds may enter a release during the research phase.
+Local images that are not pushed (the fake systems in CI, adapter development) are referenced by their image ID and recorded with `image.digest_kind: "config"`; pushed images record `image.digest_kind: "manifest"`. Both kinds may enter a release.
 
 Development install, generic form (amendment of 2026-11-09; first written for the unmerged `ref-serve-gguf` branch, commit `d842275`). When an adapter's own image is not yet pullable by a hosted provider, a development run may start from the public engine image its Dockerfile is built `FROM`, and install the adapter into that container from the checkout the job runs: the files the Dockerfile copies, at its paths, and the inputs of its `inputs.lock`, each checked by its digest (`systems/<name>/dev_install.py`, on the shared `systems/_dev/install.py`; `ref-serve` is the first user, docs/runbooks/hf-jobs.md). Such a run records `image.ref` as `local/<the engine image's pull reference>`, with that reference's registry digest, and `image.digest_kind: "config"`. Here the digest names the engine image, not the image ID of a local build. It is the reference the job command names, which the container cannot read back; the install checks what it can: the image's own `FROM`, the engine's version, the bound GPUs, and the engine environment against the image's `ENV`. The adapter is identified by `system.adapter_commit` (the checkout's commit) and by the `image_inputs` entries of the install: the engine image by digest, and the adapter files at that commit with their sha256. A development install is never eligible for a release (`digest_kind` is `config`), and it never claims a digest of the adapter's image. RFC-0006 §Hosted execution admits it beside a local build named with `--image`.
 
@@ -168,7 +164,7 @@ AGENTS.md rule 6: the commitment the verifier checks comes from the harness reco
 
 - Every proof directory gets a proof digest (RFC-0012) as soon as the harness sees its rename. The digest goes into `manifest.proofs[]` and `digests.txt` (`<proof_id>\t<digest>` per line, sorted by proof id bytes).
 - The harness rechecks the proof digest immediately before each `verify` call and each control mutation, so a proof changed on disk between prove and verify is detected (`ErrorKind.integrity`).
-- No proof bytes are committed to git (RFC-0009 §Storage). Proofs are kept by digest and MAY be deleted from the runner's disk after controls complete. The optional `manifest.proofs[].archive` field (`{uri, digest, bytes}` or `null`) stays in `manifest/1`; no archive is required during the research phase.
+- No proof bytes are committed to git (RFC-0009 §Storage). Proofs are kept by digest and MAY be deleted from the runner's disk after controls complete. The optional `manifest.proofs[].archive` field (`{uri, digest, bytes}` or `null`) stays in `manifest/1`; no archive is required (RFC-0009 Q1).
 
 ### Eligibility
 
@@ -207,7 +203,7 @@ A run is eligible for a release (RFC-0009 freeze) only if it belongs to that rel
 
 **Let the adapter read the commitment from its own commit output.** Considered because it is simpler for adapters. Rejected: it makes rule 6 depend on every adapter being correct; the harness-owned store makes it structural.
 
-**Signed result files from the start.** Considered because signatures make results cheaper to trust (PRD open question 4). Deferred: a signature proves who wrote a file, not that the numbers are right, and key management for volunteer runners needs its own design. Q1.
+**Signed result files from the start.** Considered because signatures make results cheaper to trust (PRD §12). Deferred: a signature proves who wrote a file, not that the numbers are right, and key management for volunteer runners needs its own design. Q1.
 
 ## Drawbacks
 
@@ -216,15 +212,12 @@ A run is eligible for a release (RFC-0009 freeze) only if it belongs to that rel
 - The fetch-stage discipline (B2, B3) makes adapter Dockerfiles longer and slower to write than a plain `git clone && make`.
 - Unsigned results mean a fabricating runner is not caught (docs/spec/06-security.md residual risks).
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-No adapters or results exist yet. Order: manifest schema and the commitment store with the fake systems (v0.1-alpha, since G10 exercises them), then model fetch and verification, build rules B1 to B7 in the SASH and FlashProve adapters, registry publication (v0.1-beta). The eligibility rule takes effect at the first freeze (v0.1).
+Order: manifest schema and the commitment store with the fake systems first, since G10 exercises them, then model fetch and verification, build rules B1 to B7 in the SASH and FlashProve adapters, and registry publication. The eligibility rule applies from the first freeze.
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): §Model fetch gains SM-1 to SM-3 and the serving mount; the development-install paragraph is added in generic form. `harness/tests/unit/test_serving.py` covers SM-1 and SM-2 on fixtures.
+Amendment of 2026-11-09 (RFC-0015 SRV-6 production serving): §Model fetch gains SM-1 to SM-3 and the serving mount; the development-install paragraph is added in generic form. `harness/tests/unit/test_serving.py` covers SM-1 and SM-2 on fixtures.
 
 ## Testing Strategy
 
@@ -235,10 +228,10 @@ Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): §M
 - Adapter build checks (per system, CPU only, in `systems/<name>/tests/`): `test_dockerfile_rules.py` parses the Dockerfile and asserts B1, B3 (every `RUN` outside `fetch` has `--network=none`) and that `inputs.lock` covers every `ADD` in the fetch stage.
 - G10 end-to-end run asserts the manifest of each fake run validates and that `commitment` digests match the files used at verify.
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-03-31, or a later RFC): whether runners sign `run.json` and `manifest.json` (for example with a key bound to an attested runner), and with which scheme. Default for v0.1: unsigned.
-- Resolved Q2: the default holds. Release images live in `ghcr.io/ai-verification-observatory/`, the container registry of the organisation that hosts the source. They are kept indefinitely: a digest that a release references is never deleted or overwritten, and lookups never go by tag. The engine image a reference adapter builds on (RFC-0015) is a base image pinned by digest at its publisher's registry (B1), like any `FROM`, and is not pushed again.
+- Q1. Runners do not sign `run.json` or `manifest.json`, and no host attestation is recorded.
+- Q2. Release images live in `ghcr.io/ai-verification-observatory/`, the container registry of the organisation that hosts the source. They are kept indefinitely: a digest that a release references is never deleted or overwritten, and lookups never go by tag. The engine image a reference adapter builds on (RFC-0015) is a base image pinned by digest at its publisher's registry (B1), like any `FROM`, and is not pushed again.
 
 ## References
 

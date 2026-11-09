@@ -1,12 +1,8 @@
 # RFC-0002: Claim card
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha (schema and validation); v0.1 (cards reviewed by system maintainers)
 - Requires: RFC-0001, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -34,7 +30,7 @@ Scenarios:
 ## Non-Goals
 
 - Auditing or certifying the security claims. The card reports what a system states; it does not check soundness proofs or code ([PRD §5](../docs/PRD.md#5-non-goals)).
-- A controlled vocabulary for assumptions (OPEN QUESTION Q1).
+- A controlled vocabulary for assumptions (Q1).
 - A formal language for relations. `relation` is English, optionally linked to a formal statement.
 - Ranking systems by the strength of their claims.
 
@@ -50,7 +46,7 @@ Scenarios:
 
 A new configuration (a new card, not a new version of an existing card) is REQUIRED when any of the following differs, because each changes what an accepted proof means:
 
-1. The upstream commit (a new pin may change the statement; the card is copied forward and re-reviewed, `reviewed_by` reset to empty).
+1. The upstream commit (a new pin may change the statement; the card is copied forward).
 2. The acceptance policy (for example FlashProve's exact-match policy versus its clipped-gap policy for whole replies).
 3. The model family or precision as proved.
 4. The hiding mode (weights hidden or not).
@@ -83,7 +79,7 @@ Types use the RFC-0012 conventions. `Text` is a non-empty string; `NotStated` is
 | `quality_gap` | no | list of `{metric: Text, value: Text, source: SourceRef}` | difference between the proved model and the reference model (for example top-token disagreement rate), as stated upstream |
 | `availability` | yes | enum | `available` (open source, runnable), `preview` (announced, not runnable), `research` (paper code, runnable, not maintained) |
 | `sources` | yes | map from field path to `SourceRef` | one entry for every field above whose value is not `not stated` |
-| `reviewed_by` | yes | list of `{handle: Text, organisation: Text, date: "YYYY-MM-DD", card_version: integer}` | empty until review |
+| `reviewed_by` | yes | list of `{handle: Text, organisation: Text, date: "YYYY-MM-DD", card_version: integer}` | recorded data; nothing prints or checks it |
 | `forbidden_flags` | no | list of strings | flags that weaken the statement; copied into `system.yaml` (RFC-0005) for the policy gate |
 
 `coverage`:
@@ -107,7 +103,7 @@ Types use the RFC-0012 conventions. `Text` is a non-empty string; `NotStated` is
 
 `state` meanings: `bound` (the system states the edge is bound in this configuration), `unbound` (the system states it is not bound, for example because a switch is on), `absent` (the edge does not exist in this system's computation), `not_stated` (the system does not say).
 
-### Example (shape only, not a reviewed card)
+### Example (shape only)
 
 ```yaml
 schema: claim/1
@@ -148,7 +144,7 @@ sources:
 reviewed_by: []
 ```
 
-The values above come from docs/PRD.md and the earlier draft of this RFC; the `<path>` and every other source link are filled from the upstream documentation in the implementing issue. `security.setup: not_stated` and `availability: research` are placeholders to be confirmed against upstream; the real card copies what upstream states.
+The values above are illustrative, from docs/PRD.md; a real card fills the `<path>` and every other source link from the upstream documentation and copies what upstream states.
 
 ### Rules
 
@@ -156,7 +152,7 @@ The values above come from docs/PRD.md and the earlier draft of this RFC; the `<
 2. **Card first (INV-CLAIM-1).** On every page and in every report that shows a number for a system, the card for that number's configuration appears before the number. RFC-0009 enforces this in the site generator.
 3. **Sources (INV-CLAIM-3).** `sources` has an entry for every field path whose value is not `not stated`. Each `SourceRef` contains the full upstream commit hash of the card's `upstream.commit`. CI fails a card with a missing or mismatched source.
 4. **Weakening configurations (INV-CLAIM-4).** A configuration that weakens the statement (for example any SASH `--unsound-skip-*` flag) has no card. A run with such a flag is valid only as a negative-control job (`control: true`, RFC-0008). The flags are listed in `forbidden_flags` and the policy gate (RFC-0013 gate 6) rejects any measured run whose manifest command lines contain one.
-5. **Review.** A card changes only by pull request. Every change increments `card_version` and resets `reviewed_by` to empty; a system maintainer re-adds their entry with the new `card_version` after review.
+5. **Versions.** Every change to a card increments `card_version`.
 6. **Published cards are frozen.** A release records the `card_version` of every card it shows (RFC-0009). Later card changes do not alter a published release.
 
 ### Claim class
@@ -167,7 +163,7 @@ The values above come from docs/PRD.md and the earlier draft of this RFC; the `<
 - `<policy>`: `exact-match`, `tolerance`, `other`.
 - `<weights>`: `committed-weights`, `public-weights`, `other`.
 
-Pattern: `^(next-token|greedy-continuation|segment-grid|other)/(exact-match|tolerance|other)/(committed-weights|public-weights|other)$`. A closed workload (RFC-0003) fixes one `claim_class`; only cards with that exact string compete in it. A target (RFC-0009) names a `claim_class` filter, which may use `*` for one token. The class is chosen by the card author from the card's own `coverage` and `relation`, and reviewed with the card. It is a filter key, not a security statement.
+Pattern: `^(next-token|greedy-continuation|segment-grid|other)/(exact-match|tolerance|other)/(committed-weights|public-weights|other)$`. A closed workload (RFC-0003) fixes one `claim_class`; only cards with that exact string compete in it. A target (RFC-0009) names a `claim_class` filter, which may use `*` for one token. The class is chosen by the card author from the card's own `coverage` and `relation`. It is a filter key, not a security statement.
 
 ### Validation
 
@@ -177,10 +173,10 @@ Pattern: `^(next-token|greedy-continuation|segment-grid|other)/(exact-match|tole
 
 | Failure | Response |
 |---|---|
-| A field is filled with the benchmark's own inference | Review catches it; INV-CLAIM-3 catches it when the inferred field has no source; the card cannot be reviewed while a sourceless field exists |
+| A field is filled with the benchmark's own inference | INV-CLAIM-3 catches it when the inferred field has no source |
 | Upstream documentation changes after the pin | No effect: sources pin the commit; a new pin is a new configuration |
 | Upstream documentation is contradictory | The card quotes both statements in the field, each with its source, and the release report notes the contradiction |
-| A system maintainer refuses to review | The card stays unreviewed; rows show "card not reviewed by system maintainers" |
+
 | A run references a card version that was later changed | The run keeps its recorded `card_version`; the release shows the card version in force at freeze, and CI fails if the run's version is not the one frozen |
 | A card is missing for a run | CI fails the run; no number is published (INV-CLAIM-1) |
 
@@ -196,21 +192,17 @@ The field set merges three sources: the relation, security definition and assump
 
 ## Drawbacks
 
-- Cards require reading each system's documentation closely and keeping links current; that cost falls on contributors and system maintainers.
+- Cards require reading each system's documentation closely and keeping links current; that cost falls on card authors.
 - `not stated` can look like a criticism of a system; the site explains that it records silence, not absence of a property.
 - `claim_class` is coarse. Two cards in the same class can still differ in security level or hiding; the class only narrows comparison, the card still has to be read.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-1. v0.1-alpha: `schema/claim/1.schema.json` with valid and invalid examples, the loader dataclass, and `iproofs validate` support.
-2. v0.1-beta: draft cards for SASH and FlashProve, every field copied from upstream at the pins in `docs/spec/00-overview.md`, `reviewed_by: []`.
-3. v0.1: system maintainers review; reviewed cards are frozen in the release.
+1. `schema/claim/1.schema.json` with valid and invalid examples, the loader dataclass, and `iproofs validate` support.
+2. Cards for SASH and FlashProve, every field copied from upstream at the pins in `docs/spec/00-overview.md`, `reviewed_by: []`.
 
-The earlier draft of this RFC used `reviewed_by_maintainers: false` and `security.bits` in the SPEC example; they are replaced by `reviewed_by: []` and `security.level`. No published data uses the old names.
+An earlier version of this RFC used `reviewed_by_maintainers: false` and `security.bits` in the SPEC example; they are replaced by `reviewed_by: []` and `security.level`. No published data uses the old names.
 
 ## Testing Strategy
 
@@ -235,11 +227,11 @@ Unit tests:
 - `test_claim_class_wildcard`: target filter `next-token/*/committed-weights` matches `next-token/exact-match/committed-weights` and not `segment-grid/exact-match/committed-weights`.
 - Drift test (RFC-0012): dataclass fields equal schema properties.
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-01-31): a controlled vocabulary for `assumptions` so cards can be filtered. Default: free text, reviewed.
-- OPEN QUESTION Q2 (owner: AbdelStark, resolve by: RFC for v0.3 families): how a statistical guarantee (for example sampled recompute) fills `security.level` and `security.notion`. Default for v0.1: not needed, no v0.1 system makes a statistical claim; `kind: other` with the system's own text.
-- OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): whether the claim class needs a fourth token for hiding (`weights-hidden`, `weights-public`) once targets ask for zero knowledge. Default: hiding is read from `zero_knowledge.claimed`, and targets filter on it directly.
+- Q1. `assumptions` is free text; there is no controlled vocabulary.
+- Q2. A statistical guarantee (for example sampled recompute) fills `security` with `kind: other` and the system's own text.
+- Q3. The claim class has no fourth token for hiding: hiding is read from `zero_knowledge.claimed`, and targets filter on it directly.
 
 ## References
 

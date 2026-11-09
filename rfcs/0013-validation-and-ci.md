@@ -1,12 +1,8 @@
 # RFC-0013: Validation pipeline and CI gates
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha
 - Requires: RFC-0002, RFC-0004, RFC-0005, RFC-0008, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -14,7 +10,7 @@ This RFC defines every automated check that stands between a pull request and th
 
 ## Motivation
 
-The project's credibility rests on rules that a reviewer cannot check by eye at scale: every number labelled (AGENTS.md rule 2), every derived number computed (rule 3), no weakening flag in a measured row (rule 4), commitments from the harness record (rule 6), no secrets or host identifiers (rule 7), neutral language (rule 10), full pins everywhere (working practice). The draft specification's §12 listed five CI checks in one sentence. That is not enough to implement them, to know which are blocking, or to run them locally before pushing.
+The project's credibility rests on rules that a reviewer cannot check by eye at scale: every number labelled (AGENTS.md rule 2), every derived number computed (rule 3), no weakening flag in a measured row (rule 4), commitments from the harness record (rule 6), no secrets or host identifiers (rule 7), neutral language (rule 10), full pins everywhere (working practice). The first specification's §12 listed five CI checks in one sentence. That is not enough to implement them, to know which are blocking, or to run them locally before pushing.
 
 Concrete scenarios the gates must catch:
 
@@ -33,7 +29,7 @@ Concrete scenarios the gates must catch:
 
 ## Non-Goals
 
-- Checking the security of a prover, or that a claim card is true. Claim cards are reviewed by people (RFC-0002).
+- Checking the security of a prover, or that a claim card is true. Claim cards are checked by people reading their sources (RFC-0002).
 - Running GPU jobs in CI. Hosted runners have no H100, and the cost model forbids it.
 - Style rules for Python beyond what ruff and mypy enforce.
 - Checking prose numbers in Markdown for labels. A free-text parser for that would be unreliable; reviewers check prose, and reports draw numbers from records through templates (RFC-0009 §Reports).
@@ -50,7 +46,7 @@ pull request
   -> job fake-e2e            G10 (docker on the hosted runner, CPU only)
 ```
 
-A broken gate is fixed by a pull request to the gate. G11 (DCO sign-off) is out for the research phase ([rfcs/README.md](README.md#out-for-the-research-phase)).
+A broken gate is fixed by a pull request to the gate. There is no G11 (DCO sign-off).
 
 The command `iproofs validate [PATH ...]` runs the tree gates. With no path it validates the tree under the current directory; with `--all` it ignores git and checks every file; with `--changed-since <ref>` it limits G2 to G9 to files changed since `ref` plus every file that references them (run directories referencing a changed workload or system manifest). CI on pull requests uses `--changed-since origin/main`; CI on the default branch, nightly, uses `--all`.
 
@@ -87,7 +83,7 @@ Cross-document checks (also G2, rule ids `XREF-n`):
 - `XREF-4` every `releases/<r>/release.yaml` lists only existing run directories, and the reference file it names exists.
 - `XREF-5` every target names a metric id that exists in the RFC-0004 formula registry or the raw metric list.
 - `PM-1` and `PM-2` ([RFC-0015 §Precision matching](0015-reference-rows.md#precision-matching)): a reference system that does not use the workload's served precision declares a substitution (`PM-1`); a substitution never goes to a lower bit width, and every quantity of a substituted reference row carries `quality.precision_substituted: true` (`PM-2`).
-- `web/_data/criteria.json` is checked by its schema (`criteria/1`) only; the RFC-0016 `CRIT-*` rules are out for the research phase.
+- `web/_data/criteria.json` is checked by its schema (`criteria/1`) only.
 
 Repository-shape checks (also G2):
 
@@ -232,7 +228,7 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 
 **Schema checks only, no graph checks.** Considered for simplicity. Rejected because the two most important rules (derived numbers recomputed, ratios carrying their scope) need the derivation graph, which JSON Schema cannot express.
 
-**Running a small GPU job in CI on a self-hosted runner.** Considered for coverage of the measurement code. Rejected for v0.1: a self-hosted GPU runner that executes pull request code is a security risk (untrusted code on a machine with credentials), and the cost is ongoing. The fake system and stored fixtures cover the logic; GPU paths are covered by runbook tests on a maintainer-controlled host.
+**Running a small GPU job in CI on a self-hosted runner.** Considered for coverage of the measurement code. Rejected for v0.1: a self-hosted GPU runner that executes pull request code is a security risk (untrusted code on a machine with credentials), and the cost is ongoing. The fake system and stored fixtures cover the logic; GPU paths are covered by runbook tests on a project-controlled host.
 
 **A language model or classifier for neutral-language checks.** Rejected: non-deterministic and opaque. A word list is crude but predictable and reviewable.
 
@@ -243,15 +239,12 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 - Eleven gates are a lot for a contributor to learn; the failure message format and `make ci` mitigate this.
 - IPv4 matching flags version-like strings outside `version` fields; authors may need to rephrase.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-1. v0.1-alpha: land G1, G2, G3 and G12 first, as they need only schemas and the writer.
+1. G1, G2, G3 and G12 land first, as they need only schemas and the writer.
 2. Land G4 and G5 with the derivation module; G10 with the fake systems; G7 and G9 with their pattern modules. Each runs in CI from the pull request that adds it.
-3. G6 becomes meaningful when SASH's `system.yaml` lists forbidden flags (v0.1-beta); it is required from the start and passes vacuously before then.
+3. G6 becomes meaningful when SASH's `system.yaml` lists forbidden flags; it is required from the start and passes vacuously before then.
 4. Repository settings are recorded in `docs/runbooks/repository-settings.md`.
 
 ## Testing Strategy
@@ -267,10 +260,10 @@ None declared.
 - `test_g10_e2e.py` is the G10 job itself; its assertions are listed in §G10.
 - Each gate has a fixture under `harness/tests/fixtures/gates/<gate>/bad/` that the gate must flag, as a guard against a gate that passes everything.
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2026-12-01): whether G8 should also run on issue and pull request bodies through a workflow. Default: no; repository files only.
-- OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-01-31): whether a maintainer-controlled GPU host should run a scheduled smoke job on the default branch (not on pull requests) to catch measurement regressions. Default: no scheduled GPU job in v0.1; runbook tests before each campaign.
+- Q1. G8 runs on repository files only, not on issue and pull request bodies.
+- Q2. No GPU job runs on a schedule; runbook tests run before each campaign to catch measurement regressions.
 
 ## References
 

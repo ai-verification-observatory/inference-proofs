@@ -1,12 +1,8 @@
 # RFC-NNNN: Title
 
-- Status: Draft
 - Authors: handle
 - Created: YYYY-MM-DD
-- Target milestone: v0.1-alpha | v0.1-beta | v0.1 | later
 - Requires: RFC numbers this one depends on
-- Supersedes: none
-- Discussion: link to the pull request or issue
 
 Write "None." where a section has no content. Normative text uses MUST, SHOULD and MAY as defined in RFC 2119.
 
@@ -46,10 +42,6 @@ For each alternative: what it is, why it was considered, why it was rejected.
 
 What this design gives up.
 
-## Conflicts of Interest
-
-Any author who builds, funds or competes with a system this RFC affects says so here.
-
 ## Migration / Rollout
 
 Effect on existing adapters, claim cards, schemas and past results; how they are migrated or relabelled; schema version changes (RFC-0012).
@@ -58,9 +50,9 @@ Effect on existing adapters, claim cards, schemas and past results; how they are
 
 Named test cases that prove the design correct: unit, property, schema example, fixture, integration, GPU-host. Specific cases, not categories.
 
-## Open Questions
+## Decisions
 
-Each entry: `OPEN QUESTION Qn (owner: handle, resolve by: YYYY-MM-DD or RFC-NNNN): question. Default until resolved: ...`
+Each entry: `Qn. ` then the rule, stated plainly. Keep the number once code or docs cite it.
 
 ## References
 
