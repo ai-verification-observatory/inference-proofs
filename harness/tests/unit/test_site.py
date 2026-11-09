@@ -1007,6 +1007,8 @@ def test_unexpected_control_printed_in_full(site: Build) -> None:
             assert u["control"] in said
             assert u["run_id"] in said
             assert f'/{u["record"]}"' in block  # the record, in full
+            if u.get("not_read"):  # tests nothing: the expected set rides in the head's title
+                said += " " + html.unescape(" ".join(re.findall(r'title="([^"]*)"', block)))
             for x in stored["expected"]:
                 assert x.replace("_", " ").replace("invalid call", "refused") in said or x in said
             trials = re.findall(r"<li>(.*?)</li>", block, re.S)
@@ -1022,9 +1024,11 @@ def test_unexpected_control_printed_in_full(site: Build) -> None:
             seen += 1
     if site.kind == "web":
         assert not seen
-        assert "No tamper-test outcome fell outside its expected set." in plain(release)
+        assert "Every outcome fell inside its expected set." in plain(release)
     else:
         assert seen == 2  # FlashProve's C1 and SASH's C2
+        assert "Every outcome fell inside" not in plain(release)
+        assert "Outside their expected set:" in plain(release)
 
 
 def test_table_semantics(site: Build) -> None:
@@ -1107,13 +1111,34 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
             for a in cfg["accepted"]:
                 assert a["control"] in text, (system, a["control"])
         for m in re.finditer(r"accepted (\d+)", text):
-            assert text[m.end() : m.end() + 2] == " (", text[m.start() : m.end() + 40]
+            after = text[m.end() : m.end() + 16]
+            assert after.startswith((" (", ", tests nothing")), text[m.start() : m.end() + 40]
             seen += 1
         for a in (a for c in system_configs(site, system) for a in c["accepted"]):
             if a["source"] == "system" and a["passed"]:
                 assert "the control test below, which expects acceptance" in text
                 assert "accepted the proof, as this control expects" in text
     assert seen >= 1  # the deployed SASH's weakened-prover control; the extras FlashProve's C1
+
+
+def test_tally_names_its_runs(site: Build) -> None:
+    """RFC-0008 §Reporting: a setup's tally leads with the runs its counts are over (each kept
+    run that recorded its controls), by date and ordinal linked to its controls.json."""
+    seen = 0
+    for cfg in provers(site.view):
+        if not any(cfg["controls"]["counts"].values()):
+            continue
+        runs = cfg["control_runs"]
+        assert runs, cfg["workload"]["id"]
+        lead = f"In {len(runs)} {'run' if len(runs) == 1 else 'runs'} ("
+        tallies = re.findall(r'<p class="tamper">(.*?)</p>', site.pages[f"{cfg['system']}.html"])
+        mine = [t for t in tallies if all(r["run_id"] in t for r in runs)]
+        assert len(mine) == 1, cfg["workload"]["id"]
+        assert plain(mine[0]).startswith(lead), plain(mine[0])
+        for r in runs:
+            assert f'/{r["record"]}"' in mine[0], r
+        seen += 1
+    assert seen
 
 
 def test_figures_link_their_own_plate(site: Build) -> None:

@@ -105,11 +105,13 @@ def setup_parts(cfg):
 
 def setup_diff(cfg):
     """The words of a setup that differ from its system's other setups ("24 requests per
-    batch"); every word for a system with one setup, or where none differs."""
+    batch"); every word for a system with one setup; its workload id where no word differs."""
     parts = setup_parts(cfg)
     others = [setup_parts(c) for c in configs_of(cfg["system"]) if row_id(c) != row_id(cfg)]
+    if not others:
+        return parts
     diff = [x for i, x in enumerate(parts) if any(o[i] != x for o in others)]
-    return diff or parts
+    return diff or [cfg["workload"]["id"]]
 
 
 def config_of_run(rid):

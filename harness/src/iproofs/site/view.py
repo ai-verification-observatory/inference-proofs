@@ -389,6 +389,9 @@ def _configuration(
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
         "controls": controls,
+        # the runs the counts are over: each kept run that recorded its controls
+        "control_runs": [{"run_id": rid, "record": _record(records, rid, "controls.json")}
+                         for rid in config["runs"] if records[rid]["controls"]],
         "accepted": accepted,
         "unexpected": _unexpected(controls, records, not_read, config),
         "system_controls": _system_controls(root, config, records),

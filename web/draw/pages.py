@@ -55,6 +55,7 @@ from .words import (
     FAIL_STEP,
     FAMILY_WORD,
     NOT_READ,
+    NOT_READ_HEAD,
     OUTCOME_SHORT,
     OUTCOME_VERB,
     OUTCOME_WORDS,
@@ -180,34 +181,43 @@ def control_name(cid):
 
 
 def accepted_words(cfg):
-    """Which control each stored `accepted` outcome is, and whether its own expected set holds
-    acceptance: a system's weakened-prover control expects it, a tampered proof does not
-    (RFC-0008); one that tampered only with a part the system declares verify does not read
-    tests nothing (RFC-0008, amendment of 2026-11-09). Listed from the records, never counted."""
+    """Which control each stored `accepted` outcome is, by its id (the block under the tally
+    names it in words), and whether its own expected set holds acceptance: a system's
+    weakened-prover control expects it, a tampered proof does not (RFC-0008); one that tampered
+    only with a part the system declares verify does not read tests nothing (RFC-0008,
+    amendment of 2026-11-09). Listed from the records, never counted."""
     out = []
     for a in cfg["accepted"]:
         if a.get("not_read"):
-            out.append(
-                NOT_READ.format(id=control_name(a["control"]), parts=", ".join(a["not_read"]))
-            )
+            out.append(f"{a['control']}, {NOT_READ}")
         else:
-            out.append(ACCEPTED_WHY[(a["source"], a["passed"] is True)].format(
-                id=control_name(a["control"])))  # fmt: skip
+            out.append(ACCEPTED_WHY[(a["source"], a["passed"] is True)].format(id=a["control"]))
     return "; ".join(out)
 
 
 def tamper_words(cfg):
-    """Each stored outcome count of the configuration's controls (RFC-0008), zero counts left
-    out; no sum or difference of them (AGENTS.md rule 3). The accepted count names each
-    accepted control, so a control that expects acceptance never reads as a tampered proof
-    the checker took."""
+    """The runs the counts are over (each kept run that recorded its controls, by its date and
+    ordinal linked to its `controls.json`), then each stored outcome count of the
+    configuration's controls (RFC-0008), zero counts left out; no sum or difference of them
+    (AGENTS.md rule 3). The accepted count says which controls it counts, so a control that
+    expects acceptance never reads as a tampered proof the checker took, and one that tests
+    nothing says so."""
     counts = cfg["controls"]["counts"]
     said = []
     for k, w in OUTCOME_WORDS:
         if counts.get(k):
-            said.append(w.format(n=counts[k]) + (f" ({accepted_words(cfg)})" if k == "accepted"
-                                                 else ""))  # fmt: skip
-    return " · ".join(said) if said else "No tamper test ran on this setup."
+            if k != "accepted":
+                said.append(w.format(n=counts[k]))
+            elif all(a.get("not_read") for a in cfg["accepted"]):
+                said.append(f"{w.format(n=counts[k])}, {NOT_READ}")
+            else:
+                said.append(f"{w.format(n=counts[k])} ({accepted_words(cfg)})")
+    if not said:
+        return "No tamper test ran on this setup."
+    runs = cfg["control_runs"]
+    refs = ", ".join(run_ref(r["run_id"], r["record"]) for r in runs)
+    word = "run" if len(runs) == 1 else "runs"
+    return f"In {len(runs)} {word} ({refs}): {e(readable(' · '.join(said)))}"
 
 
 def control_tests(cfg):
@@ -395,25 +405,36 @@ def unexpected_full(cfg):
         rec = u["stored"] or {}
         name = control_name(u["control"])
         expected = ", ".join(OUTCOME_SHORT[x] for x in rec.get("expected") or [])
-        if u.get("not_read"):  # the tally above says it tests nothing
-            lead = f"{name}: {OUTCOME_SHORT[u['outcome']]} on {', '.join(u['not_read'])}"
+        title = ""
+        if u.get("not_read"):  # tests nothing: the expected set rides in the head's title
+            parts = ", ".join(f'<span class="nw">{e(x)}</span>' for x in u["not_read"])
+            lead = f"{e(name)}: {NOT_READ_HEAD.format(parts=parts)}"
+            title = f"expected outcomes: {expected}"
         else:
-            lead = f"{name}: {OUTCOME_SHORT[u['outcome']]}, outside its expected outcomes"
-        rows = [("", f"{e(lead)} (expected: {e(expected)})")]
-        rows.append(("run", run_ref(u["run_id"], u["record"] or None)))
+            lead = (f"{e(name)}: {e(OUTCOME_SHORT[u['outcome']])}, outside its expected "
+                    f"outcomes (expected: {e(expected)})")  # fmt: skip
+        rows = [("", lead, title)]
+        rows.append(("run", run_ref(u["run_id"], u["record"] or None), ""))
         tw = rec.get("twin")
         if tw:
-            rows.append(("honest proof", e(f"verdict {tw['verdict']}, exit {tw['raw_exit_code']}")))
-        trials = "".join(trial_html(t) for t in rec.get("trials") or [])
+            rows.append(
+                ("honest proof", e(f"verdict {tw['verdict']}, exit {tw['raw_exit_code']}"), "")
+            )
+        trials = rec.get("trials") or []
         if trials:
-            rows.append(("trials", f'<ol class="trials">{trials}</ol>'))
+            same = sum(1 for t in trials if t["outcome"] == u["outcome"])
+            label = ("trial" if len(trials) == 1 else
+                     f"{same} of {len(trials)} trials {OUTCOME_SHORT[u['outcome']]}")  # fmt: skip
+            items = "".join(trial_html(t) for t in trials)
+            rows.append((label, f'<ol class="trials">{items}</ol>', ""))
         for o in u.get("others") or []:
             note = (f" ({', '.join(o['parts_not_read'])} declared not read)"
                     if o["parts_not_read"] else "")  # fmt: skip
             rows.append(("other run", f"{e(OUTCOME_SHORT[o['outcome']])}{e(note)} · "
-                                      f"{run_ref(o['run_id'], o['record'])}"))  # fmt: skip
+                                      f"{run_ref(o['run_id'], o['record'])}", ""))  # fmt: skip
         items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" if k else
-                        f'<div class="ul"><dd>{v}</dd></div>' for k, v in rows)  # fmt: skip
+                        f'<div class="ul"><dd{f' title="{e(t)}"' if t else ""}>{v}</dd></div>'
+                        for k, v, t in rows)  # fmt: skip
         out += (f'<dl class="tlab unexp" id="unexpected-{e(u["control"])}-{e(u["run_id"])}">'
                 f"{items}</dl>")  # fmt: skip
     return out
@@ -423,7 +444,7 @@ def config_tamper(cfg, many):
     """One configuration's tamper tests: its setup (where a page holds several), each stored
     outcome count, every outcome outside its expected set, then the system's own controls."""
     head = setup_heading(cfg, f"t-{row_id(cfg)}") if many else ""
-    return (f'{head}<p class="tamper">{e(tamper_words(cfg))}</p>{unexpected_full(cfg)}'
+    return (f'{head}<p class="tamper">{tamper_words(cfg)}</p>{unexpected_full(cfg)}'
             f"{control_tests(cfg)}")  # fmt: skip
 
 

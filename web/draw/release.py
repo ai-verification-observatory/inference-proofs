@@ -7,9 +7,19 @@ words for stored ids; nothing is counted or ranked here.
 
 from . import state as S
 from .chrome import RELEASE_PAGE, TARGETS_PAGE, footer, has_targets, header, page
-from .claims import run_ref
-from .plates import EXT, blob, keep, name_of, path_html, readable, source_html
-from .words import FAIL_STEP, e, labels, shown, spread_line
+from .claims import control_label, run_ref
+from .plates import (
+    EXT,
+    blob,
+    configs_of,
+    keep,
+    name_of,
+    path_html,
+    readable,
+    setup_diff,
+    source_html,
+)
+from .words import FAIL_STEP, OUTCOME_SHORT, e, labels, shown, spread_line
 
 TARGET_GRADE = "set in the target file"
 RESULT_WORD = {"meets": "meets", "does_not_meet": "does not meet",
@@ -166,28 +176,32 @@ def runs_listed():
 
 
 def unexpected_list():
-    """Every tamper-test outcome outside its expected set, each linked to where its system page
-    prints it in full; one accepted only on a part the system declares verify does not read is
-    listed apart, as testing nothing (RFC-0008, amendment of 2026-11-09)."""
+    """Every tamper-test outcome outside its expected set, each line linked to where its system
+    page prints it in full, its run by date and ordinal linked to its record. One accepted only
+    on a part the system declares verify does not read is listed apart, under a line that says
+    it tests nothing (RFC-0008, amendment of 2026-11-09); "every outcome fell inside" only when
+    neither list holds a line."""
     rows, nothing = [], []
     for c in S.CONFIGS:
         sid = c["system"]
+        many = len(configs_of(sid)) > 1  # setups share dates and ordinals: name the setup
+        who = name_of(sid) + (f", {', '.join(setup_diff(c))}" if many else "")
         for u in c["unexpected"]:
             href = f"{S.PAGE.get(sid, '/reference')}#unexpected-{u['control']}-{u['run_id']}"
-            link = (f'<a href="{e(href)}">{e(u["control"])} in run '
-                    f'{path_html(u["run_id"])}</a>')  # fmt: skip
-            if u.get("not_read"):
-                parts = ", ".join(u["not_read"])
-                nothing.append((name_of(sid), f"{link}: on a part verify does not read "
-                                              f"({e(parts)}), so it tests nothing"))  # fmt: skip
-            else:
-                rows.append((name_of(sid), link))
-    out = (rows_dl(rows, "tlab runs") if rows else
-           '<p class="lead">No tamper-test outcome fell outside its expected set.</p>')  # fmt: skip
+            what = f"{e(readable(who))} · {control_label(u['control'])}"
+            if not u.get("not_read"):
+                what += f" · {e(OUTCOME_SHORT[u['outcome']])}"
+            line = f'<a href="{e(href)}">{what}</a> · {run_ref(u["run_id"], u["record"])}'
+            (nothing if u.get("not_read") else rows).append(f"<li>{line}</li>")
+    if not rows and not nothing:
+        return '<p class="lead">Every outcome fell inside its expected set.</p>'
+    out = ""
+    if rows:
+        out += ('<p class="lead">Outside their expected set:</p>'
+                f'<ul class="runs lo">{"".join(rows)}</ul>')  # fmt: skip
     if nothing:
-        out += '<p class="rgh">Accepted on a part verify does not read</p>' + rows_dl(
-            nothing, "tlab runs"
-        )
+        out += ('<p class="lead">Accepted only on a part <code>verify</code> does not read, so '
+                f'it tests nothing:</p><ul class="runs lo">{"".join(nothing)}</ul>')  # fmt: skip
     return out
 
 
@@ -200,7 +214,7 @@ def build_release():
   <div class="wrap">
     {release_facts()}
     {section("runs", "Runs", runs_listed())}
-    {section("unexpected", "Unexpected tamper-test outcomes", unexpected_list())}
+    {section("tamper", "Tamper tests", unexpected_list())}
   </div>
 </main>
 {footer()}"""
