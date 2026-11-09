@@ -93,6 +93,25 @@ def test_runs_read_ovr5(tmp_path: Path) -> None:
     assert runs_read(root, None, SYSTEM, CONFIG) == []
 
 
+def test_runs_read_manifest_claim_when_run_claim_is_null(tmp_path: Path) -> None:
+    """OVR-5: a stored run whose `run.json` `claim` is null (v0.1's runs) is read by its
+    `manifest.json` `claim`; a non-null `run.json` claim is never overridden by the manifest,
+    and a null claim with no manifest names no card."""
+    card = {"system": SYSTEM, "configuration": CONFIG, "card_version": 1}
+    stored = run(tmp_path, r(1), claim={})
+    (tmp_path / stored / "run.json").write_text(json.dumps({"run_id": rid(1), "claim": None,
+                                                             "replaces": None}))  # fmt: skip
+    (tmp_path / stored / "manifest.json").write_text(json.dumps({"claim": card}))
+    other = run(tmp_path, r(2), claim={"system": SYSTEM, "configuration": "other"})
+    (tmp_path / other / "manifest.json").write_text(json.dumps({"claim": card}))
+    bare = run(tmp_path, r(3), claim={})
+    (tmp_path / bare / "run.json").write_text(json.dumps({"run_id": rid(3), "claim": None,
+                                                           "replaces": None}))  # fmt: skip
+    release(tmp_path, "v0.1", [stored, other, bare], superseded=[])
+    assert runs_read(tmp_path, "v0.1", SYSTEM, CONFIG) == [stored]
+    assert runs_read(tmp_path, "v0.1", SYSTEM, "other") == [other]
+
+
 def test_runs_read_no_runs_listed(tmp_path: Path) -> None:
     release(tmp_path, "v0.1", [], superseded=[])
     assert runs_read(tmp_path, "v0.1", SYSTEM, CONFIG) == []

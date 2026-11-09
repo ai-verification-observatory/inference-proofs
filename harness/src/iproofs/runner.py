@@ -1686,10 +1686,12 @@ class Runner:
                 metrics = self._metrics(job, run_json)
             except IProofsError as e:
                 job.failure = self.redact.failure(Failure.from_error(e, step="written"))
-        doc = self._run_doc(job, metrics)
         # a job that failed before its prompts existed was never resolved: no manifest
         resolved = job.workload and job.system and job.prompt_set_digest
         manifest = self._manifest(job) if resolved else None
+        # run.json names the card the manifest records (RFC-0016 OVR-5 reads it)
+        claim = manifest["claim"] if manifest is not None else None
+        doc = self._run_doc(job, metrics, claim)
         invalid = {"run.json": (doc, self.registry.errors("run/1", doc))}
         if manifest is not None:
             invalid["manifest.json"] = (manifest, self.registry.errors("manifest/1", manifest))
@@ -1701,8 +1703,8 @@ class Runner:
                 (kept / name).write_text(json.dumps(invalid[name][0], indent=2, default=str))
             message = "; ".join(f"{n} fails its schema: {e[0]}" for n, e in sorted(bad.items()))
             job.failure = Failure.build(ErrorKind.INTERNAL, "written", message)
-            doc = self._run_doc(job, {})
             manifest = None if "manifest.json" in bad else manifest
+            doc = self._run_doc(job, {}, claim if manifest is not None else None)
         write_json(job.staging / "run.json", doc)
         if manifest is not None:
             write_json(job.staging / "manifest.json", manifest)
@@ -1831,7 +1833,9 @@ class Runner:
             out["agreement"] = job.agreement[proof_id]
         return out
 
-    def _run_doc(self, job: Job, metrics: dict[str, QuantityTree]) -> dict[str, object]:
+    def _run_doc(
+        self, job: Job, metrics: dict[str, QuantityTree], claim: object = None
+    ) -> dict[str, object]:
         spec = job.spec
         tokens = self._tokens(job) if metrics else [(0, 0)] * len(job.releases)
         return {
@@ -1844,7 +1848,7 @@ class Runner:
             "repetition": spec.repetition,
             "control": False,
             "system_kind": job.system.kind if job.system else "test",
-            "claim": None,
+            "claim": claim,
             "status": "failed" if job.failure else "completed",
             "failure": job.failure.to_json() if job.failure else None,
             "replaces": None,
