@@ -234,6 +234,8 @@ The author's affiliations and any interest in a measured system are declared in 
 
 New RFC; no results exist. It replaces the measurement table of the draft SPEC §4 with mechanisms; the draft's "host memory peak, file cache excluded" becomes two labelled metrics. Fields introduced in `run/1` and `manifest/1` (RFC-0012): `events`, `sampler` summaries per step, `watcher.mechanism`, `selftest`, quantity `quality.degraded`. Adapters gain one obligation (atomic proof directories, RFC-0005) that the fake system implements first.
 
+Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): with several bound GPUs, `<step>_gpu_memory_peak` is the maximum over the GPUs, `<step>_gpu_util_mean` and `_p95` are over GPUs and samples, and `<step>_gpu_energy` is the sum. Each GPU's reading is kept in `raw`. Visible unbound GPUs are sampled too, for RFC-0006 PC-GPU-IDLE only; their readings feed no metric. A production-serving run requires `mechanism: inotify` from the release watcher (RFC-0015 SRV-1); a polled serving run fails `environment`.
+
 ## Testing Strategy
 
 CPU-only (hosted CI):

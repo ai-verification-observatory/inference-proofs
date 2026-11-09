@@ -312,6 +312,8 @@ The author's affiliations and any interest in a measured system are declared in 
 
 RISK: SASH proves a grid of segments; whether one proof directory per sequence (`segment_grid`) is the right unit, and where `prove.steady` starts, depends on how upstream releases segment proofs. Resolution: the SASH adapter issue confirms against upstream docs at the pin and declares `steady_boundary`; if segment release times are not observable, `not_observable` applies.
 
+Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): `job.json` gains `load_point` (`matched` or `high`) and `gpus` (the bound GPU count) for serving jobs, and a serving job's `batch_size` and `batches` are the run's (`batch_size_run`, `batches_per_session_run`). `steady_boundary: first_proof` reads "the last release of the first batch" for b > 1 (RFC-0004 INV-SCOPE-5). Docker serving containers are specified later, with the docker serving profiles (RFC-0006 R6).
+
 ## Testing Strategy
 
 Contract tests (CPU, CI):

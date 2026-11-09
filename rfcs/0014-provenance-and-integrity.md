@@ -74,6 +74,8 @@ Each `systems/<name>/Dockerfile` follows these rules (RFC-0005 owns the adapter 
 
 Local images that are not pushed (the fake systems in CI, adapter development) are referenced by their image ID and recorded with `image.digest_kind: "config"`; pushed images record `image.digest_kind: "manifest"`. Only `manifest` images are eligible for a release.
 
+Development install, generic form (amendment of 2026-11-09; first written for the unmerged `ref-serve-gguf` branch, commit `d842275`). When an adapter's own image is not yet pullable by a hosted provider, a development run may start from the public engine image its Dockerfile is built `FROM`, and install the adapter into that container from the checkout the job runs: the files the Dockerfile copies, at its paths, and the inputs of its `inputs.lock`, each checked by its digest (`systems/<name>/dev_install.py`, on the shared `systems/_dev/install.py`; `ref-serve` is the first user, docs/runbooks/hf-jobs.md). Such a run records `image.ref` as `local/<the engine image's pull reference>`, with that reference's registry digest, and `image.digest_kind: "config"`. Here the digest names the engine image, not the image ID of a local build. It is the reference the job command names, which the container cannot read back; the install checks what it can: the image's own `FROM`, the engine's version, the bound GPUs, and the engine environment against the image's `ENV`. The adapter is identified by `system.adapter_commit` (the checkout's commit) and by the `image_inputs` entries of the install: the engine image by digest, and the adapter files at that commit with their sha256. A development install is never eligible for a release (`digest_kind` is `config`), and it never claims a digest of the adapter's image. RFC-0006 §Hosted execution admits it beside a local build named with `--image`.
+
 ### Model fetch and verification
 
 `iproofs fetch-model WORKLOAD` and the `resolved` state of every job (RFC-0010) run the same procedure:
@@ -94,6 +96,13 @@ def ensure_model(workload: Workload, cache: Path) -> VerifiedModel:
 Gated models: the runner accepts the model licence with their own account. The token is read only from the environment variable `HF_TOKEN`, passed to the fetch call, never written to any file, log or record, and never passed into an adapter container (docs/spec/06-security.md).
 
 The model directory is mounted read-only at `/models` in `commit` and `prove` containers and never in `verify` containers. The reference systems ([RFC-0015](0015-reference-rows.md)) skip `commit` and `verify`; `ref-recompute` reads the weights in its `prove` step, which is where its recompute work is timed.
+
+Production-serving weights (amendment of 2026-11-09, RFC-0015 SRV-6). A serving record `workloads/serving/<id>.yaml` (`serving-model/1`) pins an ungated copy of the publisher's release: source repository and revision, and per file the path, sha256, bytes, storage (`git` or `lfs`) and the publisher's git blob id at its pinned revision. Two files with equal git blob ids are equal byte for byte: for a small file the blob id hashes the bytes, and for an LFS file it hashes the pointer, which holds the sha256 and the size. The model digest is that of RFC-0012 over the pinned files.
+- SM-1 (offline, CI, CPU): for every `storage: lfs` file, the git blob id of the pointer built from `sha256` and `bytes` equals `publisher_blob`. A file whose recomputed id differs fails G1.
+- SM-2 (`iproofs fetch-model --serving RECORD`): the procedure above over the record's files, into `$IPROOFS_CACHE/models/<model digest hex>/`. Every downloaded file's sha256 and size equal the record; every `storage: git` file's git blob id (`sha1("blob <n>\0" + bytes)`) equals `publisher_blob`; the model digest is recomputed. Any mismatch is `config`, and no job runs. A file with `source: publisher` is fetched from the publisher's repository with the runner's token (`HF_TOKEN` in that one command's environment).
+- SM-3 (`iproofs serving check-mirror RECORD`, network, when a record lands and before each campaign): it reads both tree listings at the pinned revisions and requires the mirror's blob id, the publisher's blob id and `publisher_blob` to be equal for every pinned file, and prints the result for the campaign log. `iproofs serving pin RECORD` writes the file list from the same two listings and refuses any file whose blob ids differ.
+
+The serving model is mounted read-only at `/models` in the `prove` container of a `reference_role: serve` job, in place of the workload's files.
 
 ### Corpus fetch
 
@@ -218,6 +227,8 @@ The author's affiliations and any interest in a measured system are declared in 
 ## Migration / Rollout
 
 No adapters or results exist yet. Order: manifest schema and the commitment store with the fake systems (v0.1-alpha, since G10 exercises them), then model fetch and verification, build rules B1 to B7 in the SASH and FlashProve adapters, registry publication and archive upload (v0.1-beta). The eligibility rule takes effect at the first freeze (v0.1).
+
+Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): §Model fetch gains SM-1 to SM-3 and the serving mount; the development-install paragraph is added in generic form. `harness/tests/unit/test_serving.py` covers SM-1 and SM-2 on fixtures.
 
 ## Testing Strategy
 

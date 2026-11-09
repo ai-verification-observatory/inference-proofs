@@ -1,4 +1,4 @@
-# RFC-0015: Reference rows: plain serving and recompute
+# RFC-0015: Reference rows: production serving and recompute
 
 - Status: Draft
 - Authors: AbdelStark
@@ -10,26 +10,26 @@
 
 ## Summary
 
-Every native workload gets two reference rows measured on the same profile, with the same prompts and the same token accounting as the proving systems: plain serving (the model served unproved) and recompute (a verifier holding the weights reruns the forward pass and checks the claimed output). Plain serving gives the overhead factor, the most asked-for number (PRD §6). Recompute answers what a proof buys over a party that simply holds the weights. Both are implemented as ordinary adapters (`systems/ref-serve`, `systems/ref-recompute`) under the RFC-0005 contract with `kind: reference`, so the harness, measurement and statistics are shared and nothing is special-cased except which steps run.
+Every native workload gets two reference rows: production serving, that is plain serving (the model served unproved) as providers run it (an optimised engine, the publisher's release precision, every weight in GPU memory, tensor parallel over the fewest GPUs of the proving system's GPU model that hold it), and recompute (a verifier holding the weights reruns the forward pass on the system rows' profile). Production serving gives the overhead factor in GPU-seconds per token (RFC-0004 D-OVERHEAD-S). Recompute answers what a proof buys over a party that simply holds the weights. Both are implemented as ordinary adapters (`systems/ref-serve`, `systems/ref-recompute`) under the RFC-0005 contract with `kind: reference`, so the harness, measurement and statistics are shared and nothing is special-cased except which steps run.
 
 ## Motivation
 
-PRD §6 asks for "two reference rows per workload, so every proof cost reads against something": plain serving with vLLM, pinned, on the same model, precision and hardware, and naive recompute by a verifier holding the weights. A proving rate alone says nothing about cost relative to the work being proved; the overhead against plain serving does (RFC-0004 D-OVERHEAD-S). Recompute also gives a second, independent check of the claimed outputs: FlashProve's claim card states that it proves the integer model, which differs from the 16-bit model's top token at some positions (RFC-0002 example residual), and readers need to see how often the claimed output agrees with a plain forward pass.
+PRD §6 asks for "two reference rows per workload, so every proof cost reads against something": plain serving with vLLM, pinned, on the same model, precision and hardware, and naive recompute by a verifier holding the weights. A proving rate alone says nothing about cost relative to the work being proved; the overhead against production serving does (RFC-0004 D-OVERHEAD-S, in GPU-seconds per token since the amendment of 2026-11-09). Recompute also gives a second, independent check of the claimed outputs: FlashProve's claim card states that it proves the integer model, which differs from the 16-bit model's top token at some positions (RFC-0002 example residual), and readers need to see how often the claimed output agrees with a plain forward pass.
 
 ## Goals
 
-- Reference rows use the same workload ids, versions, prompt sets (seeds), shapes and profile as the system rows they serve.
+- Recompute rows use the same workload ids, versions, prompts, shapes and profile as the system rows. Production-serving rows use the same workload ids, versions, prompts (replayed, SRV-8) and shapes, on a serving profile of the same GPU model (RFC-0006 R6).
 - Tokens are counted with the same rule as the proving system's claim card coverage (RFC-0004 INV-TOK-1), so D-OVERHEAD-S divides like by like.
-- The serving engine is pinned by image digest and version; precision substitutions are declared and flagged.
+- Production serving runs a pinned engine on the publisher's release of the model at the precision the publisher releases for serving; the weights are pinned by an ungated byte-identical copy (SRV-6). Recompute precision substitutions are declared and flagged.
 - Output agreement between recompute and each system's claimed outputs is reported as counts and a derived rate, separately from verdicts.
 - A reference row that cannot run on the profile is recorded as such, and every metric that depends on it is null with a reason.
 
 ## Non-Goals
 
-- Tuning the serving engine for peak throughput beyond its documented defaults and the workload's batch size. The reference is "plain serving as documented", not the maximum throughput the engine could reach with tuning.
+- Tuning the serving engine beyond its defaults and the options the workload shape requires (SRV-3). The reference is "production serving with the engine's defaults", not the maximum throughput the engine could reach with tuning.
 - Decode-heavy serving profiles, latency under load, request arrival processes (no such workload in v0.1).
 - Judging which output is correct when recompute and a system disagree. Agreement is reported; no verdict is changed.
-- Reference rows on profiles other than the system rows' profile.
+- Recompute rows on profiles other than the system rows' profile.
 
 ## Proposed Design
 
@@ -38,7 +38,7 @@ PRD §6 asks for "two reference rows per workload, so every proof cost reads aga
 Two directories, each a normal adapter (RFC-0005) with `system.yaml` field `kind: reference` and `reference_role: serve | recompute`:
 
 ```
-systems/ref-serve/       Dockerfile (engine image by digest), entrypoint, system.yaml, README.md, tests/
+systems/ref-serve/       Dockerfile (engine image by digest), entrypoint, system.yaml, sizing.py, dev_install.py, README.md, tests/
 systems/ref-recompute/   Dockerfile (same engine image by digest), entrypoint, system.yaml, README.md, tests/
 ```
 
@@ -52,10 +52,12 @@ kind: "reference"
 reference_role: "serve"
 engine: {name: "vllm", version: "<pinned release>", image: "<repo>@sha256:<digest>"}
 workloads:
-  - id: "sash-l31-8b-c4096"
-    precision_used: "<scheme>"           # equal to the workload's as-served precision, or a declared substitute
-    precision_substitution: null         # or {reason: "...", source: "<engine docs URL at version>"}
-    engine_args: ["--max-num-seqs", "1"] # only options the engine documents; recorded verbatim
+  - id: "sash-l31-8b-c1024"
+    load_point: "matched"                # matched | high (SRV-1)
+    gpus: 1                              # the serving profile's gpu.count (SRV-6)
+    precision_used: "BF16"               # the serving record's precision (SRV-6)
+    precision_substitution: null         # always null for reference_role serve
+    engine_args: ["--tensor-parallel-size", "1", "--max-model-len", "1088", "--max-num-seqs", "1"]  # SRV-3 allowlist
 incremental_proofs: true
 deterministic_proofs: false
 forbidden_flags: []
@@ -69,20 +71,47 @@ For `kind: reference` the runner (RFC-0010) runs `info`, `setup`, `prove`; it re
 - REF-2. Release directories of a reference system are called "outputs", not proofs, in every record and page. The harness computes no proof bytes for them.
 - REF-3. Tokens per release are counted by the harness with the coverage rule of the system the reference row serves: for `window`, the window's positions; for `prompt_plus_output`, prompt plus output positions (RFC-0004 INV-TOK-1).
 
-### Plain serving (`ref-serve`)
+### Production serving (`ref-serve`)
 
-- SRV-1. Batch size equals the workload's `batch_size`; batches per session equal `batches_per_session`.
-- SRV-2. Greedy decoding (temperature 0), `max_tokens` equal to the workload's `output_tokens`, or 1 for next-token workloads (the window is prefilled and one token is produced, the smallest unit the engine serves).
-- SRV-3. Engine options: only those the pinned engine version documents, listed verbatim in `system.yaml`, chosen to make the workload fit (for example maximum sequence count equal to the batch size, maximum model length equal to the context window). No option that changes numerics beyond the declared precision.
-- SRV-4. Outputs are recorded (`outputs.json`: request index, generated token ids) for audit; serving outputs are not compared with system outputs, because batched serving may legitimately differ from batch 1 at ties.
-- SRV-5. Metrics: `rate_prove.steady`, `rate_prove.session`, GPU and host resources as RFC-0011. These feed D-OVERHEAD-S (RFC-0004).
-- SRV-6. Engine per workload. The SASH workloads' plain-serving row runs on vLLM (Q1). The Maverick workloads' row runs on llama.cpp's `llama-server` (amendment of 2026-11-08, owner decision): the pinned files are GGUF files, and "the GGUF container, the block formats and their decoding are ggml's (github.com/ggml-org/llama.cpp, [...])", as FlashProve's own model definition puts it ([docs/model.md L576 to L577](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/model.md#L576-L577)); the pinned llama.cpp version names the architecture of the pinned files, `llama4` ([src/llama-arch.cpp L12](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/src/llama-arch.cpp#L12)). The pin, by the rule Q1 used (the newest stable release on the day of the decision, 2026-11-08): llama.cpp v0.9.0, published 2026-11-04, commit `cd959bae99ff4bed22bef2604f45241c09bbb8c8` (build `b12110`), server image built with CUDA 12 `ghcr.io/ggml-org/llama.cpp:server-cuda-b12110@sha256:a2963b4817f03eea7e0d6065ea576252322792441ef97aaae178b924520547d6` (multi-platform index; the `server-cuda` family of [docs/docker.md](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/docs/docker.md)). The row:
-  - runs on the same profile as the FlashProve rows it serves, so D-OVERHEAD-S never mixes two profiles (INV-DERIVE-2 unchanged);
-  - loads the workload's pinned GGUF files unchanged and serves `UD-Q4_K_XL` as stored: PM-0 and PM-1 hold, with no substitution;
-  - keeps part of the weights in host memory with options the pinned version documents ([tools/server/README.md](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/tools/server/README.md)): `-ngl` for the layers on the GPU, and `--n-cpu-moe N` ("keep the Mixture of Experts (MoE) weights of the first N layers in the CPU") or `--cpu-moe` for the routed experts. N is the smallest value with which the job runs on the profile, and `--fit off` keeps the placement the recorded one rather than one the engine chooses at load time. Finding N is a sizing step, not a measurement: each N tried is a `system.yaml` of its own (`engine_args` are pinned, SRV-3), and its runs are recorded as usual (RFC-0010), failures included, under that manifest. The published configuration fixes the final N verbatim in `engine_args`; the runs of other N values are never part of its statistics. NM-1 applies to the Maverick row only after `--cpu-moe` (every routed expert in host memory) also fails on the profile;
-  - serves the workload's batch with as many server slots (`-np`) as the batch size and a context of prompt plus output tokens per slot (SRV-1), pinned in one form: `--kv-unified --kv-unified-per-slot 1025` and no `-c` ("context limit per parallel slot [...] when set without -c/--ctx-size, the shared KV pool is sized to n_parallel*N", [README L165 and L169](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/tools/server/README.md#L165-L169)), so each of the 1 or 24 slots holds 1,024 prompt tokens plus 1 output token;
-  - sends prompts as arrays of token ids, which the pinned server does not prefix with a beginning-of-sequence token (README L501 to L503, consistent with RFC-0003 generator rule 2); `n_predict` equal to the output tokens (SRV-2); `temperature` 0 with the default sampler order and `n_probs` 0, which the pinned sampler turns into its greedy sampler ([common/sampling.cpp L403 to L406](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/common/sampling.cpp#L403-L406)); `repeat_penalty` 1.0, `presence_penalty` 0 and `frequency_penalty` 0, so the penalties sampler, which runs before the greedy one in the default chain, leaves the logits unchanged (the pinned README states a `/completion` default `repeat_penalty` of 1.1, [README L551 to L557](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/tools/server/README.md#L551-L557), while `common/common.h` defaults it to 1.00; the request sets it so greedy decoding does not hinge on which applies); and `cache_prompt` false, so no request reuses another request's KV cache (default true, README L597).
-- SRV-7. One plain-serving system per workload. An adapter image is built from one engine image (§Reference systems), so the llama.cpp row is a second adapter with `reference_role: serve`, `systems/ref-serve-gguf`. When it lands, the Maverick workloads' `systems` lists name `ref-serve-gguf` in place of `ref-serve`, and `systems/ref-serve/system.yaml` drops the two Maverick workloads. Every workload names at most one system with `reference_role: serve` (a CI workload such as `fake-tiny-ci` names none), and D-OVERHEAD-S joins that system's configuration. Tables keep the label `ref-serve-<workload-id>` and print the engine name beside it. `ref-recompute` is not changed by this amendment.
+Amendment of 2026-11-09 (owner decision). It replaces SRV-1 to SRV-7, including the amendment of 2026-11-08, and the rule that plain serving runs on the proving system's profile. Users ask how much overhead proving adds in normal conditions, the conditions in which providers serve the model. The figure built here follows how FlashProve builds its own published figure ([guide/performance.md L27](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/performance.md?plain=1#L27): stock vLLM, FP8, every weight in GPU memory, steady), and states its own conditions just as clearly.
+
+- SRV-1. Load points. Each workload has two serving configurations, by `load_point`.
+  - `matched`: batch size equal to the workload's `batch_size`. Batches per session: the workload's `batches_per_session`, or more at the same batch size until the steady scope is expected to last at least 60 s. The count is fixed per (workload, GPU count) in `system.yaml` as `batches_per_session_run`, set from the first capture, and printed in the conditions line. The extra prompts come from the same seeded generator, as at high load (SRV-8).
+  - `high`: a batch of the engine's default maximum sequence count on the profile's GPU (1,024 on a GPU of 70 GiB or more, in both usage contexts, [vllm/engine/arg_utils.py L2933 to L2942](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/engine/arg_utils.py#L2933-L2942)), with `--max-num-seqs` left at its default. Its batches per session are the larger of `batches_per_session` and 2. The engine admits as many of the batch as its cache holds and queues the rest, as a server under load does.
+  - A serving run whose steady scope lasts under 60 s keeps its value, with the warning "steady scope under 60 s" in run.json; serving runs require `mechanism: inotify` (RFC-0011 W-1), and a polled run fails `environment`.
+  The load point is part of the configuration (RFC-0010 manifest `workload.load_point`).
+- SRV-2. Greedy decoding (temperature 0), `max_tokens` equal to the workload's `output_tokens` (1 for next-token workloads), `ignore_eos` true ([sampling_params.py L331](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/sampling_params.py#L331-L333)), so every request decodes exactly the tokens the harness counts. A request returning another count is an `adapter` error.
+- SRV-3. Engine options: the engine's defaults, plus only these three, listed verbatim in `system.yaml` per (workload, load point, GPU count) and documented at the pinned version:
+  - `--tensor-parallel-size` (the serving profile's `gpu.count`);
+  - `--max-model-len` (prompt plus output tokens);
+  - `--max-num-seqs` (the batch size, `matched` only).
+  The validator refuses any other option for `reference_role: serve` (an allowlist). That covers offload (`--cpu-offload-gb`, `--kv-offloading-*`), quantization, memory-fraction, `--language-model-only` (it sets every modality limit to 0, [config/multimodal.py L304 to L306](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/config/multimodal.py#L304-L306), which changes memory profiling and is not how a multimodal model is served; Q4) and `--skip-tokenizer-init` (the engine starts with its full default init, from Meta's own `tokenizer_config.json`; Q7). If the engine cannot load without one of these, that failure is recorded and put to the owner; no flag is admitted without an amendment.
+  - The engine is built from the allowlisted flags alone (Q8 default: `vllm serve MODEL <flags>`; alternative: `LLM(model=..., tensor_parallel_size=..., max_model_len=..., max_num_seqs=...)`), never from a full `EngineArgs` field dump. Passing every `EngineArgs` field into the `LLM` class, as the adapter did before this amendment, runs neither that class's defaults nor the server's: `LLM.__init__` sets `disable_log_stats=True` only when the key is absent ([entrypoints/llm.py L226 to L227](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/entrypoints/llm.py#L226-L227)).
+  - The adapter records the engine command in `/io/commands.jsonl`, and the runner checks that it ends with the `engine_args` of `system.yaml` at the run's commit. It also records the engine's resolved-configuration log line (the pinned version's start-up line that prints the engine config), and a CPU test requires that the resolved configuration differs from a stored default dump of the pinned version, in the same interface and usage context, only in the allowlisted fields.
+  - Environment. The adapter records the engine process's `VLLM_*`, `NCCL_*`, `CUDA_*` and `TORCH_*` variables in `commands.jsonl`. It refuses the job (`config`, before the engine is built) when any of them is not set by the pinned image's own `ENV` (read from the image config by digest and recorded in `inputs.json`), except the ones the harness sets for binding (`CUDA_VISIBLE_DEVICES`, `CUDA_DEVICE_ORDER`), listed in the adapter. The development install applies the same check. FlashProve's RES-13 records that `VLLM_USE_V2_MODEL_RUNNER=1` changed its baseline rate, so such variables are engine options in all but name.
+- SRV-4. Outputs are recorded (`outputs.json`: request index, batch, token ids) for audit; serving outputs are not compared with system outputs.
+- SRV-5. Metrics: `rate_<S>`, `seconds_per_token_<S>`, `gpu_seconds_per_token_<S>`, GPU and host resources as RFC-0011 (GPU readings over every bound GPU). They feed D-OVERHEAD-S and D-OVERHEAD-HIGH-S (RFC-0004).
+- SRV-6. Production serving (owner decision of 2026-11-09).
+  - **Engine.** vLLM, by the Q1 rule (v0.32.0 on 2026-11-04 and still on 2026-11-09, when the GitHub releases API listed v0.32.0 of 2026-10-18 as the newest release and v0.33.0rc3 as a release candidate; image `docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34`), with its defaults in the interface of Q8 (default: the OpenAI-compatible server, `vllm serve`, usage context `OPENAI_API_SERVER`, the path providers run). The two interfaces' defaults differ (on an H200, 8,192 batched tokens for the server against 16,384 for the `LLM` class, [engine/arg_utils.py L2933 to L2942](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/engine/arg_utils.py#L2933-L2942)), so the interface is printed in the conditions line. FlashProve's RES-13 at `9e2bdd8` ([limits-all-rows.tsv](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/limits-all-rows.tsv)) compares the HTTP server with the Python interface "with tuned settings" and states that "the two differ in more than the interface"; it does not show that the interface caused the gap, and it is not cited as a reason for either choice.
+  - **Weights.** The model publisher's own release, at the precision named per model by amendment. For later models the rule is: the release the publisher's documentation designates for serving, else its original release, copied from the publisher with a link, "not stated" where it is silent. The v0.1 choices:
+    - Llama 4 Maverick: Meta's FP8 release, `meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8` at `94125d2bd83076b21eed33119525e29eaf3894f4` (owner decision of 2026-11-09). Meta's card at that revision, §Quantization ([README.md](https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8/blob/94125d2bd83076b21eed33119525e29eaf3894f4/README.md)): "the Llama 4 Maverick model is released as both BF16 and FP8 quantized weights. The FP8 quantized weights fit on a single H100 DGX host while still maintaining quality." The card does not use the word "serving"; the designation is the owner's, on that text.
+    - Llama 3.1 8B Instruct: Meta's release, `meta-llama/Llama-3.1-8B-Instruct` at `0e9e39f249a16976918f6564b8830bc894c89659`, BF16 (its safetensors' dtype; the card's example loads it as `torch.bfloat16`, [README.md](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/blob/0e9e39f249a16976918f6564b8830bc894c89659/README.md)). A precision for serving: not stated.
+    - The mirror links of the serving record are the source of the files only, never of the precision statement.
+    - The files are fetched from an ungated copy whose every pinned file is byte-identical to the publisher's at that revision. They are pinned in a serving record `workloads/serving/<id>.yaml` (`serving-model/1`, RFC-0012): source repository and revision, and per file the path, sha256, bytes and the publisher's git blob id. The identity rules are SM-1 to SM-3 (RFC-0014 §Model fetch). The record names its workloads, and that list is the only workload-to-record mapping; the loader checks that each listed workload exists and names a serve-role system, that no workload is named by two records, that every serve-role workload is named by one record, and that `vocab_size` equals the workload's.
+    - The precision is the release's own, as its files state it. No substitution: PM-0 to PM-4 apply to `ref-recompute` only.
+  - **Placement.** Every weight sits in GPU memory, tensor parallel over the fewest GPUs that hold the weights and the matched load's KV cache (batch × max model length), on a serving profile of the proving system's GPU model (RFC-0006 R6).
+    - Sizing only orders the attempts (`systems/ref-serve/sizing.py`, grade projected, never published). The first count tried is the smallest count, among those that divide the model's attention and KV heads, whose weight bytes are below count × the reported device memory. It is confirmed at load: the adapter fails with `resource` when the engine reports fewer KV-cache tokens than the matched load needs, and records the engine's KV-capacity line as the evidence.
+    - A larger GPU count is admitted only when every attempt at count n failed `resource` with that recorded KV-capacity (or out-of-memory) evidence. An `adapter` failure is a bug to fix and rerun, never a reason to move. Once any run at count n succeeds, the runner refuses jobs of a larger-count configuration of that workload (`config`). The smaller count's failures stay recorded.
+  - **Scope.** `prove.steady` is the headline (the engine's load, compilation and CUDA graph capture fall before the first batch's last release, RFC-0004 INV-SCOPE-5). `prove.session` is recorded.
+- SRV-7. One production-serving system per workload: `ref-serve`. A workload's `systems` names at most one system with `reference_role: serve` (loader check, `config`). A CI workload names none. Tables label the row `ref-serve` and print the engine, the GPU count and the serving release beside it.
+- SRV-8. Prompts. A production-serving job replays a run of the system configuration it serves: `iproofs run --system ref-serve --workload W --profile P --load matched|high --prompts-from RUN_DIR`. Both sides process the same tokens only when the serving run's batch size and batch count equal the prover's.
+  - Otherwise (high load, and a matched run with more batches, SRV-1) the prompt set is generated from the same seed with count B × batches. `corpus-window/1` draws offsets in sequence from one seeded generator, so its first `prompts.count` prompts are the source run's set. The manifest records `prompt_prefix_digest`, the digest of those first lines, and the runner requires it to equal the source run's `prompt_set_digest`.
+  - The token-set difference is stated, not hidden: the conditions line prints, from each manifest's `prompt_count_run`, for example "at high load: the prover's 120 prompts plus 5,000 further windows of the same seeded generator" (counts for `fp-maverick-w1024-b24`, 5 × 1,024 = 5,120 serving prompts; workload facts, not results).
+  - A development job may run with a fresh seed (`prompts_from` null); such a run never joins D-OVERHEAD-S.
+- SRV-9. Precision note. The serving precision is the publisher's choice, not the benchmark's, and it differs from the proved precision. Every page that prints the overhead prints the note of RFC-0004 INV-DERIVE-9 beside it.
+- SRV-10. Stored attempts. The `ref-serve` runs in `results/v0.1` were made under the earlier definition: plain serving on the system rows' profile, `prover-h100-hosted`, from the workload's files. That covers 12 completed SASH-workload runs (FP8 substituted at load, PM-4) and 8 failed Maverick runs (6 `config` at resolve, 2 `adapter`: vLLM refused the GGUF folder, "Unrecognized model ... Should have a `model_type` key in its config.json").
+  - They stay as recorded (APP-1). They are profile `prover-h100-hosted`, not a serving profile, so they join no overhead (RFC-0004 INV-DERIVE-2 (c)).
+  - The release lists them among the reference configurations, labelled "plain serving on the system rows' profile (RFC-0015 before 2026-11-09)", and NM-1 is not judged from them for any serving profile.
 
 ### Recompute (`ref-recompute`)
 
@@ -106,6 +135,8 @@ A verifier holding the weights checks a claimed output by running the model itse
 
 ### Precision matching
 
+PM-0 to PM-4 govern `ref-recompute`. Production serving uses the publisher's release as it is (SRV-6).
+
 - PM-0. A reference loads only the workload's pinned model files (RFC-0003), never another checkpoint of the model (for example one pre-quantized with other weights), so it runs the same weights as the workload pins.
 - PM-1. The reference precision equals the workload's `precision.served` (RFC-0003) when the pinned engine documents support for it on the profile's GPU, loading the pinned files.
 - PM-2. Otherwise the reference uses the nearest supported scheme by this order: same weight bit width with higher activation bit width; then the next higher weight bit width with the lowest supported activation bit width. The substitution is declared in `system.yaml` `precision_substitution` with the reason and the engine documentation link, and every metric of the row carries `quality.precision_substituted: true` (RFC-0012).
@@ -114,9 +145,9 @@ A verifier holding the weights checks a claimed output by running the model itse
 
 ### Feasibility on the profile
 
-RISK: the Maverick workloads use a public 4-bit conversion of a mixture-of-experts model with about 400B parameters (PRD §1, external, reported). Its weights exceed the 80 GB of GPU memory on prover-h100, and FlashProve itself relies on about 300 GB of host memory (external, reported). The pinned serving engine may be unable to serve or recompute it on one H100, with or without a documented CPU offload option.
+Rule NM-1 (amended 2026-11-09). Recompute: the runner attempts each recompute job on the system rows' profile with the engine's documented options only. If every attempt of a configuration fails with kind `resource` or `adapter` (unsupported model or precision), the failures are recorded as usual (RFC-0010) and the configuration is marked `not_measurable_on_profile` in the release index; D-AGREE is then null with `null_reason: not_measurable_on_profile`. Production serving: the runner attempts the configuration on the serving profile with the GPU count SRV-6 sizing puts first. When every attempt fails `resource` with the recorded KV-capacity or out-of-memory evidence, the next GPU count of the same GPU model is attempted as its own configuration (its profile declared then, RFC-0006 R6). An `adapter` failure never moves the count: it is a bug, fixed and rerun. When the largest serving profile the GPU model allows (8 GPUs in one node) also fails `resource`, the workload's serving configurations are `not_measurable_on_profile`, and D-OVERHEAD-S and D-OVERHEAD-HIGH-S are null with that reason.
 
-Rule NM-1: the runner attempts each reference job on the system rows' profile with the engine's documented options only (including CPU offload if the pinned version documents it, declared in `engine_args`; for the Maverick plain-serving row, llama.cpp with part of the weights in host memory, SRV-6). If every attempt of a configuration fails with kind `resource` or `adapter` (unsupported model or precision), the failures are recorded as usual (RFC-0010) and the configuration is marked `not_measurable_on_profile` in the release index. Every metric that depends on it (D-OVERHEAD-S, D-AGREE) is null with `null_reason: not_measurable_on_profile`. No larger profile is used in v0.1 (RFC-0006 R1), and no multi-GPU profile is admitted for reference rows (Q2). If the Maverick rows have no reference, the v0.1 report says so in its first paragraph about FlashProve.
+RISK: Meta's FP8 release of Maverick is 416.8 GB of safetensors (Hub listing, read 2026-11-09, grade external, tier reported). Planning arithmetic (grade projected) tries 4 H200 first and skips 2. Only `resource` failures at 4 GPUs, with their KV-capacity evidence, lead to 8 (NM-1).
 
 ### Failure modes
 
@@ -127,28 +158,40 @@ Rule NM-1: the runner attempts each reference job on the system rows' profile wi
 | Claimed outputs missing in the source run | `config` error; recompute requires a successful source run |
 | Engine option not in the pinned version's documentation | policy check fails in review; adapter README lists the documentation link for every option |
 | Precision substitution to fewer bits | validator rejects `system.yaml` (PM-3) |
-| Reference row on another profile than the system row | D-OVERHEAD-S null with `not_applicable` (RFC-0004 INV-DERIVE-2) |
-| llama.cpp cannot serve a Maverick workload on the profile, with every documented placement of the experts tried | job failed (`resource` or `adapter`); after all attempts, NM-1 |
-| A workload names two plain-serving systems | `config` error at load, once the loader check of SRV-7 lands |
+| Serve-role `engine_args` holds an option outside SRV-3 | validator rejects `system.yaml` |
+| Bound GPU count differs from the profile's `gpu.count` or from `--tensor-parallel-size` | `config` before `info` |
+| Engine KV cache below the matched load | job failed `resource`; after all attempts, NM-1 per GPU count |
+| A request returns fewer or more tokens than `output_tokens` | job failed `adapter` |
+| A serving file's bytes or blob id differ from the record | `fetch-model` fails `config`; no job runs |
+| `--prompts-from` run of another workload version, or high-load prefix digest differs | `config` before any step |
+| A workload names two serve-role systems | `config` at load (SRV-7) |
+| A `VLLM_*`, `NCCL_*`, `CUDA_*` or `TORCH_*` variable not set by the image's `ENV` (and not harness binding) | `config` before the engine is built |
+| A job of a larger GPU count when a smaller count of that workload has a successful run | `config` before any step |
+| The release watcher falls back to polling on a serving run | job failed `environment` |
+| Production-serving row on a profile that does not pair with the system row's | D-OVERHEAD-S null with `not_applicable` (RFC-0004 INV-DERIVE-2) |
 
 ## Alternatives Considered
 
 - **Use upstream serving figures (the engine's published benchmarks).** Considered because it costs no GPU time. Rejected: those figures use other hardware, shapes and scopes; the overhead factor needs the same machine and the same token accounting.
 - **Hugging Face Transformers eager forward pass as the reference.** Considered because it is the simplest reference implementation. Rejected for serving: it understates what plain serving achieves, so every overhead factor would look smaller than against a serving engine. Kept in mind for recompute if the serving engine cannot run a precision, via a later RFC.
 - **Recompute through the `verify` subcommand, one container call per request.** Considered because recompute is a verifier. Rejected: every call would reload the weights, so the number would mostly measure model load, not what a verifier holding the weights pays per request; RC-4 measures warm cost and keeps load visible in `prove.session`.
-- **A multi-GPU profile for the Maverick plain-serving row.** Considered because the weights fit in the memory of several GPUs. Rejected by the owner on 2026-11-08: the overhead would divide a rate on several GPUs by a rate on one, and a rule for counting GPUs (rate ratio or GPU-seconds per token) would be needed to make the two comparable. llama.cpp on the system rows' profile keeps one profile per ratio (SRV-6).
-- **vLLM with its GGUF plugin and `--cpu-offload-gb` for Maverick.** The v0.1 choice (Q1). Kept for the SASH workloads; replaced for Maverick by llama.cpp, whose pinned version names the files' architecture, while the plugin's README does not list Llama 4 among its tested families.
+- **Plain serving on the system rows' profile with part of the weights in host memory (llama.cpp, SRV-6 of 2026-11-08).** Rejected by the owner on 2026-11-09. Providers do not serve this way, and the rate would include host-to-GPU traffic that a production deployment does not pay. Users ask what proving adds over serving in normal conditions.
+- **vLLM on the prover's own files and precision (GGUF).** Rejected: the plugin does not list Llama 4 among its tested families, and no provider serves Maverick that way. The stored attempts failed (SRV-10).
+- **A multi-GPU serving profile with a ratio of rates.** Rejected: it divides a rate on 4 GPUs by a rate on 1. GPU-seconds per token (RFC-0004 INV-DERIVE-8) counts the GPUs.
+- **FlashProve's published multiple as the overhead.** Rejected as the overhead; never mixed with ours (INV-MAP-1). Recording it as an `external` quantity in `systems/flashprove/external.yaml` is left to a later change.
+- **Admitting `--language-model-only` and `--skip-tokenizer-init`.** Rejected (SRV-3): neither is a workload-shape requirement. They stood in for the mirrors lacking Meta's `tokenizer_config.json`, and `--language-model-only` also changes the memory the engine profiles for a multimodal model.
 - **Recompute on the verifier profile (CPU only).** Considered because the proving systems' verifiers are timed there. Rejected: a verifier holding an 8B or about-400B-parameter model on 8 CPUs and 32 GiB is not a realistic deployment; recompute is reported on prover-h100 and labelled so.
 - **Compare free-running greedy outputs instead of teacher forcing.** Considered as simpler. Rejected: after the first divergence the contexts differ and later positions are no longer comparable; teacher forcing checks every claimed position against the same context.
 - **A separate workload file per reference row.** Considered for explicitness. Rejected: separate ids invite drift in shape or prompts; reusing the workload id makes INV-DERIVE-2 checkable.
 
 ## Drawbacks
 
-- "Plain serving as documented" is not the maximum achievable serving throughput, so overhead factors are relative to a stated engine configuration, not to a physical limit.
-- The serving engine is itself a moving target; a newer version may change every overhead factor, which is why it is pinned per release.
-- The Maverick reference rows may be absent in v0.1 (RISK above).
-- Two engines serve the plain-serving rows (vLLM for the SASH workloads, llama.cpp for Maverick), so overhead factors of the two workload families are relative to different engines; the engine is printed beside each factor (SRV-7).
-- With routed experts in host memory, the Maverick plain-serving rate includes host-to-GPU traffic that a deployment with enough GPU memory would not pay, so its overhead factor is smaller than against such a deployment. FlashProve itself relies on about 300 GB of host memory on the same profile (external, reported; RISK above).
+- "Production serving with the engine's defaults" is not the maximum achievable serving throughput, so overhead factors are relative to a stated engine configuration, not to a physical limit.
+- The serving engine is itself a moving target; a newer version may change every overhead factor, which is why it is pinned per release, and a re-pinned engine never pools with the old one (RFC-0004 INV-DERIVE-2 (e)).
+- The ratio mixes the cost of proving with a precision difference the publisher chose (SRV-9).
+- The serving profile has more GPUs and more host resources than the prover's. Only GPUs are counted (RFC-0006 C5).
+- Engine defaults depend on the interface and usage context; the choice (Q8) is printed with the figure.
+- At high load, and on a lengthened matched session, the serving side processes more prompts than the prover's (SRV-8); only the prover's set is shared.
 
 ## Conflicts of Interest
 
@@ -158,7 +201,9 @@ The author's affiliations and any interest in a measured system are declared in 
 
 New RFC; no results exist. The draft RFC-0003 named `ref-serve-*` and `ref-recompute-*` as workload ids; this RFC replaces them with reference systems run on the existing workload ids (consistent with RFC-0003 as revised). Schema additions (RFC-0012): `system/1` fields `kind`, `reference_role`, `engine`, `precision_used`, `precision_substitution`; `manifest/1` field `prompts_from`; quantity `quality.precision_substituted`; release index agreement block.
 
-The amendment of 2026-11-08 adds SRV-6 and SRV-7 (llama.cpp v0.9.0 for the Maverick plain-serving row, on the system rows' profile) and resolves Q2. It changes no rule for the SASH workloads. The adapter `systems/ref-serve-gguf`, its image and its GPU captures need a GPU host and land with their own pull request (the next step is described in [`systems/ref-serve/README.md`](../systems/ref-serve/README.md#next-step-llamacpp-for-the-maverick-workloads)); until then the Maverick workloads list `ref-serve`, whose stored v0.1 attempts stay as recorded (APP-1). The release join (`_overheads` in `iproofs.release`) then picks the serve-role system the workload names (SRV-7), and the workload loader checks that at most one is named.
+The amendment of 2026-11-08 (llama.cpp v0.9.0 for the Maverick plain-serving row, on the system rows' profile) was made and superseded on 2026-11-09; its adapter was never merged.
+
+Amendment of 2026-11-09 (owner decision): production serving replaces plain serving. SRV-1 to SRV-10 replace the earlier SRV rules, NM-1 and Q2 are amended, the PM rules are limited to `ref-recompute`, and the Maverick workloads keep naming `ref-serve`. Schema additions (RFC-0012): `serving-model/1`; `system/1` workload fields `load_point`, `gpus`, `batch_size`, `batches_per_session_run`; `manifest/1` fields `workload.load_point`, `workload.batch_size_run`, `workload.batches_per_session_run`, `workload.prompt_count_run`, `workload.prompt_prefix_digest`, `engine` and `serving_model`. The stored `ref-serve` runs stay as recorded (SRV-10). The first publishable D-OVERHEAD-S needs an H200 driver pin (RFC-0006 Q5 for hosted, issue #77 for docker), the rebuilt `ref-serve` image public and pinned by digest, and conforming prover rows on the paired profile; until then every serving run is a development run (POL-4).
 
 ## Testing Strategy
 
@@ -171,23 +216,36 @@ CPU-only:
 - TC-PROMPTS-FROM: recompute materialises the same prompt digest as the source run; a source run of another workload version fails `config`.
 - TC-PRECISION-SUBST: `system.yaml` with a lower-bit substitution is rejected; a higher-bit one is accepted and every quantity carries `precision_substituted: true`.
 - TC-NM-1: all attempts failed with `resource`; release index marks `not_measurable_on_profile`; D-OVERHEAD-S and D-AGREE null with that reason.
-- TC-OVERHEAD-JOIN: release-level D-OVERHEAD-S joins only rows with equal workload id, version, profile, phase and batch size.
+- TC-OVERHEAD-JOIN: replaced by the RFC-0004 tests TC-OVERHEAD-GSPT, -PAIR-PROFILE, -FEWEST, -PROMPTS, -SASH, -NM1 and -DIGEST.
 
 GPU host:
 
-- GH-REF-SERVE-L31: ref-serve on `sash-l31-8b-c1024`, three repetitions, schema-valid, `rate_prove.steady` non-null.
+- GH-REF-SERVE-L31: ref-serve on `sash-l31-8b-c1024`, Meta's BF16 release at TP1 on `serving-h200x1-hosted`, three repetitions, schema-valid, `rate_prove.steady` non-null.
 - GH-REF-RECOMPUTE-L31: ref-recompute with `--prompts-from` a SASH run; agreement block present.
-- GH-REF-MAVERICK-ATTEMPT: `ref-serve-gguf` (llama.cpp, SRV-6) on `fp-maverick-w1024-b1` and `fp-maverick-w1024-b24`, on the FlashProve rows' profile; either a valid row or a recorded failure leading to NM-1. The captures for the adapter's CPU tests come from this run.
+- GH-REF-SERVE-MAVERICK-FP8: `ref-serve` on `fp-maverick-w1024-b24`, Meta's FP8 release, TP4 on `serving-h200x4-hosted`, both load points; TP8 only if every TP4 attempt fails `resource`. The captures for the adapter's CPU tests come from this run.
 - TC-SRV-7 (CPU, with the adapter): a workload naming two systems with `reference_role: serve` fails `config` at load, one naming none (`fake-tiny-ci`) loads; the release joins D-OVERHEAD-S to the named one.
+- TC-SRV-ALLOWLIST: a serve-role entry with `--cpu-offload-gb`, `--quantization`, `--gpu-memory-utilization`, `--language-model-only` or `--skip-tokenizer-init` fails the validator.
+- TC-SRV-PROMPT-PREFIX: a high-load job's first `prompts.count` prompts have the source run's `prompt_set_digest`; another digest is `config`.
+- TC-SRV-GPU-COUNT: TP 4 with one visible GPU gives `config` before the engine is built.
+- TC-SRV-ENV: `VLLM_ATTENTION_BACKEND` set and absent from the image `ENV` gives `config` before the engine is built.
+- TC-SRV-RESOLVED: the resolved configuration line differs from the stored default dump only in the allowlisted fields.
+- TC-SRV-PLACEMENT: an `adapter` failure at TP4 does not admit TP8; a TP4 success makes a TP8 job `config`.
 
 ## Open Questions
 
 - Resolved Q1: by the default rule, on 2026-11-04 (the date the `systems/ref-serve` pull request opened): vLLM v0.32.0 (released 2026-10-18; v0.33.0rc3 is a release candidate), image `docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34`, source commit `5df63a7203cdb9328d824a27b682e77c7b9928be`. It documents `LlamaForCausalLM` (Llama 3.1) and `Llama4ForConditionalGeneration` (Llama 4) on its [supported models](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/models/supported_models.md) page, and INT8 W8A8 and FP8 W8A8 on Hopper ([quantization](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/README.md)). Per workload: the SASH workloads use FP8 W8A8 quantized at load from the pinned files (PM-4), because INT8 W8A8 needs an llm-compressor checkpoint ([int8_w8a8.md](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/llm_compressor/int8_w8a8.md), [online.md](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/online.md)); the Maverick workloads load the pinned GGUF files through the vLLM project's `vllm-gguf-plugin` v0.0.5 ([gguf.md](https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/gguf.md)), which does not list Llama 4 among its tested families, so NM-1 is the expected outcome. Details in [`systems/ref-serve/README.md`](../systems/ref-serve/README.md).
-- Resolved Q2 (owner decision, 2026-11-08): no multi-GPU profile for reference rows. When a model does not fit in the GPU memory of the system rows' profile, the plain-serving row uses an engine that documents keeping part of the weights in host memory on that same profile (SRV-6 for Maverick), and NM-1 applies when that fails.
+- Resolved Q2 (owner decision of 2026-11-09, replacing the resolution of 2026-11-08): multi-GPU serving profiles are admitted for production serving only (RFC-0006 R6); the overhead counts GPU-seconds per token (RFC-0004 INV-DERIVE-8).
 - Resolved Q3: yes, through prompt log-probabilities. Recompute submits prompt plus claimed output as one prompt of token ids with `SamplingParams(prompt_logprobs=1, max_tokens=1)` ([`sampling_params.py`](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/sampling_params.py#L347-L349)). At each position the engine returns the top-1 token of `torch.topk` over the log-probabilities ([`Sampler.gather_logprobs`](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/v1/sample/sampler.py#L312-L337)), which is the argmax; ties follow `torch.topk`'s order. No engine source change.
+
+- OPEN QUESTION Q4 (owner: 0xchqrles, resolve by: Last call of this RFC): is `--language-model-only` a shape requirement? Default until resolved: no. It sets every modality limit to 0, which changes the memory the engine profiles for Maverick, and it is not how a multimodal model is served. It is refused (SRV-3).
+- OPEN QUESTION Q5 (owner: 0xchqrles, resolve by: Last call of this RFC): the high-load batch. Default until resolved: the engine's default maximum sequences (1,024 on an H200). Alternative: a fixed number stated here.
+- OPEN QUESTION Q6 (owner: 0xchqrles, resolve by: the first release with a serving row): make the rebuilt `ref-serve` image public on ghcr, so release runs use the pinned image rather than the development install. On 2026-11-09 an anonymous token request for `ref-serve` and `ref-recompute` was refused (`UNAUTHORIZED`), while `sash` and `flashprove` were granted.
+- OPEN QUESTION Q7 (owner: 0xchqrles, resolve by: the first serving capture): Meta's `tokenizer_config.json`. No ungated copy checked holds Meta's bytes for either model. Default until resolved: the owner accepts Meta's licence on the Hugging Face account and passes a read token to `iproofs serving pin` and `iproofs fetch-model --serving` only, so the record holds Meta's own file (`source: publisher`). If declined, the capture records whether the engine starts without it, and the result is put to the owner; `--skip-tokenizer-init` is never admitted silently.
+- OPEN QUESTION Q8 (owner: 0xchqrles, resolve by: the first serving capture): the engine interface. Default until resolved: `vllm serve` with only the allowlisted flags (usage context `OPENAI_API_SERVER`, what providers run). Alternative: the `LLM` class with only the allowlisted keyword arguments (usage context `LLM_CLASS`, 16,384 rather than 8,192 batched tokens on an H200). Either way the interface is printed in the conditions line. The completions-API field that returns output token ids at v0.32.0 is named, with a link, in `systems/ref-serve/README.md`.
 
 ## References
 
 - docs/PRD.md §6, §7.
 - [RFC-0002](0002-claim-card.md) for `quality_gap` and `residual`; [RFC-0003](0003-workloads.md) for workload ids, precision and seeds; [RFC-0004](0004-metrics-timing-grades.md) for D-OVERHEAD-S, D-SPT and INV-DERIVE-2; [RFC-0005](0005-adapter-contract.md) for the adapter contract; [RFC-0006](0006-reference-hardware-and-cost.md) for profiles; [RFC-0010](0010-harness-runner.md) for skipped steps; [RFC-0011](0011-measurement-and-sampling.md) for release timing.
 - vLLM documentation at the pinned release (engine options, supported quantisation schemes).
+- Meta's model cards at the pinned revisions ([Llama 4 Maverick FP8](https://huggingface.co/meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8/blob/94125d2bd83076b21eed33119525e29eaf3894f4/README.md), [Llama 3.1 8B Instruct](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/blob/0e9e39f249a16976918f6564b8830bc894c89659/README.md)).
