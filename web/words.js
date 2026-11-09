@@ -9,8 +9,8 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
-  // ------------------------------------------------------------ the header band: an iridescent gradient around the
-  // brand's violet, flowing with two large, soft value-noise fields, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
+  // ------------------------------------------------------------ the header band: a gradient of the brand's violet,
+  // its lighter tones as highlights, flowing with two large, soft value-noise fields, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
   // text above 4.5:1. Still under reduced motion; paused when the band is out of view or the tab hidden.
   $$('.mast').forEach((band) => {
     const cv = document.createElement('canvas');
@@ -19,9 +19,9 @@
     band.prepend(cv);
     const cx = cv.getContext('2d');
     if (!cx) return;
-    // an iridescent run around the brand's violet: sky, periwinkle, iris, violet (#c45cff), orchid, pink, coral; black
-    // text above 5:1 on each (sky 11:1, iris 5.5:1, coral 9:1)
-    const INKS = [[92, 200, 255], [125, 140, 255], [163, 92, 255], [196, 92, 255], [236, 92, 240], [255, 92, 184], [255, 138, 128]];
+    // one hue: a deeper violet, the brand's violet (#c45cff, most of the band), then lighter violets, lavender and a
+    // near-white lilac as slow highlights; black text above 5:1 on each (deeper violet 5.4:1, lilac 17:1)
+    const INKS = [[155, 92, 255], [178, 92, 255], [196, 92, 255], [196, 92, 255], [211, 140, 255], [230, 194, 255], [244, 232, 255]];
     const P = new Uint8Array(512);
     for (let i = 0, s = 7; i < 256; i++) P[i] = i;
     for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
