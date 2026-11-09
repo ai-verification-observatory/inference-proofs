@@ -9,11 +9,12 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
-  // ------------------------------------------------------------ row pies: the slice under the pointer lifts,
-  // and its property's name and state show beside it (positioned: nothing moves). The others keep their ink.
-  // The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
-  $$('.row .pie').forEach((pie) => {
-    const tip = $('.tip', pie);
+  // ------------------------------------------------------------ row pies and the not-benchmarked glyphs: the slice
+  // under the pointer lifts, and its property's name and state show beside it (positioned: nothing moves), on a
+  // not-benchmarked card in place of the lines under its name. The others keep their ink. The pointer is read on
+  // the still .hit copy of the wedges, so a lifted slice never slips out from under it.
+  $$('.row .pie, .nb .nbpie').forEach((pie) => {
+    const tip = $('.tip', pie) || $('.tip', pie.closest('.nb'));
     let hot = 0;
     const set = (n) => {
       if (n === hot) return;
@@ -35,13 +36,14 @@
     };
     pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });
     pie.addEventListener('pointerleave', (ev) => { if (mouse(ev)) set(0); });
-    // touch: the first tap on a triangle names it; a second tap on the same one follows the link
+    // touch: the first tap on a triangle names it; a second tap on the same one follows the link (a glyph with
+    // no link lets it go)
     let kind = '';
     pie.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
     pie.addEventListener('click', (ev) => {
       if (kind === 'mouse') return;
       const n = +(ev.target.closest('.hit path')?.dataset.n || 0);
-      if (n && n !== hot) { ev.preventDefault(); set(n); }
+      if (n && n !== hot) { ev.preventDefault(); set(n); } else if (n && !pie.href) set(0);
     });
     document.addEventListener('pointerdown', (ev) => { if (!pie.contains(ev.target)) set(0); });
   });

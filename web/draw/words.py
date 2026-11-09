@@ -48,9 +48,9 @@ STEADY_LINE = "steady state on both sides, start-up excluded"
 # the scope line of an overhead, by its stored statistic
 SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE, WARM: WARM_LINE}
 # the overview's scopes in short, the one line under a figure (the full words ride in its title)
-SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "session", "verify": "{cpus} threads",
-               "overhead_vs_production_prove.steady": "steady",
-               WARM: "session vs warm"}  # fmt: skip
+SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "with start-up",
+               "verify": "{cpus} threads", "overhead_vs_production_prove.steady": "steady",
+               WARM: "with start-up vs warm"}  # fmt: skip
 # RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns; a
 # value per bit prints per Gbit (x 1e9), in seconds or bytes with their own prefix
 PER_GBIT = "per token, per Gbit of active weights"
@@ -70,8 +70,8 @@ GRADE_WORD = {
     "asserted": "set in the reference file",
 }
 TIER_WORD = {
-    "reported": "one runner, not yet checked",
-    "peer-reviewed": "reviewed, not yet rerun",
+    "reported": "one runner, not reproduced",
+    "peer-reviewed": "reviewed, not rerun",
     "reproduced": "rerun by an unaffiliated runner",
 }
 NULL_WORD = {
@@ -207,6 +207,24 @@ def shown(v, unit):
     return f"{n}×" if unit == "ratio" else f"{n} {u}"
 
 
+def range_words(lo, hi, unit):
+    """A range with its unit once: "67.61 to 68.91 µs"; two units only where the prefix
+    changes inside it ("999.9 µs to 1.001 ms"); a ratio keeps its sign on both ends."""
+    if unit == "ratio":
+        return f"{shown(lo, unit)} to {shown(hi, unit)}"
+    (a, u), (b, w) = amount(lo, unit), amount(hi, unit)
+    return f"{a} to {b} {u}" if u == w else f"{a} {u} to {b} {w}"
+
+
+def title_spread(f):
+    """The spread in an overview cell's title: the sample size and the range (S3)."""
+    st = f.get("stats")
+    if not st:
+        return ""
+    return (f"{st['n']} completed, {st['n_failed']} failed, "
+            f"{range_words(st['min'], st['max'], f['unit'])}")  # fmt: skip
+
+
 def spread_parts(f):
     """The sample size and the range, the two parts the overview shows (S3)."""
     st = f.get("stats")
@@ -252,4 +270,4 @@ def why_words(f, cfg):
 def labels(f, cfg):
     scope = WARM_LINE if f.get("metric") == WARM else scope_words(f, cfg)  # INV-DERIVE-11
     return [("scope", scope), ("grade", GRADE_WORD[f["grade"]]),
-            ("checked", TIER_WORD[f["tier"]])]  # fmt: skip
+            ("evidence", TIER_WORD[f["tier"]])]  # fmt: skip

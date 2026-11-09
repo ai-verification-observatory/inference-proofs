@@ -43,7 +43,6 @@ body { margin: 0; background: var(--ground); color: var(--paper); font: 400 14px
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 a:hover { text-decoration-thickness: 2px; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
-sup { font: 600 12px/1 var(--mono); vertical-align: top; position: relative; top: .35em; margin-right: .18em; letter-spacing: 0; }
 code { font: inherit; font-weight: 600; }
 p { margin: 0; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -133,10 +132,6 @@ html:not(.js) .search { display: none; }
 .kmini .off { fill: var(--ground); opacity: .2; }
 .qw { display: block; padding-top: 2px; font: 900 32px/1 var(--disp); font-stretch: 66%; letter-spacing: -.004em; white-space: nowrap; }
 .qq { display: block; font: 500 13px/17px var(--mono); margin-top: 5px; max-width: 46ch; text-wrap: balance; }
-.keyline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; font: 500 12px/1 var(--mono); margin-top: 18px; }
-.chip { background: var(--ground); color: var(--paper); padding: 6px 9px 6px 8px; display: inline-flex; align-items: center; }
-.keyline .crit { font-weight: 600; margin-left: 6px; padding-block: 6px; margin-block: -6px; }
-.mast .keyline .crit:hover { text-decoration-thickness: 2px; }
 
 
 /* ---------------------------------------------------------------- sections of the overview */
@@ -147,12 +142,26 @@ html:not(.js) .search { display: none; }
 .lead { font: 400 12px/1.5 var(--mono); color: var(--paper); margin: 12px 0 0; max-width: 110ch; }
 .tbl .row:first-child { border-top-color: var(--rule); }
 
-/* not benchmarked yet: every system at once, small */
-.nbgrid { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); column-gap: 24px; border-top: 1px solid var(--rule); }
+/* not benchmarked yet: every system at once, small, one group per family in one grid */
+.nbgrid { margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); column-gap: 24px; }
+.nbl { display: contents; list-style: none; }
+.nbh { grid-column: 1 / -1; margin: 26px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--rule); font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.nbh:first-child { margin-top: 6px; }
 .nb { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .nbpie, .nbpie .pie-svg { display: block; width: 56px; height: 56px; }
+.nbpie { -webkit-tap-highlight-color: transparent; }
+.nbt { display: grid; min-width: 0; }
 .nbn { font: 800 22px/1.05 var(--disp); font-stretch: 78%; margin: 2px 0 4px; }
+.nbn a { text-decoration: none; }
+.nbn a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.nbn .xa { font: 500 .55em/1 var(--mono); color: var(--muted); vertical-align: .45em; }
 .nbm { font: 400 12px/1.45 var(--mono); color: var(--muted); }
+.nbm, .ms { text-wrap: pretty; }
+/* a named petal: its name and state in place of the lines under the name, over nothing */
+.nbms, .nbt .tip { grid-area: 2 / 1; }
+.nbt .tip { position: static; transform: none; width: auto; max-width: none; }
+.nb:has(.nbpie[data-hot]) .nbt .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
+.nb:has(.nbpie[data-hot]) .nbms { visibility: hidden; }
 
 /* ---------------------------------------------------------------- rows */
 /* the board: the system (its model under its name), then the four figures */
@@ -171,6 +180,7 @@ html:not(.js) .search { display: none; }
 /* the glyph follows the last word after a no-break space, so a head that wraps keeps it beside its word */
 .sb { display: inline-block; padding: 6px 0 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s; }
 .sb .g { font: 500 13px/1 var(--mono); letter-spacing: 0; display: inline; }
+.sb .gw { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sb:hover { color: var(--paper); }
 .hc[aria-sort] .sb { color: var(--paper); box-shadow: inset 0 -2px 0 var(--paper); }
 .row { border-top: 1px solid var(--line); padding: 18px 0 26px; }
@@ -190,15 +200,17 @@ html:not(.js) .search { display: none; }
 .s6 { --dx: -0.5; --dy: -0.866; }
 /* a still copy of the wedges takes the pointer, so a lifted slice never slips out from under it */
 .hit path { fill: transparent; pointer-events: all; }
-.pie .sl, .rpie .sl { pointer-events: none; }
+.pie .sl, .rpie .sl, .nbpie .sl { pointer-events: none; }
 /* the slice under the pointer steps out with a paper edge; the others keep their ink */
 .pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-/* its name and state, under the pie in the glyph's own column, empty below it, so they overlap no
-   text: positioned, so nothing moves; far enough below that a lifted triangle (6 px out) never
-   reaches them; the words wrap within the column */
-.tip { display: none; position: absolute; left: 0; top: calc(100% + 12px); width: 100%; z-index: 2; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
-.pie[data-hot] .tip { display: block; }
-.tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+.nbpie[data-hot="1"] .s1, .nbpie[data-hot="2"] .s2, .nbpie[data-hot="3"] .s3, .nbpie[data-hot="4"] .s4, .nbpie[data-hot="5"] .s5, .nbpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke: var(--paper); stroke-width: 1.5; }
+/* its name and state beside the glyph, in place of the system's name, hidden while it is named, so
+   they overlap no text: positioned, so nothing moves; one line at every width */
+.sysc { container-type: inline-size; }
+.tip { display: none; position: absolute; left: calc(100% + 14px); top: 50%; width: max-content; max-width: calc(100cqw - 100% - 14px); transform: translateY(-50%); z-index: 2; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
+.pie[data-hot] .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
+.tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; }
+.sysc:has(.pie[data-hot]) .who { visibility: hidden; }
 
 .who { padding-top: 10px; min-width: 0; }
 .name { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; padding-bottom: .04em; text-wrap: balance; }
@@ -207,8 +219,6 @@ html:not(.js) .search { display: none; }
 .name a:hover:after, .name a:focus-visible:after { color: var(--paper); }
 @media (hover: hover) { .row:has(.pie:hover) .name a:after { color: var(--paper); } }
 .name a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
-.wl { display: flex; flex-direction: column; align-items: flex-start; margin-top: 8px; font: 400 12px/18px var(--mono); color: var(--muted); }
-.pin { display: inline-block; font: 500 12px/1 var(--mono); margin-top: 2px; padding-block: 6px; margin-bottom: -6px; color: var(--paper); }
 /* the model under the system's name: its name, its size and weight width, what the workload ran */
 .mc { grid-column: 2; min-width: 0; padding-top: 12px; }
 .mn { font: 800 22px/1.05 var(--disp); font-stretch: 80%; margin: 0; }
@@ -224,9 +234,11 @@ html:not(.js) .search { display: none; }
 .val:focus-visible .vm:after { transform: scaleX(1); }
 /* where there is hover only: a touch screen keeps the last tapped element "hovered" after Back */
 @media (hover: hover) { .val:hover .vm:after { transform: scaleX(1); } }
-.fig { display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: .3em; }
-.fig .n { font: 800 44px/1 var(--disp); font-stretch: 84%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.fig { --nfs: 44px; display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: .3em; }
+.fig .n { font: 800 var(--nfs)/1 var(--disp); font-stretch: 84%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .fig .u { font: 500 14px/1.2 var(--mono); }
+/* a ratio's sign in the display face at 60 % of its numeral, so it reads as part of the number */
+.fig .u.x { font: 800 calc(var(--nfs) * .6)/1 var(--disp); font-stretch: 84%; margin-left: -.1em; }
 .fig .ux { flex-basis: 100%; font: 500 12px/1.5 var(--mono); margin-top: 4px; }
 .na.word { color: var(--paper); }
 .na { font: 600 22px/1.2 var(--disp); font-stretch: 84%; color: var(--muted); display: inline-block; padding-top: 14px; text-wrap: balance; }
@@ -270,7 +282,6 @@ html:not(.js) .search { display: none; }
 .sysname { font: 900 96px/.8 var(--disp); font-stretch: 64%; letter-spacing: -.012em; margin: 0; overflow-x: visible; overflow-y: clip; overflow-wrap: anywhere; padding-bottom: .02em; transform: translateY(.06em); }
 .sysname .lt { display: block; }
 .sect { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; }
-.sect sup { font-size: 14px; top: .2em; margin-left: .25em; }
 .sect.sm { font-size: 22px; margin-top: 32px; }
 .blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 /* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
@@ -397,7 +408,7 @@ html:not(.js) .search { display: none; }
 .mtab { width: 100%; border-collapse: collapse; margin-top: 32px; font: 400 12px/1.45 var(--mono); }
 .mtab th, .mtab td { text-align: left; vertical-align: top; padding: 8px 16px 8px 0; border-top: 1px solid var(--line); }
 .mtab thead th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
-.mtab .fig .n { font-size: 22px; }
+.mtab .fig { --nfs: 22px; }
 .mtab .na { padding-top: 0; }
 .mtab .ml { color: var(--muted); }
 .tamper { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 16px; text-wrap: pretty; }
@@ -411,7 +422,7 @@ html:not(.js) .search { display: none; }
 .plates-sys .plate { scroll-margin-top: 12px; }
 .refsys .over { padding-top: 20px; }
 /* criteria page: each property, then what each state means for it */
-.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+section.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 .crit .ch { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; align-content: start; }
 .crit .kmini { grid-row: span 2; }
 .crit .kmini .off { fill: var(--paper); opacity: .16; }
@@ -434,13 +445,13 @@ html:not(.js) .search { display: none; }
 @keyframes grow { from { transform: scale(.5); opacity: 0; } }
 
 .anim .kick { animation: fade .5s ease backwards .1s; }
-.anim .map, .anim .keyline { animation: fade .5s ease backwards .15s; }
+.anim .map { animation: fade .5s ease backwards .15s; }
 .anim .sec-h, .anim .lead, .anim .heads, .anim .reflead { animation: fade .5s ease backwards .4s; }
 .anim .row { --d: 400ms; }
 /* each pie's six slices grow together, from its centre */
 .anim .row .pie .sl { transform-box: view-box; transform-origin: 0 0; animation: grow .5s var(--ease) backwards; animation-delay: var(--d); }
 .anim .row .name { animation: riseS .6s var(--ease) backwards; animation-delay: var(--d); }
-.anim .row .wl, .anim .row .sub { animation: fade .5s ease backwards; animation-delay: calc(var(--d) + 200ms); }
+.anim .row .sub { animation: fade .5s ease backwards; animation-delay: calc(var(--d) + 200ms); }
 .anim .row .fig, .anim .row .na { animation: riseS .55s var(--ease) backwards; animation-delay: calc(var(--d) + 120ms); }
 /* without script, the heads cannot sort: they do not look as if they could */
 html:not(.js) .sb { cursor: default; pointer-events: none; }
@@ -483,12 +494,12 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .agree { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
 }
 @media (max-width: 1180px) {
-  .heads, .r-main { grid-template-columns: 300px repeat(4, minmax(0, 1fr)); column-gap: 18px; }
+  .heads, .r-main { grid-template-columns: 320px repeat(4, minmax(0, 1fr)); column-gap: 18px; }
   .sysc { grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; }
   .hsys { padding-left: 78px; }
   .row .pie { width: 64px; height: 64px; }
   .board .name { font-size: 34px; }
-  .fig .n { font-size: 36px; }
+  .fig { --nfs: 36px; }
 }
 /* the legend: smaller key glyphs and names */
 @media (max-width: 1099px) {
@@ -498,35 +509,27 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
      figure's label is the head above it (still read aloud in the cell); the figure the table is
      sorted by in paper, the others muted */
   .r-main { grid-template-columns: minmax(0, 1fr); }
-  .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; container-type: inline-size; }
+  .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; }
   .sysc .pie { grid-row: auto; }
   .row .pie { width: 52px; height: 52px; }
   .board .pie[data-hot="1"] .s1, .board .pie[data-hot="2"] .s2, .board .pie[data-hot="3"] .s3, .board .pie[data-hot="4"] .s4, .board .pie[data-hot="5"] .s5, .board .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke-width: 1.5; }
   .who { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-top: 0; }
   .board .name { font-size: 32px; }
-  .wl { margin-top: 0; }
   .row { padding: 14px 0 18px; }
   .mc { grid-column: 1 / -1; padding-top: 8px; }
   .mn { font-size: 18px; }
   .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; margin-top: 2px; }
   .val { padding-top: 8px; }
-  /* the model is under the glyph here, so a triangle's name and state take the place of the system's name beside it
-     while it is named (overlapping no text) */
-  .tip { left: calc(100% + 14px); top: 50%; width: max-content; max-width: calc(100cqw - 100% - 14px); transform: translateY(-50%); }
-  .pie[data-hot] .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
-  .tip b { margin-bottom: 0; }
-  .sysc:has(.pie[data-hot]) .who { visibility: hidden; }
   .heads { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; }
   .heads .hc { grid-row: 3; }
-  .heads .hsys { grid-column: 1 / -1; grid-row: 1; padding-left: 0; }
-  .hg { grid-row: 2; padding-top: 6px; }
-  .hg-overhead { grid-column: 1; }
+  /* System sorts from the group line's row, so it takes no row of its own; the overhead's baseline
+     words go under its head, the per-Gbit line spans the other three */
+  .heads .hsys { grid-column: 1; grid-row: 2; padding-left: 0; align-self: end; }
+  .hg { grid-row: 2; padding-top: 6px; align-self: end; text-wrap: balance; }
+  .hg-overhead { display: none; }
   .hg-per_bit { grid-column: 2 / span 3; }
   .heads .sb { padding: 10px 0 11px; text-align: left; }
-  .tbl:not([data-col="system"]) .vc { color: var(--muted); }
-  .tbl:not([data-col="system"]) .vc .na.word { color: var(--muted); }
-  .tbl[data-col="overhead"] .vc[data-col="overhead"], .tbl[data-col="per_bit"] .vc[data-col="per_bit"],
-  .tbl[data-col="size_bit"] .vc[data-col="size_bit"], .tbl[data-col="check_bit"] .vc[data-col="check_bit"] { color: var(--paper); }
+  .hc[data-col="overhead"] .gw { display: block; position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; margin-top: 3px; font: 400 11px/1.3 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; text-wrap: balance; }
   .q { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
   .q .kmini { width: 40px; height: 40px; }
   .qw { font-size: 28px; }
@@ -535,7 +538,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 /* criteria: the states under the name */
 @media (max-width: 1000px) {
-  .crit { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
+  section.crit { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
   .cnote { grid-column: 1; }
 }
 @media (max-width: 960px) {
@@ -572,7 +575,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 @media (max-width: 920px) {
   .plates, .plates-sys { grid-template-columns: 1fr 1fr; column-gap: 14px; }
-  .fig .n { font-size: 34px; }
+  .fig { --nfs: 34px; }
   .facts { columns: 1; }
 }
 @media (max-width: 760px) {
@@ -583,8 +586,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .q .kmini { grid-row: auto; width: 32px; height: 32px; }
   .qw { padding-top: 0; align-self: center; font-size: 20px; line-height: 1.05; white-space: normal; }
   .qq { grid-column: 1 / -1; font-size: 12px; line-height: 15px; margin-top: 6px; }
-  .keyline { margin-top: 16px; gap: 6px 8px; }
-  .keyline .crit { margin-left: 0; }
   body { font-size: 14px; }
   .top { flex-wrap: wrap; gap: 16px 18px; padding: 14px var(--gut); }
   .name { font-size: min(40px, 10vw); overflow-wrap: anywhere; }
@@ -629,7 +630,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .cidx .kmini { width: 22px; height: 22px; flex: none; grid-row: auto; }
   .cidx .kmini .on { fill: var(--paper); }
   .cidx .kmini .off { fill: var(--paper); opacity: .16; }
-  .cidx + .crit { margin-top: 24px; }
+  .cidx + section.crit { margin-top: 24px; }
   .mtab thead { display: none; }
   .mtab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; border-top: 1px solid var(--line); padding: 8px 0; }
   .mtab th { border: 0; padding: 0; text-wrap: balance; }
@@ -648,8 +649,16 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .reffigs .sect.sm { margin-top: 0; }
   .refsys { margin-top: 40px; }
 }
-/* one track of not-benchmarked entries: the last entry's rule closes the grid, the footer adds none */
-@media (max-width: 635px) { .home .foot { border-top: 0; margin-top: 32px; } }
+/* not benchmarked yet: compact entries, two tracks down to 561 px; one track below, where the last entry's
+   rule closes the grid and the footer adds none. A 52 px glyph gives each petal about 24 px to tap */
+@media (max-width: 635px) {
+  .home .foot { border-top: 0; margin-top: 32px; }
+  .nbgrid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); column-gap: 18px; }
+  .nb { grid-template-columns: 52px minmax(0, 1fr); column-gap: 12px; padding: 10px 0; }
+  .nbpie, .nbpie .pie-svg { width: 52px; height: 52px; }
+  .nbn { font-size: 19px; margin: 0 0 2px; }
+  .nbm { font-size: 11px; line-height: 1.4; }
+}
 /* phones */
 @media (max-width: 560px) {
   /* the system page's claims, compact so the figures come soon: the card's identity in one run of
@@ -670,8 +679,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .q .kmini { grid-row: auto; width: 22px; height: 22px; margin-top: 0; }
   .qw { font-size: 18px; line-height: 1; align-self: center; white-space: normal; }
   .qq { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .keyline { margin-top: 12px; gap: 6px; }
-  .chip { padding: 5px 7px 5px 6px; }
   /* the header on one line: the logo's glyph alone and GitHub's mark alone (both names still read
      aloud), the pages taller to press with the text where it was */
   .top { column-gap: 12px; padding-block: 14px; }
@@ -696,11 +703,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   /* criteria: square and word on one line, the definition under them at full width */
   .cs div { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 0; }
   .cs div:first-child { padding-top: 0; }
-  /* not benchmarked yet: compact entries */
-  .nb { grid-template-columns: 44px minmax(0, 1fr); column-gap: 12px; padding: 10px 0; }
-  .nbpie, .nbpie .pie-svg { width: 44px; height: 44px; }
-  .nbn { font-size: 19px; margin: 0 0 2px; }
-  .nbm { font-size: 11px; line-height: 1.4; }
   /* a search result: the badge on the name's line, the line of context under both at full width */
   .so { grid-template-areas: "p n b" "p m m"; align-items: start; column-gap: 10px; padding-inline: 10px; }
   .sbadge { align-self: center; }
@@ -714,32 +716,33 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   /* the board: every figure of a system on one line, smaller, under its head; the labels in
      short (scope, n and range) */
   .heads, .vals { column-gap: 10px; }
-  .heads .sb { font-size: 11px; letter-spacing: .02em; line-height: 1.25; }
-  .hg { font-size: 10px; line-height: 1.3; padding-bottom: 3px; }
-  .sysc { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
-  .row .pie { width: 40px; height: 40px; }
+  .heads .sb { font-size: 11px; letter-spacing: .02em; line-height: 1.25; min-height: calc(2lh + 21px); }
+  .hg { font-size: 11px; line-height: 1.3; padding-bottom: 3px; }
+  .sysc { column-gap: 12px; }
   .board .name { font-size: min(26px, 7vw); }
   .row { padding: 12px 0 14px; }
   .mc { padding-top: 6px; }
   .mn { font-size: 16px; }
   .ms { font-size: 11px; line-height: 1.4; margin-top: 2px; }
-  .board .fig .n { font-size: 21px; }
+  /* each row's figures on one line: a unit never wraps under its number */
+  .board .fig { --nfs: 21px; flex-wrap: nowrap; column-gap: .15em; }
   .board .fig .u { font-size: 11px; }
   .board .na { font-size: 15px; }
-  .board .sub { font: 400 10px/1.35 var(--mono); margin-top: 4px; }
+  .board .sub { font: 400 11px/1.35 var(--mono); margin-top: 4px; }
   .tip { left: calc(100% + 12px); max-width: calc(100cqw - 100% - 12px); }
 }
 /* narrow phones: a smaller logo and closer items, so the first line fits */
 @media (max-width: 400px) {
-  .heads { column-gap: 12px; }
+  /* the overhead's column a little wider: its ratio is the longest figure */
+  .heads, .vals { column-gap: 10px; grid-template-columns: minmax(0, 1.12fr) repeat(3, minmax(0, 1fr)); }
   .heads .sb { letter-spacing: .03em; }
 }
 /* the narrowest phones: smaller figures, closer columns on the board */
 @media (max-width: 360px) {
-  .fig .n { font-size: 28px; }
+  .fig { --nfs: 28px; }
   .fig .u { font-size: 12px; }
   .heads, .vals { column-gap: 8px; }
-  .board .fig .n { font-size: 19px; }
+  .board .fig { --nfs: 19px; }
 }
 /* phones from 350 px: a label beside its value (below, the source parts no longer fit beside one) */
 @media (min-width: 350px) and (max-width: 560px) {
@@ -754,7 +757,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .q .kmini { width: 22px; height: 22px; grid-row: span 2; }
   .qw { font-size: 18px; white-space: normal; }
   .qq { grid-column: 2; font-size: 11px; line-height: 14px; margin-top: 2px; }
-  .keyline { margin-top: 10px; }
 }
 /* phones held sideways: the key as glyph and name only (questions still read aloud), and the band,
    the whole glyph and the first property on the first screen */
@@ -767,7 +769,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .over { padding-top: 16px; }
   .rose { row-gap: 8px; }
   .rpie .pie-svg { width: 160px; height: 160px; }
-  .crit { margin-top: 24px; }
+  section.crit { margin-top: 24px; }
+  .sec { padding-top: 16px; }
+  .sect { font-size: 34px; }
 }
 /* touch: a property's name shows it is a link */
 @media (hover: none) { .rn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }

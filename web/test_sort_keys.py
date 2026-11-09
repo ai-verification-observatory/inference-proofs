@@ -65,7 +65,7 @@ def test_warm_overhead_names_both_scopes(site):
     assert "steady state" in b.plate(cfg, "overhead")
     warm["value"] = 1000.0
     assert b.cell_words(cfg, "overhead")[1] == [b.SCOPE_SHORT[b.WARM]]
-    assert f"scope: {b.WARM_LINE}" in b.cell_words(cfg, "overhead")[2]
+    assert b.WARM_LINE in b.cell_words(cfg, "overhead")[2]
     plate = b.plate(cfg, "overhead")
     assert f"<dt>scope</dt><dd>{b.readable(b.WARM_LINE)}</dd>" in plate
     assert "start-up included on both sides" not in plate
@@ -142,8 +142,8 @@ def test_readable_labels(site):
 
 
 def test_home_figures_show_spread(site):
-    # every measured overview figure carries its sample size and range in its title (S3); the
-    # plate it links holds them in view
+    # every measured overview figure carries its sample size and range in its title (S3), with
+    # its grade and evidence, and no record pointer (its plate holds it in view)
     seen = 0
     for cfg in site.build.PROVERS:
         for col in site.build.BOARD:
@@ -152,12 +152,31 @@ def test_home_figures_show_spread(site):
                 continue
             title = site.build.cell_words(cfg, col)[2]
             st = f["stats"]
-            assert f"spread: {st['n']} completed, {st['n_failed']} failed" in title, (
-                cfg["system"],
-                col,
-            )
+            assert f"{st['n']} completed, {st['n_failed']} failed, " in title, (cfg["system"], col)
+            assert site.build.GRADE_WORD[f["grade"]] in title
+            assert f"evidence: {site.build.TIER_WORD[f['tier']]}" in title
+            assert "releases/" not in title
+            assert site.build.PER_BIT_LIMIT not in title
             seen += 1
     assert seen
+
+
+def test_titles_are_short(site):
+    # an overview figure's title: value, scope, runs and range, grade and evidence; the
+    # per-Gbit limit sits once, on the line the three heads share (RFC-0004 INV-DERIVE-7)
+    for cfg in site.build.PROVERS:
+        for col in site.build.BOARD:
+            assert len(site.build.cell_words(cfg, col)[2]) < 360, (cfg["system"], col)
+    text = (site.out / "index.html").read_text()
+    assert text.count(html.escape(site.build.PER_BIT_LIMIT)) == 2  # the line's title, read aloud
+
+
+def test_range_words(site):
+    # a range names its unit once, twice only where the prefix changes inside it (by hand)
+    b = site.build
+    assert b.range_words(6.761e-14, 6.891e-14, "s/bit_token") == "67.61 to 68.91 \N{MICRO SIGN}s"
+    assert b.range_words(0.0009999, 0.001001, "s") == "999.9 \N{MICRO SIGN}s to 1.001 ms"
+    assert b.range_words(61.0, 61.51, "ratio") == "61.00× to 61.51×"
 
 
 def test_every_stored_id_has_words(site):

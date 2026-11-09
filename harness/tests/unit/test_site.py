@@ -75,6 +75,8 @@ HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>'
 PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
 DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
+# an overview cell's title: sample size and range (S3); the plate it links holds mean and sd
+TITLE_SPREAD = re.compile(r"(\d+) completed, (\d+) failed, \S+(?: \S+)? to \S+(?: \S+)?")
 SPREAD = re.compile(
     r"(\d+) completed, (\d+) failed · (\S+(?: \S+)?) to (\S+(?: \S+)?) · mean \S+(?: \S+)?"
     r" · sd \S+(?: \S+)?"
@@ -238,22 +240,26 @@ def test_targets_page(site: Build) -> None:
         for r in t["results"]:
             for key in ("mean", "least_favourable"):
                 assert f"#/targets/{r['position']}/{key}" in said
-    for label in ("scope: ", "grade: ", "checked: ", "spread: "):
+    for label in ("scope: ", "grade: ", "evidence: ", "spread: "):
         assert label in said
 
 
 def test_every_number_has_labels(site: Build) -> None:
-    """S2: each overview figure names its unit in view and its scope, grade, tier and record in
-    its accessible description, and links its plate; each plate holds every label in view; each
-    more-numbers row names its scope, grade and tier, or why it has no value. The record is the
-    index pointer as text (RFC-0009 §Site gaps)."""
+    """S2: each overview figure names its unit in view and its grade and tier in its accessible
+    description (its scope too, where it has one), and links its plate, which holds its record;
+    each plate holds every label in view; each more-numbers row names its scope, grade and tier,
+    or why it has no value. The record is the index pointer as text (RFC-0009 §Site gaps)."""
     seen = 0
-    for _, title, inner in VAL.findall(site.pages["index.html"]):
+    grades = ("recorded by our harness", "calculated from recorded numbers")
+    for href, title, inner in VAL.findall(site.pages["index.html"]):
         if 'class="fig"' not in inner:
             continue
         assert NUMBER.search(inner), inner
-        for label in ("scope: ", "grade: ", "checked: ", "source: releases/"):
-            assert label in plain(title), (label, title)
+        said = plain(title)
+        assert any(g in said.lower() for g in grades), title
+        assert "evidence: " in said, title
+        assert "#" in href, href  # its plate, which names the record
+        assert "fig-" in href, href
         seen += 1
     assert seen >= 6  # two systems, at least three measured figures each
     for system in site.view["orders"]["benchmarked"]:
@@ -265,7 +271,7 @@ def test_every_number_has_labels(site: Build) -> None:
             cfg = plate_config(site, system, pid)
             dts = {dt for dt, _ in DD.findall(body)}
             if 'class="fig"' in body:
-                assert {"spread", "scope", "grade", "checked", "workload", "source"} <= dts, pid
+                assert {"spread", "scope", "grade", "evidence", "workload", "source"} <= dts, pid
             else:  # a null value names its record; a metric the runs did not record has none
                 assert "why" in dts, pid
                 assert ("source" in dts) == cfg["figures"][metric(cfg, col)]["recorded"], pid
@@ -277,7 +283,7 @@ def test_every_number_has_labels(site: Build) -> None:
             said = plain(row)
             if "No value" in said:
                 continue
-            for label in ("spread: ", "scope: ", "grade: ", "checked: ", "source: releases/"):
+            for label in ("spread: ", "scope: ", "grade: ", "evidence: ", "source: releases/"):
                 assert label in said, (label, said)
 
 
@@ -294,7 +300,7 @@ def test_glyph_before_numbers(site: Build) -> None:
         system, anchor = cfg["system"], f"claims-{cfg['configuration']}"
         assert body.index('class="pie"') < body.index('class="vc"'), rid
         head = body[: body.index('class="vc"')]
-        assert f'<a href="/{system}#{anchor}">' in head, rid
+        assert f'<a href="/{system}#{anchor}" title="pinned at ' in head, rid
         assert f'<a class="pie" href="/{system}#{anchor}"' in head, rid
         assert site.pages[f"{system}.html"].count(f'id="{anchor}"') == 1, rid
     for ref in site.view["orders"]["reference"]:  # a baseline, not a row (RFC-0009 S6)
@@ -330,7 +336,7 @@ def test_claim_card_before_numbers(site: Build) -> None:
                 state = cells[p["id"]]["state"]
                 assert f"{p['name']}: {WORD[state]}" in said, (rid, p["id"])
             assert site.view["facts"]["rows"][cfg["system"]]["name"] in plain(head)
-            assert f"/tree/{cfg['card']['body']['upstream']['commit']}" in head
+            assert f"pinned at {cfg['card']['body']['upstream']['commit'][:8]}" in head
             two = sum(row_config(site.view, r[0])["system"] == cfg["system"] for r in rows) > 1
             assert (cfg["configuration"] in plain(head)) == two, rid
             body_ = cfg["card"]["body"]
@@ -619,9 +625,9 @@ def test_statistics_shown(site: Build) -> None:
     reference whose runs all failed shows its counts and "below minimum repetitions" on
     `/reference`; each more-numbers row shows the six values too."""
     for _, title, inner in VAL.findall(site.pages["index.html"]):
-        if 'class="fig"' not in inner or "spread: " not in html.unescape(title):
+        if 'class="fig"' not in inner or " completed, " not in html.unescape(title):
             continue
-        assert SPREAD.search(plain(html.unescape(title))), title
+        assert TITLE_SPREAD.search(plain(html.unescape(title))), title
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         for pid, col, body in PLATE.findall(text):
@@ -722,11 +728,12 @@ def test_default_order_by_overhead(site: Build) -> None:
 
 
 def test_each_figure_names_its_scope(site: Build) -> None:
-    """S2, owner decisions of 2026-11-09: on the overview each figure carries every label in its
-    title (scope, grade, tier, source, and the spread where it has one); the overhead's title
-    names its scope (both sides', or the warm pairing's), its prover and serving run counts and
-    what each side ran, and the cell its scope in a word; proving time per token per Gbit names
-    its scope in a word (steady, or session where the steady figure is null), check time its
+    """S2, owner decisions of 2026-11-09: on the overview each figure carries its labels in its
+    title (scope, grade, tier and the spread where it has one; its record on its plate); the
+    overhead's title names its scope (both sides', or the warm pairing's), its prover and serving
+    run counts and what each side ran, and the cell its scope in a word; proving time per token
+    per Gbit names its scope in a word (steady, or with start-up where the steady figure is
+    null), check time its
     scope in its title; the row header names the weight width they divide by. Nothing else sits
     under a figure: the full details are on the plate it links."""
     b = renderer(ROOT).draw
@@ -756,16 +763,18 @@ def test_each_figure_names_its_scope(site: Build) -> None:
         )
         if bit["value"] is not None:
             scope = {"prove.steady": "proving, steady state", "prove.session": "proving session"}
-            assert f"scope: {scope[bit['scope']]}" in said["per_bit"], rid
+            assert scope[bit["scope"]] in said["per_bit"], rid
             assert (
                 under["per_bit"]
-                == {"prove.steady": "steady", "prove.session": "session"}[bit["scope"]]
+                == {"prove.steady": "steady", "prove.session": "with start-up"}[bit["scope"]]
             ), rid
             assert f"{bit['stats']['n']} completed" in said["per_bit"], rid
         check = cfg["figures"][METRIC["check_bit"]]
         if check["value"] is not None:
-            assert "scope: checking (" in said["check_bit"], rid
-        assert under["size_bit"] == under["check_bit"] == "", rid
+            cpus = cfg["verifier"]["logical_cpus"]
+            assert f"checking ({cpus} CPU threads)" in said["check_bit"], rid
+            assert under["check_bit"] == f"{cpus} threads", rid
+        assert under["size_bit"] == "", rid
         header = HEADER.search(body)
         assert header, rid
         # the width in short in view, in full in the model cell's title
@@ -1110,3 +1119,35 @@ def test_generated_html_passes_g8(site: Build, tmp_path: Path) -> None:
     for name, text in site.pages.items():
         (tmp_path / name).write_text(text)
     assert g8_language(tmp_path, [], named=sorted(site.pages)) == []
+
+
+def test_overview_says_each_thing_once(site: Build) -> None:
+    """Owner decisions of 2026-11-09: the legend names the properties and nothing else (the
+    slice inks and their tips name the states; Criteria is in the header); the section headings
+    carry no count; the row header prints no pin (the name's title holds it, the system page
+    prints it); Not benchmarked yet names each family once, as a group heading, and each card's
+    status only where it is not active; each glyph there names its petals (hit wedges, a tip)."""
+    index = site.pages["index.html"]
+    mast = index[index.index('<section class="mast"') : index.index("</section>")]
+    assert 'class="chip"' not in mast
+    assert "<a " not in mast
+    assert "Not stated" not in mast
+    assert "<sup" not in index
+    assert 'class="pin"' not in index
+    assert 'class="wl"' not in index
+    rows, crit = site.view["facts"]["rows"], site.view["criteria"]["rows"]
+    families = {crit[r]["family"] for r in site.view["orders"]["not_benchmarked"]}
+    heads = re.findall(r'<h3 class="nbh" id="nbh-([a-z_]+)">', index)
+    assert sorted(heads) == sorted(families)
+    for rid in site.view["orders"]["not_benchmarked"]:
+        card = re.search(rf'<li class="nb" id="nb-{rid}">(.*?)</li>', index, re.S)
+        assert card, rid
+        assert card[1].count('class="hit"') == 1, rid
+        assert 'class="tip"' in card[1], rid
+        said = plain(card[1])
+        assert "Active" not in said, rid
+        assert "Proved" not in said, rid
+        if rows[rid]["status"]["state"] != "active":
+            assert said.lower().count(rows[rid]["status"]["state"].replace("_", " ")) == 1, rid
+        if crit[rid].get("own_sources"):
+            assert '<h4 class="nbn"><a href="https://' in card[1], rid

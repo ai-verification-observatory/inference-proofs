@@ -13,7 +13,7 @@ from . import state as S
 from .hexagon import key_mini, mark_svg
 from .inks import GROUND
 from .plates import first_config, glyph, name_of, readable, upstream
-from .words import STATE_CLS, STATE_ORDER, STATE_WORD, e
+from .words import e
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
@@ -184,17 +184,6 @@ def page(title, desc, body, cls, path, card):
     )
 
 
-def states_key():
-    return "".join(
-        f'<span class="chip"><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</span>'
-        for s in STATE_ORDER
-    )
-
-
-def keyline():
-    return f'<p class="keyline">{states_key()}<a class="crit" href="{CRIT_PAGE}">Criteria<span aria-hidden="true">\u00a0→</span></a></p>'
-
-
 def masthead():
     """A plain legend: nothing in it can be pointed at or pressed."""
     items = "".join(
@@ -206,7 +195,6 @@ def masthead():
   <div class="mast-in">
     <h1 id="h-mast" class="kick">What one proof establishes</h1>
     <ul class="map">{items}</ul>
-    {keyline()}
   </div>
 </section>"""
 

@@ -139,10 +139,12 @@ const sortBy = async (p, col, dir) => {
   ok(emp.hot === '1' && emp.unstated && emp.fill === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is filled in its own grey and lifts like the others', emp);
   await p.mouse.move(0, 0);
   // the labels ride in each figure's title: sample size and range for the three with a spread, the
-  // overhead's pairs; under each figure at most its scope in a word
+  // overhead's pairs; under each figure at most its scope in a few words
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => a.querySelector('.fig'))
-    .map((a) => ({ t: /scope: /.test(a.title) && (/\d+\s+completed, \d+\s+failed\s·\s.+\sto\s/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 3 })));
+    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+\sto\s/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 4 })));
   ok(spreads.length === 8 && spreads.every((x) => x.t && x.sub), 'each figure carries its labels in its title, at most a scope word under it', spreads);
+  // no states key under the legend: the slice inks and their tips name the states
+  ok(await p.evaluate(() => !document.querySelector('.mast .keyline, .mast .chip, .mast a')), 'the legend holds no states key and no link');
   await ctx.close();
 }
 
@@ -505,7 +507,7 @@ for (const w of [1440, 390]) {
   ok(t.sopen >= 44 && t.repo >= 44 && t.nav.every((x) => x >= 32), 'header-390: search and GitHub 44 px to press, the pages 32 px', t);
   await ctx.close();
 }
-for (const [w, h] of [[375, 667], [320, 568]]) {
+for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   // the legend: a 2 x 3 key, so the first glyph shows on landing; the questions still read aloud
   const { ctx, p } = await pg(w, h, { touch: true });
   await p.goto(BASE, { waitUntil: 'networkidle' });
@@ -520,17 +522,20 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
     const b = [...t.querySelectorAll('.hc .sb')];
     const cells = [...t.querySelectorAll('.row .vc')];
     const line = [...t.querySelectorAll('.row')].every((row) => new Set([...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).top))).size === 1);
-    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /scope: /.test(c.querySelector('.val').title)), line, n: cells.length };
+    // each unit on its number's line: its box inside the number's, never wrapped under it
+    const units = [...t.querySelectorAll('.row .fig')].every((f) => { const n = r(f.querySelector('.n')); const u = f.querySelector('.u'); if (!u) return true; const b = r(u); return b.top >= n.top - 1 && b.bottom <= n.bottom + 1; });
+    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /evidence: /.test(c.querySelector('.val').title)), line, units, n: cells.length };
   });
-  ok(s.h >= 32 && s.labels && s.subs && s.line && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each with its labels in its title`, s);
+  ok(s.h >= 32 && s.labels && s.subs && s.line && s.units && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title`, s);
   await ctx.close();
 }
 {
-  // touch: the first tap on a triangle names it, the second follows the link; the sorted figure is marked in each row
+  // touch: the first tap on a triangle names it, the second follows the link; every figure in paper, sorted or not
+  // (no column reads as the primary one; the pressed head marks the order)
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + '#sort=check_bit-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
-  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_bit') ? 'on' : 'off')), 'home-390: the sorted column is in paper in every row, the others muted', mk);
+  ok(mk.length && mk.every((x) => x.endsWith('on')), 'home-390: every figure in paper, whichever column sorts', mk);
   await p.locator('#flashprove .pie').scrollIntoViewIfNeeded();
   const bx = await p.locator('#flashprove .pie').boundingBox();
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];

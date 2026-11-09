@@ -12,15 +12,19 @@ import re
 from . import state as S
 from .words import (
     BITS_BASIS,
+    GRADE_WORD,
     PER_BIT_LIMIT,
     PER_GBIT,
     SCOPE_LINES,
     SCOPE_SHORT,
     STATE_WORD,
+    TIER_WORD,
     e,
     labels,
+    scope_words,
     shown,
     spread_line,
+    title_spread,
     why_words,
 )
 
@@ -104,7 +108,7 @@ def fig(v):
         return f'<span class="na word">{e(rest)}</span>'
     return (
         f'<span class="fig"><span class="n">{e(n)}</span>'
-        + (f'<span class="u">{e(u)}</span>' if u else "")
+        + (f'<span class="u{" x" if u == "×" else ""}">{e(u)}</span>' if u else "")
         + (f'<span class="ux">{e(rest)}</span>' if rest else "")
         + "</span>"
     )
@@ -347,9 +351,9 @@ def blob(path):
 
 def cell_words(cfg, col):
     """(value html, lines, title, measured) for one overview figure of a configuration. The line
-    under it is its scope in one word where the rows of its column differ in it (steady, session,
-    session vs warm), else none; every label rides in its title, and the plate it links holds
-    them all in view (S2, S3)."""
+    under it is its scope in one word (steady, with start-up, the checker's threads); its title
+    holds the value, its scope, its runs and range, grade and evidence, and the plate it links
+    holds every label with its record (S2, S3)."""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
@@ -360,27 +364,27 @@ def cell_words(cfg, col):
     if f["value"] is None:
         return '<span class="na">No value</span>', [], no_rule(why_words(f, cfg)), False
     value = shown(f["value"], f["unit"])
-    said = [*(f"{k}: {v}" for k, v in labels(f, cfg))]
+    parts = [f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value]
     lines = []
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
         lines = [SCOPE_SHORT[f["metric"]]]
-        said[0] = f"scope: {SCOPE_LINES[f['metric']]}"  # both sides' scope (INV-DERIVE-11)
+        parts.append(SCOPE_LINES[f["metric"]])  # both sides' scope (INV-DERIVE-11)
         if pairs := pairs_words(f):
-            said.append(f"pairs: {pairs}")
+            parts.append(pairs)
         brief = (cfg.get("overhead_words") or {}).get("brief")
         if brief:
-            said.append(f"ran: {brief}")
-    if (
-        col == "per_bit"
-    ):  # steady, or session where the steady figure is null (RFC-0004 INV-SCOPE-1)
-        lines = [SCOPE_SHORT[f["scope"]]]
-    # the basis and its limit ride in the title (RFC-0004 INV-DERIVE-7)
-    value_said = f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value
-    title = " · ".join([value_said, *said, f"source: {f['source']}",
-                        *([f"spread: {spread_line(f)}"] if f.get("stats") else [])])  # fmt: skip
-    if col in PER_GBIT_COLS:
-        title += f" · weight bits: {bits_words(cfg)} · {PER_BIT_LIMIT}"
-    return fig(value), lines, title, True
+            parts.append(brief)
+    else:
+        if f["scope"] is not None:
+            parts.append(scope_words(f, cfg))
+            short = SCOPE_SHORT.get(f["scope"])
+            cpus = cfg["verifier"]["logical_cpus"]
+            if short and col in ("per_bit", "check_bit") and ("{cpus}" not in short or cpus):
+                lines = [short.format(cpus=cpus)]  # steady, with start-up, the checker's threads
+        if spread := title_spread(f):
+            parts.append(spread)
+    parts += [GRADE_WORD[f["grade"]], f"evidence: {TIER_WORD[f['tier']]}"]
+    return fig(value), lines, " · ".join(parts), True
 
 
 def pairs_words(f):
