@@ -163,7 +163,7 @@ html:has(.top.s-on) { overflow: hidden; }
    Six small pies, one per property: its own wedge filled in ground ink, the others in line, its name and question beside it.
    Nothing here reacts to the pointer. */
 .mast { background: var(--violet); color: var(--ground); position: relative; isolation: isolate; overflow: hidden; }
-.juice { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; display: block; }
+.juice { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); z-index: -1; display: block; filter: blur(18px); }
 .mast-in { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; padding: 20px 0; }
 .kick { font: 600 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; margin: 0; }
 .map { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; }

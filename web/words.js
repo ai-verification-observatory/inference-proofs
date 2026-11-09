@@ -9,8 +9,8 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
-  // ------------------------------------------------------------ the header band: a slow gradient of violets, pinks and
-  // indigos moving with value noise, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
+  // ------------------------------------------------------------ the header band: a slow diagonal gradient of violets
+  // bent by large, soft value noise, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
   // text above 4.5:1. Still under reduced motion; paused when the band is out of view or the tab hidden.
   $$('.mast').forEach((band) => {
     const cv = document.createElement('canvas');
@@ -19,7 +19,8 @@
     band.prepend(cv);
     const cx = cv.getContext('2d');
     if (!cx) return;
-    const INKS = [[122, 92, 255], [158, 92, 255], [196, 92, 255], [232, 92, 240], [255, 92, 180]];
+    // a narrow run of violets around the brand's #c45cff, blue-violet to magenta, black text above 5:1 on each
+    const INKS = [[143, 102, 255], [169, 94, 255], [196, 92, 255], [220, 92, 242], [238, 98, 220]];
     const P = new Uint8Array(512);
     for (let i = 0, s = 7; i < 256; i++) P[i] = i;
     for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
@@ -39,7 +40,7 @@
       const i = Math.floor(k), r = k - i, A = INKS[i], B = INKS[i + 1];
       return [lerp(A[0], B[0], r), lerp(A[1], B[1], r), lerp(A[2], B[2], r)];
     };
-    const CELL = 14;
+    const CELL = 24;
     let img = null;
     const size = () => {
       const w = Math.max(8, Math.ceil(band.clientWidth / CELL)), hh = Math.max(4, Math.ceil(band.clientHeight / CELL));
@@ -50,9 +51,12 @@
       const { width: w, height: hh } = cv; const d = img.data;
       for (let y = 0; y < hh; y++) {
         for (let x = 0; x < w; x++) {
-          const nx = x * 0.075, ny = y * 0.11;
-          let n = 0.62 * noise(nx + t * 0.9, ny, t) + 0.38 * noise(nx * 2.1 - t * 0.6, ny * 2.1 + 3.7, t * 1.6 + 9);
-          n = Math.min(1, Math.max(0, (n - 0.22) / 0.56));
+          // a diagonal sweep across the whole band, bent by one very large, soft noise field (about one and a
+          // half swells across the width, stretched along it)
+          const u = x / w, v = y / hh;
+          const sweep = 0.75 * u + 0.25 * v;
+          const swell = noise(u * 1.6 + t * 0.35, v * 0.45, t * 0.5);
+          const n = Math.min(1, Math.max(0, 0.5 * sweep + 0.6 * swell - 0.05));
           const [r, g, b] = ink(n); const o = (y * w + x) * 4;
           d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
         }
@@ -63,7 +67,7 @@
     const tick = (now) => {
       raf = 0;
       if (!seen || document.hidden) return;
-      if (now - last > 50) { t += Math.min(now - last, 100) * 0.00012; last = now; draw(t); }
+      if (now - last > 50) { t += Math.min(now - last, 100) * 0.00006; last = now; draw(t); }
       raf = requestAnimationFrame(tick);
     };
     const go = () => { if (!raf && !reduce) { last = performance.now(); raf = requestAnimationFrame(tick); } };
