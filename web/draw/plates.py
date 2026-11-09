@@ -11,11 +11,14 @@ import re
 
 from . import state as S
 from .words import (
+    BITS_BASIS,
+    PER_BIT_LIMIT,
     SCOPE_LINES,
     STATE_WORD,
     e,
     gpu_words,
     labels,
+    scope_words,
     shown,
     spread_line,
     spread_parts,
@@ -114,29 +117,49 @@ def fig(v):
     )
 
 
+# the plates of a system page, and the figures of a reference (whose rows make no proof)
 COLS = ["covers", "proof_size", "check_time", "overhead"]
+SYS_COLS = [*COLS, "per_bit"]
+# the overview's figures, after the model (RFC-0009 S6): the two that compare provers across
+# models first, then the proof's own
+BOARD = ["overhead", "per_bit", "proof_size", "check_time"]
 HEAD = {
     "covers": "One proof covers",
     "proof_size": "Proof size",
     "check_time": "Check time",
-    "overhead": "Overhead",
+    "overhead": "Overhead vs production serving",
+    "per_bit": "Prover ps per active weight bit·token",
 }
-# the stored statistic behind each overview column (iproofs.site.view.FIGURES)
+# the stored statistic behind each column (iproofs.site.view.FIGURES, PER_BIT)
 METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
+    "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
 }
 
 
 def metric_of(cfg, col):
-    """The stored statistic behind one overview column of a configuration: the overhead column
-    shows the row's headline overhead, which release code names (`overhead_metric`: the steady
-    figure, or the warm figure for a system with no steady scope, RFC-0004 INV-DERIVE-11)."""
+    """The stored statistic behind one column of a configuration: the overhead column shows the
+    row's headline overhead, which release code names (`overhead_metric`: the steady figure, or
+    the warm figure for a system with no steady scope, RFC-0004 INV-DERIVE-11); prover time per
+    active weight bit the steady figure, or the session figure where it is null (`per_bit_metric`)."""
     if col == "overhead":
         return cfg.get("overhead_metric") or METRIC[col]
+    if col == "per_bit":
+        return cfg.get("per_bit_metric") or METRIC[col]
     return METRIC[col]
+
+
+def bits_words(cfg):
+    """The weight width D-SPAB-S divides by, as the workload records it (RFC-0003 WB-1 to WB-5)."""
+    wb = cfg["workload"]["precision"].get("weight_bits") or {}
+    if not wb:
+        return "weight bits not recorded"
+    bits = f"{wb['bits']:.4g} bits" if wb.get("bits") is not None else "bits"
+    part = ", part of the weights" if wb.get("covers") == "part" else ""
+    return f"{bits} per active weight, {BITS_BASIS.get(wb.get('basis'), wb.get('basis'))}{part}"
 
 
 # how each order reads aloud
@@ -149,6 +172,7 @@ SORT_WORDS = {
         "asc": "closer to production serving first",
         "desc": "further from production serving first",
     },
+    "per_bit": {"asc": "less prover time first", "desc": "more prover time first"},
 }
 # More numbers on a system page, in this order: the stored statistic and its row label
 MORE = [
@@ -341,11 +365,26 @@ def cell_words(cfg, col):
         else []
     )
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
-        tail = [SCOPE_LINES[f["metric"]]]
+        pairs = f.get("pairs") or {}
+        brief = (cfg.get("overhead_words") or {}).get("brief")
+        runs = []
+        if pairs.get("n_system") is not None:
+            ns, nv = pairs["n_system"], pairs["n_serving"]
+            runs.append(
+                f"{ns} prover run{'s' if ns != 1 else ''} × {nv} serving run{'s' if nv != 1 else ''}"
+            )
+        if pairs.get("min") is not None:
+            runs.append(f"{shown(pairs['min'], 'ratio')} to {shown(pairs['max'], 'ratio')}")
+        tail = [SCOPE_LINES[f["metric"]], *runs, *([brief] if brief else [])]
+    if col == "per_bit":  # its scope and the width it divides by (RFC-0004 INV-DERIVE-7)
+        scope = scope_words(f, cfg)
+        tail = [scope[:1].upper() + scope[1:], bits_words(cfg)]
     title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
                         f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
                        else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
                              f"source: {f['source']}"])  # fmt: skip
+    if col == "per_bit":
+        title += f" · {PER_BIT_LIMIT}"
     return fig(value), [*spread_parts(f), *tail], title, True
 
 
@@ -354,7 +393,7 @@ def value_link(cfg, col, href, who=""):
     title. The lines under it are plain text (a link cannot hold the rule links the plates carry)."""
     inner, shown_lines, title, measured = cell_words(cfg, col)
     title = sentence_case(readable(title) if measured else title)
-    lines = "".join(f"<span>{e(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
+    lines = "".join(f"<span>{keep(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
     name = f'<span class="sr">, {e(who)}</span>' if who else ""
     return (
         f'<a class="val" href="{e(href)}" title="{e(title)}">'
@@ -393,6 +432,12 @@ def plate(cfg, col, pid=""):
             for key in ("conditions", "precision", "high"):  # RFC-0004 INV-DERIVE-9
                 if words and words.get(key):
                     kv.append((key, words[key], None))
+        if col == "per_bit":  # RFC-0004 INV-DERIVE-7: the width, its note and the limit
+            wb = cfg["workload"]["precision"].get("weight_bits") or {}
+            kv.append(("weight bits", bits_words(cfg), wb.get("source")))
+            if wb.get("note"):
+                kv.append(("note", wb["note"], None))
+            kv.append(("limit", PER_BIT_LIMIT, None))
         steady = cfg["figures"].get(METRIC["overhead"]) if col == "overhead" else None
         if steady and steady["metric"] != f["metric"] and steady["value"] is None:
             kv.append(("steady state", why_words(steady, cfg), None))  # why the session figure

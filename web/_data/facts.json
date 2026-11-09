@@ -57,6 +57,7 @@
         "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/LICENSE"
       },
       "name": "FlashProve",
+      "overview_workload": "fp-maverick-w1024-b24",
       "status": {
         "quote": "A research artifact: not maintained, not accepting contributions.",
         "state": "unmaintained"

@@ -260,14 +260,14 @@
     });
   }
 
-  // ------------------------------------------------------------ sorting the benchmarked tables by their column heads
-  // One order for every model's table. Keys come from data-k (computed by build.py from the raw numbers).
-  // Rows with no number go last in both directions; ties and the default fall back to the name, A to Z.
-  // The order lives in the hash.
+  // ------------------------------------------------------------ sorting the benchmarked table by its column heads
+  // Keys come from data-k (computed by build.py from the raw numbers). Rows with no number go last in both
+  // directions; ties fall back to the name, A to Z. The default is the order the page was sent in, which the
+  // table names (data-col, data-dir). The order lives in the hash.
   const tbls = $$('.tbl');
   if (!tbls.length) return;
-  const state = { col: 'system', dir: 'asc' };
-  const DEFAULT = 'system-asc';
+  const DEFAULT = `${tbls[0].dataset.col}-${tbls[0].dataset.dir}`;
+  const state = { col: tbls[0].dataset.col, dir: tbls[0].dataset.dir };
   const keys = new Map();
   const btn = (col) => $(`.tbl .sb[data-col="${col}"]`);
   const words = () => { const b = btn(state.col); return b ? `${b.firstChild.textContent.trim()}, ${b.dataset[state.dir]}` : ''; };
@@ -301,7 +301,7 @@
 
   const paintHeads = () => {
     tbls.forEach((tbl) => { tbl.dataset.col = state.col; tbl.dataset.dir = state.dir; });
-    $$('.tbl .hc').forEach((h) => {
+    $$('.tbl .hc[data-col]').forEach((h) => {
       const on = h.dataset.col === state.col;
       if (on) h.setAttribute('aria-sort', state.dir === 'asc' ? 'ascending' : 'descending'); else h.removeAttribute('aria-sort');
       $('.g', h).textContent = on ? (state.dir === 'asc' ? '↑' : '↓') : '↕';
