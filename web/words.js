@@ -9,8 +9,8 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
-  // ------------------------------------------------------------ the header band: a slow diagonal gradient of violets
-  // bent by large, soft value noise, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
+  // ------------------------------------------------------------ the header band: an iridescent gradient around the
+  // brand's violet, flowing with two large, soft value-noise fields, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
   // text above 4.5:1. Still under reduced motion; paused when the band is out of view or the tab hidden.
   $$('.mast').forEach((band) => {
     const cv = document.createElement('canvas');
@@ -19,8 +19,9 @@
     band.prepend(cv);
     const cx = cv.getContext('2d');
     if (!cx) return;
-    // a narrow run of violets around the brand's #c45cff, blue-violet to magenta, black text above 5:1 on each
-    const INKS = [[143, 102, 255], [169, 94, 255], [196, 92, 255], [220, 92, 242], [238, 98, 220]];
+    // an iridescent run around the brand's violet: sky, periwinkle, iris, violet (#c45cff), orchid, pink, coral; black
+    // text above 5:1 on each (sky 11:1, iris 5.5:1, coral 9:1)
+    const INKS = [[92, 200, 255], [125, 140, 255], [163, 92, 255], [196, 92, 255], [236, 92, 240], [255, 92, 184], [255, 138, 128]];
     const P = new Uint8Array(512);
     for (let i = 0, s = 7; i < 256; i++) P[i] = i;
     for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
@@ -54,9 +55,13 @@
           // a diagonal sweep across the whole band, bent by one very large, soft noise field (about one and a
           // half swells across the width, stretched along it)
           const u = x / w, v = y / hh;
-          const sweep = 0.75 * u + 0.25 * v;
-          const swell = noise(u * 1.6 + t * 0.35, v * 0.45, t * 0.5);
-          const n = Math.min(1, Math.max(0, 0.5 * sweep + 0.6 * swell - 0.05));
+          // two large fields drifting against each other, over a diagonal sweep, so the colours flow; the whole
+          // run drifts slowly along the palette too
+          const sweep = 0.7 * u + 0.3 * v;
+          const fa = noise(u * 1.7 + t * 0.5, v * 0.55, t * 0.6);
+          const fb = noise(u * 1.1 - t * 0.35 + 7.3, v * 0.8 + 2.1, t * 0.45 + 4);
+          const drift = 0.12 * Math.sin(t * 0.8);
+          const n = Math.min(1, Math.max(0, 0.35 * sweep + 0.7 * fa + 0.45 * fb - 0.34 + drift));
           const [r, g, b] = ink(n); const o = (y * w + x) * 4;
           d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
         }
@@ -67,7 +72,7 @@
     const tick = (now) => {
       raf = 0;
       if (!seen || document.hidden) return;
-      if (now - last > 50) { t += Math.min(now - last, 100) * 0.00006; last = now; draw(t); }
+      if (now - last > 50) { t += Math.min(now - last, 100) * 0.00016; last = now; draw(t); }
       raf = requestAnimationFrame(tick);
     };
     const go = () => { if (!raf && !reduce) { last = performance.now(); raf = requestAnimationFrame(tick); } };
