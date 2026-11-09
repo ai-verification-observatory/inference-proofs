@@ -271,3 +271,23 @@ def test_machine_record_serving_fields(tmp_path: Path) -> None:
     idle = machine_record(host, results=tmp_path, gpu_index=0, cpus={}, mems=[],
                           provider="p", gpu_indices=(0, 1, 2, 3))  # fmt: skip
     assert "PC-GPU-IDLE" not in {f.check for f in check_profile(idle, profile)}  # type: ignore[arg-type]
+
+
+def test_declared_failure(tmp_path: Path) -> None:
+    """RFC-0005 amendment: a reference adapter's /io/failure.json turns a non-zero exit into
+    `config` or `resource`; another kind, bad JSON or a proving system stays `adapter`."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from iproofs.runner import _declared_failure  # noqa: PLC0415
+
+    ref = SimpleNamespace(system=SimpleNamespace(kind="reference"))
+    prover = SimpleNamespace(system=SimpleNamespace(kind="prover"))
+    assert _declared_failure(tmp_path, ref) is None  # type: ignore[arg-type]
+    path = tmp_path / "failure.json"
+    path.write_text(json.dumps({"kind": "resource", "message": "KV", "evidence": ["line"]}))
+    assert _declared_failure(tmp_path, ref) == (ErrorKind.RESOURCE, "KV", ["line"])  # type: ignore[arg-type]
+    assert _declared_failure(tmp_path, prover) is None  # type: ignore[arg-type]
+    path.write_text(json.dumps({"kind": "integrity", "message": "x"}))
+    assert _declared_failure(tmp_path, ref) is None  # type: ignore[arg-type]
+    path.write_text("{")
+    assert _declared_failure(tmp_path, ref) is None  # type: ignore[arg-type]

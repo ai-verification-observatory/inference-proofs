@@ -53,7 +53,7 @@ PROBE_VERSION = 2
 GIB = 1024**3
 MADV_WIPEONFORK = 18  # linux/mman.h; FlashProve's cp_commit and cp_prove need it
 VERIFIER_CPUS = 8  # verifier-cpu, emulated on the prover host (RFC-0006)
-# The two H200 profiles of reference/v0.1.yaml (test_host_probe.py holds them equal).
+# The H200 profiles of reference/v0.1.yaml (test_host_probe.py holds them equal).
 PROFILES: dict[str, dict[str, Any]] = {
     "prover-h200": {
         "id": "prover-h200",
@@ -83,6 +83,35 @@ PROFILES: dict[str, dict[str, Any]] = {
         "logical_cpus_total_min": 23,
         "host_memory_gib_min": 200,
         "disk_free_gib_min": 500,
+        "disk_nvme": False,
+        "kernel_min": "5.19",
+        "driver": "unpinned",
+    },
+    # RFC-0006 R6: the hosted serving profiles, for production serving (RFC-0015 SRV-6)
+    "serving-h200x1-hosted": {
+        "id": "serving-h200x1-hosted",
+        "hosted": True,
+        "gpu_model": "NVIDIA H200",
+        "gpu_memory_mib_min": 140000,
+        "gpu_count": 1,
+        "logical_cpus_on_gpu_numa_node": 15,
+        "logical_cpus_total_min": 23,
+        "host_memory_gib_min": 200,
+        "disk_free_gib_min": 500,
+        "disk_nvme": False,
+        "kernel_min": "5.19",
+        "driver": "unpinned",
+    },
+    "serving-h200x4-hosted": {
+        "id": "serving-h200x4-hosted",
+        "hosted": True,
+        "gpu_model": "NVIDIA H200",
+        "gpu_memory_mib_min": 140000,
+        "gpu_count": 4,
+        "logical_cpus_on_gpu_numa_node": 60,
+        "logical_cpus_total_min": 92,
+        "host_memory_gib_min": 800,
+        "disk_free_gib_min": 1000,
         "disk_nvme": False,
         "kernel_min": "5.19",
         "driver": "unpinned",
