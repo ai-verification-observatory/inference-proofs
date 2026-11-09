@@ -12,7 +12,7 @@ schema/<name>/examples/invalid/*.reason   text the validation error must contain
 ```
 
 - Every document names its schema in a top-level `schema` field, `<name>/<major>` (for example `run/1`). Each schema pins that field with `const`.
-- `$id` and `$ref` resolve from this tree only. The validator never fetches anything over the network; the `$id` host is a placeholder until the project's permanent home is decided (RFC-0012 Q1).
+- `$id` and `$ref` resolve from this tree only. The validator never fetches anything over the network; the `$id` host is a name that is never dereferenced (RFC-0012 Q1).
 - Every object sets `additionalProperties: false` unless the schema documents it as an open map.
 - Formats asserted: `date`, `date-time`, `uri` (syntax only).
 
@@ -54,4 +54,4 @@ Every schema ships valid and invalid examples (AGENTS.md, working practice). Eac
 
 ## Changing a schema
 
-Additive changes (a new optional property, a wider enum, a new `$defs` entry) edit the current file and add a CHANGELOG entry. Anything else is a new major file and needs an RFC ([RFC-0012 §Schema versioning](../rfcs/0012-schemas-and-serialization.md#schema-versioning)).
+Additive changes (a new optional property, a wider enum, a new `$defs` entry) edit the current file and add a CHANGELOG entry. Anything else is a new major file ([RFC-0012 §Schema versioning](../rfcs/0012-schemas-and-serialization.md#schema-versioning)).

@@ -1,13 +1,13 @@
 # 04. Error model
 
-Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). The error taxonomy is normative in [RFC-0010 §Error taxonomy](../../rfcs/0010-harness-runner.md#error-taxonomy); this section summarises it and catalogues failure modes across the whole system. The implementation is `harness/src/iproofs/errors.py`.
+Part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). The error taxonomy is normative in [RFC-0010 §Error taxonomy](../../rfcs/0010-harness-runner.md#error-taxonomy); this section summarises it and catalogues failure modes across the whole system. The implementation is `harness/src/iproofs/errors.py`.
 
 ## Principles
 
 1. **A failure is a result.** A job that fails is written as a run directory with its failure record and counted in `n_failed`. It is never deleted or retried into success ([AGENTS.md hard rule 5](../../AGENTS.md#hard-rules), PRD N3).
 2. **Fail before measuring, not during.** Everything that can be checked before a timed step (schemas, hashes, image digest) is checked before it; profile conformance is checked and recorded, and refuses nothing, so that a failed precondition costs no GPU time and produces no partial measurement.
 3. **Verdicts are not errors.** `accept`, `reject`, `no_verdict` and `invalid_call` are outcomes of a verify call. An adapter that cannot produce one of them has failed.
-4. **One taxonomy, closed.** Every failure has exactly one `ErrorKind`. A new kind needs an RFC.
+4. **One taxonomy, closed.** Every failure has exactly one `ErrorKind`. A new kind goes into RFC-0010 and `errors.py` together.
 5. **No silent degradation.** When a measurement is incomplete (sampler gaps, unobservable proof release), the number is marked `degraded` or null with a `null_reason`, never estimated.
 
 ## Error kinds

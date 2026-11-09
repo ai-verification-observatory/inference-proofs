@@ -1,16 +1,16 @@
 # Questions to system teams on Not stated criteria
 
-Drafts, not sent. Issue #336 asks each team whose public-source row has a Not stated cell in [`web/_data/criteria.json`](../../web/_data/criteria.json) to state the missing properties in its own sources. A maintainer sends them, then records the date and channel of each in a public issue. No personal address is written here (AGENTS.md rule 7): a channel is a public repository, a paper's printed correspondence line or a team's own site.
+Not sent. Issue #336 asks each team whose public-source row has a Not stated cell in [`web/_data/criteria.json`](../../web/_data/criteria.json) to state the missing properties in its own sources. Whoever sends one records its date and channel in a public issue. No personal address is written here (AGENTS.md rule 7): a channel is a public repository, a paper's printed correspondence line or a team's own site.
 
 Each message below lists the cells that are Not stated at `date` 2026-11-08 of the criteria file, and the sources read for them. Check them against the file before sending: a cell set since then is dropped from its message.
 
 How an answer is used ([RFC-0016](../../rfcs/0016-glyph-properties-and-states.md#public-source-rows-public_sources)):
 
-- An answer sets a state only once it is published in an own source: a file in the team's repository at a commit, its paper, or a page on its domain, archived when read (SRC-8, SRC-9). A new public source counts once a maintainer adds it to the row's `own_sources`, with its `how`.
+- An answer sets a state only once it is published in an own source: a file in the team's repository at a commit, its paper, or a page on its domain, archived when read (SRC-8, SRC-9). A new public source counts once it is added to the row's `own_sources`, with its `how`.
 - A private message or an issue comment alone sets nothing (SRC-8; for card rows, cf. OVR-6). An unpublished answer leaves the cell Not stated.
 - A reviewer copies the team's words and sets the state by the property's rules. Nobody infers or tests a property from the answer.
 - The questions ask about the system's default use, because RFC-0016 reads a public-source row for its default or expected use (SRC-1). An answer for another configuration is printed as an aside and sets nothing.
-- A question marked "(Partly cell)" targets a cell that is Partly by RFC-0016 Q10 (a level stated as neither proven nor conjectured; resolved 2026-11-08), not a Not stated cell.
+- A question marked "(Partly cell)" targets a cell that is Partly by RFC-0016 Q10 (a level stated as neither proven nor conjectured), not a Not stated cell.
 
 The claim card teams (FlashProve, SASH) are asked in #42, not here.
 
@@ -211,9 +211,9 @@ The claim card teams (FlashProve, SASH) are asked in #42, not here.
 
 ### Private ML SDK
 
-- Channel: none that works today: `nearai/private-ml-sdk` is archived, so no issue can be opened and no commit can land. A maintainer may ask on an active public repository of the same organization (for example `nearai/cloud-api`).
-- An answer counts in: no listed own source can take a new statement; a new public source counts once a maintainer adds it to the row's `own_sources`, with its `how`.
-- Optional; the maintainer decides, since no answer can land in the row's only own source.
+- Channel: none that works today: `nearai/private-ml-sdk` is archived, so no issue can be opened and no commit can land. A message may go to an active public repository of the same organization (for example `nearai/cloud-api`).
+- An answer counts in: no listed own source can take a new statement; a new public source counts once it is added to the row's `own_sources`, with its `how`.
+- Optional, since no answer can land in the row's only own source.
 
 > Hello. We maintain Inference Proofs, an open benchmark of provable inference (https://github.com/ai-verification-observatory/inference-proofs). Its site shows each system with six properties. Each is set only from what the system's own sources state ([RFC-0016](https://github.com/ai-verification-observatory/inference-proofs/blob/main/rfcs/0016-glyph-properties-and-states.md)); where they are silent, the site prints Not stated.
 >
@@ -322,7 +322,7 @@ The claim card teams (FlashProve, SASH) are asked in #42, not here.
 
 - Channel: the correspondence address printed on ePrint 2025/1184.
 - An answer counts in: a new version of ePrint 2025/1184.
-- The paper names the repository `security-Anonymous/zkGPT`; a statement there counts only once a maintainer adds it to the row's `own_sources`, with its `how`.
+- The paper names the repository `security-Anonymous/zkGPT`; a statement there counts only once it is added to the row's `own_sources`, with its `how`.
 
 > Hello. We maintain Inference Proofs, an open benchmark of provable inference (https://github.com/ai-verification-observatory/inference-proofs). Its site shows each system with six properties. Each is set only from what the system's own sources state ([RFC-0016](https://github.com/ai-verification-observatory/inference-proofs/blob/main/rfcs/0016-glyph-properties-and-states.md)); where they are silent, the site prints Not stated.
 >
@@ -345,7 +345,7 @@ The claim card teams (FlashProve, SASH) are asked in #42, not here.
 
 - Channel: the correspondence address printed on arXiv 2404.16109. `jvhs0706/zkllm-ccs2024` is archived with issues disabled, and its README says the author cannot give continued support.
 - An answer counts in: a new version of arXiv 2404.16109.
-- Optional; the maintainer decides. The repository is archived and unmaintained, so an answer can only come through a new version of the paper.
+- Optional. The repository is archived and unmaintained, so an answer can only come through a new version of the paper.
 
 > Hello. We maintain Inference Proofs, an open benchmark of provable inference (https://github.com/ai-verification-observatory/inference-proofs). Its site shows each system with six properties. Each is set only from what the system's own sources state ([RFC-0016](https://github.com/ai-verification-observatory/inference-proofs/blob/main/rfcs/0016-glyph-properties-and-states.md)); where they are silent, the site prints Not stated.
 >

@@ -1,11 +1,11 @@
 # Repository settings
 
-Settings that live on the hosting platform rather than in files. A maintainer applies them by hand and records any change in a pull request to this file ([RFC-0013 §CI workflow structure](../../rfcs/0013-validation-and-ci.md#ci-workflow-structure)).
+Settings that live on the hosting platform rather than in files. They are applied by hand, and any change is recorded in a pull request to this file ([RFC-0013 §CI workflow structure](../../rfcs/0013-validation-and-ci.md#ci-workflow-structure)).
 
 ## Branch protection on `main`
 
 - Require a pull request before merging.
-- Require the jobs of `.github/workflows/ci.yml` to pass (optional during the research phase).
+- Requiring the jobs of `.github/workflows/ci.yml` to pass is optional.
 - Do not allow force pushes or deletion of `main`.
 
 ## Actions
@@ -16,4 +16,4 @@ Settings that live on the hosting platform rather than in files. A maintainer ap
 
 ## Security
 
-- Private vulnerability reporting: enable once the repository is public ([SECURITY.md](../../SECURITY.md), #21).
+- Private vulnerability reporting: enable once the repository is public ([SECURITY.md](../../SECURITY.md)).

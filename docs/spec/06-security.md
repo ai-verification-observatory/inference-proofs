@@ -1,6 +1,6 @@
 # 06. Security
 
-Status: Draft 0.1. This section is the threat model for the benchmark itself: the harness, the adapters, the results repository and the published site. It does not assess the security of any measured prover; that is what claim cards and controls report (PRD §5: the benchmark does not certify security). Normative mechanisms live in [RFC-0005](../../rfcs/0005-adapter-contract.md), [RFC-0008](../../rfcs/0008-negative-controls.md), [RFC-0013](../../rfcs/0013-validation-and-ci.md) and [RFC-0014](../../rfcs/0014-provenance-and-integrity.md).
+This section is the threat model for the benchmark itself: the harness, the adapters, the results repository and the published site. It does not assess the security of any measured prover; that is what claim cards and controls report (PRD §5: the benchmark does not certify security). Normative mechanisms live in [RFC-0005](../../rfcs/0005-adapter-contract.md), [RFC-0008](../../rfcs/0008-negative-controls.md), [RFC-0013](../../rfcs/0013-validation-and-ci.md) and [RFC-0014](../../rfcs/0014-provenance-and-integrity.md).
 
 ## Assets
 
@@ -11,7 +11,7 @@ Status: Draft 0.1. This section is the threat model for the benchmark itself: th
 | A3 Commitment provenance | If the verifier checks against a commitment the prover chose, every accept is meaningless (AGENTS.md rule 6) |
 | A4 Runner secrets | `HF_TOKEN`, registry credentials, provider credentials, SSH keys on the runner host |
 | A5 Runner privacy | Host identifiers and personal data must not be published (AGENTS.md rule 7) |
-| A6 Undisclosed weaknesses | A control a verifier accepts is a vulnerability in that system until its maintainers have had time to respond |
+| A6 Undisclosed weaknesses | A control a verifier accepts is a vulnerability in that system until its upstream has had time to respond |
 | A7 Neutrality | The perception and fact that no party controls results |
 
 ## Adversaries
@@ -65,7 +65,6 @@ The harness copies verifier and prover files out of the commit step into a harne
 | Run a weakening flag in a measured row | `forbidden_flags` in `system.yaml`, recorded argv, G6 `POL-1` |
 | Reuse a cached commitment to skip commit cost | Commit runs in every job; the commitment's files are digested and recorded per job |
 | Choose favourable repetitions | All repetitions are recorded and published, including failures (AGENTS.md rule 5) |
-| Review one's own adapter | A maintainer does not merge changes to their own system's adapter, claim card or results (RFC-0001) |
 
 ### Supply chain (T3)
 
@@ -73,11 +72,11 @@ Pins and build rules B1 to B7 in [RFC-0014](../../rfcs/0014-provenance-and-integ
 
 ### Fabricating runner (T4)
 
-v0.1 has no cryptographic defence against a runner who fabricates a whole run directory with consistent numbers. Every run is `reported` ([RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md)); peer review and reproduction are out for the research phase. Signed results are [RFC-0014 Q1](../../rfcs/0014-provenance-and-integrity.md#open-questions).
+v0.1 has no cryptographic defence against a runner who fabricates a whole run directory with consistent numbers. Every run is `reported` ([RFC-0007](../../rfcs/0007-evidence-tiers-and-reproduction.md)). Runs are unsigned ([RFC-0014 Q1](../../rfcs/0014-provenance-and-integrity.md#decisions)).
 
 ### Methodology weakening (T5)
 
-Required CI gates without bypass (RFC-0013), methodology changes only by RFC (RFC-0001), the conflict-of-interest merge rule, and `forbidden_flags` changes reviewed by a maintainer other than the system's.
+Required CI gates without bypass (RFC-0013), and `forbidden_flags` checked against every recorded command (G6 `POL-1`).
 
 ## Secrets handling (A4)
 

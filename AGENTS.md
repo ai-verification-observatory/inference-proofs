@@ -8,7 +8,7 @@ An open, neutral benchmark for provable inference: the same models, the same ref
 
 ## Sources of truth
 
-The RFCs in `rfcs/`, then `docs/SPEC.md` and `docs/spec/`, then `docs/PRD.md`. If code and an RFC disagree, fix one of them. The project is in a research phase: rules that only protected a public release are out ([rfcs/README.md](rfcs/README.md)).
+The RFCs in `rfcs/`, then `docs/SPEC.md` and `docs/spec/`, then `docs/PRD.md`. If code and an RFC disagree, the RFC wins: fix the code or change the RFC.
 
 ## Hard rules
 

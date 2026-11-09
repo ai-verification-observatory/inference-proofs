@@ -12,7 +12,7 @@ The minimum versions come from the release's reference file, for example [`refer
 | cgroup | v2, unified hierarchy at `/sys/fs/cgroup` | `stat -fc %T /sys/fs/cgroup` prints `cgroup2fs` |
 | Docker Engine | at least 25.0, `cgroup_driver: systemd` | `docker info --format '{{.CgroupDriver}} {{.CgroupVersion}}'` prints `systemd 2` |
 | NVIDIA Container Toolkit | at least 1.17 | `nvidia-ctk --version` |
-| NVIDIA driver | the `driver` field of `reference/<release>.yaml` (unpinned until issue #77); CUDA 13.2 or later in `nvidia-smi` (FlashProve's image; SASH's needs 12.9) | `nvidia-smi --query-gpu=driver_version --format=csv,noheader` |
+| NVIDIA driver | the `driver` field of `reference/<release>.yaml` (`unpinned` until a host of the profile is read); CUDA 13.2 or later in `nvidia-smi` (FlashProve's image; SASH's needs 12.9) | `nvidia-smi --query-gpu=driver_version --format=csv,noheader` |
 | NVIDIA Confidential Computing | off on the bound GPU (H200 profiles, RFC-0006 Q4) | `nvidia-smi conf-compute -f` prints `CC status: OFF` |
 | Harness | a checkout at the release's harness commit, `uv sync --frozen --extra gpu --extra fetch --extra prompts` | `uv run iproofs --version` |
 
@@ -98,7 +98,7 @@ export IPROOFS_CUDA_PROBE_IMAGE=<image>@sha256:<digest>  # any pinned image with
 | GH-REF-RECOMPUTE-L31 | `sudo -E .venv/bin/iproofs run --system ref-recompute --workload sash-l31-8b-c1024 --profile prover-h200 --gpu $IPROOFS_GPU --prompts-from <a completed SASH run dir>` | completed; the agreement block is present |
 | GH-REF-MAVERICK-ATTEMPT | `sudo -E .venv/bin/iproofs run --system ref-serve --workload fp-maverick-w1024-b1 --profile prover-h200 --gpu $IPROOFS_GPU` | either a valid row, or a recorded failure (`resource` or `adapter`) |
 
-GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test process for 30 minutes and measures that process; the container's own work is outside the harness process, so the figure bounds the harness's share of one call. The reference-row tests need the reference systems and the adapter tests need the adapters (issues #65, #69, #138, #139); until those exist, the campaign log records them as not run, with the reason.
+GH-OVERHEAD runs the sampler at 20 Hz and the release watcher in the test process for 30 minutes and measures that process; the container's own work is outside the harness process, so the figure bounds the harness's share of one call. The reference-row tests need the reference systems and the adapter tests need the adapters; a test that cannot run is recorded in the campaign log as not run, with the reason.
 
 ## Campaign procedure
 
@@ -121,7 +121,7 @@ Release: v0.1   Harness commit: <full hash>   Host: prover-h200 (provider <name>
 | host probe | 2026-11-20 | pass | requirements block of host-probe.py, cc_mode_off pass |
 | GH-SELFTEST | 2026-11-20 | pass | results/.selftest.json copied into every manifest |
 | GH-OVERHEAD | 2026-11-20 | fail, exit 1 | <last lines of the pytest output> |
-| GH-REF-MAVERICK-ATTEMPT | | not run | needs issue #139 |
+| GH-REF-MAVERICK-ATTEMPT | | not run | <reason> |
 ```
 
 It holds no host name, IP address, account name or token (AGENTS.md rule 7); the machine record in each manifest is the host's only description.

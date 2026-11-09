@@ -487,7 +487,7 @@ def requirements(report: dict[str, Any], p: dict[str, Any]) -> list[dict[str, An
     row("suggested_gpu_index", "an idle H200 with the most usable CPUs on its NUMA node",
         bound and bound["index"], None, "info")  # fmt: skip
     driver = bound and bound["driver_version"]
-    if p["driver"] == "unpinned":  # RFC-0006 Q3 (#77), Q5: record this value for the pin
+    if p["driver"] == "unpinned":  # RFC-0006 Q3, Q5: record this value for the pin
         row("driver", "pinned from a host of this profile (RFC-0006 Q3, Q5)", driver, None,
             "record")  # fmt: skip
     else:
