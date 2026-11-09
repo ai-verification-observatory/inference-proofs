@@ -225,3 +225,54 @@ def test_control_notes_read_as_results(site):
     assert b.note_words("the workload declares one precision") == (
         "the workload declares one precision"
     )
+
+
+def test_card_reads_each_thing_once(site):
+    """The card in full (by hand, after SASH's binding edges and FlashProve's quality gap): a
+    list of same-shaped mappings is one table, its heads the source's own, a source of
+    consecutive lines one link under it; an object's sources follow its fields; items sharing a
+    lead, labels and a source print them once, every word kept; on the card's own page a link
+    reads path and lines."""
+    b = site.build
+    blob = "https://github.com/o/r/blob/" + "a" * 40 + "/docs/statement.md#L{}"
+    edges = [{"edge": "1 residual stream", "state": "bound", "switch": "--unsound-skip-x",
+              "source": blob.format(21)},
+             {"edge": "2 each matmul's input", "state": "bound", "switch": None,
+              "source": blob.format(22)}]  # fmt: skip
+    b.S.HOME = "o/r"
+    try:
+        said = b.card_value(edges, "binding.edges", {})
+        assert re.findall(r'<th scope="col">([^<]+)</th>', said) == [
+            "#",
+            "edge",
+            "default",
+            "turned off by",
+        ]
+        cells = [re.sub(r"<[^>]+>", "", c) for c in re.findall(r"<td>(.*?)</td>", said)]
+        assert cells == ["1", "residual stream", "bound", "--unsound-skip-x",
+                         "2", "each matmul&#x27;s input", "bound", "—"]  # fmt: skip
+        assert said.count("<a ") == 1
+        assert "#L21-L22" in said
+        assert re.sub(r"<[^>]+>", "", said).endswith(
+            "docs/statement.md L21-L22\N{NO-BREAK SPACE}\N{NORTH EAST ARROW}"
+        )
+        # an object's own source after its last field
+        obj = b.card_value({"kind": "x", "verifier": "y"}, "notion", {"notion": blob.format(3)})
+        assert obj.index("verifier") < obj.index("#L3")
+        gap = [{"metric": "positions that differ from the 16-bit model's, all texts",
+                "value": "6.81 % (one value, 3 runs; a Python implementation; external)",
+                "source": blob.format(45)},
+               {"metric": "positions that differ from the same file's in float32",
+                "value": "3.11 % (one value; a Python implementation; external)",
+                "source": blob.format(46)}]  # fmt: skip
+        text = re.sub(r"</(?:p|li)>", "|", b.gap_items({"quality_gap": gap}, "quality_gap"))
+        text = html.unescape(re.sub(r"<[^>]+>", "", text)).replace("\N{NO-BREAK SPACE}", " ")
+        assert text.replace("\N{NARROW NO-BREAK SPACE}", " ").strip("|").split("|") == [
+            "positions that differ from:",
+            "the 16-bit model's, all texts: 6.81 % (one value, 3 runs)",
+            "the same file's in float32: 3.11 % (one value)",
+            "both: a Python implementation; external",
+            "docs/statement.md L45-L46 \N{NORTH EAST ARROW}",
+        ]
+    finally:
+        b.S.HOME = ""

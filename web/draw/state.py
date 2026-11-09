@@ -21,6 +21,9 @@ INK: dict = {}
 FACES: list = []
 RFC_FILES: dict = {}
 REPO_URL = LINK_REF = RFC_REF = crit_sha = ""
+# the repository the system page being drawn pins (its card's upstream): its source links print
+# path and lines, the facts' pinned row naming it once; "" between system pages
+HOME = ""
 ladder: list = []
 pairs: list = []
 WRITE_TEXT = WRITE_JSON = None

@@ -505,7 +505,7 @@ def quote_words_printed(body: str) -> str:
 
 
 def _quotes_printed(
-    system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str
+    system: str, p: dict[str, Any], cell: dict[str, Any], body: str, said: str, home: str
 ) -> None:
     """S1 item 1 in the property's entry of "How we read it": the one quote marked `decides`,
     verbatim, with its source at the pin; a stated cell always prints it; a quote that does not
@@ -516,12 +516,21 @@ def _quotes_printed(
     printed = quote_words_printed(body)
     for q in [q for q in cell["quotes"] if q not in deciding]:  # a non-deciding quote: not here
         assert cell["conflict"] or quote_words(q["text"]) not in printed, (system, p["id"])
-    for q in deciding:  # verbatim, with its source at the pin
+    for q in deciding:  # verbatim, with its source at the pin: path and lines in the card's own
+        # repository (the facts' pinned row names it), another repository's name first
         assert quote_words(q["text"]) in printed, (system, p["id"])
         assert f'href="{html.escape(q["url"])}"' in body, (system, p["id"])
-        where = f"@{q['commit'][:8]} {q['path']} {q['lines']}"
-        assert f"{q['repo'].rsplit('/', 1)[-1]}{where}" in said, (system, p["id"])
-        assert f'title="{html.escape(q["repo"] + where)}"' in body, (system, p["id"])
+        where = f"{q['path']} {q['lines']}"
+        shown = where if q["repo"] == home else f"{q['repo'].rsplit('/', 1)[-1]}: {where}"
+        title = f"{q['repo']}@{q['commit'][:8]} {where}"
+        link = re.search(
+            rf'<a class="qsrc" href="{re.escape(html.escape(q["url"]))}" '
+            rf'title="{re.escape(html.escape(title))}"[^>]*>(.*?)</a>',
+            body,
+            re.S,
+        )
+        assert link, (system, p["id"])
+        assert flat(link[1]) == f"{shown} ↗", (system, p["id"], flat(link[1]))
 
 
 def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
@@ -542,7 +551,8 @@ def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any]
     assert entry, (system, p["id"])
     assert flat(entry[1]) == p["name"]
     body, said = entry[2], flat(entry[2])
-    _quotes_printed(system, p, cell, body, said)
+    home = next(c for c in site.view["configurations"] if c["system"] == system)["card"]
+    _quotes_printed(system, p, cell, body, said, home["upstream"]["repo"])
     if cell["sources_read"]:
         _sources_read(site, system, p, said)
     for q in cell["quotes"] if cell["conflict"] else []:  # both quotes of a conflict
@@ -617,8 +627,8 @@ def test_conflict_quotes_folded() -> None:
     line = r'<div class="eqs"><span class="ek">(\w+)</span><div class="eb">(.*?)</div></div>'
     rows = re.findall(line, out, re.S)
     assert [(k, flat(v)) for k, v in rows] == [
-        ("yes", "“it holds”r@aaaaaaaa README.md L1 ↗"),
-        ("partly", "“it holds in part”r@aaaaaaaa README.md L1 ↗"),
+        ("yes", "“it holds”o/r@aaaaaaaa README.md L1 ↗"),
+        ("partly", "“it holds in part”o/r@aaaaaaaa README.md L1 ↗"),
     ]
     assert out.count(f'href="{q["url"]}"') == 2
     assert lines({"conflict": False, "quotes": [yes, partly]}) == ""

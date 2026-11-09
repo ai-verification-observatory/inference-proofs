@@ -555,6 +555,16 @@ def claims_section(sid, cfgs, g, facts):
 
 
 def build_system(sid):
+    """A system page, drawn with its card's repository as the page's home (`S.HOME`): its source
+    links print path and lines, the facts' pinned row naming the repository once."""
+    S.HOME = upstream(configs_of(sid)[0])["repo"]
+    try:
+        return system_page(sid)
+    finally:
+        S.HOME = ""
+
+
+def system_page(sid):
     name = name_of(sid)
     cfgs = configs_of(sid)
     cfg = cfgs[0]

@@ -30,6 +30,7 @@ from .words import (
     CONTROL_WORDS,
     OUTCOME_SHORT,
     STATE_WORD,
+    count_word,
     curly,
     e,
     labels,
@@ -47,30 +48,62 @@ GITHUB_BLOB = re.compile(
 )
 
 
+def pin_words(repo, commit, where):
+    """(link words, title) of a source at its pin: on the system page of the repository the card
+    pins (`S.HOME`, named once in the facts' pinned row), path and lines alone; another
+    repository by its name first ("zk-inference-results: REPRODUCE.md L1406"); off a system
+    page, repository@commit first. The title holds repository@commit, path and lines; the link
+    keeps the full pinned commit (AGENTS.md rule 11)."""
+    full = f"{repo}@{commit[:8]} {where}".strip()
+    if S.HOME and repo == S.HOME:
+        return where, full
+    if S.HOME:
+        return f"{repo.rsplit('/', 1)[-1]}: {where}", full
+    return full, full
+
+
 def pin_label(url):
-    """A source link's words: repository@commit (8 hex), path and lines, as a quote's source
-    reads; a link that is no GitHub file at a commit keeps its path words (`source_label`)."""
+    """A source link's (words, title) (`pin_words`); a link that is no GitHub file at a commit
+    keeps its path words (`source_label`)."""
     m = GITHUB_BLOB.match(url)
     if not m:
-        return source_label(url)
-    return " ".join(x for x in (f"{m[1]}@{m[2][:8]}", m[3], m[4]) if x)
+        return source_label(url), ""
+    return pin_words(m[1], m[2], " ".join(x for x in (m[3], m[4]) if x))
 
 
-def source_link(url, prefix=""):
-    """A small underlined link to a source at its pin (`.qsrc`)."""
-    return f'<a class="qsrc" href="{e(url)}">{path_html(prefix + pin_label(url), ext=True)}</a>'
+def source_link(url, prefix="", label=None):
+    """A small underlined link to a source at its pin (`.qsrc`); label: its words, where not
+    the link's own path and lines."""
+    words, title = pin_label(url)
+    said = f' title="{e(title)}"' if title else ""
+    return (f'<a class="qsrc" href="{e(url)}"{said}>'
+            f"{path_html(prefix + (label or words), ext=True)}</a>")  # fmt: skip
 
 
 def quote_source(q):
-    """A quote's source at the pin: repository@commit, path and lines, linked at that commit. The
-    words name the repository without its owner (the facts' pinned row names it in full), so the
-    link keeps to one line in the fold's text column; the owner stays in the link and its title."""
-    where = " ".join(x for x in (q.get("path"), q.get("lines")) if x)
-    full = f"{q['repo']}@{q['commit'][:8]} {where}".strip()
-    label = f"{q['repo'].rsplit('/', 1)[-1]}@{q['commit'][:8]} {where}".strip()
+    """A quote's source at the pin: its path and lines linked at that commit (`pin_words`)."""
+    words, title = pin_words(q["repo"], q["commit"],
+                             " ".join(x for x in (q.get("path"), q.get("lines")) if x))  # fmt: skip
     return (
-        f'<a class="qsrc" href="{e(q["url"])}" title="{e(full)}">{path_html(label, ext=True)}</a>'
+        f'<a class="qsrc" href="{e(q["url"])}" title="{e(title)}">{path_html(words, ext=True)}</a>'
     )
+
+
+def one_source(urls):
+    """One link for several sources that are consecutive lines of one file at one commit
+    ("docs/figures.tsv L45-L47"), or None where they are not."""
+    found = [GITHUB_BLOB.match(u or "") for u in urls]
+    if len(found) < 2 or not all(m and m[4] for m in found):
+        return None
+    if len({(m[1], m[2], m[3]) for m in found}) != 1:
+        return None
+    spans = sorted(tuple(int(x) for x in re.findall(r"\d+", m[4])) for m in found)
+    lo, hi = spans[0][0], spans[0][-1]
+    for span in spans[1:]:
+        if span[0] > hi + 1:
+            return None
+        hi = max(hi, span[-1])
+    return source_link(f"{urls[0].split('#', 1)[0]}#L{lo}-L{hi}")
 
 
 # a Markdown table row quoted on its own ("a | b | c"), or several, the first its table's head
@@ -420,13 +453,84 @@ def has_source(path, sources):
     return any(k == path or k.startswith(path + ".") for k in sources)
 
 
+# a list of same-shaped mappings printed as a table, by its path: its columns' heads where its
+# source's own table names them (docs/statement.md L19 at SASH's pin: "#", "edge", "default",
+# "turned off by"), and the key whose values open with the row's number, printed as its own column
+CARD_TABLE_HEAD = {
+    ("binding.edges", "state"): "default",
+    ("binding.edges", "switch"): "turned off by",
+}
+CARD_TABLE_NUMBER = {"binding.edges": "edge"}
+SCALARS = (str, int, float, bool, type(None))
+
+
+def card_table(rows, path):
+    """A list of mappings that share their keys, all scalar, as one table: its heads printed once
+    (CARD_TABLE_HEAD), one row per item, "—" where an item gives no value; a key every item
+    holds a source URL in is printed once under the table, as one link where the sources are
+    consecutive lines of one file (`one_source`), else as a column. Values print as stored."""
+    keys = list(rows[0])
+    linked = [k for k in keys if all(str(r[k] or "").startswith("https://") for r in rows)]
+    cols = [k for k in keys if k not in linked]
+    numbered = CARD_TABLE_NUMBER.get(path)
+    heads = (["#"] if numbered else []) + [
+        CARD_TABLE_HEAD.get((path, k), card_key(k)) for k in cols
+    ]
+    under = ""
+    for k in linked:
+        joined = one_source([r[k] for r in rows])
+        if joined:
+            under += joined
+        else:
+            heads.append(card_key(k))
+            cols.append(k)
+    body = ""
+    for r in rows:
+        cells = []
+        for k in cols:
+            v = r[k]
+            if k == numbered and isinstance(v, str) and (m := re.match(r"(\d+) (.+)$", v)):
+                cells += [e(m[1]), card_text(m[2])]
+                continue
+            if v is None:
+                cells.append("—")
+            elif isinstance(v, str) and v.startswith("https://"):
+                cells.append(source_link(v))
+            elif isinstance(v, str):
+                cells.append(breakable(card_text(v)) if v.startswith("--") else card_text(v))
+            else:
+                cells.append(e(SCALAR.get(v, v)))
+        if numbered and len(cells) != len(heads):  # an item without its number: no table
+            return None
+        body += "<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>"
+    head = "".join(f'<th scope="col">{e(h)}</th>' for h in heads)
+    under = f'<p class="es">{under}</p>' if under else ""
+    return (f'<div class="ctw"><table class="ctab"><thead><tr>{head}</tr></thead>'
+            f"<tbody>{body}</tbody></table></div>{under}")  # fmt: skip
+
+
+def breakable(flag):
+    """A flag, in HTML, that breaks only after a hyphen between two words on a narrow screen,
+    never inside its leading "--" ("--unsound-" "skip-" "residual-" "stream", each part whole)."""
+    parts = re.split(r"(?<=[a-z0-9]-)(?=[a-z0-9])", flag)
+    return "<wbr>".join(f'<span class="nw">{x}</span>' for x in parts)
+
+
 def card_value(v, path="", sources=None):
     """One card value as stored, with its sources (the card's `sources` keyed by `path`): text,
-    a link for a source URL, a list one item per line, a mapping as its own keys and values.
-    A field's own sources follow a text value and head a mapping, above its items. A list's own
-    sources head it when none of its items has a source; when some have, they follow each item
-    that has none, so every item reads quote then source."""
+    a link for a source URL, a list one item per line, a mapping as its own keys and values, a
+    list of mappings that share their keys as one table (`card_table`). A field's own sources
+    follow its value: after a text, after a mapping's last field. A list's own sources head it
+    when none of its items has a source; when some have, they follow each item that has none,
+    so every item reads quote then source."""
     sources = sources or {}
+    if (isinstance(v, list) and len(v) > 1 and all(isinstance(x, dict) for x in v)
+            and len({tuple(x) for x in v}) == 1
+            and all(isinstance(y, SCALARS) for x in v for y in x.values())
+            and not any(has_source(f"{path}.{i}", sources) for i in range(len(v)))):  # fmt: skip
+        table = card_table(v, path)
+        if table:
+            return own_sources(path, {str(i) for i in range(len(v))}, sources) + table
     if isinstance(v, list):
         own = own_sources(path, {str(i) for i in range(len(v))}, sources)
         sourced = [has_source(f"{path}.{i}", sources) for i in range(len(v))]
@@ -440,7 +544,7 @@ def card_value(v, path="", sources=None):
         own = own_sources(path, set(v), sources)
         rows = "".join(f"<div><dt>{e(card_key(k))}</dt><dd>{card_value(x, f'{path}.{k}', sources)}</dd></div>"
                        for k, x in v.items() if not (k == "switch" and x is None))  # fmt: skip
-        return own + (f'<dl class="cn">{rows}</dl>' if v else "none")
+        return (f'<dl class="cn">{rows}</dl>' if v else "none") + own
     if isinstance(v, str) and v.startswith("https://"):
         text = source_link(v)
     elif v is None or isinstance(v, bool):
@@ -471,25 +575,58 @@ def card_full(cfg, sid):
     )
 
 
+# a quality gap's value: its figure, then its labels in brackets, "; " between them
+GAP_VALUE = re.compile(r"^(.*?) \((.*)\)$")
+LEAD_END = {"the", "a", "an", "of", "to"}  # a lead never ends on these words
+
+
+def gap_lead(metrics):
+    """The words every metric starts with, whole words, never ending on an article or a
+    preposition that belongs to the rest ("positions at which ... differs from"); 0 for none."""
+    split = [m.split(" ") for m in metrics]
+    n = 0
+    while n < min(len(s) for s in split) - 1 and len({s[n] for s in split}) == 1:
+        n += 1
+    while n and split[0][n - 1] in LEAD_END:
+        n -= 1
+    return n
+
+
 def gap_items(body, field):
-    """`quality_gap` or `residual` as the card states it, each item with its source under it;
-    "not stated" where the card holds no such field (AGENTS.md rule 9)."""
+    """`quality_gap` or `residual` as the card states it, "not stated" where the card holds no
+    such field (AGENTS.md rule 9). Each quality gap item reads its metric and value with its
+    source; where items share them, the words their metrics open with, the labels every value
+    holds and a source of consecutive lines of one file are printed once (the lead, then one
+    short item per comparison, then the shared labels and the source), every word kept."""
     v = body.get(field)
     if not v:
         return "not stated"
     sources = body.get("sources") or {}
-    if field == "quality_gap":
-        items = "".join(
-            f"<li>{card_text(x['metric'])}: {card_text(x['value'])}"
-            + (f'<p class="es">{source_link(x["source"])}</p>' if x.get("source") else "")
-            + "</li>"
-            for x in v
+    if field != "quality_gap":
+        return card_value(v, field, sources)
+    own = own_sources(field, {str(i) for i in range(len(v))}, sources)
+    metrics = [str(x["metric"]) for x in v]
+    values = [GAP_VALUE.match(str(x["value"])) for x in v]
+    n = gap_lead(metrics) if len(v) > 1 else 0
+    labels = [m[2].split("; ") if m else [] for m in values]
+    shared = ([x for x in labels[0] if all(x in ls for ls in labels)]
+              if len(v) > 1 and all(values) else [])  # fmt: skip
+    joined = one_source([x.get("source") for x in v])
+    items = ""
+    for x, m, ls in zip(v, values, labels, strict=True):
+        metric = " ".join(str(x["metric"]).split(" ")[n:])
+        rest = [y for y in ls if y not in shared]
+        value = (f"{m[1]} ({'; '.join(rest)})" if rest else m[1]) if m else str(x["value"])
+        src = (
+            "" if joined or not x.get("source") else f'<p class="es">{source_link(x["source"])}</p>'
         )
-        return (
-            own_sources(field, {str(i) for i in range(len(v))}, sources)
-            + f'<ul class="cl">{items}</ul>'
-        )
-    return card_value(v, field, sources)
+        items += f"<li>{card_text(metric)}: {card_text(value)}{src}</li>"
+    lead = f'<p class="gl">{card_text(" ".join(metrics[0].split(" ")[:n]))}:</p>' if n else ""
+    every = "both" if len(v) == 2 else f"all {count_word(len(v))}"
+    tail = (f'<p class="gl">{every}: {card_text("; ".join(shared))}</p>'
+            if shared else "")  # fmt: skip
+    under = f'<p class="es">{joined}</p>' if joined else ""
+    return f'{own}{lead}<ul class="cl{" gi" if n else ""}">{items}</ul>{tail}{under}'
 
 
 def agreement_plate(cfg, label, setup=None):

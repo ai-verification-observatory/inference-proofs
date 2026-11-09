@@ -433,6 +433,17 @@ html:has(.top.s-on) { overflow: hidden; }
 .cn dd { margin: 0; }
 .cl { list-style: none; margin: 0; padding: 0; }
 .cl > li + li { margin-top: 6px; }
+/* items that share a lead: the lead once, each item indented under it */
+.gl { margin: 0 0 4px; }
+.cl + .gl { margin: 6px 0 0; }
+.cl.gi > li { padding-left: 2ch; }
+/* a list of same-shaped card items as one table, its heads once, ruled like the card */
+.ctab { border-collapse: collapse; margin: 2px 0 4px; }
+.ctab th, .ctab td { text-align: left; vertical-align: top; padding: 4px 16px 4px 0; border-top: 1px solid var(--line); }
+.ctab th { color: var(--muted); font-weight: 500; border-top: 0; padding-top: 0; }
+.ctab td:first-child { color: var(--muted); }
+/* a cell breaks between words, a flag only between its parts, never inside a word */
+.cf dd .ctab th, .cf dd .ctab td { overflow-wrap: normal; }
 /* the card's quality gap and residual with the agreement rate: a rule of their own, so they never read as the
    folded card's body */
 .gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line); }
