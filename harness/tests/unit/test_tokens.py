@@ -61,3 +61,17 @@ def test_honest_reject() -> None:
     assert err is not None
     assert err.step == "verify"
     assert "{'p1': 'reject', 'p2': 'no_verdict'}" in err.message
+
+
+def test_tokens_steady_by_batch() -> None:
+    """TC-STEADY-BATCH (INV-SCOPE-5): b = 24, 5 batches: steady tokens are 96 x 1,024, the
+    requests of batches 2 to 5, not 119 x 1,024 (proofs 2..k in release order)."""
+    indices: list[int | None] = list(range(120))
+    indices[23], indices[30] = 30, 23  # interleaved: the same token set
+    metrics = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices)
+    assert metrics["tokens_covered_steady"]["value"] == 96 * 1024
+    assert metrics["tokens_covered_total"]["value"] == 120 * 1024
+    indices[50] = None
+    missing = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices)
+    assert missing["tokens_covered_steady"]["value"] is None
+    assert missing["tokens_covered_steady"]["null_reason"] == "missing_input"

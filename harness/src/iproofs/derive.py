@@ -39,17 +39,41 @@ def measured(
     }
 
 
+def steady_start(
+    releases: Sequence[int], batch_size: int, request_indices: Sequence[int | None] | None
+) -> int | NullReason:
+    """INV-SCOPE-5: where `prove.steady` starts. With batch size b > 1 it is the last release
+    among the first batch (requests with `request_index` < b), whatever the release order; for
+    b = 1 it is r_1, as before the amendment of 2026-11-09. A NullReason when the scope does not
+    exist: fewer than two batches released, or b > 1 and a release without `request_index`."""
+    if batch_size <= 1:
+        return min(releases) if len(releases) >= 2 else NullReason.FEWER_THAN_TWO_PROOFS
+    indices = list(request_indices or [])
+    if len(indices) != len(releases) or any(i is None for i in indices):
+        return NullReason.MISSING_INPUT
+    first = [t for t, i in zip(releases, indices, strict=True) if i is not None and i < batch_size]
+    later = [i for i in indices if i is not None and i >= batch_size]
+    if not first or not later:
+        return NullReason.FEWER_THAN_TWO_PROOFS
+    return max(first)
+
+
 def scope_seconds(
     events: Mapping[str, int],
     releases: Sequence[int],
     *,
     observable: bool,
     run_json: str,
+    batch_size: int = 1,
+    request_indices: Sequence[int | None] | None = None,
 ) -> dict[str, QuantityTree]:
     """Seconds per timing scope from call events and proof release times (RFC-0004 §Timing scopes).
 
     `events` maps event names such as `commit.start` to monotonic ns; `releases` holds the
     release times r_1..r_k; `observable` is the release watcher's verdict (INV-SCOPE-3).
+    `request_indices` holds each release's `request_index`, in the order of `releases`, and
+    `batch_size` the run's batch size: the steady scope starts at the first batch's last
+    release (INV-SCOPE-5).
     """
     ref = f"{run_json}#/events"
     out: dict[str, QuantityTree] = {}
@@ -80,10 +104,10 @@ def scope_seconds(
         steady = measured(
             None, Unit.S, Scope.PROVE_STEADY, ref, NullReason.NOT_EXTERNALLY_OBSERVABLE
         )
-    elif len(r) < 2:  # INV-SCOPE-2
-        steady = measured(None, Unit.S, Scope.PROVE_STEADY, ref, NullReason.FEWER_THAN_TWO_PROOFS)
+    elif isinstance(start := steady_start(releases, batch_size, request_indices), NullReason):
+        steady = measured(None, Unit.S, Scope.PROVE_STEADY, ref, start)  # INV-SCOPE-2, -5
     else:
-        steady = measured(span_seconds(r_1, r_k), Unit.S, Scope.PROVE_STEADY, ref, None)
+        steady = measured(span_seconds(start, r_k), Unit.S, Scope.PROVE_STEADY, ref, None)
     out["prove_steady_seconds"] = steady
     return out
 
@@ -473,18 +497,38 @@ def tokens_per_proof(
     return counted
 
 
-def tokens_metrics(per_proof: Sequence[tuple[int, int]], run_json: str) -> dict[str, QuantityTree]:
-    """tokens_covered_total, _prompt, _output and _steady (proofs 2..k), in release order."""
+def tokens_metrics(
+    per_proof: Sequence[tuple[int, int]],
+    run_json: str,
+    *,
+    batch_size: int = 1,
+    request_indices: Sequence[int | None] | None = None,
+) -> dict[str, QuantityTree]:
+    """tokens_covered_total, _prompt, _output and _steady, in release order. Steady holds the
+    requests after the first batch (INV-SCOPE-5): proofs 2..k for batch size 1, and the requests
+    with `request_index` >= b for b > 1 (null `missing_input` when one has none)."""
     ref = f"{run_json}#/proofs"
     total = sum(p + o for p, o in per_proof)
-    steady = sum(p + o for p, o in per_proof[1:])
+    steady: int | None = sum(p + o for p, o in per_proof[1:])
+    if batch_size > 1:
+        indices = list(request_indices or [])
+        if len(indices) != len(per_proof) or any(i is None for i in indices):
+            steady = None
+        else:
+            steady = sum(p + o for (p, o), i in zip(per_proof, indices, strict=True)
+                         if i is not None and i >= batch_size)  # fmt: skip
     values = {
         "tokens_covered_total": total,
         "tokens_covered_prompt": sum(p for p, _ in per_proof),
         "tokens_covered_output": sum(o for _, o in per_proof),
         "tokens_covered_steady": steady,
     }
-    return {name: measured(v, Unit.TOKEN, None, ref, None) for name, v in values.items()}
+    return {
+        name: measured(
+            v, Unit.TOKEN, None, ref, None if v is not None else NullReason.MISSING_INPUT
+        )
+        for name, v in values.items()
+    }
 
 
 def honest_verdict_failure(verdicts: Mapping[str, str]) -> IProofsError | None:

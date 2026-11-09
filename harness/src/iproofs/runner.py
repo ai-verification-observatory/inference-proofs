@@ -1653,15 +1653,21 @@ class Runner:
     def _metrics(self, job: Job, run_json: str) -> dict[str, QuantityTree]:
         assert job.workload is not None
         assert job.reference is not None
+        shape = job.workload.shape
+        listed = (job.proofs.proofs or ()) if job.proofs is not None else ()
+        entries = {p.proof_id: p for p in listed}
+        indices = [e.request_index if (e := entries.get(pid)) else None for pid, _ in job.releases]
+        batch = _batch_size(job)  # INV-SCOPE-5: the steady scope starts after the first batch
         m = scope_seconds(
             job.events.first(),
             [ns for _, ns in job.releases],
             observable=job.observable,
             run_json=run_json,
+            batch_size=batch,
+            request_indices=indices,
         )
         per_proof = self._tokens(job)
-        m |= tokens_metrics(per_proof, run_json)
-        shape = job.workload.shape
+        m |= tokens_metrics(per_proof, run_json, batch_size=batch, request_indices=indices)
 
         def count(v: int) -> QuantityTree:
             return measured(v, Unit.COUNT, None, f"{run_json}#/proofs", None)
@@ -1890,6 +1896,12 @@ def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
         shutil.copytree(job.staging / COMMITMENT_STORE, out / "commitment")
         write_json(out / "perturbed.json", record)
     return out / "perturbed.json"
+
+
+def _batch_size(job: Job) -> int:
+    """The run's batch size: the workload's (RFC-0003 shape)."""
+    assert job.workload is not None
+    return job.workload.shape.batch_size
 
 
 def _reference(job: Job) -> bool:

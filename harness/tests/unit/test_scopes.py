@@ -81,3 +81,54 @@ def test_outputs_are_schema_valid_quantities() -> None:
         out = scope_seconds(EVENTS, releases, observable=observable, run_json=RUN)
         for name, q in out.items():
             assert registry.errors("quantity/1", q, def_name="quantity") == [], name
+
+
+def _b24(order: list[int]) -> tuple[list[int], list[int | None]]:
+    """Releases at 10 s + 1 s per batch: batch j releases at 10 + j s, request i of batch j at
+    10 + j + i/1000 s (in `order`)."""
+    releases = [10 * S + (i // 24) * S + (i % 24) * 1_000_000 for i in order]
+    return releases, list(order)
+
+
+def test_steady_batch() -> None:
+    """TC-STEADY-BATCH (INV-SCOPE-5): b = 24, 5 batches, 120 releases. The start is the last
+    release of requests 0 to 23 (10.023 s), the end the last release (14.023 s)."""
+    releases, indices = _b24(list(range(120)))
+    out = scope_seconds(EVENTS | {"prove.end": 20 * S}, releases, observable=True, run_json=RUN,
+                        batch_size=24, request_indices=indices)  # fmt: skip
+    assert out["prove_steady_seconds"]["value"] == pytest.approx(4.0)
+    assert out["prove_session_seconds"]["value"] == pytest.approx(14.023 - 7)
+
+
+def test_steady_batch_interleaved() -> None:
+    """An interleaved release order (request 30 released at 10.0105 s, before request 23 at
+    10.023 s) gives the same start: the last release of the first batch."""
+    releases, indices = _b24(list(range(120)))
+    releases[30] = 10 * S + 10_500_000
+    out = scope_seconds(EVENTS | {"prove.end": 20 * S}, releases, observable=True, run_json=RUN,
+                        batch_size=24, request_indices=indices)  # fmt: skip
+    assert out["prove_steady_seconds"]["value"] == pytest.approx(4.0)
+
+
+def test_steady_batch_one_batch() -> None:
+    """b = 24 and k = 24: one batch, so no steady scope."""
+    releases, indices = _b24(list(range(24)))
+    out = scope_seconds(EVENTS, releases, observable=True, run_json=RUN, batch_size=24,
+                        request_indices=indices)  # fmt: skip
+    assert out["prove_steady_seconds"]["null_reason"] == "fewer_than_two_proofs"
+
+
+def test_steady_batch_missing_index() -> None:
+    """b = 24 and a proof without `request_index`: missing_input."""
+    releases, indices = _b24(list(range(48)))
+    indices[40] = None
+    out = scope_seconds(EVENTS, releases, observable=True, run_json=RUN, batch_size=24,
+                        request_indices=indices)  # fmt: skip
+    assert out["prove_steady_seconds"]["null_reason"] == "missing_input"
+
+
+def test_steady_batch_one_is_release_order() -> None:
+    """b = 1 keeps r_1 to r_k whatever the indices say (INV-SCOPE-5, as before)."""
+    out = scope_seconds(EVENTS, [12 * S, 10 * S, 15 * S], observable=True, run_json=RUN,
+                        batch_size=1, request_indices=[2, 0, 1])  # fmt: skip
+    assert out["prove_steady_seconds"]["value"] == 5.0

@@ -61,7 +61,7 @@ Every time and every rate MUST name exactly one scope (INV-SCOPE-1). Scope bound
 | `setup` | `setup` container call start | `setup` call exit | none (not a rate scope) |
 | `commit` | `commit` call start | `commit` call exit | none (not a rate scope) |
 | `prove.session` | `prove` call start | release time of the last proof r_k | all proofs 1..k |
-| `prove.steady` | release time of the first proof r_1 | release time of the last proof r_k | proofs 2..k |
+| `prove.steady` | last release among the requests with `request_index` < b (b = batch size; r_1 for b = 1) | release time of the last proof r_k | requests with `request_index` ≥ b (proofs 2..k for b = 1) |
 | `whole_wall` | `commit` call start | release time of the last proof r_k | all proofs 1..k |
 | `verify` | `verify` call start for one proof, 8-CPU verifier container | that call's exit | the proof's tokens |
 | `verify.single_thread` | same, 1-CPU verifier container | that call's exit | the proof's tokens |
@@ -73,6 +73,7 @@ Boundary rules:
 - INV-SCOPE-2: `prove.steady` requires k >= 2. With k < 2 its seconds and rate are `null` with `null_reason: fewer_than_two_proofs`.
 - INV-SCOPE-3: if the release watcher reports `observable: false` (the system declares `incremental_proofs: false`, or all proofs appeared within one observation, RFC-0011 §Proof release watcher), `prove.steady` is `null` with `null_reason: not_externally_observable`, and `prove.session` and `whole_wall` are still reported, because their end event is still the last release.
 - INV-SCOPE-4: for any successful job, `commit` start <= `prove` start <= r_1 <= r_k. A violation is an `internal` error (RFC-0010).
+- INV-SCOPE-5 (amendment of 2026-11-09): the steady scope is defined by batch membership, not by release order. With the workload's `batch_size` b, the first batch is the requests with `request_index` < b. `prove.steady` starts at the last release among the first batch's requests, and ends at r_k. Its tokens are those of the requests with `request_index` ≥ b. For b = 1 this is r_1 and proofs 2..k, as before. It is null with `fewer_than_two_proofs` when fewer than two batches completed, and null `missing_input` when b > 1 and any proof lacks `request_index`. A system that releases requests within a batch, or interleaves batches, gets the same boundary and token set as one that releases each batch at its end. The rule applies to proving and reference systems alike, so both sides of D-OVERHEAD-S count the same batches. Runs recorded before the amendment keep their stored `tokens_covered_steady` and steady seconds (APP-1). A release labels their steady figures "first-proof boundary (before 2026-11-09)", and they join no D-OVERHEAD-S (none of them is on an H200 profile, see INV-DERIVE-2).
 - Container start-up overhead is inside each call's time and is not subtracted. The `info` call's wall time is recorded as `info_seconds` so a reader can see the order of magnitude.
 
 RISK: an upstream that writes every proof only at process exit makes `prove.steady` unobservable from outside. Resolution: the adapter README states whether upstream emits proofs incrementally at the pin; if it does not, the row shows `prove.steady` as null with the reason, and the upstream steady figure appears only as `external`. A later RFC MAY admit adapter-reported per-batch timestamps as a labelled secondary steady figure once a system needs it.
@@ -122,7 +123,7 @@ Keys of `run.json` `metrics` (one object per repetition). All have grade `measur
 | `setup_seconds` | s | `setup` | wall time of the `setup` call |
 | `commit_seconds` | s | `commit` | wall time of the `commit` call |
 | `prove_session_seconds` | s | `prove.session` | r_k minus `prove` call start |
-| `prove_steady_seconds` | s | `prove.steady` | r_k minus r_1 |
+| `prove_steady_seconds` | s | `prove.steady` | r_k minus the steady start (r_1 for b = 1; the first batch's last release for b > 1, INV-SCOPE-5) |
 | `whole_wall_seconds` | s | `whole_wall` | r_k minus `commit` call start |
 | `prove_call_seconds` | s | `prove.session` | wall time of the whole `prove` call (may exceed `prove_session_seconds` by process teardown) |
 | `proofs_count` | count | null | k, proofs released |
@@ -130,7 +131,7 @@ Keys of `run.json` `metrics` (one object per repetition). All have grade `measur
 | `tokens_covered_total` | token | null | sum over proofs 1..k |
 | `tokens_covered_prompt` | token | null | prompt part of the above |
 | `tokens_covered_output` | token | null | output part of the above |
-| `tokens_covered_steady` | token | null | sum over proofs 2..k |
+| `tokens_covered_steady` | token | null | sum over requests with `request_index` ≥ b (proofs 2..k for b = 1, INV-SCOPE-5) |
 | `proof_bytes` | B | null | Statistic over proofs: bytes of all parts of one proof |
 | `proof_bytes_total` | B | null | sum of `proof_bytes` over proofs |
 | `verifier_download_bytes` | B | null | bytes of `verifier_files` from `commit` (once per commitment) |
@@ -268,6 +269,8 @@ The amendment of 2026-11-08 adds D-SPAB-S (`seconds_per_active_weight_bit_token_
 
 The second amendment of 2026-11-08 follows RFC-0003's resolution of its Q5: INV-DERIVE-7 sorts rows whose weight bits cover all the active weights (`file_size` or the new `computed` basis) and keeps `covers: part` rows unsorted, and the inputs paragraph names the `computed` basis. No formula, metric id, null rule or stored value changes.
 
+The amendment of 2026-11-09 adds INV-SCOPE-5 (steady scope by batch membership). At batch size 1 nothing changes. At batch size b > 1 the steady start moves from r_1 to the first batch's last release and the steady tokens drop the first batch, so a run released batch by batch no longer counts the other b − 1 requests of the first batch, whose work finished before r_1. `iproofs.derive.scope_seconds` and `tokens_metrics` take the batch size and each release's `request_index` (TC-STEADY-BATCH). Stored runs keep their values (APP-1).
+
 ## Testing Strategy
 
 Unit tests in `harness/tests/unit/`, in `test_derive.py` unless an entry names another file:
@@ -281,6 +284,7 @@ Unit tests in `harness/tests/unit/`, in `test_derive.py` unless an entry names a
 - TC-NULL-DIV: zero tokens; every rate, and `tokens_covered_per_proof`, null with a reason, none equal to 0. For D-SPAB-S (`test_null_div_active_weight_bits`): a parameter count of 0, or weight bits of 0 (reachable through a G4 recompute of an edited input), gives null `not_applicable`, never infinity.
 - TC-OVERHEAD-MISMATCH (`test_cross_rows.py`): reference row with a different batch size; D-OVERHEAD null with `not_applicable`.
 - TC-GRADE-2: an adapter-reported phase passed as a derivation input raises `internal`.
+- TC-STEADY-BATCH (`test_scopes.py`, `test_tokens.py`): b = 24, 5 batches, 120 releases. Steady tokens are 96 × 1,024 and the start is the last release of `request_index` 0 to 23. With b = 24 and k = 24 the result is `fewer_than_two_proofs`. An interleaved release order (request 30 released before request 23) gives the same start and token count. A proof without `request_index` at b = 24 gives `missing_input`.
 - TC-SCOPE-ORDER (`test_scopes.py`): synthetic timeline with r_1 before `prove` start raises `internal`.
 - TC-TPP-WORKED (`test_tokens_covered_per_proof_worked_example`): the worked example's D-TPP row, 5,000 / 5 = 1,000 token within `rel_tol=1e-12`, with grade `derived`, unit `token` and scope null.
 - TC-TPP-ZERO (`test_tokens_covered_per_proof_zero_is_null`): `proofs_count` 0, and separately `tokens_covered_total` 0 with `proofs_count` 5, each give a null value with `null_reason: not_applicable`, never 0.
