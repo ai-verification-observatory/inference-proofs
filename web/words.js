@@ -56,10 +56,15 @@
     rose.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
     rose.addEventListener('click', (ev) => {
       if (kind === 'mouse' || ev.target.closest('a')) return;
-      const at = ev.target.closest('.rpie .hit path') || ev.target.closest('.rp');
+      const slice = ev.target.closest('.rpie .hit path');
+      const at = slice || ev.target.closest('.rp');
       const n = at ? at.dataset.n : '';
       if (!n) return;
-      if (rose.dataset.hot === n) cool(); else rose.dataset.hot = n;
+      if (rose.dataset.hot === n) { cool(); return; }
+      rose.dataset.hot = n;
+      // on a phone the rows sit under the glyph: a tapped triangle brings its row into view
+      const row = slice && $(`.rp[data-n="${n}"]`, rose);
+      if (row && getComputedStyle(rose).display === 'block') row.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
     });
     document.addEventListener('pointerdown', (ev) => { if (!rose.contains(ev.target)) cool(); });
   });
@@ -88,6 +93,11 @@
     if (a) reveal(a.getAttribute('href').slice(1), false);
   });
 
+  // ------------------------------------------------------------ print: every fold open on paper, as it was after
+  let folded = [];
+  addEventListener('beforeprint', () => { folded = $$('details:not([open])'); folded.forEach((d) => { d.open = true; }); });
+  addEventListener('afterprint', () => { folded.forEach((d) => { d.open = false; }); folded = []; });
+
   // ------------------------------------------------------------ search: a combobox over search.json (written by build.py)
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
@@ -100,7 +110,6 @@
     const list = $('#q-list', sbox);
     const opener = $('.sopen', sbox);
     const top = sbox.closest('.top');
-    const CAP = 12;  // per part: other matches, then not-benchmarked ones; the rest is counted, not hidden
     let entries = null;
     let loading = null;
     let failed = false;
@@ -150,18 +159,17 @@
       if (inAll.every((s) => s < 9)) return [2, inAll.reduce((a, b) => a + b, 0)];
       return null;
     };
+    // every match, by group (benchmarked first, not benchmarked last), within a group where the words
+    // matched (a name that starts with the query first), then how closely, then the name
     const results = (q) => {
       const whole = norm(q);
-      if (!whole) { const all = entries.filter((x) => x.kind === 'system'); return { shown: all, total: all.length }; }
+      if (!whole) return entries.filter((x) => x.kind === 'system');
       const qs = whole.split(' ');
       // a word some entry has is matched as typed; only a word no entry has gets typo matching
       const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
-      const ms = entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
-        .sort((a, b) => a.r[0] - b.r[0] || a.x.tier - b.x.tier || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
+      return entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
+        .sort((a, b) => a.x.tier - b.x.tier || a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
         .map((m) => m.x);
-      const others = ms.filter((x) => x.kind !== 'unbenchmarked');
-      const nb = ms.filter((x) => x.kind === 'unbenchmarked');
-      return { shown: [...others.slice(0, CAP), ...nb.slice(0, CAP)], total: ms.length };
     };
     const note = (text) => {
       const li = document.createElement('li'); li.className = 'snone'; li.setAttribute('role', 'presentation'); li.textContent = text;
@@ -170,16 +178,30 @@
     const option = (x, i) => {
       const li = document.createElement('li');
       li.id = `q-o${i}`; li.className = `so k-${x.kind}`; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
-      // name, then what kind of entry it is, then the line of context: the order a screen reader reads
-      // (the grid shows the badge at the right)
+      // name, then the line of context: the order a screen reader reads; the group names the kind
       const pie = document.createElement('span'); pie.className = 'sp'; pie.innerHTML = x.pie;  // the build's own svg
       const b = document.createElement('b'); b.className = 'sn'; b.textContent = x.name;
       li.append(pie, b);
-      if (x.badge) { const t = document.createElement('span'); t.className = 'sbadge'; t.textContent = ` ${x.badge} `; li.append(t); }
       if (x.meta) { const m = document.createElement('span'); m.className = 'sm'; m.textContent = x.meta; li.append(m); }
       li.addEventListener('pointerdown', hold);  // keep focus in the field
+      li.addEventListener('pointermove', () => { if (active !== i) mark(i); });  // hover and the arrows mark one row
       li.addEventListener('click', () => go(x));
       return li;
+    };
+    // one quiet heading per group, its options in a group the heading names
+    const grouped = (xs) => {
+      const out = [];
+      let ul = null;
+      xs.forEach((x, i) => {
+        if (!ul || ul.dataset.g !== x.group) {
+          const li = document.createElement('li'); li.setAttribute('role', 'presentation'); li.className = 'sg';
+          const h = document.createElement('span'); h.className = 'sgh'; h.id = `q-g${i}`; h.textContent = x.group;
+          ul = document.createElement('ul'); ul.setAttribute('role', 'group'); ul.setAttribute('aria-labelledby', h.id); ul.dataset.g = x.group;
+          li.append(h, ul); out.push(li);
+        }
+        ul.append(option(x, i));
+      });
+      return out;
     };
     const mark = (i) => {
       active = i;
@@ -196,24 +218,29 @@
       if (failed) { list.replaceChildren(note('Search could not load')); shown = []; open(true); return; }
       if (!entries) return;
       const typed = norm(input.value);
-      const r = results(input.value);
-      shown = r.shown;
-      list.replaceChildren(...shown.map(option));
+      shown = results(input.value);
+      list.replaceChildren(...grouped(shown));
       if (!shown.length) list.append(note('No match'));
-      else if (r.total > shown.length) list.append(note(`${r.total - shown.length} more: type more letters`));
       open(true);
       mark(typed && shown.length ? 0 : -1);
-      if (typed) say(!shown.length ? 'No match' : r.total > shown.length ? `${r.total} results, ${shown.length} shown` : `${shown.length} result${shown.length > 1 ? 's' : ''}`);
+      if (typed) say(!shown.length ? 'No match' : `${shown.length} result${shown.length > 1 ? 's' : ''}`);
     };
     const go = (x) => {
       open(false);
-      const here = location.pathname === x.url.split('#')[0];
+      const [path, frag] = x.url.split('#');
+      const here = location.pathname === path;
+      input.value = '';  // the next search starts afresh
       location.href = x.url;
-      if (here) { input.blur(); setPhone(false); }
+      if (here) {
+        setPhone(false);
+        // the page stays: focus moves to what the result names, not to the page's start
+        const at = frag ? document.getElementById(decodeURIComponent(frag)) : null;
+        if (at) { if (!at.hasAttribute('tabindex')) at.setAttribute('tabindex', '-1'); at.focus({ preventScroll: true }); } else input.blur();
+      }
     };
     const phone = () => opener && getComputedStyle(opener).display !== 'none';
     // while the sheet is open, what it covers is out of reach (Tab, screen readers): only the search stays live
-    const covered = () => [...document.body.children, ...top.children].filter((el) => el !== top && el !== sbox && !el.contains(sbox) && el.tagName !== 'SCRIPT');
+    const covered = () => [...document.body.children, ...top.children].filter((el) => el !== top && el !== sbox && !el.contains(sbox) && el.tagName !== 'SCRIPT' && el !== live);
     const setPhone = (on) => {
       covered().forEach((el) => { el.inert = on; });
       top.classList.toggle('s-on', on);
@@ -222,23 +249,31 @@
     };
     // phones: the open field is a sheet; closing it returns focus to the button that opened it
     const close = () => { open(false); setPhone(false); opener.focus(); };
-    input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(render); });
+    // the list opens on typing, the arrow down, a press on the field or the shortcut; a Tab onto the field
+    // only loads the index
+    let wanted = false;
+    const want = () => { wanted = true; };
+    input.addEventListener('pointerdown', want);
+    input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(() => { if (wanted) render(); wanted = false; }); });
     input.addEventListener('input', () => { load().then(render); });
     // on a phone, hiding the keyboard blurs the field: the sheet and its list stay until closed
     input.addEventListener('blur', () => { if (pressing) pressing = false; else if (!phone()) open(false); });
     input.addEventListener('keydown', (ev) => {
       const n = shown.length;
-      if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); if (list.hidden) render(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
+      if (ev.key === 'ArrowDown' && list.hidden) { ev.preventDefault(); load().then(render); } else if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
         // the chosen option, or the first result of a typed search; never a pick nobody made
         const x = active >= 0 ? shown[active] : (norm(input.value) ? shown[0] : null);
         if (x) { ev.preventDefault(); go(x); }
       } else if (ev.key === 'Escape') {
-        if (!list.hidden && input.value) { input.value = ''; render(); } else if (phone()) close(); else open(false);
+        // an open list closes first; a closed one clears the field; on a phone the sheet closes last (the
+        // search field's own Escape, which clears it at once, is not let through)
+        ev.preventDefault();
+        if (!list.hidden) { open(false); say(''); } else if (input.value) { input.value = ''; say(''); } else if (phone()) close();
       }
     });
     if (opener) {
       opener.addEventListener('pointerdown', hold);  // the field keeps focus while it toggles
-      opener.addEventListener('click', () => setPhone(!top.classList.contains('s-on')));
+      opener.addEventListener('click', () => { want(); setPhone(!top.classList.contains('s-on')); input.select(); });
       const shut = $('.sclose', sbox);
       if (shut) {
         shut.addEventListener('pointerdown', hold);
@@ -259,7 +294,9 @@
       const typing = ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable]');
       if ((ev.key === '/' && !typing && !ev.metaKey && !ev.ctrlKey) || (ev.key.toLowerCase() === 'k' && (ev.metaKey || ev.ctrlKey))) {
         ev.preventDefault();
+        want();
         if (phone()) setPhone(true); else input.focus();
+        input.select();
       }
     });
   }

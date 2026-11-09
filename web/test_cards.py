@@ -73,10 +73,8 @@ def test_picture_size(site):
     b = site.build
     for card in RECORD:
         png = OG / f"{card}.png"
-        want = (
-            (b.ICON, b.ICON)
-            if card == "icon"
-            else (b.CARD_W * b.CARD_SCALE, b.CARD_H * b.CARD_SCALE)
+        want = {"icon": (b.ICON, b.ICON), "icon-32": (b.FAVICON, b.FAVICON)}.get(
+            card, (b.CARD_W * b.CARD_SCALE, b.CARD_H * b.CARD_SCALE)
         )
         assert png_size(png) == want, (card, png_size(png))
         assert png.stat().st_size < 1_000_000  # well under the 5 MB the platforms accept
@@ -99,6 +97,7 @@ def test_icon(pages):
         t = meta(page)
         assert t.get("icon") == "/og/icon.svg", page
         assert t.get("apple-touch-icon", "").startswith("/og/icon.png?v="), page
+        assert '<link rel="icon" href="/og/icon-32.png?v=' in (WEB / page).read_text(), page
 
 
 def test_pages_name_their_card(site, pages):

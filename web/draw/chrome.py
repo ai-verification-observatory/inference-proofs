@@ -12,7 +12,7 @@ import re
 from . import state as S
 from .hexagon import key_mini, mark_svg, sized
 from .inks import GROUND
-from .plates import first_config, glyph, name_of, readable, upstream
+from .plates import first_config, glyph, name_of, upstream
 from .words import e
 
 # ------------------------------------------------------------------ chrome
@@ -22,6 +22,11 @@ REF_PAGE = "/reference"  # one page for the reference systems
 CRIT_PAGE = "/criteria"  # the criteria behind the six states
 RELEASE_PAGE = "/release"  # the release record (RFC-0009 §Release record)
 TARGETS_PAGE = "/targets"  # relying parties' targets, only when the release evaluates one
+
+
+def ref_label():
+    """The reference page's name: one reference, or several, as the release holds them."""
+    return "Reference" if len(S.V["orders"]["reference"]) == 1 else "References"
 
 
 def has_targets():
@@ -99,9 +104,10 @@ def header(here):
 
     # The logo leads to the overview; the nav holds the other pages; systems are reached by search
     # (one link each would not scale) or from the overview.
-    nav = a(REF_PAGE, "References", "reference") + a(CRIT_PAGE, "Criteria", "criteria")
+    nav = a(REF_PAGE, ref_label(), "reference") + a(CRIT_PAGE, "Criteria", "criteria")
     current = " aria-current=page" if here == "home" else ""
     return (
+        '<a class="skip" href="#main">Skip to content</a>'
         f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{LOGO_MARK}<span>Inference proofs</span></a></p>'
         f'<nav aria-label="Site">{nav}</nav></div>'
         f"{search_box(here)}"
@@ -140,18 +146,13 @@ def search_box(here):
 
 
 def footer():
-    """Every page's footer: the criteria and their file, then the release (its page and its
-    `index.json`) and the licence."""
+    """Every page's footer, one line: the release (its page holds its files, the criteria file
+    and their digests) and the licence."""
     rel = S.V["release"]
-    index = (
-        f'<a class="nw" href="{e(S.REPO_URL)}/blob/{S.LINK_REF}/{e(rel["index"])}">index.json</a>'
-    )
     name = f"Release {rel['id']}"
-    licence = readable(f"licence {rel['licence']}").replace("CC BY 4.0", "CC\u00a0BY\u00a04.0")
+    licence = str(rel["licence"]).replace(" ", "\u00a0")
     return (
-        f'<footer class="foot"><p><a href="{CRIT_PAGE}">Criteria</a>'
-        f'\u00a0· <a href="{e(S.REPO_URL)}/blob/main/{e(S.CRIT["path"])}">criteria.json</a> sha256 <code>{S.crit_sha[:12]}</code></p>'
-        f'<p><a class="nw" href="{RELEASE_PAGE}">{e(name)}</a>\u00a0· {index}'
+        f'<footer class="foot"><p><a class="nw" href="{RELEASE_PAGE}">{e(name)}</a>'
         f"\u00a0· {e(licence)}</p></footer>"
     )
 
@@ -215,11 +216,16 @@ CARD_W, CARD_H, CARD_SCALE = 1200, 630, 2
 
 
 def icon_links():
-    rec = cards_record().get("icon")
-    v = f"?v={rec['png'][:12]}" if rec else ""
+    """The SVG icon, a 32 px PNG for clients that read no SVG icon, and the touch icon."""
+
+    def v(card):
+        rec = cards_record().get(card)
+        return f"?v={rec['png'][:12]}" if rec else ""
+
     return (
         '<link rel="icon" href="/og/icon.svg" type="image/svg+xml">'
-        f'<link rel="apple-touch-icon" href="/og/icon.png{v}">'
+        f'<link rel="icon" href="/og/icon-32.png{v("icon-32")}" sizes="32x32" type="image/png">'
+        f'<link rel="apple-touch-icon" href="/og/icon.png{v("icon")}">'
     )
 
 

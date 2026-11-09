@@ -15,9 +15,24 @@ def entries(site):
     return json.loads((site.out / "search.json").read_text())["entries"]
 
 
-def test_no_pages(entries):
-    # the pages are in the nav; search finds systems and properties
-    assert {x["kind"] for x in entries} == {"system", "reference", "unbenchmarked", "property"}
+def test_every_kind(entries):
+    # search finds systems, references, properties and the pages its label promises
+    assert {x["kind"] for x in entries} == {"system", "reference", "unbenchmarked", "property",
+                                            "page"}  # fmt: skip
+    pages = {x["url"] for x in entries if x["kind"] == "page"}
+    assert pages == {"/reference", "/criteria", "/release"}
+
+
+def test_found_by_what_they_ran(site, entries):
+    # a system and production serving are found by the workload, GPU and engine they ran
+    for x in entries:
+        if x["kind"] not in ("system", "reference"):
+            continue
+        sid = x["url"].rsplit("#", 1)[-1] if x["kind"] == "reference" else x["url"].strip("/")
+        for c in (c for c in site.view["configurations"] if c["system"] == sid):
+            assert c["workload"]["id"] in x["terms"], (x["name"], c["workload"]["id"])
+            if c["gpu"]["short"]:
+                assert c["gpu"]["short"].lower() in x["terms"].split(), x["name"]
 
 
 def test_every_entry_once(site, entries):
@@ -33,10 +48,12 @@ def test_every_entry_once(site, entries):
     assert sum(x["kind"] == "reference" for x in entries) == len(orders["reference"])
 
 
-def test_not_benchmarked_are_marked_and_last(site, entries):
+def test_not_benchmarked_are_grouped_and_last(site, entries):
+    # no badge on a row: each entry names its group, the group words.js lists it under
     nb = [x for x in entries if x["kind"] == "unbenchmarked"]
     assert len(nb) == len(site.view["orders"]["not_benchmarked"])
-    assert all(x["badge"] == "Not benchmarked" for x in nb)
+    assert all(x["group"] == "Not benchmarked" for x in nb)
+    assert not any("badge" in x for x in entries)
     assert all(x["tier"] > y["tier"] for x in nb for y in entries if y["kind"] != "unbenchmarked")
 
 

@@ -34,7 +34,7 @@ SCOPE_WORD = {
     "setup": "setting up",
     "commit": "preparing the model",
     "prove.steady": "proving, steady state",
-    "prove.session": "proving session",
+    "prove.session": "proving session, start-up included",
     "whole_wall": "the whole run, wall clock",
     "verify": "checking ({cpus} CPU threads)",
     "verify.single_thread": "checking (one CPU thread)",
@@ -58,8 +58,8 @@ PER_GBIT_BASE = {"s/bit_token": "s", "B/bit_token": "B"}
 # RFC-0004 INV-DERIVE-7: printed beside a figure per active weight bit wherever it is shown
 PER_BIT_LIMIT = ("Attention cost grows with prompt length and is not in this normaliser, so two "
                  "workloads of one model with different prompt lengths differ for that reason too "
-                 "(the SASH workloads have 1,024 and 4,096 prompt tokens). Weight bits are as the "
-                 "workload records them, with their basis and source.")  # fmt: skip
+                 "({prompts}). Weight bits are as the workload records them, with their basis and "
+                 "source.")  # fmt: skip
 BITS_BASIS = {"stated": "as the system states it", "file_size": "from the file size",
               "computed": "computed from the files"}  # fmt: skip
 GRADE_WORD = {
@@ -85,6 +85,9 @@ NULL_WORD = {
 # A missing overhead names its baseline: overhead divides by production serving's GPU-seconds (D-OVERHEAD-S).
 NM1_OVERHEAD = "Production serving could not run this model on the serving GPUs, so there is no baseline to divide by (RFC-0015 NM-1)."
 NO_SERVING_OVERHEAD = "No production-serving run on this profile's GPU model is in the release, so there is no baseline to divide by (RFC-0015 SRV-6)."
+# serving ran on this GPU model, but not this workload
+NO_SERVING_WORKLOAD = ("No production-serving run of this workload ({batch}) is in the release, so "
+                       "there is no baseline to divide by (RFC-0015 SRV-6).")  # fmt: skip
 NOT_RECORDED = "Not recorded in these runs."
 FAIL_KIND = {
     "config": "a configuration error",
@@ -107,15 +110,22 @@ FAIL_STEP = {
 }
 # RFC-0008 outcomes, each count as stored; zero counts are left out, and no total is printed
 OUTCOME_WORDS = (
-    ("rejected", "the checker rejected {n}"),
-    ("invalid_call", "it refused {n} as malformed input"),
-    ("accepted", "it accepted {n}"),
-    ("no_verdict", "{n} ended with no verdict"),
-    ("prover_failed", "in {n} the prover would not build the tampered proof"),
-    ("error", "{n} ended in an error"),
-    ("void", "{n} were void"),
-    ("not_applicable", "{n} do not apply to this setup"),
+    ("rejected", "rejected {n}"),
+    ("invalid_call", "refused as malformed {n}"),
+    ("accepted", "accepted {n}"),
+    ("no_verdict", "no verdict {n}"),
+    ("prover_failed", "the prover would not build it {n}"),
+    ("error", "error {n}"),
+    ("void", "void {n}"),
+    ("not_applicable", "did not apply {n}"),
 )
+# RFC-0008: each control's tamper in a few words, beside its id
+CONTROL_WORDS = {
+    "C1": "changed output token", "C2": "changed prompt token", "C3": "perturbed weights",
+    "C4": "proof replayed for another request", "C5": "truncated part", "C6": "flipped bit",
+    "C7": "proofs of two requests swapped", "C8": "dropped part",
+    "P1": "proved with other weights", "P2": "proved at another precision",
+}  # fmt: skip
 OUTCOME_VERB = {"accepted": "accepted", "rejected": "rejected", "invalid_call": "refused",
                 "no_verdict": "gave no verdict on", "error": "failed on"}  # fmt: skip
 # one control's outcome in a run, as a property's list on the system page prints it (RFC-0016 OVR-7)
@@ -133,9 +143,11 @@ ACCEPTED_WHY = {
     ("system", False): "{id}, outside its expected outcomes",
     ("shared", False): "{id}, outside its expected outcomes",
 }
+# an accepted trial that tampered with a part the system declares its verify step does not read
+# (RFC-0008, amendment of 2026-11-09: a gap in the control design, not a finding)
+NOT_READ = "{id}, on a part verify does not read ({parts}): tests nothing"
 COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
               8: "eight", 9: "nine", 10: "ten"}  # fmt: skip
-REF_LEAD = "The same model and task without a proof: production serving checks nothing, a rerun needs the weights; they are baselines, not systems."
 
 
 def count_word(n):
@@ -181,8 +193,24 @@ def seconds(v):
 
 
 # the stored units that take a prefix: (base unit, prefixes, smallest factor)
-PREFIXED = {"B": ("B", SI, 1.0), "MiB": ("B", IEC, 1 / 1024), "J": ("J", SI, 1e-9)}
-UNIT_WORDS = {"token": "positions", "token/s": "positions/s", "USD/1k_token": "USD / 1k positions"}
+PREFIXED = {"B": ("B", SI, 1.0), "J": ("J", SI, 1e-9)}
+MIB = 1024.0**2  # a MiB in bytes: memory prints in the SI family, as proof sizes do
+# the glossary's term (docs/spec/10-glossary.md, Tokens covered)
+UNIT_WORDS = {"token": "tokens", "token/s": "tokens/s"}
+PCT = "\u202f%"  # a percent sign never leaves its number
+
+
+def per_unit(v, unit):
+    """A rate below 1 a second per minute, below 1 a minute per hour; a cost per 1M tokens, in
+    USD, below 1 USD in cents."""
+    if unit == "token/s":
+        factor, per = next(((k, p) for k, p in ((1, "s"), (60, "min"), (3600, "h"))
+                            if abs(v * k) >= 1), (3600, "h"))  # fmt: skip
+        return sig4(v * factor), f"tokens/{per}"
+    usd = v * 1000
+    if abs(usd) >= 1 or usd == 0:
+        return sig4(usd), "USD per 1M tokens"
+    return sig4(usd * 100), "\u00a2 per 1M tokens"
 
 
 def amount(v, unit):
@@ -190,14 +218,18 @@ def amount(v, unit):
     no leading zeros (S4)."""
     if unit in PER_GBIT_BASE:  # per bit, printed per Gbit; the basis is in the column's head
         return amount(v * 1e9, PER_GBIT_BASE[unit])
+    if unit in ("token/s", "USD/1k_token"):
+        return per_unit(v, unit)
     if unit == "s":
         return seconds(v)
+    if unit == "MiB":
+        v, unit = v * MIB, "B"
     if unit in PREFIXED:
         base, steps, lo = PREFIXED[unit]
         return prefixed(v, base, steps, lo)
     base, slash, per = unit.partition("/")
-    if slash and base in ("s", "B"):  # s/token, B/token: the numerator takes the prefix
-        n, u = amount(v, base)
+    if slash and base in ("s", "B", "gpu_s"):  # s/token, B/token: the numerator takes the prefix
+        n, u = amount(v, "s" if base == "gpu_s" else base)  # GPU-seconds: seconds summed over GPUs
         return n, f"{u}/{per}"
     return sig4(v), UNIT_WORDS.get(unit, unit)
 
@@ -213,6 +245,8 @@ def range_words(lo, hi, unit):
     if unit == "ratio":
         return f"{shown(lo, unit)} to {shown(hi, unit)}"
     (a, u), (b, w) = amount(lo, unit), amount(hi, unit)
+    if (a, u) == (b, w):  # the ends differ below four digits
+        return f"{a} {u} for every run"
     return f"{a} to {b} {u}" if u == w else f"{a} {u} to {b} {w}"
 
 
@@ -225,23 +259,42 @@ def title_spread(f):
             f"{range_words(st['min'], st['max'], f['unit'])}")  # fmt: skip
 
 
-def spread_parts(f):
-    """The sample size and the range, the two parts the overview shows (S3)."""
-    st = f.get("stats")
-    if not st:
-        return []
-    lo, hi = (shown(st[k], f["unit"]) for k in ("min", "max"))
-    if f["unit"] == "token":  # the figure above names the unit
-        lo, hi = (x.rsplit(" ", 1)[0] for x in (lo, hi))
-    return [f"{st['n']} completed, {st['n_failed']} failed", f"{lo} to {hi}"]
+def sd_words(f):
+    """The standard deviation in its mean's unit when it is 1 or more in that unit, else as a
+    share of the mean ("sd 1.49 %"), "sd < 0.1 %" below that; "" when none is stored. The
+    record keeps the stored value."""
+    st, unit = f["stats"], f["unit"]
+    sd, mean = st.get("stdev"), st["mean"]
+    if sd is None:
+        return ""
+    if sd == 0:
+        return "sd 0"
+    (_, mu), (n, u) = amount(mean, unit), amount(sd, unit)
+    if (u == mu and float(n.replace(",", "")) >= 1) or not mean:
+        return f"sd {shown(sd, unit)}"
+    share = abs(sd / mean) * 100
+    return f"sd < 0.1{PCT}" if share < 0.1 else f"sd {share:.3g}{PCT}"
 
 
-def spread_line(f):
-    """The whole spread as a plate prints it: sample size, range, mean and sd (S3)."""
-    st = f["stats"]
-    parts = [*spread_parts(f), f"mean {shown(st['mean'], f['unit'])}"]
-    if st.get("stdev") is not None:
-        parts.append("sd 0" if st["stdev"] == 0 else f"sd {shown(st['stdev'], f['unit'])}")
+def spread_line(f, count=False):
+    """The spread as a system page prints it (S3): the range with its unit once and the mean
+    ("28.83 to 29.88 tokens/s, mean 29.42"), then the sd; a constant as "all 4 runs: 1,024
+    tokens". count: the sample size first, where no runs line above names it."""
+    st, unit = f["stats"], f["unit"]
+    parts = [f"{st['n']} completed, {st['n_failed']} failed"] if count else []
+    if st["min"] == st["max"]:
+        return " · ".join([*parts, f"all {st['n']} runs: {shown(st['min'], unit)}"])
+    rng = range_words(st["min"], st["max"], unit)
+    if rng.endswith(" for every run"):  # the ends alike at four digits: the value once, then the sd
+        parts.append(f"all {st['n']} runs: {shown(st['mean'], unit)}")
+    else:
+        hi_unit = amount(st["max"], unit)[1]
+        m, mu = amount(st["mean"], unit)
+        mean = (f"mean {m}" if mu == hi_unit and unit != "ratio"
+                else f"mean {shown(st['mean'], unit)}")  # fmt: skip
+        parts.append(f"{rng}, {mean}")
+    if sd := sd_words(f):
+        parts.append(sd)
     return " · ".join(parts)
 
 
@@ -251,7 +304,12 @@ def gpu_words(cfg):
 
 
 def scope_words(f, cfg):
-    return SCOPE_WORD[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"])
+    """A figure's scope in words; a steady figure of a configuration whose runs cut their steady
+    window at another boundary names it (RFC-0004 INV-SCOPE-5)."""
+    words = SCOPE_WORD[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"])
+    if f["scope"] == "prove.steady" and cfg.get("steady_boundary"):
+        words += f", {cfg['steady_boundary']}"
+    return words
 
 
 def why_words(f, cfg):
@@ -263,11 +321,17 @@ def why_words(f, cfg):
     if f["null_reason"] in ("not_applicable", "missing_input") and f["metric"].startswith(
         "overhead_"
     ):
+        if cfg.get("serving_on_gpu"):  # serving ran on this GPU model, not on this workload
+            b = cfg["workload"]["shape"]["batch_size"]
+            return NO_SERVING_WORKLOAD.format(
+                batch=f"{b:,}\u00a0request{'s' if b != 1 else ''} per batch"
+            )
         return NO_SERVING_OVERHEAD
     return NULL_WORD[f["null_reason"]].format(gpu=gpu_words(cfg))
 
 
 def labels(f, cfg):
-    scope = WARM_LINE if f.get("metric") == WARM else scope_words(f, cfg)  # INV-DERIVE-11
+    # an overhead names both sides' scope (INV-DERIVE-11), in the words its cell uses
+    scope = SCOPE_LINES.get(f.get("metric")) or scope_words(f, cfg)
     return [("scope", scope), ("grade", GRADE_WORD[f["grade"]]),
             ("evidence", TIER_WORD[f["tier"]])]  # fmt: skip

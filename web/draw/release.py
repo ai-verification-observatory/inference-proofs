@@ -9,7 +9,7 @@ from . import state as S
 from .chrome import RELEASE_PAGE, TARGETS_PAGE, footer, has_targets, header, page
 from .claims import run_ref
 from .plates import EXT, blob, keep, name_of, path_html, readable, source_html
-from .words import FAIL_KIND, e, labels, shown, spread_line
+from .words import FAIL_STEP, e, labels, shown, spread_line
 
 TARGET_GRADE = "set in the target file"
 RESULT_WORD = {"meets": "meets", "does_not_meet": "does not meet",
@@ -37,7 +37,7 @@ def section(sid, title, body, small=False):
 
 
 def file_link(path):
-    return f'<a href="{e(blob(path))}">{path_html(path)}{EXT}</a>'
+    return f'<a href="{e(blob(path))}">{path_html(path, ext=True)}</a>'
 
 
 def system_link(sid):
@@ -48,47 +48,60 @@ def system_link(sid):
 # ------------------------------------------------------------------ the release record
 
 
-def run_status(run, left):
-    """A listed run's status (a word) and what it adds: a failure's kind, the reason the index
-    records for a run left out of the figures, or the run that replaced a superseded one."""
+def run_status(run, left, failed):
+    """A listed run's status where it is not a plain completed run: a failure with its exit code
+    and step, the reason the index records for a run left out of the figures, or the run that
+    replaced a superseded one; "" for a completed run."""
     if run["run_id"] in left:
         x = left[run["run_id"]]
         if x["replaced_by"]:
-            return "superseded", f"replaced by {run_ref(x['replaced_by'], x['replaced_by_record'])}"
-        return "left out", e("; ".join(x["reason_words"]))
+            return f"superseded, replaced by {run_ref(x['replaced_by'], x['replaced_by_record'])}"
+        return f"left out: {e('; '.join(x['reason_words']))}"
     if run["status"] == "failed":
-        return "failed", e(FAIL_KIND.get(run["failure"], str(run["failure"])))
-    return "completed", ""
+        f = failed.get(run["run_id"]) or {}
+        said = "failed"
+        if f.get("exit_code") is not None:
+            said += f": exit {f['exit_code']}"
+        if f.get("step") in FAIL_STEP:
+            said += f" {FAIL_STEP[f['step']]}"
+        return e(said)
+    return ""
 
 
 def release_facts():
     rel = S.V["release"]
     rfc = rel["rfc_commit"]
     index = file_link(rel["index"])
+    order = [*S.V["orders"]["benchmarked"], *S.V["orders"]["reference"]]
+    claim_cards = sorted(rel["claim_cards"], key=lambda c: (
+        order.index(c["system"]) if c["system"] in order else len(order), c["system"]))  # fmt: skip
     cards = "".join(
-        f'<span><span class="nw">{e(c["system"])}</span> · {e(c["configuration"])} · version '
-        f"{e(c['card_version'])} · {file_link(c['path'])} · sha256 "
+        f"<span>{e(name_of(c['system']))} · version {e(c['card_version'])} · "
+        f"{file_link(c['path'])} · sha256 "
         f"<code>{e(str(c['digest']).removeprefix('sha256:')[:12])}</code></span>"
-        for c in rel["claim_cards"]
+        for c in claim_cards
     )
-    systems = (
-        '<span class="links">'
-        + "".join(
-            f"<span>{system_link(s)}</span>"
-            for s in [*S.V["orders"]["benchmarked"], *S.V["orders"]["reference"]]
+
+    def links(ids):
+        return (
+            '<span class="links">'
+            + "".join(f"<span>{system_link(s)}</span>" for s in ids)
+            + "</span>"
         )
-        + "</span>"
-    )
+
+    crit = (f'<a href="{e(S.REPO_URL)}/blob/main/{e(S.CRIT["path"])}">'
+            f"{path_html(S.CRIT['path'], ext=True)}</a> · sha256 <code>{S.crit_sha[:12]}</code>")  # fmt: skip
     rows = [
-        ("release", e(rel["id"])),
         (
-            "RFCs",
-            f'<a href="{e(S.REPO_URL)}/tree/{e(rfc)}/rfcs">rfcs/<span class="nw">@{e(rfc[:8])}</span>{EXT}</a>',
+            "rules",
+            f'<a href="{e(S.REPO_URL)}/tree/{e(rfc)}/rfcs">rfcs/<span class="nw">@{e(rfc[:8])}{EXT}</span></a>',
         ),
         ("reference file", file_link(rel["reference_file"])),
+        ("criteria", crit),
         ("harness", e(rel["harness_version"])),
         ("index", index),
-        ("systems", systems),
+        ("systems", links(S.V["orders"]["benchmarked"])),
+        ("references", links(S.V["orders"]["reference"])),
         ("claim cards", f'<span class="links">{cards}</span>'),
     ]
     if has_targets():
@@ -96,22 +109,55 @@ def release_facts():
     return rows_dl(rows, "facts relf")
 
 
+def setup_label(c):
+    """A configuration's group heading: its system, workload and profile, and a serving
+    configuration's load point with its batch ("matched load, 24 requests per batch")."""
+    out = f"{name_of(c['system'])} · {c['workload']['id']} · {c['profile']}"
+    sv = c.get("serving") or {}
+    load = sv.get("load") or c.get("load_point")
+    if load:
+        b = sv.get("batch")
+        out += f" · {load} load" + (
+            f", {b:,} request{'s' if b != 1 else ''} per batch" if b else ""
+        )
+    return out
+
+
 def runs_listed():
-    """Every run the release lists, grouped by system and setup (workload and profile) in the
-    order the release first lists each, each run by its id with its status and record."""
+    """Every run the release lists, grouped by configuration (a serving configuration by its
+    load point too), in the order the release first lists each, under a heading with its counts;
+    each run by its date and ordinal linked to its record (its id read aloud and in the title),
+    its status only where it is not a plain completed run."""
     left = {x["run_id"]: x for c in S.CONFIGS for x in c["runs"]["left_out"]}
+    failed = {f["run_id"]: f for c in S.CONFIGS for f in c["runs"]["failed"]}
+    owner = {}
+    for c in S.CONFIGS:
+        for rid in [*c["runs"]["records"], *(x["run_id"] for x in c["runs"]["left_out"])]:
+            owner.setdefault(rid, c)
     groups = {}
     for run in S.V["release"]["runs"]:
-        groups.setdefault((run["system"], run["workload"], run["profile"]), []).append(run)
+        c = owner.get(run["run_id"])
+        key = c["position"] if c else (run["system"], run["workload"], run["profile"])
+        groups.setdefault(key, (c, run, []))[2].append(run)
     body = ""
-    for (sid, workload, profile), runs in groups.items():
-        rows = []
-        for run in runs:
-            status, more = run_status(run, left)
-            rows.append((status, f'<span class="rid">{run_ref(run["run_id"], run["record"])}</span>'
-                                 + (f'<span class="rw">{more}</span>' if more else "")))  # fmt: skip
-        body += (f'<p class="rgh">{e(name_of(sid))} · {keep(f"{workload} · {profile}")}</p>'
-                 + rows_dl(rows, "tlab runs"))  # fmt: skip
+    for c, first, runs in groups.values():
+        if c:
+            head = setup_label(c)
+            counts = [f"{len(c['runs']['completed'])} completed"]
+            if c["runs"]["failed"]:
+                counts.append(f"{len(c['runs']['failed'])} failed")
+            if c["runs"]["left_out"]:
+                counts.append(f"{len(c['runs']['left_out'])} left out")
+            head += " · " + ", ".join(counts)
+        else:
+            head = f"{name_of(first['system'])} · {first['workload']} · {first['profile']}"
+        items = "".join(
+            f"<li>{run_ref(run['run_id'], run['record'])}"
+            + (f' <span class="rw">{st}</span>' if (st := run_status(run, left, failed)) else "")
+            + "</li>"
+            for run in runs
+        )
+        body += f'<p class="rgh">{keep(readable(head))}</p><ul class="runs rl">{items}</ul>'
     withdrawn = S.V["release"]["superseded_runs"]
     if withdrawn:
         body += '<p class="rgh">Withdrawn</p>' + rows_dl(
@@ -119,32 +165,30 @@ def runs_listed():
     return body
 
 
-def checked():
-    """Per configuration: how many of its runs completed and failed."""
-    rows = []
-    order = [*S.V["orders"]["benchmarked"], *S.V["orders"]["reference"]]
-    for c in sorted(S.CONFIGS, key=lambda c: (order.index(c["system"]), c["position"])):
-        said = [keep(f"{c['workload']['id']} · {c['profile']}"),
-                e(f"{len(c['runs']['completed'])} completed, {len(c['runs']['failed'])} failed")]  # fmt: skip
-        rows.append((name_of(c["system"]), "; ".join(said)))
-    return rows_dl(rows, "tlab runs")
-
-
 def unexpected_list():
-    """Every control outcome outside its expected set, each linked to where its system page
-    prints it in full."""
-    rows = []
+    """Every tamper-test outcome outside its expected set, each linked to where its system page
+    prints it in full; one accepted only on a part the system declares verify does not read is
+    listed apart, as testing nothing (RFC-0008, amendment of 2026-11-09)."""
+    rows, nothing = [], []
     for c in S.CONFIGS:
-        if not c["unexpected"]:
-            continue
         sid = c["system"]
         for u in c["unexpected"]:
             href = f"{S.PAGE.get(sid, '/reference')}#unexpected-{u['control']}-{u['run_id']}"
-            rows.append((name_of(sid), f'<a href="{e(href)}">{e(u["control"])} in run '
-                                       f'{path_html(u["run_id"])}</a>'))  # fmt: skip
-    if not rows:
-        return '<p class="lead">No control outcome fell outside its expected set.</p>'
-    return rows_dl(rows, "tlab runs")
+            link = (f'<a href="{e(href)}">{e(u["control"])} in run '
+                    f'{path_html(u["run_id"])}</a>')  # fmt: skip
+            if u.get("not_read"):
+                parts = ", ".join(u["not_read"])
+                nothing.append((name_of(sid), f"{link}: on a part verify does not read "
+                                              f"({e(parts)}), so it tests nothing"))  # fmt: skip
+            else:
+                rows.append((name_of(sid), link))
+    out = (rows_dl(rows, "tlab runs") if rows else
+           '<p class="lead">No tamper-test outcome fell outside its expected set.</p>')  # fmt: skip
+    if nothing:
+        out += '<p class="rgh">Accepted on a part verify does not read</p>' + rows_dl(
+            nothing, "tlab runs"
+        )
+    return out
 
 
 def build_release():
@@ -156,8 +200,7 @@ def build_release():
   <div class="wrap">
     {release_facts()}
     {section("runs", "Runs", runs_listed())}
-    {section("checked", "Runs per setup", checked())}
-    {section("unexpected", "Unexpected outcomes", unexpected_list())}
+    {section("unexpected", "Unexpected tamper-test outcomes", unexpected_list())}
   </div>
 </main>
 {footer()}"""

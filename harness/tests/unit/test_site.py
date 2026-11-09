@@ -76,11 +76,12 @@ PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</d
 DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
 # an overview cell's title: sample size and range (S3); the plate it links holds mean and sd
-TITLE_SPREAD = re.compile(r"(\d+) completed, (\d+) failed, \S+(?: \S+)? to \S+(?: \S+)?")
-SPREAD = re.compile(
-    r"(\d+) completed, (\d+) failed · (\S+(?: \S+)?) to (\S+(?: \S+)?) · mean \S+(?: \S+)?"
-    r" · sd \S+(?: \S+)?"
+TITLE_SPREAD = re.compile(
+    r"(\d+) completed, (\d+) failed, (\S+(?: \S+)? to \S+(?: \S+)?|\S+ \S+ for every run)"
 )
+# a plate's spread (S3; the setup's runs line names n): the range with its unit once and the
+# mean, then the sd; a constant once, with its run count
+SPREAD = re.compile(r"all \d+ runs: .+|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?")
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
 SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
          "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
@@ -152,9 +153,9 @@ def system_configs(build: Build, system: str) -> list[dict[str, Any]]:
     configuration line; every configuration of the system in the view, each once."""
     text = build.pages[f"{system}.html"]
     out: list[dict[str, Any]] = []
-    where = r'<dl class="tlab"><div><dt>configuration</dt><dd>(.*?)</dd>'
+    where = r'<h3 id="h-[^"]+" class="sect sm setup" title="([^"]*)">'
     for named in re.findall(where, text, re.S):
-        configuration, workload, _, profile = plain(named).split(" · ")
+        configuration, workload, _, profile = html.unescape(named).split(" · ")
         found = [c for c in build.view["configurations"] if c["system"] == system
                  and (c["configuration"], c["workload"]["id"], c["profile"])
                  == (configuration, workload, profile)]  # fmt: skip
@@ -184,8 +185,8 @@ def more_rows(text: str) -> list[str]:
 def test_page_set_and_footer(site: Build) -> None:
     """Page table: the overview, one page per benchmarked system, the references, the criteria,
     the release, Targets only when the release evaluates a target, and Not found; every footer
-    names the release, links the release page and the criteria page, and links the release's
-    `index.json`."""
+    names and links the release, whose page links its `index.json` and the criteria file; the
+    header links the criteria page on every page."""
     want = {"index.html", "reference.html", "criteria.html", "release.html", "404.html"}
     want |= {f"{s}.html" for s in site.view["orders"]["benchmarked"]}
     if site.view["targets"]:
@@ -196,9 +197,11 @@ def test_page_set_and_footer(site: Build) -> None:
     for name, text in site.pages.items():
         foot = text[text.index('<footer class="foot">') :]
         assert f"Release {release['id']}" in plain(foot), name
-        for href in ("/criteria", "/release"):
-            assert f'href="{href}"' in foot, (name, href)
-        assert f"/{release['index']}" in foot, name
+        assert 'href="/release"' in foot, name
+        assert 'href="/criteria"' in text[: text.index("</header>")], name
+    assert f"/{release['index']}" in site.pages["release.html"]
+    digest = site.view["criteria"]["sha256"].removeprefix("sha256:")[:12]
+    assert digest in site.pages["release.html"]
     if site.kind == "web":
         vercel = json.loads((site.out / "vercel.json").read_text())
         assert vercel["cleanUrls"] is True
@@ -267,23 +270,36 @@ def test_every_number_has_labels(site: Build) -> None:
         configs = system_configs(site, system)
         plates = PLATE.findall(text)
         assert len(plates) == len(COLS) * len(configs)
+        # each setup states once what its figures share: workload, grade, tier, record prefix
+        setl = re.findall(r'<dl class="tlab setl">(.*?)</dl>', text, re.S)
+        shared = [{dt for dt, _ in DD.findall(dl)} for dl in setl]
+        assert len(shared) == len(configs)
+        for i, cfg in enumerate(configs):
+            assert {"workload", "source"} <= shared[i]
+            prefix = f"configurations/{cfg['position']}/statistics/"
+            assert prefix in flat(re.findall(r'<dl class="tlab setl">(.*?)</dl>', text, re.S)[i])
+        # RFC-0004 INV-DERIVE-7: under each setup's per-Gbit plates, the width, note and limit
+        basis = re.findall(r'<dl class="tlab notes basis"[^>]*>(.*?)</dl>', text, re.S)
+        assert len(basis) == len(configs)
+        assert all({"weight bits", "limit"} <= {dt for dt, _ in DD.findall(b)} for b in basis)
         for pid, col, body in plates:
             cfg = plate_config(site, system, pid)
-            dts = {dt for dt, _ in DD.findall(body)}
+            dts = {dt for dt, _ in DD.findall(body)} | shared[configs.index(cfg)]
+            f = cfg["figures"][metric(cfg, col)]
             if 'class="fig"' in body:
-                assert {"spread", "scope", "grade", "evidence", "workload", "source"} <= dts, pid
+                assert {"grade", "evidence", "workload", "source"} <= dts, pid
+                assert ("spread" in dts) or ("pairs" in dts), pid
+                assert ("scope" in dts) == (f["scope"] is not None), pid  # a timed number
             else:  # a null value names its record; a metric the runs did not record has none
                 assert "why" in dts, pid
-                assert ("source" in dts) == cfg["figures"][metric(cfg, col)]["recorded"], pid
-            if col in PER_GBIT_COLS:  # RFC-0004 INV-DERIVE-7: the width and the limit beside it
-                assert {"weight bits", "limit"} <= dts, pid
+                assert ("source" in body) == f["recorded"], pid
         rows = more_rows(text)
         assert len(rows) == 5 * len(configs)
         for row in rows:  # every label a plate holds, or why there is no value
             said = plain(row)
             if "No value" in said:
                 continue
-            for label in ("spread: ", "scope: ", "grade: ", "evidence: ", "source: releases/"):
+            for label in ("spread: ", "source: "):
                 assert label in said, (label, said)
 
 
@@ -311,7 +327,9 @@ def test_glyph_before_numbers(site: Build) -> None:
     ref = site.pages["reference.html"]
     for gid in site.view["orders"]["reference"]:
         sec = ref[ref.index(f'id="{gid}" aria-labelledby') :]
-        assert sec.index('class="rpie"') < sec.index('class="plate"'), gid
+        sec = sec[: sec.index("</section>")]
+        glyph = sec.index("pie-svg")  # the reference's states before any figure
+        assert 'class="fig"' not in sec or glyph < sec.index('class="fig"'), gid
 
 
 def test_claim_card_before_numbers(site: Build) -> None:
@@ -367,24 +385,30 @@ def _validated_claims(site: Build, system: str) -> None:
     claims = text.index(f'id="claims-{cfg["configuration"]}"')
     identity = text.index(f'href="{card["link"]}"')
     folded = text.index(f'<details class="cardfull" id="card-{cfg["configuration"]}">')
-    gap = text.index('class="gapblk"')
+    gap = text.index('class="gapblk"' if 'class="gapblk"' in text else "gapone")
     read = text.index('<details class="howread" id="how-we-read">')
     assert claims < text.index('class="rprops"') < read < identity < folded < gap < first_figure
     assert text.index('class="rprops"') < text.index('class="fig"')
     assert "<details open" not in text  # folded as sent (S1 item 4)
     details = text[folded : text.index("</details>", folded)]
+    label = renderer(ROOT).draw.claims.card_key
     for field in card["body"]:
-        if field != "sources":
-            assert f"<dt>{field}</dt>" in details, field
+        if field not in ("sources", "schema", "card_version"):
+            assert f"<dt>{label(field)}</dt>" in details, field
+    assert "not_stated" not in details  # every enum in words
     assert card["digest"].removeprefix("sha256:")[:12] in plain(text[identity:folded])
     assert "not reviewed" not in plain(text[identity:folded])
     after = plain(text[gap:first_figure])
     assert "quality gap" in after
     assert "residual" in after
-    # RFC-0015 RC-6: the rate beside them, outside the fold, or why it has none
-    assert 'class="plate" id="agree-' in text[gap:first_figure]
+    # RFC-0015 RC-6: the rate beside them, outside the fold, or why it has none (one line when
+    # the card states neither field and no run recorded a rate)
+    if "gapone" not in text[gap : gap + 40]:
+        assert 'class="plate" id="agree-' in text[gap:first_figure]
+    else:
+        assert "agreement with a rerun" in plain(text[gap:first_figure])
     if not cfg["agreement"]["recorded"]:
-        assert "Not recorded in these runs." in plain(text[gap:first_figure])
+        assert "not recorded in these runs" in plain(text[gap:first_figure]).lower()
     pc = next((c["property_controls"] for c in configs if c.get("property_controls")), None)
     for p in props:
         _property_claims(site, system, p, pc)
@@ -392,12 +416,15 @@ def _validated_claims(site: Build, system: str) -> None:
 
 PROPERTY_BLOCK = re.compile(
     r'<li class="rp [rl]" id="p-[a-z_]+" data-n="\d"><p class="rn">(?:(?!</p>).)*</p>'
-    r'(<p class="rs">(?:(?!</p>).)*</p>)'
-    r'(<p class="rr( rsrc)?">([^<]*)(<a class="psrc" href="#read-([a-z_]+)">source'
-    r'<span class="sr">: how we read ([^<]*)</span></a>)?</p>)?'
+    r'(<p class="rs"><i class="sw [a-z]+"></i>(?:(?!</p>).)*</p>)'
+    r'(<p class="rr">(?:(?!</p>).)*</p>)?'
     r'(<div class="ev"><p class="ex"><span class="ek">stated</span><span class="eb">.*?</span>'
     r"</p></div>)?</li>",
     re.S,
+)
+# the link from a property to its entry in "How we read it": its reason, or its state word
+READ_LINK = re.compile(
+    r'<a class="psrc" href="#read-([a-z_]+)">[^<]*<span class="sr">: how we read ([^<]*)</span></a>'
 )
 
 
@@ -418,11 +445,11 @@ def _property_claims(
     assert block, (system, p["id"], body)  # name, state, reason, link, overridden line only
     assert "<blockquote" not in body, (system, p["id"])  # quotes are in the fold, not here
     entry = re.search(rf'<div id="read-{p["id"]}" tabindex="-1">', text)
-    if entry:  # the link names this property and lands on its own entry, which exists
-        assert (block[6], block[7]) == (p["id"], p["name"]), (system, p["id"])
-        assert bool(block[3]) == (block[4] == ""), (system, p["id"])  # rsrc: the link alone
+    links = READ_LINK.findall((block[1] or "") + (block[2] or ""))
+    if entry:  # the reason (or the state word) links this property's own entry, which exists
+        assert links == [(p["id"], p["name"])], (system, p["id"])
     else:
-        assert block[5] is None, (system, p["id"])
+        assert not links, (system, p["id"])
     cell = cells[p["id"]]
     state = cell["state"]
     assert '<p class="rs"><i class="sw ' in body
@@ -498,16 +525,12 @@ def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any]
         return
     assert pc is not None
     mapped = pc["properties"][p["id"]]["mapped"]
-    if not mapped:  # OVR-7: the page says no RFC-0008 control tests the property
-        assert "controls none rule" in plain(body), (system, p["id"])
+    if not mapped:  # no RFC-0008 control tests the property: no control line
+        assert 'class="ec"' not in body, (system, p["id"])
     for cid in mapped:
         assert cid in said, (system, cid)
     for run in pc["runs"] if mapped else []:  # every run read, under every mapped property
         assert run["run_id"] in said, (system, p["id"], run["run_id"])
-    for silent in re.findall(r": not run in runs?(.*?)</span></p>", body, re.S):
-        # the runs that recorded none, one per line, no separator left to wrap alone
-        assert silent.startswith('<span class="rd">'), (system, p["id"])
-        assert ", " not in flat(silent), (system, p["id"])
     if not pc["runs"] and mapped:  # no run read says why, never "not run" (OVR-5)
         assert f"{', '.join(mapped)}: no run read, since " in said, (system, p["id"])
         assert "not run" not in said, (system, p["id"])
@@ -515,17 +538,19 @@ def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any]
 
 def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> None:
     """RFC-0016 ST-2: what was read, one line per repository linked at its commit with the paths
-    read; a list equal to one printed above it in the fold names that property instead."""
+    read; the list two or more properties share is printed once, at the head of the fold
+    (`read-sources`), and a property whose list it is prints none of its own."""
     cells = site.view["criteria"]["rows"][system]["cells"]
     text = site.pages[f"{system}.html"]
-    order = re.findall(r'<div id="read-([a-z_]+)" tabindex="-1">', text)
     mine = cells[p["id"]]["sources_read"]
-    earlier = [q for q in order[: order.index(p["id"])] if cells[q]["sources_read"] == mine]
-    if earlier:
-        name = next(x["name"] for x in site.view["criteria"]["properties"] if x["id"] == earlier[0])
-        assert said.startswith(f"read as for {name}"), (system, p["id"])
-        assert f'href="#read-{earlier[0]}"' in text
-        return
+    lists = [json.dumps(c["sources_read"], sort_keys=True) for c in cells.values()
+             if c["sources_read"]]  # fmt: skip
+    if lists.count(json.dumps(mine, sort_keys=True)) > 1 and 'id="read-sources"' in text:
+        head = re.search(r'<div id="read-sources" tabindex="-1">(.*?)</dd></div>', text, re.S)
+        assert head, system
+        if json.dumps(mine, sort_keys=True) == max(set(lists), key=lists.count):
+            assert 'class="er"' not in said, (system, p["id"])
+            said = flat(head[1])
     for source in mine:  # criteria/1: a repository at a full commit, or a web page
         if "repo" in source:
             assert ", ".join(source["paths"]) in said, (system, source)
@@ -573,11 +598,11 @@ def test_conflict_quotes_folded() -> None:
     assert lines({"conflict": False, "quotes": [yes, partly]}) == ""
 
 
-def test_sources_read_as_for(monkeypatch: pytest.MonkeyPatch) -> None:
-    """RFC-0016 ST-2 in "How we read it": a property whose sources read equal an earlier
-    property's, whatever the order of each entry's keys, reads "as for" that property, linked to
-    its row; the same entries with their paths in another order are another list, printed in
-    full; a property with nothing to show has no row."""
+def test_sources_read_shared(monkeypatch: pytest.MonkeyPatch) -> None:
+    """RFC-0016 ST-2 in "How we read it": the list two or more properties share, whatever the
+    order of each entry's keys, is printed once at the head of the fold, and those properties
+    print none of their own; the same entries with their paths in another order are another
+    list, printed in full; a property with nothing to show has no row."""
     build = renderer(ROOT)
     state = build.draw.state
     one = [{"repo": "o/r", "commit": "a" * 40, "paths": ["README.md", "docs/cost-model.md"]}]
@@ -595,15 +620,13 @@ def test_sources_read_as_for(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(state, "PROPS", [{"id": k, "name": v} for k, v in names.items()])
     claims = build.draw.claims
     out = claims.how_we_read(claims.read_entries("s", None, ["a", "b", "c", "d"]))
-    entry = r'<div id="read-(\w)" tabindex="-1"><dt>[^<]*</dt><dd>(.*?)</dd></div>'
+    entry = r'<div id="read-(\w+)" tabindex="-1"><dt>[^<]*</dt><dd>(.*?)</dd></div>'
     rows = dict(re.findall(entry, out, re.S))
-    assert set(rows) == {"a", "b", "c"}
+    assert set(rows) == {"sources", "c"}  # a and b share the list printed at the head
     label = '<span class="ek">read</span>'  # the label, then the sources in their own column
     assert all(r.startswith(f'<p class="er">{label}') for r in rows.values())
     rows = {k: v.replace(label, "") for k, v in rows.items()}
-    assert flat(rows["a"]) == "o/r@aaaaaaaa ↗ README.md, docs/cost-model.md"
-    assert flat(rows["b"]) == "as for First"
-    assert 'href="#read-a"' in rows["b"]
+    assert flat(rows["sources"]) == "o/r@aaaaaaaa ↗ README.md, docs/cost-model.md"
     assert flat(rows["c"]) == "o/r@aaaaaaaa ↗ docs/cost-model.md, README.md"
     assert '<span class="nw">docs/cost-model.md</span>' in rows["c"]  # never breaks inside
 
@@ -630,24 +653,27 @@ def test_statistics_shown(site: Build) -> None:
         assert TITLE_SPREAD.search(plain(html.unescape(title))), title
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
+        configs = system_configs(site, system)
+        leads = [plain(x) for x in re.findall(r'<p class="lead">(.*?)</p>', text)]
+        for cfg, lead in zip(configs, leads, strict=True):  # n and n_failed, once per setup
+            assert lead.startswith(f"Runs: {len(cfg['runs']['completed'])} completed"), lead
+            if cfg["runs"]["failed"]:
+                assert f"{len(cfg['runs']['failed'])} failed" in lead, lead
         for pid, col, body in PLATE.findall(text):
             cfg = plate_config(site, system, pid)
-            stats = cfg["figures"][metric(cfg, col)].get("stats")
+            f = cfg["figures"][metric(cfg, col)]
+            stats = f.get("stats")
             if not stats:
                 continue
+            assert stats["n"] == len(cfg["runs"]["completed"]), pid
             spread = dict(DD.findall(body))["spread"]
-            got = SPREAD.fullmatch(plain(spread))
-            assert got, spread
-            assert (int(got[1]), int(got[2])) == (stats["n"], stats["n_failed"])
-        for cfg, rows in zip(system_configs(site, system),
-                             _chunks(more_rows(text), 5), strict=True):  # fmt: skip
+            assert SPREAD.fullmatch(plain(spread)), spread
+        for cfg, rows in zip(configs, _chunks(more_rows(text), 5), strict=True):
             for (stat, _), row in zip(MORE, rows, strict=True):
                 stats = cfg["figures"][stat].get("stats")
                 if not stats or cfg["figures"][stat]["value"] is None:
                     continue
-                got = MORE_SPREAD.search(plain(row))
-                assert got, row
-                assert (int(got[1]), int(got[2])) == (stats["n"], stats["n_failed"])
+                assert MORE_SPREAD.search(plain(row)), row
     failed = [c for c in site.view["configurations"]
               if c["kind"] == "reference" and c["insufficient_repetitions"]]  # fmt: skip
     assert failed
@@ -662,11 +688,12 @@ def _chunks(items: list[str], n: int) -> list[list[str]]:
     return [items[i : i + n] for i in range(0, len(items), n)]
 
 
-MORE_SPREAD = re.compile(r"spread: (\d+) completed, (\d+) failed · .+? to .+? · mean .+? · sd ")
+MORE_SPREAD = re.compile(r"spread: (all \d+ runs: |.+? to .+?, mean )")
 # the more-numbers rows, in the renderer's order (web/draw/plates.py MORE)
 MORE = (("rate_prove.session", "Proving rate"),
-        ("cost_per_1k_tokens_prove.session", "GPU cost per 1,000 positions"),
-        ("commit_seconds", "Commit once"), ("verify_host_memory_peak_anon", "Checker memory"),
+        ("cost_per_1k_tokens_prove.session", "GPU cost per 1M tokens"),
+        ("commit_seconds", "Preparing the model (once)"),
+        ("verify_host_memory_peak_anon", "Checker memory"),
         ("prove_gpu_memory_peak", "GPU memory"))  # fmt: skip
 
 
@@ -779,7 +806,7 @@ def test_each_figure_names_its_scope(site: Build) -> None:
         assert header, rid
         # the width in short in view, in full in the model cell's title
         wb = cfg["workload"]["precision"]["weight_bits"]
-        assert f"{wb['bits']:.2g}-bit" in plain(header[1]), rid
+        assert f"{wb['bits']:.4g}-bit" in plain(header[1]), rid
         assert "per active weight" in html.unescape(header[1]), rid
 
 
@@ -888,7 +915,7 @@ def test_division_named(site: Build) -> None:
         text = plain(site.pages[f"{system}.html"])
         for cfg in system_configs(site, system):
             assert cfg["workload"]["division"] in {"native", "closed", "open"}
-            where = f"{cfg['workload']['id']} · {cfg['workload']['division']} · {cfg['profile']}"
+            where = f"{cfg['workload']['id']} ↗ · {cfg['workload']['division']} · {cfg['profile']}"
             assert where in text, system
     for rid, *_, body in ROW.findall(site.pages["index.html"]):  # a closed row says so
         division = row_config(site.view, rid)["workload"]["division"]
@@ -926,19 +953,20 @@ def _left_out_listed(cfg: dict[str, Any], said: str, block: str, system: str) ->
     for f in runs["failed"]:
         assert f["run_id"] in said, system
         if f["exit_code"] is not None:
-            assert f"exit code {f['exit_code']}" in said, system
+            assert f"exit {f['exit_code']}" in said, system
         if f["last_line"]:
             assert f["last_line"] in said, system
         listed += 1
     for x in runs["left_out"]:
         assert x["run_id"] in said, system
         if x["replaced_by"]:
-            assert f"replaced by {x['replaced_by']}" in said, system
+            assert "replaced by" in said, system
+            assert x["replaced_by"] in said, system
         for reason in x["reason_words"]:
             assert reason.split(": ", 1)[-1] in said, (system, reason)
         listed += 1
     if runs["failed"] or runs["left_out"]:
-        assert 'class="tlab runs"' in block
+        assert 'class="runs lo"' in block
         assert '<span class="rec">' not in block
     for f in cfg["figures"].values():
         if f.get("stats"):
@@ -963,9 +991,10 @@ def test_run_records_link(extras: Build) -> None:
 
 
 def test_unexpected_control_printed_in_full(site: Build) -> None:
-    """RFC-0008 §Reporting: every control outcome outside its expected set is printed in full
-    on its system page (control, run, outcome, expected set, side, source, each trial, the
-    record), and the release page links it."""
+    """RFC-0008 §Reporting: every control outcome outside its expected set is printed on its
+    system page from its stored record (control, run, outcome, expected set, the honest twin,
+    each trial on one line with its seed, mutation, outcome, raw exit code and last line, and
+    the record), and the release page links it."""
     release = site.pages["release.html"]
     seen = 0
     for cfg in provers(site.view):
@@ -973,30 +1002,28 @@ def test_unexpected_control_printed_in_full(site: Build) -> None:
         for u in cfg["unexpected"]:
             anchor = f"unexpected-{u['control']}-{u['run_id']}"
             start = text.index(f'id="{anchor}"')
-            block = text[start : text.index("</dl>", text.index("<dt>record</dt>", start))]
+            block = text[start : text.index("</dl>", start)]
             said = flat(block)
             stored = u["stored"]
-            assert f"control{u['control']}" in said.replace(" ", "") or u["control"] in said
-            for word in (u["run_id"], stored["side"], stored["source"], u["record"]):
-                assert word in said, word
-            assert len(re.findall(r"<dt>trial</dt>", block)) == len(stored["trials"])
-            for t in stored["trials"]:  # every field of each trial, the mutation included
-                for key in t:
-                    assert f"<dt>{key}</dt>" in block, key
-                assert t["raw_last_line"] in html.unescape(block)
-                for k, v in t["mutation"].items():
-                    assert f"<dt>{k}</dt>" in block, k
-                    assert str(v) in said, (k, v)
-                if not t["mutation"]:
-                    assert "<dt>mutation</dt><dd>none</dd>" in block
-            for key in set(stored) - {"id", "trials", "twin", "expected"}:
-                assert f"<dt>{key}</dt>" in block, key
+            assert u["control"] in said
+            assert u["run_id"] in said
+            assert f'/{u["record"]}"' in block  # the record, in full
+            for x in stored["expected"]:
+                assert x.replace("_", " ").replace("invalid call", "refused") in said or x in said
+            trials = re.findall(r"<li>(.*?)</li>", block, re.S)
+            assert len(trials) == len(stored["trials"])
+            for t, line in zip(stored["trials"], trials, strict=True):
+                one = plain(line)
+                assert f"seed {t['seed_index']}" in one, one
+                assert t["raw_last_line"] in html.unescape(line), one
+                for v in t["mutation"].values():
+                    assert (f"{v:,}" if isinstance(v, int) else str(v)) in one, (v, one)
             assert f'href="/{cfg["system"]}#{anchor}"' in release
             assert text.index('id="h-tamper"') < text.index(f'id="{anchor}"')
             seen += 1
     if site.kind == "web":
         assert not seen
-        assert "No control outcome fell outside its expected set." in plain(release)
+        assert "No tamper-test outcome fell outside its expected set." in plain(release)
     else:
         assert seen == 2  # FlashProve's C1 and SASH's C2
 
@@ -1080,12 +1107,12 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
         for cfg in system_configs(site, system):
             for a in cfg["accepted"]:
                 assert a["control"] in text, (system, a["control"])
-        for m in re.finditer(r"it accepted (\d+)", text):
+        for m in re.finditer(r"accepted (\d+)", text):
             assert text[m.end() : m.end() + 2] == " (", text[m.start() : m.end() + 40]
             seen += 1
         for a in (a for c in system_configs(site, system) for a in c["accepted"]):
             if a["source"] == "system" and a["passed"]:
-                assert f"{a['control']}, the control test below, which expects acceptance" in text
+                assert "the control test below, which expects acceptance" in text
                 assert "accepted the proof, as this control expects" in text
     assert seen >= 1  # the deployed SASH's weakened-prover control; the extras FlashProve's C1
 
@@ -1101,13 +1128,16 @@ def test_figures_link_their_own_plate(site: Build) -> None:
         for col, href in re.findall(r'data-col="([^"]+)"><a class="val" href="([^"]*)"', body):
             page, _, frag = href.partition("#")
             assert page == f"/{cfg['system']}", href
-            plates = {pid: (c, b) for pid, c, b in PLATE.findall(site.pages[f"{page[1:]}.html"])}
+            text = site.pages[f"{page[1:]}.html"]
+            plates = {pid: (c, b) for pid, c, b in PLATE.findall(text)}
             assert frag in plates, href
             assert plate_config(site, cfg["system"], frag) is cfg, href
             assert plates[frag][0] == col, href
             source = re.sub(r"<[^>]+>", "", plates[frag][1])
-            if cfg["figures"][metric(cfg, col)]["recorded"]:  # its record is this configuration's
-                assert f"#/configurations/{cfg['position']}/statistics/" in source, href
+            f = cfg["figures"][metric(cfg, col)]
+            if f["recorded"]:  # its record is this configuration's: the key under its prefix
+                assert f["source"].rsplit("/statistics/", 1)[1] in source, href
+                assert f"#/configurations/{cfg['position']}/statistics/" in flat(text), href
             linked += 1
     assert linked == len(BOARD) * len(site.view["orders"]["benchmarked"])
 

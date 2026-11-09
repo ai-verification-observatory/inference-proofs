@@ -7,6 +7,7 @@ release index; its sort key is the stored value in its base unit (S4). Pure apar
 reads in `inputs`.
 """
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -34,6 +35,9 @@ PER_BIT_SIZE = ("proof_bytes_per_active_weight_bit_token",
                 "verify_seconds_per_active_weight_bit_token")  # fmt: skip
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
+# what production serving measured, the baseline every overhead divides by (RFC-0015 SRV-6)
+SERVING = ("gpu_seconds_per_token_prove.steady", "rate_prove.steady",
+           "cost_per_1k_tokens_prove.steady")  # fmt: skip
 AGREEMENT = "agreement_rate"
 # RFC-0016 §States: the states a contradicting outcome turns to `no` (OVR-4)
 CONTRADICTABLE = ("yes", "partly")
@@ -251,7 +255,27 @@ def _controls_of(index: dict[str, Any], config: dict[str, Any]) -> dict[str, Any
     return entry
 
 
-def _accepted(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def _not_read(system: dict[str, Any]) -> set[str]:
+    """RFC-0008 §Parts the verifier reads: the parts the system declares its verify step does
+    not read (`proofs.verify_reads.not_read`)."""
+    return {
+        str(x["part"]) for x in inputs.maybe(system, "proofs", "verify_reads", "not_read") or []
+    }
+
+
+def _parts_not_read(rec: dict[str, Any] | None, not_read: set[str]) -> list[str] | None:
+    """The parts an accepted control record tampered with, when every accepted trial of it
+    mutated a part the system declares verify does not read; None otherwise. RFC-0008's
+    amendment of 2026-11-09: such a trial tests nothing (a gap in the control design, not a
+    finding against the system)."""
+    trials = [t for t in (rec or {}).get("trials") or [] if t.get("outcome") == "accepted"]
+    parts = {str((t.get("mutation") or {}).get("part")) for t in trials}
+    return sorted(parts) if trials and parts <= not_read else None
+
+
+def _accepted(
+    config: dict[str, Any], records: dict[str, dict[str, Any]], not_read: set[str]
+) -> list[dict[str, Any]]:
     """Every `accepted` control record of the kept runs, as stored, so the tally can say which
     control each accepted outcome is and against which expected set (RFC-0008 §Reporting)."""
     out = []
@@ -259,22 +283,41 @@ def _accepted(config: dict[str, Any], records: dict[str, dict[str, Any]]) -> lis
         for rec in (records[rid]["controls"] or {"controls": []})["controls"]:
             if rec["outcome"] == "accepted":
                 out.append({"control": rec["id"], "run_id": rid, "source": rec["source"],
-                            "expected": rec["expected"], "passed": rec["passed"]})  # fmt: skip
+                            "expected": rec["expected"], "passed": rec["passed"],
+                            "not_read": _parts_not_read(rec, not_read)})  # fmt: skip
     return out
 
 
-def _unexpected(entry: dict[str, Any], records: dict[str, dict[str, Any]]) -> list[dict[str, Any]]:
+def _unexpected(
+    entry: dict[str, Any],
+    records: dict[str, dict[str, Any]],
+    not_read: set[str],
+    config: dict[str, Any],
+) -> list[dict[str, Any]]:
     """RFC-0008 §Reporting: every outcome outside its control's expected set
     (`index.controls[].outside_expected`), with the control's stored record in full and the path
-    of the `controls.json` that holds it."""
+    of the `controls.json` that holds it; an accepted record on parts verify does not read names
+    them, and the same control's outcome in the configuration's other kept runs."""
     out = []
     for x in entry["outside_expected"]:
         rid = str(x["run_id"])
         found = (records[rid]["controls"] or {"controls": []}) if rid in records else None
         rec = next((c for c in (found or {"controls": []})["controls"]
                     if c["id"] == x["control_id"]), None)  # fmt: skip
+        parts = _parts_not_read(rec, not_read) if x["outcome"] == "accepted" else None
+        others = []
+        for other in config["runs"] if parts else []:
+            held = records[other]["controls"] if other != rid else None
+            same = next((c for c in (held or {"controls": []})["controls"]
+                         if c["id"] == x["control_id"]), None)  # fmt: skip
+            if same is not None:
+                others.append({"run_id": other, "outcome": same["outcome"],
+                               "record": _record(records, other, "controls.json"),
+                               "parts_not_read": [str(p["part"]) for p in
+                                                  same.get("parts_not_read") or []]})  # fmt: skip
         out.append({"control": x["control_id"], "run_id": rid, "outcome": x["outcome"],
-                    "record": _record(records, rid, "controls.json"), "stored": rec})  # fmt: skip
+                    "record": _record(records, rid, "controls.json"), "stored": rec,
+                    "not_read": parts, "others": others})  # fmt: skip
     return out
 
 
@@ -312,7 +355,8 @@ def _configuration(
     digest = wl["model"]["digest"]
     model = facts.models.get(digest)
     controls = _controls_of(index, config)
-    accepted = _accepted(config, records)
+    not_read = _not_read(system)
+    accepted = _accepted(config, records, not_read)
     if len(accepted) != controls["counts"]["accepted"]:  # the index and its runs disagree
         raise _config(f"{config['system']} on {wl['id']}: the index counts "
                       f"{controls['counts']['accepted']} accepted controls, its runs record "
@@ -335,7 +379,7 @@ def _configuration(
                 "short": facts.gpus.get(str(gpu.get("model")))},
         "card": _card(root, index, config["system"], config["configuration"]),
         "figures": {m: figure(index_path, position, stats, m, records)
-                    for m in (*FIGURES, *PER_BIT, *PER_BIT_SIZE, *MORE)},
+                    for m in (*FIGURES, *PER_BIT, *PER_BIT_SIZE, *MORE, *SERVING)},
         "per_bit_metric": per_bit_metric(stats),
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
         "overhead_metric": overhead_metric(config),
@@ -346,29 +390,56 @@ def _configuration(
         "insufficient_repetitions": config["insufficient_repetitions"],
         "controls": controls,
         "accepted": accepted,
-        "unexpected": _unexpected(controls, records),
+        "unexpected": _unexpected(controls, records, not_read, config),
         "system_controls": _system_controls(root, config, records),
         "verifier": _verifier(reference, config, records),
+        "price": _price(reference, config["profile"], str(index["reference"]["file"])),
+        "steady_boundary": config.get("steady_boundary"),
+        "load_point": config.get("load_point"),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
 
 
+def _price(reference: dict[str, Any], profile: str, path: str) -> dict[str, Any] | None:
+    """RFC-0006 C1, C7: the GPU-hour price that costs a row on `profile` (the profile's `cost`
+    basis in `costs`, else the file's `cost`), with its date, providers and pointer."""
+    basis = inputs.maybe(reference, "profiles", profile, "cost")
+    doc = inputs.maybe(reference, "costs", basis) if basis else reference.get("cost")
+    price = inputs.maybe(doc, "price_per_gpu_hour_usd", "value") if doc else None
+    if price is None or not isinstance(doc, dict):
+        return None
+    pointer = f"/costs/{basis}" if basis else "/cost"
+    return {"usd_per_gpu_hour": price, "date": doc.get("date"),
+            "providers": len(doc.get("providers") or []), "basis": doc.get("basis"),
+            "file": path, "pointer": pointer}  # fmt: skip
+
+
 def _num(x: float) -> str:
-    """A ratio as the pages print it: three significant figures, never rounded in the record."""
-    return f"{x:,.3g}" if x < 1000 else f"{x:,.0f}"
+    """A number as the pages print it: four significant digits, thousands separated (S4); the
+    record keeps the stored value."""
+    if x == 0:
+        return "0"
+    places = 3 - math.floor(math.log10(abs(x)))
+    return f"{x:,.{places}f}" if places >= 0 else f"{round(x, places):,.0f}"
+
+
+def _count(n: object, one: str, many: str | None = None) -> str:
+    """A count with its noun, singular for 1 ("1 batch", "5,016 prompts"); "not recorded"."""
+    if not isinstance(n, int):
+        return "not recorded"
+    return f"{n:,} {one if n == 1 else many or one + 's'}"
 
 
 def _range(q: dict[str, Any]) -> str:
     pairs = q.get("pairs") or {}
+    over = f"{pairs.get('n_system', 0)} \u00d7 {pairs.get('n_serving', 0)} pairs"
     if pairs.get("min") is None:
-        return f"over {pairs.get('n_system', 0)} \u00d7 {pairs.get('n_serving', 0)} pairs"
-    return (f"range {_num(pairs['min'])} to {_num(pairs['max'])} over {pairs['n_system']} \u00d7 "
-            f"{pairs['n_serving']} pairs")  # fmt: skip
+        return f"over {over}"
+    return f"range {_num(pairs['min'])} to {_num(pairs['max'])} over {over}"
 
 
-def _scoped(q: dict[str, Any]) -> str:
-    return f"{q['scope']} scope" if q.get("scope") else "scope not recorded"
-
+# engine names as their projects write them
+ENGINE = {"vllm": "vLLM"}
 
 WARM_NOTE = "per proving session with the prover's start-up, against warm serving (steady)"
 
@@ -408,31 +479,22 @@ def overhead_words(
     c = conditions
     model = c.get("serving_model") or {}
     engine = c["engine"]
+    name = ENGINE.get(str(engine["name"]), str(engine["name"]))
     bits = (wl.get("precision") or {}).get("weight_bits") or {}
-    gpus, n, count = c["gpus"], c["n"], c["prompt_count_run"]
+    gpus, count = c["gpus"], c["prompt_count_run"]
     batch, per = c["batch"], c["batches_per_session"]
-
-    def known(value: object) -> str:
-        return "not recorded" if value is None else str(value)
-
     warm = metric == WARM
-    scoped = f"{_scoped(q)} (start-up excluded on both sides)"
-    if warm:
-        scoped = (f"{q.get('scope') or 'scope not recorded'} scope for the prover, from the start "
-                  "of its prove call to its last proof (its start-up included: it releases no "
-                  "proof before the whole request is proved), prove.steady scope for production "
-                  "serving, from its first batch's last release to its last (its engine already "
-                  "running, as a provider's server is)")  # fmt: skip
+    # the scope, n and range are the plate's own rows (its scope and pairs), so not repeated here
     line = "; ".join([
-        scoped,
-        f"{batch['matched']} requests a batch on both sides, {known(per['system'])} batches for "
-        f"the prover and {known(per['serving_matched'])} for serving",
-        f"prompts: the prover's {count['system']}, replayed"
+        f"{_count(batch['matched'], 'request')} per batch on both sides, "
+        f"{_count(per['system'], 'batch', 'batches')} for the prover and "
+        f"{_count(per['serving_matched'], 'batch', 'batches')} for serving",
+        f"prompts: the prover's {count['system']:,}, replayed"
         + ("" if not count.get("serving_matched") or count["serving_matched"] == count["system"]
-           else f" (serving: the prover's {count['system']} plus "
-                f"{count['serving_matched'] - count['system']} further windows of the same "
+           else f" (serving: the prover's {count['system']:,} plus "
+                f"{count['serving_matched'] - count['system']:,} further windows of the same "
                 "seeded generator)"),
-        f"{engine['name']} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
+        f"{name} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
         f" {engine['settings']}",
         "greedy decoding, " + ("warm serving, the prover's start-up inside its session" if warm
                                else "warm" if c.get("warm", True) else "cold: engine and prover "
@@ -440,25 +502,27 @@ def overhead_words(
         f"{c['runtime']}",
         f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
         f" release; proving {c['proved_precision']}",
-        f"{known(gpus['system'])} \u00d7 {c['gpu_model']} for the prover, "
-        f"{known(gpus['serving'])} for serving",
-        f"n = {n['system']} prover and {n['serving_matched']} serving repetitions, {_range(q)}",
+        f"{gpus['system'] if gpus['system'] is not None else 'not recorded'} \u00d7 "
+        f"{c['gpu_model']} for the prover, "
+        f"{gpus['serving'] if gpus['serving'] is not None else 'not recorded'} for serving",
         "GPU-seconds only: CPU and host memory are not counted; the prover's GPU comes with its "
         "host's CPUs and memory (RFC-0006 C5)",
     ])  # fmt: skip
+    width = f"{bits['bits']:.4g}" if bits.get("bits") is not None else "not recorded"
     note = (
-        f"Proving the {c['proved_precision']} model ({bits.get('bits')} bits per active weight, "
+        f"Proving the {c['proved_precision']} model ({width} bits per active weight, "
         f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
         f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
         f"release, in GPU-seconds per token, "
         f"{WARM_NOTE if warm else 'steady'}, "
-        f"at {batch['matched']} requests a batch."
+        f"at {_count(batch['matched'], 'request')} per batch."
     )
     proved = c["proved_precision"]
     said = (precision_words or {}).get(proved)
     served = f"{model.get('publisher', 'not stated')} {model.get('precision', 'not stated')}"
+    per_batch = f"{_count(batch['matched'], 'request')} per batch"
     brief = (f"{proved}{f' ({said})' if said else ''} proved vs {served} served, "
-             f"{engine['name']} {engine['version']}, {batch['matched']} a batch")  # fmt: skip
+             f"{name} {engine['version']}, {per_batch}")  # fmt: skip
     short = f"{proved} vs {model.get('precision', 'not stated')}"  # a phone's compact line
     out = {"conditions": line, "precision": note, "brief": brief, "short": short}
     # INV-DERIVE-11: no high-load figure pairs the prover's session with serving's steady scope
@@ -467,14 +531,15 @@ def overhead_words(
     if isinstance(high, dict) and high.get("value") is not None:
         extra = ""
         if count.get("serving_high") and count["serving_high"] > count["system"]:
-            extra = (f"; at high load: the prover's {count['system']} prompts plus "
-                     f"{count['serving_high'] - count['system']} further windows of the same "
+            extra = (f"; the prover's {count['system']:,} prompts plus "
+                     f"{count['serving_high'] - count['system']:,} further windows of the same "
                      "seeded generator")  # fmt: skip
-        out["high"] = (f"At {known(batch['high'])} requests a batch: "
+        # at the headline's scope (INV-DERIVE-9), which the plate names
+        on = gpus.get("serving_high")
+        out["high"] = (f"{_count(batch['high'], 'request')} per batch: "
                        f"{_num(float(high['value']))}\u00d7 ({_range(high)}); "
-                       f"{_scoped(high)}; "
-                       f"{known(per['serving_high'])} batches for serving on "
-                       f"{known(gpus.get('serving_high'))} \u00d7 {c['gpu_model']}, "
+                       f"{_count(per['serving_high'], 'batch', 'batches')} for serving on "
+                       f"{on if on is not None else 'not recorded'} \u00d7 {c['gpu_model']}, "
                        f"{engine.get('settings_high') or 'settings not recorded'}"
                        f"{extra}.")  # fmt: skip
     return out
@@ -509,6 +574,12 @@ def site_view(root: Path) -> dict[str, Any]:
     inputs.check_facts(facts, criteria, [*benchmarked, *reference, *listed],
                        sorted({c["workload"]["model"]["digest"] for c in configs}))  # fmt: skip
     check_rows(criteria, release_id, configs)
+    _serving_setups(index, configs)
+    # a missing overhead names its baseline (RFC-0015 SRV-6): serving ran on the GPU model, or not
+    served = {c["gpu"]["model"] for c in configs
+              if c["reference_role"] == "serve" and c["runs"]["completed"]}  # fmt: skip
+    for c in configs:
+        c["serving_on_gpu"] = c["kind"] == "prover" and c["gpu"]["model"] in served
     for c in configs:
         row = criteria.rows.get(c["system"])
         if c["kind"] == "prover" and row and row["source_class"] == "claim_card_at_pin":
@@ -552,6 +623,29 @@ def site_view(root: Path) -> dict[str, Any]:
         "configurations": configs,
         "targets": _targets(root, index),
     }
+
+
+def _serving_setups(index: dict[str, Any], configs: list[dict[str, Any]]) -> None:
+    """Each production-serving configuration an overhead divides by, with what it served, as
+    the prover's `overhead_conditions` record it (RFC-0004 INV-DERIVE-9): the release served,
+    the engine, the GPUs and the batch at its load point."""
+    for raw in index["configurations"]:
+        c = raw.get("overhead_conditions")
+        if not c:
+            continue
+        model = c.get("serving_model") or {}
+        for load, key, gpus in (("matched", "serving_configuration", "serving"),
+                                ("high", "high_configuration", "serving_high")):  # fmt: skip
+            point = c.get(key)
+            if not point:
+                continue
+            position = int(str(point).rsplit("/", 1)[1])
+            configs[position]["serving"] = {
+                "load": load, "batch": c["batch"].get(load),
+                "publisher": model.get("publisher"), "precision": model.get("precision"),
+                "engine": ENGINE.get(str(c["engine"]["name"]), str(c["engine"]["name"])),
+                "version": c["engine"]["version"], "gpus": c["gpus"].get(gpus),
+            }  # fmt: skip
 
 
 def _listed(rec: dict[str, Any], rid: str) -> dict[str, Any]:

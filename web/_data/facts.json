@@ -13,7 +13,7 @@
     "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114": {
       "name": "Llama 4 Maverick",
       "precision_words": {
-        "UD-Q4_K_XL": "4-bit"
+        "UD-Q4_K_XL": "GGUF"
       }
     }
   },

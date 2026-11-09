@@ -140,6 +140,7 @@
       }
     }
   ],
+  "release": "v0.1",
   "rfc": "RFC-0016",
   "rows": [
     {
@@ -487,7 +488,7 @@
             "reason": "Soundness evidence named: human review and negative controls."
           },
           "quotes": [],
-          "reason": "Not stated in the pinned repositories.",
+          "reason": "No statement of a machine-checked proof in the sources read.",
           "sources_read": [
             {
               "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
@@ -627,7 +628,7 @@
             "reason": "Hidden behind a commitment; the proof adds no blinding."
           },
           "quotes": [],
-          "reason": "Not stated in the pinned repositories.",
+          "reason": "No statement about hiding the weights in the sources read.",
           "sources_read": [
             {
               "commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",

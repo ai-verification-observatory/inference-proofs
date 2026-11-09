@@ -4,7 +4,7 @@ The scale is the list of widths in the comment that heads the narrower section o
 ("Breakpoints (px): ..."); web/README.md lists the same widths. A width query opens one block,
 uses only widths of the scale (a min-width is a scale width plus 1 px, for 561 to 960 say), sets
 each selector once (a selector list counts as each of its selectors), and comes after every block
-for wider screens. The hover, reduced-motion, forced-colours and landscape (max-height) queries are
+for wider screens. The hover, reduced-motion, print, forced-colours and landscape (max-height) queries are
 not width blocks: they may repeat and keep their places, but a width inside one is still on the scale.
 
 Run from the repository root: uv run pytest web -q
@@ -17,7 +17,7 @@ WEB = Path(__file__).resolve().parent
 CSS = (WEB / "words.css").read_text()
 SCALE_LINE = re.compile(r"Breakpoints \(px\):\s*((?:\d+\s+)*\d+)")
 WIDTH = re.compile(r"\((min|max)-width:\s*(\d+)px\)")
-OUTSIDE = ("hover", "prefers-reduced-motion", "forced-colors", "max-height")
+OUTSIDE = ("hover", "prefers-reduced-motion", "print", "forced-colors", "max-height")
 
 
 def scale_of(text: str) -> list[int]:

@@ -73,6 +73,11 @@
       "destination": "/fixture-closed",
       "permanent": true,
       "source": "/system.html"
+    },
+    {
+      "destination": "/og/icon-32.png",
+      "permanent": false,
+      "source": "/favicon.ico"
     }
   ],
   "trailingSlash": false

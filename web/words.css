@@ -36,8 +36,12 @@
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --ease: cubic-bezier(.16, .84, .24, 1);
   --max: 1312px;
-  /* the side gutter: 16 px, or more beside a notch (viewport-fit=cover) */
-  --safe: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+  /* the side gutter: 3 % of the width, 16 px at least (533 px and below) or more beside a notch
+     (viewport-fit=cover) */
+  --safe: max(16px, 3vw, env(safe-area-inset-left), env(safe-area-inset-right));
+  /* one tracking for uppercase labels, a wider one for the nav and the kicker */
+  --track: .06em;
+  --track-wide: .08em;
   --gut: max(var(--safe), calc((100vw - var(--max)) / 2));
   color-scheme: dark;
 }
@@ -45,6 +49,11 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--ground); color: var(--paper); font: 400 14px/1.45 var(--mono); overflow-x: hidden; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+/* an outside link's arrow: an inline block, so the link's underline stops before it */
+.xa { display: inline-block; text-decoration: none; }
+/* the first stop for a keyboard: to the content, past the header */
+.skip { position: absolute; left: -9999px; top: 8px; z-index: 30; padding: 8px 12px; background: var(--paper); color: var(--ground); font: 600 13px/1.4 var(--mono); text-decoration: none; }
+.skip:focus { left: var(--gut); }
 a:hover { text-decoration-thickness: 2px; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
 code { font: inherit; font-weight: 600; }
@@ -62,7 +71,7 @@ p { margin: 0; }
 .sw.unstated { background: var(--ghost); box-shadow: inset 0 0 0 1.25px var(--unstated); }
 
 /* ---------------------------------------------------------------- top bar */
-.top { display: flex; align-items: center; gap: 32px; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+.top { display: flex; align-items: center; gap: 32px; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; }
 /* the logo: the site's mark, the six-slice pie in violet, and its name in the display face */
 .brand .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; text-transform: none; letter-spacing: 0; color: var(--paper); }
 .brand .logo .lm { display: block; flex: none; fill: var(--violet); }
@@ -90,45 +99,47 @@ p { margin: 0; }
 html:not(.js) .search { display: none; }
 .sopen { display: none; }
 .sclose { display: none; }
-.sfield { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 12px; box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); transition: box-shadow .15s, color .15s; }
-.sfield:hover { box-shadow: inset 0 0 0 1px var(--rule); }
+/* its edge in rule ink (3.67:1 on the ground, WCAG 1.4.11), muted under the pointer (6.76:1) */
+.sfield { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 12px; box-shadow: inset 0 0 0 1px var(--rule); color: var(--muted); transition: box-shadow .15s, color .15s; }
+.sfield:hover { box-shadow: inset 0 0 0 1px var(--muted); }
 .sfield:focus-within { box-shadow: inset 0 0 0 2px var(--paper); color: var(--paper); }
 .si { display: block; flex: none; }
 #q { flex: 1; min-width: 0; height: 100%; padding: 0; border: 0; background: none; color: var(--paper); font: 500 13px/1 var(--mono); letter-spacing: .04em; outline: none; appearance: none; }
-#q::placeholder { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+#q::placeholder { color: var(--muted); text-transform: uppercase; letter-spacing: var(--track-wide); }
 #q::-webkit-search-cancel-button { appearance: none; }
-.skey { font: 500 11px/1 var(--mono); color: var(--muted); padding: 2px 5px; box-shadow: inset 0 0 0 1px var(--line); }
+.skey { font: 500 11px/1 var(--mono); color: var(--muted); padding: 2px 5px; box-shadow: inset 0 0 0 1px var(--rule); }
 .sfield:focus-within .skey { visibility: hidden; }
 .slist { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 20; max-height: min(70vh, 560px); overflow: auto; margin: 0; padding: 6px 0; list-style: none; background: var(--ground); box-shadow: inset 0 0 0 1px var(--rule); }
-.so { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; grid-template-areas: "p n b" "p m b"; column-gap: 12px; align-items: center; padding: 8px 12px; cursor: pointer; }
+.so { display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "p n" "p m"; column-gap: 12px; align-items: center; padding: 8px 12px; cursor: pointer; }
 .sp { grid-area: p; }
 .sn { grid-area: n; }
-.sbadge { grid-area: b; }
 .sm { grid-area: m; }
+/* the results by group, each under a quiet heading */
+.sg { list-style: none; }
+.sg + .sg { margin-top: 6px; }
+.sg > ul { list-style: none; margin: 0; padding: 0; }
+.sgh { display: block; padding: 8px 12px 4px; font: 500 11px/1.2 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
 .so.on, .so:hover { background: var(--line); }
 /* the option the arrows chose: a paper edge as well, so it reads at 3:1 and more */
 .so.on { box-shadow: inset 3px 0 0 var(--paper); }
 .sp .pie-svg, .sp .kmini { display: block; width: 28px; height: 28px; overflow: visible; }
+.sp .lm { fill: var(--violet); }
 .sp .kmini .off { fill: var(--paper); opacity: .3; }
 .sp .kmini .on { fill: var(--paper); }
 .sn { display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
-.so .sm { display: block; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* what kind of entry it is; "Not benchmarked" in paper, so it reads at once */
-.sbadge { font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 4px 6px; box-shadow: inset 0 0 0 1px var(--line); white-space: nowrap; }
-.k-unbenchmarked .sbadge { color: var(--paper); box-shadow: inset 0 0 0 1px var(--rule); }
+/* the line of context, two lines at most at every width */
+.so .sm { display: -webkit-box; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .snone { padding: 10px 12px; font: 400 12px/1.4 var(--mono); color: var(--muted); }
 /* a not-benchmarked system reached from search: its card in the overview, marked */
 .nb { position: relative; scroll-margin-top: 16px; }
 .nb:target:before { content: ""; position: absolute; left: -10px; top: 0; bottom: 0; width: 3px; background: var(--violet); }
-/* landed on from search, the card says what it is, whatever the scroll left above it */
-.nb:target .nbn:after { content: "Not benchmarked"; display: inline-block; margin-left: 10px; vertical-align: 3px; font: 600 10px/1 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--paper); padding: 4px 6px; box-shadow: inset 0 0 0 1px var(--rule); }
 
 /* ---------------------------------------------------------------- masthead: a plain legend, black on violet
    Six small pies, one per property: its own wedge filled in ground ink, the others in line, its name and question beside it.
    Nothing here reacts to the pointer. */
 .mast { background: var(--violet); color: var(--ground); }
 .mast-in { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; padding: 20px 0; }
-.kick { font: 600 12px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; margin: 0; }
+.kick { font: 600 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; margin: 0; }
 .map { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; }
 .q { display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 14px; align-items: start; }
 .kmini { display: block; grid-row: span 2; width: 48px; height: 48px; overflow: visible; }
@@ -151,7 +162,7 @@ html:not(.js) .search { display: none; }
 /* not benchmarked yet: every system at once, small, one group per family in one grid */
 .nbgrid { margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); column-gap: 24px; }
 .nbl { display: contents; list-style: none; }
-.nbh { grid-column: 1 / -1; margin: 26px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--rule); font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.nbh { grid-column: 1 / -1; margin: 26px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--rule); font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
 .nbh:first-child { margin-top: 6px; }
 .nb { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
 .nbpie, .nbpie .pie-svg { display: block; width: 56px; height: 56px; }
@@ -175,7 +186,7 @@ html:not(.js) .search { display: none; }
 .heads, .r-main { display: grid; grid-template-columns: 400px repeat(4, minmax(0, 1fr)); column-gap: 24px; }
 .sysc { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 18px; align-items: start; min-width: 0; }
 .sysc .pie { grid-row: span 2; }
-.heads { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 14px 0 0; align-items: end; }
+.heads { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); padding: 14px 0 0; align-items: end; }
 /* the heads' second line: each figure's head under the line its group shares (the overhead's
    baseline; the per-Gbit basis of the other three, ruled across them) */
 .heads .hc { grid-row: 2; min-width: 0; }
@@ -185,7 +196,7 @@ html:not(.js) .search { display: none; }
 /* sortable heads: real buttons, each with its glyph; the pressed one in paper with a rule under it */
 .hsys { padding-left: 114px; }
 /* the glyph follows the last word after a no-break space, so a head that wraps keeps it beside its word */
-.sb { display: inline-block; padding: 6px 0 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s; }
+.sb { display: inline-block; padding: 6px 0 9px; color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s; }
 .sb .g { font: 500 13px/1 var(--mono); letter-spacing: 0; display: inline; }
 .sb .gw { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .sb:hover { color: var(--paper); }
@@ -217,7 +228,7 @@ html:not(.js) .search { display: none; }
 .sysc { container-type: inline-size; }
 .tip { display: none; position: absolute; left: calc(100% + 14px); top: 50%; width: max-content; max-width: calc(100cqw - 100% - 14px); transform: translateY(-50%); z-index: 2; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
 .pie[data-hot] .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
-.tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; }
+.tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: var(--track); }
 .sysc:has(.pie[data-hot]) .who { visibility: hidden; }
 
 .who { padding-top: 10px; min-width: 0; }
@@ -236,7 +247,7 @@ html:not(.js) .search { display: none; }
 .vc { min-width: 0; }
 .val { display: block; align-self: start; min-width: 0; padding-top: 14px; position: relative; text-decoration: none; }
 /* the column's name: read by screen readers everywhere, shown where the rows stack (below 920 px) */
-.val .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.val .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 8px; }
 .vm { display: block; padding-bottom: 4px; position: relative; }
 .vm:after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--paper); transform: scaleX(0); transform-origin: left; transition: transform .28s var(--ease); }
 .val:focus-visible .vm:after { transform: scaleX(1); }
@@ -254,10 +265,11 @@ html:not(.js) .search { display: none; }
 .sub { display: block; font: 400 12px/1.5 var(--mono); color: var(--muted); margin-top: 6px; }
 .qs { display: inline-block; font: 400 12px/1.45 var(--mono); color: var(--muted); margin-top: 8px; }
 .plates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
-.plate { min-width: 0; }
-.plate .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
-/* a per-Gbit plate's label runs to two lines */
-.pgb .plate .lbl { line-height: 1.3; }
+.plate { min-width: 0; position: relative; }
+.plate .lbl { font: 500 12px/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 10px; }
+.plate .lbl .lid { text-transform: none; letter-spacing: 0; }
+/* the plate a figure link names: the violet edge a landed card takes */
+.plate:target:before { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; width: 3px; background: var(--violet); }
 .plate dl { margin: 0; font: 400 12px/1.45 var(--mono); }
 .plate dl div { padding: 5px 0; border-top: 1px solid var(--line); }
 .plate dt { color: var(--muted); }
@@ -273,6 +285,21 @@ html:not(.js) .search { display: none; }
 /* a link's last part held to its arrow still wraps inside itself when it must */
 .nw > .seg { white-space: normal; }
 .tlab { margin: 14px 0 0; font: 400 12px/1.45 var(--mono); max-width: 80ch; }
+/* what qualifies a setup's figures, full width under their plates */
+.tlab.notes { max-width: 110ch; margin: 0 0 28px; }
+.notes code { font-weight: 500; }
+.tlab > div.ul { grid-template-columns: minmax(0, 1fr); }
+.tlab > div.ul dd { font-weight: 500; }
+.trials { list-style: none; margin: 0; padding: 0; }
+.trials li + li { margin-top: 4px; }
+/* the runs a setup's figures leave out: one line each, a failure's last line one press away */
+.runs.lo { list-style: none; margin: 10px 0 0; padding: 0; font: 400 12px/1.6 var(--mono); max-width: 80ch; }
+.runs.lo li + li { margin-top: 6px; }
+.ll summary { width: max-content; min-height: 24px; padding-block: 3px; cursor: pointer; color: var(--muted); }
+.ll summary:hover { color: var(--paper); }
+.ll p { color: var(--muted); overflow-wrap: anywhere; margin: 4px 0 0; }
+.sect.sm.setup { margin-top: 40px; }
+.blk > .sect + .sect.sm.setup, .blk > .sec-h + .sect.sm.setup { margin-top: 24px; }
 .tlab > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
 .tlab dt { color: var(--muted); }
 .tlab dd { margin: 0; overflow-wrap: anywhere; }
@@ -293,7 +320,7 @@ html:not(.js) .search { display: none; }
 .sect.sm { font-size: 22px; margin-top: 32px; }
 .blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
 /* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
-.over { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 56px; align-items: center; padding-top: 32px; }
+.over { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; padding-top: 32px; }
 /* how we read it follows the properties in reading order (RFC-0009 S1 item 1): under the pie and the facts, full width,
    its rule like the card in full's just below it */
 .over > .howread { grid-column: 1 / -1; grid-row: 2; }
@@ -311,17 +338,24 @@ html:not(.js) .search { display: none; }
 .rp[data-n="4"] { grid-area: p4; } .rp[data-n="5"] { grid-area: p5; } .rp[data-n="6"] { grid-area: p6; }
 .rp.l { text-align: right; }
 .rp[data-n="1"], .rp[data-n="6"] { align-self: end; } .rp[data-n="3"], .rp[data-n="4"] { align-self: start; }
-.rn { font: 600 12px/1.2 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--violet); }
+.rn { font: 600 12px/1.2 var(--mono); letter-spacing: var(--track); text-transform: uppercase; color: var(--violet); }
 .rn a { color: inherit; text-decoration: none; }
 .rn a:hover, .rn a:focus-visible { text-decoration: underline; }
 .rs { font: 750 22px/1.1 var(--disp); font-stretch: 84%; margin-top: 4px; }
+.rp .rs .sw { display: none; }
+.rs a, .rr a.psrc { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: var(--line); }
+.rs a:hover, .rr a.psrc:hover { text-decoration-color: currentColor; }
+/* a property's link under keyboard focus lifts its slice, as pointing does */
+.rose:has(.rp[data-n="1"]:focus-within) .s1, .rose:has(.rp[data-n="2"]:focus-within) .s2, .rose:has(.rp[data-n="3"]:focus-within) .s3,
+.rose:has(.rp[data-n="4"]:focus-within) .s4, .rose:has(.rp[data-n="5"]:focus-within) .s5, .rose:has(.rp[data-n="6"]:focus-within) .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
+.rp:focus-within .rn { color: var(--paper); }
 .rr { font: 400 12px/1.42 var(--mono); color: var(--muted); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
 .rp.l .rr { margin-left: auto; }
 /* after a property's reason, a quiet link to its entry in how we read it; under it, only for an overridden
    cell, its stated state and what contradicts it */
-.psrc { color: var(--muted); font-size: 11px; white-space: nowrap; }
-.psrc:hover { color: var(--paper); }
-.ev { font: 400 11.5px/1.45 var(--mono); color: var(--muted); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
+.ev .psrc { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.ev .psrc:hover { color: var(--paper); }
+.ev { font: 400 11px/1.45 var(--mono); color: var(--muted); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
 .rp.l .ev { margin-left: auto; }
 .eq { margin: 0; }
 .eq p { color: var(--muted); white-space: pre-line; }
@@ -335,7 +369,7 @@ html:not(.js) .search { display: none; }
    focus words.js moves there draws nothing of its own, so a click inside an entry marks nothing */
 .hw > div:focus { outline: none; }
 .hw > div:target > dt { color: var(--paper); text-decoration: underline 2px; text-underline-offset: 4px; }
-.er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 10ch minmax(0, 1fr); align-items: baseline; }
+.er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 14ch minmax(0, 1fr); align-items: baseline; }
 /* a read line starts with a link padded 4 px: its label sits on the link's first line */
 .er { align-items: start; }
 .er > .ek { padding-top: 4px; line-height: 16px; }
@@ -369,18 +403,34 @@ html:not(.js) .search { display: none; }
 .cn dd { margin: 0; }
 .cl { list-style: none; margin: 0; padding: 0; }
 .cl > li + li { margin-top: 6px; }
-.gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 56px; align-items: start; margin-top: 32px; }
+/* the card's quality gap and residual with the agreement rate: a rule of their own, so they never read as the
+   folded card's body */
+.gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line); }
+.facts.gapone { margin-top: 32px; max-width: 880px; }
 .gapc { min-width: 0; }
-.gapc .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
-.gapf dd { max-width: 100ch; color: var(--muted); font-size: 11.5px; }
+.gapc .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 10px; }
+.gapf dd { max-width: 100ch; color: var(--muted); font-size: 11px; }
 .agree { display: grid; row-gap: 24px; }
 /* runs left out of the figures, and the release's runs: each id over its status */
 .runs .rid, .runs .rw { display: block; }
 .runs .rw { color: var(--muted); }
+/* the release's runs: an inline list of dates and ordinals, a status only where one is not completed */
+.runs.rl { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 20px; font: 400 12px/1.6 var(--mono); max-width: 110ch; }
+.runs.rl .rw { display: inline; color: var(--paper); }
 .rgh { font: 500 12px/1.4 var(--mono); margin-top: 26px; }
 .rgh:first-of-type { margin-top: 16px; }
 .rgh + .tlab { margin-top: 6px; }
 .relpage .blk > .sect.sm { margin-top: 0; }
+/* the reference page: an all-one glyph once, small, beside its line; production serving's measurements */
+.refone { display: flex; align-items: center; gap: 24px; margin-top: 24px; }
+.refpie, .refpie .pie-svg { display: block; flex: none; width: 120px; height: 120px; }
+.refpie > .w72 { display: none; }
+.refline { font: 750 22px/1.25 var(--disp); font-stretch: 84%; max-width: 40ch; text-wrap: pretty; }
+.refline a { text-decoration-color: var(--rule); }
+.stab { margin-top: 40px; }
+.stab caption { text-align: left; margin: 0 0 14px; }
+.stab th[scope="row"] { font-weight: 500; max-width: 46ch; }
+.stab td .sub { margin-top: 2px; }
 .unexp { margin-top: 18px; }
 .facts.relf { max-width: 880px; margin-top: 32px; }
 /* each property's own key glyph, its slot in its state's ink: shown only where the properties stack */
@@ -417,10 +467,14 @@ html:not(.js) .search { display: none; }
 .plates-sys .pv { margin-bottom: 12px; min-height: 48px; }
 .mtab { width: 100%; border-collapse: collapse; margin-top: 32px; font: 400 12px/1.45 var(--mono); }
 .mtab th, .mtab td { text-align: left; vertical-align: top; padding: 8px 16px 8px 0; border-top: 1px solid var(--line); }
-.mtab thead th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .06em; }
+.mtab thead th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: var(--track); }
+.mtab tbody th { font-weight: 600; }
 .mtab .fig { --nfs: 22px; }
 .mtab .na { padding-top: 0; }
-.mtab .ml { color: var(--muted); }
+.mtab .ml { color: var(--muted); max-width: 90ch; }
+/* a value and its unit on one line, the column as narrow as its widest value */
+.mtab .mv { white-space: nowrap; width: 1%; }
+.mtab .mv .fig { flex-wrap: nowrap; }
 .tamper { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 16px; text-wrap: pretty; }
 /* reference page */
 .reflead { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 26px; text-wrap: pretty; }
@@ -448,34 +502,23 @@ section.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7f
 .crit .kmini.w32 { display: none; }
 .cs dt { white-space: nowrap; }
 .cidx { display: none; }
+/* the 404: the site's pages, the systems with their glyphs */
+.lost { list-style: none; margin: 32px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 32px; font: 750 22px/1 var(--disp); font-stretch: 84%; }
+.lost a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; text-decoration: none; }
+.lost a:hover span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.lost .pie-svg { width: 28px; height: 28px; flex: none; }
+/* the Not stated rule every property shares, once under the title */
+.cshared { font: 400 13px/1.5 var(--mono); max-width: 80ch; margin-top: 32px; text-wrap: pretty; }
+.cshared b { font: 750 18px/1.2 var(--disp); font-stretch: 84%; margin-right: .5em; }
 
 /* ================================================================ motion (only with html.anim): calm, and all at once */
-@keyframes rise { from { transform: translateY(105%); } }
-@keyframes riseS { from { transform: translateY(.5em); opacity: 0; } }
 @keyframes fade { from { opacity: 0; } }
-@keyframes grow { from { transform: scale(.5); opacity: 0; } }
 
-.anim .kick { animation: fade .5s ease backwards .1s; }
-.anim .map { animation: fade .5s ease backwards .15s; }
-.anim .sec-h, .anim .lead, .anim .heads, .anim .reflead { animation: fade .5s ease backwards .4s; }
-.anim .row { --d: 400ms; }
-/* each pie's six slices grow together, from its centre */
-.anim .row .pie .sl { transform-box: view-box; transform-origin: 0 0; animation: grow .5s var(--ease) backwards; animation-delay: var(--d); }
-.anim .row .name { animation: riseS .6s var(--ease) backwards; animation-delay: var(--d); }
-.anim .row .sub { animation: fade .5s ease backwards; animation-delay: calc(var(--d) + 200ms); }
-.anim .row .fig, .anim .row .na { animation: riseS .55s var(--ease) backwards; animation-delay: calc(var(--d) + 120ms); }
+.anim main { animation: fade .2s ease backwards; }
 /* without script, the heads cannot sort: they do not look as if they could */
 html:not(.js) .sb { cursor: default; pointer-events: none; }
 html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 .anim body.sorted .row * { animation: none !important; }
-
-/* system page */
-.anim .sysname .lt { animation: rise .7s var(--ease) backwards .08s; }
-.anim .rpie .t { animation: fade .5s ease backwards .35s; }
-.anim .rpie .sl { transform-box: view-box; transform-origin: 0 0; animation: grow .6s var(--ease) backwards .25s; }
-.anim .rp, .anim .facts { animation: fade .5s ease backwards .4s; }
-/* figures arrive like the home rows', after the type has loaded, so nothing visible moves */
-.anim .plates-sys .fig, .anim .plates-sys .na { animation: riseS .55s var(--ease) backwards .45s; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { animation: none !important; transition: none !important; }
@@ -486,23 +529,24 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
    it: a rule for narrower screens comes after the rules for wider ones, so at the same
    specificity the narrower overrides the wider. One block also takes a min-width, one px above a width
    of the scale, and sits last, just above where the block of that width would be (350 to 560, above 349).
-   The hover, reduced-motion, forced-colours and landscape (max-height) rules are not width blocks
+   The hover, reduced-motion, print, forced-colours and landscape (max-height) rules are not width blocks
    and keep their places; a width inside one is still a width of the scale.
    web/test_breakpoints.py checks this. */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
   /* how we read it, closed or open, opens on its rule; the facts' first rule closes it */
-  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; }
-  .over > .facts { grid-column: auto; grid-row: auto; }
+  /* the glyph, its facts, then both folds together, as on wide screens */
+  .over > .facts { grid-column: auto; grid-row: 2; }
+  .over > .howread { grid-column: auto; grid-row: 3; margin-top: 0; }
   .cardfull { margin-top: 44px; }
-  .rose { max-width: 980px; }
+  .rose { max-width: 980px; margin-inline: auto; }
   .facts { columns: 2; column-gap: 32px; }
   .facts div { break-inside: avoid; }
   .facts div:last-child { border-bottom: 0; }
   .facts.gapf, .facts.relf { columns: auto; }
   .facts.gapf > div:last-child, .facts.relf > div:last-child { border-bottom: 1px solid var(--line); }
   .gapblk { grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
-  .agree { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
+  .agree { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
 }
 @media (max-width: 1180px) {
   .heads, .r-main { grid-template-columns: 320px repeat(4, minmax(0, 1fr)); column-gap: 18px; }
@@ -556,7 +600,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* criteria: the states under the name */
 @media (max-width: 1000px) {
   section.crit { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
-  .cnote { grid-column: 1; }
+  .cnote { grid-column: 1; max-width: 80ch; }
+  .cs { max-width: 80ch; }
 }
 @media (max-width: 960px) {
   /* the legend in two columns */
@@ -565,7 +610,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
      GitHub; the button opens the field over the line */
   .tl { display: contents; }
   .top { display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }
-  .top .repo { grid-row: 1; grid-column: 4; margin-left: 0; padding-block: 15px; margin-block: -15px; }
+  .top .repo { grid-row: 1; grid-column: 4; margin-left: 0; display: inline-flex; align-items: center; height: 44px; padding-block: 0; margin-block: -15px; }
   .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; flex-wrap: nowrap; gap: 20px; }
   /* search: a button by GitHub; pressed, the field covers the line and its results drop below */
   .search { grid-row: 1; grid-column: 3; position: static; margin-left: 0; }
@@ -584,11 +629,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .top.s-on:after { content: ""; position: fixed; inset: 0; z-index: 19; background: var(--ground); touch-action: none; }
   html:has(.top.s-on) { overflow: hidden; }
   .top.s-on .slist { position: fixed; }
-  /* the 404 page: the field shown open under the pages, as on a wide screen (no sheet, no keyboard on load) */
-  body.notfound .sopen { display: none; }
-  body.notfound .search { grid-row: 2; grid-column: 1 / -1; position: relative; width: 100%; justify-self: stretch; }
-  body.notfound .sfield { display: flex; position: static; height: 44px; }
-  body.notfound .slist { left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 560px); }
 }
 @media (max-width: 920px) {
   .plates, .plates-sys { grid-template-columns: 1fr 1fr; column-gap: 14px; }
@@ -624,14 +664,14 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rpie .tx { display: inline; }
   .rpie .pie-svg { width: min(340px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
   .rprops { display: block; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--rule); }
-  .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 3px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
+  .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 10px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
   .rp + .rp { border-top: 1px solid var(--line); }
-  .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: .05em; color: var(--paper); }
+  .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: var(--track); color: var(--paper); }
   .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
   .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
-  /* a source link with no reason before it sits under the state, clear of the name's link */
-  .rp .rr.rsrc { grid-column: 2; }
   .rp .ev, .rp.l .ev { grid-column: 1 / -1; max-width: none; margin: 2px 0 0; font-size: 11px; }
+  /* the rows sit away from the glyph here: each state keeps its square */
+  .rp .rs .sw { display: inline-block; }
   .cf > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
   .cn > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .cn > div + div { margin-top: 4px; }
@@ -651,19 +691,20 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .cidx .kmini .off { fill: var(--paper); opacity: .3; }
   .cidx + section.crit { margin-top: 24px; }
   .mtab thead { display: none; }
+  /* production serving on a phone: the setup over its three figures, each labelled */
+  .mtab.stab tr { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 12px; row-gap: 8px; }
+  .mtab.stab th[scope="row"] { grid-column: 1 / -1; }
+  .stab td:before { content: attr(data-h); display: block; font: 500 11px/1.3 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 4px; }
+  .refpie, .refpie .pie-svg { width: 72px; height: 72px; }
+  .refpie > .w120 { display: none; }
+  .refpie > .w72 { display: block; }
+  .refline { font-size: 18px; }
   .mtab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; border-top: 1px solid var(--line); padding: 8px 0; }
   .mtab th { border: 0; padding: 0; text-wrap: balance; }
   .mtab td { border: 0; padding: 0; }
   .mtab .ml { grid-column: 1 / -1; margin-top: 4px; }
-  /* inline links: thumb-sized hit areas, the text where it was */
-  .rn a { display: inline-block; padding-block: 8px; margin-block: -8px; }
-  .rule, .psrc { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
   .ctl .qs { padding-block: 4px; margin-block: -4px; }
   .facts .links { gap: 16px; }
-  .facts .links a, .facts dd > a { display: inline-block; padding-block: 4px; margin-block: -4px; }
-  .foot { line-height: 2.3; }
-  .foot a { padding-block: 5px; }
-  .plate dd a:has(.seg) { padding-block: 5px; }
   .reffigs { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--line); }
   .reffigs .sect.sm { margin-top: 0; }
   .refsys { margin-top: 40px; }
@@ -706,7 +747,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
      aloud), the pages taller to press with the text where it was */
   .top { column-gap: 12px; padding-block: 14px; }
   .top nav { margin-left: 4px; gap: 16px; }
-  .top nav a { padding-block: 10px; margin-block: -10px; letter-spacing: .05em; }
+  .top nav a { padding-block: 10px; margin-block: -10px; }
   .brand .logo span, .top .repo span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .brand .logo { padding: 11px; margin: -11px; }
   .top .repo { padding-inline: 5px; margin-inline: -5px; }
@@ -726,10 +767,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   /* criteria: square and word on one line, the definition under them at full width */
   .cs div { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 0; }
   .cs div:first-child { padding-top: 0; }
-  /* a search result: the badge on the name's line, the line of context under both at full width */
-  .so { grid-template-areas: "p n b" "p m m"; align-items: start; column-gap: 10px; padding-inline: 10px; }
-  .sbadge { align-self: center; }
-  .so .sm { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  /* a search result: the line of context under the name */
+  .so { align-items: start; column-gap: 10px; padding-inline: 10px; }
   .facts div { grid-template-columns: 1fr; gap: 2px; }
   /* one plate per line, so a source path keeps its parts whole */
   .plates, .plates-sys { grid-template-columns: 1fr; }
@@ -758,6 +797,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 }
 /* narrow phones: a smaller logo and closer items, so the first line fits */
 @media (max-width: 400px) {
+  /* how we read it: each label over its line, so a quote keeps the width */
+  .er, .ec, .eqs { grid-template-columns: minmax(0, 1fr); }
   /* the overhead's column a little wider: its ratio is the longest figure */
   .heads, .vals { column-gap: 10px; grid-template-columns: minmax(0, 1.12fr) repeat(3, minmax(0, 1fr)); }
   .heads .sb { letter-spacing: .03em; }
@@ -772,7 +813,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* phones from 350 px: a label beside its value (below, the source parts no longer fit beside one) */
 @media (min-width: 350px) and (max-width: 560px) {
   .plate dl div { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 10px; }
-  .facts div { grid-template-columns: 64px minmax(0, 1fr); gap: 10px; }
+  .facts div { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
 }
 /* phones held sideways: the legend in three short columns, so the first table shows on landing */
 @media (max-height: 500px) and (orientation: landscape) {
@@ -800,8 +841,43 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sec { padding-top: 16px; }
   .sect { font-size: 34px; }
 }
-/* touch: a property's name shows it is a link */
-@media (hover: none) { .rn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; } }
+/* phones held sideways, from 561 px: the wide rose, each property beside its slice (no names in the triangles) */
+@media (max-height: 500px) and (orientation: landscape) and (min-width: 561px) and (max-width: 760px) {
+  .rose { display: grid; grid-template-columns: minmax(0, 1fr) 160px minmax(0, 1fr); column-gap: 18px; row-gap: 8px; }
+  .rpie { display: flex; }
+  .rpie .tx { display: none; }
+  .rpie .pie-svg { width: 160px; height: 160px; margin: 0; }
+  .rprops { display: contents; }
+  .rp, .rp.l { display: block; padding: 0; }
+  .rp.l { text-align: right; }
+  .rp + .rp { border-top: 0; }
+  .rp .rn { font: 600 12px/1.2 var(--mono); letter-spacing: var(--track); color: var(--violet); }
+  .rp .rs { margin-top: 4px; font-size: 18px; }
+  .rp .rs .sw { display: none; }
+  .rp .rr, .rp.l .rr { max-width: 40ch; font-size: 12px; }
+  .rp.l .rr { margin-left: auto; }
+}
+/* touch: a property's name shows it is a link; inline links get thumb-sized hit areas (24 px and more),
+   the text where it was, at every width a touch screen has */
+@media (hover: none) {
+  .rn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; display: inline-block; padding-block: 5px; margin-block: -5px; }
+  .rule, .ev .psrc { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
+  .rr a.psrc, .rs a.psrc { padding-block: 5px; }
+  .refline a { padding-block: 2px; }
+  .facts .links a, .facts dd > a { display: inline-block; padding-block: 4px; margin-block: -4px; }
+  .foot a { display: inline-block; padding-block: 5px; margin-block: -5px; }
+  .plate dd a:has(.seg) { padding-block: 5px; }
+  .tlab dd a, .runs a, .unexp a, a.run, .mtab .ml a { display: inline-block; padding-block: 5px; margin-block: -5px; }
+  .nbn a { display: inline-block; padding-block: 3px; margin-block: -3px; }
+  .ll summary { padding-block: 4px; }
+}
+/* print: dark ink on white, the states keep their inks, no search; words.js opens every fold first */
+@media print {
+  :root { --ground: #fff; --paper: #111; --muted: #555; --rule: #999; --line: #ccc; }
+  .search, .repo, .skey, .sopen, .skip { display: none; }
+  .mast { background: none; }
+  .sw, .sl { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
 /* forced colours (Windows high contrast): the state squares keep their inks so they still match the
    slices, the Not stated ghost and its outline included */
 @media (forced-colors: active) {
@@ -812,6 +888,5 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .sfield:focus-within { outline: 2px solid Highlight; outline-offset: 1px; }
   .slist { border: 1px solid CanvasText; }
   .so.on { outline: 2px solid Highlight; outline-offset: -2px; }
-  .sbadge, .nb:target .nbn:after { border: 1px solid CanvasText; }
   .nb:target:before { background: Highlight; }
 }

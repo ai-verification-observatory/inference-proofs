@@ -145,7 +145,7 @@ const sortBy = async (p, col, dir) => {
   // the labels ride in each figure's title: sample size and range for the three with a spread, the
   // overhead's pairs; under each figure at most its scope in a few words
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => a.querySelector('.fig'))
-    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+\sto\s/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 4 })));
+    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+(\sto\s|\sfor every run)/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 4 })));
   ok(spreads.length === 8 && spreads.every((x) => x.t && x.sub), 'each figure carries its labels in its title, at most a scope word under it', spreads);
   // no states key under the legend: the slice inks and their tips name the states
   ok(await p.evaluate(() => !document.querySelector('.mast .keyline, .mast .chip, .mast a')), 'the legend holds no states key and no link');
@@ -220,7 +220,7 @@ const sortBy = async (p, col, dir) => {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  const opts = () => p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ name: o.querySelector('.sn').textContent, kind: o.className.replace(/.*k-/, ''), badge: (o.querySelector('.sbadge')?.textContent || '').trim() })));
+  const opts = () => p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ name: o.querySelector('.sn').textContent, kind: o.className.replace(/.*k-/, ''), group: document.getElementById(o.closest('[role=group]')?.getAttribute('aria-labelledby') || '')?.textContent || '', url: '' })));
   const type = async (q) => { await p.fill('#q', q); await p.waitForTimeout(250); };
   await p.keyboard.press('/'); await p.waitForTimeout(400);
   ok(await p.evaluate(() => document.activeElement.id === 'q' && !document.getElementById('q-list').hidden), '"/" focuses search and opens the list');
@@ -233,12 +233,13 @@ const sortBy = async (p, col, dir) => {
   await type('zk');
   const zk = await opts();
   const firstNb = zk.findIndex((o) => o.kind === 'unbenchmarked');
-  ok(firstNb > 0 && zk.slice(firstNb).every((o) => o.kind === 'unbenchmarked' && o.badge === 'Not benchmarked'), 'not-benchmarked systems come after the others, each marked', zk.map((o) => `${o.name}:${o.kind}`));
+  ok(firstNb > 0 && zk.slice(firstNb).every((o) => o.kind === 'unbenchmarked' && o.group === 'Not benchmarked'), 'not-benchmarked systems come after the others, under their group heading, no badge', zk.map((o) => `${o.name}:${o.group}`));
+  ok(await p.evaluate(() => !document.querySelector('.sbadge') && !/more: type more letters/.test(document.getElementById('q-list').textContent)), 'no badge and no instruction in the results, every match listed');
   await type('atestable');
   ok((await opts())[0]?.name === 'Attestable prover', 'one typo still finds the system');
   await p.keyboard.press('Enter'); await p.waitForTimeout(500);
-  const tgt = await p.evaluate(() => ({ url: location.pathname + location.hash, bar: getComputedStyle(document.querySelector('#nb-attestable'), '::before').content, label: getComputedStyle(document.querySelector('#nb-attestable .nbn'), '::after').content }));
-  ok(tgt.url === '/#nb-attestable' && tgt.bar !== 'none' && /Not benchmarked/.test(tgt.label), 'a not-benchmarked result leads to its card in the overview, marked and labelled', tgt);
+  const tgt = await p.evaluate(() => ({ url: location.pathname + location.hash, bar: getComputedStyle(document.querySelector('#nb-attestable'), '::before').content, label: getComputedStyle(document.querySelector('#nb-attestable .nbn'), '::after').content, field: document.getElementById('q').value }));
+  ok(tgt.url === '/#nb-attestable' && tgt.bar !== 'none' && tgt.label === 'none' && tgt.field === '', 'a not-benchmarked result leads to its card in the overview, marked by its edge only, the field cleared', tgt);
   await type('qqqqzz');
   ok(await p.evaluate(() => document.querySelector('#q-list .snone')?.textContent === 'No match'), 'no match says so');
   for (const [q, want] of [['atest', 'Attestable prover'], ['flsh', 'FlashProve'], ['flahsprove', 'FlashProve'], ['sahs', 'SASH'], ['llama4', 'FlashProve']]) {
@@ -246,7 +247,13 @@ const sortBy = async (p, col, dir) => {
     ok((await opts())[0]?.name === want, `"${q}" finds ${want} first`, (await opts()).map((o) => o.name).slice(0, 3));
   }
   await type('sash');
-  ok((await opts()).length === 1, 'an exact word brings no typo noise ("sash" finds SASH only)', (await opts()).map((o) => o.name));
+  const sash = await opts();
+  ok(sash[0]?.name === 'SASH' && !sash.some((o) => o.kind === 'unbenchmarked'), 'an exact word brings no typo noise ("sash" finds SASH first, and what ran its workload)', sash.map((o) => o.name));
+  for (const [q, want] of [['criteria', '/criteria'], ['release', '/release'], ['h200', '/flashprove'], ['vllm', '/reference#ref-serve']]) {
+    await type(q);
+    const first = await p.evaluate(() => document.querySelector('#q-list .so')?.querySelector('.sn')?.textContent);
+    ok(!!first, `"${q}" finds something (pages, hardware, engines are indexed)`, { q, first, want });
+  }
   await type('stark');
   ok(JSON.stringify((await opts()).map((o) => o.name)) === '["SASH","LuminAIR"]', '"stark" finds only the systems whose stated technique is one');
   await type('a');
@@ -256,8 +263,16 @@ const sortBy = async (p, col, dir) => {
   ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/criteria#weights_hidden', 'Enter goes to the first result of a typed search', p.url());
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
   await p.focus('#q'); await p.waitForTimeout(300); await type('weights');
-  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
-  ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/reference#ref-recompute', 'the arrows choose another result', p.url());
+  const second = await p.evaluate(() => [...document.querySelectorAll('#q-list .so')].length);
+  await p.keyboard.press('ArrowDown'); await p.waitForTimeout(100);
+  const marked = await p.evaluate(() => document.querySelectorAll('#q-list .so.on').length === 1 && document.querySelectorAll('#q-list .so')[1]?.classList.contains('on'));
+  ok(second > 1 && marked, 'the arrows mark one other result', { second, marked });
+  // Escape closes an open list first, then clears the field
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  const esc = await p.evaluate(() => ({ hidden: document.getElementById('q-list').hidden, value: document.getElementById('q').value }));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  const esc2 = await p.evaluate(() => document.getElementById('q').value);
+  ok(esc.hidden && esc.value === 'weights' && esc2 === '', 'Escape closes the list, then clears the field', { esc, esc2 });
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
   await p.focus('#q'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   ok(new URL(p.url()).pathname === '/', 'Enter in an empty field picks nothing', p.url());
@@ -326,8 +341,17 @@ for (const w of [390, 360, 320]) {
 // ---------------------------------------------------------------- system pages and the reference page: the pie with its properties around it
 // each property's text beside its own triangle, as on main before #320: the rose's height at 1440 px, measured on
 // origin/main at c81832d, is the composition the system page keeps (within 10 %)
-const ROSE_MAIN = { flashprove: 309, sash: 309, reference: 275 };
-for (const name of ['flashprove', 'sash', 'reference']) {
+const ROSE_MAIN = { flashprove: 309, sash: 309 };
+// the reference page: a reference whose six states are one shows its glyph once, small, beside one line, then what
+// production serving measured, one row per configuration it ran
+{
+  const { ctx, p } = await pg(1440, 900);
+  await p.goto(BASE + 'reference', { waitUntil: 'networkidle' });
+  const r = await p.evaluate(() => ({ glyphs: [...document.querySelectorAll('.refpie svg')].filter((s) => s.getBoundingClientRect().width).length, roses: document.querySelectorAll('.rose').length, rows: document.querySelectorAll('.stab tbody tr').length, plates: document.querySelectorAll('.plate').length }));
+  ok(r.glyphs === 1 && r.roses === 0 && r.rows >= 1 && r.plates === 0, 'reference: one small glyph, the measured table, no empty plates', r);
+  await ctx.close();
+}
+for (const name of ['flashprove', 'sash']) {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   await full(p, OUT + `${tagOf(name)}-1440.png`);
@@ -354,7 +378,7 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   ok(Math.abs(roseH - ROSE_MAIN[name]) <= ROSE_MAIN[name] * 0.1, `${tagOf(name)}: the rose keeps main's height, each text beside its triangle`, { now: roseH, main: ROSE_MAIN[name] });
   // quotes only in how we read it, none beside the glyph; the two folds, how we read it and the card in full,
   // closed as sent
-  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.howread')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
+  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.howread')).length, details: [...document.querySelectorAll('details.howread, details.cardfull')].map((d) => `${d.className}:${d.open}`) }));
   const sys = name !== 'reference';
   ok(!fold.stray && fold.details.join() === (sys ? 'howread:false,cardfull:false' : ''), `${tagOf(name)}: quotes only in how we read it; ${sys ? 'how we read it and the card in full folded' : 'nothing folded'}`, fold);
   if (sys) {
@@ -434,7 +458,7 @@ for (const w of [1440, 390]) {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + 'sash', { waitUntil: 'networkidle' });
-  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s3\.1\s8B/.test(await p.locator('#figures .sec-l').innerText()), 'sash: no work-in-progress label; its figures name their model, Llama 3.1 8B');
+  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s3\.1\s8B/.test(await p.locator('#figures h3.setup').first().innerText()), 'sash: no work-in-progress label; its figures name their model, Llama 3.1 8B');
   // an unknown address: the site's own 404 page, with the site's header, at any depth
   for (const u of ['nope', 'a/b/c']) {
     const res = await p.goto(BASE + u, { waitUntil: 'networkidle' });
@@ -617,12 +641,12 @@ for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
     ok(g <= 390, `${name}-844x390: the whole glyph on the first screen`, g);
     await ctx.close();
   }
-  // the 404 page on a phone: the search field shown, no keyboard on load
+  // the 404 page on a phone: the one-row header, the site's pages listed, search from the button
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + 'nope', { waitUntil: 'networkidle' });
-  const f = await p.evaluate(() => ({ h: Math.round(document.querySelector('.sfield').getBoundingClientRect().height), vis: document.getElementById('q').getBoundingClientRect().width > 0, focus: document.activeElement.tagName }));
-  ok(f.vis && f.h >= 44 && f.focus === 'BODY', '404-390: the search field is shown, not focused', f);
-  await p.tap('#q'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  const f = await p.evaluate(() => ({ h: Math.round(document.querySelector('.top').getBoundingClientRect().height), links: document.querySelectorAll('.lost a').length, focus: document.activeElement.tagName }));
+  ok(f.h <= 60 && f.links >= 4 && f.focus === 'BODY', '404-390: the header on one row, the pages listed, nothing focused', f);
+  await p.tap('.sopen'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   ok(new URL(p.url()).pathname === '/sash', '404-390: search leads on from the 404 page', p.url());
   await ctx.close();
 }

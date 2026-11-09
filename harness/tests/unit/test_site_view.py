@@ -17,7 +17,7 @@ from iproofs.errors import ErrorKind, IProofsError
 from iproofs.schema import SchemaRegistry
 from iproofs.site import build, inputs
 from iproofs.site import view as site_view_module
-from iproofs.site.view import FIGURES, MORE, PER_BIT, PER_BIT_SIZE, check_rows, site_view
+from iproofs.site.view import FIGURES, MORE, PER_BIT, PER_BIT_SIZE, SERVING, check_rows, site_view
 from iproofs.validate import resolve
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -107,6 +107,7 @@ def test_absent_metric_not_recorded(view: dict[str, Any]) -> None:
         *PER_BIT,
         *PER_BIT_SIZE,
         *MORE,
+        *SERVING,
     }
 
 
@@ -156,9 +157,15 @@ def test_card_identity(view: dict[str, Any]) -> None:
     assert configuration(view, "ref-serve")["card"] is None
 
 
-def test_property_controls_without_release(view: dict[str, Any]) -> None:
+def test_property_controls_without_release(tree: Path, tmp_path: Path) -> None:
     """OVR-5, OVR-7: no criteria release reads no run, so each mapped control prints
     "no run read", never "not run"; an unmapped property has no control."""
+    copy = writable_copy(tree, tmp_path / "tree")
+    path = copy / inputs.CRITERIA
+    crit = json.loads(path.read_text())
+    crit.pop("release", None)
+    path.write_text(json.dumps(crit))
+    view = site_view(copy)
     lists = configuration(view, "flashprove")["property_controls"]["properties"]
     for prop, mapped in (("whole_output", ["C1", "C2", "C4", "C7"]),
                          ("model_bound", ["C3", "P1", "P2"]), ("weights_hidden", [])):  # fmt: skip
@@ -340,7 +347,7 @@ def test_criteria_loader_refuses(tmp_path: Path, edit: Any, message: str) -> Non
 def test_criteria_states_read() -> None:
     """One vocabulary (RFC-0016 §States): state ids in the cells, one word for each."""
     crit = inputs.load_criteria(ROOT)
-    assert crit.release is None
+    assert crit.release == "v0.1"  # OVR-5: the control lines read the release's runs
     assert {k: v["word"] for k, v in crit.states.items()} == {
         "yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}  # fmt: skip
     cells = crit.rows["sash"]["cells"]
@@ -423,21 +430,25 @@ def test_overhead_conditions_words() -> None:
     wl = {"precision": {"weight_bits": {"bits": 4.84, "basis": "computed"}}}
     words = overhead_words(conditions, stats, wl)
     assert words is not None
+    # every number at four significant digits with thousands separated, the width too
     assert words["precision"] == (
-        "Proving the UD-Q4_K_XL model (4.84 bits per active weight, computed) costs 100 times "
-        "(range 72 to 146 over 3 \u00d7 3 pairs) serving Meta's FP8 release, in GPU-seconds per "
-        "token, steady, at 24 requests a batch."
+        "Proving the UD-Q4_K_XL model (4.84 bits per active weight, computed) costs 100.0 times "
+        "(range 72.00 to 146.0 over 3 \u00d7 3 pairs) serving Meta's FP8 release, in GPU-seconds "
+        "per token, steady, at 24 requests per batch."
     )
     line = words["conditions"]
     gpus = "1 \u00d7 NVIDIA H200 for the prover, 4 for serving"
-    for part in ("prove.steady scope", "vllm 0.32.0, vllm serve", "480 further windows", gpus,
+    for part in ("vLLM 0.32.0, vllm serve", "480 further windows", gpus,
                  "RFC-0006 C5", "greedy", "--max-num-seqs 24",
-                 "5 batches for the prover and 25 for serving"):  # fmt: skip
+                 "5 batches for the prover and 25 batches for serving"):  # fmt: skip
         assert part in line, part
-    assert words["high"].startswith("At 1024 requests a batch: 200\u00d7")
-    assert "the prover's 120 prompts plus 5000 further windows" in words["high"]
+    # the scope, n and range are the plate's own rows: not repeated in the conditions
+    for absent in ("prove.steady", "range", "n = "):
+        assert absent not in line, absent
+    assert words["high"].startswith("1,024 requests per batch: 200.0\u00d7")
+    assert "the prover's 120 prompts plus 5,000 further windows" in words["high"]
     assert (
-        "prove.steady scope; 5 batches for serving on 4 \u00d7 NVIDIA H200, engine defaults"
+        "5 batches for serving on 4 \u00d7 NVIDIA H200, engine defaults"
         " except --tensor-parallel-size 4, --max-model-len 1025"
     ) in words["high"]
     unrecorded = {**conditions, "batches_per_session": {"system": 5, "serving_matched": None,
@@ -493,16 +504,17 @@ def test_overhead_warm_words() -> None:
     assert overhead_metric({}) == "overhead_vs_production_prove.steady"
     words = overhead_words(sash_conditions(warm=True), stats, wl, WARM)
     assert words is not None
+    # one request a batch: singular words throughout (1 request, 1 batch), never "1 requests"
     assert words["conditions"].startswith(
-        "prove.session scope for the prover, from the start of its prove call to its last "
-        "proof (its start-up included: it releases no proof before the whole request is "
-        "proved), prove.steady scope for production serving"
+        "1 request per batch on both sides, 1 batch for the prover and 1 batch for serving"
     )
     assert "greedy decoding, warm serving, the prover's start-up inside its session" in (
         words["conditions"])  # fmt: skip
-    assert "range 900 to 1,100 over 1 \u00d7 3 pairs" in words["conditions"]
+    assert "range 900.0 to 1,100 over 1 \u00d7 3 pairs" in words["precision"]
     assert words["precision"].endswith(
         "in GPU-seconds per token, per proving session with the prover's start-up, against "
-        "warm serving (steady), at 1 requests a batch."
+        "warm serving (steady), at 1 request per batch."
     )
+    assert "1 requests" not in json.dumps(words)
+    assert "1 batches" not in json.dumps(words)
     assert "high" not in words

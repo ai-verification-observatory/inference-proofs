@@ -14,6 +14,8 @@ import re
 
 from . import state as S
 from .plates import (
+    EXT,
+    blob,
     path_html,
     readable,
     record_html,
@@ -22,6 +24,7 @@ from .plates import (
     with_rule,
 )
 from .words import (
+    CONTROL_WORDS,
     OUTCOME_SHORT,
     STATE_WORD,
     e,
@@ -120,9 +123,23 @@ def sources_read(items, same_as=None):
     return ev_line("er", "read", "".join(parts))
 
 
+RUN_ID = re.compile(r"(\d{4}-\d{2}-\d{2})-.*-(\d+)$")
+
+
 def run_ref(rid, record):
-    """A run named by its id; its record once the release is published."""
-    return record_html(record, rid) if record else path_html(rid)
+    """A run by its date and ordinal ("2026-11-08 · 2"), its full id read aloud and in the
+    link's title, linked to its record once the release is published; an id of another shape
+    whole."""
+    m = RUN_ID.match(rid)
+    if not m:
+        return record_html(record, rid) if record else path_html(rid)
+    short = (
+        f'<span aria-hidden="true">{m[1]}\u00a0·\u00a0{m[2]}</span><span class="sr">{e(rid)}</span>'
+    )
+    if not record:
+        return f'<span class="nw" title="{e(rid)}">{short}</span>'
+    return (f'<a class="run" href="{e(blob(record))}" title="{e(rid)}">'
+            f'<span class="nw">{short}{EXT}</span></a>')  # fmt: skip
 
 
 def no_run_read():
@@ -134,38 +151,43 @@ def no_run_read():
     return f"no run read, since release {release} and those before it list no run of this card (RFC-0016 OVR-5)"
 
 
+def control_label(cid):
+    """A control's id, its tamper in words beside it (RFC-0008)."""
+    words = CONTROL_WORDS.get(cid)
+    return f'<span class="nw">{e(cid)}</span>' + (f" ({e(words)})" if words else "")
+
+
 def control_lines(pc, prop):
     """RFC-0016 OVR-7: each control the map ties to the property, with its outcome in every run
-    read, one line per run that recorded any of them (linked to its `controls.json`), then the
-    runs that recorded none, named in one line ("not run"). One form for every case: "controls",
-    then the ids or "none", then what the runs say. With no run read (OVR-5), the line says why,
-    so it never reads as a run that skipped them."""
+    read: one line per outcome the runs share ("C1 (changed output token), C2 (changed prompt
+    token): rejected in 2 runs"), each run linked to its `controls.json` (or its `run.json`
+    where it recorded none, "not run"). With no run read (OVR-5), the line says why, so it never
+    reads as a run that skipped them. A property no control tests has no line."""
     entry = pc["properties"][prop]
     if not entry["mapped"]:
-        return ev_line("ec", "controls", with_rule("none (RFC-0008)"))
-    ids = ", ".join(entry["mapped"])
+        return ""
     if not pc["runs"]:
-        return ev_line("ec", "controls", f"{e(ids)}: {with_rule(readable(no_run_read()))}")
-    out, silent = [], []
+        ids = ", ".join(control_label(x) for x in entry["mapped"])
+        return ev_line("ec", "tamper tests", f"{ids}: {with_rule(readable(no_run_read()))}")
+    groups = {}  # (outcome words, controls) -> runs
     for run in pc["runs"]:
         found = [o for o in entry["outcomes"] if o["run_id"] == run["run_id"]]
-        if all(o["outcome"] == "not_run" for o in found):
-            silent.append(run)
-            continue
-        said = []
+        by = {}
         for o in found:
             w = OUTCOME_SHORT[o["outcome"]]
             if o.get("note") and o["outcome"] in ("not_applicable", "void", "error"):
                 w += f" ({o['note']})"
-            said.append(f'<span class="nw">{e(o["control"])}</span> {e(w)}')
-        out.append(ev_line("ec", "controls", f"{', '.join(said)} in run "
-                                             f"{run_ref(run['run_id'], run['controls'])}"))  # fmt: skip
-    if silent:  # one run per line, as the read lines, so no comma wraps alone after a long id
-        runs = "".join(
-            f'<span class="rd">{run_ref(r["run_id"], r["record"])}</span>' for r in silent
-        )
-        word = "run" if len(silent) == 1 else "runs"
-        out.append(ev_line("ec", "controls", f"{e(ids)}: not run in {word}{runs}"))
+            by.setdefault(w, []).append(o["control"])
+        for w, cids in by.items():
+            groups.setdefault((w, tuple(cids)), []).append(run)
+    out = []
+    for (w, cids), runs in groups.items():
+        silent = w == OUTCOME_SHORT["not_run"]
+        refs = ", ".join(run_ref(r["run_id"], r["record"] if silent else r["controls"])
+                         for r in runs)  # fmt: skip
+        word = "run" if len(runs) == 1 else f"{len(runs)} runs"
+        said = ", ".join(control_label(x) for x in cids)
+        out.append(ev_line("ec", "tamper tests", f"{said}: {e(w)} in {word}: {refs}"))
     return "".join(out)
 
 
@@ -217,6 +239,15 @@ def conflict_lines(cell):
     return "".join(lines)
 
 
+def shared_read(sid, order):
+    """The sources-read list two or more properties share (the most shared one), printed once
+    at the head of "How we read it"; None when no list is shared."""
+    lists = [json.dumps(S.CRIT["rows"][sid]["cells"][p]["sources_read"], sort_keys=True)
+             for p in order if S.CRIT["rows"][sid]["cells"][p]["sources_read"]]  # fmt: skip
+    best = max(set(lists), key=lists.count, default=None)
+    return json.loads(best) if best and lists.count(best) > 1 else None
+
+
 def read_entries(sid, pc, order):
     """How we read each property (RFC-0009 S1 item 1, RFC-0016 ST-2, ST-8, OVR-7), by property
     id, in `order`: the deciding quote verbatim with its source at the pin (in a conflict, every
@@ -224,17 +255,18 @@ def read_entries(sid, pc, order):
     at its commit, with the paths read; a list equal to an earlier property's names that
     property), and the controls the map ties to it with their outcome in every run read. A
     property with none of these has no entry."""
-    out, seen = {}, {}
+    out = {}
+    common = shared_read(sid, order)
+    if common:
+        out["sources"] = sources_read(common)
     for prop in order:
         cell = S.CRIT["rows"][sid]["cells"][prop]
         quotes = deciding_quotes(sid, prop, cell)
         body = conflict_lines(cell) or "".join(
             ev_line("eqs", "quote", quote_html(q), block=True) for q in quotes
         )
-        if cell["sources_read"]:
-            key = json.dumps(cell["sources_read"], sort_keys=True)
-            body += sources_read(cell["sources_read"], seen.get(key))
-            seen.setdefault(key, prop)
+        if cell["sources_read"] and cell["sources_read"] != common:
+            body += sources_read(cell["sources_read"])
         if pc is not None:
             body += control_lines(pc, prop)
         if body:
@@ -247,7 +279,7 @@ def how_we_read(entries):
     script: one entry per property of `read_entries`, its id `read-<property>` (the rose's
     "source" links; words.js opens the fold when a link or the address names an entry, and moves
     focus to it). With no entry, no fold."""
-    names = {p["id"]: p["name"] for p in S.PROPS}
+    names = {p["id"]: p["name"] for p in S.PROPS} | {"sources": "Every property"}
     rows = "".join(f'<div id="read-{e(prop)}" tabindex="-1"><dt>{e(names[prop])}</dt><dd>{body}</dd></div>'
                    for prop, body in entries.items())  # fmt: skip
     if not rows:
@@ -266,15 +298,32 @@ def card_fact(cfg):
     """S1 item 2: the card's identity, a link to its file and its digest."""
     card = cfg["card"]
     digest = str(card["digest"]).removeprefix("sha256:")
-    lines = [
-        f'<span class="nw">{e(card["configuration"])}</span> · version {e(card["card_version"])}',
-        f'<a href="{e(card["link"])}">{path_html(card["path"], ext=True)}</a>',
-        f"sha256 <code>{e(digest[:12])}</code>",
-    ]
-    return '<span class="links cardid">' + "".join(f"<span>{x}</span>" for x in lines) + "</span>"
+    title = f"{card['configuration']} · {card['path']} · sha256 {digest}"
+    return (f'<a href="{e(card["link"])}" title="{e(title)}">claim card, version '
+            f'{e(card["card_version"])}{EXT}</a> · sha256 <code>{e(digest[:12])}</code>')  # fmt: skip
 
 
-SCALAR = {None: "null", True: "true", False: "false"}
+SCALAR = {None: "not stated", True: "yes", False: "no"}
+# a card field's key as a label, where its plain form is not one (claim/1)
+CARD_KEY = {"claim_class": "claim", "relation_formal": "formal statement", "not_hidden": "not hidden",
+            "tokens_covered": "tokens covered", "forbidden_flags": "forbidden flags"}  # fmt: skip
+# card enum values in words; any other value is printed as stored
+CARD_VALUE = {"not_stated": "not stated", "segment_grid": "a grid of segments",
+              "exact_match": "exact match"}  # fmt: skip
+CARD_PATH_VALUE = {("coverage.phase", "both"): "both phases"}
+CARD_SKIP = {"schema", "card_version", "sources"}  # the card line gives its version and digest
+
+
+def card_key(k):
+    return CARD_KEY.get(k, str(k).replace("_", " "))
+
+
+def card_text(v):
+    """Card text as the system wrote it, its inline code and emphasis marks rendered, no word
+    changed (AGENTS.md rule 9)."""
+    t = e(v)
+    t = re.sub(r"`([^`]+)`", r"<code>\1</code>", t)
+    return re.sub(r"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", r"<em>\1</em>", t)
 
 
 def own_sources(path, children, sources):
@@ -305,15 +354,19 @@ def card_value(v, path="", sources=None):
         return own + (f'<ul class="cl">{items}</ul>' if v else "none")
     if isinstance(v, dict):
         own = own_sources(path, set(v), sources)
-        rows = "".join(f"<div><dt>{e(k)}</dt><dd>{card_value(x, f'{path}.{k}', sources)}</dd></div>"
-                       for k, x in v.items())  # fmt: skip
+        rows = "".join(f"<div><dt>{e(card_key(k))}</dt><dd>{card_value(x, f'{path}.{k}', sources)}</dd></div>"
+                       for k, x in v.items() if not (k == "switch" and x is None))  # fmt: skip
         return own + (f'<dl class="cn">{rows}</dl>' if v else "none")
     if isinstance(v, str) and v.startswith("https://"):
         text = source_link(v)
     elif v is None or isinstance(v, bool):
         text = SCALAR[v]
+    elif (path, v) in CARD_PATH_VALUE:
+        text = e(CARD_PATH_VALUE[(path, v)])
+    elif isinstance(v, str) and v in CARD_VALUE:
+        text = e(CARD_VALUE[v])
     else:
-        text = e(v)
+        text = card_text(v)
     return text + own_sources(path, set(), sources)
 
 
@@ -323,9 +376,9 @@ def card_full(cfg, sid):
     body = cfg["card"]["body"]
     sources = body.get("sources") or {}
     rows = "".join(
-        f"<div><dt>{e(k)}</dt><dd>{card_value(v, k, sources)}</dd></div>"
+        f"<div><dt>{e(card_key(k))}</dt><dd>{card_value(v, k, sources)}</dd></div>"
         for k, v in body.items()
-        if k != "sources"
+        if k not in CARD_SKIP
     )
     return (
         f'<details class="cardfull" id="card-{e(cfg["configuration"])}">'
@@ -355,7 +408,7 @@ def gap_items(body, field):
     return card_value(v, field, sources)
 
 
-def agreement_plate(cfg, label):
+def agreement_plate(cfg, label, setup=None):
     """RFC-0015 RC-5, RC-6: the agreement rate with a rerun by a weights holder, every label in
     view (S2, S3), or why it has no value; a rate the release does not record names no record."""
     f = cfg["agreement"]
@@ -366,30 +419,63 @@ def agreement_plate(cfg, label):
     else:
         val = f'<span class="fig"><span class="n">{e(sig4(f["value"]))}</span></span>'
         if f.get("stats"):
-            kv.append(("spread", e(spread_line(f))))
+            kv.append(("spread", e(spread_line(f, count=True))))
         kv += [(k, e(v)) for k, v in labels(f, cfg)]
     if f["recorded"]:
         kv.append(("source", source_html(f["source"])))
     dl = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
     return (f'<div class="plate" id="agree-{e(cfg["configuration"])}-{e(cfg["workload"]["id"])}">'
-            f'<p class="lbl">{e(label)}</p><p class="pv">{val}</p><dl>{dl}</dl></div>')  # fmt: skip
+            f'<p class="lbl">{e(label)}{setup_id(setup)}</p><p class="pv">{val}</p><dl>{dl}</dl></div>')  # fmt: skip
+
+
+def setup_id(wid):
+    """A workload id in a plate's label, in its own case, never broken."""
+    return f' · <span class="nw lid">{e(wid)}</span>' if wid else ""
+
+
+def stated(v):
+    """False for a card field that is absent, empty or only "not stated" (claim/1)."""
+    if isinstance(v, list):
+        return any(stated(x) for x in v)
+    return bool(v) and v not in ("not stated", "not_stated")
 
 
 def gap_block(cfgs):
-    """S1 item 5: open, after the card, its `quality_gap` and `residual` under a label of their
-    own, with the agreement rate of each configuration on a plate beside them (RFC-0015 RC-6),
-    or why it has none ("Not recorded in these runs." where no rerun replayed its runs)."""
+    """S1 item 5: after the card, its `quality_gap` and `residual` under a label of their own,
+    with the agreement rate beside them (RFC-0015 RC-6): one plate per distinct reason a rate is
+    missing, naming its setups only where they differ, or the rate of each configuration. When
+    the card states neither field and no rate is recorded for one reason, one line says so
+    ("not stated" where the card is silent, AGENTS.md rule 9)."""
     body = cfgs[0]["card"]["body"]
+    agree = [c["agreement"] for c in cfgs]
+    missing = {why_words(f, c) for f, c in zip(agree, cfgs, strict=True) if f["value"] is None}
+    if (
+        not stated(body.get("quality_gap"))
+        and not stated(body.get("residual"))
+        and all(f["value"] is None for f in agree)
+        and len(missing) == 1
+    ):
+        why = next(iter(missing)).rstrip(".")
+        return ('<dl class="facts gapf gapone"><div><dt>quality gap, residual</dt><dd>not stated'
+                f"</dd></div><div><dt>agreement with a rerun</dt><dd>{with_rule(readable(why[:1].lower() + why[1:]))}"
+                "</dd></div></dl>")  # fmt: skip
     gap = (
         '<div class="gapc"><p class="lbl">Quality gap and residual</p><dl class="facts gapf">'
         f"<div><dt>quality gap</dt><dd>{gap_items(body, 'quality_gap')}</dd></div>"
         f"<div><dt>residual</dt><dd>{gap_items(body, 'residual')}</dd></div></dl></div>"
     )
-    many = len(cfgs) > 1
-    plates = "".join(
-        agreement_plate(c, "Agreement with a rerun" + (f" · {c['workload']['id']}" if many else ""))
-        for c in cfgs
-    )
+    plates, seen = "", set()
+    for c in cfgs:
+        f = c["agreement"]
+        if f["value"] is None:
+            why = why_words(f, c)
+            if why in seen:
+                continue
+            seen.add(why)
+            setup = None if len(missing) == 1 else c["workload"]["id"]
+        else:
+            setup = c["workload"]["id"] if len(cfgs) > 1 else None
+        plates += agreement_plate(c, "Agreement with a rerun", setup)
     return (
         f'<div class="gapblk">{gap}{f'<div class="agree">{plates}</div>' if plates else ""}</div>'
     )

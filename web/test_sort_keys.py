@@ -62,7 +62,7 @@ def test_warm_overhead_names_both_scopes(site):
     warm = cfg["figures"][b.metric_of(cfg, "overhead")]
     assert warm["metric"] == b.WARM
     assert b.readable(b.WARM_LINE) in b.plate(cfg, "overhead")
-    assert "steady state" in b.plate(cfg, "overhead")
+    assert "<dt>steady state</dt>" in b.overhead_notes(cfg)  # why the steady figure is null
     warm["value"] = 1000.0
     assert b.cell_words(cfg, "overhead")[1] == [b.SCOPE_SHORT[b.WARM]]
     assert b.WARM_LINE in b.cell_words(cfg, "overhead")[2]
@@ -81,11 +81,18 @@ def test_units_normalise(site):
     # the prefix that leaves no leading zero: 68.21 µs, 222.9 B, 56.49 GiB; 999.96 µs is 1.000 ms
     assert b.amount(6.821e-14, "s/bit_token") == ("68.21", "\N{MICRO SIGN}s")
     assert b.amount(2.229e-7, "B/bit_token") == ("222.9", "B")
-    assert b.amount(57850, "MiB") == ("56.49", "GiB")
+    # memory in the SI family, as proof sizes: 57,850 MiB is 60.66 GB (x 1,048,576 B per MiB)
+    assert b.amount(57850, "MiB") == ("60.66", "GB")
     assert b.amount(0.00099996, "s") == ("1.000", "ms")
     assert b.shown(1583, "ratio") == "1,583×"
-    assert b.shown(1024.0, "token") == "1,024 positions"
-    assert b.shown(0.0114974, "USD/1k_token") == "0.01150 USD / 1k positions"
+    assert b.shown(1024.0, "token") == "1,024 tokens"
+    # a cost per 1M tokens (x 1,000 from per 1k), in cents below 1 USD; a rate below 1 a second
+    # per minute (0.2065 x 60 = 12.39), below 1 a minute per hour
+    assert b.shown(0.0114974, "USD/1k_token") == "11.50 USD per 1M tokens"
+    assert b.shown(0.00005048, "USD/1k_token") == "5.048 \u00a2 per 1M tokens"
+    assert b.shown(0.2065, "token/s") == "12.39 tokens/min"
+    assert b.shown(0.01, "token/s") == "36.00 tokens/h"
+    assert b.shown(29.42, "token/s") == "29.42 tokens/s"
     assert (b.sig4(3.12), b.sig4(121.2667), b.sig4(0.851061), b.sig4(0)) == (
         "3.120",
         "121.3",
@@ -100,7 +107,7 @@ def test_four_digits_at_any_size(site):
     assert b.sig4(122880) == "122,900"
     assert b.sig4(12346.0) == "12,350"
     assert b.sig4(1024) == "1,024"
-    assert b.shown(16384.0, "token") == "16,380 positions"
+    assert b.shown(16384.0, "token") == "16,380 tokens"
     assert b.shown(12346, "ratio") == "12,350×"
 
 
@@ -156,7 +163,7 @@ def test_home_figures_show_spread(site):
             assert site.build.GRADE_WORD[f["grade"]] in title
             assert f"evidence: {site.build.TIER_WORD[f['tier']]}" in title
             assert "releases/" not in title
-            assert site.build.PER_BIT_LIMIT not in title
+            assert site.build.limit_words() not in title
             seen += 1
     assert seen
 
@@ -168,7 +175,29 @@ def test_titles_are_short(site):
         for col in site.build.BOARD:
             assert len(site.build.cell_words(cfg, col)[2]) < 360, (cfg["system"], col)
     text = (site.out / "index.html").read_text()
-    assert text.count(html.escape(site.build.PER_BIT_LIMIT)) == 2  # the line's title, read aloud
+    assert text.count(html.escape(site.build.limit_words())) == 2  # the line's title, read aloud
+
+
+def test_spread_words(site):
+    # a plate's spread, by hand: the range with its unit once and the mean; the sd in the
+    # mean's unit when 1 or more in it, else as a share of the mean (0.1009 / 16.68 = 0.605 %),
+    # "< 0.1 %" below that; a constant once, with its run count
+    b = site.build
+    f = {"unit": "s", "stats": {"n": 4, "n_failed": 1, "min": 16.63, "max": 16.74,
+                                "mean": 16.68, "stdev": 0.1009}}  # fmt: skip
+    pct = "\u202f%"
+    assert b.spread_line(f) == f"16.63 to 16.74 s, mean 16.68 · sd 0.605{pct}"
+    assert b.spread_line(f, count=True).startswith("4 completed, 1 failed · 16.63")
+    f["stats"]["stdev"] = 1.167e-6
+    f["stats"] |= {"min": 263.1e-6, "max": 265.4e-6, "mean": 264.1e-6}
+    assert (
+        b.spread_line(f) == "263.1 to 265.4 \N{MICRO SIGN}s, mean 264.1 · sd 1.167 \N{MICRO SIGN}s"
+    )
+    f["stats"]["stdev"] = 1e-10
+    assert b.spread_line(f).endswith(f"sd < 0.1{pct}")
+    tokens = {"unit": "token", "stats": {"n": 4, "n_failed": 0, "min": 1024.0, "max": 1024.0,
+                                         "mean": 1024.0, "stdev": 0.0}}  # fmt: skip
+    assert b.spread_line(tokens) == "all 4 runs: 1,024 tokens"
 
 
 def test_range_words(site):

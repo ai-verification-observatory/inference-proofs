@@ -20,6 +20,7 @@ from .plates import (
     configs_of,
     glyph,
     keep,
+    limit_words,
     metric_of,
     name_of,
     readable,
@@ -30,7 +31,7 @@ from .plates import (
     value_link,
     words,
 )
-from .words import FAMILY_WORD, PER_BIT_LIMIT, PER_GBIT, STATUS_WORD, e, gpu_words
+from .words import FAMILY_WORD, PER_GBIT, STATUS_WORD, e, gpu_words
 
 # ------------------------------------------------------------------ home rows
 
@@ -108,7 +109,7 @@ def sort_heads():
 
     group_of = {c: words for cols, words in BOARD_GROUPS for c in cols}
     # RFC-0004 INV-DERIVE-7: the limit of the per-Gbit basis, once, on the line its heads share
-    limit = {PER_GBIT: f' title="{e(PER_BIT_LIMIT)}"'}
+    limit = {PER_GBIT: f' title="{e(limit_words())}"'}
     groups = "".join(
         f'<div class="hg hg-{e(cols[0])}" aria-hidden="true"{limit.get(words, "")}><span>{e(words)}</span></div>'
         for cols, words in BOARD_GROUPS
@@ -128,7 +129,7 @@ def model_lines(cfg):
     p = cfg["workload"]["model"]["parameters"]
     total, active = p["total"], p["active_per_token"]
     wb = cfg["workload"]["precision"].get("weight_bits") or {}
-    bits = f"{wb['bits']:.2g}-bit" if wb.get("bits") is not None else "bits not recorded"
+    bits = f"{wb['bits']:.4g}-bit" if wb.get("bits") is not None else "bits not recorded"
     short = [
         f"{size_words(active)} active",
         bits,
@@ -291,9 +292,8 @@ def fig_href(cfg, col):
 
 
 # the overview's description, in its meta and share tags
-HOME_DESC = ("Six properties of one proof per system, and one row per system: "
-             "overhead against production serving, then proving time, proof size and check time "
-             "per token per Gbit of active weights, sortable by column.")  # fmt: skip
+HOME_DESC = ("Provable LLM inference measured on the same hardware: overhead against production "
+             "serving, proving time, proof size and check time, and what one proof establishes.")  # fmt: skip
 
 
 def build_index():
@@ -312,7 +312,7 @@ def build_index():
     </div>
   </section>
   <p id="sort-now" hidden>{e(first)}</p>
-  <p id="per-gbit-limit" hidden>{e(PER_GBIT.capitalize())}: {e(PER_BIT_LIMIT)}</p>
+  <p id="per-gbit-limit" hidden>{e(PER_GBIT.capitalize())}: {e(limit_words())}</p>
   <section class="sec" id="not-yet" aria-labelledby="h-nb">
     <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet</h2></div>
     {nb_grid()}

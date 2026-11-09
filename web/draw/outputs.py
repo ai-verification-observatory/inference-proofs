@@ -8,7 +8,16 @@ import hashlib
 import re
 
 from . import state as S
-from .chrome import CARD_H, CARD_W, CRIT_PAGE, HEAD_SCRIPT, REF_PAGE, font_faces
+from .chrome import (
+    CARD_H,
+    CARD_W,
+    CRIT_PAGE,
+    HEAD_SCRIPT,
+    REF_PAGE,
+    RELEASE_PAGE,
+    font_faces,
+    ref_label,
+)
 from .hexagon import key_mini, mark_svg, pie_svg
 from .inks import GHOST, GROUND, MUTED, PAPER, UNSTATED, VIOLET, ratio
 from .overview import kind_words, nb_meta, nb_models
@@ -18,7 +27,8 @@ from .words import FAMILY_WORD, STATE_CLS, e
 
 # ------------------------------------------------------------------ search
 # search.json, the local index the header's search reads (words.js; nothing leaves the browser).
-# Systems and properties only: the pages are in the nav. Each entry: its name, where it leads, its kind and tier (benchmarked first, not benchmarked last:
+# Systems, references, properties and the pages. Each entry: its name, where it leads, its kind,
+# the group words.js lists it under and the group's tier (benchmarked first, not benchmarked last:
 # the order says what kind of entry it is, never how good a system is), a line of context, its pie
 # and the words it is found by. TERMS adds the words people search with for a family of systems.
 # Only words true of every system in the family: how a system proves (STARK, SNARK, sumcheck...) comes
@@ -31,20 +41,21 @@ TERMS = {
 }
 # words for what the facts' code field says about a system's source
 CODE_TERMS = {"no_public_code": "closed source"}
-TIER = {"system": 0, "property": 1, "reference": 2, "unbenchmarked": 3}
-BADGE = {"reference": "Reference", "unbenchmarked": "Not benchmarked", "property": "Property"}
+TIER = {"system": 0, "reference": 1, "property": 2, "page": 3, "unbenchmarked": 4}
+GROUP = {"system": "Benchmarked", "reference": "References", "property": "Properties",
+         "page": "Pages", "unbenchmarked": "Not benchmarked"}  # fmt: skip
 
 
 def search_entries():
     out = []
 
     def add(kind, name, url, meta, pie, terms, fam=""):
-        words_ = " ".join([name, meta, terms, TERMS.get(fam, ""), BADGE.get(kind, "")])
+        words_ = " ".join([name, meta, terms, TERMS.get(fam, ""), fam])
         out.append(
             {
                 "kind": kind,
                 "tier": TIER[kind],
-                "badge": BADGE.get(kind, ""),
+                "group": GROUP[kind],
                 "name": name,
                 "url": url,
                 "meta": meta,
@@ -52,6 +63,16 @@ def search_entries():
                 "terms": " ".join(words_.lower().split()),
             }
         )
+
+    def ran(sid):
+        """What a system's or reference's configurations ran: workloads, models, GPUs, engines."""
+        out_ = []
+        for c in (c for c in S.CONFIGS if c["system"] == sid):
+            sv = c.get("serving") or {}
+            out_ += [c["workload"]["id"], S.MODEL_NAME[c["workload"]["model"]["digest"]],
+                     c["gpu"]["short"] or "", c["gpu"]["model"] or "", c["profile"],
+                     sv.get("engine") or "", sv.get("precision") or ""]  # fmt: skip
+        return " ".join(dict.fromkeys(x for x in out_ if x))
 
     for sid in S.V["orders"]["benchmarked"]:
         cfg = first_config(sid)
@@ -61,9 +82,9 @@ def search_entries():
             "system",
             name_of(sid),
             S.PAGE[sid],
-            f"{fam} · {S.MODEL_NAME[cfg['workload']['model']['digest']]}",
+            S.MODEL_NAME[cfg["workload"]["model"]["digest"]],
             pie_svg(glyph(sid)["states"], 28),
-            f"{kind_title} {upstream(cfg)['repo']}",
+            f"{kind_title} {upstream(cfg)['repo']} {ran(sid)}",
             fam.lower(),
         )
     for gid in S.V["orders"]["reference"]:
@@ -73,7 +94,7 @@ def search_entries():
             f"{REF_PAGE}#{gid}",
             kind_words(gid),
             pie_svg(glyph(gid)["states"], 28),
-            "reference baseline",
+            f"reference baseline {ran(gid)}",
         )
     for rid in S.V["orders"]["not_benchmarked"]:
         r = S.V["facts"]["rows"][rid]
@@ -82,7 +103,7 @@ def search_entries():
             "unbenchmarked",
             r["name"],
             f"/#nb-{rid}",
-            f"{fam} · {nb_models(r)}",
+            nb_models(r),
             pie_svg(glyph(rid)["states"], 28),
             # status, models, source and stated technique; not the people behind it
             " ".join(
@@ -98,6 +119,15 @@ def search_entries():
         )
     for i, p in enumerate(S.PROPS):
         add("property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(i + 1, 28), "")
+    rel = S.V["release"]
+    pages = [(ref_label(), REF_PAGE, ", ".join(name_of(g) for g in S.V["orders"]["reference"]),
+              "reference baseline serving"),
+             ("Criteria", CRIT_PAGE, "What each state means for each property",
+              "criteria states rules yes partly no not stated"),
+             (f"Release {rel['id']}", RELEASE_PAGE, "Its runs, claim cards and reference file",
+              "release runs records index overhead cost price")]  # fmt: skip
+    for name, url, meta, terms in pages:
+        add("page", name, url, meta, mark_svg(28, cls="pie-svg lm"), terms)
     return out
 
 
@@ -134,6 +164,8 @@ def vercel_json():
         "redirects": [
             {"source": "/system", "destination": first, "permanent": True},
             {"source": "/system.html", "destination": first, "permanent": True},
+            # clients that ask for /favicon.ico get the PNG icon
+            {"source": "/favicon.ico", "destination": "/og/icon-32.png", "permanent": False},
         ],
         "headers": [
             {
@@ -243,6 +275,7 @@ ol{{display:contents;list-style:none}}
 
 
 ICON = 180  # the touch icon's side, CSS px at scale 1
+FAVICON = 32  # the PNG icon for clients that read no SVG icon
 
 
 def icon_svg():
@@ -254,14 +287,14 @@ def icon_svg():
     )
 
 
-def icon_card():
-    body = f'<img src="icon.svg" width="{ICON}" height="{ICON}" alt="" style="display:block">'
-    page_ = card_page("icon", body, "")
+def icon_card(size=ICON, name="icon"):
+    body = f'<img src="icon.svg" width="{size}" height="{size}" alt="" style="display:block">'
+    page_ = card_page(name, body, "")
     return page_.replace(
-        '<html lang="en">', f'<html lang="en" data-w="{ICON}" data-h="{ICON}" data-scale="1">', 1
+        '<html lang="en">', f'<html lang="en" data-w="{size}" data-h="{size}" data-scale="1">', 1
     ).replace(
         f"html,body{{width:{CARD_W}px;height:{CARD_H}px;",
-        f"html,body{{width:{ICON}px;height:{ICON}px;",
+        f"html,body{{width:{size}px;height:{size}px;",
     )
 
 
@@ -269,6 +302,7 @@ def write_cards():
     S.OG.mkdir(exist_ok=True)
     S.WRITE_TEXT(S.OG / "icon.svg", icon_svg())
     S.WRITE_TEXT(S.OG / "icon.html", icon_card())
+    S.WRITE_TEXT(S.OG / "icon-32.html", icon_card(FAVICON, "icon-32"))
     S.WRITE_TEXT(S.OG / "home.html", home_card())
     for sid in S.PAGE:
         S.WRITE_TEXT(S.OG / f"{sid}.html", system_card(sid))
