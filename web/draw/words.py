@@ -165,13 +165,19 @@ def count_word(n):
 # ------------------------------------------------------------------ numbers (display only)
 # A stored value prints at four significant digits in a unit chosen for reading (S4); the sort key
 # and the record keep the stored value in its base unit.
-def sig4(v):
+def sig(v, d=4):
+    """v at d significant digits, thousands separated; four unless a range needs more to tell
+    its ends apart (`range_words`)."""
     if v == 0:
         return "0"
-    places = 3 - math.floor(math.log10(abs(v)))
+    places = d - 1 - math.floor(math.log10(abs(v)))
     if places >= 0:
         return f"{v:,.{places}f}"
     return f"{round(v, places):,.0f}"  # 122880 prints 122,900: four digits, then zeros
+
+
+def sig4(v):
+    return sig(v, 4)
 
 
 # the SI prefixes a reading unit may take, largest first
@@ -180,24 +186,24 @@ SI = ((1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "k"), (1.0, ""), (1e-3, "m"), (
 IEC = ((1024.0**2, "Ti"), (1024.0, "Gi"), (1.0, "Mi"), (1 / 1024, "Ki"))  # from MiB
 
 
-def prefixed(v, base, steps=SI, lo=1e-9, hi=1e12):
+def prefixed(v, base, steps=SI, lo=1e-9, hi=1e12, d=4):
     """(number, unit) with the prefix that puts the number between 1 and 1000 where one can:
-    68.21 µs, not 0.06821 ms. The value is rounded to four digits first, so 999.96 µs prints
+    68.21 µs, not 0.06821 ms. The value is rounded to its d digits first, so 999.96 µs prints
     1.000 ms, not 1,000 µs."""
-    r = float(f"{v:.4g}")
+    r = float(f"{v:.{d}g}")
     if r == 0:
         return "0", base
     steps = [(f, p) for f, p in steps if lo <= f <= hi]
     f, p = next(((f, p) for f, p in steps if abs(r) >= f), steps[-1])
-    return sig4(r / f), p + base
+    return sig(r / f, d), p + base
 
 
-def seconds(v):
+def seconds(v, d=4):
     """A time: ns to s with their prefix, then minutes and hours."""
-    r = float(f"{v:.4g}")
+    r = float(f"{v:.{d}g}")
     if abs(r) < 1e3:
-        return prefixed(v, "s", hi=1.0)
-    return (sig4(v / 60), "min") if abs(r) < 6e4 else (sig4(v / 3600), "h")
+        return prefixed(v, "s", hi=1.0, d=d)
+    return (sig(v / 60, d), "min") if abs(r) < 6e4 else (sig(v / 3600, d), "h")
 
 
 # the stored units that take a prefix: (base unit, prefixes, smallest factor)
@@ -208,54 +214,62 @@ UNIT_WORDS = {"token": "tokens", "token/s": "tokens/s"}
 PCT = "\u202f%"  # a percent sign never leaves its number
 
 
-def per_unit(v, unit):
+def per_unit(v, unit, d=4):
     """A rate below 1 a second per minute, below 1 a minute per hour; a cost per 1M tokens, in
     USD, below 1 USD in cents."""
     if unit == "token/s":
         factor, per = next(((k, p) for k, p in ((1, "s"), (60, "min"), (3600, "h"))
                             if abs(v * k) >= 1), (3600, "h"))  # fmt: skip
-        return sig4(v * factor), f"tokens/{per}"
+        return sig(v * factor, d), f"tokens/{per}"
     usd = v * 1000
     if abs(usd) >= 1 or usd == 0:
-        return sig4(usd), "USD per 1M tokens"
-    return sig4(usd * 100), "\u00a2 per 1M tokens"
+        return sig(usd, d), "USD per 1M tokens"
+    return sig(usd * 100, d), "\u00a2 per 1M tokens"
 
 
-def amount(v, unit):
+def amount(v, unit, d=4):
     """(number, unit words) for a stored value in its stored unit, in the unit that reads it with
-    no leading zeros (S4)."""
+    no leading zeros (S4), at d significant digits (four but in a range whose ends need more)."""
     if unit in PER_GBIT_BASE:  # per bit, printed per Gbit; the basis is in the column's head
-        return amount(v * 1e9, PER_GBIT_BASE[unit])
+        return amount(v * 1e9, PER_GBIT_BASE[unit], d)
     if unit in ("token/s", "USD/1k_token"):
-        return per_unit(v, unit)
+        return per_unit(v, unit, d)
     if unit == "s":
-        return seconds(v)
+        return seconds(v, d)
     if unit == "MiB":
         v, unit = v * MIB, "B"
     if unit in PREFIXED:
         base, steps, lo = PREFIXED[unit]
-        return prefixed(v, base, steps, lo)
+        return prefixed(v, base, steps, lo, d=d)
     base, slash, per = unit.partition("/")
     if slash and base in ("s", "B", "gpu_s"):  # s/token, B/token: the numerator takes the prefix
-        n, u = amount(v, "s" if base == "gpu_s" else base)  # GPU-seconds: seconds summed over GPUs
+        n, u = amount(v, "s" if base == "gpu_s" else base, d)  # GPU-seconds: summed over GPUs
         return n, f"{u}/{per}"
-    return sig4(v), UNIT_WORDS.get(unit, unit)
+    return sig(v, d), UNIT_WORDS.get(unit, unit)
 
 
-def shown(v, unit):
-    n, u = amount(v, unit)
+def shown(v, unit, d=4):
+    n, u = amount(v, unit, d)
     return f"{n}×" if unit == "ratio" else f"{n} {u}"
+
+
+SAME = "the same in all {n} runs"  # a spread with no width (stdev 0): no value, the plate has it
 
 
 def range_words(lo, hi, unit, n):
     """A range with its unit once: "67.61 to 68.91 µs"; two units only where the prefix
-    changes inside it ("999.9 µs to 1.001 ms"); a ratio keeps its sign on both ends; ends alike
-    at four digits read as the one value "in all <n> runs"."""
+    changes inside it ("999.9 µs to 1.001 ms"); a ratio keeps its sign on both ends. Ends that
+    differ are never printed alike: where four digits cannot tell them apart, each end takes
+    as many as it needs ("222.85 to 222.89 B"), so no measured spread is rounded away; equal
+    ends read "the same in all <n> runs"."""
+    if lo == hi:
+        return SAME.format(n=n)
+    d = 4
+    while d < 15 and amount(lo, unit, d) == amount(hi, unit, d):
+        d += 1
     if unit == "ratio":
-        return f"{shown(lo, unit)} to {shown(hi, unit)}"
-    (a, u), (b, w) = amount(lo, unit), amount(hi, unit)
-    if (a, u) == (b, w):  # the ends differ below four digits
-        return f"{a} {u} in all {n} runs"
+        return f"{shown(lo, unit, d)} to {shown(hi, unit, d)}"
+    (a, u), (b, w) = amount(lo, unit, d), amount(hi, unit, d)
     return f"{a} to {b} {u}" if u == w else f"{a} {u} to {b} {w}"
 
 
@@ -288,26 +302,22 @@ def sd_words(f):
 
 
 def spread_line(f, count=False):
-    """The spread as a system page prints it (S3): the range with its unit once and the mean
-    ("28.83 to 29.88 tokens/s, mean 29.42"), then the sd; a constant, or ends alike at four
-    digits, as "1,024 tokens in all 4 runs". count: the sample size first, where no runs line
-    above names it."""
-    st, unit = f["stats"], f["unit"]
+    """The spread as a system page prints it (S3), under the value it qualifies (the mean, so
+    never printed again): the range with its unit once, then the sd ("28.83 to 29.88 tokens/s ·
+    sd 1.06 %"); a constant (stdev 0) as "the same in all 4 runs", its value being the one
+    above. count: the sample size first, where no runs line above names it."""
+    st = f["stats"]
     parts = [f"{st['n']} completed, {st['n_failed']} failed"] if count else []
-    if st["min"] == st["max"]:
-        return " · ".join([*parts, f"{shown(st['min'], unit)} in all {st['n']} runs"])
-    rng = range_words(st["min"], st["max"], unit, st["n"])
-    if rng.endswith(" runs"):  # the ends alike at four digits: the value once, then the sd
-        parts.append(f"{shown(st['mean'], unit)} in all {st['n']} runs")
-    else:
-        hi_unit = amount(st["max"], unit)[1]
-        m, mu = amount(st["mean"], unit)
-        mean = (f"mean {m}" if mu == hi_unit and unit != "ratio"
-                else f"mean {shown(st['mean'], unit)}")  # fmt: skip
-        parts.append(f"{rng}, {mean}")
-    if sd := sd_words(f):
+    parts.append(range_words(st["min"], st["max"], f["unit"], st["n"]))
+    if st["min"] != st["max"] and (sd := sd_words(f)):
         parts.append(sd)
     return " · ".join(parts)
+
+
+def mean_words(f):
+    """What a figure with a spread is: "mean of 4 runs" (a plate's number, in its title)."""
+    st = f.get("stats")
+    return f"mean of {st['n']} run{'s' if st['n'] != 1 else ''}" if st else ""
 
 
 def gpu_words(cfg):

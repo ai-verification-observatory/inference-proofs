@@ -32,6 +32,7 @@ from .words import (
     curly,
     e,
     labels,
+    mean_words,
     sig4,
     spread_line,
     why_words,
@@ -449,7 +450,9 @@ def agreement_plate(cfg, label, setup=None):
         kv.append(("source", source_html(f["source"])))
     dl = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
     return (f'<div class="plate" id="agree-{e(cfg["configuration"])}-{e(cfg["workload"]["id"])}">'
-            f'<p class="lbl">{e(label)}{setup_id(setup)}</p><p class="pv">{val}</p><dl>{dl}</dl></div>')  # fmt: skip
+            f'<p class="lbl">{e(label)}{setup_id(setup)}</p>'
+            f'<p class="pv"{f' title="{e(said)}"' if (said := mean_words(f)) else ""}>{val}</p>'
+            f"<dl>{dl}</dl></div>")  # fmt: skip
 
 
 def setup_id(wid):

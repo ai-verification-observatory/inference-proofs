@@ -71,6 +71,7 @@ from .words import (
     e,
     gpu_words,
     labels,
+    mean_words,
     scope_words,
     shown,
     sig4,
@@ -176,7 +177,8 @@ def more_table(cfg, caption, shared=None):
             val = '<span class="na">No value</span>'
         if f["recorded"]:
             lab += f'\u00a0· <span class="src">source: {path_html(source_words(f, shared))}</span>'
-        more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv">{val}</td><td class="ml">{lab}</td></tr>'
+        said = f' title="{e(mean_words(f))}"' if f["value"] is not None and f.get("stats") else ""
+        more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv"{said}>{val}</td><td class="ml">{lab}</td></tr>'
     return (
         f'<table class="mtab"><caption class="sr">{e(caption)}</caption>'
         f'<thead><tr><th scope="col">Figure</th><th scope="col">Value</th><th scope="col">Labels</th></tr></thead><tbody>{more}</tbody></table>'

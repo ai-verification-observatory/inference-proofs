@@ -179,30 +179,47 @@ def test_titles_are_short(site):
 
 
 def test_spread_words(site):
-    # a plate's spread, by hand: the range with its unit once and the mean; the sd always as a
-    # share of the mean (0.1009 / 16.68 = 0.605 %; 1.167 / 264.1 = 0.442 %), "< 0.1 %" below
-    # that with its sign held to both sides; a constant once, with its run count
+    # a plate's spread, by hand: the range with its unit once, never the mean the plate already
+    # prints; the sd always as a share of the mean (0.1009 / 16.68 = 0.605 %; 1.167 / 264.1 =
+    # 0.442 %), "< 0.1 %" below that with its sign held to both sides; a constant (stdev 0) as
+    # "the same in all <n> runs", without the value above it
     b = site.build
     f = {"unit": "s", "stats": {"n": 4, "n_failed": 1, "min": 16.63, "max": 16.74,
                                 "mean": 16.68, "stdev": 0.1009}}  # fmt: skip
     pct = "\u202f%"
-    assert b.spread_line(f) == f"16.63 to 16.74 s, mean 16.68 · sd 0.605{pct}"
+    assert b.spread_line(f) == f"16.63 to 16.74 s · sd 0.605{pct}"
     assert b.spread_line(f, count=True).startswith("4 completed, 1 failed · 16.63")
+    assert b.mean_words(f) == "mean of 4 runs"
     f["stats"]["stdev"] = 1.167e-6
     f["stats"] |= {"min": 263.1e-6, "max": 265.4e-6, "mean": 264.1e-6}
-    assert b.spread_line(f) == f"263.1 to 265.4 \N{MICRO SIGN}s, mean 264.1 · sd 0.442{pct}"
+    assert b.spread_line(f) == f"263.1 to 265.4 \N{MICRO SIGN}s · sd 0.442{pct}"
     f["stats"]["stdev"] = 1e-10
     assert b.spread_line(f).endswith(f"sd\u00a0<\u00a00.1{pct}")
     tokens = {"unit": "token", "stats": {"n": 4, "n_failed": 0, "min": 1024.0, "max": 1024.0,
                                          "mean": 1024.0, "stdev": 0.0}}  # fmt: skip
-    assert b.spread_line(tokens) == "1,024 tokens in all 4 runs"
-    # ends alike at four digits: the value once, in the same words, then the sd
-    near = {"unit": "B", "stats": {"n": 4, "n_failed": 0, "min": 222.91, "max": 222.94,
-                                   "mean": 222.92, "stdev": 0.01}}  # fmt: skip
-    assert b.spread_line(near) == f"222.9 B in all 4 runs · sd\u00a0<\u00a00.1{pct}"
-    near["stats"]["stdev"] = 0.8471  # 0.8471 / 222.92 = 0.380 %: three digits, the zero kept
-    assert b.spread_line(near).endswith(f"sd 0.380{pct}")
-    assert b.title_spread(near) == "4 completed, 0 failed, 222.9 B in all 4 runs"
+    assert b.spread_line(tokens) == "the same in all 4 runs"
+    assert b.spread_line(tokens, count=True) == "4 completed, 0 failed · the same in all 4 runs"
+    assert b.title_spread(tokens) == "4 completed, 0 failed, the same in all 4 runs"
+
+
+def test_spread_never_rounds_a_range_away(site):
+    # releases/v0.1/index.json configurations[1], proof size per Gbit (D-BPAB): four runs that
+    # differ (stdev 0.0166 B per Gbit), alike at four digits. The range takes the digits its
+    # ends need (222.855 and 222.891 differ at the fifth), never "222.9 B in all 4 runs"; the
+    # headline keeps four
+    b = site.build
+    pct = "\u202f%"
+    near = {"unit": "B/bit_token", "value": 2.2287719530061783e-07,
+            "stats": {"n": 4, "n_failed": 0, "min": 2.2285475470281376e-07,
+                      "max": 2.2289138251308903e-07, "mean": 2.2287719530061783e-07,
+                      "stdev": 1.6563497427916126e-11}}  # fmt: skip
+    assert b.spread_line(near) == f"222.85 to 222.89 B · sd\u00a0<\u00a00.1{pct}"
+    assert b.title_spread(near) == "4 completed, 0 failed, 222.85 to 222.89 B"
+    assert b.shown(near["value"] * 1e9, "B") == "222.9 B"
+    # ends alike at five digits take six (configurations[1], prover_keep_bytes)
+    assert b.range_words(2153984000.0, 2153994240.0, "B", 4) == "2.15398 to 2.15399 GB"
+    # a ratio keeps its sign on both ends at the digits it needs
+    assert b.range_words(61.001, 61.004, "ratio", 3) == "61.001× to 61.004×"
 
 
 def test_range_words(site):

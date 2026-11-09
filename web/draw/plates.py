@@ -23,6 +23,7 @@ from .words import (
     e,
     gpu_words,
     labels,
+    mean_words,
     scope_words,
     shown,
     spread_line,
@@ -636,6 +637,7 @@ def plate(cfg, col, pid="", shared=None):
     overview figure can link to its own plate."""
     shared = shared or {}
     kv = []
+    said = ""  # what the number is: the mean of the runs, where it has a spread
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
@@ -652,6 +654,7 @@ def plate(cfg, col, pid="", shared=None):
                 kv.append(("scope", SCOPE_LINES[f["metric"]], None))
         else:
             val = fig(shown(f["value"], f["unit"]))
+            said = mean_words(f)
             kv += [(k, pairs_html(cfg, f) if k == "pairs" else v, h)
                    for k, v, h in figure_rows(cfg, f) if k not in shared]  # fmt: skip
             if "workload" not in shared:
@@ -664,7 +667,7 @@ def plate(cfg, col, pid="", shared=None):
     )
     return (
         f'<div class="plate"{f' id="{e(pid)}{col}"' if pid else ""} data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
-        f'<p class="pv">{val}</p><dl>{dl}</dl></div>'
+        f'<p class="pv"{f' title="{e(said)}"' if said else ""}>{val}</p><dl>{dl}</dl></div>'
     )
 
 

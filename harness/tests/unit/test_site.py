@@ -75,15 +75,13 @@ HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>'
 PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
 DD = re.compile(r"<dt>([^<]+)</dt><dd>(.*?)</dd>", re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u(?: x)?">([^<]+)</span>')
-# an overview cell's title: sample size and range (S3); the plate it links holds mean and sd
+# an overview cell's title: sample size and range (S3); the plate it links holds the sd
 TITLE_SPREAD = re.compile(
-    r"(\d+) completed, (\d+) failed, (\S+(?: \S+)? to \S+(?: \S+)?|\S+ \S+ in all \d+ runs)"
+    r"(\d+) completed, (\d+) failed, (\S+(?: \S+)? to \S+(?: \S+)?|the same in all \d+ runs)"
 )
-# a plate's spread (S3; the setup's runs line names n): the range with its unit once and the
-# mean, then the sd; a constant once, with its run count
-SPREAD = re.compile(
-    r"\S+ \S+ in all \d+ runs(?: · sd .+)?|\S+ to \S+(?: \S+)?, mean \S+(?: \S+)?(?: · sd .+)?"
-)
+# a plate's spread (S3; the setup's runs line names n, the plate's number is the mean): the range
+# with its unit once, then the sd; a constant as the same in all its runs, without its value
+SPREAD = re.compile(r"the same in all \d+ runs|\S+ to \S+(?: \S+)?(?: · sd .+)?")
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
 SCALE = {"tokens": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
          "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
@@ -664,10 +662,12 @@ def _strings(value: object) -> list[str]:
 
 def test_statistics_shown(site: Build) -> None:
     """S3: every statistic shows its six values (completed, failed, minimum, maximum, mean, sd)
-    on system pages, and the same in the title of its overview cell (owner decision of
-    2026-11-09: nothing but a scope word under an overview figure), equal to the stored ones; a
-    reference whose runs all failed shows its counts and "below minimum repetitions" on
-    `/reference`; each more-numbers row shows the six values too."""
+    on system pages: the counts in its setup's runs line, the mean as its number (its title
+    says so, so the spread never repeats it), the range and the sd under it; the same in the
+    title of its overview cell (owner decision of 2026-11-09: nothing but a scope word under an
+    overview figure), equal to the stored ones; a reference whose runs all failed shows its
+    counts and "below minimum repetitions" on `/reference`; each more-numbers row shows them
+    too."""
     for _, title, inner in VAL.findall(site.pages["index.html"]):
         if 'class="fig"' not in inner or " completed, " not in html.unescape(title):
             continue
@@ -689,6 +689,8 @@ def test_statistics_shown(site: Build) -> None:
             assert stats["n"] == len(cfg["runs"]["completed"]), pid
             spread = dict(DD.findall(body))["spread"]
             assert SPREAD.fullmatch(plain(spread)), spread
+            assert "mean" not in plain(spread), spread
+            assert f'<p class="pv" title="mean of {stats["n"]} runs">' in body, pid
         for cfg, rows in zip(configs, _chunks(more_rows(text), 5), strict=True):
             for (stat, _), row in zip(MORE, rows, strict=True):
                 stats = cfg["figures"][stat].get("stats")
@@ -709,7 +711,7 @@ def _chunks(items: list[str], n: int) -> list[list[str]]:
     return [items[i : i + n] for i in range(0, len(items), n)]
 
 
-MORE_SPREAD = re.compile(r"spread: (.+? in all \d+ runs|.+? to .+?, mean )")
+MORE_SPREAD = re.compile(r"spread: (the same in all \d+ runs|.+? to .+?)( · |$)")
 # the more-numbers rows, in the renderer's order (web/draw/plates.py MORE)
 MORE = (("rate_prove.session", "Proving rate"),
         ("cost_per_1k_tokens_prove.session", "GPU cost per 1M tokens"),
