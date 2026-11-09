@@ -39,23 +39,44 @@ def measured(
     }
 
 
+# RFC-0004 INV-SCOPE-5: the steady-scope rule of the amendment of 2026-11-09, recorded in every
+# manifest (`workload.steady_rule`); a run without it keeps the first-proof boundary (APP-1)
+STEADY_RULE = "batch-membership"
+
+
 def steady_start(
     releases: Sequence[int], batch_size: int, request_indices: Sequence[int | None] | None
 ) -> int | NullReason:
     """INV-SCOPE-5: where `prove.steady` starts. With batch size b > 1 it is the last release
     among the first batch (requests with `request_index` < b), whatever the release order; for
     b = 1 it is r_1, as before the amendment of 2026-11-09. A NullReason when the scope does not
-    exist: fewer than two batches released, or b > 1 and a release without `request_index`."""
+    exist: fewer than two batches released, b > 1 and a release without `request_index`, or no
+    later-batch request released after the start."""
     if batch_size <= 1:
         return min(releases) if len(releases) >= 2 else NullReason.FEWER_THAN_TWO_PROOFS
     indices = list(request_indices or [])
     if len(indices) != len(releases) or any(i is None for i in indices):
         return NullReason.MISSING_INPUT
     first = [t for t, i in zip(releases, indices, strict=True) if i is not None and i < batch_size]
-    later = [i for i in indices if i is not None and i >= batch_size]
-    if not first or not later:
+    if not first:
         return NullReason.FEWER_THAN_TWO_PROOFS
-    return max(first)
+    start = max(first)
+    later = [t for t, i in zip(releases, indices, strict=True)
+             if i is not None and i >= batch_size and t > start]  # fmt: skip
+    return start if later else NullReason.FEWER_THAN_TWO_PROOFS
+
+
+def released_before_start(
+    releases: Sequence[int], batch_size: int, request_indices: Sequence[int | None] | None
+) -> int:
+    """INV-SCOPE-5: later-batch requests (`request_index` >= b) released at or before the steady
+    start. Their work lies before the window, so they leave the steady tokens; the runner
+    records how many in a warning. 0 for b = 1 or when the start does not exist."""
+    start = steady_start(releases, batch_size, request_indices)
+    if batch_size <= 1 or isinstance(start, NullReason):
+        return 0
+    return sum(1 for t, i in zip(releases, request_indices or [], strict=True)
+               if i is not None and i >= batch_size and t <= start)  # fmt: skip
 
 
 def scope_seconds(
@@ -529,20 +550,28 @@ def tokens_metrics(
     *,
     batch_size: int = 1,
     request_indices: Sequence[int | None] | None = None,
+    releases: Sequence[int] | None = None,
 ) -> dict[str, QuantityTree]:
     """tokens_covered_total, _prompt, _output and _steady, in release order. Steady holds the
-    requests after the first batch (INV-SCOPE-5): proofs 2..k for batch size 1, and the requests
-    with `request_index` >= b for b > 1 (null `missing_input` when one has none)."""
+    requests after the first batch (INV-SCOPE-5): proofs 2..k for batch size 1; for b > 1 the
+    requests with `request_index` >= b released after the steady start (`releases`, the release
+    times in the same order), so a later-batch request released before the window is not
+    counted in it. Null `missing_input` when a request has no index or the times are absent."""
     ref = f"{run_json}#/proofs"
     total = sum(p + o for p, o in per_proof)
     steady: int | None = sum(p + o for p, o in per_proof[1:])
     if batch_size > 1:
         indices = list(request_indices or [])
-        if len(indices) != len(per_proof) or any(i is None for i in indices):
+        times = list(releases or [])
+        start = steady_start(times, batch_size, indices) if len(times) == len(per_proof) else None
+        if (len(indices) != len(per_proof) or any(i is None for i in indices)
+                or start is None or start is NullReason.MISSING_INPUT):  # fmt: skip
             steady = None
+        elif isinstance(start, NullReason):
+            steady = 0
         else:
-            steady = sum(p + o for (p, o), i in zip(per_proof, indices, strict=True)
-                         if i is not None and i >= batch_size)  # fmt: skip
+            steady = sum(p + o for (p, o), i, t in zip(per_proof, indices, times, strict=True)
+                         if i is not None and i >= batch_size and t > start)  # fmt: skip
     values = {
         "tokens_covered_total": total,
         "tokens_covered_prompt": sum(p for p, _ in per_proof),

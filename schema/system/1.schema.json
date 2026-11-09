@@ -157,6 +157,11 @@
     "engine": {
       "additionalProperties": false,
       "properties": {
+        "commit": {
+          "$comment": "RFC-0015 Q1: the engine's source commit at the pinned version (the image's VLLM_BUILD_COMMIT); a join key of D-OVERHEAD-S with the version (RFC-0004 INV-DERIVE-2 (e))",
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
         "image": {
           "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$",
           "type": "string"

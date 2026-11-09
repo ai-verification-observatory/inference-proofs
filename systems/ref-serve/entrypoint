@@ -32,6 +32,7 @@ file in process; IPROOFS_SYSTEM_YAML points at system.yaml outside the image.
 """
 
 import dataclasses
+import importlib.metadata
 import json
 import os
 import re
@@ -59,6 +60,17 @@ SERVE_FLAGS = ("--tensor-parallel-size", "--max-model-len", "--max-num-seqs")  #
 CONFIG_LINE = re.compile(r"Initializing a V1 LLM engine \(v[^)]*\) with config: (.*)$")
 KV_LINE = re.compile(r"KV cache size: ([\d,]+) tokens, Maximum concurrency for ([\d,]+) "
                      r"tokens per request: ([\d.]+)x")  # fmt: skip
+# vllm/config/scheduler.py L307 at v0.32.0 (info level; max_num_seqs is logged at debug only)
+BATCHED_LINE = re.compile(r"Chunked prefill is enabled with max_num_batched_tokens=(\d+)\.")
+# The engine's and torch's out-of-memory errors at start: evidence, with the KV-capacity line,
+# that the model and the matched load do not fit on this GPU count (RFC-0015 SRV-6). The same
+# list as iproofs.serving.RESOURCE_EVIDENCE (a test keeps the two equal).
+OOM_LINES = (
+    re.compile(r"CUDA out of memory"),
+    re.compile(r"OutOfMemoryError"),
+    re.compile(r"No available memory for the cache blocks"),
+    re.compile(r"larger than the available KV cache memory"),
+)
 START_TIMEOUT_S = float(os.environ.get("IPROOFS_ENGINE_START_S", "3600"))
 
 
@@ -158,17 +170,33 @@ def resolved_fields(line: str) -> dict[str, str]:
 
 # the resolved-configuration fields the three allowlisted options set (vllm/config/vllm.py)
 ALLOWED_RESOLVED = {"tensor_parallel_size", "max_seq_len"}
+# the fields the serving record's own files set: the model path and served name, and the
+# precision its config.json states (dtype, quantization and its config; vllm/config/vllm.py
+# L2713 to L2724 at v0.32.0), so the publisher's precision is never read as a deviation
+MODEL_RESOLVED = {"model", "tokenizer", "served_model_name", "dtype", "quantization",
+                  "quantization_config"}  # fmt: skip
 
 
-def resolved_problems(line: str, default: str) -> list[str]:
+def model_expected(config: dict) -> dict[str, str]:
+    """The resolved quantization the release's own config.json states: its
+    `quantization_config.quant_method` (`compressed-tensors` for Meta's FP8 Maverick), or None
+    for an unquantized release (Llama 3.1 8B BF16)."""
+    method = (config.get("quantization_config") or {}).get("quant_method")
+    return {"quantization": str(method) if method else "None"}
+
+
+def resolved_problems(line: str, default: str, expected: dict[str, str] | None = None) -> list:
     """SRV-3: the resolved configuration differs from the pinned version's default dump (same
-    interface and usage context) only in the fields the allowlisted options set; the model
-    path and served name are the job's own."""
+    interface and usage context) only in the fields the allowlisted options set and those the
+    serving record's files set; of the latter, those in `expected` (model_expected) must be
+    what the release's config.json states."""
     ours, theirs = resolved_fields(line), resolved_fields(default)
-    own = ALLOWED_RESOLVED | {"model", "tokenizer", "served_model_name"}
+    own = ALLOWED_RESOLVED | MODEL_RESOLVED
     keys = sorted((set(ours) | set(theirs)) - own)
-    changed = [k for k in keys if ours.get(k) != theirs.get(k)]
-    return [f"{k}: {theirs.get(k)!r} -> {ours.get(k)!r}" for k in changed]
+    changed = [f"{k}: {theirs.get(k)!r} -> {ours.get(k)!r}" for k in keys
+               if ours.get(k) != theirs.get(k)]  # fmt: skip
+    return changed + [f"{k}: the release states {v!r}, the engine resolved {ours.get(k)!r}"
+                      for k, v in sorted((expected or {}).items()) if ours.get(k) != v]  # fmt: skip
 
 
 def free_port() -> int:
@@ -201,8 +229,13 @@ class ServeEngine:
         deadline = time.monotonic() + START_TIMEOUT_S
         while time.monotonic() < deadline:
             if self.proc.poll() is not None:
+                lines = self.lines()
+                oom = [ln.strip() for ln in lines if any(p.search(ln) for p in OOM_LINES)]
+                if oom:  # SRV-6: the model and its KV cache do not fit on this GPU count
+                    raise Refused("resource", f"vllm serve exited {self.proc.returncode} at "
+                                  "start out of GPU memory (RFC-0015 SRV-6)", oom[-3:])  # fmt: skip
                 raise SystemExit(f"ref-serve: vllm serve exited {self.proc.returncode} at start;"
-                                 f" last lines: {self.lines()[-20:]}")  # fmt: skip
+                                 f" last lines: {lines[-20:]}")  # fmt: skip
             try:
                 with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/health", timeout=5):
                     return
@@ -213,6 +246,10 @@ class ServeEngine:
 
     def resolved_config(self) -> str | None:
         return next((m.group(1) for ln in self.lines() if (m := CONFIG_LINE.search(ln))), None)
+
+    def max_num_batched_tokens(self) -> int | None:
+        return next((int(m.group(1)) for ln in self.lines() if (m := BATCHED_LINE.search(ln))),
+                    None)  # fmt: skip
 
     def kv_capacity(self) -> tuple[int, str] | None:
         for ln in self.lines():
@@ -350,6 +387,18 @@ def prove(job: dict) -> dict:
     return {**base("prove"), "proofs": proofs}
 
 
+def observed(engine: object) -> dict[str, object]:
+    """The engine as this process sees it run (RFC-0004 INV-DERIVE-2 (e)): the installed
+    version, the image ENV's build commit, and the batched-token limit the engine logged."""
+    try:
+        version: str | None = importlib.metadata.version("vllm")
+    except importlib.metadata.PackageNotFoundError:
+        version = None
+    batched = getattr(engine, "max_num_batched_tokens", None)
+    return {"version": version, "build_commit": os.environ.get("VLLM_BUILD_COMMIT"),
+            "max_num_batched_tokens": batched() if callable(batched) else None}  # fmt: skip
+
+
 def prove_serving(job: dict) -> dict:
     """Production serving (SRV-1 to SRV-6): checks before the engine, then the batches."""
     gpus = bound_gpus(dict(os.environ))
@@ -379,7 +428,8 @@ def prove_serving(job: dict) -> dict:
         resolved, kv = engine.resolved_config(), engine.kv_capacity()
         record = {"argv": engine.argv, "cwd": "/io", "started_mono_ns": started,
                   "exit_code": 0, "environment": environ, "resolved_config": resolved,
-                  "kv_capacity": None if kv is None else kv[1]}  # fmt: skip
+                  "kv_capacity": None if kv is None else kv[1],
+                  "engine_observed": observed(engine)}  # fmt: skip
         with host("/io/commands.jsonl").open("a") as f:
             f.write(json.dumps(record, sort_keys=True) + "\n")
         need = size * (job["shape"]["prompt_tokens"] + job["shape"]["output_tokens"])

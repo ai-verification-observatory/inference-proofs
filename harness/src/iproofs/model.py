@@ -287,6 +287,7 @@ class WorkloadRecord(Document):
     batches_per_session_run: int | None = None
     prompt_count_run: int | None = None
     prompt_prefix_digest: str | None = None  # RFC-0015 SRV-8
+    steady_rule: str | None = None  # RFC-0004 INV-SCOPE-5 (absent: first-proof boundary)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -439,6 +440,7 @@ class IndexConfiguration(Document):
     evidence: Evidence
     load_point: str | None = None  # RFC-0015 SRV-1 (absent: matched)
     overhead_conditions: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-9
+    steady_boundary: str | None = None  # RFC-0004 INV-SCOPE-5 label of earlier runs (APP-1)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -876,6 +878,7 @@ class Engine(Document):
     name: str
     version: str
     image: str
+    commit: str | None = None  # RFC-0015 Q1: the source commit (the image's VLLM_BUILD_COMMIT)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

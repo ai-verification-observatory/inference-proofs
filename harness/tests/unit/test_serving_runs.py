@@ -129,6 +129,7 @@ def test_matched_serving_run_counts_its_gpus(repo: Path) -> None:
                                   "interface": "vllm serve"}  # fmt: skip
     assert "serving_model" not in manifest  # toy repository model, no serving record
     assert "steady scope under 60 s" in doc["warnings"]  # SRV-1: kept with the label
+    assert manifest["workload"]["steady_rule"] == "batch-membership"  # INV-SCOPE-5
     assert REGISTRY.errors("manifest/1", manifest) == []
     assert REGISTRY.errors("run/1", doc) == []
 
@@ -168,6 +169,36 @@ def test_bound_gpu_count_and_placement(repo: Path) -> None:
     refused = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
     assert refused["failure"]["kind"] == "config"
     assert "a 4-GPU job of this workload is refused" in refused["failure"]["message"]
+    high = read(runner(repo, (0, 1, 2, 3), load="high").run(spec(repo, "ci-serving-x4")), "run")
+    assert "a run on 2 GPU(s) completed" in high["failure"]["message"]  # either load point
+
+
+def attempt(repo: Path, name: str, profile: str, failure: dict[str, Any] | None) -> None:
+    """A stored matched attempt of fake-tiny-ci in the results root (fixture records)."""
+    out = repo / "results/v0.1/fake-ref" / name
+    out.mkdir(parents=True)
+    doc = {"status": "failed" if failure else "completed", "profile": profile,
+           "workload": {"id": "fake-tiny-ci"}, "failure": failure}  # fmt: skip
+    (out / "run.json").write_text(json.dumps(doc))
+    (out / "manifest.json").write_text(json.dumps({"workload": {"load_point": "matched"}}))
+
+
+def test_placement_needs_resource_evidence(repo: Path) -> None:
+    """TC-SRV-PLACEMENT (RFC-0015 SRV-6): an `adapter` failure on 2 GPUs admits no 4-GPU job;
+    a `resource` failure with the KV-capacity line does (the adapter failure set aside); one
+    without evidence does not."""
+    attempt(repo, "a", "ci-serving-x2", {"kind": "adapter", "last_lines": ["boom"]})
+    four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
+    assert four["failure"]["kind"] == "config"
+    assert "not all `resource` failures" in four["failure"]["message"]
+    attempt(repo, "b", "ci-serving-x2", {"kind": "resource", "last_lines": ["killed"]})
+    four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
+    assert four["failure"]["kind"] == "config"
+    shutil.rmtree(repo / "results/v0.1/fake-ref/b")
+    kv = "GPU KV cache size: 20,000 tokens, Maximum concurrency for 1,025 tokens per request"
+    attempt(repo, "c", "ci-serving-x2", {"kind": "resource", "last_lines": [kv]})
+    four = read(runner(repo, (0, 1, 2, 3)).run(spec(repo, "ci-serving-x4")), "run")
+    assert four["status"] == "completed", four["failure"]
 
 
 def test_profile_rules(repo: Path) -> None:
@@ -205,6 +236,17 @@ def test_helpers(tmp_path: Path) -> None:
         "x\n" + json.dumps({"argv": ["vllm.LLM", "--model", "/models"]}) + "\n"
     )
     assert engine_interface(tmp_path) == "LLM class"
+    from iproofs.runner import engine_observed  # noqa: PLC0415
+
+    assert engine_observed(tmp_path) is None
+    seen = {"version": "0.32.0", "build_commit": "5" * 40, "max_num_batched_tokens": 8192}
+    with (tmp_path / "commands.jsonl").open("a") as f:
+        f.write(json.dumps({"engine_observed": {**seen, "extra": 1}}) + "\n")
+    assert engine_observed(tmp_path) == seen
+    (tmp_path / "commands.jsonl").write_text(
+        json.dumps({"engine_observed": {**seen, "max_num_batched_tokens": "8192"}}) + "\n"
+    )
+    assert engine_observed(tmp_path) is None  # a malformed record is not an observation
 
 
 class Gpu:

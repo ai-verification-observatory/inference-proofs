@@ -133,6 +133,9 @@ def test_out_json_fixture(adapter: ModuleType) -> None:
                                       "NCCL_VERSION": "2.27.3-1"}  # fmt: skip
     assert command["resolved_config"] == RESOLVED
     assert command["kv_capacity"].startswith("GPU KV cache size: 1,000,000 tokens")
+    # no vllm package and no VLLM_BUILD_COMMIT here, and the replay logs no batched-token line
+    assert command["engine_observed"] == {"version": None, "build_commit": None,
+                                          "max_num_batched_tokens": None}  # fmt: skip
 
 
 def test_captured_out_json_is_valid() -> None:
@@ -373,8 +376,19 @@ def test_resolved_config_defaults(adapter: ModuleType) -> None:
     assert fields["structured_outputs_config"].startswith("StructuredOutputsConfig(")
     eager = ours.replace("enforce_eager=False", "enforce_eager=True")
     assert adapter.resolved_problems(eager, RESOLVED) == ["enforce_eager: 'False' -> 'True'"]
+    # the precision is the release's own: checked against its config.json, not the default
+    unquantized = adapter.model_expected({"torch_dtype": "bfloat16"})
+    assert adapter.resolved_problems(ours, RESOLVED, unquantized) == []
     quant = ours.replace("quantization=None", "quantization=fp8")
-    assert adapter.resolved_problems(quant, RESOLVED) == ["quantization: 'None' -> 'fp8'"]
+    assert adapter.resolved_problems(quant, RESOLVED, unquantized) == [
+        "quantization: the release states 'None', the engine resolved 'fp8'"
+    ]
+    fp8 = adapter.model_expected({"quantization_config": {"quant_method": "compressed-tensors"}})
+    maverick = ours.replace("quantization=None", "quantization=compressed-tensors")
+    assert adapter.resolved_problems(maverick, RESOLVED, fp8) == []
+    assert adapter.resolved_problems(ours, RESOLVED, fp8) == [
+        "quantization: the release states 'compressed-tensors', the engine resolved 'None'"
+    ]
 
 
 def test_engine_lines_parsed(adapter: ModuleType, tmp_path: Path) -> None:
@@ -391,6 +405,35 @@ def test_engine_lines_parsed(adapter: ModuleType, tmp_path: Path) -> None:
     log.write_text("nothing\n")
     assert engine.resolved_config() is None
     assert engine.kv_capacity() is None
+    assert engine.max_num_batched_tokens() is None
+    log.write_text("INFO scheduler.py:307] Chunked prefill is enabled with "
+                   "max_num_batched_tokens=8192.\n")  # fmt: skip
+    assert engine.max_num_batched_tokens() == 8192
+
+
+def test_out_of_memory_at_start_is_resource(adapter: ModuleType, tmp_path: Path) -> None:
+    """SRV-6: the engine exiting at start out of GPU memory is `resource`, with the engine's
+    line as evidence (the release admits a larger GPU count on it); another exit stays an
+    adapter failure. The adapter's patterns are the harness's (iproofs.serving)."""
+    from iproofs.serving import RESOURCE_EVIDENCE  # noqa: PLC0415
+
+    assert [p.pattern for p in adapter.OOM_LINES] == [p.pattern for p in RESOURCE_EVIDENCE[1:]]
+    assert RESOURCE_EVIDENCE[0].search("GPU KV cache size: 20,000 tokens, Maximum")
+    log = tmp_path / "engine.log"
+    engine = object.__new__(adapter.ServeEngine)
+    engine.log_path = log
+    engine.port = 1
+    engine.proc = type("P", (), {"returncode": 1, "poll": lambda self: 1})()
+    line = "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB"
+    log.write_text(f"INFO loading\n{line}\n")
+    with pytest.raises(SystemExit) as e:
+        engine.wait_ready()
+    assert e.value.code == 3
+    failure = json.loads((Path(adapter.host("/io")) / "failure.json").read_text())
+    assert (failure["kind"], failure["evidence"]) == ("resource", [line])
+    log.write_text("ValueError: Unrecognized model\n")
+    with pytest.raises(SystemExit, match="exited 1 at start"):
+        engine.wait_ready()
 
 
 def sizing() -> ModuleType:

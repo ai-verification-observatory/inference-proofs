@@ -12,6 +12,7 @@ engine:
   name: vllm
   version: 0.32.0
   image: docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+  commit: 5df63a7203cdb9328d824a27b682e77c7b9928be  # the image ENV VLLM_BUILD_COMMIT (Q1)
 # RFC-0014 B7: built by the images workflow from main at 2dacdc85e9871460b82ecc939340c2f988b68338
 # (adapter_dirty false), for plain serving with the GGUF plugin. Its baked system.yaml is not this
 # one, so the runner refuses a job on it (SRV-3: the engine command must end with these

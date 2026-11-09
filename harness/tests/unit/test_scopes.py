@@ -102,12 +102,23 @@ def test_steady_batch() -> None:
 
 def test_steady_batch_interleaved() -> None:
     """An interleaved release order (request 30 released at 10.0105 s, before request 23 at
-    10.023 s) gives the same start: the last release of the first batch."""
+    10.023 s) gives the same start: the last release of the first batch. Request 30 leaves
+    the steady tokens (test_tokens.py); the window is unchanged. With every later request
+    released before the first batch's last, there is no steady scope."""
     releases, indices = _b24(list(range(120)))
     releases[30] = 10 * S + 10_500_000
     out = scope_seconds(EVENTS | {"prove.end": 20 * S}, releases, observable=True, run_json=RUN,
                         batch_size=24, request_indices=indices)  # fmt: skip
     assert out["prove_steady_seconds"]["value"] == pytest.approx(4.0)
+    releases, indices = _b24(list(range(48)))
+    releases[23] = 12 * S  # the first batch ends after the second
+    out = scope_seconds(EVENTS | {"prove.end": 20 * S}, releases, observable=True, run_json=RUN,
+                        batch_size=24, request_indices=indices)  # fmt: skip
+    assert out["prove_steady_seconds"]["null_reason"] == "fewer_than_two_proofs"
+    releases, indices = _b24(list(range(24, 48)))  # no first-batch release at all
+    out = scope_seconds(EVENTS | {"prove.end": 20 * S}, releases, observable=True, run_json=RUN,
+                        batch_size=24, request_indices=indices)  # fmt: skip
+    assert out["prove_steady_seconds"]["null_reason"] == "fewer_than_two_proofs"
 
 
 def test_steady_batch_one_batch() -> None:

@@ -208,6 +208,31 @@
                       "null"
                     ]
                   },
+                  "max_num_batched_tokens": {
+                    "$comment": "the batched-token limit each chosen serving configuration's engine logged at start (manifest engine.observed)",
+                    "additionalProperties": false,
+                    "properties": {
+                      "high": {
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "matched": {
+                        "minimum": 1,
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "high",
+                      "matched"
+                    ],
+                    "type": "object"
+                  },
                   "name": {
                     "minLength": 1,
                     "type": "string"
@@ -215,6 +240,12 @@
                   "settings": {
                     "minLength": 1,
                     "type": "string"
+                  },
+                  "settings_high": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
                   },
                   "version": {
                     "minLength": 1,
@@ -224,8 +255,10 @@
                 "required": [
                   "image_digest",
                   "interface",
+                  "max_num_batched_tokens",
                   "name",
                   "settings",
+                  "settings_high",
                   "version"
                 ],
                 "type": "object"
@@ -246,6 +279,13 @@
                       "null"
                     ]
                   },
+                  "serving_high": {
+                    "minimum": 0,
+                    "type": [
+                      "integer",
+                      "null"
+                    ]
+                  },
                   "system": {
                     "minimum": 0,
                     "type": [
@@ -256,6 +296,7 @@
                 },
                 "required": [
                   "serving",
+                  "serving_high",
                   "system"
                 ],
                 "type": "object"
@@ -307,6 +348,12 @@
                       "null"
                     ]
                   },
+                  "serving_high": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
                   "system": {
                     "minLength": 1,
                     "type": "string"
@@ -314,6 +361,7 @@
                 },
                 "required": [
                   "serving",
+                  "serving_high",
                   "system"
                 ],
                 "type": "object"
@@ -459,6 +507,10 @@
               "$ref": "../quantity/1.schema.json#/$defs/metricId"
             },
             "type": "object"
+          },
+          "steady_boundary": {
+            "$comment": "RFC-0004 INV-SCOPE-5: present when a completed run of the configuration at batch size above 1 was recorded before the batch-membership rule; its steady figures keep the first-proof boundary (APP-1) and join no D-OVERHEAD-S",
+            "const": "first-proof boundary (before 2026-11-09)"
           },
           "system": {
             "$ref": "../quantity/1.schema.json#/$defs/systemId"

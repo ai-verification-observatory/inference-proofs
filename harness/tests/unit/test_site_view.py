@@ -428,13 +428,18 @@ def test_overhead_conditions_words() -> None:
     conditions = {
         "engine": {"name": "vllm", "version": "0.32.0", "interface": "vllm serve",
                    "image_digest": None,
-                   "settings": "engine defaults except --max-model-len, --max-num-seqs, "
-                               "--tensor-parallel-size"},
+                   "settings": "engine defaults except --tensor-parallel-size 4, "
+                               "--max-model-len 1025, --max-num-seqs 24",
+                   "settings_high": "engine defaults except --tensor-parallel-size 4, "
+                                    "--max-model-len 1025",
+                   "max_num_batched_tokens": {"matched": 8192, "high": 8192}},
         "decoding": "greedy", "warm": True, "runtime": "hosted",
         "serving_model": {"id": "m", "version": 1, "digest": "sha256:" + "0" * 64,
                           "publisher": "Meta", "precision": "FP8", "release_statement": "q"},
-        "proved_precision": "UD-Q4_K_XL", "weight_bits": "w", "gpus": {"system": 1, "serving": 4},
-        "gpu_model": "NVIDIA H200", "profiles": {"system": "a", "serving": "b"},
+        "proved_precision": "UD-Q4_K_XL", "weight_bits": "w",
+        "gpus": {"system": 1, "serving": 4, "serving_high": 4},
+        "gpu_model": "NVIDIA H200",
+        "profiles": {"system": "a", "serving": "b", "serving_high": "b"},
         "batch": {"matched": 24, "high": 1024},
         "batches_per_session": {"system": 5, "serving_matched": 25, "serving_high": 5},
         "prompt_count_run": {"system": 120, "serving_matched": 600, "serving_high": 5120},
@@ -442,9 +447,11 @@ def test_overhead_conditions_words() -> None:
     }  # fmt: skip
     pairs = {"n_system": 3, "n_serving": 3, "min": 72.0, "max": 146.0}
     stats = {
-        "overhead_vs_production_prove.steady": {"value": 100.0, "pairs": pairs},
-        "overhead_vs_production_high_prove.steady": {"value": 200.0, "pairs": pairs},
-    }
+        "overhead_vs_production_prove.steady": {"value": 100.0, "pairs": pairs,
+                                                "scope": "prove.steady"},
+        "overhead_vs_production_high_prove.steady": {"value": 200.0, "pairs": pairs,
+                                                     "scope": "prove.steady"},
+    }  # fmt: skip
     wl = {"precision": {"weight_bits": {"bits": 4.84, "basis": "computed"}}}
     words = overhead_words(conditions, stats, wl)
     assert words is not None
@@ -455,10 +462,20 @@ def test_overhead_conditions_words() -> None:
     )
     line = words["conditions"]
     gpus = "1 \u00d7 NVIDIA H200 for the prover, 4 for serving"
-    for part in ("steady scope", "vllm 0.32.0, vllm serve", "480 further windows", gpus,
-                 "RFC-0006 C5", "greedy"):  # fmt: skip
+    for part in ("prove.steady scope", "vllm 0.32.0, vllm serve", "480 further windows", gpus,
+                 "RFC-0006 C5", "greedy", "--max-num-seqs 24",
+                 "5 batches for the prover and 25 for serving"):  # fmt: skip
         assert part in line, part
     assert words["high"].startswith("At 1024 requests a batch: 200\u00d7")
     assert "the prover's 120 prompts plus 5000 further windows" in words["high"]
+    assert (
+        "prove.steady scope; 5 batches for serving on 4 \u00d7 NVIDIA H200, engine defaults"
+        " except --tensor-parallel-size 4, --max-model-len 1025"
+    ) in words["high"]
+    unrecorded = {**conditions, "batches_per_session": {"system": 5, "serving_matched": None,
+                                                        "serving_high": 5}}  # fmt: skip
+    again = overhead_words(unrecorded, stats, wl)
+    assert again is not None
+    assert "5 batches for the prover and not recorded for serving" in again["conditions"]
     stats["overhead_vs_production_prove.steady"] = {"value": None, "pairs": pairs}
     assert overhead_words(conditions, stats, wl) is None

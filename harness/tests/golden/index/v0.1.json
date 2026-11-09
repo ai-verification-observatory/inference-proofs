@@ -266,6 +266,7 @@
           "value": 36.0
         }
       },
+      "steady_boundary": "first-proof boundary (before 2026-11-09)",
       "system": "fake",
       "workload": {
         "id": "fake-tiny-ci",

@@ -15,6 +15,7 @@ Pure functions apart from `ensure_serving_model` (cache writes) and the `get` ca
 import hashlib
 import json
 import os
+import re
 import shutil
 import stat
 from collections.abc import Callable, Iterable, Mapping, Sequence
@@ -140,6 +141,63 @@ def serving_manifest(record: ServingModel) -> dict[str, object]:
             "revision": record.publisher.release.revision,
         },
     }
+
+
+# ---------------------------------------------------------------- placement (SRV-6, NM-1)
+
+# RFC-0015 NM-1: the largest serving profile one node of the GPU model allows (8 GPUs)
+MAX_SERVING_GPUS = 8
+# RFC-0015 SRV-6: the lines that make a `resource` failure evidence that the model and the
+# matched load's KV cache do not fit on a GPU count. The adapter declares the first with its
+# refusal (vLLM v0.32.0 vllm/v1/core/kv_cache_utils.py L2328); the others are the engine's and
+# torch's out-of-memory errors at start (systems/ref-serve/entrypoint keeps the same list).
+RESOURCE_EVIDENCE = (
+    re.compile(r"KV cache size: [\d,]+ tokens"),
+    re.compile(r"CUDA out of memory"),
+    re.compile(r"OutOfMemoryError"),
+    re.compile(r"No available memory for the cache blocks"),
+    re.compile(r"larger than the available KV cache memory"),
+)
+Attempt = tuple[bool, object]  # (completed, run.json `failure`)
+# RFC-0015 SRV-1: the warning of a serving run whose steady scope lasts under 60 s; such a run
+# keeps its value and joins no D-OVERHEAD-S (RFC-0004 INV-DERIVE-2)
+SHORT_STEADY = "steady scope under 60 s"
+
+
+def resource_evidence(failure: object) -> bool:
+    """A `resource` failure whose recorded last lines hold a KV-capacity or out-of-memory line."""
+    if not isinstance(failure, Mapping) or failure.get("kind") != "resource":
+        return False
+    lines = failure.get("last_lines")
+    return any(p.search(str(line)) for line in lines or () for p in RESOURCE_EVIDENCE)
+
+
+def exhausted(attempts: Sequence[Attempt]) -> bool:
+    """SRV-6: a GPU count admits the next one. Its attempts other than `adapter` failures (a
+    bug, fixed and rerun, never a reason to move) are at least one, and every one of them
+    failed `resource` with evidence."""
+    counted = [(ok, f) for ok, f in attempts
+               if ok or not isinstance(f, Mapping) or f.get("kind") != "adapter"]  # fmt: skip
+    return bool(counted) and all(not ok and resource_evidence(f) for ok, f in counted)
+
+
+def placement_problem(
+    by_count: Mapping[int, Sequence[Attempt]], count: int, declared: Iterable[int] = ()
+) -> str | None:
+    """SRV-6: why `count` GPUs are not admitted for a workload, or None. Every smaller count
+    among those attempted (`by_count`, matched load) and those `declared` (system.yaml entries,
+    which the release requires to be attempted) must be exhausted."""
+    for smaller in sorted({c for c in (*by_count, *declared) if c < count}):
+        attempts = by_count.get(smaller) or ()
+        if not attempts:
+            return f"no attempt on {smaller} GPU(s), the smaller count system.yaml declares"
+        if any(ok for ok, _ in attempts):
+            return f"a run on {smaller} GPU(s) completed"
+        if not exhausted(attempts):
+            return (f"the attempts on {smaller} GPU(s) are not all `resource` failures with "
+                    "KV-capacity or out-of-memory evidence (an `adapter` failure admits "
+                    "nothing)")  # fmt: skip
+    return None
 
 
 # ---------------------------------------------------------------- SM-2 (fetch-model --serving)

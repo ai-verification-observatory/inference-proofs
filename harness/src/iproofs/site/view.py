@@ -360,6 +360,10 @@ def _range(q: dict[str, Any]) -> str:
             f"{pairs['n_serving']} pairs")  # fmt: skip
 
 
+def _scoped(q: dict[str, Any]) -> str:
+    return f"{q['scope']} scope" if q.get("scope") else "scope not recorded"
+
+
 def overhead_words(
     conditions: dict[str, Any] | None, stats: dict[str, Any], wl: dict[str, Any]
 ) -> dict[str, str] | None:
@@ -375,10 +379,14 @@ def overhead_words(
     bits = (wl.get("precision") or {}).get("weight_bits") or {}
     gpus, n, count = c["gpus"], c["n"], c["prompt_count_run"]
     batch, per = c["batch"], c["batches_per_session"]
+
+    def known(value: object) -> str:
+        return "not recorded" if value is None else str(value)
+
     line = "; ".join([
-        "steady scope (start-up excluded on both sides)",
-        f"{batch['matched']} requests a batch on both sides, {per['system']} batches for the "
-        f"prover and {per['serving_matched'] or per['system']} for serving",
+        f"{_scoped(q)} (start-up excluded on both sides)",
+        f"{batch['matched']} requests a batch on both sides, {known(per['system'])} batches for "
+        f"the prover and {known(per['serving_matched'])} for serving",
         f"prompts: the prover's {count['system']}, replayed"
         + ("" if not count.get("serving_matched") or count["serving_matched"] == count["system"]
            else f" (serving: the prover's {count['system']} plus "
@@ -390,7 +398,8 @@ def overhead_words(
         f"{c['runtime']}",
         f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
         f" release; proving {c['proved_precision']}",
-        f"{gpus['system']} \u00d7 {c['gpu_model']} for the prover, {gpus['serving']} for serving",
+        f"{known(gpus['system'])} \u00d7 {c['gpu_model']} for the prover, "
+        f"{known(gpus['serving'])} for serving",
         f"n = {n['system']} prover and {n['serving_matched']} serving repetitions, {_range(q)}",
         "GPU-seconds only: CPU and host memory are not counted; the prover's GPU comes with its "
         "host's CPUs and memory (RFC-0006 C5)",
@@ -409,8 +418,13 @@ def overhead_words(
             extra = (f"; at high load: the prover's {count['system']} prompts plus "
                      f"{count['serving_high'] - count['system']} further windows of the same "
                      "seeded generator")  # fmt: skip
-        out["high"] = (f"At {batch['high']} requests a batch: {_num(float(high['value']))}\u00d7 "
-                       f"({_range(high)}){extra}.")  # fmt: skip
+        out["high"] = (f"At {known(batch['high'])} requests a batch: "
+                       f"{_num(float(high['value']))}\u00d7 ({_range(high)}); "
+                       f"{_scoped(high)}; "
+                       f"{known(per['serving_high'])} batches for serving on "
+                       f"{known(gpus.get('serving_high'))} \u00d7 {c['gpu_model']}, "
+                       f"{engine.get('settings_high') or 'settings not recorded'}"
+                       f"{extra}.")  # fmt: skip
     return out
 
 

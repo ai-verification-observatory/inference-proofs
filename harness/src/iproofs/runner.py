@@ -13,7 +13,7 @@ import shutil
 import statistics
 import time
 import traceback
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,10 +35,12 @@ from iproofs.controls import (
     system_control_record,
 )
 from iproofs.derive import (
+    STEADY_RULE,
     QuantityTree,
     derive_repetition,
     honest_verdict_failure,
     measured,
+    released_before_start,
     scope_seconds,
     tokens_metrics,
     tokens_per_proof,
@@ -107,7 +109,13 @@ from iproofs.quantity import (
 )
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
-from iproofs.serving import ensure_serving_model, record_for, serving_manifest
+from iproofs.serving import (
+    SHORT_STEADY,
+    ensure_serving_model,
+    placement_problem,
+    record_for,
+    serving_manifest,
+)
 from iproofs.workloads import (
     asserted_inputs,
     default_cache,
@@ -347,6 +355,7 @@ class Job:
     run_shape: tuple[int, int] | None = None  # (batch size, batches) when not the workload's
     prompt_prefix_digest: str | None = None
     engine_interface: str | None = None  # from the recorded engine command (RFC-0015 Q8)
+    engine_observed: dict[str, object] | None = None  # the engine as the adapter saw it run
 
 
 class Runner:
@@ -667,10 +676,15 @@ class Runner:
                 raise IProofsError(ErrorKind.CONFIG, placement_problem)
 
     def _placement(self, job: Job, count: int) -> str | None:
-        """RFC-0015 SRV-6 placement: a job of a larger GPU count is refused once a run of a
-        smaller count of this workload and load point completed (the fewest GPUs that hold it)."""
+        """RFC-0015 SRV-6 placement over the attempts this results root holds: a job of a larger
+        GPU count is refused, at either load point (the matched load sizes the placement), once
+        a smaller count's matched run completed, or while a smaller count's attempts are not
+        all `resource` failures with KV-capacity or out-of-memory evidence (an `adapter`
+        failure admits nothing). Attempts made in other jobs are not seen here; the release
+        join applies the same rule to every kept attempt (RFC-0004 INV-DERIVE-2)."""
         assert job.reference is not None
         found = Path(job.spec.results_root) / job.spec.release / job.spec.system
+        by_count: dict[int, list[tuple[bool, object]]] = {}
         for run_json in sorted(found.glob("*/run.json")):
             try:
                 doc = json.loads(run_json.read_text())
@@ -680,12 +694,15 @@ class Runner:
             other = job.reference.profiles.get(str(doc.get("profile")))
             theirs = getattr(getattr(other, "gpu", None), "count", None)
             point = (manifest.get("workload") or {}).get("load_point") or "matched"
-            if (doc.get("status") == "completed" and doc.get("workload", {}).get("id")
-                    == job.spec.workload and point == self.load
-                    and isinstance(theirs, int) and theirs < count):  # fmt: skip
-                return (f"{run_json.parent.name} completed on {theirs} GPU(s); a {count}-GPU "
-                        "job of this workload is refused (RFC-0015 SRV-6)")  # fmt: skip
-        return None
+            if (doc.get("workload", {}).get("id") == job.spec.workload and point == "matched"
+                    and isinstance(other, ServingProfile) and isinstance(theirs, int)):  # fmt: skip
+                by_count.setdefault(theirs, []).append(
+                    (doc.get("status") == "completed", doc.get("failure"))
+                )
+        problem = placement_problem(by_count, count)
+        if problem is None:
+            return None
+        return f"{problem}; a {count}-GPU job of this workload is refused (RFC-0015 SRV-6)"
 
     def _serving_models(self, record: ServingModel, log: JsonlLogger | None) -> Path:
         """The serving record's files, fetched and checked (RFC-0014 SM-2), rehashed per job."""
@@ -1112,6 +1129,7 @@ class Runner:
         if reference and problem is not None:
             raise IProofsError(ErrorKind.CONFIG, problem, step="prove")
         job.engine_interface = engine_interface(job.staging / "io")
+        job.engine_observed = engine_observed(job.staging / "io")
         if job.serving_record is not None and watcher.mechanism != "inotify":  # SRV-1, W-1
             message = "a production-serving run needs the inotify release watcher; it polled"
             raise IProofsError(ErrorKind.ENVIRONMENT, message, step="prove")
@@ -1802,6 +1820,7 @@ class Runner:
                 "corpus_digest": wl.prompts.corpus_digest,
                 "prompt_seed": f"0x{job.seed:016x}",
                 "prompt_set_digest": job.prompt_set_digest,
+                "steady_rule": STEADY_RULE,  # RFC-0004 INV-SCOPE-5
             }
             | self._serving_workload(job),
             "profile": {
@@ -1842,7 +1861,8 @@ class Runner:
         engine = job.system.engine
         interface = job.engine_interface or "vllm serve"
         pinned = {"name": engine.name, "version": engine.version, "image": engine.image}
-        out: dict[str, object] = {"engine": {**pinned, "interface": interface}}
+        seen = {"observed": job.engine_observed} if job.engine_observed is not None else {}
+        out: dict[str, object] = {"engine": {**pinned, "interface": interface, **seen}}
         if job.serving_record is not None:
             out["serving_model"] = serving_manifest(job.serving_record)
         return out
@@ -1893,16 +1913,20 @@ class Runner:
         entries = {p.proof_id: p for p in listed}
         indices = [e.request_index if (e := entries.get(pid)) else None for pid, _ in job.releases]
         batch = _batch_size(job)  # INV-SCOPE-5: the steady scope starts after the first batch
+        times = [ns for _, ns in job.releases]
         m = scope_seconds(
             job.events.first(),
-            [ns for _, ns in job.releases],
+            times,
             observable=job.observable,
             run_json=run_json,
             batch_size=batch,
             request_indices=indices,
         )
         per_proof = self._tokens(job)
-        m |= tokens_metrics(per_proof, run_json, batch_size=batch, request_indices=indices)
+        m |= tokens_metrics(
+            per_proof, run_json, batch_size=batch, request_indices=indices, releases=times
+        )
+        early = released_before_start(times, batch, indices)
 
         def count(v: int) -> QuantityTree:
             return measured(v, Unit.COUNT, None, f"{run_json}#/proofs", None)
@@ -1978,9 +2002,7 @@ class Runner:
             reference=_reference(job),
             gpu_count=None if gpu_q is None else (f"{run_json}#/inputs/gpu_count", gpu_q),
         )
-        steady = m.get("prove_steady_seconds", {}).get("value")
-        if job.serving_entry is not None and isinstance(steady, float) and steady < 60:
-            job.warnings.append("steady scope under 60 s")  # RFC-0015 SRV-1: kept, labelled
+        _steady_warnings(job, m, early)
         if self._substituted(job):  # RFC-0015 PM-2: every quantity of the row is flagged
             for q in m.values():
                 q["quality"] = {**(q.get("quality") or {}), "precision_substituted": True}  # type: ignore[dict-item]
@@ -2161,6 +2183,18 @@ def _declared_failure(io: Path, job: Job) -> tuple[ErrorKind, str, list[str]] | 
     return kind, str(doc.get("message", ""))[:1000], lines
 
 
+def _steady_warnings(job: Job, m: Mapping[str, QuantityTree], early: int) -> None:
+    """RFC-0004 INV-SCOPE-5: later-batch requests released before the steady start; RFC-0015
+    SRV-1: a serving run's steady scope under 60 s keeps its value, labelled (it joins no
+    D-OVERHEAD-S, INV-DERIVE-2)."""
+    if early:
+        job.warnings.append(f"{early} later-batch request(s) released at or before the steady "
+                            "start, left out of the steady tokens")  # fmt: skip
+    steady = m.get("prove_steady_seconds", {}).get("value")
+    if job.serving_entry is not None and isinstance(steady, float) and steady < 60:
+        job.warnings.append(SHORT_STEADY)
+
+
 def profile_gpu_count(profile: object, name: str) -> int | None:
     """RFC-0004 INV-DERIVE-8: the GPUs a configuration on `profile` holds, `gpu.count`; None for
     a CPU-only test profile (`gpu: null`). A GPU profile without a positive count is `config`
@@ -2230,6 +2264,27 @@ def engine_interface(io: Path) -> str | None:
             return "vllm serve"
         if isinstance(argv, list) and argv[:1] == ["vllm.LLM"]:
             return "LLM class"
+    return None
+
+
+OBSERVED_KEYS = ("version", "build_commit", "max_num_batched_tokens")
+
+
+def engine_observed(io: Path) -> dict[str, object] | None:
+    """RFC-0004 INV-DERIVE-2 (e): the engine the adapter saw run, from its recorded command
+    (`engine_observed`: installed version, the image ENV's build commit, and the batched-token
+    limit the engine logged); None when the adapter recorded none."""
+    path = io / "commands.jsonl"
+    for line in path.read_text(errors="replace").splitlines() if path.is_file() else []:
+        try:
+            seen = json.loads(line).get("engine_observed")
+        except (ValueError, AttributeError):
+            continue
+        if isinstance(seen, dict):
+            out = {k: seen.get(k) for k in OBSERVED_KEYS}
+            ok = (all(isinstance(out[k], str | None) for k in OBSERVED_KEYS[:2])
+                  and isinstance(out["max_num_batched_tokens"], int | None))  # fmt: skip
+            return out if ok else None
     return None
 
 

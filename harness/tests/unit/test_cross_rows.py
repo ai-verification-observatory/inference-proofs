@@ -6,6 +6,7 @@ Every value here is a fixture value, not a result."""
 import json
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -21,6 +22,9 @@ REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
 WL = {"id": "fp-maverick-w1024-b24", "version": 1}
 DIGEST = "sha256:" + "d" * 64
 IMAGE = "docker.io/vllm/vllm-openai@sha256:" + "c" * 64
+COMMIT = "5df63a7203cdb9328d824a27b682e77c7b9928be"
+KV = ("KV cache size: 20,000 tokens, Maximum concurrency for 1,025 tokens per request: "
+      "19.51x")  # fmt: skip
 GSPT = "gpu_seconds_per_token_prove.steady"
 WHOLE = "gpu_seconds_per_token_whole_wall"
 
@@ -104,21 +108,28 @@ def test_overhead_sash_reason_first() -> None:
         assert out["pairs"] == {"n_system": 0, "n_serving": 1, "min": None, "max": None}
 
 
-def view(system: str, run_id: str, metrics: Mapping[str, object], *, failure: str | None = None,
+def view(system: str, run_id: str, metrics: Mapping[str, object], *, failure: str | None = None,  # noqa: PLR0913
          prompts_from: str | None = None, profile: str = "prover-h200-hosted",
-         digest: str = DIGEST, image: str = IMAGE) -> RunView:  # fmt: skip
+         digest: str = DIGEST, image: str = IMAGE, warnings: tuple[str, ...] = (),
+         evidence: tuple[str, ...] = (KV,), rule: str | None = "batch-membership",
+         observed: str = COMMIT) -> RunView:  # fmt: skip
+    failed = {"kind": failure, "last_lines": list(evidence)} if failure else None
     run: dict[str, object] = {"run_id": run_id, "system": system, "metrics": metrics,
            "status": "failed" if failure else "completed", "profile": profile,
-           "failure": {"kind": failure} if failure else None}  # fmt: skip
+           "failure": failed, "warnings": list(warnings)}  # fmt: skip
+    workload: dict[str, object] = {} if rule is None else {"steady_rule": rule}
     manifest: dict[str, object] = {
         "provider": "p1",
         "prompts_from": prompts_from,
         "profile": {"prover": profile},
+        "workload": workload,
     }
     if system == "ref-serve":
         manifest["serving_model"] = {"digest": digest}
-        manifest["engine"] = {"image": image, "interface": "vllm serve"}
-        manifest["workload"] = {"prompt_count_run": 120, "batches_per_session_run": 5}
+        manifest["engine"] = {"image": image, "interface": "vllm serve",
+                              "observed": {"version": "0.32.0", "build_commit": observed,
+                                           "max_num_batched_tokens": 8192}}  # fmt: skip
+        workload |= {"prompt_count_run": 120, "batches_per_session_run": 5}
     return RunView(Path("results/v0.1") / system / run_id, run, manifest, None)
 
 
@@ -146,6 +157,7 @@ class FakeServing:
     def __init__(self, digest: str = DIGEST, image: str = IMAGE) -> None:
         self.digest, self.image = digest, image
         self.profiles = {"prover-h200-hosted": Profile(1), "prover-h100-hosted": Profile(1),
+                         "serving-h200x2-hosted": Profile(2, ("prover-h200-hosted",)),
                          "serving-h200x4-hosted": Profile(4, ("prover-h200-hosted",)),
                          "serving-h200x8-hosted": Profile(8, ("prover-h200-hosted",)),
                          "serving-h200x4": Profile(4, ("prover-h200",))}  # fmt: skip
@@ -154,7 +166,13 @@ class FakeServing:
         return "ref-serve"
 
     def system(self, name: str) -> dict[str, object]:
-        return {"engine": {"name": "vllm", "version": "0.32.0", "image": self.image}}
+        args = ["--tensor-parallel-size", "4", "--max-model-len", "1025"]
+        entries = [{"id": WL["id"], "load_point": "matched", "gpus": 4,
+                    "engine_args": [*args, "--max-num-seqs", "24"]},
+                   {"id": WL["id"], "load_point": "high", "gpus": 4,
+                    "engine_args": args}]  # fmt: skip
+        return {"engine": {"name": "vllm", "version": "0.32.0", "image": self.image,
+                           "commit": COMMIT}, "workloads": entries}  # fmt: skip
 
     def record(self, workload: str) -> object:
         model = type("M", (), {"digest": self.digest})()
@@ -181,14 +199,15 @@ class FakeServing:
         return doc
 
 
-def system_ctx(values: tuple[float, ...] = (0.01,)) -> _Context:
-    runs = [view("flashprove", f"s-{i}", {GSPT: gspt(v)}) for i, v in enumerate(values)]
+def system_ctx(values: tuple[float, ...] = (0.01,), rule: str | None = "batch-membership",
+               ) -> _Context:  # fmt: skip
+    runs = [view("flashprove", f"s-{i}", {GSPT: gspt(v)}, rule=rule) for i, v in enumerate(values)]
     return ctx(runs)
 
 
 def serve_ctx(prefix: str, values: tuple[float | None, ...], *, profile: str =
               "serving-h200x4-hosted", load_point: str = "matched", source: str = "s-0",
-              failure: str | None = None, **keys: str) -> _Context:  # fmt: skip
+              failure: str | None = None, **keys: Any) -> _Context:  # fmt: skip
     runs = [view("ref-serve", f"{prefix}-{i}", {} if v is None else {GSPT: gspt(v)},
                  failure=failure if v is None else None, prompts_from=source, profile=profile,
                  **keys) for i, v in enumerate(values)]  # fmt: skip
@@ -224,7 +243,13 @@ def test_release_join_matched_and_high() -> None:
     assert conditions["serving_configuration"] == "releases/v0.1/index.json#/configurations/1"
     assert conditions["high_configuration"] == "releases/v0.1/index.json#/configurations/2"
     assert conditions["n"] == {"system": 1, "serving_matched": 1, "serving_high": 1}
-    assert conditions["gpus"] == {"system": 1, "serving": 4}
+    assert conditions["gpus"] == {"system": 1, "serving": 4, "serving_high": 4}
+    engine = conditions["engine"]
+    assert engine["settings"] == ("engine defaults except --tensor-parallel-size 4, "
+                                  "--max-model-len 1025, --max-num-seqs 24")  # fmt: skip
+    assert engine["settings_high"] == ("engine defaults except --tensor-parallel-size 4, "
+                                       "--max-model-len 1025")  # fmt: skip
+    assert engine["max_num_batched_tokens"] == {"matched": 8192, "high": 8192}
     assert (conditions["runtime"], conditions["proved_precision"]) == ("hosted", "UD-Q4_K_XL")
     assert conditions["batch"]["matched"] == 24
     json.dumps(found[0].statistics)
@@ -239,6 +264,13 @@ def test_overhead_pair_profile() -> None:
         assert (out["value"], out["null_reason"]) == (None, "not_applicable")  # type: ignore[index]
 
 
+def overhead_of(found: list[_Context], key: str = "overhead_vs_production_prove.steady",
+                ) -> tuple[object, object]:  # fmt: skip
+    out = join(found)[key]
+    assert isinstance(out, dict)
+    return out["value"], out["null_reason"]
+
+
 def test_overhead_fewest() -> None:
     """TC-OVERHEAD-FEWEST: TP4 with one paired success and two resource failures, TP8 with
     three successes: TP4 joins, so the mean is TP4's."""
@@ -246,6 +278,51 @@ def test_overhead_fewest() -> None:
     tp8 = serve_ctx("b", (0.0004, 0.0004, 0.0004), profile="serving-h200x8-hosted")
     stats = join([system_ctx(), tp8, tp4])
     assert stats["overhead_vs_production_prove.steady"]["value"] == pytest.approx(100.0)  # type: ignore[index]
+
+
+def test_overhead_placement() -> None:
+    """TC-SRV-PLACEMENT at the release (RFC-0015 SRV-6): TP8 joins only when every TP4 attempt
+    other than an `adapter` failure failed `resource` with KV-capacity or out-of-memory
+    evidence. TP4 `adapter` only, TP4 `resource` without evidence, and no TP4 attempt at all
+    (system.yaml declares TP4) leave the overhead null `missing_input`."""
+    tp8 = serve_ctx("b", (0.0004,), profile="serving-h200x8-hosted")
+    adapter = serve_ctx("a", (None, None), failure="adapter")
+    assert overhead_of([system_ctx(), adapter, tp8]) == (None, "missing_input")
+    bare = serve_ctx("a", (None,), failure="resource", evidence=("killed",))
+    assert overhead_of([system_ctx(), bare, tp8]) == (None, "missing_input")
+    assert overhead_of([system_ctx(), tp8]) == (None, "missing_input")
+    oom = ("torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.00 GiB",)
+    for evidence in ((KV,), oom):
+        tp4 = serve_ctx("a", (None,), failure="resource", evidence=evidence)
+        fixed = serve_ctx("c", (None,), failure="adapter")  # a bug at TP4, set aside
+        value, reason = overhead_of([system_ctx(), tp4, fixed, tp8])
+        assert (value, reason) == (pytest.approx(25.0), None)
+    smaller = serve_ctx("d", (0.0002,), profile="serving-h200x2-hosted")
+    assert overhead_of([system_ctx(), smaller, tp8]) == (pytest.approx(50.0), None)
+
+
+def test_overhead_short_steady_and_rule() -> None:
+    """SRV-1: a serving run whose steady scope lasts under 60 s joins no overhead; INV-SCOPE-5:
+    neither does a run at batch size above 1 recorded without the batch-membership rule, on
+    either side (the system side gives not_applicable)."""
+    short = serve_ctx("m", (0.0001,), warnings=("steady scope under 60 s",))
+    assert overhead_of([system_ctx(), short]) == (None, "missing_input")
+    old = serve_ctx("m", (0.0001,), rule=None)
+    assert overhead_of([system_ctx(), old]) == (None, "missing_input")
+    before = system_ctx(rule=None)
+    assert overhead_of([before, serve_ctx("m", (0.0001,))]) == (None, "not_applicable")
+    other = serve_ctx("m", (0.0001,), observed="0" * 40)  # another engine build ran
+    assert overhead_of([system_ctx(), other]) == (None, "missing_input")
+
+
+def test_overhead_high_same_placement() -> None:
+    """The high load joins only at the matched load's profile and GPU count (SRV-6)."""
+    found = [system_ctx(), serve_ctx("m", (0.0001,)),
+             serve_ctx("h", (0.00005,), load_point="high",
+                       profile="serving-h200x8-hosted")]  # fmt: skip
+    high = "overhead_vs_production_high_prove.steady"
+    assert overhead_of(found, high) == (None, "not_applicable")
+    assert overhead_of([system_ctx(), serve_ctx("m", (0.0001,))], high) == (None, "missing_input")
 
 
 def test_overhead_prompts_pairing() -> None:
@@ -259,13 +336,19 @@ def test_overhead_prompts_pairing() -> None:
 
 
 def test_overhead_nm1() -> None:
-    """TC-OVERHEAD-NM1: every serving attempt on a paired profile failed resource."""
-    stats = join([system_ctx(), serve_ctx("m", (None, None), failure="resource")])
-    out = stats["overhead_vs_production_prove.steady"]
-    assert (out["value"], out["null_reason"]) == (None, "not_measurable_on_profile")  # type: ignore[index]
+    """TC-OVERHEAD-NM1: not_measurable_on_profile only when the largest serving profile of the
+    GPU model (8 GPUs) failed `resource` with evidence too; TP4 alone gives missing_input."""
+    tp4 = serve_ctx("m", (None, None), failure="resource")
+    assert overhead_of([system_ctx(), tp4]) == (None, "missing_input")
+    tp8 = serve_ctx("e", (None,), failure="resource", profile="serving-h200x8-hosted")
+    assert overhead_of([system_ctx(), tp4, tp8]) == (None, "not_measurable_on_profile")
+    bare = serve_ctx("e", (None,), failure="resource", evidence=("x",),
+                     profile="serving-h200x8-hosted")  # fmt: skip
+    assert overhead_of([system_ctx(), tp4, bare]) == (None, "missing_input")
     adapter = join([system_ctx(), serve_ctx("m", (None,), failure="adapter")])
     assert adapter["overhead_vs_production_prove.steady"]["null_reason"] == "missing_input"  # type: ignore[index]
     assert not _serving_nm1(serve_ctx("m", (None,), failure="adapter"))
+    assert _serving_nm1(tp4)
 
 
 def test_overhead_digest() -> None:

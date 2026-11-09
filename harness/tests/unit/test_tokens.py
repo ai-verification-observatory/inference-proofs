@@ -1,6 +1,11 @@
 import pytest
 
-from iproofs.derive import honest_verdict_failure, tokens_metrics, tokens_per_proof
+from iproofs.derive import (
+    honest_verdict_failure,
+    released_before_start,
+    tokens_metrics,
+    tokens_per_proof,
+)
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import Shape
 
@@ -65,13 +70,29 @@ def test_honest_reject() -> None:
 
 def test_tokens_steady_by_batch() -> None:
     """TC-STEADY-BATCH (INV-SCOPE-5): b = 24, 5 batches: steady tokens are 96 x 1,024, the
-    requests of batches 2 to 5, not 119 x 1,024 (proofs 2..k in release order)."""
+    requests of batches 2 to 5, not 119 x 1,024 (proofs 2..k in release order). Interleaved
+    (request 30 released 23rd, request 23 released 31st): the start is request 23's release,
+    and requests 24 to 30, released at or before it, leave the steady tokens: 89 x 1,024."""
+    times = [10_000 + i for i in range(120)]  # release order, one ns apart (fixture)
     indices: list[int | None] = list(range(120))
-    indices[23], indices[30] = 30, 23  # interleaved: the same token set
-    metrics = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices)
+    metrics = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices,
+                             releases=times)  # fmt: skip
     assert metrics["tokens_covered_steady"]["value"] == 96 * 1024
     assert metrics["tokens_covered_total"]["value"] == 120 * 1024
+    assert released_before_start(times, 24, indices) == 0
+    indices[23], indices[30] = 30, 23
+    mixed = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices,
+                           releases=times)  # fmt: skip
+    assert mixed["tokens_covered_steady"]["value"] == 89 * 1024
+    assert released_before_start(times, 24, indices) == 7
+    assert released_before_start(times, 1, indices) == 0
+    no_times = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices)
+    assert no_times["tokens_covered_steady"]["null_reason"] == "missing_input"
+    one = tokens_metrics([(1024, 0)] * 24, RUN, batch_size=24, request_indices=list(range(24)),
+                         releases=times[:24])  # fmt: skip
+    assert one["tokens_covered_steady"]["value"] == 0  # one batch: no steady scope
     indices[50] = None
-    missing = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices)
+    missing = tokens_metrics([(1024, 0)] * 120, RUN, batch_size=24, request_indices=indices,
+                             releases=times)  # fmt: skip
     assert missing["tokens_covered_steady"]["value"] is None
     assert missing["tokens_covered_steady"]["null_reason"] == "missing_input"

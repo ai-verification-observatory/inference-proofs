@@ -462,6 +462,37 @@
               "minLength": 1,
               "type": "string"
             },
+            "observed": {
+              "$comment": "RFC-0004 INV-DERIVE-2 (e): the engine as the adapter saw it run, from its recorded command: the installed version, the image ENV's build commit, and the batched-token limit the engine logged (null where it logged none)",
+              "additionalProperties": false,
+              "properties": {
+                "build_commit": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "max_num_batched_tokens": {
+                  "minimum": 1,
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "version": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "version",
+                "build_commit",
+                "max_num_batched_tokens"
+              ],
+              "type": "object"
+            },
             "version": {
               "minLength": 1,
               "type": "string"
@@ -907,6 +938,12 @@
         },
         "prompt_set_digest": {
           "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "steady_rule": {
+          "$comment": "RFC-0004 INV-SCOPE-5: the steady-scope rule the run's steady figures follow; absent on runs recorded before 2026-11-09 (first-proof boundary)",
+          "enum": [
+            "batch-membership"
+          ]
         },
         "version": {
           "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"

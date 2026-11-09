@@ -359,3 +359,62 @@ def test_stored_plain_serving_rows_pass_pm() -> None:
     run = next((ROOT / "results/v0.1/ref-serve").glob("*sash-l31-8b-c1024*/run.json"))
     files = ["systems/ref-serve/system.yaml", run.relative_to(ROOT).as_posix()]
     assert precision.check(ROOT, files, REGISTRY) == []
+
+
+def test_placement_rule() -> None:
+    """RFC-0015 SRV-6: `resource` with KV-capacity or out-of-memory evidence exhausts a GPU
+    count; an `adapter` failure is set aside and admits nothing alone; a completed run, a
+    failure without evidence, or a declared count never attempted refuses a larger one."""
+    from iproofs.serving import exhausted, placement_problem, resource_evidence  # noqa: PLC0415
+
+    kv = {"kind": "resource", "last_lines": ["GPU KV cache size: 9 tokens, Maximum"]}
+    oom = {"kind": "resource", "last_lines": ["torch.OutOfMemoryError: CUDA out of memory."]}
+    bare = {"kind": "resource", "last_lines": ["Killed"]}
+    adapter = {"kind": "adapter", "last_lines": []}
+    assert resource_evidence(kv)
+    assert resource_evidence(oom)
+    assert not resource_evidence(bare)
+    assert not resource_evidence(None)
+    assert not resource_evidence({"kind": "adapter", "last_lines": kv["last_lines"]})
+    assert exhausted([(False, kv), (False, adapter)])
+    assert not exhausted([(False, adapter)])
+    assert not exhausted([])
+    assert not exhausted([(False, kv), (True, None)])
+    assert placement_problem({4: [(False, oom)]}, 8) is None
+    assert placement_problem({}, 4) is None  # the first count
+    assert "completed" in str(placement_problem({4: [(True, None)]}, 8))
+    assert "not all `resource`" in str(placement_problem({4: [(False, bare)]}, 8))
+    assert "no attempt on 4 GPU(s)" in str(placement_problem({}, 8, declared=[4]))
+
+
+def test_fetch_no_weights(tmp_path: Path) -> None:
+    """`fetch-model --serving R --no-weights DIR`: every file but the .safetensors, each
+    checked as SM-2 checks it; the publisher's files with the token only; another byte or a
+    git file with another blob id is `config`."""
+    from iproofs.serving import fetch_no_weights  # noqa: PLC0415
+
+    rec, data = tiny(tmp_path)
+    calls = []
+
+    def download(repo: str, rev: str, files: list[str], into: Path, token: str | None) -> None:
+        calls.append((repo, files, token))
+        for f in files:
+            (into / f).write_bytes(data[f])
+
+    assert fetch_no_weights(rec, tmp_path / "d", download=download, token="t") == ["config.json"]
+    assert calls == [(rec.model.source.repo, ["config.json"], None)]
+    assert not (tmp_path / "d/w.safetensors").exists()
+    pub = dataclasses.replace(rec.model.files[0], source="publisher")
+    moved = dataclasses.replace(rec, model=dataclasses.replace(
+        rec.model, files=(pub, rec.model.files[1])))  # fmt: skip
+    fetch_no_weights(moved, tmp_path / "p", download=download, token="t")
+    assert calls[-1] == (rec.publisher.release.repo, ["config.json"], "t")
+    data["config.json"] = b"{}\n"
+    with pytest.raises(IProofsError, match=r"config\.json is not the record's"):
+        fetch_no_weights(rec, tmp_path / "e", download=download)
+    blob = dataclasses.replace(rec.model.files[0], publisher_blob="0" * 40)
+    other = dataclasses.replace(rec, model=dataclasses.replace(
+        rec.model, files=(blob, rec.model.files[1])))  # fmt: skip
+    data["config.json"] = b'{"torch_dtype": "bfloat16"}\n'
+    with pytest.raises(IProofsError, match="is not the publisher's bytes"):
+        fetch_no_weights(other, tmp_path / "f", download=download)
