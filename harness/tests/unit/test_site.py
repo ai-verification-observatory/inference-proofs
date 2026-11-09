@@ -500,8 +500,8 @@ def _quotes_printed(
 def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
     """RFC-0016 ST-2, ST-8, OVR-7 in the fold "How we read it": the deciding quote with its
     source, both quotes of a conflict, the sources read, and each mapped control in every run
-    read (no run read says why, never "not run"). The entry takes focus (`tabindex="-1"`,
-    words.js)."""
+    read (with no run read, no control line: OVR-5 makes that an error for review). The entry
+    takes focus (`tabindex="-1"`, words.js)."""
     text = site.pages[f"{system}.html"]
     cell = site.view["criteria"]["rows"][system]["cells"][p["id"]]
     entry = re.search(
@@ -527,13 +527,12 @@ def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any]
     mapped = pc["properties"][p["id"]]["mapped"]
     if not mapped:  # no RFC-0008 control tests the property: no control line
         assert 'class="ec"' not in body, (system, p["id"])
-    for cid in mapped:
+    for cid in mapped if pc["runs"] else []:
         assert cid in said, (system, cid)
     for run in pc["runs"] if mapped else []:  # every run read, under every mapped property
         assert run["run_id"] in said, (system, p["id"], run["run_id"])
-    if not pc["runs"] and mapped:  # no run read says why, never "not run" (OVR-5)
-        assert f"{', '.join(mapped)}: no run read, since " in said, (system, p["id"])
-        assert "not run" not in said, (system, p["id"])
+    if not pc["runs"]:  # no run read: no control line, never "not run" (OVR-5)
+        assert 'class="ec"' not in body, (system, p["id"])
 
 
 def _sources_read(site: Build, system: str, p: dict[str, Any], said: str) -> None:

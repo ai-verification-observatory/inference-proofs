@@ -16,9 +16,12 @@ from . import state as S
 from .plates import (
     EXT,
     blob,
+    config_of_run,
+    flags_html,
     path_html,
     readable,
     record_html,
+    setup_diff,
     source_html,
     source_label,
     with_rule,
@@ -142,33 +145,45 @@ def run_ref(rid, record):
             f'<span class="nw">{short}{EXT}</span></a>')  # fmt: skip
 
 
-def no_run_read():
-    """Why a card row reads no run (RFC-0016 OVR-5): the criteria file names no release, or the
-    release it names lists no run of the card."""
-    release = S.CRIT.get("release")
-    if release is None:
-        return "no run read, since the criteria file names no release (RFC-0016 OVR-5)"
-    return f"no run read, since release {release} and those before it list no run of this card (RFC-0016 OVR-5)"
-
-
 def control_label(cid):
     """A control's id, its tamper in words beside it (RFC-0008)."""
     words = CONTROL_WORDS.get(cid)
     return f'<span class="nw">{e(cid)}</span>' + (f" ({e(words)})" if words else "")
 
 
+def setup_key(rid):
+    """The words that set a run's setup apart from the system's other setups ("24 requests per
+    batch"); "" for a run of no rendered configuration."""
+    c = config_of_run(rid)
+    return ", ".join(setup_diff(c)) if c else ""
+
+
+def run_refs(runs, silent, labelled):
+    """The runs of one control line, each by its date and ordinal linked to its record (its
+    `run.json` where it recorded no control, `silent`). Runs of several setups share dates and
+    ordinals, so where the card row reads more than one setup (`labelled`), each setup's runs
+    are followed by the words that set it apart."""
+    by = {}
+    for r in runs:
+        key = setup_key(r["run_id"]) if labelled else ""
+        by.setdefault(key, []).append(
+            run_ref(r["run_id"], r["record"] if silent else r["controls"])
+        )
+    return "; ".join(
+        ", ".join(refs) + (f' <span class="nw">({e(k)})</span>' if k else "")
+        for k, refs in by.items()
+    )
+
+
 def control_lines(pc, prop):
     """RFC-0016 OVR-7: each control the map ties to the property, with its outcome in every run
     read: one line per outcome the runs share ("C1 (changed output token), C2 (changed prompt
     token): rejected in 2 runs"), each run linked to its `controls.json` (or its `run.json`
-    where it recorded none, "not run"). With no run read (OVR-5), the line says why, so it never
-    reads as a run that skipped them. A property no control tests has no line."""
+    where it recorded none, "not run"). A property no control tests has no line; nor does a
+    card row that reads no run, which OVR-5 makes an error for review to catch."""
     entry = pc["properties"][prop]
-    if not entry["mapped"]:
+    if not entry["mapped"] or not pc["runs"]:
         return ""
-    if not pc["runs"]:
-        ids = ", ".join(control_label(x) for x in entry["mapped"])
-        return ev_line("ec", "tamper tests", f"{ids}: {with_rule(readable(no_run_read()))}")
     groups = {}  # (outcome words, controls) -> runs
     for run in pc["runs"]:
         found = [o for o in entry["outcomes"] if o["run_id"] == run["run_id"]]
@@ -180,14 +195,13 @@ def control_lines(pc, prop):
             by.setdefault(w, []).append(o["control"])
         for w, cids in by.items():
             groups.setdefault((w, tuple(cids)), []).append(run)
+    labelled = len({setup_key(r["run_id"]) for r in pc["runs"]}) > 1
     out = []
     for (w, cids), runs in groups.items():
-        silent = w == OUTCOME_SHORT["not_run"]
-        refs = ", ".join(run_ref(r["run_id"], r["record"] if silent else r["controls"])
-                         for r in runs)  # fmt: skip
+        refs = run_refs(runs, w == OUTCOME_SHORT["not_run"], labelled)
         word = "run" if len(runs) == 1 else f"{len(runs)} runs"
         said = ", ".join(control_label(x) for x in cids)
-        out.append(ev_line("ec", "tamper tests", f"{said}: {e(w)} in {word}: {refs}"))
+        out.append(ev_line("ec", "tamper tests", f"{said}: {flags_html(e(w))} in {word}: {refs}"))
     return "".join(out)
 
 

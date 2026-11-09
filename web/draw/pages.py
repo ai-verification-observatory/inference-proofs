@@ -40,6 +40,7 @@ from .plates import (
     row_id,
     runs_counts,
     setup_dl,
+    setup_parts,
     setup_shared,
     source_key,
     source_label,
@@ -64,7 +65,6 @@ from .words import (
     amount,
     count_word,
     e,
-    gpu_words,
     labels,
     scope_words,
     shown,
@@ -290,11 +290,7 @@ def config_where(cfg):
 def setup_words(cfg):
     """A setup as a reader names it: model, prompt, batch and GPUs; its ids ride in the
     heading's title and in the workload line under it."""
-    sh = cfg["workload"]["shape"]
-    b = sh["batch_size"]
-    return " · ".join([S.MODEL_NAME[cfg["workload"]["model"]["digest"]],
-                       f"{sh['prompt_tokens']:,}-token prompt",
-                       f"{b:,} request{'s' if b != 1 else ''} per batch", gpu_words(cfg)])  # fmt: skip
+    return " · ".join(setup_parts(cfg))
 
 
 def setup_heading(cfg, hid):

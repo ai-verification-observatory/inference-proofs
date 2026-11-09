@@ -20,6 +20,7 @@ from .words import (
     STATE_WORD,
     TIER_WORD,
     e,
+    gpu_words,
     labels,
     scope_words,
     shown,
@@ -91,6 +92,29 @@ def first_config(sid):
 def configs_of(sid):
     """The system's configurations in index order: one section each on its page."""
     return [c for c in S.CONFIGS if c["system"] == sid]
+
+
+def setup_parts(cfg):
+    """A setup as a reader names it: model, prompt, batch and GPUs."""
+    sh = cfg["workload"]["shape"]
+    b = sh["batch_size"]
+    return [S.MODEL_NAME[cfg["workload"]["model"]["digest"]],
+            f"{sh['prompt_tokens']:,}-token prompt",
+            f"{b:,} request{'s' if b != 1 else ''} per batch", gpu_words(cfg)]  # fmt: skip
+
+
+def setup_diff(cfg):
+    """The words of a setup that differ from its system's other setups ("24 requests per
+    batch"); every word for a system with one setup, or where none differs."""
+    parts = setup_parts(cfg)
+    others = [setup_parts(c) for c in configs_of(cfg["system"]) if row_id(c) != row_id(cfg)]
+    diff = [x for i, x in enumerate(parts) if any(o[i] != x for o in others)]
+    return diff or parts
+
+
+def config_of_run(rid):
+    """The rendered configuration a run belongs to, or None (a run of an earlier release)."""
+    return next((c for c in S.CONFIGS if rid in c["runs"]["records"]), None)
 
 
 # ------------------------------------------------------------------ words and labels
