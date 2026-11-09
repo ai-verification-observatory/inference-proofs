@@ -128,6 +128,7 @@ def test_matched_serving_run_counts_its_gpus(repo: Path) -> None:
     assert manifest["engine"] == {"name": "fake", "version": "1", "image": IMAGE,
                                   "interface": "vllm serve"}  # fmt: skip
     assert "serving_model" not in manifest  # toy repository model, no serving record
+    assert "steady scope under 60 s" in doc["warnings"]  # SRV-1: kept with the label
     assert REGISTRY.errors("manifest/1", manifest) == []
     assert REGISTRY.errors("run/1", doc) == []
 

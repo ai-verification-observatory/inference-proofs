@@ -372,7 +372,9 @@ def prove_serving(job: dict) -> dict:
     if len(prompts) < size * batches:
         raise SystemExit(f"ref-serve: {len(prompts)} prompts for {batches} batches of {size}")
     started = time.monotonic_ns()
-    engine = make_serve_engine(job["model_dir"], args)
+    # the model directory as this process sees it: /models in a container, the cache directory
+    # the hosted runner names in IPROOFS_MODELS (RFC-0006 §Hosted execution)
+    engine = make_serve_engine(str(host(job["model_dir"])), args)
     try:
         resolved, kv = engine.resolved_config(), engine.kv_capacity()
         record = {"argv": engine.argv, "cwd": "/io", "started_mono_ns": started,

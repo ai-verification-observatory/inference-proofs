@@ -1978,6 +1978,9 @@ class Runner:
             reference=_reference(job),
             gpu_count=None if gpu_q is None else (f"{run_json}#/inputs/gpu_count", gpu_q),
         )
+        steady = m.get("prove_steady_seconds", {}).get("value")
+        if job.serving_entry is not None and isinstance(steady, float) and steady < 60:
+            job.warnings.append("steady scope under 60 s")  # RFC-0015 SRV-1: kept, labelled
         if self._substituted(job):  # RFC-0015 PM-2: every quantity of the row is flagged
             for q in m.values():
                 q["quality"] = {**(q.get("quality") or {}), "precision_substituted": True}  # type: ignore[dict-item]

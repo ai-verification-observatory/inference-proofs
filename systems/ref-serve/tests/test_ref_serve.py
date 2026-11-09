@@ -127,7 +127,7 @@ def test_out_json_fixture(adapter: ModuleType) -> None:
     assert [p.name for p in (io / "proofs").iterdir()] == ["req-0"]  # no temporary left
     [command] = [json.loads(line) for line in (io / "commands.jsonl").read_text().splitlines()]
     args = adapter.engine_args("sash-l31-8b-c1024", "matched", 1)
-    assert command["argv"][:3] == ["vllm", "serve", "/models"]
+    assert command["argv"][:3] == ["vllm", "serve", str(adapter.host("/models"))]
     assert command["argv"][-len(args) :] == args
     assert command["environment"] == {"CUDA_VERSION": "12.9.1", "CUDA_VISIBLE_DEVICES": "0",
                                       "NCCL_VERSION": "2.27.3-1"}  # fmt: skip
