@@ -43,7 +43,7 @@ The list below is the floor; RFC Testing Strategy sections add cases.
 - `test_derive_nulls.py`: every formula with a null or zero denominator returns `value: null` with the RFC-0004 `null_reason`, never NaN or infinity.
 - `test_stats.py`: n = 0, 1, 2, 3; failed repetitions excluded from the mean and counted in `n_failed`; stdev null for n < 2; inputs ordered by repetition.
 - `test_scopes.py`: `prove.steady` from release times `[10 s, 12 s, 15 s]` with tokens `[100, 100, 100]` gives 200 tokens over 5 s; one proof gives null with `fewer_than_two_proofs`; `whole_wall` starts at the commit call, not setup.
-- `test_mutations.py`: each control C1 to C8 changes exactly what RFC-0008 says (C1 token becomes `(t+1) mod vocab_size`; C5 halves the largest part; C6 flips exactly one bit at the seeded offset; C7 swaps two proofs; C8 drops one part) and is deterministic for a seed.
+- `test_mutations.py`: each control C1 to C8 changes exactly what RFC-0008 says (C1 token becomes `(t+1) mod vocab_size`; C5 halves the largest part; C6 flips exactly one bit at the seeded offset; C7 swaps two proofs; C8 drops one part; C5, C6 and C8 choose only among the parts the adapter declares its verify step reads) and is deterministic for a seed.
 - `test_redact.py`: every pattern of RFC-0013 G9 is removed from a log line; `test_redactor_and_scanner_share_patterns`.
 - `test_errors.py`: each `ErrorKind` maps to the CLI exit code in RFC-0010; failure records carry at most 50 redacted last lines.
 - `test_machine_record.py`: the record built on a fixture `/proc` and `/sys` tree contains exactly the RFC-0006 fields and none of the excluded ones.
