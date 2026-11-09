@@ -1,0 +1,17 @@
+{
+  "grade": "derived",
+  "null_reason": null,
+  "scope": null,
+  "source": {
+    "inputs": [
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/proof_bytes_per_token",
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/inputs/active_parameters_per_token",
+      "results/v0.1/fake/2026-11-20-fake-fake-tiny-ci-ci-cpu-1/run.json#/inputs/weight_bits"
+    ],
+    "kind": "derivation",
+    "ref": "derive:D-BPAB@0.1.0"
+  },
+  "tier": "reported",
+  "unit": "B/bit_token",
+  "value": 3.125e-08
+}

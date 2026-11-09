@@ -34,14 +34,17 @@ from iproofs.site.view import site_view
 
 ROOT = Path(__file__).resolve().parents[3]
 # a system page's plates; the overview's figures (RFC-0009 S6)
-COLS = ("covers", "proof_size", "check_time", "overhead", "per_bit")
-BOARD = ("overhead", "per_bit", "proof_size", "check_time")
+PER_GBIT_COLS = ("per_bit", "size_bit", "check_bit")
+COLS = ("covers", "proof_size", "check_time", "overhead", *PER_GBIT_COLS)
+BOARD = ("overhead", *PER_GBIT_COLS)
 METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
     "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
+    "size_bit": "proof_bytes_per_active_weight_bit_token",
+    "check_bit": "verify_seconds_per_active_weight_bit_token",
 }
 
 
@@ -79,7 +82,7 @@ SPREAD = re.compile(
 )
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
 SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "ps": 1e-12,
+         "s": 1.0, "min": 60.0, "h": 3600.0,
          "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
 
 
@@ -334,7 +337,7 @@ def test_every_number_has_labels(site: Build) -> None:
             else:  # a null value names its record; a metric the runs did not record has none
                 assert "why" in dts, pid
                 assert ("source" in dts) == cfg["figures"][metric(cfg, col)]["recorded"], pid
-            if col == "per_bit":  # RFC-0004 INV-DERIVE-7: the width and the limit beside it
+            if col in PER_GBIT_COLS:  # RFC-0004 INV-DERIVE-7: the width and the limit beside it
                 assert {"weight bits", "limit"} <= dts, pid
         rows = more_rows(text)
         assert len(rows) == 5 * len(configs)
@@ -764,7 +767,9 @@ def test_sort_key_is_stored_value(site: Build) -> None:
             assert printed, (rid, col)
             number, unit = printed[1], printed[2]
             assert _significant(number) == 4 or float(number.replace(",", "")).is_integer()
-            value = float(number.replace(",", "")) * SCALE[unit]
+            # per token, per Gbit of active weights: ms and kB per 1e9 bits
+            per_gbit = 1e-9 if col in PER_GBIT_COLS else 1.0
+            value = float(number.replace(",", "")) * SCALE[unit] * per_gbit
             exponent = math.floor(math.log10(abs(value)))
             assert abs(value - stored) <= 0.5 * 10 ** (exponent - 3) * 1.0001, (rid, col)
 
@@ -795,8 +800,10 @@ def test_default_order_by_overhead(site: Build) -> None:
 def test_each_figure_names_its_scope(site: Build) -> None:
     """S2, owner decision of 2026-11-09: on the overview the overhead cell names its scope (both
     sides', or the warm pairing's), its prover and serving run counts and what each side ran
-    (the precision proved and served); prover time per active weight bit names the scope it
-    shows (steady, or session where the steady figure is null) and the weight width."""
+    (the precision proved and served); proving time and check time per token per Gbit name the
+    scope they show (proving steady, or session where the steady figure is null; checking), and
+    the row header the weight width they divide by. A phone's compact lines repeat the scope,
+    n and range in short."""
     b = renderer(ROOT).draw
     rows = ROW.findall(site.pages["index.html"])
     for rid, _, _, body in rows:
@@ -820,15 +827,31 @@ def test_each_figure_names_its_scope(site: Build) -> None:
         if bit["value"] is not None:
             scope = {"prove.steady": "Proving, steady state", "prove.session": "Proving session"}
             assert scope[bit["scope"]] in plain(cells["per_bit"]), rid
-            assert "per active weight" in plain(cells["per_bit"]), rid
+            short = {"prove.steady": "steady", "prove.session": "session"}[bit["scope"]]
+            compact = re.search(r'<span class="subc">(.*?)</span></a>', cells["per_bit"])
+            assert compact, rid
+            assert short in plain(compact[1]), rid
+            assert f"n={bit['stats']['n']}" in plain(compact[1]), rid
+        check = cfg["figures"][METRIC["check_bit"]]
+        if check["value"] is not None:
+            assert "Checking (" in plain(cells["check_bit"]), rid
+        header = HEADER.search(body)
+        assert header, rid
+        assert "per active weight" in plain(header[1]), rid
 
 
 def test_deployed_figures_by_hand() -> None:
     """The deployed release's overview figures, against the values its `index.json` stores
     (Hugging Face H200 runs, `reported` tier): FlashProve on fp-maverick-w1024-b24 shows the
-    steady overhead (D-OVERHEAD-S) and the steady per-bit time, 6.82e-14 s/bit_token printed
-    as 0.06821 ps; SASH shows the warm overhead (D-OVERHEAD-WARM) and, with no steady scope,
-    the session per-bit time, 7.54e-11 s/bit_token printed as 75.41 ps."""
+    steady overhead (D-OVERHEAD-S) and the steady proving time per token per Gbit of active
+    weights, 6.82e-14 s/bit_token printed as 0.06821 ms (x 1e9 bits per Gbit, x 1e3 ms per s);
+    SASH shows the warm overhead (D-OVERHEAD-WARM) and, with no steady scope, the session time,
+    7.54e-11 s/bit_token printed as 75.41 ms. Proof size per token per Gbit (D-BPAB):
+    FlashProve 18,335.17 B/token / (17e9 x 4.83916 bits) = 2.2288e-7 B/bit_token, 0.2229 kB;
+    SASH 41,105,525 B/token / (8,030,261,248 x 8 bits) = 6.3985e-4 B/bit_token, 639.9 kB. Check
+    time per token per Gbit (D-VSPAB): FlashProve 0.0163436 s/token / 8.22658e10 bits =
+    1.9867e-13 s/bit_token, 0.1987 ms; SASH 3.279154 s/token / 6.42421e10 bits =
+    5.1044e-11 s/bit_token, 51.04 ms."""
     index = ROOT / "releases/v0.1/index.json"
     if not index.exists():
         pytest.skip("no frozen release")
@@ -840,10 +863,20 @@ def test_deployed_figures_by_hand() -> None:
     assert fp["per_bit_metric"].endswith("prove.steady")
     assert sash["per_bit_metric"].endswith("prove.session")
     assert sash["overhead_metric"] == "overhead_vs_production_warm"
-    assert b.words.shown(6.82085750604253e-14, "s/bit_token") == "0.06821 ps"
-    assert b.words.shown(7.540596017714907e-11, "s/bit_token") == "75.41 ps"
+    assert b.words.shown(6.82085750604253e-14, "s/bit_token") == "0.06821 ms"
+    assert b.words.shown(7.540596017714907e-11, "s/bit_token") == "75.41 ms"
     assert math.isclose(fp["figures"][fp["per_bit_metric"]]["value"], 6.82085750604253e-14)
     assert math.isclose(sash["figures"][sash["per_bit_metric"]]["value"], 7.540596017714907e-11)
+    size, check = METRIC["size_bit"], METRIC["check_bit"]
+    for cfg, bits, bpt, vspt, size_shown, check_shown in (
+        (fp, 17e9 * 4.83916475612899, 18335.170963541666, 0.016343559571372478,
+         "0.2229 kB", "0.1987 ms"),
+        (sash, 8030261248 * 8, 41105524.851715684, 3.279154322772059, "639.9 kB", "51.04 ms"),
+    ):  # fmt: skip
+        assert math.isclose(cfg["figures"][size]["value"], bpt / bits, rel_tol=1e-9)
+        assert math.isclose(cfg["figures"][check]["value"], vspt / bits, rel_tol=1e-9)
+        assert b.words.shown(cfg["figures"][size]["value"], "B/bit_token") == size_shown
+        assert b.words.shown(cfg["figures"][check]["value"], "s/bit_token") == check_shown
 
 
 def test_board_order_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -855,7 +888,8 @@ def test_board_order_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
 
     def cfg(system: str, overhead: float | None, profile: str = "p", position: int = 0) -> Any:
         figs: dict[str, dict[str, float | None]] = {m: {"sort_key": None} for m in
-                ("proof_bytes", "verify_seconds", "per-bit")}  # fmt: skip
+                ("proof_bytes_per_active_weight_bit_token",
+                 "verify_seconds_per_active_weight_bit_token", "per-bit")}  # fmt: skip
         figs["over"] = {"sort_key": overhead}
         return {"system": system, "profile": profile, "position": position, "figures": figs,
                 "overhead_metric": "over", "per_bit_metric": "per-bit"}  # fmt: skip
@@ -1072,12 +1106,12 @@ def test_table_semantics(site: Build) -> None:
     index = site.pages["index.html"]
     for sec in SECTION.findall(index):
         heads = HEAD.findall(sec)
-        assert len(heads) == 2 + len(BOARD)  # System, Model (not sorted), the figures
+        assert len(heads) == 1 + len(BOARD)  # System (the model under its name), the figures
         assert sec.count('role="columnheader"') == len(heads)
         assert sec.count('aria-sort="') == 1
         for rid, _, _, row in ROW.findall(sec):
             assert row.count('role="rowheader"') == 1, rid
-            assert row.count('role="cell"') == 1 + len(BOARD), rid
+            assert row.count('role="cell"') == len(BOARD), rid
             head = HEADER.search(row)[1]  # type: ignore[index]
             if not site.view["criteria"]["rows"][row_config(site.view, rid)["system"]]["drawn"]:
                 assert '<p class="sr">' not in head, rid

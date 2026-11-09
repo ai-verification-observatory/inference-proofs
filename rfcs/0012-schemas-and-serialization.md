@@ -111,7 +111,7 @@ Defined in `schema/quantity/1.schema.json` under `$defs/quantity`. Every number 
       "properties": {
         "value": {"type": ["number", "null"]},
         "unit": {"enum": ["s", "ns", "B", "MiB", "J", "count", "token", "token/s", "s/token",
-                          "B/token", "USD", "USD/1k_token", "USD/gpu_hour", "%",
+                          "B/token", "B/bit_token", "USD", "USD/1k_token", "USD/gpu_hour", "%",
                           "param_token/s", "s/bit_token", "bit/weight", "ratio"]},
         "scope": {"enum": [null, "setup", "commit", "prove.steady", "prove.session",
                            "whole_wall", "verify", "verify.single_thread", "primitive"]},

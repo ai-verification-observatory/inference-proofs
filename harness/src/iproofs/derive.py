@@ -251,6 +251,8 @@ COMPUTE: dict[str, Callable[[list[float], int], float]] = {
     "D-GSPT-S": lambda x, gpus: x[0] * nonzero(x[1]),
     "D-APT-S": lambda x, gpus: x[0] * x[1],
     "D-SPAB-S": lambda x, gpus: x[0] / nonzero(x[1] * x[2]),
+    "D-BPAB": lambda x, gpus: x[0] / nonzero(x[1] * x[2]),
+    "D-VSPAB": lambda x, gpus: x[0] / nonzero(x[1] * x[2]),
     "D-COMMIT-AMORT-H1": _amortised(1),
     "D-COMMIT-AMORT-H1000": _amortised(1000),
     "D-BPT": _over,
@@ -365,6 +367,22 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
         [metric("verify_single_thread_seconds"), first_proof_tokens],
     )
     put("tokens_covered_per_proof", "D-TPP", Unit.TOKEN, None, [total, metric("proofs_count")])
+    # proof size and check time on the D-SPAB-S basis: per token covered, per bit of active
+    # weights (D-BPT and D-VSPT divide by tokens covered, as D-SPT-S does)
+    put(
+        "proof_bytes_per_active_weight_bit_token",
+        "D-BPAB",
+        Unit.B_PER_BIT_TOKEN,
+        None,
+        [metric("proof_bytes_per_token"), active_parameters, weight_bits],
+    )
+    put(
+        "verify_seconds_per_active_weight_bit_token",
+        "D-VSPAB",
+        Unit.S_PER_BIT_TOKEN,
+        Scope.VERIFY,
+        [metric("verify_seconds_per_token"), active_parameters, weight_bits],
+    )
     if reference:  # INV-DERIVE-6, INV-DERIVE-7: a reference row proves nothing (REF-2)
         for name, q in out.items():
             if formula_of(q)[0] in PROVER_ONLY:
@@ -373,10 +391,10 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
 
 
 # Formulas that describe proving: null with `not_applicable` on a `kind: reference` row.
-PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S"})
+PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S", "D-BPAB", "D-VSPAB"})
 
 # RFC-0004 Q3: formulas a release freeze evaluates for a run stored before they existed.
-FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S", "D-GSPT-S"})
+FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S", "D-GSPT-S", "D-BPAB", "D-VSPAB"})
 
 
 def freeze_values(
@@ -436,6 +454,8 @@ FORMULAS = {
     "D-APT-S": "D-RATE-S * active_parameters_per_token",
     "D-SPAB-S": "D-SPT-S / (active_parameters_per_token * weight_bits)",
     "D-BPT": "proof_bytes_total / tokens_covered_total",
+    "D-BPAB": "D-BPT / (active_parameters_per_token * weight_bits)",
+    "D-VSPAB": "D-VSPT / (active_parameters_per_token * weight_bits)",
     "D-VSPT": "verify_seconds_total / tokens_covered_total",
     "D-VSPT-1T": "first-proof single-thread verify seconds / first-proof tokens",
     "D-TPP": "tokens_covered_total / proofs_count",

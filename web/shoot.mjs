@@ -143,7 +143,7 @@ const sortBy = async (p, col, dir) => {
   const st0 = await sortState(p);
   const lay0 = JSON.stringify(await layout(p));
   ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'overhead', 'asc')) && st0.aria.join() === 'overhead:ascending' && st0.heads === st0.tables && st0.hash === '', 'default: overhead ascending, one sorted head, empty hash', st0);
-  for (const col of ['system', 'overhead', 'per_bit', 'proof_size', 'check_time']) {
+  for (const col of ['system', 'overhead', 'per_bit', 'size_bit', 'check_bit']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(p, col, dir);
       const got = await order(p);
@@ -152,15 +152,15 @@ const sortBy = async (p, col, dir) => {
         && (col === 'overhead' && dir === 'asc' ? st.hash === '' : st.hash === `#sort=${col}-${dir}`) && JSON.stringify(await layout(p)) === lay0, `sort ${col} ${dir}`, { got, hash: st.hash, glyphs: st.glyphs });
     }
   }
-  await sortBy(p, 'proof_size', 'desc');
+  await sortBy(p, 'size_bit', 'desc');
   ok(await cls(p) === 0, 'CLS after a sort (shifts without input) is 0');
   const said = await p.evaluate(() => document.querySelector('#sort-now').textContent);
   ok(said === 'Proof size, large to small', 'the order is named for screen readers', said);
   await ctx.close();
   const r = await pg(1440, 900);
-  await r.p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
+  await r.p.goto(BASE + '#sort=check_bit-desc', { waitUntil: 'networkidle' }); await r.p.waitForTimeout(settle);
   const st2 = await sortState(r.p);
-  ok(st2.aria.join() === 'check_time:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'check_time', 'desc')), 'hash round-trip', st2);
+  ok(st2.aria.join() === 'check_bit:descending' && JSON.stringify(await order(r.p)) === JSON.stringify(await expected(r.p, 'check_bit', 'desc')), 'hash round-trip', st2);
   ok(JSON.stringify(await layout(r.p)) === lay0, 'a sort from the hash keeps every row');
   ok(await cls(r.p) === 0, 'CLS on load with a sort hash is 0');
   await r.p.evaluate(() => { location.hash = 'sort=overhead-desc'; }); await r.p.waitForTimeout(400);
@@ -169,7 +169,7 @@ const sortBy = async (p, col, dir) => {
   // Back to the page without a hash shows the default order again
   const bk = await pg(1440, 900);
   await bk.p.goto(BASE, { waitUntil: 'networkidle' }); await bk.p.waitForTimeout(settle);
-  await bk.p.evaluate(() => { location.hash = 'sort=check_time-desc'; }); await bk.p.waitForTimeout(300);
+  await bk.p.evaluate(() => { location.hash = 'sort=check_bit-desc'; }); await bk.p.waitForTimeout(300);
   await bk.p.goBack(); await bk.p.waitForTimeout(400);
   const stb = await sortState(bk.p);
   ok(stb.aria.join() === 'overhead:ascending' && stb.hash === '', 'Back to no hash restores the default order', stb);
@@ -177,12 +177,12 @@ const sortBy = async (p, col, dir) => {
   await bk.p.evaluate(() => {
     const box = document.querySelector('.tbl .rows');
     const src = box.querySelector('.row');
-    [['zz-a', 'aaa', { per_bit: 5e-13, proof_size: null, check_time: 9, overhead: 3 }],
-     ['zz-b', 'zzz', { per_bit: null, proof_size: 1, check_time: null, overhead: 7 }]].forEach(([id, name, k]) => {
+    [['zz-a', 'aaa', { per_bit: 5e-13, size_bit: null, check_bit: 9, overhead: 3 }],
+     ['zz-b', 'zzz', { per_bit: null, size_bit: 1, check_bit: null, overhead: 7 }]].forEach(([id, name, k]) => {
       const r = src.cloneNode(true); r.id = id; r.dataset.name = name; r.dataset.k = JSON.stringify(k); box.appendChild(r);
     });
   });
-  for (const col of ['per_bit', 'proof_size', 'check_time', 'overhead']) {
+  for (const col of ['per_bit', 'size_bit', 'check_bit', 'overhead']) {
     for (const dir of ['asc', 'desc']) {
       await sortBy(bk.p, col, dir);
       const got = (await order(bk.p))[0];
@@ -261,13 +261,13 @@ const sortBy = async (p, col, dir) => {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  await p.locator('.sb[data-col="proof_size"]').first().focus();
+  await p.locator('.sb[data-col="size_bit"]').first().focus();
   await p.keyboard.press('Enter'); await p.waitForTimeout(300);
   let st = await sortState(p);
-  ok(st.aria.join() === 'proof_size:ascending', 'Enter on Proof size sorts ascending', st);
+  ok(st.aria.join() === 'size_bit:ascending', 'Enter on Proof size sorts ascending', st);
   await p.keyboard.press('Space'); await p.waitForTimeout(300);
   st = await sortState(p);
-  ok(st.aria.join() === 'proof_size:descending', 'Space on it again sorts descending', st);
+  ok(st.aria.join() === 'size_bit:descending', 'Space on it again sorts descending', st);
   const fv = await p.evaluate(() => getComputedStyle(document.activeElement).outlineStyle);
   ok(fv !== 'none', 'keyboard focus is visible on a head button', fv);
   await ctx.close();
@@ -299,9 +299,9 @@ for (const w of [390, 360, 320]) {
     ok(o.over <= 0 && !o.clipped.length, `${tag}-${w} no horizontal overflow`, o);
     ok(await cls(p) === 0, `${tag}-${w} CLS 0`);
     if (tag === 'home') {
-      ok(await p.locator('.sb[data-col="check_time"]').first().isVisible(), `home-${w} the column heads stay as sort buttons`);
-      await sortBy(p, 'check_time', 'desc');
-      ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'check_time', 'desc')), `home-${w} sorts from the heads`);
+      ok(await p.locator('.sb[data-col="check_bit"]').first().isVisible(), `home-${w} the column heads stay as sort buttons`);
+      await sortBy(p, 'check_bit', 'desc');
+      ok(JSON.stringify(await order(p)) === JSON.stringify(await expected(p, 'check_bit', 'desc')), `home-${w} sorts from the heads`);
     }
     await ctx.close();
   }
@@ -431,8 +431,8 @@ for (const w of [1440, 390]) {
   }
   // a malformed escape in the hash breaks nothing: sorting and Back keep working
   await p.goto(BASE + '#100%', { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
-  await p.evaluate(() => { location.hash = 'sort=proof_size-desc'; }); await p.waitForTimeout(300);
-  ok((await sortState(p)).aria.join() === 'proof_size:descending', 'a malformed hash does not stop hash sorting');
+  await p.evaluate(() => { location.hash = 'sort=size_bit-desc'; }); await p.waitForTimeout(300);
+  ok((await sortState(p)).aria.join() === 'size_bit:descending', 'a malformed hash does not stop hash sorting');
   // a phone held sideways: the first table's heading shows on landing
   await ctx.close();
   const ls = await pg(844, 390, { touch: true });
@@ -502,25 +502,27 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   // 375 x 667: the first glyph whole; 320 x 568: the first row starts on screen
   const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
   ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
-  // the table on a phone: the heads a strip of sort buttons 32 px tall or more; in each row every figure
-  // shows its label and its scope line (the labels a number carries stay in view)
+  // the table on a phone: the heads a grid of sort buttons 32 px tall or more; each system's four figures
+  // on one line, under their heads (each cell's label read aloud), each with its compact lines in view
+  // (scope, n and range: the labels a number carries stay in view)
   const s = await p.evaluate(() => {
     const r = (x) => x.getBoundingClientRect();
     const t = document.querySelector('.board');
     const b = [...t.querySelectorAll('.hc .sb')];
     const shown = (x) => x && getComputedStyle(x).clipPath !== 'inset(50%)' && r(x).height > 0;
     const cells = [...t.querySelectorAll('.row .vc')];
-    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => shown(c.querySelector('.lbl'))), subs: cells.every((c) => !c.querySelector('.fig') || shown(c.querySelector('.sub'))), n: cells.length };
+    const line = [...t.querySelectorAll('.row')].every((row) => new Set([...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).top))).size === 1);
+    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || shown(c.querySelector('.subc'))), line, n: cells.length };
   });
-  ok(s.h >= 32 && s.labels && s.subs && s.n === 8, `home-${w}: sort buttons 32 px tall or more; every figure with its label and its lines in view`, s);
+  ok(s.h >= 32 && s.labels && s.subs && s.line && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each with its compact lines in view`, s);
   await ctx.close();
 }
 {
   // touch: the first tap on a triangle names it, the second follows the link; the sorted figure is marked in each row
   const { ctx, p } = await pg(390, 844, { touch: true });
-  await p.goto(BASE + '#sort=check_time-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c.querySelector('.lbl')).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
-  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_time') ? 'on' : 'off')), 'home-390: the sorted column\'s label is in paper in every row, the others muted', mk);
+  await p.goto(BASE + '#sort=check_bit-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
+  const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
+  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_bit') ? 'on' : 'off')), 'home-390: the sorted column is in paper in every row, the others muted', mk);
   await p.locator('#flashprove .pie').scrollIntoViewIfNeeded();
   const bx = await p.locator('#flashprove .pie').boundingBox();
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];

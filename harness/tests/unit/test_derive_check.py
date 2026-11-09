@@ -71,14 +71,19 @@ def test_derive_check_null_reason_must_match(tmp_path: Path) -> None:
     )
 
 
-PROVER_ONLY = ["tokens_covered_per_proof"] + [
-    f"seconds_per_active_weight_bit_token_{s}"
-    for s in ("prove.steady", "prove.session", "whole_wall")
-]
+PROVER_ONLY = (
+    ["tokens_covered_per_proof"]
+    + [
+        f"seconds_per_active_weight_bit_token_{s}"
+        for s in ("prove.steady", "prove.session", "whole_wall")
+    ]
+    + ["proof_bytes_per_active_weight_bit_token", "verify_seconds_per_active_weight_bit_token"]
+)
 
 
 def test_derive_check_reference_tokens_per_proof(tmp_path: Path) -> None:
-    """INV-DERIVE-6, INV-DERIVE-7: in a `kind: reference` run, D-TPP and D-SPAB-S recompute
+    """INV-DERIVE-6, INV-DERIVE-7: in a `kind: reference` run, D-TPP, D-SPAB-S, D-BPAB and
+    D-VSPAB recompute
     as null `not_applicable`; a stored value fails DER-1."""
 
     def reference(doc: dict[str, object]) -> None:

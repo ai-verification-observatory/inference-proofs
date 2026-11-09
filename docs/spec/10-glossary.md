@@ -84,7 +84,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="proof-part"></a>**Proof part.** One file inside a proof directory. Controls C5, C6 and C8 operate on the parts the adapter declares its verify step reads (`system.yaml` `proofs.verify_reads`); `controls.json` lists each part not read with its reason. [RFC-0008](../../rfcs/0008-negative-controls.md#parts-the-verifier-reads).
 
-<a id="prover-time-per-bit"></a>**Prover time per bit of active weights.** Prover seconds per token covered divided by the bits of weights one token uses, active parameters per token times [weight bits](#weight-bits) (`D-SPAB-S`, unit `s/bit_token`). Attention cost is not in the normaliser. Shown only with the claim cards. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
+<a id="prover-time-per-bit"></a>**Prover time per bit of active weights.** Prover seconds per token covered divided by the bits of weights one token uses, active parameters per token times [weight bits](#weight-bits) (`D-SPAB-S`, unit `s/bit_token`). Attention cost is not in the normaliser. Shown only with the claim cards. Proof size and check time have the same basis (`D-BPAB`, `B/bit_token`; `D-VSPAB`, `s/bit_token`); the site prints all three per token per Gbit of active weights (1e9 bits), in ms and kB. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 
 <a id="proved"></a>**Proved.** Said of a statement that a sound verifier's acceptance establishes under the claim card's stated assumptions. Never "provably safe". Contrast [attested](#attested), [sampled](#sampled).
 

@@ -28,7 +28,7 @@ ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" da
 PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
 SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0, "ps": 1e-12,
+         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0,
          # more numbers: token/s, and USD per 1,000 tokens (the row names the basis)
          "positions/s": 1.0, "USD": 1.0}  # fmt: skip
 MORE_ROW = re.compile(r'<tr><th scope="row">.*?</tr>', re.S)
@@ -38,6 +38,8 @@ COLUMN = {
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
     "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
+    "size_bit": "proof_bytes_per_active_weight_bit_token",
+    "check_bit": "verify_seconds_per_active_weight_bit_token",
 }
 
 
@@ -85,8 +87,11 @@ def pages(out: Path) -> dict[str, str]:
     return {p.name: p.read_text("utf-8") for p in sorted(out.glob("*.html"))}
 
 
-def printed(number: str, unit: str) -> float:
-    return float(number.replace(",", "")) * SCALE[unit]
+def printed(number: str, unit: str, stored_unit: str = "") -> float:
+    """A printed figure in its stored base unit; a per-bit unit (s/bit_token, B/bit_token) is
+    printed per Gbit of active weights, 1e9 bits."""
+    per_gbit = 1e-9 if stored_unit.endswith("/bit_token") else 1.0
+    return float(number.replace(",", "")) * SCALE[unit] * per_gbit
 
 
 def close_at_4(value: float, stored: float) -> bool:
@@ -131,7 +136,7 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
         stat = resolve(doc, found[1])
         number = NUMBER.search(inner)
         assert number, title
-        assert close_at_4(printed(number[1], number[2]), stat["value"]), title
+        assert close_at_4(printed(number[1], number[2], stat["unit"]), stat["value"]), title
         traced += 1
     for name in ("flashprove.html", "sash.html"):
         for body in PLATE.findall(site[name]):
@@ -147,7 +152,8 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
                 assert stat["null_reason"], found[1]
                 continue
             assert number, (name, found[1])
-            assert close_at_4(printed(number[1], number[2]), stat["value"]), (name, found[1])
+            value = printed(number[1], number[2], stat["unit"])
+            assert close_at_4(value, stat["value"]), (name, found[1])
             traced += 1
     assert traced >= 12  # two systems, three measured figures, on the overview and the plates
     more = 0

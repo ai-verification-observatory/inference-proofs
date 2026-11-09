@@ -21,7 +21,7 @@ from .plates import (
     COLS,
     EXT,
     MORE,
-    SYS_COLS,
+    PER_GBIT_COLS,
     aria,
     configs_of,
     fig,
@@ -303,10 +303,12 @@ def config_figures(cfg, name, one):
         rid = row_id(cfg)
         head = (f'<div class="sec-h"><h3 id="h-{e(rid)}" class="sect sm">{keep(config_where(cfg))}</h3>'
                 f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p></div>')  # fmt: skip
-    plates = "".join(plate(cfg, c, plate_prefix(cfg)) for c in SYS_COLS)
+    raw = "".join(plate(cfg, c, plate_prefix(cfg)) for c in COLS)
+    per_gbit = "".join(plate(cfg, c, plate_prefix(cfg)) for c in PER_GBIT_COLS)
     body = (
         f'{head}<p class="lead">{e(runs_lead(cfg))}</p>{left_out(cfg)}'
-        f'<div class="plates plates-sys p5">{plates}</div>'
+        f'<div class="plates plates-sys">{raw}</div>'
+        f'<div class="plates plates-sys pgb">{per_gbit}</div>'
         f"{more_table(cfg, f'More numbers for {name}, with spread, scope, grade, checked step and source')}"
     )
     return body if one else f'<div class="cfgfigs" id="{e(row_id(cfg))}">{body}</div>'

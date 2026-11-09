@@ -12,9 +12,11 @@ from .chrome import footer, header, masthead, page
 from .hexagon import pie_svg
 from .plates import (
     BOARD,
-    HEAD,
+    BOARD_GROUPS,
+    BOARD_HEAD,
     SORT_WORDS,
     aria,
+    bits_words,
     configs_of,
     glyph,
     keep,
@@ -88,10 +90,11 @@ DEFAULT_COL = "overhead"
 
 
 def sort_heads():
-    """The column heads: System and each figure a button with its sort glyph; Model is not
-    sorted (a model is not a result)."""
+    """The column heads: System and each figure a button with its sort glyph, under the line
+    its group shares (BOARD_GROUPS: the overhead's baseline, the three figures' per-Gbit basis),
+    which a screen reader hears in the button."""
 
-    def head(col, label, cls=""):
+    def head(col, label, said="", cls=""):
         on = col == DEFAULT_COL
         w = SORT_WORDS[col]
         return (
@@ -99,36 +102,43 @@ def sort_heads():
             + (' aria-sort="ascending"' if on else "")
             + ">"
             f'<button type="button" class="sb" data-col="{col}" data-asc="{e(w["asc"])}" data-desc="{e(w["desc"])}">'
-            f'{label}\u00a0<span class="g" aria-hidden="true">{"↑" if on else "↕"}</span></button></div>'
+            f'{label}\u00a0<span class="g" aria-hidden="true">{"↑" if on else "↕"}</span>'
+            + (f'<span class="sr">, {e(said)}</span>' if said else "")
+            + "</button></div>"
         )
 
+    group_of = {c: words for cols, words in BOARD_GROUPS for c in cols}
+    groups = "".join(
+        f'<div class="hg hg-{e(cols[0])}" aria-hidden="true"><span>{e(words)}</span></div>'
+        for cols, words in BOARD_GROUPS
+    )
     return (
-        f'<div class="heads" role="row">{head("system", "System", " hsys")}'
-        '<div class="hc hmod" role="columnheader"><span>Model</span></div>'
-        + "".join(head(c, e(HEAD[c])) for c in BOARD)
+        f'<div class="heads" role="row">{head("system", "System", cls=" hsys")}{groups}'
+        + "".join(head(c, e(BOARD_HEAD[c]), group_of.get(c, "")) for c in BOARD)
         + "</div>"
     )
 
 
-def model_cell(cfg):
-    """The row's model: its name, total and active parameters, and what the workload ran."""
+def model_lines(cfg):
+    """The row's model under the system's name: its name, total and active parameters with the
+    weight width the per-Gbit figures divide by, and what the workload ran."""
     p = cfg["workload"]["model"]["parameters"]
     total, active = p["total"], p["active_per_token"]
     size = (f"{size_words(total)}, dense" if total == active
             else f"{size_words(total)} total, {size_words(active)} active")  # fmt: skip
+    size += f" · {bits_words(cfg)}"
     shape = shape_words(cfg)
     if cfg["workload"]["division"] != "native":
         shape += f" · {cfg['workload']['division']} division"
     return (
-        '<div class="mc" role="cell" data-col="model"><span class="lbl">Model</span>'
-        f'<p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
-        f'<p class="ms">{e(readable(size))}</p><p class="ms">{facts_line(readable(shape))}</p></div>'
+        f'<div class="mc"><p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
+        f'<p class="ms">{facts_line(readable(size))}</p><p class="ms">{facts_line(readable(shape))}</p></div>'
     )
 
 
 def board_row(cfg):
-    """One overview row: the row header (glyph, name, pin), the model, then the figures, each a
-    link to its own plate on the system page."""
+    """One overview row: the row header (glyph, name, pin, and the model under them), then the
+    figures, each a link to its own plate on the system page."""
     sid = cfg["system"]
     name, g, href = name_of(sid), glyph(sid), claims_href(cfg)
     said = f'<p class="sr">{e(states_said(g))}</p>' if g["drawn"] else ""  # OVR-8: no state
@@ -144,8 +154,8 @@ def board_row(cfg):
     <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
       <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=cells, hit=True)}<span class="tip"></span></a>
       <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}">{e(name)}</a></h3>{said}<p class="wl">{pin_link(cfg)}</p></div>
+      {model_lines(cfg)}
     </div>
-    {model_cell(cfg)}
     <div class="vals">{vals}</div>
   </div>
 </div>'''
@@ -238,13 +248,13 @@ def fig_href(cfg, col):
 
 # the overview's description, in its meta and share tags
 HOME_DESC = ("Six properties of one proof per system (draft criteria), and one row per system: "
-             "overhead against production serving, prover time per active weight bit, proof size "
-             "and check time, sortable by column.")  # fmt: skip
+             "overhead against production serving, then proving time, proof size and check time "
+             "per token per Gbit of active weights, sortable by column.")  # fmt: skip
 
 
 def build_index():
     rows = board_configs()
-    first = f"{HEAD[DEFAULT_COL]}, {SORT_WORDS[DEFAULT_COL]['asc']}"
+    first = f"{BOARD_HEAD[DEFAULT_COL]}, {SORT_WORDS[DEFAULT_COL]['asc']}"
     n = len(rows)
     nb_count = len(S.V["orders"]["not_benchmarked"])
     body = f"""
