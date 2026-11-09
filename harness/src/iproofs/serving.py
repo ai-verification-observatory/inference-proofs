@@ -8,18 +8,24 @@ hashes the pointer, which holds the sha256 and the size. So the publisher's anon
 listing proves the mirror's bytes are the publisher's, although the gated repository masks the
 LFS sha256.
 
+It also sizes a lengthened matched serving session from a stored capture (`session_size`,
+RFC-0015 SRV-1).
+
 Pure functions apart from `ensure_serving_model` (cache writes) and the `get` callables that
 `check_mirror` and `pin` take (network in the CLI, fixtures in the tests).
 """
 
+import dataclasses
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
 import stat
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from fnmatch import fnmatch
+from fractions import Fraction
 from pathlib import Path
 from typing import Any
 
@@ -198,6 +204,118 @@ def placement_problem(
                     "KV-capacity or out-of-memory evidence (an `adapter` failure admits "
                     "nothing)")  # fmt: skip
     return None
+
+
+# ---------------------------------------------------------------- session length (SRV-1)
+
+# RFC-0015 SRV-1 (Draft amendment of 2026-11-09): a lengthened matched session aims its steady
+# scope at 120 s, twice the 60 s join minimum, so a run up to twice as slow per batch as its
+# capture still clears 60 s. The join minimum stays 60 s (SHORT_STEADY).
+SESSION_TARGET_S = 120
+
+
+@dataclasses.dataclass(frozen=True, slots=True)
+class SessionSize:
+    """`batches_per_session_run` of one (workload, GPU count), computed from a stored matched
+    capture (RFC-0015 SRV-1). Seconds of the capture are its measured values; the `expected_*`
+    seconds are projections from it (grade projected), never results."""
+
+    run_id: str
+    workload: str
+    gpus: int
+    batch_size: int
+    capture_batches: int
+    capture_steady_s: float  # prove.steady: the first batch's last release to the last release
+    capture_session_s: float | None  # prove.session, start-up included
+    seconds_per_batch: float  # capture_steady_s / (capture_batches - 1)
+    target_s: int
+    steady_batches: int  # the smallest n with n x seconds_per_batch >= target_s
+    batches: int  # batches_per_session_run: steady_batches + 1, at least the workload's
+    expected_steady_s: float
+    expected_session_s: float | None
+
+    @property
+    def prompt_count(self) -> int:
+        return self.batch_size * self.batches
+
+
+def _number(value: object) -> float | None:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
+
+
+def session_size(
+    run: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    workload_batches: int,
+    target_s: int = SESSION_TARGET_S,
+) -> SessionSize:
+    """RFC-0015 SRV-1: the batches per session at which a matched serving run's steady scope
+    is expected to reach `target_s`, from one completed matched capture of the configuration
+    (its run.json and manifest.json).
+
+    The steady scope runs from the first batch's last release to the last batch's last release
+    (RFC-0004 INV-SCOPE-5), so it spans the capture's batches minus one. Seconds per steady
+    batch = `prove_steady_seconds` / (batches - 1); steady batches = the smallest integer n with
+    n x that time >= `target_s`, computed exactly on the stored binary64 value (no rounding at
+    the boundary); the count adds the first batch, which the steady scope excludes, and is never
+    below the workload's `batches_per_session`.
+
+    A capture without a steady scope (one batch: one request at batch size 1, or a single
+    batch) is refused (`config`). Its record cannot give the time per batch after start-up: the
+    one batch's releases follow engine start-up inside the same `prove` call, and neither
+    run.json nor manifest.json timestamps the end of start-up (the adapter's command record
+    holds the engine's launch time, and its engine log has wall-clock seconds at best)."""
+    run_id = str(run.get("run_id"))
+    wl = manifest.get("workload") or {}
+    if run.get("status") != "completed":
+        raise IProofsError(ErrorKind.CONFIG, f"{run_id}: status {run.get('status')!r}; a session "
+                           "is sized from a completed capture (RFC-0015 SRV-1)")  # fmt: skip
+    if run.get("system_kind") != "reference" or wl.get("load_point") != "matched":
+        raise IProofsError(ErrorKind.CONFIG, f"{run_id}: not a matched production-serving run "
+                           f"(load point {wl.get('load_point')!r}); only the matched load is "
+                           "lengthened (RFC-0015 SRV-1)")  # fmt: skip
+    batch, batches = wl.get("batch_size_run"), wl.get("batches_per_session_run")
+    gpus = ((run.get("inputs") or {}).get("gpu_count") or {}).get("value")
+    if not all(isinstance(v, int) and not isinstance(v, bool) and v >= 1
+               for v in (batch, batches, gpus)):  # fmt: skip
+        raise IProofsError(ErrorKind.CONFIG, f"{run_id}: the record lacks the run's batch "
+                           "size, batch count or GPU count (manifest workload.batch_size_run, "
+                           "workload.batches_per_session_run, run.json "
+                           "inputs.gpu_count)")  # fmt: skip
+    assert isinstance(batch, int)
+    assert isinstance(batches, int)
+    assert isinstance(gpus, int)
+    metrics = run.get("metrics") or {}
+    steady_q = metrics.get("prove_steady_seconds") or {}
+    steady = _number(steady_q.get("value"))
+    session = _number((metrics.get("prove_session_seconds") or {}).get("value"))
+    if batches < 2 or steady is None or steady <= 0:
+        raise IProofsError(ErrorKind.CONFIG, f"{run_id}: no steady scope ({batches} batch(es) of "
+                           f"{batch}; prove_steady_seconds {steady_q.get('value')!r}, null reason "
+                           f"{steady_q.get('null_reason')!r}). The only batch's releases follow "
+                           "engine start-up in the same prove call, and the record does not "
+                           "timestamp the end of start-up, so its time per batch after start-up "
+                           "cannot be told from start-up. Size the session from a matched "
+                           "capture of at least 2 batches (RFC-0015 SRV-1)")  # fmt: skip
+    capture_steady_batches = batches - 1
+    n = math.ceil(Fraction(target_s) * capture_steady_batches / Fraction(steady))
+    total = max(workload_batches, n + 1)
+    per = steady / capture_steady_batches
+    return SessionSize(
+        run_id=run_id,
+        workload=str(wl.get("id")),
+        gpus=gpus,
+        batch_size=batch,
+        capture_batches=batches,
+        capture_steady_s=steady,
+        capture_session_s=session,
+        seconds_per_batch=per,
+        target_s=target_s,
+        steady_batches=n,
+        batches=total,
+        expected_steady_s=per * (total - 1),
+        expected_session_s=None if session is None else session + per * (total - batches),
+    )
 
 
 # ---------------------------------------------------------------- SM-2 (fetch-model --serving)

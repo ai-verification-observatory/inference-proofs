@@ -49,7 +49,9 @@ workloads:
 - id: sash-l31-8b-c1024
   load_point: matched
   gpus: 1
-  batches_per_session_run: null  # set from the first capture (SRV-1)
+  # The first capture (2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1) serves
+  # one request: no steady scope, so `iproofs serving size-session` refuses it (SRV-1).
+  batches_per_session_run: null
   precision_used: BF16
   precision_substitution: null
   engine_args:
@@ -97,7 +99,11 @@ workloads:
 - id: fp-maverick-w1024-b24
   load_point: matched
   gpus: 4
-  batches_per_session_run: null  # set from the first capture (SRV-1)
+  # Computed, not typed (SRV-1): `iproofs serving size-session RUN_DIR` on the development
+  # capture 2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-1 (development
+  # bucket, runs/20261109T061750Z-serving-mav-fp8-s2/, docs/runbooks/hf-jobs.md): 213 steady
+  # batches reach the 120 s target, plus the first batch.
+  batches_per_session_run: 214
   precision_used: FP8
   precision_substitution: null
   engine_args:

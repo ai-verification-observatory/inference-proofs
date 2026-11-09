@@ -155,6 +155,39 @@ def test_high_load_prompt_prefix(repo: Path) -> None:
     assert "SRV-8" in failed["message"]
 
 
+def test_lengthened_matched_replay(repo: Path) -> None:
+    """TC-SRV-LENGTHEN-REPLAY (SRV-1, SRV-8): a matched entry with `batches_per_session_run` 5
+    replaying a run serves 5 x 2 = 10 prompts from the source's seed; the first 6 are the
+    source run's set (`prompt_prefix_digest`), the 4 after are further windows of the same
+    generator, and every request is served and counted."""
+    source = read(runner(repo, (0, 1), replay_seed=7).run(spec(repo, "ci-serving-x2")),
+                  "manifest")["workload"]["prompt_set_digest"]  # fmt: skip
+    path = repo / "systems/fake-ref/system.yaml"
+    system = json.loads(path.read_text())
+    for entry in system["workloads"]:
+        if entry["load_point"] == "matched":
+            entry["batches_per_session_run"] = 5
+    path.write_text(json.dumps(system))
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    subprocess.run([*git, "commit", "-qam", "lengthen", "--no-gpg-sign"], check=True)
+    run_dir = runner(repo, (0, 1), replay_seed=7, source_prompt_digest=source).run(
+        spec(repo, "ci-serving-x2")
+    )
+    doc, manifest = read(run_dir, "run"), read(run_dir, "manifest")
+    assert doc["status"] == "completed", doc["failure"]
+    wl = manifest["workload"]
+    assert (wl["load_point"], wl["batch_size_run"], wl["batches_per_session_run"]) == (
+        "matched", 2, 5)  # fmt: skip
+    assert (wl["prompt_count_run"], wl["prompt_prefix_digest"]) == (10, source)
+    assert wl["prompt_set_digest"] != source  # the longer set, the source's first
+    assert doc["metrics"]["requests_count"]["value"] == 10
+    assert doc["metrics"]["proofs_count"]["value"] == 10
+    other = runner(repo, (0, 1), replay_seed=8, source_prompt_digest=source).run(
+        spec(repo, "ci-serving-x2")
+    )
+    assert "SRV-8" in read(other, "run")["failure"]["message"]  # another seed is refused
+
+
 def test_bound_gpu_count_and_placement(repo: Path) -> None:
     """TC-SRV-GPU-COUNT: one bound GPU on a 2-GPU serving profile is `config` before `info`.
     TC-SRV-PLACEMENT: once a 2-GPU run completed, a 4-GPU job of the workload is `config`."""
