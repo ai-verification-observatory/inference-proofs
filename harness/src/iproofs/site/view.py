@@ -12,11 +12,12 @@ from pathlib import Path
 from typing import Any
 
 from iproofs.controls import CONTROL_PROPERTY, runs_read
-from iproofs.derive import formula_of
+from iproofs.derive import STEADY_RULE, formula_of
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import SiteFacts
 from iproofs.release import REASONS
 from iproofs.schema import SchemaRegistry
+from iproofs.serving import SHORT_STEADY
 from iproofs.site import inputs
 from iproofs.site.inputs import REPOSITORY
 
@@ -398,9 +399,73 @@ def _configuration(
         "verifier": _verifier(reference, config, records),
         "price": _price(reference, config["profile"], str(index["reference"]["file"])),
         "steady_boundary": config.get("steady_boundary"),
+        "overhead_runs": _overhead_runs(index, config, records, int(wl["shape"]["batch_size"])),
         "load_point": config.get("load_point"),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
+
+
+# why a completed run of either side joins no pair of an overhead (RFC-0004 INV-DERIVE-2), read
+# from its records; the pages word each id
+JOIN_WHY = ("first_proof_boundary", "short_steady", "sizing_capture", "other_prompts")
+
+
+def _join_why(rec: dict[str, Any], batch: int, joined: set[str]) -> str | None:
+    """Why a completed run is in no pair of an overhead, from its own records: recorded with the
+    first-proof boundary at a batch size above 1 (INV-SCOPE-5), a steady scope under 60 s or a
+    sizing capture (RFC-0015 SRV-1), or prompts of no joined prover run (INV-DERIVE-2 (f));
+    None where its records show none of these."""
+    manifest, warnings = rec["manifest"], rec["run"].get("warnings") or []
+    if batch > 1 and inputs.maybe(manifest, "workload", "steady_rule") != STEADY_RULE:
+        return "first_proof_boundary"
+    if SHORT_STEADY in warnings:
+        return "short_steady"
+    if inputs.maybe(manifest, "workload", "sizing_capture") is True:
+        return "sizing_capture"
+    if manifest.get("prompts_from") is not None and manifest["prompts_from"] not in joined:
+        return "other_prompts"
+    return None
+
+
+def _overhead_runs(
+    index: dict[str, Any], config: dict[str, Any], records: dict[str, dict[str, Any]], batch: int
+) -> dict[str, Any]:
+    """RFC-0004 INV-DERIVE-2, per overhead statistic with a value: the runs its pairs join on each
+    side, read from its source inputs, each with its `run.json`; and every other completed run
+    of the two configurations it divides, with why it joins none (`_join_why`)."""
+    conditions = config.get("overhead_conditions") or {}
+    out: dict[str, Any] = {}
+    # (statistic, the serving configuration it divides by, that side's batch size; high load: > 1)
+    sides = (
+        ("overhead_vs_production_prove.steady", "serving_configuration", batch),
+        ("overhead_vs_production_high_prove.steady", "high_configuration", 2),
+    )
+    for metric, key, at in sides:
+        q = config["statistics"].get(metric)
+        pointer = conditions.get(key)
+        if not isinstance(q, dict) or q.get("value") is None or not isinstance(pointer, str):
+            continue
+        serving = index["configurations"][int(pointer.rsplit("/", 1)[1])]
+        ids = [str(x).split("/run.json", 1)[0].rsplit("/", 1)[1] for x in q["source"]["inputs"]]
+        mine = [r for r in ids if r in config["runs"]]
+        theirs = [r for r in ids if r in serving["runs"]]
+        left = []
+        for side, runs, size in (
+            ("system", config["runs"], batch),
+            ("serving", serving["runs"], at),
+        ):
+            for rid in runs:
+                if rid in ids or records[rid]["run"]["status"] != "completed":
+                    continue
+                left.append({"run_id": rid, "side": side,
+                             "record": _record(records, rid, "run.json"),
+                             "why": _join_why(records[rid], size, set(mine))})  # fmt: skip
+        out[metric] = {
+            "system": [{"run_id": r, "record": _record(records, r, "run.json")} for r in mine],
+            "serving": [{"run_id": r, "record": _record(records, r, "run.json")} for r in theirs],
+            "left": left,
+        }
+    return out
 
 
 def _price(reference: dict[str, Any], profile: str, path: str) -> dict[str, Any] | None:
@@ -539,8 +604,9 @@ def overhead_words(
                      "seeded generator")  # fmt: skip
         # at the headline's scope (INV-DERIVE-9), which the plate names
         on = gpus.get("serving_high")
-        out["high"] = (f"{_count(batch['high'], 'request')} per batch: "
-                       f"{_num(float(high['value']))}\u00d7 ({_range(high)}); "
+        value = f"{_num(float(high['value']))}\u00d7 ({_range(high)})"
+        out["high"] = (f"serving at {_count(batch['high'], 'request')} per batch, the prover at "
+                       f"{batch['matched']:,}: {value}; "
                        f"{_count(per['serving_high'], 'batch', 'batches')} for serving on "
                        f"{on if on is not None else 'not recorded'} \u00d7 {c['gpu_model']}, "
                        f"{engine.get('settings_high') or 'settings not recorded'}"

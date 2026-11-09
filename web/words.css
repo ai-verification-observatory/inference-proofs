@@ -889,9 +889,9 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .nbn a { display: inline-block; padding-block: 3px; margin-block: -3px; }
   .ll summary { padding-block: 4px; }
   /* lines that hold several runs: each line 24 px or more, each run's box its line, so boxes on two lines never meet */
-  .ec .eb { line-height: 24px; }
+  .ec .eb, .plate dd:has(a.run) { line-height: 24px; }
   .tamper { line-height: max(1.3em, 26px); }
-  .ec a.run, .tamper a.run { padding-block: 0; margin-block: 0; }
+  .ec a.run, .tamper a.run, .plate a.run { padding-block: 0; margin-block: 0; }
   /* a failed run's last line opens below its run's box, never under it */
   .runs .ll { margin-top: 6px; }
 }

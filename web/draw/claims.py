@@ -15,12 +15,11 @@ import re
 from . import state as S
 from .plates import (
     EXT,
-    blob,
     config_of_run,
     flags_html,
     path_html,
     readable,
-    record_html,
+    run_ref,
     setup_diff,
     source_html,
     source_label,
@@ -132,25 +131,6 @@ def sources_read(items, same_as=None):
             parts.append(f'<span class="rd">{source_link(s["url"])} retrieved '
                          f"{e(s['retrieved'])}</span>")  # fmt: skip
     return ev_line("er", "read", "".join(parts))
-
-
-RUN_ID = re.compile(r"(\d{4}-\d{2}-\d{2})-.*-(\d+)$")
-
-
-def run_ref(rid, record):
-    """A run by its date and ordinal ("2026-11-08 · 2"), its full id read aloud and in the
-    link's title, linked to its record once the release is published; an id of another shape
-    whole."""
-    m = RUN_ID.match(rid)
-    if not m:
-        return record_html(record, rid) if record else path_html(rid)
-    short = (
-        f'<span aria-hidden="true">{m[1]}\u00a0·\u00a0{m[2]}</span><span class="sr">{e(rid)}</span>'
-    )
-    if not record:
-        return f'<span class="nw" title="{e(rid)}">{short}</span>'
-    return (f'<a class="run" href="{e(blob(record))}" title="{e(rid)}">'
-            f'<span class="nw">{short}{EXT}</span></a>')  # fmt: skip
 
 
 def control_label(cid):

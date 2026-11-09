@@ -308,12 +308,25 @@ def gpu_words(cfg):
     return f"{count_word(g['count'])} {g['short'] or g['model']}"
 
 
+# RFC-0004 INV-SCOPE-5: the stored label of runs that keep the older steady boundary, as a phrase
+BOUNDARY = re.compile(r"^first-proof boundary \(before (\S+)\)$")
+
+
+def boundary_words(cfg):
+    """The steady boundary a configuration's earlier runs keep, worded from its stored label
+    (RFC-0009 S2): "first-proof boundary (before 2026-11-09)" reads "steady window from the
+    first proof (runs before 2026-11-09)"; another label as stored; "" without one."""
+    label = cfg.get("steady_boundary") or ""
+    m = BOUNDARY.match(label)
+    return f"steady window from the first proof (runs before {m[1]})" if m else label
+
+
 def scope_words(f, cfg):
     """A figure's scope in words; a steady figure of a configuration whose runs cut their steady
     window at another boundary names it (RFC-0004 INV-SCOPE-5)."""
     words = SCOPE_WORD[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"])
     if f["scope"] == "prove.steady" and cfg.get("steady_boundary"):
-        words += f", {cfg['steady_boundary']}"
+        words += f", {boundary_words(cfg)}"
     return words
 
 

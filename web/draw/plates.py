@@ -19,6 +19,7 @@ from .words import (
     SCOPE_SHORT,
     STATE_WORD,
     TIER_WORD,
+    boundary_words,
     e,
     gpu_words,
     labels,
@@ -371,6 +372,25 @@ def record_html(path, words=None):
     return f'<a href="{e(blob(path))}">{path_html(words or path, ext=True)}</a>'
 
 
+RUN_ID = re.compile(r"(\d{4}-\d{2}-\d{2})-.*-(\d+)$")
+
+
+def run_ref(rid, record):
+    """A run by its date and ordinal ("2026-11-08 · 2"), its full id read aloud and in the
+    link's title, linked to its record once the release is published; an id of another shape
+    whole."""
+    m = RUN_ID.match(rid)
+    if not m:
+        return record_html(record, rid) if record else path_html(rid)
+    short = (
+        f'<span aria-hidden="true">{m[1]}\u00a0·\u00a0{m[2]}</span><span class="sr">{e(rid)}</span>'
+    )
+    if not record:
+        return f'<span class="nw" title="{e(rid)}">{short}</span>'
+    return (f'<a class="run" href="{e(blob(record))}" title="{e(rid)}">'
+            f'<span class="nw">{short}{EXT}</span></a>')  # fmt: skip
+
+
 def blob(path):
     """A file of this repository, at the commit the site links (RFC-0009 S1, #320 plan §1.1)."""
     return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
@@ -428,6 +448,62 @@ def pairs_words(f):
     if pairs.get("min") is not None:
         out += f", {shown(pairs['min'], 'ratio')} to {shown(pairs['max'], 'ratio')}"
     return out
+
+
+class Html(str):
+    """A plate row's value already in HTML (its runs linked), printed as it is."""
+
+
+# why a completed run joins no pair of an overhead (iproofs.site.view.JOIN_WHY), in words
+JOIN_WHY_WORDS = {
+    "first_proof_boundary": "{boundary}, so {they} no overhead",
+    "short_steady": "steady scope under 60 s, so {they} no overhead",
+    "sizing_capture": "a sizing capture, so {they} no overhead",
+    "other_prompts": "replayed the prompts of a run in no pair, so {they} none",
+    None: "in no pair",
+}
+
+
+def left_words(cfg, runs):
+    """The runs of one side an overhead leaves out, grouped by why, in words for a title:
+    "2026-11-08 · 1, 2026-11-08 · 2: steady window from the first proof (runs before
+    2026-11-09), so they join no overhead"."""
+    by = {}
+    for x in runs:
+        by.setdefault(x["why"], []).append(x["run_id"])
+    out = []
+    for why, ids in by.items():
+        short = ", ".join(" · ".join(m.groups()) if (m := RUN_ID.match(r)) else r for r in ids)
+        they = "it joins" if len(ids) == 1 else "they join"
+        said = JOIN_WHY_WORDS[why].format(boundary=boundary_words(cfg), they=they)
+        out.append(f"{short}: {said}")
+    return "Left out: " + "; ".join(out)
+
+
+def pairs_html(cfg, f):
+    """An overhead's pairs on its plate: the runs joined on each side, read from its source
+    inputs, by date and ordinal linked to their records, then the range over the pairs; each
+    side's count holds in its title the runs of its configuration left out and why."""
+    joined = (cfg.get("overhead_runs") or {}).get(f["metric"])
+    pairs = f.get("pairs") or {}
+    if not joined or pairs.get("n_system") is None:
+        return Html(e(readable(pairs_words(f))))
+    sides = []
+    for side, n, noun in (("system", pairs["n_system"], "prover run"),
+                          ("serving", pairs["n_serving"], "serving run")):  # fmt: skip
+        runs = joined[side]
+        if len(runs) != n:
+            raise RuntimeError(f"{f['metric']}: {n} {side} runs counted, {len(runs)} in its inputs")
+        count = f"{n}\u00a0{noun}{'s' if n != 1 else ''}"
+        left = [x for x in joined["left"] if x["side"] == side]
+        if left:
+            count = f'<span class="nw" title="{e(left_words(cfg, left))}">{count}</span>'
+        refs = ", ".join(run_ref(r["run_id"], r["record"]) for r in runs)
+        sides.append(f"{count} ({refs})")
+    out = " × ".join(sides)
+    if pairs.get("min") is not None:
+        out += f", {e(shown(pairs['min'], 'ratio'))} to {e(shown(pairs['max'], 'ratio'))}"
+    return Html(out)
 
 
 def spread_kv(f):
@@ -560,13 +636,14 @@ def plate(cfg, col, pid="", shared=None):
                 kv.append(("scope", SCOPE_LINES[f["metric"]], None))
         else:
             val = fig(shown(f["value"], f["unit"]))
-            kv += [(k, v, h) for k, v, h in figure_rows(cfg, f) if k not in shared]
+            kv += [(k, pairs_html(cfg, f) if k == "pairs" else v, h)
+                   for k, v, h in figure_rows(cfg, f) if k not in shared]  # fmt: skip
             if "workload" not in shared:
                 kv.append(("workload", *workload_link(cfg)))
         if f["recorded"]:
             kv.append(("source", source_key(f, shared), None))
     dl = "".join(
-        f"<div><dt>{e(k)}</dt><dd>{path_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
+        f"<div><dt>{e(k)}</dt><dd>{v if isinstance(v, Html) else path_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
         for k, v, href in kv
     )
     return (

@@ -445,7 +445,10 @@ def test_overhead_conditions_words() -> None:
     # the scope, n and range are the plate's own rows: not repeated in the conditions
     for absent in ("prove.steady", "range", "n = "):
         assert absent not in line, absent
-    assert words["high"].startswith("1,024 requests per batch: 200.0\u00d7")
+    # both sides named: serving at high load, the prover at its own (INV-DERIVE-9)
+    assert words["high"].startswith(
+        "serving at 1,024 requests per batch, the prover at 24: 200.0\u00d7"
+    )
     assert "the prover's 120 prompts plus 5,000 further windows" in words["high"]
     assert (
         "5 batches for serving on 4 \u00d7 NVIDIA H200, engine defaults"
@@ -518,3 +521,46 @@ def test_overhead_warm_words() -> None:
     assert "1 requests" not in json.dumps(words)
     assert "1 batches" not in json.dumps(words)
     assert "high" not in words
+
+
+def test_overhead_runs_name_each_side_and_why_others_join_none() -> None:
+    """RFC-0004 INV-DERIVE-2: an overhead's pairs join the runs its source inputs name, on each
+    side; every other completed run of the two configurations is listed with why, read from its
+    own records (by hand): the first-proof boundary at a batch above 1 (INV-SCOPE-5), a steady
+    scope under 60 s (RFC-0015 SRV-1), or prompts of no joined prover run."""
+
+    def rec(
+        status: str = "completed",
+        rule: str | None = "batch-membership",
+        warnings: tuple[str, ...] = (),
+        prompts: str | None = "p-2",
+    ) -> dict[str, Any]:
+        return {
+            "dir": "results/x",
+            "run": {"status": status, "warnings": list(warnings)},
+            "manifest": {"workload": {"steady_rule": rule}, "prompts_from": prompts},
+        }
+
+    records = {"p-1": rec(rule=None, prompts=None), "p-2": rec(prompts=None),
+               "p-3": rec(status="failed", prompts=None),
+               "s-1": rec(warnings=("steady scope under 60 s",)), "s-2": rec(),
+               "s-3": rec(prompts="p-1"), "s-4": rec()}  # fmt: skip
+    stat = {"value": 2.0, "source": {"inputs": [f"results/x/{r}/run.json#/metrics/m"
+                                                for r in ("p-2", "s-2", "s-4")]}}  # fmt: skip
+    config = {
+        "runs": ["p-1", "p-2", "p-3"],
+        "statistics": {"overhead_vs_production_prove.steady": stat},
+        "overhead_conditions": {"serving_configuration": "index.json#/configurations/1"},
+    }
+    index = {"configurations": [config, {"runs": ["s-1", "s-2", "s-3", "s-4"]}]}
+    got = site_view_module._overhead_runs(index, config, records, 24)
+    runs = got["overhead_vs_production_prove.steady"]
+    assert [r["run_id"] for r in runs["system"]] == ["p-2"]
+    assert [r["run_id"] for r in runs["serving"]] == ["s-2", "s-4"]
+    assert [(x["run_id"], x["side"], x["why"]) for x in runs["left"]] == [
+        ("p-1", "system", "first_proof_boundary"),  # p-3 failed: in no figure at all
+        ("s-1", "serving", "short_steady"),
+        ("s-3", "serving", "other_prompts"),
+    ]
+    # at batch size 1 the first-proof boundary is the steady rule: no reason from it
+    assert site_view_module._join_why(rec(rule=None, prompts=None), 1, {"p-2"}) is None
