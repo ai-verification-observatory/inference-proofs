@@ -82,7 +82,25 @@ def figure(
         "source": f"{index_path}#/configurations/{position}/statistics/{_escape(metric)}",
         "sort_key": None if value is None else float(value),
         "pairs": q.get("pairs"),  # an overhead's prover and serving run counts and range
+        "runs": input_runs(q),  # the runs its source inputs read
     }
+
+
+def input_runs(q: dict[str, Any]) -> list[str]:
+    """The run ids a statistic's source inputs read, in their order, each once: a run's own
+    `run.json` or its entry in the index's `freeze_derived`."""
+    out: list[str] = []
+    for ref in q["source"].get("inputs") or []:
+        file, _, pointer = str(ref).partition("#")
+        if file.endswith("/run.json"):
+            rid = file.rsplit("/", 2)[-2]
+        elif pointer.startswith("/freeze_derived/"):
+            rid = pointer.split("/")[2]
+        else:
+            continue
+        if rid not in out:
+            out.append(rid)
+    return out
 
 
 def _repetition_formula(q: dict[str, Any], records: dict[str, dict[str, Any]]) -> str | None:
@@ -385,7 +403,7 @@ def _configuration(
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
         "overhead_metric": overhead_metric(config),
         "overhead_words": overhead_words(
-            config.get("overhead_conditions"), stats, wl, overhead_metric(config),
+            config.get("overhead_conditions"), stats, overhead_metric(config),
             None if model is None else dict(model.precision_words or {})),
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
@@ -400,6 +418,11 @@ def _configuration(
         "price": _price(reference, config["profile"], str(index["reference"]["file"])),
         "steady_boundary": config.get("steady_boundary"),
         "overhead_runs": _overhead_runs(index, config, records, int(wl["shape"]["batch_size"])),
+        # what sets a completed run's steady scope apart, from its own records: a statistic
+        # that leaves a run out says why
+        "run_why": {rid: why for rid in config["runs"]
+                    if records[rid]["run"]["status"] == "completed"
+                    and (why := _steady_why(records[rid]))},
         "load_point": config.get("load_point"),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
@@ -407,23 +430,40 @@ def _configuration(
 
 # why a completed run of either side joins no pair of an overhead (RFC-0004 INV-DERIVE-2), read
 # from its records; the pages word each id
-JOIN_WHY = ("first_proof_boundary", "short_steady", "sizing_capture", "other_prompts")
+JOIN_WHY = ("first_proof_boundary", "one_batch", "short_steady", "sizing_capture", "other_prompts")
 
 
-def _join_why(rec: dict[str, Any], batch: int, joined: set[str]) -> str | None:
+def _join_why(
+    rec: dict[str, Any], batch: int, joined: set[str], serving: bool = False
+) -> str | None:
     """Why a completed run is in no pair of an overhead, from its own records: recorded with the
-    first-proof boundary at a batch size above 1 (INV-SCOPE-5), a steady scope under 60 s or a
-    sizing capture (RFC-0015 SRV-1), or prompts of no joined prover run (INV-DERIVE-2 (f));
-    None where its records show none of these."""
+    first-proof boundary at a batch size above 1 (INV-SCOPE-5), a serving run of one batch (no
+    steady scope to divide by), a steady scope under 60 s or a sizing capture (RFC-0015 SRV-1),
+    or prompts of no joined prover run (INV-DERIVE-2 (f)); None where its records show none."""
     manifest, warnings = rec["manifest"], rec["run"].get("warnings") or []
     if batch > 1 and inputs.maybe(manifest, "workload", "steady_rule") != STEADY_RULE:
         return "first_proof_boundary"
+    if serving and inputs.maybe(manifest, "workload", "batches_per_session_run") == 1:
+        return "one_batch"
     if SHORT_STEADY in warnings:
         return "short_steady"
     if inputs.maybe(manifest, "workload", "sizing_capture") is True:
         return "sizing_capture"
     if manifest.get("prompts_from") is not None and manifest["prompts_from"] not in joined:
         return "other_prompts"
+    return None
+
+
+def _steady_why(rec: dict[str, Any]) -> str | None:
+    """What its own records say of a completed run's steady scope: one batch (none), under 60 s,
+    or a sizing capture (RFC-0015 SRV-1); None for none of these."""
+    manifest, warnings = rec["manifest"], rec["run"].get("warnings") or []
+    if inputs.maybe(manifest, "workload", "batches_per_session_run") == 1:
+        return "one_batch"
+    if SHORT_STEADY in warnings:
+        return "short_steady"
+    if inputs.maybe(manifest, "workload", "sizing_capture") is True:
+        return "sizing_capture"
     return None
 
 
@@ -435,9 +475,11 @@ def _overhead_runs(
     of the two configurations it divides, with why it joins none (`_join_why`)."""
     conditions = config.get("overhead_conditions") or {}
     out: dict[str, Any] = {}
-    # (statistic, the serving configuration it divides by, that side's batch size; high load: > 1)
+    # (statistic, the serving configuration it divides by, that side's batch size; high load: > 1);
+    # the warm figure divides by the matched serving configuration's steady scope (INV-DERIVE-11)
     sides = (
         ("overhead_vs_production_prove.steady", "serving_configuration", batch),
+        (WARM, "serving_configuration", batch),
         ("overhead_vs_production_high_prove.steady", "high_configuration", 2),
     )
     for metric, key, at in sides:
@@ -446,7 +488,7 @@ def _overhead_runs(
         if not isinstance(q, dict) or q.get("value") is None or not isinstance(pointer, str):
             continue
         serving = index["configurations"][int(pointer.rsplit("/", 1)[1])]
-        ids = [str(x).split("/run.json", 1)[0].rsplit("/", 1)[1] for x in q["source"]["inputs"]]
+        ids = input_runs(q)  # a run's run.json, or its entry in the index's freeze_derived
         mine = [r for r in ids if r in config["runs"]]
         theirs = [r for r in ids if r in serving["runs"]]
         left = []
@@ -459,7 +501,8 @@ def _overhead_runs(
                     continue
                 left.append({"run_id": rid, "side": side,
                              "record": _record(records, rid, "run.json"),
-                             "why": _join_why(records[rid], size, set(mine))})  # fmt: skip
+                             "why": _join_why(records[rid], size, set(mine),
+                                              serving=side == "serving")})  # fmt: skip
         out[metric] = {
             "system": [{"run_id": r, "record": _record(records, r, "run.json")} for r in mine],
             "serving": [{"run_id": r, "record": _record(records, r, "run.json")} for r in theirs],
@@ -509,8 +552,6 @@ def _range(q: dict[str, Any]) -> str:
 # engine names as their projects write them
 ENGINE = {"vllm": "vLLM"}
 
-WARM_NOTE = "per proving session with the prover's start-up, against warm serving (steady)"
-
 
 def overhead_metric(config: dict[str, Any]) -> str:
     """RFC-0004 INV-DERIVE-10, -11: the statistic a system row shows as its overhead, as the
@@ -532,15 +573,15 @@ def per_bit_metric(stats: dict[str, Any]) -> str:
 def overhead_words(
     conditions: dict[str, Any] | None,
     stats: dict[str, Any],
-    wl: dict[str, Any],
     metric: str = OVERHEAD,
     precision_words: dict[str, str] | None = None,
 ) -> dict[str, str] | None:
     """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
     of a system row's headline overhead `metric` (INV-DERIVE-10, -11), every value from the
-    release index's `overhead_conditions`, the stored quantities and the workload record; None
-    without a value (nothing to qualify). A warm figure names both scopes: the prover's session
-    with its start-up, and serving's steady scope, its engine already running."""
+    release index's `overhead_conditions` and the stored quantities; None
+    without a value (nothing to qualify). Each fact once per plate (amendment of 2026-11-09):
+    the scope is the plate's scope row (a warm figure's names both sides'), the runs and range
+    its pairs row, the weight width the per-Gbit basis; the precisions are the note's alone."""
     q = stats.get(metric)
     if not conditions or not isinstance(q, dict) or q.get("value") is None:
         return None
@@ -548,11 +589,11 @@ def overhead_words(
     model = c.get("serving_model") or {}
     engine = c["engine"]
     name = ENGINE.get(str(engine["name"]), str(engine["name"]))
-    bits = (wl.get("precision") or {}).get("weight_bits") or {}
     gpus, count = c["gpus"], c["prompt_count_run"]
     batch, per = c["batch"], c["batches_per_session"]
     warm = metric == WARM
-    # the scope, n and range are the plate's own rows (its scope and pairs), so not repeated here
+    # the scope, n and range are the plate's own rows (its scope and pairs), the precisions the
+    # note's, so not repeated here
     line = "; ".join([
         f"{_count(batch['matched'], 'request')} per batch on both sides, "
         f"{_count(per['system'], 'batch', 'batches')} for the prover and "
@@ -564,26 +605,20 @@ def overhead_words(
                 "seeded generator)"),
         f"{name} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
         f" {engine['settings']}",
-        "greedy decoding, " + ("warm serving, the prover's start-up inside its session" if warm
-                               else "warm" if c.get("warm", True) else "cold: engine and prover "
-                               "start-up inside the session"),
+        # warm (start-up outside the scope) is the scope row's; only a cold session says more
+        "greedy decoding" + ("" if warm or c.get("warm", True)
+                             else ", cold: engine and prover start-up inside the session"),
         f"{c['runtime']}",
-        f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
-        f" release; proving {c['proved_precision']}",
         f"{gpus['system'] if gpus['system'] is not None else 'not recorded'} \u00d7 "
         f"{c['gpu_model']} for the prover, "
         f"{gpus['serving'] if gpus['serving'] is not None else 'not recorded'} for serving",
         "GPU-seconds only: CPU and host memory are not counted; the prover's GPU comes with its "
         "host's CPUs and memory (RFC-0006 C5)",
     ])  # fmt: skip
-    width = f"{bits['bits']:.4g}" if bits.get("bits") is not None else "not recorded"
     note = (
-        f"Proving the {c['proved_precision']} model ({width} bits per active weight, "
-        f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
-        f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
-        f"release, in GPU-seconds per token, "
-        f"{WARM_NOTE if warm else 'steady'}, "
-        f"at {_count(batch['matched'], 'request')} per batch."
+        f"Proving the {c['proved_precision']} model costs {_num(float(q['value']))} times "
+        f"serving {model.get('publisher', 'not stated')}'s "
+        f"{model.get('precision', 'not stated')} release, in GPU-seconds per token."
     )
     proved = c["proved_precision"]
     said = (precision_words or {}).get(proved)

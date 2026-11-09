@@ -462,6 +462,7 @@ class Html(str):
 # why a completed run joins no pair of an overhead (iproofs.site.view.JOIN_WHY), in words
 JOIN_WHY_WORDS = {
     "first_proof_boundary": "{boundary}, so {they} no overhead",
+    "one_batch": "no steady window (one batch), so {they} no overhead",
     "short_steady": "steady scope under 60 s, so {they} no overhead",
     "sizing_capture": "a sizing capture, so {they} no overhead",
     "other_prompts": "replayed the prompts of a run in no pair, so {they} none",
@@ -469,18 +470,23 @@ JOIN_WHY_WORDS = {
 }
 
 
-def left_words(cfg, runs):
+def run_short(rid):
+    """A run by its date and ordinal, as a title reads it ("2026-11-09 · 1"); another id whole."""
+    return " · ".join(m.groups()) if (m := RUN_ID.match(rid)) else rid
+
+
+def left_words(cfg, runs, words=None):
     """The runs of one side an overhead leaves out, grouped by why, in words for a title:
     "2026-11-08 · 1, 2026-11-08 · 2: steady window from the first proof (runs before
-    2026-11-09), so they join no overhead"."""
+    2026-11-09), so they join no overhead". words: the phrases by why, where not an overhead's."""
     by = {}
     for x in runs:
         by.setdefault(x["why"], []).append(x["run_id"])
     out = []
     for why, ids in by.items():
-        short = ", ".join(" · ".join(m.groups()) if (m := RUN_ID.match(r)) else r for r in ids)
+        short = ", ".join(run_short(r) for r in ids)
         they = "it joins" if len(ids) == 1 else "they join"
-        said = JOIN_WHY_WORDS[why].format(boundary=boundary_words(cfg), they=they)
+        said = (words or JOIN_WHY_WORDS)[why].format(boundary=boundary_words(cfg), they=they)
         out.append(f"{short}: {said}")
     return "Left out: " + "; ".join(out)
 

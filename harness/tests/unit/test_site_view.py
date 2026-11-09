@@ -427,24 +427,29 @@ def test_overhead_conditions_words() -> None:
         "overhead_vs_production_high_prove.steady": {"value": 200.0, "pairs": pairs,
                                                      "scope": "prove.steady"},
     }  # fmt: skip
-    wl = {"precision": {"weight_bits": {"bits": 4.84, "basis": "computed"}}}
-    words = overhead_words(conditions, stats, wl)
+    words = overhead_words(conditions, stats)
     assert words is not None
-    # every number at four significant digits with thousands separated, the width too
+    # every number at four significant digits with thousands separated; each fact once per plate
+    # (amendment of 2026-11-09): the width is the per-Gbit basis's, the range the pairs row's,
+    # the scope the scope row's, the batch size the conditions'
     assert words["precision"] == (
-        "Proving the UD-Q4_K_XL model (4.84 bits per active weight, computed) costs 100.0 times "
-        "(range 72.00 to 146.0 over 3 \u00d7 3 pairs) serving Meta's FP8 release, in GPU-seconds "
-        "per token, steady, at 24 requests per batch."
+        "Proving the UD-Q4_K_XL model costs 100.0 times serving Meta's FP8 release, in "
+        "GPU-seconds per token."
     )
     line = words["conditions"]
     gpus = "1 \u00d7 NVIDIA H200 for the prover, 4 for serving"
     for part in ("vLLM 0.32.0, vllm serve", "480 further windows", gpus,
-                 "RFC-0006 C5", "greedy", "--max-num-seqs 24",
+                 "RFC-0006 C5", "greedy decoding", "--max-num-seqs 24",
                  "5 batches for the prover and 25 batches for serving"):  # fmt: skip
         assert part in line, part
-    # the scope, n and range are the plate's own rows: not repeated in the conditions
-    for absent in ("prove.steady", "range", "n = "):
+    # the scope (warm included), n and range are the plate's own rows, the precisions the
+    # note's: not repeated in the conditions
+    for absent in ("prove.steady", "range", "n = ", "warm", "UD-Q4_K_XL", "FP8 release"):
         assert absent not in line, absent
+    cold = overhead_words({**conditions, "warm": False}, stats)
+    assert cold is not None
+    assert "greedy decoding, cold: engine and prover start-up inside the session" in (
+        cold["conditions"])  # fmt: skip
     # both sides named: serving at high load, the prover at its own (INV-DERIVE-9)
     assert words["high"].startswith(
         "serving at 1,024 requests per batch, the prover at 24: 200.0\u00d7"
@@ -456,11 +461,11 @@ def test_overhead_conditions_words() -> None:
     ) in words["high"]
     unrecorded = {**conditions, "batches_per_session": {"system": 5, "serving_matched": None,
                                                         "serving_high": 5}}  # fmt: skip
-    again = overhead_words(unrecorded, stats, wl)
+    again = overhead_words(unrecorded, stats)
     assert again is not None
     assert "5 batches for the prover and not recorded for serving" in again["conditions"]
     stats["overhead_vs_production_prove.steady"] = {"value": None, "pairs": pairs}
-    assert overhead_words(conditions, stats, wl) is None
+    assert overhead_words(conditions, stats) is None
 
 
 def sash_conditions(warm: bool) -> dict[str, Any]:
@@ -499,24 +504,23 @@ def test_overhead_warm_words() -> None:
         "overhead_vs_production_high_prove.session": {"value": 9.0, "pairs": pairs,
                                                       "scope": "prove.session"},
     }  # fmt: skip
-    wl = {"precision": {"weight_bits": {"bits": 16, "basis": "computed"}}}
     headline = {"overhead_headline": {"metric": WARM, "formula": "D-OVERHEAD-WARM",
                                       "scope": "prove.session", "serving_scope": "prove.steady",
                                       "start_up": "prover_only"}}  # fmt: skip
     assert overhead_metric(headline) == WARM
     assert overhead_metric({}) == "overhead_vs_production_prove.steady"
-    words = overhead_words(sash_conditions(warm=True), stats, wl, WARM)
+    words = overhead_words(sash_conditions(warm=True), stats, WARM)
     assert words is not None
     # one request a batch: singular words throughout (1 request, 1 batch), never "1 requests"
     assert words["conditions"].startswith(
         "1 request per batch on both sides, 1 batch for the prover and 1 batch for serving"
     )
-    assert "greedy decoding, warm serving, the prover's start-up inside its session" in (
-        words["conditions"])  # fmt: skip
-    assert "range 900.0 to 1,100 over 1 \u00d7 3 pairs" in words["precision"]
-    assert words["precision"].endswith(
-        "in GPU-seconds per token, per proving session with the prover's start-up, against "
-        "warm serving (steady), at 1 request per batch."
+    # both scopes are the plate's scope row, the range its pairs row: said there only
+    assert "greedy decoding; " in words["conditions"]
+    assert "warm" not in words["conditions"]
+    assert words["precision"] == (
+        "Proving the BF16 model costs 1,000 times serving Meta's BF16 release, in GPU-seconds "
+        "per token."
     )
     assert "1 requests" not in json.dumps(words)
     assert "1 batches" not in json.dumps(words)
@@ -564,3 +568,43 @@ def test_overhead_runs_name_each_side_and_why_others_join_none() -> None:
     ]
     # at batch size 1 the first-proof boundary is the steady rule: no reason from it
     assert site_view_module._join_why(rec(rule=None, prompts=None), 1, {"p-2"}) is None
+    # a serving run of one batch has no steady window to divide by; a prover run's batches
+    # say nothing of that (the warm figure divides by its session)
+    one = rec(prompts=None)
+    one["manifest"]["workload"]["batches_per_session_run"] = 1
+    assert site_view_module._join_why(one, 1, set(), serving=True) == "one_batch"
+    assert site_view_module._join_why(one, 1, set()) is None
+    assert site_view_module._steady_why(one) == "one_batch"
+
+
+def test_warm_overhead_names_its_runs() -> None:
+    """RFC-0004 INV-DERIVE-11: the warm figure's pairs join the prover runs its inputs read in
+    the index's freeze_derived and the serving runs' run.json; the serving runs it leaves out
+    say why: one batch, a steady scope under 60 s (by hand, after releases/v0.1 SASH)."""
+
+    def rec(warnings: tuple[str, ...] = (), batches: int = 360) -> dict[str, Any]:
+        return {"dir": "results/x", "run": {"status": "completed", "warnings": list(warnings)},
+                "manifest": {"workload": {"steady_rule": "batch-membership",
+                                          "batches_per_session_run": batches},
+                             "prompts_from": None}}  # fmt: skip
+
+    records = {"p-1": rec(batches=1), "p-2": rec(batches=1), "s-1": rec(batches=1),
+               "s-2": rec(warnings=("steady scope under 60 s",), batches=50),
+               "s-3": rec(), "s-4": rec()}  # fmt: skip
+    warm = "overhead_vs_production_warm"
+    inputs = [f"releases/v0.1/index.json#/freeze_derived/{r}/m" for r in ("p-1", "p-2")]
+    inputs += [f"results/x/{r}/run.json#/metrics/m" for r in ("s-3", "s-4")]
+    config: dict[str, Any] = {
+        "runs": ["p-1", "p-2"],
+        "statistics": {warm: {"value": 2.0, "source": {"inputs": inputs}}},
+        "overhead_conditions": {"serving_configuration": "index.json#/configurations/1"},
+    }
+    index = {"configurations": [config, {"runs": ["s-1", "s-2", "s-3", "s-4"]}]}
+    runs = site_view_module._overhead_runs(index, config, records, 1)[warm]
+    assert [r["run_id"] for r in runs["system"]] == ["p-1", "p-2"]
+    assert [r["run_id"] for r in runs["serving"]] == ["s-3", "s-4"]
+    assert [(x["run_id"], x["why"]) for x in runs["left"]] == [
+        ("s-1", "one_batch"),
+        ("s-2", "short_steady"),
+    ]
+    assert site_view_module.input_runs(config["statistics"][warm]) == ["p-1", "p-2", "s-3", "s-4"]

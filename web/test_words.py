@@ -147,3 +147,22 @@ def test_system_descriptions_say_what_the_page_holds(site):
         assert "benchmark's own" not in said
         text = (site.out / f"{sid}.html").read_text()
         assert f'<meta name="description" content="{html.escape(said)}">' in text
+
+
+def test_serving_runs_name_what_their_statistics_leave_out(site):
+    """A production-serving row names the runs its statistics read: "4 runs", or, where they
+    leave a completed run out, "4 of 5 runs" with each such run and why in its title, read from
+    its own records (by hand, after releases/v0.1 configurations[4])."""
+    b = site.build
+    rid = "2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-{}"
+    runs = [rid.format(n) for n in range(1, 6)]
+    figs = {m: {"stats": {"n": 4}, "runs": runs[1:]} for m, _, _ in b.SERVING_COLS}
+    cfg = {"figures": figs, "runs": {"completed": runs},
+           "run_why": {runs[0]: "one_batch", runs[1]: "short_steady"}}  # fmt: skip
+    said = b.serving_runs(cfg)
+    assert re.sub(r"<[^>]+>", "", said) == "4 of 5 runs"
+    assert html.unescape(re.search(r'title="([^"]+)"', said)[1]) == (
+        "Left out: 2026-11-09 · 1: no steady window (one batch)"
+    )
+    cfg["runs"]["completed"] = runs[1:]
+    assert b.serving_runs(cfg) == "4 runs"

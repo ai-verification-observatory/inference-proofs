@@ -32,6 +32,7 @@ from .plates import (
     glyph,
     has_figures,
     keep,
+    left_words,
     metric_of,
     name_of,
     overhead_notes,
@@ -626,18 +627,40 @@ def serving_cell(cfg, metric, bare):
     n, u = amount(f["value"], f["unit"])
     val = fig(n if bare else f"{n} {u.removesuffix('/token').split(' per ')[0]}")
     st = f.get("stats") or {}
-    said = [f"{n} {u}", scope_words(f, cfg), *([spread_line(f, count=True)] if st else []),
+    # the row's head names its runs; the title the spread over them
+    said = [f"{n} {u}", scope_words(f, cfg), *([spread_line(f)] if st else []),
             *(f"{k}: {v}" for k, v in labels(f, cfg)[1:]), f"source: {source_words(f)}"]  # fmt: skip
     if f["unit"] == "USD/1k_token" and (price := price_text(cfg)):
         said.append(price)
     return f'<td title="{e(readable(" · ".join(said)))}">{val}</td>'
 
 
+# why a completed serving run is in no steady statistic, from its own records (iproofs.site.view
+# run_why), in words
+STEADY_WHY_WORDS = {
+    "one_batch": "no steady window (one batch)",
+    "short_steady": "steady window under 60 s",
+    "sizing_capture": "a sizing capture",
+    None: "in no statistic",
+}
+
+
 def serving_runs(cfg):
-    """The run count a row's figures share ("3 runs"), or None where they differ."""
-    ns = {cfg["figures"][m]["stats"]["n"] for m, _, _ in SERVING_COLS
-          if cfg["figures"][m].get("stats")}  # fmt: skip
-    return f"{(n := ns.pop()):,} run{'s' if n != 1 else ''}" if len(ns) == 1 else None
+    """The runs a row's figures share, in HTML: "3 runs", or, where its statistics leave a
+    completed run out, "4 of 5 runs", each left-out run and why in its title; None where its
+    figures read different runs."""
+    figs = [cfg["figures"][m] for m, _, _ in SERVING_COLS if cfg["figures"][m].get("stats")]
+    read = {tuple(f.get("runs") or ()) for f in figs}
+    ns = {f["stats"]["n"] for f in figs}
+    if len(ns) != 1 or len(read) != 1:
+        return None
+    n, done, got = ns.pop(), cfg["runs"]["completed"], set(read.pop())
+    left = [r for r in done if r not in got]
+    if not left:
+        return e(f"{n:,} run{'s' if n != 1 else ''}")
+    why = [{"run_id": r, "why": (cfg.get("run_why") or {}).get(r)} for r in left]
+    title = left_words(cfg, why, STEADY_WHY_WORDS)
+    return f'<span class="nw" title="{e(title)}">{n:,} of {len(done):,} runs</span>'
 
 
 def serving_table(gid, cfgs):
@@ -659,8 +682,8 @@ def serving_table(gid, cfgs):
     rows = ""
     for c in rows_of:
         runs = serving_runs(c)
-        head = serving_setup(c, shared) + (f" · {runs}" if runs else "")
-        rows += (f'<tr><th scope="row">{keep(readable(head))}</th>'
+        head = keep(readable(serving_setup(c, shared))) + (f" · {runs}" if runs else "")
+        rows += (f'<tr><th scope="row">{head}</th>'
                  + "".join(serving_cell(c, m, bare[m]) for m, _, _ in SERVING_COLS) + "</tr>")  # fmt: skip
     heads = "".join(f'<th scope="col">{e(h)}</th>' for _, h, _ in SERVING_COLS)
     # the caption heads a table of serving: a shared scope reads without its "serving, " lead
