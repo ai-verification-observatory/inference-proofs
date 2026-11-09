@@ -54,6 +54,7 @@ from iproofs.measure import (
     Capture,
     CgroupReader,
     EventLog,
+    IdleWatch,
     NullCgroupReader,
     ReleaseWatcher,
     Sampler,
@@ -91,6 +92,7 @@ from iproofs.provenance import (
     file_digest,
     file_records,
     git_state,
+    idle_use,
     machine_drift,
     machine_record,
     model_digest,
@@ -831,6 +833,16 @@ class Runner:
                 exit_code=None,
             )
 
+    def _unbound(self, job: Job) -> list[int]:
+        """The visible GPUs no step of the job binds (RFC-0006 PC-GPU-IDLE), by the machine
+        record's visible count."""
+        gpu = job.machine.get("gpu") if isinstance(job.machine, dict) else None
+        visible = gpu.get("count_visible") if isinstance(gpu, dict) else None
+        if not isinstance(visible, int):
+            return []
+        bound = set(bound_gpus(self.env))
+        return [i for i in range(visible) if i not in bound]
+
     def _machine(self, job: Job) -> None:
         prover = set(_cpu_list(self.env.cpus("prover")[0]))
         verifier = set(_cpu_list(self.env.cpus("verifier")[0]))
@@ -889,14 +901,19 @@ class Runner:
         started_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
         bound = bound_gpus(self.env) if sub != "verify" else ()
         sampler = Sampler(bound or None, self.readers)  # every bound GPU (RFC-0011)
+        idle = IdleWatch(self._unbound(job), self.env.host().gpu_usage)  # PC-GPU-IDLE
         cpu0, oom0 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
         sampler.start()
+        idle.start()
         try:
             result = self._run_container(job, sub, io, cpuset, mems, ro_mounts)
         except BaseException:
             sampler.stop(0, 0)  # the call failed before it ended; nothing is recorded
+            idle.stop()
             raise
         summary = sampler.stop(result.started_mono_ns, result.ended_mono_ns)
+        if used := idle_use(idle.stop(), job.machine):  # RFC-0004 INV-DERIVE-8
+            raise IProofsError(ErrorKind.ENVIRONMENT, "; ".join(used), step=sub)
         cpu1, oom1 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
         if not control:
             job.resources[sub] = StepResources(

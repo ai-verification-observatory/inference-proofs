@@ -334,3 +334,36 @@ def test_declared_failure(tmp_path: Path) -> None:
     assert _declared_failure(tmp_path, ref) is None  # type: ignore[arg-type]
     path.write_text("{")
     assert _declared_failure(tmp_path, ref) is None  # type: ignore[arg-type]
+
+
+def test_unbound_gpus_watched_during_a_step() -> None:
+    """RFC-0006 PC-GPU-IDLE through a step (RFC-0004 INV-DERIVE-8): the visible unbound GPUs
+    are read on their own thread while the call runs; a compute process, memory more than
+    1,024 MiB above the machine record's reading, or utilisation above 5 % is a problem
+    (fixture readings, not results)."""
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from iproofs.measure import IdleWatch  # noqa: PLC0415
+    from iproofs.provenance import idle_use  # noqa: PLC0415
+
+    readings = {1: {"compute_processes": 0, "memory_used_mib": 2, "util_percent": 0.0}}
+    watch = IdleWatch([1, 2], readings.get, period_s=0.01)
+    watch.start()
+    readings[1] = {"compute_processes": 1, "memory_used_mib": 30_000, "util_percent": 97.0}
+    rows = watch.stop()
+    assert [r["index"] for r in rows] == [1]  # GPU 2 gave no reading
+    assert rows[0]["compute_processes_max"] == 1
+    assert int(str(rows[0]["samples"])) >= 2
+    record = {"gpu": {"unbound_samples": [{"index": 1, "memory_used_mib_max": 2}]}}
+    (problem,) = idle_use(rows, record)
+    assert problem.startswith("unbound GPU 1 in use during the step: 1 process(es), 30000 MiB")
+    quiet = [{"index": 1, "samples": 3, "compute_processes_max": 0, "memory_used_mib_max": 900,
+              "util_percent_max": 0.0}]  # fmt: skip
+    assert idle_use(quiet, record) == []
+    assert idle_use(quiet, {"gpu": None}) == []
+    assert IdleWatch([], readings.get).stop() == []
+    runner = object.__new__(Runner)
+    runner.env = FakeGpus((0,))
+    job = SimpleNamespace(machine={"gpu": {"count_visible": 2}})
+    assert runner._unbound(job) == [1]  # type: ignore[arg-type]
+    assert runner._unbound(SimpleNamespace(machine={})) == []  # type: ignore[arg-type]

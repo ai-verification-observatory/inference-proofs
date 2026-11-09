@@ -570,6 +570,27 @@ IDLE_MIB = 1024
 IDLE_UTIL = 5.0
 
 
+def idle_use(during: Sequence[Mapping[str, Any]], record: Mapping[str, Any]) -> list[str]:
+    """PC-GPU-IDLE during a step (`measure.IdleWatch` maxima): a visible unbound GPU that ran a
+    compute process, used more than IDLE_MIB above its reading in the machine record taken
+    before `info`, or rose above IDLE_UTIL. Each problem is one message."""
+    gpu = record.get("gpu")
+    if not isinstance(gpu, Mapping):
+        gpu = {}
+    before = {int(r["index"]): float(r["memory_used_mib_max"])
+              for r in gpu.get("unbound_samples") or ()}  # fmt: skip
+    out = []
+    for row in during:
+        i = int(row["index"])
+        procs, mib, util = (row["compute_processes_max"], float(row["memory_used_mib_max"]),
+                            float(row["util_percent_max"]))  # fmt: skip
+        if procs or mib > before.get(i, 0.0) + IDLE_MIB or util > IDLE_UTIL:
+            out.append(f"unbound GPU {i} in use during the step: {procs} process(es), "
+                       f"{mib:g} MiB, {util:g} % over {row['samples']} reading(s) "
+                       "(PC-GPU-IDLE)")  # fmt: skip
+    return out
+
+
 def check_profile(  # noqa: PLR0912, PLR0915 (one branch per RFC-0006 check)
     record: Mapping[str, Any],
     profile: ProverProfile,

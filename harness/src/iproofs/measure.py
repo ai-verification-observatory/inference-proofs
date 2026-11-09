@@ -16,7 +16,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Literal, Protocol
@@ -488,6 +488,61 @@ class Sampler:
         lines = ["second,memory_used_mib_max,util_gpu_pct_max\n"]
         lines += [f"{sec},{mem:.1f},{util}\n" for sec, (mem, util) in sorted(rows.items())]
         path.write_text("".join(lines))
+
+
+class IdleWatch:
+    """RFC-0006 PC-GPU-IDLE during a step: every visible unbound GPU read on its own thread once
+    per `period_s` (1 s) while the call runs, beside the bound GPUs' sampler. `read(index)`
+    returns NVML's compute-process count, memory used (MiB) and utilisation (%) of one GPU, or
+    None when it cannot be read. `stop()` returns each GPU's maxima over its readings, in the
+    machine record's `unbound_samples` form. A use shorter than the period can fall between
+    two readings; the machine records before `info` and after the last step are taken too."""
+
+    def __init__(
+        self,
+        indices: Sequence[int],
+        read: Callable[[int], Mapping[str, object] | None],
+        period_s: float = 1.0,
+    ) -> None:
+        self.indices, self.read, self.period_s = list(indices), read, period_s
+        self.maxima: dict[int, dict[str, object]] = {}
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _sample(self) -> None:
+        for i in self.indices:
+            got = self.read(i)
+            if got is None:
+                continue
+            row = self.maxima.setdefault(i, {"index": i, "samples": 0,
+                                             "compute_processes_max": 0,
+                                             "memory_used_mib_max": 0,
+                                             "util_percent_max": 0.0})  # fmt: skip
+            row["samples"] = int(str(row["samples"])) + 1
+            for key, top in (("compute_processes", "compute_processes_max"),
+                             ("memory_used_mib", "memory_used_mib_max"),
+                             ("util_percent", "util_percent_max")):  # fmt: skip
+                value = got.get(key)
+                if isinstance(value, int | float) and value > float(str(row[top])):
+                    row[top] = value
+
+    def _loop(self) -> None:
+        while True:
+            self._sample()
+            if self._stop.wait(self.period_s):
+                return
+
+    def start(self) -> None:
+        if self.indices:
+            self._thread = threading.Thread(target=self._loop, daemon=True)
+            self._thread.start()
+
+    def stop(self) -> list[dict[str, object]]:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join()
+            self._sample()  # one reading at the call's end
+        return [self.maxima[i] for i in sorted(self.maxima)]
 
 
 # ---------------------------------------------------------------- self-test checks (RFC-0011)
