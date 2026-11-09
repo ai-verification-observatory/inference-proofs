@@ -191,8 +191,8 @@ def unexpected_list():
             what = f"{e(readable(who))} · {control_label(u['control'])}"
             if not u.get("not_read"):
                 what += f" · {e(OUTCOME_SHORT[u['outcome']])}"
-            line = f'<a href="{e(href)}">{what}</a> · {run_ref(u["run_id"], u["record"])}'
-            (nothing if u.get("not_read") else rows).append(f"<li>{line}</li>")
+            line = f'<a href="{e(href)}">{what}</a>{run_ref(u["run_id"], u["record"])}'
+            (nothing if u.get("not_read") else rows).append(f'<li class="tl">{line}</li>')
     if not rows and not nothing:
         return '<p class="lead">Every outcome fell inside its expected set.</p>'
     out = ""

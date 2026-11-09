@@ -295,6 +295,9 @@ html:not(.js) .search { display: none; }
 /* the runs a setup's figures leave out: one line each, a failure's last line one press away */
 .runs.lo { list-style: none; margin: 10px 0 0; padding: 0; font: 400 12px/1.6 var(--mono); max-width: 80ch; }
 .runs.lo li + li { margin-top: 6px; }
+/* a tamper-test line of the release page: what it is, then its run; on a narrow screen the run wraps under it, its
+   box clear of the line above */
+.runs .tl { display: flex; flex-wrap: wrap; column-gap: 2ch; row-gap: 12px; }
 .ll summary { width: max-content; min-height: 24px; padding-block: 3px; cursor: pointer; color: var(--muted); }
 .ll summary:hover { color: var(--paper); }
 .ll p { color: var(--muted); overflow-wrap: anywhere; margin: 4px 0 0; }
@@ -349,6 +352,8 @@ html:not(.js) .search { display: none; }
 .rn a { color: inherit; text-decoration: none; }
 .rn a:hover, .rn a:focus-visible { text-decoration: underline; }
 .rs { font: 750 22px/1.1 var(--disp); font-stretch: 84%; margin-top: 4px; }
+/* a state word that is the link (no reason line): 24 px clear of the name's link above it */
+.rs:has(> a) { margin-top: 6px; }
 .rp .rs .sw { display: none; }
 .rs a, .rr a.psrc { color: inherit; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; text-decoration-color: var(--line); }
 .rs a:hover, .rr a.psrc:hover { text-decoration-color: currentColor; }
@@ -865,6 +870,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rp + .rp { border-top: 0; }
   .rp .rn { font: 600 12px/1.2 var(--mono); letter-spacing: var(--track); color: var(--violet); }
   .rp .rs { margin-top: 4px; font-size: 18px; }
+  .rp .rs:has(> a) { margin-top: 6px; }
   .rp .rs .sw { display: none; }
   .rp .rr, .rp.l .rr { max-width: 40ch; font-size: 12px; }
   .rp.l .rr { margin-left: auto; }
@@ -882,6 +888,12 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .tlab dd a, .runs a, .unexp a, a.run, .mtab .ml a { display: inline-block; padding-block: 5px; margin-block: -5px; }
   .nbn a { display: inline-block; padding-block: 3px; margin-block: -3px; }
   .ll summary { padding-block: 4px; }
+  /* lines that hold several runs: each line 24 px or more, each run's box its line, so boxes on two lines never meet */
+  .ec .eb { line-height: 24px; }
+  .tamper { line-height: max(1.3em, 26px); }
+  .ec a.run, .tamper a.run { padding-block: 0; margin-block: 0; }
+  /* a failed run's last line opens below its run's box, never under it */
+  .runs .ll { margin-top: 6px; }
 }
 /* print: dark ink on white, the states keep their inks, no search; words.js opens every fold first */
 @media print {
