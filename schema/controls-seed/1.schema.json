@@ -1,0 +1,36 @@
+{
+  "$id": "https://inference-proofs.org/schema/controls-seed/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "control_seed": {
+      "$comment": "drawn once from os.urandom by iproofs controls --draw-seed (RFC-0008 SPLIT-1)",
+      "pattern": "^0x[0-9a-f]{16}$",
+      "type": "string"
+    },
+    "drawn_at": {
+      "$comment": "UTC, to the second",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "type": "string"
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "run_manifest_digest": {
+      "$comment": "sha256 of the run's manifest.json bytes",
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "schema": {
+      "const": "controls-seed/1"
+    }
+  },
+  "required": [
+    "schema",
+    "run_id",
+    "run_manifest_digest",
+    "control_seed",
+    "drawn_at"
+  ],
+  "title": "The one control_seed of a run's split control suite, written once next to its run.json (RFC-0008 §Split suites)",
+  "type": "object"
+}

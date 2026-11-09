@@ -77,6 +77,7 @@ Rules:
 | `policy.warning` | warning | `detail` | `prove` output echoes the commitment ([RFC-0014 §The commitment record](../../rfcs/0014-provenance-and-integrity.md#the-commitment-record) rule 5); the run continues |
 | `cgroup.stale_cleanup` | warning | `units` | placeholder scopes left by a crashed runner were stopped before conformance (RFC-0011 §Cgroup accounting) |
 | `verify.result` | info | `proof_id`, `verdict`, `raw_exit_code`, `cpus`, `index`, `of` | after each verify call |
+| `control.call` | info | `control` (`twin` for an honest twin), `trial` (null for a prove), `subcommand`, `exit_code`, `seconds` | after each control call that returned, verify or prove, so a long suite shows its progress and a stopped part leaves the span of every finished call (RFC-0008 §Split suites) |
 | `control.trial` | info | `control`, `trial`, `outcome` | after each control trial |
 | `control.twin_mismatch` | warning | `control`, `twin_verdict` | honest twin not accepted (the control is `void`, `iproofs.controls.control_record`) |
 | `control.disclosure_pending` | warning | `control` | accepted where rejection was expected |
@@ -106,9 +107,10 @@ Human-readable progress goes to stderr, one line per state transition and per pr
 [rep 2/3] prove   running   00:41:12  proofs 61/120
 [rep 2/3] prove   done      01:22:40  exit 0
 [rep 2/3] verify  proof 7/120 accept
+[rep 1/1] controls verify C2 trial 0  01:02:13  exit 0  3732 s
 ```
 
-`--quiet` suppresses it. Progress lines carry no information that is not also in `harness.jsonl`: `iproofs.log.Progress` formats them from the records the logger writes (`job.state`, `proof.released`, `verify.result`, `job.failed`, `job.written`), so a record filtered out by `--log-level` (for example `proof.released`, a debug event) prints no progress line either.
+`--quiet` suppresses it. Progress lines carry no information that is not also in `harness.jsonl`: `iproofs.log.Progress` formats them from the records the logger writes (`job.state`, `proof.released`, `verify.result`, `control.call`, `job.failed`, `job.written`), so a record filtered out by `--log-level` (for example `proof.released`, a debug event) prints no progress line either.
 
 ## No telemetry
 

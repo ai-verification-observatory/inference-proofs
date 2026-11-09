@@ -140,6 +140,39 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--results", type=Path, default=Path("results"))
     p.add_argument("--image", metavar="IMAGE_ID", help="a locally built image by ID")
     p.add_argument("--in-process", action="store_true", help="test systems only")
+    p.add_argument(
+        "--only",
+        metavar="ID[,ID...]",
+        action="append",
+        help="run these controls only and write a part for --merge (RFC-0008 §Split suites)",
+    )
+    p.add_argument(
+        "--seed",
+        metavar="SEED",
+        help="with --only: the seed you expect, 64-bit hex (0x...) or decimal; it must be the "
+        "one of RUN_DIR/controls-seed.json",
+    )
+    p.add_argument(
+        "--draw-seed",
+        action="store_true",
+        help="draw the split suite's seed once into RUN_DIR/controls-seed.json (RFC-0008 SPLIT-1)",
+    )
+    p.add_argument(
+        "--merge",
+        metavar="PART",
+        nargs="+",
+        type=Path,
+        help="write RUN_DIR/controls.json from parts that cover the suite once",
+    )
+    p.add_argument(
+        "--hosted",
+        action="store_true",
+        help="this container is the run's pinned image; run each call in it as a process",
+    )
+    p.add_argument(
+        "--gpu", type=int, metavar="INDEX", help="the bound GPU, for prover-side controls"
+    )
+    p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
 
     p = command("machine-record", "print the machine record as JSON (RFC-0006)")
     p.add_argument("--selftest", action="store_true", help="run the RFC-0011 calibration checks")
@@ -355,6 +388,7 @@ def run(args: argparse.Namespace) -> int:
             args.gpu,
             args.hosted,
             _prover_cpus(root, args.profile, registry) if args.gpu is not None else 24,
+            _verifier_cpus(root, _release(root), registry),
         ),
         hosted=args.hosted,
     )
@@ -396,12 +430,29 @@ def _operator(root: Path, args: argparse.Namespace) -> "RunnerIdentity":
     )
 
 
-def _environment(gpu: int | None, hosted: bool, n_prover: int) -> "Environment | None":
-    """The GPU host for `--gpu`, binding `n_prover` prover CPUs; without it, the CPU-only host."""
+def _environment(
+    gpu: int | None, hosted: bool, n_prover: int, n_verifier: int = 8
+) -> "Environment | None":
+    """The GPU host for `--gpu`, binding `n_prover` prover CPUs and `n_verifier` verifier CPUs;
+    without it, the CPU-only host."""
     from iproofs.provenance import Host  # noqa: PLC0415
     from iproofs.runner import GpuEnvironment  # noqa: PLC0415
 
-    return None if gpu is None else GpuEnvironment(gpu, Host(hosted=hosted), n_prover)
+    if gpu is None:
+        return None
+    return GpuEnvironment(gpu, Host(hosted=hosted), n_prover, n_verifier)
+
+
+def _verifier_cpus(root: Path, release: str, registry: "SchemaRegistry") -> int:
+    """The verifier CPUs every host binds: verifier-cpu's `cpu.logical_cpus` in the release's
+    reference file, so a GPU host and a verifier-only host bind the same count (RFC-0008
+    SPLIT-3); 8, the default of `select_cpus`, for a release without that profile."""
+    from iproofs.model import VerifierProfile, load_reference  # noqa: PLC0415
+
+    if not (root / "reference" / f"{release}.yaml").is_file():
+        return 8
+    profile = load_reference(release, root, registry).profiles.get("verifier-cpu")
+    return profile.cpu.logical_cpus if isinstance(profile, VerifierProfile) else 8
 
 
 def _prover_cpus(root: Path, profile: str, registry: "SchemaRegistry") -> int:
@@ -467,8 +518,12 @@ def _containers(
 
 
 def controls(args: argparse.Namespace) -> int:
-    """`iproofs controls RUN_DIR`: add controls.json to a completed run kept with --keep-io."""
-    from iproofs.runner import Runner, controls_for_run  # noqa: PLC0415
+    """`iproofs controls RUN_DIR`: add controls.json to a completed run kept with --keep-io;
+    with --draw-seed, the split suite's seed record; with --only, one part of the suite, with
+    that seed; and with --merge, controls.json from the parts (RFC-0008 §Split suites)."""
+    from iproofs.controls import parse_control_seed  # noqa: PLC0415
+    from iproofs.runner import Runner, controls_for_run, draw_seed, merge_controls  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     if args.prepare_perturbed:
@@ -476,13 +531,74 @@ def controls(args: argparse.Namespace) -> int:
     if args.run_dir is None:
         raise IProofsError(ErrorKind.CONFIG, "give a RUN_DIR")
     root = repo_root(Path.cwd())
-    system = json.loads((args.run_dir / "run.json").read_text())["system"]
+    alone = args.only or args.seed or args.hosted or args.gpu is not None
+    if args.merge or args.draw_seed:
+        flag = "--merge" if args.merge else "--draw-seed"
+        if alone or (args.merge and args.draw_seed):
+            raise IProofsError(ErrorKind.CONFIG, f"{flag} takes RUN_DIR only, and --merge parts")
+        registry_ = SchemaRegistry.from_tree(root / "schema")
+        if args.draw_seed:
+            path = draw_seed(registry_, args.run_dir)
+            print(path, json.loads(path.read_text())["control_seed"])
+        else:
+            print(merge_controls(registry_, args.run_dir, args.merge))
+        return 0
+    if args.seed is not None and not args.only:  # a whole suite draws its own (RFC-0008 §Seeds)
+        raise IProofsError(ErrorKind.CONFIG, "--seed goes with --only; a whole suite draws one")
+    seed = parse_control_seed(args.seed) if args.seed is not None else None
+    run = json.loads((args.run_dir / "run.json").read_text())
     image_ref = json.loads((args.run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
-    containers, _, registry = _containers(
-        root / "systems" / system / "system.yaml", image_ref.startswith("local/in-process@")
+    system_file = root / "systems" / run["system"] / "system.yaml"
+    in_process = image_ref.startswith("local/in-process@") and not args.hosted
+    containers, _, registry = _containers(system_file, in_process, hosted=args.hosted)
+    if args.hosted:
+        _check_hosted_image(system_file, registry, image_ref)
+    env: Environment | None = None  # without --gpu or --hosted: the CPU-only host
+    if args.gpu is not None:
+        n_prover = _prover_cpus(root, run["profile"], registry)
+        n_verifier = _verifier_cpus(root, run["release"], registry)
+        env = _environment(args.gpu, args.hosted, n_prover, n_verifier)
+    elif args.hosted:
+        env = _verifier_host(root, run["release"], registry)
+    runner = Runner(
+        containers,
+        root=root,
+        registry=registry,
+        env=env,
+        hosted=args.hosted,
+        provider=args.provider or "undeclared",
+        progress=None if args.quiet else sys.stderr,
     )
-    print(controls_for_run(Runner(containers, root=root, registry=registry), args.run_dir))
+    print(controls_for_run(runner, args.run_dir, seed=seed, only=args.only))
     return 0
+
+
+def _check_hosted_image(system_file: Path, registry: "SchemaRegistry", image_ref: str) -> None:
+    """A hosted container is the one the provider started from the system's pinned image, so
+    it can verify a run only if the run used that image (RFC-0006 §Hosted execution)."""
+    from iproofs.model import System, load  # noqa: PLC0415
+
+    system = load(system_file, registry)
+    assert isinstance(system, System)
+    pinned = f"{system.image.repository}@{system.image.digest}" if system.image else None
+    if image_ref != pinned:
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            f"--hosted runs in the pinned image {pinned}, but the run used {image_ref}",
+        )
+
+
+def _verifier_host(root: Path, release: str, registry: "SchemaRegistry") -> "Environment":
+    """`controls --hosted` without `--gpu`: a CPU host that binds the release's verifier-cpu
+    CPUs to every verify call and runs no prove (RFC-0008 §Split suites)."""
+    from iproofs.model import VerifierProfile, load_reference  # noqa: PLC0415
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import VerifierEnvironment  # noqa: PLC0415
+
+    profile = load_reference(release, root, registry).profiles.get("verifier-cpu")
+    if not isinstance(profile, VerifierProfile):
+        raise IProofsError(ErrorKind.CONFIG, f"reference/{release}.yaml has no verifier-cpu")
+    return VerifierEnvironment(Host(hosted=True), profile.cpu.logical_cpus)
 
 
 def _prepare_perturbed(args: argparse.Namespace) -> int:
@@ -495,6 +611,18 @@ def _prepare_perturbed(args: argparse.Namespace) -> int:
     if not (args.system and args.profile) or args.run_dir is not None:
         raise IProofsError(
             ErrorKind.CONFIG, "--prepare-perturbed takes --system and --profile, not a RUN_DIR"
+        )
+    if (
+        args.only
+        or args.seed
+        or args.merge
+        or args.draw_seed
+        or args.hosted
+        or args.gpu is not None
+    ):
+        raise IProofsError(
+            ErrorKind.CONFIG,
+            "--prepare-perturbed takes no --only, --seed, --merge, --draw-seed, --hosted or --gpu",
         )
     root = repo_root(Path.cwd())
     system_file = root / "systems" / args.system / "system.yaml"
