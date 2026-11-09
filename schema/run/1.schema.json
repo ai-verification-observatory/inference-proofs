@@ -233,7 +233,7 @@
       ]
     },
     "inputs": {
-      "$comment": "RFC-0003 WB-4: the workload record's inputs to D-APT-S and D-SPAB-S at run time, so G4 recomputes from the run, not from the workload file at HEAD",
+      "$comment": "RFC-0003 WB-4: the workload record's inputs to D-APT-S and D-SPAB-S at run time, so G4 recomputes from the run, not from the workload file at HEAD; RFC-0004 INV-DERIVE-8: the profile's GPU count, input of D-GSPT-S and D-COST-1K-S",
       "additionalProperties": false,
       "properties": {
         "active_parameters_per_token": {
@@ -245,6 +245,21 @@
           "properties": {
             "unit": {
               "const": "count"
+            }
+          }
+        },
+        "gpu_count": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/asserted"
+            }
+          ],
+          "properties": {
+            "unit": {
+              "const": "count"
+            },
+            "value": {
+              "minimum": 1
             }
           }
         },

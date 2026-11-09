@@ -368,6 +368,14 @@ The amendment of 2026-11-08 adds the unit `s/bit_token` (seconds per bit of acti
 
 The existing draft claim card example in the old `docs/SPEC.md` uses `reviewed_by_maintainers` and `security.bits`; RFC-0002's field names (`reviewed_by`, `security.level`) win, and `claim/1` follows RFC-0002.
 
+Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): 
+- new schema `serving-model/1` (`workloads/serving/<id>.yaml`) with valid and invalid examples;
+- `reference/1`: `kind: serving`, `pairs_with`, `shm_gib_min`, `gpu.count` above 1 for serving profiles only;
+- `system/1`: for a serve-role workload entry, `load_point`, `gpus`, `batch_size` (high only) and `batches_per_session_run`; `precision_substitution` must be null for `reference_role: serve`, and `engine_args` holds only the SRV-3 allowlist; optional `engine.commit` (the engine's source commit, RFC-0015 Q1);
+- `manifest/1`: `workload.load_point`, `workload.batch_size_run`, `workload.batches_per_session_run`, `workload.prompt_count_run`, `workload.prompt_prefix_digest`, `workload.steady_rule` (RFC-0004 INV-SCOPE-5), `engine` with optional `engine.observed` (version, build commit, batched-token limit, RFC-0015 SRV-3), `serving_model`; `run/1`: `inputs.gpu_count`;
+- `quantity/1`: unit `gpu_s/token`, the metric ids `gpu_seconds_per_token_<S>`, `overhead_vs_production_<S>` and `overhead_vs_production_high_<S>` (and no longer `overhead_vs_serving_<S>`), optional `pairs` (RFC-0004 INV-DERIVE-9);
+- `release-index/1`: optional `overhead_conditions` per system configuration (RFC-0004 INV-DERIVE-9), with the high load's settings, GPU count and profile and each engine's batched-token limit; optional `steady_boundary` per configuration (RFC-0004 INV-SCOPE-5); optional `overhead_headline` per system configuration, `{metric, formula, scope, start_up}` with `metric` `overhead_vs_production_prove.steady` or `overhead_vs_production_prove.session` (RFC-0004 INV-DERIVE-10, Draft amendment of the same date, with valid and invalid examples).
+
 ## Testing Strategy
 
 Unit tests in `harness/tests/unit/`:

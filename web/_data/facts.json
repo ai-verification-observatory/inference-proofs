@@ -132,8 +132,8 @@
       "name": "Rerun by a weights holder"
     },
     "ref-serve": {
-      "kind_words": "Plain serving: the baseline with no check, for cost comparison.",
-      "name": "Plain serving"
+      "kind_words": "Production serving: the baseline with no check, for cost comparison.",
+      "name": "Production serving"
     },
     "remainder": {
       "code": "open_licence",

@@ -112,6 +112,35 @@
       ],
       "type": "object"
     },
+    "gpu": {
+      "$comment": "the GPUs a job binds and its cost counts (RFC-0006 R1, R6)",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "form_factor": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "memory_mib_min": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "model",
+        "form_factor",
+        "count",
+        "memory_mib_min"
+      ],
+      "type": "object"
+    },
     "prover": {
       "additionalProperties": false,
       "properties": {
@@ -212,32 +241,17 @@
               "type": "null"
             },
             {
-              "additionalProperties": false,
+              "$comment": "RFC-0006 R1: a prover profile binds one GPU",
+              "allOf": [
+                {
+                  "$ref": "#/$defs/gpu"
+                }
+              ],
               "properties": {
                 "count": {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                "form_factor": {
-                  "minLength": 1,
-                  "type": "string"
-                },
-                "memory_mib_min": {
-                  "minimum": 1,
-                  "type": "integer"
-                },
-                "model": {
-                  "minLength": 1,
-                  "type": "string"
+                  "maximum": 1
                 }
-              },
-              "required": [
-                "model",
-                "form_factor",
-                "count",
-                "memory_mib_min"
-              ],
-              "type": "object"
+              }
             }
           ]
         },
@@ -281,6 +295,162 @@
         "kernel_min",
         "driver",
         "container_runtime"
+      ],
+      "type": "object"
+    },
+    "serving": {
+      "additionalProperties": false,
+      "properties": {
+        "container_runtime": {
+          "$comment": "RFC-0006: docker on the host (anyOf/0), or a hosted container the provider starts from the adapter image, with the harness inside it (anyOf/1, §Hosted execution)",
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cgroup_driver": {
+                  "enum": [
+                    "systemd",
+                    "cgroupfs"
+                  ]
+                },
+                "docker_engine_min": {
+                  "pattern": "^[0-9]+(\\.[0-9]+)*$",
+                  "type": "string"
+                },
+                "nvidia_container_toolkit_min": {
+                  "pattern": "^[0-9]+(\\.[0-9]+)*$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "docker_engine_min",
+                "nvidia_container_toolkit_min",
+                "cgroup_driver"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "cgroup_version": {
+                  "const": "2"
+                },
+                "kind": {
+                  "const": "hosted"
+                }
+              },
+              "required": [
+                "kind",
+                "cgroup_version"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "cost": {
+          "$comment": "RFC-0006 C7: the basis in `costs` that prices this profile's GPU; absent, the profile uses `cost`",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "type": "string"
+        },
+        "cpu": {
+          "additionalProperties": false,
+          "properties": {
+            "logical_cpus_on_gpu_numa_node": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "logical_cpus_total_min": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "logical_cpus_on_gpu_numa_node",
+            "logical_cpus_total_min"
+          ],
+          "type": "object"
+        },
+        "disk": {
+          "additionalProperties": false,
+          "properties": {
+            "free_gib_min": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "type": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "free_gib_min"
+          ],
+          "type": "object"
+        },
+        "driver": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "gpu": {
+          "$comment": "RFC-0006 R6: a serving profile always names its GPUs; its count is part of the profile",
+          "$ref": "#/$defs/gpu"
+        },
+        "host_memory_gib_min": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "kernel_min": {
+          "pattern": "^[0-9]+(\\.[0-9]+)*$",
+          "type": "string"
+        },
+        "kind": {
+          "const": "serving"
+        },
+        "os": {
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version_id": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "version_id"
+          ],
+          "type": "object"
+        },
+        "pairs_with": {
+          "$comment": "RFC-0006 R6: the prover profiles whose rows this profile's rows may be divided against (same GPU model, form factor and runtime kind, checked by the validator)",
+          "items": {
+            "$ref": "../quantity/1.schema.json#/$defs/profileId"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "shm_gib_min": {
+          "$comment": "RFC-0006 PC-SHM: the /dev/shm size a hosted serving container needs",
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "kind",
+        "gpu",
+        "cpu",
+        "host_memory_gib_min",
+        "disk",
+        "os",
+        "kernel_min",
+        "driver",
+        "container_runtime",
+        "pairs_with"
       ],
       "type": "object"
     },
@@ -358,7 +528,19 @@
     "profiles": {
       "additionalProperties": {
         "else": {
-          "$ref": "#/$defs/verifier"
+          "else": {
+            "$ref": "#/$defs/verifier"
+          },
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "serving"
+              }
+            }
+          },
+          "then": {
+            "$ref": "#/$defs/serving"
+          }
         },
         "if": {
           "properties": {
@@ -371,6 +553,7 @@
           "kind": {
             "enum": [
               "prover",
+              "serving",
               "verifier"
             ]
           }

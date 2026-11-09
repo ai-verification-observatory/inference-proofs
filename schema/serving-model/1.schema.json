@@ -1,0 +1,289 @@
+{
+  "$id": "https://inference-proofs.org/schema/serving-model/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "pattern": "^[a-z0-9][a-z0-9.-]{0,95}$",
+      "type": "string"
+    },
+    "model": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "files": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "bytes": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "path": {
+                "pattern": "^[^/][^\\s]*$",
+                "type": "string"
+              },
+              "publisher_blob": {
+                "$comment": "the git blob id of the publisher's file at its pinned revision (RFC-0014 SM-1, SM-3)",
+                "pattern": "^[0-9a-f]{40}$",
+                "type": "string"
+              },
+              "sha256": {
+                "pattern": "^[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "source": {
+                "$comment": "mirror (default) or publisher: a file fetched from the publisher's gated repository with the runner's token (RFC-0015 Q7)",
+                "enum": [
+                  "mirror",
+                  "publisher"
+                ]
+              },
+              "storage": {
+                "enum": [
+                  "git",
+                  "lfs"
+                ]
+              }
+            },
+            "required": [
+              "path",
+              "sha256",
+              "bytes",
+              "storage",
+              "publisher_blob"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "licence": {
+          "additionalProperties": false,
+          "properties": {
+            "gated": {
+              "type": "boolean"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "url": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name",
+            "url",
+            "gated"
+          ],
+          "type": "object"
+        },
+        "revision": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "shape": {
+          "$comment": "copied from the pinned config.json by `iproofs serving pin`, input of the sizing that orders GPU-count attempts (grade projected, never published)",
+          "additionalProperties": false,
+          "properties": {
+            "attention_heads": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "head_dim": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "kv_dtype": {
+              "enum": [
+                "bfloat16",
+                "float16",
+                "float32",
+                "fp8"
+              ]
+            },
+            "kv_heads": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "layers": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "layers",
+            "attention_heads",
+            "kv_heads",
+            "head_dim",
+            "kv_dtype"
+          ],
+          "type": "object"
+        },
+        "source": {
+          "additionalProperties": false,
+          "properties": {
+            "hub": {
+              "const": "huggingface"
+            },
+            "repo": {
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "hub",
+            "repo"
+          ],
+          "type": "object"
+        },
+        "vocab_size": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source",
+        "revision",
+        "files",
+        "digest",
+        "licence",
+        "vocab_size",
+        "shape"
+      ],
+      "type": "object"
+    },
+    "precision": {
+      "additionalProperties": false,
+      "properties": {
+        "chosen_by": {
+          "$comment": "RFC-0015 SRV-6: who designated this release for serving",
+          "enum": [
+            "publisher",
+            "owner"
+          ]
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "release_statement": {
+          "$comment": "the publisher's own words on this release, with its link, or \"not stated\"",
+          "anyOf": [
+            {
+              "const": "not stated"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "quote": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "url": {
+                  "format": "uri",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "quote",
+                "url"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "sources": {
+          "items": {
+            "format": "uri",
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "statement": {
+          "$comment": "copied from the release's own files (config.json, recipe), never inferred (AGENTS.md rule 9)",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "statement",
+        "release_statement",
+        "chosen_by",
+        "sources"
+      ],
+      "type": "object"
+    },
+    "publisher": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "release": {
+          "additionalProperties": false,
+          "properties": {
+            "gated": {
+              "type": "boolean"
+            },
+            "hub": {
+              "const": "huggingface"
+            },
+            "repo": {
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            },
+            "revision": {
+              "$ref": "../quantity/1.schema.json#/$defs/commit"
+            }
+          },
+          "required": [
+            "hub",
+            "repo",
+            "revision",
+            "gated"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "name",
+        "release"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "serving-model/1"
+    },
+    "version": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "workloads": {
+      "$comment": "the workloads this record serves; the only workload-to-record mapping (RFC-0015 SRV-6)",
+      "items": {
+        "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    }
+  },
+  "required": [
+    "schema",
+    "id",
+    "version",
+    "workloads",
+    "publisher",
+    "precision",
+    "model"
+  ],
+  "title": "Production-serving weights: workloads/serving/<id>.yaml (RFC-0015 SRV-6, RFC-0014 SM-1 to SM-3)",
+  "type": "object"
+}

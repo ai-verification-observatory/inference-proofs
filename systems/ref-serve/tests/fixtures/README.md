@@ -1,0 +1,4 @@
+# ref-serve test fixtures
+
+- `capture/`: engine outputs captured once on a GPU host (see its README). They predate production serving (RFC-0015 SRV-6 of 2026-11-09): an L40S, the SASH workloads' FP8-at-load files and the `LLM` class. The tests use them only to replay outputs through the outputs builder and the release protocol; the S1 and S2 captures of docs/runbooks/hf-jobs.md (§Production serving) replace them.
+- `resolved-default.txt`: a shape fixture of the engine's resolved-configuration line, the field list of vLLM v0.32.0 `VllmConfig.__str__` ([vllm/config/vllm.py L2703 to L2738](https://github.com/vllm-project/vllm/blob/v0.32.0/vllm/config/vllm.py#L2703-L2738)) with placeholder values, so the comparison of RFC-0015 SRV-3 runs on CPU. It is not a dump of the engine's defaults: the first capture's `resolved_config` line (in `commands.jsonl`) replaces it, and from then on the test compares each run's line with that stored default.

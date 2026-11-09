@@ -20,16 +20,18 @@ from pathlib import Path
 
 from iproofs import __version__
 from iproofs.derive import (
+    STEADY_RULE,
     Input,
     QuantityTree,
     agreement_rate,
     freeze_values,
     overhead,
+    overhead_formula,
     provider_spread,
     statistic,
 )
 from iproofs.errors import ErrorKind, IProofsError
-from iproofs.model import ReferenceFile, Release, Workload, load
+from iproofs.model import ReferenceFile, Release, ServingModel, ServingProfile, Workload, load
 from iproofs.provenance import file_digest
 from iproofs.quantity import (
     NullReason,
@@ -41,7 +43,8 @@ from iproofs.quantity import (
 )
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json
-from iproofs.workloads import asserted_inputs, workload_file
+from iproofs.serving import MAX_SERVING_GPUS, SHORT_STEADY, exhausted, placement_problem
+from iproofs.workloads import asserted_inputs, serving_system, workload_file
 
 # RFC-0007 §Tolerance: compared metric ids, in record order.
 COMPARED = (
@@ -559,10 +562,12 @@ def freeze(
     if dt.date.fromisoformat(release.freeze_date) <= closes:
         raise _fail(f"freeze_date {release.freeze_date} is not after {window.closes}")
     excluded = _excluded(release, runs, root, registry)  # step 4
-    late = _Late(root, registry, release.release)
+    late = _Late(root, registry, release.release, (reference, release.reference_file))
     configurations, controls, contexts = _configurations(runs, excluded, maintainers or {}, late)
     _require_closed(root, release, contexts)
-    _release_rows(release.release, contexts, _reference_roles(root))  # step 5, release rows
+    _release_rows(  # step 5, release rows
+        release.release, contexts, _reference_roles(root), _Serving(root, registry, reference)
+    )
     targets = _targets(root, registry, release, contexts, read)  # step 8
     digests = sorted(file_digest(p) for p in read)
     index: dict[str, object] = {
@@ -697,11 +702,12 @@ def _configurations(
     for run in runs.values():
         key = (run.run.get("system"), run.get("manifest", "claim", "configuration"),
                run.get("manifest", "workload", "id"), run.get("manifest", "workload", "version"),
-               run.get("manifest", "profile", "prover"))  # fmt: skip
+               run.get("manifest", "profile", "prover"),
+               run.get("manifest", "workload", "load_point"))  # fmt: skip  # SRV-1
         groups.setdefault(key, []).append(run)
     configurations, controls, contexts = [], [], []
     for group_key in sorted(groups, key=lambda k: tuple(str(x) for x in k)):
-        system, configuration, workload, version, profile = group_key
+        system, configuration, workload, version, profile, load_point = group_key
         members = sorted(groups[group_key], key=_repetition_order)
         kept = [r for r in members if r.run_id not in excluded]
         reviews = {r.run_id: run_records(r, "reviews") for r in kept}
@@ -719,12 +725,15 @@ def _configurations(
         }
         configurations.append({
             **where,
+            **({"load_point": load_point} if load_point is not None else {}),
             "configuration": configuration,
             "runs": [r.run_id for r in kept],
             "ineligible": [{"run_id": r.run_id, "reasons": excluded[r.run_id]}
                            for r in members if r.run_id in excluded],
             "insufficient_repetitions": sum(r.ok for r in kept) < MIN_REPLAYED,
             "statistics": (stats := _statistics(kept, tiers, late)),
+            **({"steady_boundary": FIRST_PROOF_BOUNDARY} if late.first_proof_boundary(kept)
+               else {}),
             "effective_tier": str(lowest_tier(list(tiers.values()))) if tiers else "reported",
             "evidence": {  # INV-TIER-7: outside_tolerance records are listed too
                 "reviews": [path for r in kept for path, _ in reviews[r.run_id]],
@@ -732,7 +741,9 @@ def _configurations(
             },
         })  # fmt: skip
         controls.append({**where, **_control_summary(kept)})
-        contexts.append(_Context(where, configuration, kept, tiers, stats, late))
+        contexts.append(_Context(where, configuration, kept, tiers, stats, late,
+                                 None if load_point is None else str(load_point),
+                                 configurations[-1]))  # fmt: skip
     return configurations, controls, contexts
 
 
@@ -740,21 +751,61 @@ class _Late:
     """RFC-0004 Q3: values a freeze evaluates for runs stored before their formula existed,
     written to index.json `freeze_derived` and pointed at from there."""
 
-    def __init__(self, root: Path, registry: SchemaRegistry, release: str) -> None:
+    def __init__(
+        self,
+        root: Path,
+        registry: SchemaRegistry,
+        release: str,
+        reference: tuple[ReferenceFile, str] | None = None,
+    ) -> None:
         self.root, self.registry, self.release = root, registry, release
+        self.reference = reference  # the reference file and its path, for D-GSPT-S
         self.values: dict[str, dict[str, QuantityTree]] = {}
         self._workloads: dict[str, Workload] = {}
 
-    def workload_inputs(self, run: RunView) -> tuple[Input, Input]:
-        """The workload record's asserted inputs at the release commit, as (pointer, quantity);
-        missing inputs when the record now holds another version than the run's."""
-        wid = str(run.get("run", "workload", "id"))
-        if wid not in self._workloads:  # the record only, not the loader's cross-file rules
+    def gpu_count(self, run: RunView) -> Input | None:
+        """RFC-0004 Q3 for D-GSPT-S: the profile's `gpu.count` in the reference file at the
+        release commit, as an asserted input; None for a CPU-only profile (no GPU count, so no
+        D-GSPT-S) or without a reference file."""
+        if self.reference is None:
+            return None
+        reference, path = self.reference
+        name = str(run.get("run", "profile"))
+        gpu = getattr(reference.profiles.get(name), "gpu", None)
+        if gpu is None:
+            return None
+        ref = f"{path}#/profiles/{name}/gpu/count"
+        return (ref, {"value": gpu.count, "unit": "count", "scope": None, "grade": "asserted",
+                      "tier": "reported", "source": {"kind": "reference_file", "ref": ref},
+                      "null_reason": None})  # fmt: skip
+
+    def workload(self, wid: str) -> Workload:
+        """The workload record at the release commit (the record only, not the loader's
+        cross-file rules)."""
+        if wid not in self._workloads:
             wl = load(workload_file(self.root, wid), self.registry)
             if not isinstance(wl, Workload):
                 raise _fail(f"workloads/{wid}.yaml is not a workload record")
             self._workloads[wid] = wl
-        wl = self._workloads[wid]
+        return self._workloads[wid]
+
+    def first_proof_boundary(self, runs: Sequence[RunView]) -> bool:
+        """RFC-0004 INV-SCOPE-5: a completed run at batch size b > 1 that records no steady
+        rule keeps the first-proof boundary of runs recorded before 2026-11-09 (APP-1)."""
+        for r in runs:
+            if not r.ok or r.get("manifest", "workload", "steady_rule") == STEADY_RULE:
+                continue
+            size = r.get("manifest", "workload", "batch_size_run")
+            if not isinstance(size, int):
+                size = self.workload(str(r.get("run", "workload", "id"))).shape.batch_size
+            if size > 1:
+                return True
+        return False
+
+    def workload_inputs(self, run: RunView) -> tuple[Input, Input]:
+        """The workload record's asserted inputs at the release commit, as (pointer, quantity);
+        missing inputs when the record now holds another version than the run's."""
+        wl = self.workload(str(run.get("run", "workload", "id")))
         same = wl.version == run.get("run", "workload", "version")
         inputs, out = asserted_inputs(wl), []
         for name in ("active_parameters_per_token", "weight_bits"):
@@ -773,6 +824,7 @@ class _Late:
             active_parameters=params,
             weight_bits=bits,
             reference=run.run.get("system_kind") == "reference",
+            gpu_count=self.gpu_count(run),
         )
         if values:
             self.values[run.run_id] = values
@@ -962,6 +1014,8 @@ class _Context:
     tiers: dict[str, Tier]
     statistics: dict[str, object]
     late: "_Late | None" = None
+    load_point: str | None = None  # RFC-0015 SRV-1, production-serving configurations
+    entry: dict[str, object] | None = None  # the index configuration, for overhead_conditions
 
 
 def evaluate_target(
@@ -1075,10 +1129,16 @@ def _measurable(ctx: "_Context") -> bool:
     )
 
 
-def _release_rows(release: str, contexts: Sequence["_Context"], roles: Mapping[str, str]) -> None:
+def _release_rows(
+    release: str,
+    contexts: Sequence["_Context"],
+    roles: Mapping[str, str],
+    serving: "_Serving | None" = None,
+) -> None:
     """Adds to each configuration's statistics the release-level rows of RFC-0004:
-    D-PROVIDER-SPREAD per rate, and for system rows D-OVERHEAD-S against the ref-serve row of
-    the same workload and D-AGREE against the ref-recompute runs that replayed its prompts."""
+    D-PROVIDER-SPREAD per rate, and for system rows D-OVERHEAD-S and D-OVERHEAD-HIGH-S against
+    the production-serving system the workload names (RFC-0015 SRV-7, INV-DERIVE-2) and D-AGREE
+    against the ref-recompute runs that replayed its prompts."""
     index = f"releases/{release}/index.json#/configurations"
     for ctx in contexts:
         done = [r for r in ctx.kept if r.ok]
@@ -1095,35 +1155,369 @@ def _release_rows(release: str, contexts: Sequence["_Context"], roles: Mapping[s
                 )
         if str(ctx.where["system"]) in roles:
             continue
-        _overheads(index, ctx, contexts, roles, rates)
+        if serving is not None:
+            _overheads(index, ctx, contexts, serving)
         _agreement(ctx, contexts, roles)
 
 
-def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],
-               roles: Mapping[str, str], rates: Sequence[str]) -> None:  # fmt: skip
-    """INV-DERIVE-2: join on workload id and version and profile (phase and batch size are
-    the workload version's); a ref-serve row of the same workload that does not join gives
-    `not_applicable`."""
+OVERHEAD_SCOPES = (Scope.PROVE_STEADY, Scope.PROVE_SESSION, Scope.WHOLE_WALL)
+
+
+class _Serving:
+    """What the overhead join reads at the release commit (RFC-0004 INV-DERIVE-2): the
+    serve-role system each workload names, its system.yaml, the serving record that names the
+    workload, and the reference file's profiles."""
+
+    def __init__(self, root: Path, registry: SchemaRegistry, reference: ReferenceFile) -> None:
+        from iproofs.serving import load_records  # noqa: PLC0415
+
+        self.root, self.registry, self.reference = root, registry, reference
+        self.records = load_records(root, registry)
+        self._named: dict[str, str | None] = {}
+
+    def named(self, workload: str) -> str | None:
+        """SRV-7: the one serve-role system the workload's `systems` names."""
+        import yaml  # noqa: PLC0415
+
+        if workload not in self._named:
+            path = workload_file(self.root, workload)
+            doc = yaml.safe_load(path.read_text()) if path.is_file() else None
+            systems = doc.get("systems") if isinstance(doc, dict) else None
+            self._named[workload] = serving_system(self.root, [str(x) for x in systems or ()])
+        return self._named[workload]
+
+    def system(self, name: str) -> dict[str, object]:
+        import yaml  # noqa: PLC0415
+
+        path = self.root / "systems" / name / "system.yaml"
+        doc = yaml.safe_load(path.read_text()) if path.is_file() else None
+        return doc if isinstance(doc, dict) else {}
+
+    def record(self, workload: str) -> "ServingModel | None":
+        found = [r for r in self.records.values() if workload in r.workloads]
+        return found[0] if len(found) == 1 else None
+
+    def pairs(self, serving_profile: object, system_profile: object) -> bool:
+        """INV-DERIVE-2 (c): a serving profile whose `pairs_with` lists the system's profile."""
+        found = self.reference.profiles.get(str(serving_profile))
+        return isinstance(found, ServingProfile) and str(system_profile) in found.pairs_with
+
+    def gpus(self, profile: object) -> int | None:
+        found = self.reference.profiles.get(str(profile))
+        gpu = getattr(found, "gpu", None)
+        return None if gpu is None else int(gpu.count)
+
+    def gpu_model(self, profile: object) -> str | None:
+        gpu = getattr(self.reference.profiles.get(str(profile)), "gpu", None)
+        return None if gpu is None else str(gpu.model)
+
+    def runtime(self, profile: object) -> str:
+        found = self.reference.profiles.get(str(profile))
+        runtime = getattr(found, "container_runtime", None)
+        return "hosted" if getattr(runtime, "kind", None) == "hosted" else "docker host"
+
+    def workload(self, workload: str) -> Workload:
+        doc = load(workload_file(self.root, workload), self.registry)
+        assert isinstance(doc, Workload)
+        return doc
+
+
+def _serving_nm1(ctx: "_Context") -> bool:
+    """RFC-0015 NM-1 for production serving at one GPU count: the configuration's attempts
+    other than `adapter` failures are at least one, and every one failed `resource` with
+    KV-capacity or out-of-memory evidence (an `adapter` failure is a bug to fix, never a reason
+    to move the GPU count)."""
+    return exhausted([(r.ok, r.get("run", "failure")) for r in ctx.kept])
+
+
+FIRST_PROOF_BOUNDARY = "first-proof boundary (before 2026-11-09)"  # INV-SCOPE-5, APP-1
+
+
+def _steady_rule(run: RunView, batch: int) -> bool:
+    """INV-SCOPE-5: a run at batch size b > 1 joins only if it records the batch-membership
+    rule (a run recorded before 2026-11-09 keeps the first-proof boundary, APP-1)."""
+    return batch <= 1 or run.get("manifest", "workload", "steady_rule") == STEADY_RULE
+
+
+def _observed(run: RunView, engine: Mapping[str, object]) -> bool:
+    """INV-DERIVE-2 (e): the engine the adapter saw run (its version and build commit, from
+    the engine process's environment) is the one system.yaml pins."""
+    seen = run.get("manifest", "engine", "observed")
+    if not isinstance(seen, Mapping) or not isinstance(version := seen.get("version"), str):
+        return False
+    pinned = str(engine.get("version"))  # a local build tag (`0.32.0+cu130`) is the same release
+    return (version == pinned or version.startswith(f"{pinned}+")) and seen.get(
+        "build_commit") == engine.get("commit")  # fmt: skip
+
+
+def _strings(value: object) -> list[str]:
+    return [str(x) for x in value] if isinstance(value, list) else []
+
+
+def _items(value: object) -> list[object]:
+    return list(value) if isinstance(value, list) else []
+
+
+def _declared_counts(system_doc: Mapping[str, object], workload: str) -> set[int]:
+    """The GPU counts system.yaml declares for the workload's matched load (SRV-6)."""
+    entries = system_doc.get("workloads")
+    return {int(e["gpus"]) for e in entries if isinstance(e, dict) and e.get("id") == workload
+            and (e.get("load_point") or "matched") == "matched"
+            and isinstance(e.get("gpus"), int)} if isinstance(entries, list) else set()  # fmt: skip
+
+
+def _overheads(index: str, ctx: "_Context", contexts: Sequence["_Context"],  # noqa: PLR0912, PLR0915
+               serving: _Serving) -> None:  # fmt: skip
+    """RFC-0004 INV-DERIVE-2: D-OVERHEAD-S (matched load), D-OVERHEAD-HIGH-S (high load) and
+    D-OVERHEAD-SESSION (matched load at `prove.session`) of one system configuration, in
+    GPU-seconds per token, its `overhead_headline` (INV-DERIVE-10) and the headline's
+    `overhead_conditions` (INV-DERIVE-9). Absent when the workload names no serve-role system.
+
+    The placement comes from the matched load (RFC-0015 SRV-6): the joined matched
+    configuration is the smallest GPU count with a joinable run whose every smaller count,
+    attempted or declared in system.yaml, is exhausted (`resource` with evidence); the high
+    load joins only at that same profile."""
     wl = ctx.where["workload"]
-    serve = [(i, c) for i, c in enumerate(contexts)
-             if roles.get(str(c.where["system"])) == "serve"
-             and c.where["workload"]["id"] == wl["id"]]  # type: ignore[index]  # fmt: skip
-    if not serve:
+    assert isinstance(wl, Mapping)
+    named = serving.named(str(wl["id"]))
+    if named is None:
         return
-    same = (wl, ctx.where["profile"])
-    joins = [(i, c) for i, c in serve if (c.where["workload"], c.where["profile"]) == same]
-    i, ref = (joins or serve)[0]
-    mine = contexts.index(ctx)
-    for m in rates:
-        q = ref.statistics.get(m)
-        ctx.statistics[f"overhead_vs_serving_{m[5:]}"] = overhead(
-            (f"{index}/{i}/statistics/{m}", q if isinstance(q, Mapping) else None),
-            (f"{index}/{mine}/statistics/{m}", ctx.statistics[m]),  # type: ignore[arg-type]
-            Scope(m[5:]),
-            joined=bool(joins),
-            measurable=_measurable(ref),
-            version=__version__,
+    record = serving.record(str(wl["id"]))
+    system_doc = serving.system(named)
+    engine = system_doc.get("engine") if isinstance(system_doc.get("engine"), dict) else {}
+    assert isinstance(engine, dict)
+    batch = serving.workload(str(wl["id"])).shape.batch_size
+    mine = {r.run_id for r in ctx.kept}
+    mine_index = contexts.index(ctx)
+    tried = [c for c in contexts if str(c.where["system"]) == named
+             and c.where["workload"] == wl]  # fmt: skip
+    paired = [c for c in tried if serving.pairs(c.where["profile"], ctx.where["profile"])]
+    keyed = [c for c in paired if any(_serving_keys(r, record, engine) for r in c.kept)]
+
+    def count(c: _Context) -> int:
+        return serving.gpus(c.where["profile"]) or 0
+
+    def point(c: _Context) -> str:
+        return c.load_point or "matched"
+
+    def joinable(c: _Context) -> list[RunView]:
+        """(e) observed, (f) paired by prompts, SRV-1's 60 s minimum, INV-SCOPE-5's rule."""
+        size = batch if point(c) == "matched" else 2  # a high-load batch is above 1 (SRV-1)
+        return [r for r in c.kept if r.ok and _serving_keys(r, record, engine)
+                and _observed(r, engine) and r.get("manifest", "prompts_from") in mine
+                and SHORT_STEADY not in _strings(r.get("run", "warnings"))
+                and _steady_rule(r, size)]  # fmt: skip
+
+    by_count: dict[int, list[tuple[bool, object]]] = {}
+    for c in keyed:
+        if point(c) == "matched":
+            by_count.setdefault(count(c), []).extend(
+                (r.ok, r.get("run", "failure")) for r in c.kept if _serving_keys(r, record, engine)
+            )
+    declared = _declared_counts(system_doc, str(wl["id"]))
+    chosen: dict[str, tuple[int, _Context, list[RunView]] | None] = {}
+    reasons: dict[str, NullReason] = {}
+    candidates = sorted(
+        (count(c), contexts.index(c), runs) for c in keyed
+        if point(c) == "matched" and (runs := joinable(c))
+        and placement_problem(by_count, count(c), declared) is None
+    )  # fmt: skip
+    if candidates:
+        _, i, runs = candidates[0]
+        chosen["matched"] = (i, contexts[i], runs)
+        at = contexts[i]
+        high = sorted((contexts.index(c), runs) for c in keyed
+                      if point(c) == "high" and c.where["profile"] == at.where["profile"]
+                      and (runs := joinable(c)))  # fmt: skip
+        if high:
+            chosen["high"] = (high[0][0], contexts[high[0][0]], high[0][1])
+        elif any(point(c) == "high" and joinable(c) for c in keyed):
+            reasons["high"] = NullReason.NOT_APPLICABLE  # another placement than the headline's
+        else:
+            reasons["high"] = NullReason.MISSING_INPUT
+    else:
+        if exhausted(by_count.get(MAX_SERVING_GPUS) or ()):  # NM-1: the largest profile too
+            why = NullReason.NOT_MEASURABLE_ON_PROFILE
+        elif tried and not keyed:
+            why = NullReason.NOT_APPLICABLE  # INV-DERIVE-2 (c) or (e)
+        else:
+            why = NullReason.MISSING_INPUT  # none at all, unplaced, or none joinable
+        reasons["matched"] = reasons["high"] = why
+    done = [r for r in ctx.kept if r.ok]
+    conforming = [r for r in done if _steady_rule(r, batch)]
+    if done and not conforming:  # every system run keeps the first-proof boundary (APP-1)
+        reasons["matched"] = reasons["high"] = NullReason.NOT_APPLICABLE
+    for scope in OVERHEAD_SCOPES:
+        metric = f"gpu_seconds_per_token_{scope}"
+        system_in = _metric_inputs(conforming or done, metric, ctx.tiers, ctx.late)
+        if not system_in:
+            continue
+        for at_load, key in (("matched", "overhead_vs_production"),
+                             ("high", "overhead_vs_production_high")):  # fmt: skip
+            found = chosen.get(at_load)
+            serve_in = [] if found is None else _metric_inputs(found[2], metric, found[1].tiers,
+                                                               found[1].late)  # fmt: skip
+            reason = reasons.get(at_load)
+            if scope is Scope.WHOLE_WALL:
+                reason = NullReason.NOT_APPLICABLE  # a reference has no commit (INV-DERIVE-9)
+            ctx.statistics[f"{key}_{scope}"] = overhead(
+                system_in, serve_in, scope, high=at_load == "high", reason=reason,
+                version=__version__,
+            )  # fmt: skip
+    steady = _metric_inputs(conforming or done, f"gpu_seconds_per_token_{Scope.PROVE_STEADY}",
+                            ctx.tiers, ctx.late)  # fmt: skip
+    scope = headline_scope(steady)
+    key = f"overhead_vs_production_{scope}"
+    headline = ctx.statistics.get(key)
+    if ctx.entry is None or not isinstance(headline, dict):
+        return
+    ctx.entry["overhead_headline"] = {
+        "metric": key,
+        "formula": overhead_formula(scope),
+        "scope": str(scope),
+        "start_up": "included" if scope is Scope.PROVE_SESSION else "excluded",
+    }
+    if headline["value"] is not None:
+        ctx.entry["overhead_conditions"] = _conditions(
+            index, ctx, mine_index, chosen, record, engine, serving, scope
         )
+
+
+# INV-SCOPE-2 and -3: the null reasons of a system that has no steady scope of its own
+NO_STEADY = frozenset({NullReason.NOT_EXTERNALLY_OBSERVABLE, NullReason.FEWER_THAN_TWO_PROOFS})
+
+
+def headline_scope(steady: Sequence[tuple[str, Mapping[str, object] | None]]) -> Scope:
+    """RFC-0004 INV-DERIVE-10: the scope of a system row's headline overhead. `prove.steady`
+    (D-OVERHEAD-S), unless the system has no steady scope: every successful repetition's
+    `gpu_seconds_per_token_prove.steady` is null with `not_externally_observable` or
+    `fewer_than_two_proofs` (SASH, RFC-0004 Q2), or none records it. Then `prove.session`
+    (D-OVERHEAD-SESSION), start-up included on both sides. A steady figure null for a join
+    reason (no paired serving run, another profile) stays the headline, with that reason."""
+    values = [q for _, q in steady if q is not None]
+    if values and any(q.get("value") is not None or q.get("null_reason") not in NO_STEADY
+                      for q in values):  # fmt: skip
+        return Scope.PROVE_STEADY
+    return Scope.PROVE_SESSION
+
+
+def _serving_keys(
+    run: RunView, record: "ServingModel | None", engine: Mapping[str, object]
+) -> bool:
+    """INV-DERIVE-2 (e): the run served the record's model digest with the engine image the
+    release's system.yaml pins (a re-pinned engine never pools with the old one)."""
+    if record is None:
+        return False
+    digest = run.get("manifest", "serving_model", "digest")
+    image = run.get("manifest", "engine", "image")
+    return digest == record.model.digest and image == engine.get("image")
+
+
+def _conditions(
+    index: str,
+    ctx: "_Context",
+    mine: int,
+    chosen: Mapping[str, tuple[int, "_Context", list[RunView]] | None],
+    record: "ServingModel | None",
+    engine: Mapping[str, object],
+    serving: _Serving,
+    scope: Scope = Scope.PROVE_STEADY,
+) -> dict[str, object]:
+    """RFC-0004 INV-DERIVE-9: the conditions of the headline overhead at `scope` (INV-DERIVE-10),
+    every value read from records (the runs' manifests, the serving record, the system and
+    workload files, the reference file); the site prints its strings from this block and types
+    none. `warm` is true when start-up is outside the scope (steady), false for a session."""
+    wl = ctx.where["workload"]
+    assert isinstance(wl, Mapping)
+    matched, high = chosen.get("matched"), chosen.get("high")
+    workload_doc = serving.workload(str(wl["id"]))
+    shape = workload_doc.shape
+    sys_gpus = serving.gpus(ctx.where["profile"])
+
+    def run_field(found: tuple[int, "_Context", list[RunView]] | None, *keys: str) -> object:
+        if found is None or not found[2]:
+            return None
+        values = {json.dumps(found[2][0].get(*keys))} | {json.dumps(r.get(*keys)) for r in found[2]}
+        return found[2][0].get(*keys) if len(values) == 1 else None
+
+    def settings(found: tuple[int, "_Context", list[RunView]] | None) -> str | None:
+        """SRV-3: the chosen configuration's own allowlisted options, with their values."""
+        if found is None:
+            return None
+        doc = serving.system(str(found[1].where["system"]))
+        gpus = serving.gpus(found[1].where["profile"])
+        point = found[1].load_point or "matched"
+        entries = doc.get("workloads")
+        args = next((list(e.get("engine_args") or []) for e in _items(entries)
+                     if isinstance(e, dict) and e.get("id") == wl["id"]
+                     and (e.get("load_point") or "matched") == point
+                     and e.get("gpus") in (None, gpus)), None)  # fmt: skip
+        if args is None:
+            return None
+        flags = iter(args)
+        pairs = [f"{a} {b}" for a, b in zip(flags, flags, strict=False)]
+        return "engine defaults except " + ", ".join(pairs) if pairs else "engine defaults"
+
+    interface = run_field(matched, "manifest", "engine", "interface")
+    serve_profile = None if matched is None else matched[1].where["profile"]
+    high_profile = None if high is None else high[1].where["profile"]
+    bits = workload_doc.precision.weight_bits
+    return {
+        "serving_configuration": None if matched is None else f"{index}/{matched[0]}",
+        "high_configuration": None if high is None else f"{index}/{high[0]}",
+        "engine": {"name": str(engine.get("name", "")) or "not stated",
+                   "version": str(engine.get("version", "")) or "not stated",
+                   "interface": None if interface is None else str(interface),
+                   "image_digest": None if not engine.get("image") else str(engine["image"]),
+                   "settings": settings(matched) or "not recorded",
+                   "settings_high": settings(high),
+                   "max_num_batched_tokens": {
+                       "matched": _int(run_field(matched, "manifest", "engine", "observed",
+                                                 "max_num_batched_tokens")),
+                       "high": _int(run_field(high, "manifest", "engine", "observed",
+                                              "max_num_batched_tokens"))}},
+        "decoding": "greedy",
+        "warm": scope is not Scope.PROVE_SESSION,
+        "runtime": serving.runtime(ctx.where["profile"]),
+        "serving_model": None if record is None else {
+            "id": record.id, "version": record.version, "digest": record.model.digest,
+            "publisher": record.publisher.name, "precision": record.precision.name,
+            "release_statement": _statement(record)},
+        "proved_precision": workload_doc.precision.proved,
+        "weight_bits": None if bits is None or bits.bits is None
+        else f"workloads/{wl['id']}.yaml#/precision/weight_bits",
+        "gpus": {"system": sys_gpus,
+                 "serving": serving.gpus(serve_profile) if serve_profile else None,
+                 "serving_high": serving.gpus(high_profile) if high_profile else None},
+        "gpu_model": serving.gpu_model(ctx.where["profile"]),
+        "profiles": {"system": str(ctx.where["profile"]),
+                     "serving": None if serve_profile is None else str(serve_profile),
+                     "serving_high": None if high_profile is None else str(high_profile)},
+        "batch": {"matched": shape.batch_size,
+                  "high": _int(run_field(high, "manifest", "workload", "batch_size_run"))},
+        "batches_per_session": {
+            "system": shape.batches_per_session,
+            "serving_matched": _int(run_field(matched, "manifest", "workload",
+                                              "batches_per_session_run")),
+            "serving_high": _int(run_field(high, "manifest", "workload",
+                                           "batches_per_session_run"))},
+        "prompt_count_run": {
+            "system": shape.batch_size * shape.batches_per_session,
+            "serving_matched": _int(run_field(matched, "manifest", "workload", "prompt_count_run")),
+            "serving_high": _int(run_field(high, "manifest", "workload", "prompt_count_run"))},
+        "n": {"system": sum(r.ok for r in ctx.kept),
+              "serving_matched": 0 if matched is None else len(matched[2]),
+              "serving_high": 0 if high is None else len(high[2])},
+    }  # fmt: skip
+
+
+def _statement(record: "ServingModel") -> str:
+    said = record.precision.release_statement
+    return said if isinstance(said, str) else said.quote
+
+
+def _int(value: object) -> int | None:
+    return value if isinstance(value, int) else None
 
 
 def _agreement(ctx: "_Context", contexts: Sequence["_Context"], roles: Mapping[str, str]) -> None:

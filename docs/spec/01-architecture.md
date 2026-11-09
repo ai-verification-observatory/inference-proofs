@@ -44,7 +44,7 @@ The same in prose. Authored inputs live in git and change only by reviewed pull 
 | Workload registry | `workloads/` | model by source, revision and digest; prompt corpus and generator; shapes; division | [RFC-0003](../../rfcs/0003-workloads.md) |
 | System adapters | `systems/<name>/` | wrap one upstream prover unchanged behind `adapter/1` | [RFC-0005](../../rfcs/0005-adapter-contract.md) |
 | Claim cards | `systems/<name>/claim.yaml` | what one proof establishes | [RFC-0002](../../rfcs/0002-claim-card.md) |
-| Reference systems | `systems/ref-serve/`, `systems/ref-recompute/` | plain-serving and recompute rows through the same contract | [RFC-0015](../../rfcs/0015-reference-rows.md) |
+| Reference systems | `systems/ref-serve/`, `systems/ref-recompute/`, `workloads/serving/` | production-serving and recompute rows through the same contract; the serving weights are pinned by record (SRV-6) | [RFC-0015](../../rfcs/0015-reference-rows.md) |
 | Test systems | `systems/fake/`, `systems/fake-broken/` | CPU-only toy prover and a verifier that accepts everything, for CI | [RFC-0005](../../rfcs/0005-adapter-contract.md#reference-implementations) |
 | Reference hardware and cost | `reference/<release>.yaml` | profiles and price per release | [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md) |
 | Harness | `harness/src/iproofs/` | run jobs, measure, write and check results, build the site | [RFC-0010](../../rfcs/0010-harness-runner.md), [RFC-0011](../../rfcs/0011-measurement-and-sampling.md) |
@@ -70,6 +70,7 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 3 | `iproofs.provenance` | digests (files, models, proofs), pin checks, machine record | layers 0 to 2 |
 | 3 | `iproofs.derive` | derived metrics and statistics from stored raw quantities ([RFC-0004](../../rfcs/0004-metrics-timing-grades.md)) | layers 0 to 2 |
 | 4 | `iproofs.workloads` | resolve workload, fetch model, materialise prompts | layers 0 to 3 |
+| 4 | `iproofs.serving` | production-serving records: SM-1 to SM-3, `serving pin`, fetch of the publisher's release from an ungated byte-identical copy ([RFC-0015](../../rfcs/0015-reference-rows.md) SRV-6, [RFC-0014](../../rfcs/0014-provenance-and-integrity.md#model-fetch-and-verification)) | layers 0 to 3 |
 | 4 | `iproofs.adapter` | job.json and out.json, `docker run` argv, io dirs, path safety, `ContainerRunner` implementations | layers 0 to 3, and `iproofs.measure` (a container call is timed where it runs, RFC-0011 T-1) |
 | 4 | `iproofs.measure` | monotonic clock, NVML sampler, cgroup sampler, release watcher, proof sizes ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md)) | layers 0 to 3 |
 | 4 | `iproofs.archive` | upload proof archives and upstream inputs, record archive URIs ([RFC-0014](../../rfcs/0014-provenance-and-integrity.md#proof-digests-and-archive), [RFC-0009](../../rfcs/0009-results-and-publication.md) Q1) | layers 0 to 3 |

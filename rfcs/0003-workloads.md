@@ -274,6 +274,8 @@ The author's affiliations and any interest in a measured system are declared in 
 5. #334: `l31-8b-c1024` lands as a candidate closed workload, the runner checks a closed workload's class at job resolution, and the release freeze refuses a closed workload's rows from fewer than two systems of its class. No system lists it in its `system.yaml` yet, so no job of it runs; SASH lists it with a new adapter image, and each other system that joins does so by its own inclusion issue (RFC-0001).
 6. The second amendment of 2026-11-08 resolves Q5 (owner decision of that date): the basis `computed` (WB-5) with the method `gguf-active-mean/1` (`iproofs.gguf`, a pure-Python GGUF header reader, no new dependency), the optional `method` property of `precision.weight_bits` (`workload/1` stays at major 1, RFC-0012), the recheck in `iproofs fetch-model` and its `--headers-only` option (RFC-0010), and the stored headers of the Maverick files for CI. The Maverick workloads change from 4.5 `stated` `part` to 4.83916475612899 `computed` `all` at version 1, since no run had recorded their weight bits (WB-4); the SASH workloads and `l31-8b-c1024` do not change.
 
+Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): none of this RFC's rules change and no workload version changes. The production-serving weights are pinned outside the workload file, in `workloads/serving/<id>.yaml` (`serving-model/1`), so the workload digests and the stored runs' inputs stay as they are.
+
 ## Testing Strategy
 
 - `test_generator_golden`: fixed tiny corpus, a stored toy `tokenizer.json`, `seed=0`, `count=3`, `L=8`: output equals a committed golden `prompts.jsonl` and digest.
@@ -312,4 +314,4 @@ The author's affiliations and any interest in a measured system are declared in 
 - [docs/PRD.md](../docs/PRD.md), sections 2, 6, 7 (F2) and 10.
 - Python `random` module documentation, reproducibility notes (stability of `random()` across versions).
 - Unicode Standard Annex 15, normalisation form C.
-- [RFC-0002](0002-claim-card.md) (claim class), [RFC-0004](0004-metrics-timing-grades.md) (tokens covered in metrics), [RFC-0005](0005-adapter-contract.md) (adapter declarations), [RFC-0007](0007-evidence-tiers-and-reproduction.md) (seed replay), [RFC-0008](0008-negative-controls.md) (perturbed weights), [RFC-0012](0012-schemas-and-serialization.md) (digests, canonical JSON), [RFC-0015](0015-reference-rows.md) (reference systems).
+- [RFC-0002](0002-claim-card.md) (claim class), [RFC-0004](0004-metrics-timing-grades.md) (tokens covered in metrics), [RFC-0005](0005-adapter-contract.md) (adapter declarations), [RFC-0007](0007-evidence-tiers-and-reproduction.md) (seed replay), [RFC-0008](0008-negative-controls.md) (perturbed weights), [RFC-0012](0012-schemas-and-serialization.md) (digests, canonical JSON), [RFC-0015](0015-reference-rows.md) (reference systems; production-serving weights: SRV-6, `workloads/serving/`).

@@ -23,8 +23,9 @@ same one): three repetitions per prover configuration, the minimum, the middle a
 of that file's statistics (the middle is 3 x mean - min - max). SASH's proving session is scaled
 by its tokens on its workload (1,024 prompt plus 64 output, 1,088) over the 4,608 tokens of its
 earlier placeholder, so its rate and cost per 1,000 tokens keep their digits. Both reference rows
-fail every repetition with kind `resource` (RFC-0015 NM-1, as the site said: plain serving could
-not run Llama 4 Maverick on one H100); their failure records carry no invented log line. The
+fail every repetition with kind `resource` on the prover profile (RFC-0015 SRV-10: plain serving
+on the system rows' profile, before production serving), so they pair with no system row; their
+failure records carry no invented log line. The
 rerun reference replays FlashProve's runs only: a replay of SASH's run on the Maverick workload is
 refused by the runner (`recorded_seed`, RFC-0015 RC-1).
 
@@ -375,6 +376,10 @@ def _metrics(
     )
     price = json.loads(json.dumps(yaml.safe_load((root / REFERENCE).read_text())["cost"]))
     inputs = _inputs(root, cfg.workload)
+    ref = f"{REFERENCE}#/profiles/{PROFILE}/gpu/count"  # RFC-0004 INV-DERIVE-8, as the runner
+    inputs["gpu_count"] = {"value": 1, "unit": "count", "scope": None, "grade": "asserted",
+                           "tier": "reported", "source": {"kind": "reference_file", "ref": ref},
+                           "null_reason": None}  # fmt: skip
     harness = {"tier": "reported", "source": {"kind": "harness", "ref": ""}}
     m |= derive_repetition(
         m,
@@ -391,6 +396,7 @@ def _metrics(
             f"{run_json}#/proofs/0/tokens_covered",
             {"value": sum(per_proof[0]), **harness},
         ),
+        gpu_count=(f"{run_json}#/inputs/gpu_count", inputs["gpu_count"]),
     )
     proofs = [
         {"proof_id": f"req-{i}", "release_mono_ns": r, "tokens_covered": sum(per_proof[i]),

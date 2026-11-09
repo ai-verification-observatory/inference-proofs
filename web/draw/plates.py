@@ -125,8 +125,20 @@ METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
-    "overhead": "overhead_vs_serving_prove.session",
+    "overhead": "overhead_vs_production_prove.steady",
 }
+
+
+def metric_of(cfg, col):
+    """The stored statistic behind one overview column of a configuration: the overhead column
+    shows the row's headline overhead, which release code names (`overhead_metric`: the steady
+    figure, or the session figure for a system with no steady scope, RFC-0004 INV-DERIVE-10)."""
+    if col == "overhead":
+        return cfg.get("overhead_metric") or METRIC[col]
+    return METRIC[col]
+
+
+SESSION_LINE = "proving session, start-up included on both sides"
 # how each order reads aloud
 SORT_WORDS = {
     "system": {"asc": "A to Z", "desc": "Z to A"},
@@ -134,8 +146,8 @@ SORT_WORDS = {
     "proof_size": {"asc": "small to large", "desc": "large to small"},
     "check_time": {"asc": "short to long", "desc": "long to short"},
     "overhead": {
-        "asc": "closer to plain serving first",
-        "desc": "further from plain serving first",
+        "asc": "closer to production serving first",
+        "desc": "further from production serving first",
     },
 }
 # More numbers on a system page, in this order: the stored statistic and its row label
@@ -158,11 +170,11 @@ REF_CELLS = {
 REF_OVERHEAD = {
     "serve": (
         "Baseline",
-        "Plain serving is the baseline of the overhead ratio, whether or not it has run.",
+        "Production serving is the baseline of the overhead ratio, whether or not it has run.",
     ),
     "recompute": ("Does not apply", "A rerun is not the baseline."),
 }
-REF_BASELINE = "by definition"  # the line under plain serving's Baseline, as its sibling cells have
+REF_BASELINE = "by definition"  # the line under production serving's Baseline, as its siblings
 
 # Criteria phrases the site words differently, for a reader who has not read the RFCs. Each must
 # still occur in the criteria or facts file, so a change there shows up here.
@@ -315,7 +327,7 @@ def cell_words(cfg, col):
         if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
             return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
         return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False
-    f = cfg["figures"][METRIC[col]]
+    f = cfg["figures"][metric_of(cfg, col)]
     if f["value"] is None:
         why = why_words(f, cfg)
         return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False
@@ -328,6 +340,8 @@ def cell_words(cfg, col):
         if unit_line
         else []
     )
+    if col == "overhead" and f.get("scope") == "prove.session":  # RFC-0009 S1: its scope in view
+        tail = [SESSION_LINE]
     title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
                         f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
                        else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
@@ -363,16 +377,25 @@ def plate(cfg, col, pid=""):
         val = f'<span class="na">{e(word)}</span>'
         kv.append(("note", line, None))
     else:
-        f = cfg["figures"][METRIC[col]]
+        f = cfg["figures"][metric_of(cfg, col)]
         if f["value"] is None:
             val = '<span class="na">No value</span>'
             kv += [("workload", *workload_link(cfg)), ("why", why_words(f, cfg), None)]
+            if col == "overhead" and f["metric"] != METRIC[col]:  # INV-DERIVE-10, a session
+                kv.append(("scope", SESSION_LINE, None))
         else:
             val = fig(shown(f["value"], f["unit"]))
             if f.get("stats"):
                 kv.append(("spread", spread_line(f), None))
             kv += [(k, v, None) for k, v in labels(f, cfg)]
             kv.append(("workload", *workload_link(cfg)))
+            words = cfg.get("overhead_words") if col == "overhead" else None
+            for key in ("conditions", "precision", "high"):  # RFC-0004 INV-DERIVE-9
+                if words and words.get(key):
+                    kv.append((key, words[key], None))
+        steady = cfg["figures"].get(METRIC["overhead"]) if col == "overhead" else None
+        if steady and steady["metric"] != f["metric"] and steady["value"] is None:
+            kv.append(("steady state", why_words(steady, cfg), None))  # why the session figure
         if f["recorded"]:
             kv.append(("source", f["source"], None))
     dl = "".join(

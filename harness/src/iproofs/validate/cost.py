@@ -1,7 +1,8 @@
 """RFC-0006 §Cost basis C3, rule COST-1 (gate G2): a set price is the median per-GPU list price
 of at least three named providers' readings, recomputed here so it is never typed by hand. It
 holds for `cost` and for every basis of `costs` (C7); rule COST-2: a prover profile's `cost`
-names a basis of `costs`."""
+names a basis of `costs`; rule PAIR-1 (RFC-0006 R6): a serving profile pairs only with prover
+profiles of its GPU model, form factor and runtime kind."""
 
 import math
 import re
@@ -62,4 +63,44 @@ def check(root: Path, files: Iterable[str]) -> list[Finding]:
                 found.append(Finding("G2", rel, "COST-2", f"profile {pid} names cost basis "
                                      f"{basis!r}, which `costs` does not define", ErrorKind.CONFIG,
                                      f"/profiles/{pid}/cost", hint="RFC-0006 C7"))  # fmt: skip
+        found += pair_problems(rel, doc.get("profiles") or {})
+    return found
+
+
+def _runtime_kind(profile: dict[str, Any]) -> str:
+    runtime = profile.get("container_runtime") or {}
+    return (
+        "hosted" if isinstance(runtime, dict) and runtime.get("kind") == "hosted" else "docker host"
+    )
+
+
+def pair_problems(rel: str, profiles: dict[str, Any]) -> list[Finding]:
+    """PAIR-1 (RFC-0006 R6): each `pairs_with` of a serving profile names a prover profile with
+    the same `gpu.model` and `form_factor` and the same runtime kind, so the overhead never
+    crosses GPU generations or runtimes (RFC-0004 INV-DERIVE-2 (c))."""
+    found = []
+    for pid, profile in sorted(profiles.items()):
+        if not isinstance(profile, dict) or profile.get("kind") != "serving":
+            continue
+        gpu = profile.get("gpu") or {}
+        for i, other in enumerate(profile.get("pairs_with") or []):
+            paired = profiles.get(other)
+            theirs = (paired or {}).get("gpu") or {}
+            if not isinstance(paired, dict) or paired.get("kind") != "prover":
+                problem = f"{other!r} is not a prover profile of this file"
+            elif (theirs.get("model"), theirs.get("form_factor")) != (
+                gpu.get("model"),
+                gpu.get("form_factor"),
+            ):
+                theirs_gpu = f"{theirs.get('model')!r} {theirs.get('form_factor')!r}"
+                ours = f"{gpu.get('model')!r} {gpu.get('form_factor')!r}"
+                problem = f"{other} has GPU {theirs_gpu}, the serving profile {ours}"
+            elif _runtime_kind(paired) != _runtime_kind(profile):
+                problem = (f"{other} runs {_runtime_kind(paired)}, the serving profile "
+                           f"{_runtime_kind(profile)}")  # fmt: skip
+            else:
+                continue
+            found.append(Finding("G2", rel, "PAIR-1", f"serving profile {pid} pairs with {problem}",
+                                 ErrorKind.CONFIG, f"/profiles/{pid}/pairs_with/{i}",
+                                 hint="RFC-0006 R6"))  # fmt: skip
     return found

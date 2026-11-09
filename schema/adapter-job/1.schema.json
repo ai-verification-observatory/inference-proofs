@@ -189,6 +189,18 @@
       "minItems": 1,
       "type": "array"
     },
+    "gpus": {
+      "$comment": "RFC-0015 SRV-6: the GPUs a production-serving prove job binds (its --tensor-parallel-size)",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "load_point": {
+      "$comment": "RFC-0015 SRV-1: a production-serving prove job's load point",
+      "enum": [
+        "matched",
+        "high"
+      ]
+    },
     "model_dir": {
       "const": "/models"
     },

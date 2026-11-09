@@ -1,5 +1,8 @@
-# RFC-0015 reference system. Engine pin: RFC-0015 Q1 (#136); options and precision per
-# workload, with their documentation links: systems/ref-serve/README.md.
+# RFC-0015 reference system: production serving (SRV-1 to SRV-10, owner decision of 2026-11-09).
+# Engine pin: RFC-0015 Q1 (#136). Each entry is one serving configuration, keyed by workload, load
+# point and GPU count; engine_args are the SRV-3 allowlist only (the engine's defaults otherwise),
+# and the weights are the serving record that names the workload (workloads/serving/). Options and
+# their documentation links: systems/ref-serve/README.md.
 schema: system/1
 name: ref-serve
 kind: reference
@@ -9,64 +12,112 @@ engine:
   name: vllm
   version: 0.32.0
   image: docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+  commit: 5df63a7203cdb9328d824a27b682e77c7b9928be  # the image ENV VLLM_BUILD_COMMIT (Q1)
 # RFC-0014 B7: built by the images workflow from main at 2dacdc85e9871460b82ecc939340c2f988b68338
-# (adapter_dirty false) and pushed to the project registry.
+# (adapter_dirty false), for plain serving with the GGUF plugin. Its baked system.yaml is not this
+# one, so the runner refuses a job on it (SRV-3: the engine command must end with these
+# engine_args) until the images workflow rebuilds and this pin moves (RFC-0015 Q6). Until then a
+# hosted job runs the development install from the engine image (docs/runbooks/hf-jobs.md).
 image:
   repository: ghcr.io/ai-verification-observatory/ref-serve
   digest: sha256:217b8686298d3438299faf10ae2a1184b0bba0c60f0f59513c40e39d76311575
 workloads:
 - id: sash-l31-8b-c4096
-  precision_used: fp8
-  precision_substitution:
-    reason: vLLM 0.32.0 serves INT8 W8A8 only from a checkpoint pre-quantized with llm-compressor, which
-      holds other weights than the workload's pinned files (RFC-0015 PM-0); FP8 W8A8 is quantized at load
-      time from the pinned files (PM-4)
-    source: https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/online.md
+  load_point: matched
+  gpus: 1
+  batches_per_session_run: null  # set from the first capture (SRV-1)
+  precision_used: BF16
+  precision_substitution: null
   engine_args:
-  - --quantization
-  - fp8_per_tensor
+  - --tensor-parallel-size
+  - '1'
   - --max-model-len
   - '4608'
   - --max-num-seqs
   - '1'
-  - --skip-tokenizer-init
-- id: sash-l31-8b-c1024
-  precision_used: fp8
-  precision_substitution:
-    reason: vLLM 0.32.0 serves INT8 W8A8 only from a checkpoint pre-quantized with llm-compressor, which
-      holds other weights than the workload's pinned files (RFC-0015 PM-0); FP8 W8A8 is quantized at load
-      time from the pinned files (PM-4)
-    source: https://github.com/vllm-project/vllm/blob/v0.32.0/docs/features/quantization/online.md
+- id: sash-l31-8b-c4096
+  load_point: high
+  gpus: 1
+  batch_size: 1024  # the engine's default max_num_seqs on a GPU of 70 GiB or more (SRV-1, Q5)
+  precision_used: BF16
+  precision_substitution: null
   engine_args:
-  - --quantization
-  - fp8_per_tensor
+  - --tensor-parallel-size
+  - '1'
+  - --max-model-len
+  - '4608'
+- id: sash-l31-8b-c1024
+  load_point: matched
+  gpus: 1
+  batches_per_session_run: null  # set from the first capture (SRV-1)
+  precision_used: BF16
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '1'
   - --max-model-len
   - '1088'
   - --max-num-seqs
   - '1'
-  - --skip-tokenizer-init
-- id: fp-maverick-w1024-b1
-  precision_used: UD-Q4_K_XL
+- id: sash-l31-8b-c1024
+  load_point: high
+  gpus: 1
+  batch_size: 1024  # the engine's default max_num_seqs on a GPU of 70 GiB or more (SRV-1, Q5)
+  precision_used: BF16
   precision_substitution: null
   engine_args:
+  - --tensor-parallel-size
+  - '1'
+  - --max-model-len
+  - '1088'
+- id: fp-maverick-w1024-b1
+  load_point: matched
+  gpus: 4
+  batches_per_session_run: null  # set from the first capture (SRV-1)
+  precision_used: FP8
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '4'
   - --max-model-len
   - '1025'
   - --max-num-seqs
   - '1'
-  - --cpu-offload-gb
-  - '160'
-  - --skip-tokenizer-init
-- id: fp-maverick-w1024-b24
-  precision_used: UD-Q4_K_XL
+- id: fp-maverick-w1024-b1
+  load_point: high
+  gpus: 4
+  batch_size: 1024  # the engine's default max_num_seqs on a GPU of 70 GiB or more (SRV-1, Q5)
+  precision_used: FP8
   precision_substitution: null
   engine_args:
+  - --tensor-parallel-size
+  - '4'
+  - --max-model-len
+  - '1025'
+- id: fp-maverick-w1024-b24
+  load_point: matched
+  gpus: 4
+  batches_per_session_run: null  # set from the first capture (SRV-1)
+  precision_used: FP8
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '4'
   - --max-model-len
   - '1025'
   - --max-num-seqs
   - '24'
-  - --cpu-offload-gb
-  - '160'
-  - --skip-tokenizer-init
+- id: fp-maverick-w1024-b24
+  load_point: high
+  gpus: 4
+  batch_size: 1024  # the engine's default max_num_seqs on a GPU of 70 GiB or more (SRV-1, Q5)
+  precision_used: FP8
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '4'
+  - --max-model-len
+  - '1025'
 deterministic_proofs: false
 incremental_proofs: true
 forbidden_flags: []

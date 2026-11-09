@@ -70,7 +70,32 @@ def check_workload(wl: Workload, root: Path) -> list[str]:
     for system in wl.systems:
         if not (root / "systems" / system / "system.yaml").is_file():
             problems.append(f"systems: {system!r} has no systems/{system}/system.yaml")
+    serving = [s for s in wl.systems if reference_role(root, s) == "serve"]
+    if len(serving) > 1:
+        problems.append(
+            f"SRV-7: systems names {len(serving)} production-serving systems {serving}; a workload"
+            " names at most one with reference_role serve (RFC-0015)"
+        )
     return problems
+
+
+def reference_role(root: Path, system: str) -> str | None:
+    """`reference_role` (serve, recompute) of a reference system's system.yaml (RFC-0015), read
+    as written; None for a proving or test system, or a system without a system.yaml."""
+    import yaml  # noqa: PLC0415
+
+    path = root / "systems" / system / "system.yaml"
+    doc = yaml.safe_load(path.read_text()) if path.is_file() else None
+    if not isinstance(doc, dict) or doc.get("kind") != "reference":
+        return None
+    role = doc.get("reference_role")
+    return str(role) if role else None
+
+
+def serving_system(root: Path, systems: Sequence[str]) -> str | None:
+    """RFC-0015 SRV-7: the production-serving system a workload's `systems` names, the one
+    D-OVERHEAD-S joins; None when it names none (a CI workload). The loader refuses more."""
+    return next((s for s in systems if reference_role(root, s) == "serve"), None)
 
 
 def file_size_bits(wl: Workload, files: Sequence[str]) -> float:
@@ -341,8 +366,19 @@ def model_dir(root: Path, wl: Workload) -> Path:
     return path
 
 
-def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> list[list[int]]:
-    """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer."""
+def materialise_prompts(
+    root: Path,
+    wl: Workload,
+    models: Path,
+    seed: int,
+    *,
+    count: int | None = None,
+    own_tokenizer: bool = False,
+) -> list[list[int]]:
+    """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer.
+    `count` draws more prompts from the same seeded generator, so the first `prompts.count` are
+    the workload's set (RFC-0015 SRV-8); `own_tokenizer` reads the workload's tokenizer file
+    alone, for a job whose model directory holds other files (production serving)."""
     texts = local_corpus(root, wl.prompts.corpus_digest) or pinned_corpus(
         root, wl.prompts.corpus_digest
     )
@@ -351,11 +387,11 @@ def materialise_prompts(root: Path, wl: Workload, models: Path, seed: int) -> li
             ErrorKind.CONFIG, f"{wl.id}: corpus {wl.prompts.corpus_digest} is not available locally"
         )
     path = models / wl.model.tokenizer_file
-    if wl.model.tokenizer_source is not None:  # not in the weights directory
+    if wl.model.tokenizer_source is not None or own_tokenizer:  # not in the weights directory
         path = tokenizer_file(root, wl, default_cache())
     tokenizer = tokenizer_for(path)
     return corpus_window_v1(
-        texts, tokenizer, wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
+        texts, tokenizer, count or wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
     )
 
 

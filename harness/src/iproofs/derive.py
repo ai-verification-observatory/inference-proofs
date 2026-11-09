@@ -39,17 +39,62 @@ def measured(
     }
 
 
+# RFC-0004 INV-SCOPE-5: the steady-scope rule of the amendment of 2026-11-09, recorded in every
+# manifest (`workload.steady_rule`); a run without it keeps the first-proof boundary (APP-1)
+STEADY_RULE = "batch-membership"
+
+
+def steady_start(
+    releases: Sequence[int], batch_size: int, request_indices: Sequence[int | None] | None
+) -> int | NullReason:
+    """INV-SCOPE-5: where `prove.steady` starts. With batch size b > 1 it is the last release
+    among the first batch (requests with `request_index` < b), whatever the release order; for
+    b = 1 it is r_1, as before the amendment of 2026-11-09. A NullReason when the scope does not
+    exist: fewer than two batches released, b > 1 and a release without `request_index`, or no
+    later-batch request released after the start."""
+    if batch_size <= 1:
+        return min(releases) if len(releases) >= 2 else NullReason.FEWER_THAN_TWO_PROOFS
+    indices = list(request_indices or [])
+    if len(indices) != len(releases) or any(i is None for i in indices):
+        return NullReason.MISSING_INPUT
+    first = [t for t, i in zip(releases, indices, strict=True) if i is not None and i < batch_size]
+    if not first:
+        return NullReason.FEWER_THAN_TWO_PROOFS
+    start = max(first)
+    later = [t for t, i in zip(releases, indices, strict=True)
+             if i is not None and i >= batch_size and t > start]  # fmt: skip
+    return start if later else NullReason.FEWER_THAN_TWO_PROOFS
+
+
+def released_before_start(
+    releases: Sequence[int], batch_size: int, request_indices: Sequence[int | None] | None
+) -> int:
+    """INV-SCOPE-5: later-batch requests (`request_index` >= b) released at or before the steady
+    start. Their work lies before the window, so they leave the steady tokens; the runner
+    records how many in a warning. 0 for b = 1 or when the start does not exist."""
+    start = steady_start(releases, batch_size, request_indices)
+    if batch_size <= 1 or isinstance(start, NullReason):
+        return 0
+    return sum(1 for t, i in zip(releases, request_indices or [], strict=True)
+               if i is not None and i >= batch_size and t <= start)  # fmt: skip
+
+
 def scope_seconds(
     events: Mapping[str, int],
     releases: Sequence[int],
     *,
     observable: bool,
     run_json: str,
+    batch_size: int = 1,
+    request_indices: Sequence[int | None] | None = None,
 ) -> dict[str, QuantityTree]:
     """Seconds per timing scope from call events and proof release times (RFC-0004 §Timing scopes).
 
     `events` maps event names such as `commit.start` to monotonic ns; `releases` holds the
     release times r_1..r_k; `observable` is the release watcher's verdict (INV-SCOPE-3).
+    `request_indices` holds each release's `request_index`, in the order of `releases`, and
+    `batch_size` the run's batch size: the steady scope starts at the first batch's last
+    release (INV-SCOPE-5).
     """
     ref = f"{run_json}#/events"
     out: dict[str, QuantityTree] = {}
@@ -80,10 +125,10 @@ def scope_seconds(
         steady = measured(
             None, Unit.S, Scope.PROVE_STEADY, ref, NullReason.NOT_EXTERNALLY_OBSERVABLE
         )
-    elif len(r) < 2:  # INV-SCOPE-2
-        steady = measured(None, Unit.S, Scope.PROVE_STEADY, ref, NullReason.FEWER_THAN_TWO_PROOFS)
+    elif isinstance(start := steady_start(releases, batch_size, request_indices), NullReason):
+        steady = measured(None, Unit.S, Scope.PROVE_STEADY, ref, start)  # INV-SCOPE-2, -5
     else:
-        steady = measured(span_seconds(r_1, r_k), Unit.S, Scope.PROVE_STEADY, ref, None)
+        steady = measured(span_seconds(start, r_k), Unit.S, Scope.PROVE_STEADY, ref, None)
     out["prove_steady_seconds"] = steady
     return out
 
@@ -192,11 +237,18 @@ def _amortised(h: int) -> Callable[[list[float], int], float]:
     return f
 
 
+def _cost(x: list[float], gpus: int) -> float:
+    """D-COST-1K-S: inputs (D-SPT-S, price, gpu_count); a run stored before run.json carried
+    `inputs.gpu_count` names two inputs, and its GPU count is the profile's (`gpus`)."""
+    return x[0] * 1000 * (x[2] if len(x) > 2 else gpus) * x[1] / 3600
+
+
 # Formula id -> evaluation over input values in `source.inputs` order (RFC-0004 catalogue).
 COMPUTE: dict[str, Callable[[list[float], int], float]] = {
     "D-RATE-S": _ratio,
     "D-SPT-S": _ratio,
-    "D-COST-1K-S": lambda x, gpus: x[0] * 1000 * gpus * x[1] / 3600,
+    "D-COST-1K-S": _cost,
+    "D-GSPT-S": lambda x, gpus: x[0] * nonzero(x[1]),
     "D-APT-S": lambda x, gpus: x[0] * x[1],
     "D-SPAB-S": lambda x, gpus: x[0] / nonzero(x[1] * x[2]),
     "D-COMMIT-AMORT-H1": _amortised(1),
@@ -219,13 +271,17 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
     weight_bits: Input,
     first_proof_tokens: Input,
     reference: bool = False,
+    gpu_count: Input | None = None,
 ) -> dict[str, QuantityTree]:
     """Every repetition-level formula of RFC-0004 over one repetition's recorded metrics.
 
     `price`, `active_parameters`, `weight_bits` and `first_proof_tokens` are (pointer,
     quantity) pairs from the reference file, run.json `inputs` (the workload record's
     `model.parameters` and `precision.weight_bits` as copied at run time, RFC-0003 WB-4) and
-    run.json `proofs[0]`; a quantity of None is a missing input. Each formula is evaluated
+    run.json `proofs[0]`; a quantity of None is a missing input. `gpu_count` is run.json
+    `inputs.gpu_count`, the profile's GPU count (INV-DERIVE-8), input of D-GSPT-S and
+    D-COST-1K-S; without it (a CPU-only test profile) D-COST-1K-S takes `gpus` and there is no
+    D-GSPT-S. Each formula is evaluated
     left to right as written in the RFC table (INV-DERIVE-5). `reference` is true for a
     `kind: reference` system (RFC-0015), whose D-TPP and D-SPAB-S are null (INV-DERIVE-6,
     INV-DERIVE-7).
@@ -253,8 +309,16 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
             "D-COST-1K-S",
             Unit.USD_PER_1K_TOKEN,
             scope,
-            [metric(f"seconds_per_token_{scope}"), price],
+            [metric(f"seconds_per_token_{scope}"), price, *([gpu_count] if gpu_count else [])],
         )
+        if gpu_count is not None:  # a CPU-only test profile has no GPU count (INV-DERIVE-8)
+            put(
+                f"gpu_seconds_per_token_{scope}",
+                "D-GSPT-S",
+                Unit.GPU_S_PER_TOKEN,
+                scope,
+                [metric(f"seconds_per_token_{scope}"), gpu_count],
+            )
         put(
             f"active_param_tokens_per_second_{scope}",
             "D-APT-S",
@@ -312,7 +376,7 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
 PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S"})
 
 # RFC-0004 Q3: formulas a release freeze evaluates for a run stored before they existed.
-FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S"})
+FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S", "D-GSPT-S"})
 
 
 def freeze_values(
@@ -323,10 +387,12 @@ def freeze_values(
     active_parameters: Input,
     weight_bits: Input,
     reference: bool,
+    gpu_count: Input | None = None,
 ) -> dict[str, QuantityTree]:
     """RFC-0004 Q3: the FREEZE_FORMULAS values a stored run lacks, from its recorded metrics
-    (pointers into its unchanged run.json) and the workload record at the release commit. A
-    value whose run.json input the run does not hold is null with `missing_input`."""
+    (pointers into its unchanged run.json), the workload record and, for D-GSPT-S, the profile's
+    GPU count in the reference file at the release commit (`gpu_count`). A value whose run.json
+    input the run does not hold is null with `missing_input`."""
     out = derive_repetition(
         metrics,
         run_json=run_json,
@@ -337,6 +403,7 @@ def freeze_values(
         weight_bits=weight_bits,
         first_proof_tokens=("", None),
         reference=reference,
+        gpu_count=gpu_count,
     )
     stored = f"{run_json}#/metrics/"
     late = {}
@@ -362,7 +429,8 @@ MIN_REPETITIONS = 3
 FORMULAS = {
     "D-RATE-S": "T(S) / sec(S)",
     "D-SPT-S": "sec(S) / T(S)",
-    "D-COST-1K-S": "D-SPT-S * 1000 * gpus * price / 3600",
+    "D-COST-1K-S": "D-SPT-S * 1000 * gpus * price / 3600 (gpus: inputs.gpu_count)",
+    "D-GSPT-S": "D-SPT-S * gpus (gpus: inputs.gpu_count, the profile's gpu.count)",
     "D-COMMIT-AMORT-H1": "commit_seconds / (tokens_covered_total / requests_count * 1)",
     "D-COMMIT-AMORT-H1000": "commit_seconds / (tokens_covered_total / requests_count * 1000)",
     "D-APT-S": "D-RATE-S * active_parameters_per_token",
@@ -373,7 +441,13 @@ FORMULAS = {
     "D-TPP": "tokens_covered_total / proofs_count",
     "D-STAT": "over successful repetitions in repetition order: statistics.mean, "
     "statistics.stdev (n - 1, null when n < 2), min, max",
-    "D-OVERHEAD-S": "mean(ref-serve rate_<S>) / mean(system rate_<S>)",
+    "D-OVERHEAD-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
+    "gpu_seconds_per_token_<S>, matched load)",
+    "D-OVERHEAD-HIGH-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
+    "gpu_seconds_per_token_<S>, high load)",
+    "D-OVERHEAD-SESSION": "mean(system gpu_seconds_per_token_prove.session) / "
+    "mean(production-serving gpu_seconds_per_token_prove.session, matched load), start-up "
+    "included on both sides",
     "D-AGREE": "agreement_positions / (agreement_positions + disagreement_positions), "
     "summed over paired ref-recompute runs",
     "D-PROVIDER-SPREAD": "largest provider mean rate_<S> / smallest provider mean rate_<S>",
@@ -473,18 +547,46 @@ def tokens_per_proof(
     return counted
 
 
-def tokens_metrics(per_proof: Sequence[tuple[int, int]], run_json: str) -> dict[str, QuantityTree]:
-    """tokens_covered_total, _prompt, _output and _steady (proofs 2..k), in release order."""
+def tokens_metrics(
+    per_proof: Sequence[tuple[int, int]],
+    run_json: str,
+    *,
+    batch_size: int = 1,
+    request_indices: Sequence[int | None] | None = None,
+    releases: Sequence[int] | None = None,
+) -> dict[str, QuantityTree]:
+    """tokens_covered_total, _prompt, _output and _steady, in release order. Steady holds the
+    requests after the first batch (INV-SCOPE-5): proofs 2..k for batch size 1; for b > 1 the
+    requests with `request_index` >= b released after the steady start (`releases`, the release
+    times in the same order), so a later-batch request released before the window is not
+    counted in it. Null `missing_input` when a request has no index or the times are absent."""
     ref = f"{run_json}#/proofs"
     total = sum(p + o for p, o in per_proof)
-    steady = sum(p + o for p, o in per_proof[1:])
+    steady: int | None = sum(p + o for p, o in per_proof[1:])
+    if batch_size > 1:
+        indices = list(request_indices or [])
+        times = list(releases or [])
+        start = steady_start(times, batch_size, indices) if len(times) == len(per_proof) else None
+        if (len(indices) != len(per_proof) or any(i is None for i in indices)
+                or start is None or start is NullReason.MISSING_INPUT):  # fmt: skip
+            steady = None
+        elif isinstance(start, NullReason):
+            steady = 0
+        else:
+            steady = sum(p + o for (p, o), i, t in zip(per_proof, indices, times, strict=True)
+                         if i is not None and i >= batch_size and t > start)  # fmt: skip
     values = {
         "tokens_covered_total": total,
         "tokens_covered_prompt": sum(p for p, _ in per_proof),
         "tokens_covered_output": sum(o for _, o in per_proof),
         "tokens_covered_steady": steady,
     }
-    return {name: measured(v, Unit.TOKEN, None, ref, None) for name, v in values.items()}
+    return {
+        name: measured(
+            v, Unit.TOKEN, None, ref, None if v is not None else NullReason.MISSING_INPUT
+        )
+        for name, v in values.items()
+    }
 
 
 def honest_verdict_failure(verdicts: Mapping[str, str]) -> IProofsError | None:
@@ -603,17 +705,64 @@ def _nulled(out: QuantityTree, reason: NullReason) -> QuantityTree:
     return {**out, "value": None, "null_reason": str(reason)}
 
 
+def overhead_formula(scope: Scope, *, high: bool = False) -> str:
+    """The formula id of an overhead quantity (RFC-0004 catalogue): D-OVERHEAD-HIGH-S at high
+    load, D-OVERHEAD-SESSION at matched load and `prove.session`, else D-OVERHEAD-S."""
+    if high:
+        return "D-OVERHEAD-HIGH-S"
+    return "D-OVERHEAD-SESSION" if scope is Scope.PROVE_SESSION else "D-OVERHEAD-S"
+
+
 def overhead(
-    ref: Input, system: Input, scope: Scope, *, joined: bool, measurable: bool, version: str
+    system: Sequence[Input],
+    serving: Sequence[Input],
+    scope: Scope,
+    *,
+    high: bool = False,
+    reason: NullReason | None = None,
+    version: str,
 ) -> QuantityTree:
-    """D-OVERHEAD-S: mean ref-serve `rate_<S>` over mean system `rate_<S>`. Null with
-    `not_measurable_on_profile` when the ref-serve configuration could not run (NM-1), and
-    with `not_applicable` when the rows do not join (INV-DERIVE-2)."""
-    out = derived("D-OVERHEAD-S", version, Unit.RATIO, scope, [ref, system],
-                  lambda x: x[0] / nonzero(x[1]))  # fmt: skip
-    if not measurable:
-        return _nulled(out, NullReason.NOT_MEASURABLE_ON_PROFILE)
-    return out if joined else _nulled(out, NullReason.NOT_APPLICABLE)
+    """D-OVERHEAD-S (or D-OVERHEAD-HIGH-S with `high`): the mean of the system's per-repetition
+    `gpu_seconds_per_token_<S>` over the mean of production serving's (RFC-0004 INV-DERIVE-2,
+    -8, -9). At matched load and `prove.session` it is D-OVERHEAD-SESSION, the same ratio with
+    start-up inside both sessions (INV-DERIVE-10). `system` and `serving` hold one (pointer,
+    quantity) per successful repetition; the result carries `pairs` {n_system, n_serving, min,
+    max}, the range over every pair of repetitions. `reason` is the join's null reason (no
+    paired configuration, another profile, NM-1), applied after the system's own null reason,
+    which goes first (SASH's steady scope)."""
+    formula = overhead_formula(scope, high=high)
+    n = len(system)
+
+    def ratio(x: list[float]) -> float:
+        return statistics.mean(x[:n]) / nonzero(statistics.mean(x[n:]))
+
+    sys_vals = [_maybe(q) for _, q in system]
+    serve_vals = [_maybe(q) for _, q in serving]
+    sys_null = next((q for _, q in system if q is not None and q["value"] is None), None)
+    if not system or sys_null is not None:
+        why = NullReason(str(sys_null["null_reason"])) if sys_null else NullReason.MISSING_INPUT
+        out = derived(formula, version, Unit.RATIO, scope, [*system, *serving], lambda _: 0.0)
+        out = _nulled(out, why)
+    elif reason is not None or not serving:
+        out = derived(formula, version, Unit.RATIO, scope, [*system, *serving], lambda _: 0.0)
+        out = _nulled(out, reason or NullReason.MISSING_INPUT)
+    else:
+        out = derived(formula, version, Unit.RATIO, scope, [*system, *serving], ratio)
+    xs = [v for v in sys_vals if v is not None]
+    ys = [v for v in serve_vals if v is not None]
+    fine = out["value"] is not None and xs and ys and min(ys) > 0
+    out["pairs"] = {
+        "n_system": len(xs),
+        "n_serving": len(ys),
+        "min": min(xs) / max(ys) if fine else None,
+        "max": max(xs) / min(ys) if fine else None,
+    }
+    return out
+
+
+def _maybe(q: Mapping[str, object] | None) -> float | None:
+    v = None if q is None else q.get("value")
+    return float(v) if isinstance(v, int | float) else None
 
 
 def agreement_rate(

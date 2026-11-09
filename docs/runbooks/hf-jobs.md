@@ -106,6 +106,7 @@ iproofs_job() {  # FLAVOR TIMEOUT_SECONDS IMAGE LABEL then hf-job.sh's arguments
   local flavor=$1 timeout=$2 image=$3 label=$4; shift 4
   hf jobs run --detach --flavor "$flavor" --timeout "$timeout" --name "iproofs-$label" \
     --label "iproofs=$label" "${UPLOAD[@]}" "${EXTRA[@]}" \
+    --secrets-file "$HOME/.config/iproofs/hf-job.secrets" -e IPROOFS_UPLOAD_BUCKET="$NS/iproofs-dev-runs" \
     -e IPROOFS_COMMIT="$IPROOFS_COMMIT" -e IPROOFS_JOB_BUDGET_S="$((timeout - 600))" \
     -e IPROOFS_LABEL="$label" \
     "$image" -- bash -c "$BOOT" hf-job "$@"
@@ -121,9 +122,10 @@ What happens inside, in order (`hf-job.sh`):
 3. **Harness.** `uv sync --frozen --no-dev --extra gpu --extra fetch --extra prompts` from the checkout's `uv.lock`: NVML, `fetch-model` and `tokenizers`, which every run needs to build the workload's prompts from its `tokenizer.json`. The script then imports all three and stops if one is missing. Both images have Python 3.12.3 (Ubuntu 24.04's `python3`) and `uv` (0.11.18 in SASH's image, by its Dockerfile); FlashProve's also has `pip` 24.0, but Ubuntu's `pip` refuses to install into the system Python (PEP 668), so `uv` is used in both. The harness needs Python 3.12 or 3.13 (`pyproject.toml`).
 4. **Binding check.** The CPUs `iproofs run --gpu` would bind on `prover-h200-hosted` (`GpuEnvironment`, RFC-0006 §CPU and memory selection). It fails when the GPU has no NUMA node or fewer than 15 usable CPUs sit on it; `iproofs run` then refuses before any step, and `--allow-nonconforming` does not change that. A `run` job stops here, before any weights are fetched.
 5. **Self-test.** `iproofs machine-record --hosted --selftest` (RFC-0011), into `out/selftest.json` and the results directory.
-6. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
-7. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite] [--keep-io]`, under `timeout` so it stops 15 minutes before the script's budget (60 minutes with `keep-io`, see stage 2). A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
-8. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the self-test record and the run directories, then the proof archives (left out with `keep-io`, whose `io/proofs` holds the same proof; its digest stays in `digests.txt`), then the log again. A copy that ends without an error writes `upload.done` (the bytes sent) into the folder; the `seed`, `controls` and `merge` modes refuse a stored run whose folder has none, since its copy may be partial.
+6. **Development install**, only with `IPROOFS_DEV_IMAGE` ([Production serving](#production-serving-from-the-engine-image-rfc-0015-srv-6)): `systems/<system>/dev_install.py` puts the adapter into the engine image the job started from and checks the engine, the environment and the bound GPUs, and the runs pass `--image` and `--keep-io`. A failed install or check stops the job before any weights are fetched.
+7. **Weights.** `iproofs fetch-model <workload>`, under the same deadline as the runs: exactly the workload's files at the pinned revision, every sha256 and the model digest checked (RFC-0014), into `$IPROOFS_CACHE` under the work directory. No token is needed.
+8. **Runs.** `iproofs run --system S --workload W --profile prover-h200-hosted --hosted --gpu <index> --provider "Hugging Face Jobs" --repetitions N --allow-nonconforming --results out/dev-results [--control-suite] [--keep-io]`, under `timeout` so it stops 15 minutes before the script's budget (60 minutes with `keep-io`, see stage 2). A run stopped there exits 124 or 137 and never reaches its final write, so its staging directory keeps `io/` (for FlashProve a copy of the weights), the scratch directories and the commitment store (for FlashProve the prover's secret key). The script deletes those before the upload, logging each one's size, and uploads the rest of the staging directory (its logs and `job.lock`). It is reported as a failed run with that exit code (AGENTS.md rule 5).
+9. **Upload.** On every exit, `out/` (the job log, probe, self-test, run directories and proof archives) is copied to `runs/<UTC time>-<label>/` in the bucket: the log and the records first, then the self-test record and the run directories, then the proof archives (left out with `keep-io`, whose `io/proofs` holds the same proof; its digest stays in `digests.txt`), then the log again. A copy that ends without an error writes `upload.done` (the bytes sent) into the folder; the `seed`, `controls` and `merge` modes refuse a stored run whose folder has none, since its copy may be partial.
 
 A STEP is `WORKLOAD:REPETITIONS`, with options after further colons: `controls` runs the control suite in the job (`--control-suite`), and `keep-io` keeps the completed run directory's `io/` (prompts, adapter outputs, state, proofs) and commitment store (`--keep-io`), so both are uploaded and a later `controls` job can run from the bucket (stage 5). The job log prints the size of each kept directory. `keep-io` is refused for FlashProve before the probe: its `io/` holds a copy of the weights and its commitment store the prover's secret key.
 
@@ -353,6 +355,91 @@ Every duration here is an assumption from H100 records, none measured on these f
 Wave 1 caps total 92.50 USD (estimate 36.18 to 49.32 USD); wave 2's five jobs 237.50 USD. On these estimates the suite's wall time is about 6.3 to 9.8 h with the wave 2 gate (wave 1's c6 at 22,800 to 25,800 s; the gate at 7,568 to 14,029 s plus a wave 2 job of 14,768 to 21,229 s), or 6.3 to 7.2 h with every job started at once, against 30 h or more in one job. Starting all eleven at once is faster and risks up to 237.50 USD of wave 2 caps on a failure wave 1 would have shown.
 
 A part prints one line per control call that returns (the `control.call` event), so a job whose log has had no new line for longer than one call's timeout allowance (9,000 s, or 9,229 s plus the copy before the first prove line) is stuck (stop rule 5). A job stopped at its deadline writes no part (SPLIT-6). Its job log and its uploaded `controls/logs/harness.jsonl` hold the `seconds` of every call that finished: size the rerun's timeout from them, never rerun with the same timeout. Each call may take up to the harness's own limit, 21,600 s per verify call (`systems/sash/system.yaml` `timeouts_s`); on `cpu-xl` a timeout of 600 + 3,600 + n x 21,600 + 1,500 s covers n calls at that limit (on `h200` add 600 s and the prove). Rerun the same `ctl` line with the new timeout: the seed comes from the record, so the mutations are the same bytes. List every attempt, stopped or finished, in the spend log; the stopped job's folder stays in the bucket (AGENTS.md rule 5). A control whose call failed has its `error` outcome in its part and is not rerun.
+
+## Production serving from the engine image (RFC-0015 SRV-6)
+
+The production-serving rows (`ref-serve`, owner decision of 2026-11-09): vLLM v0.32.0 serving the publisher's release with every weight in GPU memory, on the hosted serving profiles `serving-h200x1-hosted` (Llama 3.1 8B BF16, `h200`) and `serving-h200x4-hosted` (Llama 4 Maverick FP8, `h200x4`), which pair with `prover-h200-hosted` (RFC-0006 R6). The overhead divides the prover's GPU-seconds per token by these rows' (RFC-0004 D-OVERHEAD-S). Flavors from `hf jobs hardware` (owner's reading of 2026-11-09, the provider's price): `h200x4` is 4x H200, 92 vCPU, 1,024 GB, 20.00 USD/h; `h200x8` is 8x H200, 184 vCPU, 2,048 GB, 40.00 USD/h.
+
+**Why from the engine image.** On 2026-11-09 ghcr.io refused an anonymous pull token for `ai-verification-observatory/ref-serve` (`UNAUTHORIZED`; RFC-0015 Q6), and the pinned `ref-serve` image was built for plain serving, so the runner refuses a job on it. The engine image is public on Docker Hub: `docker.io/vllm/vllm-openai@sha256:befccf0e...` resolved anonymously to a manifest list whose `linux/amd64` manifest is `sha256:6ee13335...` (40 layers, 9.21 GB compressed). The job starts from it and installs the adapter from the pinned checkout ([`systems/ref-serve/dev_install.py`](../../systems/ref-serve/dev_install.py) on [`systems/_dev/install.py`](../../systems/_dev/install.py), RFC-0014 §Development install):
+
+1. The job command installs `git` with `apt-get` when the image has none (the log prints its version; used by the job script only, never by the engine), then clones and checks out `IPROOFS_COMMIT`.
+2. The vLLM image ships its own `uv` (0.13.1, read in the image's `linux/arm64` entry on 2026-11-09; the `linux/amd64` entry the job runs was not read; the digest pins both), so `hf-job.sh` downloads nothing and installs the harness with it; `job.log` records `uv --version`. The image's ENV sets `UV_OVERRIDE=/etc/uv-overrides.txt` and `UV_INDEX_STRATEGY=unsafe-best-match` for its own packages; `hf-job.sh` unsets both (and `UV_CONSTRAINT`) for the harness's `uv sync --frozen`, which installs the lock file's versions only. uv 0.11.18 from its GitHub release (sha256 checked) is installed only for an image without `uv`.
+3. After the binding check, `dev_install.py` refuses an image other than the Dockerfile's `FROM`; checks `import vllm` reports 0.32.0 and the image ENV's `VLLM_BUILD_COMMIT` is `5df63a72...`; reads the image's ENV from its config by digest, records it in `inputs.json` and `/opt/iproofs/image_env.json`, and refuses any `VLLM_*`, `NCCL_*`, `CUDA_*` or `TORCH_*` variable the job sets beyond it (other than `CUDA_VISIBLE_DEVICES` and `CUDA_DEVICE_ORDER`); puts the entrypoint, `system.yaml` and `write_inputs.py` where the Dockerfile puts them; and, under the hosted adapter's own privilege drop (`iproofs.adapter.DROP_TO_ADAPTER`: uid 10001, no capabilities, no new privileges) with only the bound GPUs visible, requires torch to see exactly that many GPUs with peer access between each pair, and with several GPUs one process per GPU to join an NCCL group and all-reduce a small tensor (the multi-process start of a tensor-parallel engine). On a serving profile of more than one GPU, `hf-job.sh` then compares `/dev/shm` with the profile's `shm_gib_min` (PC-SHM) and stops before any weights if it falls short.
+4. Before a record's weights, the first step that uses it fetches its files without the weights (`fetch-model --serving <record> --no-weights DIR`, each file checked as SM-2 checks it) and `dev_install.py --tokenizer-check DIR` loads the engine's tokenizer from them, and the processor for a multimodal config, under the same drop and offline. It would have caught Meta's `special_tokens_map.json` for Maverick, which is not valid JSON and which the engine reads when `tokenizer_config.json` is absent; the record leaves that file out (RFC-0015 Q7).
+5. `fetch-model --serving <record>` fetches the record's files from the ungated copy and checks every sha256, size and the publisher's git blob ids (RFC-0014 SM-2); no token reaches it unless the record lists a file from the publisher (RFC-0015 Q7: none today). A later step of the same job on the same record skips it: the run rehashes the files at its start (RFC-0014).
+6. Every run passes `--image <the engine image> --keep-io`, `--gpus` (every GPU of the serving profile), and, per step, `--load high` and `--prompts-from` the prover run it replays (`:high`, `:from=DIR`). The run records `system.image` as `local/docker.io/vllm/vllm-openai@sha256:befccf0e...` with `digest_kind: config`, so it is never eligible for a release (RFC-0014), and every serving profile's driver is `unpinned` (RFC-0006 Q5), so it stays out of `results/` (POL-4). Its kept `io/` holds `engine.log`, `commands.jsonl` (the command, the engine environment, the resolved-configuration and KV-capacity lines) and the outputs, and no weights (the adapter reads `/models` from the cache).
+
+The job command, set after [The job command](#the-job-command):
+
+```sh
+VLLM_IMAGE=docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+BOOT_ENGINE='set -eu; command -v git >/dev/null || { apt-get update -qq &&
+DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends git ca-certificates >/dev/null; };
+git --version; '"$BOOT"
+
+iproofs_serving_job() {  # FLAVOR TIMEOUT_SECONDS PROFILE LABEL then hf-job.sh's arguments
+  local flavor=$1 timeout=$2 profile=$3 label=$4; shift 4
+  hf jobs run --detach --flavor "$flavor" --timeout "$timeout" --name "iproofs-$label" \
+    --label "iproofs=$label" "${UPLOAD[@]}" \
+    --secrets-file "$HOME/.config/iproofs/hf-job.secrets" -e IPROOFS_UPLOAD_BUCKET="$NS/iproofs-dev-runs" \
+    -e IPROOFS_COMMIT="$IPROOFS_COMMIT" -e IPROOFS_JOB_BUDGET_S="$((timeout - 600))" \
+    -e IPROOFS_LABEL="$label" -e IPROOFS_DEV_IMAGE="$VLLM_IMAGE" -e IPROOFS_PROFILE="$profile" \
+    "$VLLM_IMAGE" -- bash -c "$BOOT_ENGINE" hf-job "$@"
+}
+```
+
+Both helpers upload the same way: the secrets file gives the job `HF_TOKEN` and `IPROOFS_UPLOAD_BUCKET` names the bucket, so `hf-job.sh` sends `out/` through the bucket API and checks it file by file ([Uploads](#uploads-through-the-bucket-api-checked-2026-11-09)); the mount in `UPLOAD` stays, for reading the replayed run (`:from=`). `IPROOFS_COMMIT` must contain this section's `hf-job.sh`, `systems/_dev/` and `systems/ref-serve/dev_install.py`, and RFC-0004 INV-SCOPE-5 (the merge of that change, or later).
+
+**S0, the image without a GPU** (`cpu-basic`, timeout 15 min, cap under 0.01 USD): that Jobs pulls it by digest, that the command replaces its `ENTRYPOINT` (`vllm serve`; if it does not, the job fails at once with the server's usage message), the user, `import vllm`, whether `git` and `uv` are present, `apt-get`, `/dev/shm`, and which engine variables the provider adds:
+
+```sh
+hf jobs run --detach --flavor cpu-basic --timeout 15m --name iproofs-serving-s0 \
+  -v "hf://buckets/$NS/iproofs-dev-runs:/upload" "$VLLM_IMAGE" -- \
+  bash -c 'date -u; id -u; python3 -V; python3 -c "import vllm; print(vllm.__version__)";
+           command -v git uv || true; df -h / /tmp /dev/shm; env | grep -E "^(VLLM|NCCL|CUDA|TORCH)_" | sort;
+           apt-get update -qq && echo "apt: reachable";
+           mkdir -p /upload/stage-1a && touch "/upload/stage-1a/uid-$(id -u)-vllm" && echo "upload: writable"'
+```
+
+A variable in the `env` lines that the image's ENV does not hold (compare with `inputs.json` `image_env` of S1, or the registry config) makes every serving job refuse itself (`config`, SRV-3): stop and put it to the owner.
+
+**S1, Llama 3.1 8B BF16 on `h200`** (TP1, `serving-h200x1-hosted`), matched load, one repetition, replaying the completed SASH run of stage 2 (label `sash-c1024-r1`, on `prover-h200-hosted`). The workload has batch size 1 and one batch a session, so S1 serves the SASH run's one prompt: 1,024 prompt tokens and 64 output tokens. SASH's steady scope is not externally observable, so this run feeds SASH's session overhead, D-OVERHEAD-SESSION, start-up included on both sides (RFC-0004 INV-DERIVE-10), and no steady one. Find the run: its folder ends in `-sash-c1024-r1` and holds `upload.done`, and its run directory is the one SASH run under it:
+
+```sh
+hf buckets list "$NS/iproofs-dev-runs/runs" -h
+hf buckets list "$NS/iproofs-dev-runs/runs/<UTC time>-sash-c1024-r1/dev-results/v0.1/sash" -h
+SASH_RUN=runs/<UTC time>-sash-c1024-r1/dev-results/v0.1/sash/<date>-sash-sash-l31-8b-c1024-prover-h200-hosted-1
+iproofs_serving_job h200 3600 serving-h200x1-hosted serving-l31-bf16-s1 \
+  run ref-serve "sash-l31-8b-c1024:1:from=$SASH_RUN"
+```
+
+`iproofs run` refuses, before any step, a `from=` run that did not complete or ran another workload version (`recorded_seed`).
+
+Timeout 1 h: cap 1 h x 5.00 = 5.00 USD. Estimate (projected): pull and install 600 s (assumed, as stage 3); weights 16.07 GB, about 60 s (assumed); `fetch-model`'s hash about 16 s (1 GB/s, assumed); the run's rehash about 28 s (scaled from the 395 to 418 s for 232.1 GB, measured, tier reported, n = 6, stage 3 table); engine load and compile 300 s (assumed); requests about 62 s (assumed); the tokenizer check before the weights about 30 s (assumed): about 1,096 s (0.30 h), 1.52 USD.
+
+**S2, Llama 4 Maverick FP8 on `h200x4`** (TP4, `serving-h200x4-hosted`), matched then high load, one repetition each, replaying a completed FlashProve b24 run made with this harness: stage 4.3 (label `fp-b24-r1`, on `prover-h200-hosted`) run at an `IPROOFS_COMMIT` that contains RFC-0004 INV-SCOPE-5, so that its `manifest.json` records `workload.steady_rule: "batch-membership"`. A b24 run recorded before the rule joins no overhead (INV-DERIVE-2 (f)), and `iproofs run` refuses to replay one at batch size 24 (`config`, before any step or weight); if stage 4.3 ran at an earlier commit, run it again at this one first (its command, cap 35.00 USD). Find the run and check the rule before starting the job:
+
+```sh
+hf buckets list "$NS/iproofs-dev-runs/runs" -h
+hf buckets list "$NS/iproofs-dev-runs/runs/<UTC time>-fp-b24-r1/dev-results/v0.1/flashprove" -h
+FP_B24_RUN=runs/<UTC time>-fp-b24-r1/dev-results/v0.1/flashprove/<date>-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1
+hf buckets cp "hf://buckets/$NS/iproofs-dev-runs/$FP_B24_RUN/manifest.json" - |
+  python3 -c 'import json, sys; print(json.load(sys.stdin)["workload"].get("steady_rule"))'  # batch-membership
+iproofs_serving_job h200x4 10800 serving-h200x4-hosted serving-mav-fp8-s2 \
+  run ref-serve "fp-maverick-w1024-b24:1:from=$FP_B24_RUN" "fp-maverick-w1024-b24:1:high:from=$FP_B24_RUN"
+```
+
+The matched step serves the prover's 120 prompts in 5 batches of 24 (while `batches_per_session_run` is unset, RFC-0015 SRV-1); the high-load step serves 5 batches of 1,024: the prover's 120 prompts plus 5,000 further windows of the same seeded generator (SRV-8; workload facts, not results). The matched step's figures feed FlashProve's D-OVERHEAD-S (steady) and D-OVERHEAD-SESSION; the high-load step's, D-OVERHEAD-HIGH-S.
+
+Timeout 3 h: cap 3 h x 20.00 = 60.00 USD. Estimate (projected): pull and install 600 s (assumed); weights 416.8 GB, about 862 s (scaled from about 8 min for 232.1 GB, reported, n = 1); `fetch-model`'s hash 417 s (1 GB/s, assumed); per repetition the rehash about 731 s (scaled as in S1), loading 397,449 MiB to 4 GPUs with compilation and CUDA graphs 900 s (assumed, never measured), requests about 65 s matched and 300 s high (5 x 1,024 x 1,025 tokens at an assumed 30,000 token/s); the tokenizer check before the weights about 30 s (assumed): about 5,536 s (1.54 h), 30.76 USD. The second step skips `fetch-model` (the first step fetched and checked the files) and the run's own rehash checks them again, so the files are read three times after the download, not four.
+
+**S2', only if every S2 attempt failed `resource`** with the KV-capacity line (or an out-of-memory) as evidence: the same content at TP8 on `h200x8` (timeout 3 h, cap 120.00 USD), after an amendment declares `serving-h200x8-hosted` and its `system.yaml` entries (RFC-0015 NM-1). An `adapter` failure never moves the count: fix it and rerun S2.
+
+S0 to S2: about 32.29 USD projected, caps 65.01 USD, before S2'. The owner allots them from what the stop rule below leaves. Every figure from these jobs is a development figure: quote it with its scope, grade, tier `reported`, the profile, the flavor, n and the bucket folder (AGENTS.md rule 2). The repetitions for figures (three per load point) wait until the rebuilt `ref-serve` image is public and pinned and a driver pin exists (RFC-0006 Q5).
+
+RISK: the engine image is built on CUDA 13.0 (`NVIDIA_REQUIRE_CUDA=cuda>=13.0` in its ENV, read 2026-11-09). If the provider's driver cannot run it, `dev_install.py`'s GPU check fails within the job's first minutes, before the weights: keep the job's log, put it to the owner, and change neither the engine nor the adapter (AGENTS.md rule 1).
+
+Read afterwards, in the bucket folder: `job.log` (the `dev-install:` lines, the binding, the GPU check), the run directory's `run.json` (`status`, `metrics`, `warnings`, `failure.kind` and `failure.last_lines`, which end with the KV-capacity line for a `resource` failure), `manifest.json` (`engine`, `serving_model`, `workload.prompt_prefix_digest`, `machine.gpu.unbound_samples`, `machine.container.shm_bytes`, `machine.gpu.nvlink_active_links`), and `io/commands.jsonl` and `io/engine.log`. The first captures set `batches_per_session_run` (SRV-1, a 60 s steady minimum), the PC-GPU-IDLE baseline and whether NVML reports NVLink state (PC-GPU-LINK), and become the adapter's replay fixtures (its stored resolved-configuration line among them), by pull request.
 
 ## Stop rule
 

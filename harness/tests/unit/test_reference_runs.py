@@ -58,7 +58,7 @@ def reference_system(repo: Path, name: str, role: str) -> None:
         "engine": {"name": "fake", "version": "1", "image": IMAGE},
         "workloads": [
             {"id": "fake-tiny-ci", "precision_used": "int8", "precision_substitution": None,
-             "engine_args": []}
+             "engine_args": []} | ({"load_point": "matched", "gpus": 1} if role == "serve" else {})
         ],
         "deterministic_proofs": True,
         "incremental_proofs": True,
@@ -206,3 +206,63 @@ def test_reference_without_a_served_system_is_refused(
     doc = json.loads((only_run(repo / "results", "fake-ref") / "run.json").read_text())
     assert doc["failure"]["kind"] == "config"
     assert "REF-3" in doc["failure"]["message"]
+
+
+def test_engine_command_must_end_with_the_commits_engine_args(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RFC-0015 SRV-3: system.yaml at the run's commit lists other options than the adapter
+    ran with (an image built from another system.yaml): the run fails with kind config, not as
+    a run of the committed configuration. The fake's engine command is `fake-prover prove`."""
+    monkeypatch.setattr("iproofs.cli._containers", _in_process_any)
+    path = repo / "systems/fake-ref/system.yaml"
+    doc = yaml.safe_load(path.read_text())
+    doc["workloads"][0]["engine_args"] = ["--max-num-seqs", "24"]
+    path.write_text(yaml.safe_dump(doc))
+    git = ["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.invalid"]
+    subprocess.run([*git, "commit", "-qam", "24 sequences", "--no-gpg-sign"], check=True)
+    assert run("fake-ref", repo / "results", "--allow-nonconforming") != 0
+    failed = json.loads((only_run(repo / "results", "fake-ref") / "run.json").read_text())
+    assert failed["status"] == "failed"
+    assert failed["failure"]["kind"] == "config"
+    assert "does not end with system.yaml's engine_args ['--max-num-seqs', '24']" in str(
+        failed["failure"]
+    )
+
+
+def test_engine_command_problem(tmp_path: Path) -> None:
+    """The check on its own: the recorded argv's tail against engine_args, verbatim."""
+    from iproofs.runner import engine_command_problem  # noqa: PLC0415
+
+    args = ["--tensor-parallel-size", "4", "--max-model-len", "1025", "--max-num-seqs", "24"]
+    assert engine_command_problem(tmp_path, [], required=True) is None  # nothing to compare
+    assert engine_command_problem(tmp_path, args, required=False) is None  # failed before it
+    assert "no engine command" in str(engine_command_problem(tmp_path, args, required=True))
+    served = ["vllm", "serve", "/models"]
+    lines = [{"argv": [*served, *args], "cwd": "/io", "started_mono_ns": 1, "exit_code": 0}]
+    (tmp_path / "commands.jsonl").write_text("not json\n" + json.dumps(lines[0]) + "\n")
+    assert engine_command_problem(tmp_path, args, required=True) is None
+    stale = [*args[:3], "24", *args[4:]]
+    assert "recorded: " in str(engine_command_problem(tmp_path, stale, required=False))
+    assert engine_command_problem(tmp_path, ["x", *args], required=True) is not None
+
+
+def test_serving_replay_needs_the_steady_rule(
+    repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """RFC-0004 INV-SCOPE-5 and INV-DERIVE-2 (f): at batch size 2 (fake-tiny-ci), a production-
+    serving job that replays a run recorded without `workload.steady_rule` is refused (config)
+    before any step, since that run joins no overhead; a run with the rule replays."""
+    monkeypatch.setattr("iproofs.cli._containers", _in_process_any)
+    assert run("fake", repo / "results") == 0
+    source = only_run(repo / "results", "fake")
+    before = tmp_path / "before"
+    shutil.copytree(source, before)
+    manifest = json.loads((before / "manifest.json").read_text())
+    del manifest["workload"]["steady_rule"]
+    (before / "manifest.json").write_text(json.dumps(manifest))
+    args = ("--allow-nonconforming", "--prompts-from")
+    assert run("fake-ref", repo / "old", *args, str(before)) == 2
+    assert "recorded without workload.steady_rule" in capsys.readouterr().err
+    assert not (repo / "old").exists()
+    assert run("fake-ref", repo / "new", *args, str(source)) == 0

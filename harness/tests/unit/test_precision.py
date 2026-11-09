@@ -9,7 +9,7 @@ import pytest
 import yaml
 
 from iproofs.adapter import InProcessRunner
-from iproofs.runner import JobSpec, Runner
+from iproofs.runner import JobSpec, Runner, recorded_claims, recorded_seed
 from iproofs.schema import SchemaRegistry
 from iproofs.validate import check_derived
 from iproofs.validate.precision import bit_widths, check, substituted, substitution_problem
@@ -18,6 +18,9 @@ ROOT = Path(__file__).resolve().parents[3]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
 IMAGE = "ghcr.io/example/engine@sha256:" + "a" * 64
 DOCS = "https://docs.example.org/engine/v1/quantization"
+FAKE_UPSTREAM = yaml.safe_load((ROOT / "systems/fake/system.yaml").read_text())["upstream"][
+    "commit"
+]
 
 
 def test_bit_widths_and_order() -> None:
@@ -59,7 +62,7 @@ def repo(tmp_path: Path, used: str, substitution: dict[str, str] | None) -> Path
     shutil.copy(ROOT / "systems/fake/entrypoint", ref / "entrypoint")
     system = {
         "schema": "system/1", "name": "fake-ref", "kind": "reference",
-        "reference_role": "serve", "contract": "adapter/1",
+        "reference_role": "recompute", "contract": "adapter/1",
         "engine": {"name": "engine", "version": "1", "image": IMAGE},
         "workloads": [{"id": "fake-tiny-ci", "precision_used": used,
                        "precision_substitution": substitution, "engine_args": []}],
@@ -91,8 +94,17 @@ def test_precision_subst(tmp_path: Path) -> None:
         "IPROOFS_FAKE_NAME": "fake-ref",
         "IPROOFS_FAKE_DELAY_S": "0.02",
     }
+    image = "local/x@sha256:" + "0" * 64
+    prover = InProcessRunner(higher / "systems/fake/entrypoint", REGISTRY,
+                             env={**env, "IPROOFS_FAKE_NAME": "fake",
+                                  "IPROOFS_FAKE_UPSTREAM": FAKE_UPSTREAM})  # fmt: skip
+    source = Runner(prover, root=higher, registry=REGISTRY, image=image).run(
+        JobSpec("fake", "fake-tiny-ci", 1, "ci-cpu", 1, False, str(higher / "results"), "v0.1")
+    )  # a recompute row replays a system run's prompts and claims (RFC-0015 RC-1)
     containers = InProcessRunner(higher / "systems/fake-ref/entrypoint", REGISTRY, env=env)
-    runner = Runner(containers, root=higher, registry=REGISTRY, image="local/x@sha256:" + "0" * 64)
+    runner = Runner(containers, root=higher, registry=REGISTRY, image=image,
+                    prompts_from=source.name, replay_seed=recorded_seed(source, "fake-tiny-ci", 1),
+                    claims=recorded_claims(source))  # fmt: skip
     spec = JobSpec(
         "fake-ref", "fake-tiny-ci", 1, "ci-cpu", 1, False, str(higher / "results"), "v0.1"
     )

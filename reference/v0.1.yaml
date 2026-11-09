@@ -40,6 +40,40 @@ profiles:
     driver: "unpinned"
     container_runtime: {kind: "hosted", cgroup_version: "2"}
     cost: "h200"
+  # RFC-0006 R6 (amendment of 2026-11-09): hosted serving profiles, for production serving only
+  # (RFC-0015 SRV-6). Each binds `gpu.count` H200 by index (`--gpus`), all used and priced, and
+  # every CPU of the container; the total CPU, memory and disk minimums are prover-h200-hosted's
+  # scaled by the GPU count (15 CPUs on the first GPU's node, as it), so Hugging Face Jobs' `h200` and
+  # `h200x4` flavors qualify (1 and 4 H200, 23 and 92 vCPU, 256 and 1,024 GB, owner's reading of
+  # 2026-11-09). Disk: Meta's FP8 release of Maverick is 416.8 GB of files (Hub listing,
+  # external). /dev/shm 8 GiB is an assumption until the first capture. Drivers unpinned (Q5):
+  # every run on these profiles is a development run (POL-4).
+  serving-h200x1-hosted:
+    kind: "serving"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 1, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 23}
+    host_memory_gib_min: 200
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+    pairs_with: ["prover-h200-hosted"]
+    shm_gib_min: 8
+  serving-h200x4-hosted:
+    kind: "serving"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 4, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 92}
+    host_memory_gib_min: 800
+    disk: {type: "any", free_gib_min: 1000}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+    pairs_with: ["prover-h200-hosted"]
+    shm_gib_min: 8
   prover-h100:
     kind: "prover"
     gpu: {model: "NVIDIA H100 80GB HBM3", form_factor: "SXM", count: 1, memory_mib_min: 80000}

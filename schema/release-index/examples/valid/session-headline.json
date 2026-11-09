@@ -1,0 +1,108 @@
+{
+  "claim_cards": [
+    {
+      "card_version": 1,
+      "configuration": "default",
+      "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+      "path": "systems/sash/claims/default.yaml",
+      "system": "sash"
+    }
+  ],
+  "configurations": [
+    {
+      "configuration": "default",
+      "effective_tier": "peer-reviewed",
+      "evidence": {
+        "reproductions": [],
+        "reviews": [
+          "results/v0.1/sash/2026-12-02-sash-sash-l31-8b-c4096-prover-h100-1/reviews/reviewer-2027-02-20.json"
+        ]
+      },
+      "ineligible": [],
+      "insufficient_repetitions": false,
+      "overhead_headline": {
+        "formula": "D-OVERHEAD-SESSION",
+        "metric": "overhead_vs_production_prove.session",
+        "scope": "prove.session",
+        "start_up": "included"
+      },
+      "profile": "prover-h100",
+      "runs": [
+        "2026-12-02-sash-sash-l31-8b-c4096-prover-h100-1"
+      ],
+      "statistics": {
+        "rate_prove.steady": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v0.1/sash/2026-12-02-sash-sash-l31-8b-c4096-prover-h100-1/run.json#/metrics/rate_prove.steady"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0"
+          },
+          "stats": {
+            "max": 1.21,
+            "mean": 1.2,
+            "min": 1.19,
+            "n": 3,
+            "n_failed": 0,
+            "stdev": 0.01
+          },
+          "tier": "peer-reviewed",
+          "unit": "token/s",
+          "value": 1.2
+        }
+      },
+      "system": "sash",
+      "workload": {
+        "id": "sash-l31-8b-c4096",
+        "version": 1
+      }
+    }
+  ],
+  "controls": [
+    {
+      "counts": {
+        "accepted": 0,
+        "error": 0,
+        "invalid_call": 0,
+        "no_verdict": 0,
+        "not_applicable": 0,
+        "prover_failed": 0,
+        "rejected": 8,
+        "void": 0
+      },
+      "outside_expected": [],
+      "profile": "prover-h100",
+      "system": "sash",
+      "workload": {
+        "id": "sash-l31-8b-c4096",
+        "version": 1
+      }
+    }
+  ],
+  "inputs_digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+  "reference": {
+    "digest": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "file": "reference/v0.1.yaml"
+  },
+  "release": "v0.1",
+  "schema": "release-index/1",
+  "targets": [
+    {
+      "least_favourable": null,
+      "mean": null,
+      "profile": "prover-h100",
+      "reason": "metric missing",
+      "result": "not_evaluable",
+      "system": "sash",
+      "target": "targets/example-policy-lab/verify-under-60s.yaml",
+      "workload": {
+        "id": "sash-l31-8b-c4096",
+        "version": 1
+      }
+    }
+  ]
+}

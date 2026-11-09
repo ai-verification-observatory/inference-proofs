@@ -93,6 +93,16 @@ class Source(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Pairs(Document):
+    """RFC-0004 INV-DERIVE-9: the range of an overhead over every pair of repetitions."""
+
+    n_system: int
+    n_serving: int
+    min: float | None
+    max: float | None
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Quantity(Document):
     value: float | None
     unit: Unit
@@ -106,6 +116,7 @@ class Quantity(Document):
     mapping: ScopeMapping | None = None
     quality: Quality | None = None
     note: str | None = None
+    pairs: Pairs | None = None  # RFC-0004 INV-DERIVE-9, overheads only
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -181,6 +192,7 @@ class RunInputs(Document):
 
     active_parameters_per_token: Quantity
     weight_bits: Quantity
+    gpu_count: Quantity | None = None  # RFC-0004 INV-DERIVE-8; absent in runs stored before
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -270,6 +282,12 @@ class WorkloadRecord(Document):
     corpus_digest: str
     prompt_seed: str
     prompt_set_digest: str
+    load_point: str | None = None  # RFC-0015 SRV-1 (serving runs)
+    batch_size_run: int | None = None
+    batches_per_session_run: int | None = None
+    prompt_count_run: int | None = None
+    prompt_prefix_digest: str | None = None  # RFC-0015 SRV-8
+    steady_rule: str | None = None  # RFC-0004 INV-SCOPE-5 (absent: first-proof boundary)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -348,6 +366,8 @@ class Manifest(Document):
     warnings: tuple[str, ...]
     machine_verifier: Mapping[str, object] | None = None  # verifier_host: separate
     prompts_from: str | None = None  # RFC-0015 RC-1
+    engine: Mapping[str, object] | None = None  # RFC-0015 SRV-6: name, version, image, interface
+    serving_model: Mapping[str, object] | None = None  # RFC-0015 SRV-6: the serving record
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -418,6 +438,10 @@ class IndexConfiguration(Document):
     statistics: Mapping[str, Quantity | Statistic]
     effective_tier: Tier
     evidence: Evidence
+    load_point: str | None = None  # RFC-0015 SRV-1 (absent: matched)
+    overhead_conditions: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-9
+    overhead_headline: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-10
+    steady_boundary: str | None = None  # RFC-0004 INV-SCOPE-5 label of earlier runs (APP-1)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -764,6 +788,8 @@ class AdapterJob(Document):
     claimed_output: tuple[int, ...] | None = None
     proof_dir: str | None = None
     claims_file: str | None = None
+    load_point: str | None = None  # RFC-0015 SRV-1 (production serving)
+    gpus: int | None = None  # RFC-0015 SRV-6
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -853,6 +879,7 @@ class Engine(Document):
     name: str
     version: str
     image: str
+    commit: str | None = None  # RFC-0015 Q1: the source commit (the image's VLLM_BUILD_COMMIT)
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -873,6 +900,10 @@ class ReferenceWorkload(Document):
     precision_used: str
     precision_substitution: PrecisionSubstitution | None
     engine_args: tuple[str, ...]
+    load_point: str | None = None  # RFC-0015 SRV-1, serve role only: matched | high
+    gpus: int | None = None  # RFC-0015 SRV-6: the serving profile's GPU count
+    batch_size: int | None = None  # RFC-0015 SRV-1: the high-load batch
+    batches_per_session_run: int | None = None  # RFC-0015 SRV-1: a lengthened session
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1008,6 +1039,21 @@ class ProverProfile(Document):
     container_runtime: ContainerRuntime | HostedRuntime
     cost: str | None = None  # a basis of `costs` (RFC-0006 C7); None: the release's `cost`
 
+    @property
+    def serving(self) -> bool:
+        """RFC-0006 R6: a serving profile, for `reference_role: serve` systems only."""
+        return self.kind == "serving"
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingProfile(ProverProfile):
+    """RFC-0006 R6: a profile of `kind: serving`, binding `gpu.count` GPUs for production
+    serving (RFC-0015 SRV-6); its rows divide only against the prover profiles it pairs with."""
+
+    gpu: GpuSpec
+    pairs_with: tuple[str, ...]
+    shm_gib_min: int | None = None  # RFC-0006 PC-SHM
+
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class VerifierCpu(Document):
@@ -1052,7 +1098,7 @@ class Cost(Document):
 class ReferenceFile(Document):
     schema: str
     release: str
-    profiles: Mapping[str, ProverProfile | VerifierProfile]
+    profiles: Mapping[str, ProverProfile | ServingProfile | VerifierProfile]
     cost: Cost
     costs: Mapping[str, Cost] | None = None  # RFC-0006 C7: bases of GPU models priced apart
 
@@ -1401,12 +1447,95 @@ class CriteriaFile(Document):
     release: str | None = None
 
 
+# ---------------------------------------------------------------- serving-model/1 (RFC-0015 SRV-6)
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingRelease(Document):
+    hub: str
+    repo: str
+    revision: str
+    gated: bool
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingPublisher(Document):
+    name: str
+    release: ServingRelease
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ReleaseStatement(Document):
+    quote: str
+    url: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingPrecision(Document):
+    name: str
+    statement: str
+    release_statement: ReleaseStatement | str  # or "not stated"
+    chosen_by: str
+    sources: tuple[str, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingRepo(Document):
+    hub: str
+    repo: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingFile(Document):
+    path: str
+    sha256: str
+    bytes: int
+    storage: str  # git | lfs
+    publisher_blob: str
+    source: str | None = None  # mirror (default) | publisher
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingShape(Document):
+    layers: int
+    attention_heads: int
+    kv_heads: int
+    head_dim: int
+    kv_dtype: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingFiles(Document):
+    source: ServingRepo
+    revision: str
+    files: tuple[ServingFile, ...]
+    digest: str
+    licence: Licence
+    vocab_size: int
+    shape: ServingShape
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class ServingModel(Document):
+    """`serving-model/1`: the publisher's release production serving runs (RFC-0015 SRV-6),
+    pinned by an ungated byte-identical copy (RFC-0014 SM-1 to SM-3)."""
+
+    schema: str
+    id: str
+    version: int
+    workloads: tuple[str, ...]
+    publisher: ServingPublisher
+    precision: ServingPrecision
+    model: ServingFiles
+
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
     ("quantity/1", "#/$defs/statistic"): Statistic,
     ("quantity/1", "#/$defs/source"): Source,
     ("quantity/1", "#/$defs/stats"): Stats,
     ("quantity/1", "#/$defs/quantityCore/properties/quality"): Quality,
+    ("quantity/1", "#/$defs/quantityCore/properties/pairs"): Pairs,
     ("run/1", "#"): Run,
     ("run/1", "#/properties/workload"): WorkloadRef,
     ("run/1", "#/properties/inputs"): RunInputs,
@@ -1509,7 +1638,8 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("system-controls/1", "#/$defs/control"): SystemControl,
     ("reference/1", "#"): ReferenceFile,
     ("reference/1", "#/$defs/prover"): ProverProfile,
-    ("reference/1", "#/$defs/prover/properties/gpu/anyOf/1"): GpuSpec,
+    ("reference/1", "#/$defs/serving"): ServingProfile,
+    ("reference/1", "#/$defs/gpu"): GpuSpec,
     ("reference/1", "#/$defs/prover/properties/cpu"): ProverCpu,
     ("reference/1", "#/$defs/prover/properties/disk"): Disk,
     ("reference/1", "#/$defs/prover/properties/os"): OsSpec,
@@ -1551,6 +1681,19 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("site-facts/1", "#/$defs/row"): RowFacts,
     ("site-facts/1", "#/$defs/row/properties/licence"): LicenceFacts,
     ("site-facts/1", "#/$defs/row/properties/status"): StatusFacts,
+    ("serving-model/1", "#"): ServingModel,
+    ("serving-model/1", "#/properties/publisher"): ServingPublisher,
+    ("serving-model/1", "#/properties/publisher/properties/release"): ServingRelease,
+    ("serving-model/1", "#/properties/precision"): ServingPrecision,
+    (
+        "serving-model/1",
+        "#/properties/precision/properties/release_statement/anyOf/1",
+    ): ReleaseStatement,
+    ("serving-model/1", "#/properties/model"): ServingFiles,
+    ("serving-model/1", "#/properties/model/properties/source"): ServingRepo,
+    ("serving-model/1", "#/properties/model/properties/files/items"): ServingFile,
+    ("serving-model/1", "#/properties/model/properties/licence"): Licence,
+    ("serving-model/1", "#/properties/model/properties/shape"): ServingShape,
     ("criteria/1", "#"): CriteriaFile,
     ("criteria/1", "#/$defs/property"): CriteriaProperty,
     ("criteria/1", "#/$defs/row"): CriteriaRow,

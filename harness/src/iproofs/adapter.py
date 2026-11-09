@@ -159,7 +159,7 @@ class ContainerRunner(Protocol):
         io_dir: Path,
         *,
         models_dir: Path | None,
-        gpu: int | None,
+        gpu: int | str | None,
         cpuset: str,
         mems: str,
         memory: str | None,
@@ -182,7 +182,7 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
     io_dir: Path,
     *,
     models_dir: Path | None,
-    gpu: int | None,
+    gpu: int | str | None,
     cpuset: str,
     mems: str,
     memory: str | None,
@@ -223,8 +223,8 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
     else:
         if models_dir is not None:
             argv += ["-v", f"{models_dir.resolve()}:/models:ro"]
-        if gpu is not None and subcommand in GPU_STEPS:
-            argv += ["--gpus", f"device={gpu}"]
+        if gpu is not None and subcommand in GPU_STEPS:  # a list needs docker's quoted form
+            argv += ["--gpus", f'"device={gpu}"' if "," in str(gpu) else f"device={gpu}"]
         if memory is not None:
             argv += ["--memory", memory]
     return [*argv, docker_ref(image), subcommand, "/io/job.json", "/io/out.json"]
@@ -274,7 +274,7 @@ class DockerRunner:
         io_dir: Path,
         *,
         models_dir: Path | None,
-        gpu: int | None,
+        gpu: int | str | None,
         cpuset: str,
         mems: str,
         memory: str | None,
@@ -334,7 +334,7 @@ class InProcessRunner:
         io_dir: Path,
         *,
         models_dir: Path | None,
-        gpu: int | None,
+        gpu: int | str | None,
         cpuset: str,
         mems: str,
         memory: str | None,
@@ -371,7 +371,7 @@ class InProcessRunner:
         subcommand: str,
         io_dir: Path,
         models_dir: Path | None,
-        gpu: int | None,
+        gpu: int | str | None,
         cpuset: str,
         ro_mounts: Sequence[tuple[Path, str]],
     ) -> tuple[list[str], dict[str, str]]:
@@ -390,11 +390,13 @@ class InProcessRunner:
 # Hugging Face Jobs adds JOB_ID, ACCELERATOR, CPU_CORES, MEMORY and HF_NETWORK_GROUP_* (its
 # jobs-configuration page, read 2026-11-08). The IPROOFS_* names are those the job command of
 # docs/runbooks/hf-jobs.md passes with `hf jobs run -e` (commit, upload target, label, budget,
-# GPU); they belong to the job script, and the upload target names an account.
+# GPU or GPUs, profile, and the engine image of a development install); they belong to the job
+# script, and the upload target names an account.
 PROVIDER_ENV = re.compile(r"^(VAST_|CONTAINER_|PUBLIC_|SSH_|JUPYTER|OPEN_BUTTON|DIRECT_|PORTAL_"
                           r"|HF_NETWORK_GROUP_)"
                           r"|^(HOSTNAME|GPU_COUNT|NV_GPU|JOB_ID|ACCELERATOR|CPU_CORES|MEMORY)$"
-                          r"|^IPROOFS_(COMMIT|UPLOAD|UPLOAD_DIR|LABEL|JOB_BUDGET_S|GPU)$"
+                          r"|^IPROOFS_(COMMIT|UPLOAD|UPLOAD_DIR|LABEL|JOB_BUDGET_S|GPU|GPUS|PROFILE"
+                          r"|DEV_IMAGE)$"
                           r"|KEY|TOKEN|SECRET|PASSW")  # fmt: skip
 
 
@@ -461,7 +463,7 @@ class HostedRunner(InProcessRunner):
         subcommand: str,
         io_dir: Path,
         models_dir: Path | None,
-        gpu: int | None,
+        gpu: int | str | None,
         cpuset: str,
         ro_mounts: Sequence[tuple[Path, str]],
     ) -> tuple[list[str], dict[str, str]]:

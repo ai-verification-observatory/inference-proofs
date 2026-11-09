@@ -1,16 +1,25 @@
 #!/usr/bin/env python3
-"""Reference adapters (RFC-0015 §Plain serving, §Recompute, §Steps per job): `ref-serve` and
-`ref-recompute` run this file, each image with its own system.yaml, whose `reference_role`
+"""Reference adapters (RFC-0015 §Production serving, §Recompute, §Steps per job): `ref-serve`
+and `ref-recompute` run this file, each image with its own system.yaml, whose `reference_role`
 selects what `prove` does.
 
 Usage: entrypoint <info|setup|prove> /io/job.json /io/out.json
 
-`prove` loads the pinned engine once with the workload's options from system.yaml (SRV-3),
-serves the requests in order at the workload's batch size (SRV-1) with greedy decoding and
-`max_tokens` equal to the workload's output tokens (SRV-2), and after each batch releases one
-directory per request, `/io/proofs/req-<i>/outputs.json`, by atomic rename (REF-1). The
-outputs are kept for audit and never compared with a system's outputs (SRV-4). `commit` and
-`verify` are skipped by the harness for a reference system.
+For `reference_role: serve` (production serving, owner decision of 2026-11-09), `prove` picks
+the system.yaml entry of the job's workload, load point and GPU count (SRV-1, SRV-6), checks
+the engine environment against the image's own ENV and the bound GPU count against the
+tensor-parallel size (SRV-3), then starts the pinned engine's OpenAI-compatible server,
+`vllm serve /models --host 127.0.0.1 --port <free> <engine_args>`, with the engine's defaults
+and the allowlisted options only (RFC-0015 Q8 default). It records the command, the engine
+environment, the engine's resolved-configuration line and its KV-capacity line in
+`/io/commands.jsonl`, refuses a KV cache below the matched load (`resource`), sends each batch
+whole as one completions request of token-id prompts with greedy decoding, `max_tokens` equal
+to the workload's output tokens and `ignore_eos` (SRV-2), checks every output length, and
+after each batch releases one directory per request, `/io/proofs/req-<i>/outputs.json`, by
+atomic rename (REF-1). The outputs are kept for audit and never compared with a system's
+outputs (SRV-4). A refusal the harness should record as `config` or `resource` is declared in
+`/io/failure.json` (RFC-0005 amendment of 2026-11-09). `commit` and `verify` are skipped by the
+harness for a reference system.
 
 For `reference_role: recompute`, `prove` takes each request alone (RC-2), feeds prompt plus the
 source run's claimed output (`claims_file`) through one forward pass, and takes the argmax at
@@ -23,10 +32,16 @@ file in process; IPROOFS_SYSTEM_YAML points at system.yaml outside the image.
 """
 
 import dataclasses
+import importlib.metadata
 import json
 import os
+import re
+import socket
+import subprocess
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import yaml
@@ -35,6 +50,39 @@ ENGINE_COMMIT = "5df63a7203cdb9328d824a27b682e77c7b9928be"  # vLLM v0.32.0, RFC-
 SCRATCH = os.environ.get("IPROOFS_SCRATCH", "/tmp/ref-serve")  # writable under --read-only
 SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.yaml"))
 INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+# The base image's own engine environment, written at build time (Dockerfile) or by the
+# development install from the image config by digest (dev_install.py); SRV-3.
+IMAGE_ENV = Path(os.environ.get("IPROOFS_IMAGE_ENV", "/opt/iproofs/image_env.json"))
+ENV_PREFIXES = ("VLLM_", "NCCL_", "CUDA_", "TORCH_")
+BINDING_ENV = ("CUDA_VISIBLE_DEVICES", "CUDA_DEVICE_ORDER")  # set by the harness (RFC-0006)
+SERVE_FLAGS = ("--tensor-parallel-size", "--max-model-len", "--max-num-seqs")  # SRV-3
+# vLLM v0.32.0 log lines: vllm/v1/engine/core.py L134 and vllm/v1/core/kv_cache_utils.py L2328
+CONFIG_LINE = re.compile(r"Initializing a V1 LLM engine \(v[^)]*\) with config: (.*)$")
+KV_LINE = re.compile(r"KV cache size: ([\d,]+) tokens, Maximum concurrency for ([\d,]+) "
+                     r"tokens per request: ([\d.]+)x")  # fmt: skip
+# vllm/config/scheduler.py L307 at v0.32.0 (info level; max_num_seqs is logged at debug only)
+BATCHED_LINE = re.compile(r"Chunked prefill is enabled with max_num_batched_tokens=(\d+)\.")
+# The engine's and torch's out-of-memory errors at start: evidence, with the KV-capacity line,
+# that the model and the matched load do not fit on this GPU count (RFC-0015 SRV-6). The same
+# list as iproofs.serving.RESOURCE_EVIDENCE (a test keeps the two equal).
+OOM_LINES = (
+    re.compile(r"CUDA out of memory"),
+    re.compile(r"OutOfMemoryError"),
+    re.compile(r"No available memory for the cache blocks"),
+    re.compile(r"larger than the available KV cache memory"),
+)
+START_TIMEOUT_S = float(os.environ.get("IPROOFS_ENGINE_START_S", "3600"))
+
+
+class Refused(SystemExit):
+    """A refusal the harness records with its own kind (RFC-0005 amendment of 2026-11-09):
+    written to /io/failure.json, then exit 3."""
+
+    def __init__(self, kind: str, message: str, evidence: list[str] | None = None) -> None:
+        doc = {"kind": kind, "message": message, "evidence": evidence or []}
+        host("/io/failure.json").write_text(json.dumps(doc, sort_keys=True) + "\n")
+        print(f"ref-serve: {kind}: {message}", file=sys.stderr)
+        super().__init__(3)
 
 
 def host(container_path: str) -> Path:
@@ -48,12 +96,190 @@ def system() -> dict:
     return yaml.safe_load(SYSTEM_YAML.read_text())
 
 
-def engine_args(workload_id: str) -> list[str]:
-    """The workload's options, verbatim from system.yaml (SRV-3)."""
+def engine_args(workload_id: str, load_point: str | None = None, gpus: int | None = None) -> list:
+    """The options of the workload's entry, verbatim from system.yaml (SRV-3): for production
+    serving the entry of the job's load point and GPU count (SRV-1, SRV-6)."""
     for entry in system()["workloads"]:
-        if entry["id"] == workload_id:
+        point = entry.get("load_point") in (None, load_point or "matched")
+        if entry["id"] == workload_id and point and gpus in (None, entry.get("gpus", gpus)):
             return list(entry["engine_args"])
-    raise SystemExit(f"ref-serve: workload {workload_id!r} is not in system.yaml")
+    raise SystemExit(f"ref-serve: workload {workload_id!r} ({load_point}, {gpus} GPUs) is not in"
+                     " system.yaml")  # fmt: skip
+
+
+def serving_entry(workload_id: str, load_point: str, gpus: int) -> dict:
+    """The production-serving entry of system.yaml for this job (SRV-1, SRV-6)."""
+    for entry in system()["workloads"]:
+        if (entry["id"], entry.get("load_point"), entry.get("gpus")) == (
+            workload_id, load_point, gpus):  # fmt: skip
+            return entry
+    raise Refused("config", f"system.yaml lists no {load_point} entry for {workload_id} on {gpus}"
+                  " GPU(s) (RFC-0015 SRV-6)")  # fmt: skip
+
+
+def bound_gpus(environ: dict) -> list[str]:
+    """The GPUs the harness bound (hosted: CUDA_VISIBLE_DEVICES)."""
+    return [g for g in environ.get("CUDA_VISIBLE_DEVICES", "").split(",") if g.strip()]
+
+
+def engine_env(environ: dict) -> dict[str, str]:
+    """The engine process's VLLM_*, NCCL_*, CUDA_* and TORCH_* variables (SRV-3)."""
+    return {k: v for k, v in sorted(environ.items()) if k.startswith(ENV_PREFIXES)}
+
+
+def image_env() -> dict[str, str]:
+    """The image's own ENV, as written at build time or by the development install."""
+    if not IMAGE_ENV.is_file():
+        raise Refused("config", f"no {IMAGE_ENV}: the image ENV the engine environment is "
+                      "checked against (RFC-0015 SRV-3)")  # fmt: skip
+    pairs = json.loads(IMAGE_ENV.read_text())
+    return dict(p.split("=", 1) for p in pairs if "=" in p)
+
+
+def env_problems(environ: dict, image: dict[str, str]) -> list[str]:
+    """SRV-3: every engine variable is the image's own, or the harness's binding."""
+    return [f"{k}={v}" for k, v in engine_env(environ).items()
+            if k not in BINDING_ENV and image.get(k) != v]  # fmt: skip
+
+
+def resolved_fields(line: str) -> dict[str, str]:
+    """The top-level `key=value` pairs of the engine's resolved-configuration line (vLLM
+    v0.32.0 `VllmConfig.__str__`, vllm/config/vllm.py L2703 to L2738): split at commas outside
+    brackets and quotes."""
+    out, depth, quote, start = {}, 0, "", 0
+    parts = []
+    for i, c in enumerate(line):
+        if quote:
+            quote = "" if c == quote else quote
+        elif c in "'\"":
+            quote = c
+        elif c in "([{":
+            depth += 1
+        elif c in ")]}":
+            depth -= 1
+        elif c == "," and depth == 0:
+            parts.append(line[start:i])
+            start = i + 1
+    parts.append(line[start:])
+    for part in parts:
+        key, sep, value = part.strip().partition("=")
+        if sep:
+            out[key] = value
+    return out
+
+
+# the resolved-configuration fields the three allowlisted options set (vllm/config/vllm.py)
+ALLOWED_RESOLVED = {"tensor_parallel_size", "max_seq_len"}
+# the fields the serving record's own files set: the model path and served name, and the
+# precision its config.json states (dtype, quantization and its config; vllm/config/vllm.py
+# L2713 to L2724 at v0.32.0), so the publisher's precision is never read as a deviation
+MODEL_RESOLVED = {"model", "tokenizer", "served_model_name", "dtype", "quantization",
+                  "quantization_config"}  # fmt: skip
+
+
+def model_expected(config: dict) -> dict[str, str]:
+    """The resolved quantization the release's own config.json states: its
+    `quantization_config.quant_method` (`compressed-tensors` for Meta's FP8 Maverick), or None
+    for an unquantized release (Llama 3.1 8B BF16)."""
+    method = (config.get("quantization_config") or {}).get("quant_method")
+    return {"quantization": str(method) if method else "None"}
+
+
+def resolved_problems(line: str, default: str, expected: dict[str, str] | None = None) -> list:
+    """SRV-3: the resolved configuration differs from the pinned version's default dump (same
+    interface and usage context) only in the fields the allowlisted options set and those the
+    serving record's files set; of the latter, those in `expected` (model_expected) must be
+    what the release's config.json states."""
+    ours, theirs = resolved_fields(line), resolved_fields(default)
+    own = ALLOWED_RESOLVED | MODEL_RESOLVED
+    keys = sorted((set(ours) | set(theirs)) - own)
+    changed = [f"{k}: {theirs.get(k)!r} -> {ours.get(k)!r}" for k in keys
+               if ours.get(k) != theirs.get(k)]  # fmt: skip
+    return changed + [f"{k}: the release states {v!r}, the engine resolved {ours.get(k)!r}"
+                      for k, v in sorted((expected or {}).items()) if ours.get(k) != v]  # fmt: skip
+
+
+def free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+class ServeEngine:
+    """The pinned engine's OpenAI-compatible server, started from the allowlisted options alone
+    (SRV-3; RFC-0015 Q8 default), token-id prompts in and token ids out through the completions
+    endpoint's `return_token_ids` (vllm/entrypoints/openai/completion/protocol.py L171 to L178
+    at v0.32.0; `choices[i].token_ids`)."""
+
+    def __init__(self, model: str, args: list[str]) -> None:
+        os.environ.update(HOME=SCRATCH, XDG_CACHE_HOME=f"{SCRATCH}/.cache")
+        Path(SCRATCH).mkdir(parents=True, exist_ok=True)
+        self.model, self.port = model, free_port()
+        self.argv = ["vllm", "serve", model, "--host", "127.0.0.1", "--port", str(self.port),
+                     *args]  # fmt: skip
+        self.log_path = host("/io/engine.log")
+        self.log = self.log_path.open("w")
+        self.proc = subprocess.Popen(self.argv, stdout=self.log, stderr=subprocess.STDOUT)  # noqa: S603
+        self.wait_ready()
+
+    def lines(self) -> list[str]:
+        return self.log_path.read_text(errors="replace").splitlines()
+
+    def wait_ready(self) -> None:
+        deadline = time.monotonic() + START_TIMEOUT_S
+        while time.monotonic() < deadline:
+            if self.proc.poll() is not None:
+                lines = self.lines()
+                oom = [ln.strip() for ln in lines if any(p.search(ln) for p in OOM_LINES)]
+                if oom:  # SRV-6: the model and its KV cache do not fit on this GPU count
+                    raise Refused("resource", f"vllm serve exited {self.proc.returncode} at "
+                                  "start out of GPU memory (RFC-0015 SRV-6)", oom[-3:])  # fmt: skip
+                raise SystemExit(f"ref-serve: vllm serve exited {self.proc.returncode} at start;"
+                                 f" last lines: {lines[-20:]}")  # fmt: skip
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/health", timeout=5):
+                    return
+            except (urllib.error.URLError, OSError):
+                time.sleep(2)
+        self.stop()
+        raise SystemExit(f"ref-serve: vllm serve not ready after {START_TIMEOUT_S} s")
+
+    def resolved_config(self) -> str | None:
+        return next((m.group(1) for ln in self.lines() if (m := CONFIG_LINE.search(ln))), None)
+
+    def max_num_batched_tokens(self) -> int | None:
+        return next((int(m.group(1)) for ln in self.lines() if (m := BATCHED_LINE.search(ln))),
+                    None)  # fmt: skip
+
+    def kv_capacity(self) -> tuple[int, str] | None:
+        for ln in self.lines():
+            if m := KV_LINE.search(ln):
+                return int(m.group(1).replace(",", "")), ln.strip()
+        return None
+
+    def generate(self, prompts: list[list[int]], max_tokens: int) -> list[list[int]]:
+        body = {"model": self.model, "prompt": prompts, "max_tokens": max_tokens,
+                "temperature": 0.0, "ignore_eos": True, "return_token_ids": True}  # fmt: skip
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}/v1/completions", data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"},
+        )  # fmt: skip
+        try:
+            with urllib.request.urlopen(request, timeout=START_TIMEOUT_S) as response:
+                doc = json.loads(response.read())
+        except (urllib.error.URLError, OSError) as e:
+            raise SystemExit(f"ref-serve: completions request failed: {e}") from e
+        choices = sorted(doc["choices"], key=lambda c: c["index"])
+        return [list(c.get("token_ids") or []) for c in choices]
+
+    def stop(self) -> None:
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+        self.log.close()
 
 
 def model_path(model_dir: Path) -> str:
@@ -103,7 +329,8 @@ class VllmEngine:
         return [next(t for t, lp in pos.items() if lp.rank == 1) for pos in positions]
 
 
-make_engine = VllmEngine  # the tests replace this with a replay of captured outputs
+make_engine = VllmEngine  # recompute; the tests replace this with a replay of captured outputs
+make_serve_engine = ServeEngine  # production serving; the tests replace it with a fake server
 
 
 def base(sub: str) -> dict[str, object]:
@@ -119,9 +346,11 @@ def log_command(argv: list[str], started: int, exit_code: int) -> None:
 
 def info(job: dict) -> dict:
     doc = system()
+    serving = doc["reference_role"] == "serve"
     out = {**base("info"), "system": doc["name"], "upstream_commit": ENGINE_COMMIT,
            "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
-           "workloads": [w["id"] for w in doc["workloads"]], "profile": "prover-h100",
+           "workloads": sorted({w["id"] for w in doc["workloads"]}),
+           "profile": "serving" if serving else "prover-h100",
            "contract_versions": ["adapter/1"]}  # fmt: skip
     if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
         out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
@@ -142,6 +371,8 @@ def release(proofs_dir: Path, proof_id: str, outputs: dict[str, object]) -> None
 
 
 def prove(job: dict) -> dict:
+    if system()["reference_role"] == "serve":
+        return prove_serving(job)
     args = engine_args(job["workload"]["id"])
     started = time.monotonic_ns()
     engine = make_engine(model_path(host(job["model_dir"])), args)
@@ -151,12 +382,70 @@ def prove(job: dict) -> dict:
         raise SystemExit(f"ref-serve: {len(prompts)} prompts for {batches} batches of {size}")
     proofs_dir = host("/io/proofs")
     proofs_dir.mkdir(parents=True, exist_ok=True)
-    if system()["reference_role"] == "recompute":
-        proofs = recompute(job, engine, prompts[: size * batches], proofs_dir)
-    else:
-        proofs = serve(job, engine, prompts, proofs_dir)
+    proofs = recompute(job, engine, prompts[: size * batches], proofs_dir)
     log_command(["vllm.LLM", "--model", "/models", *args], started, 0)
     return {**base("prove"), "proofs": proofs}
+
+
+def observed(engine: object) -> dict[str, object]:
+    """The engine as this process sees it run (RFC-0004 INV-DERIVE-2 (e)): the installed
+    version, the image ENV's build commit, and the batched-token limit the engine logged."""
+    try:
+        version: str | None = importlib.metadata.version("vllm")
+    except importlib.metadata.PackageNotFoundError:
+        version = None
+    batched = getattr(engine, "max_num_batched_tokens", None)
+    return {"version": version, "build_commit": os.environ.get("VLLM_BUILD_COMMIT"),
+            "max_num_batched_tokens": batched() if callable(batched) else None}  # fmt: skip
+
+
+def prove_serving(job: dict) -> dict:
+    """Production serving (SRV-1 to SRV-6): checks before the engine, then the batches."""
+    gpus = bound_gpus(dict(os.environ))
+    load_point = job.get("load_point", "matched")
+    entry = serving_entry(job["workload"]["id"], load_point, job.get("gpus") or len(gpus))
+    args = list(entry["engine_args"])
+    flags = [a for i, a in enumerate(args) if i % 2 == 0]
+    given = dict(zip(flags, [a for i, a in enumerate(args) if i % 2 == 1], strict=False))
+    if set(given) - set(SERVE_FLAGS) or len(args) % 2:
+        raise Refused("config", f"engine_args {args} outside the SRV-3 allowlist {SERVE_FLAGS}")
+    if gpus and given.get("--tensor-parallel-size") != str(len(gpus)):
+        raise Refused("config", f"{len(gpus)} visible GPU(s) {gpus}, --tensor-parallel-size "
+                      f"{given.get('--tensor-parallel-size')} (RFC-0015 SRV-6)")  # fmt: skip
+    environ = engine_env(dict(os.environ))
+    if bad := env_problems(dict(os.environ), image_env()):
+        raise Refused("config", f"engine environment not set by the image's ENV: {bad} "
+                      "(RFC-0015 SRV-3)")  # fmt: skip
+    size, batches = job["batch_size"], job["batches"]
+    prompts = [json.loads(line) for line in host(job["prompts_file"]).read_text().splitlines()]
+    if len(prompts) < size * batches:
+        raise SystemExit(f"ref-serve: {len(prompts)} prompts for {batches} batches of {size}")
+    started = time.monotonic_ns()
+    # the model directory as this process sees it: /models in a container, the cache directory
+    # the hosted runner names in IPROOFS_MODELS (RFC-0006 §Hosted execution)
+    engine = make_serve_engine(str(host(job["model_dir"])), args)
+    try:
+        resolved, kv = engine.resolved_config(), engine.kv_capacity()
+        record = {"argv": engine.argv, "cwd": "/io", "started_mono_ns": started,
+                  "exit_code": 0, "environment": environ, "resolved_config": resolved,
+                  "kv_capacity": None if kv is None else kv[1],
+                  "engine_observed": observed(engine)}  # fmt: skip
+        with host("/io/commands.jsonl").open("a") as f:
+            f.write(json.dumps(record, sort_keys=True) + "\n")
+        need = size * (job["shape"]["prompt_tokens"] + job["shape"]["output_tokens"])
+        warnings = []
+        if kv is not None and kv[0] < need:
+            if load_point == "matched":  # SRV-6: the fewest GPUs that hold the matched load
+                raise Refused("resource", f"KV cache of {kv[0]} tokens below the matched load's "
+                              f"{need} tokens (RFC-0015 SRV-6)", [kv[1]])  # fmt: skip
+            warnings.append(f"KV cache of {kv[0]} tokens holds part of the {size}-request "
+                            "batch at once; the engine queues the rest")  # fmt: skip
+        proofs_dir = host("/io/proofs")
+        proofs_dir.mkdir(parents=True, exist_ok=True)
+        proofs = serve(job, engine, prompts, proofs_dir)
+    finally:
+        engine.stop()
+    return {**base("prove"), "proofs": proofs, "warnings": warnings}
 
 
 def recompute(job: dict, engine: object, prompts: list[list[int]], proofs_dir: Path) -> list:
@@ -181,9 +470,14 @@ def serve(job: dict, engine: object, prompts: list[list[int]], proofs_dir: Path)
     proofs = []
     for b in range(batches):
         batch = prompts[b * size : (b + 1) * size]
-        outputs = engine.generate(batch, job["shape"]["output_tokens"])  # type: ignore[attr-defined]
+        want = job["shape"]["output_tokens"]
+        outputs = engine.generate(batch, want)  # type: ignore[attr-defined]
         if len(outputs) != len(batch):
             raise SystemExit(f"ref-serve: batch {b}: {len(outputs)} outputs for {len(batch)}")
+        short = [i for i, t in enumerate(outputs) if len(t) != want]
+        if short:  # SRV-2: ignore_eos and max_tokens make every output exactly `want` tokens
+            raise SystemExit(f"ref-serve: batch {b}: requests {short} returned "
+                             f"{[len(outputs[i]) for i in short]} tokens, not {want}")  # fmt: skip
         for j, tokens in enumerate(outputs):
             i = b * size + j
             release(proofs_dir, f"req-{i}", {"request_index": i, "batch": b, "token_ids": tokens})

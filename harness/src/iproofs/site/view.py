@@ -22,7 +22,9 @@ from iproofs.site.reply import reply_html
 
 # The figures each configuration prints: the overview columns, then More numbers (#320 §1).
 FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
-           "overhead_vs_serving_prove.session")  # fmt: skip
+           "overhead_vs_production_prove.steady",
+           "overhead_vs_production_prove.session")  # fmt: skip
+OVERHEAD = "overhead_vs_production_prove.steady"  # RFC-0004 INV-DERIVE-9, the headline
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
@@ -331,6 +333,10 @@ def _configuration(
         "card": _card(root, index, config["system"], config["configuration"]),
         "figures": {m: figure(index_path, position, stats, m, records) for m in (*FIGURES, *MORE)},
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
+        "overhead_metric": overhead_metric(config),
+        "overhead_words": overhead_words(
+            config.get("overhead_conditions"), stats, wl, overhead_metric(config)
+        ),
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
         "effective_tier": config["effective_tier"],
@@ -342,6 +348,106 @@ def _configuration(
         "verifier": _verifier(reference, config, records),
         "adapter_readme": f"{REPOSITORY}/blob/{LINK_REF}/systems/{config['system']}/README.md",
     }  # fmt: skip
+
+
+def _num(x: float) -> str:
+    """A ratio as the pages print it: three significant figures, never rounded in the record."""
+    return f"{x:,.3g}" if x < 1000 else f"{x:,.0f}"
+
+
+def _range(q: dict[str, Any]) -> str:
+    pairs = q.get("pairs") or {}
+    if pairs.get("min") is None:
+        return f"over {pairs.get('n_system', 0)} \u00d7 {pairs.get('n_serving', 0)} pairs"
+    return (f"range {_num(pairs['min'])} to {_num(pairs['max'])} over {pairs['n_system']} \u00d7 "
+            f"{pairs['n_serving']} pairs")  # fmt: skip
+
+
+def _scoped(q: dict[str, Any]) -> str:
+    return f"{q['scope']} scope" if q.get("scope") else "scope not recorded"
+
+
+def overhead_metric(config: dict[str, Any]) -> str:
+    """RFC-0004 INV-DERIVE-10: the statistic a system row shows as its overhead, as the release
+    index's `overhead_headline` names it (release code chooses it); D-OVERHEAD-S at
+    `prove.steady` for an index without that block."""
+    headline = config.get("overhead_headline") or {}
+    return str(headline.get("metric") or OVERHEAD)
+
+
+def overhead_words(
+    conditions: dict[str, Any] | None,
+    stats: dict[str, Any],
+    wl: dict[str, Any],
+    metric: str = OVERHEAD,
+) -> dict[str, str] | None:
+    """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
+    of a system row's headline overhead `metric` (INV-DERIVE-10), every value from the release
+    index's `overhead_conditions`, the stored quantities and the workload record; None without a
+    value (nothing to qualify). A session figure says that start-up is inside it, on both sides."""
+    q = stats.get(metric)
+    if not conditions or not isinstance(q, dict) or q.get("value") is None:
+        return None
+    c = conditions
+    model = c.get("serving_model") or {}
+    engine = c["engine"]
+    bits = (wl.get("precision") or {}).get("weight_bits") or {}
+    gpus, n, count = c["gpus"], c["n"], c["prompt_count_run"]
+    batch, per = c["batch"], c["batches_per_session"]
+
+    def known(value: object) -> str:
+        return "not recorded" if value is None else str(value)
+
+    session = q.get("scope") == "prove.session"
+    start = ("start-up included on both sides: the prover's from the start of its prove call, "
+             "production serving's from the start of its engine, each to its last token"
+             if session else "start-up excluded on both sides")  # fmt: skip
+    line = "; ".join([
+        f"{_scoped(q)} ({start})",
+        f"{batch['matched']} requests a batch on both sides, {known(per['system'])} batches for "
+        f"the prover and {known(per['serving_matched'])} for serving",
+        f"prompts: the prover's {count['system']}, replayed"
+        + ("" if not count.get("serving_matched") or count["serving_matched"] == count["system"]
+           else f" (serving: the prover's {count['system']} plus "
+                f"{count['serving_matched'] - count['system']} further windows of the same "
+                "seeded generator)"),
+        f"{engine['name']} {engine['version']}, {engine['interface'] or 'interface not recorded'},"
+        f" {engine['settings']}",
+        "greedy decoding, " + ("warm" if c.get("warm", True) else "cold: engine and prover "
+                               "start-up inside the session"),
+        f"{c['runtime']}",
+        f"serving {model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')}"
+        f" release; proving {c['proved_precision']}",
+        f"{known(gpus['system'])} \u00d7 {c['gpu_model']} for the prover, "
+        f"{known(gpus['serving'])} for serving",
+        f"n = {n['system']} prover and {n['serving_matched']} serving repetitions, {_range(q)}",
+        "GPU-seconds only: CPU and host memory are not counted; the prover's GPU comes with its "
+        "host's CPUs and memory (RFC-0006 C5)",
+    ])  # fmt: skip
+    note = (
+        f"Proving the {c['proved_precision']} model ({bits.get('bits')} bits per active weight, "
+        f"{bits.get('basis')}) costs {_num(float(q['value']))} times ({_range(q)}) serving "
+        f"{model.get('publisher', 'not stated')}'s {model.get('precision', 'not stated')} "
+        f"release, in GPU-seconds per token, "
+        f"{'per proving session with start-up' if session else 'steady'}, "
+        f"at {batch['matched']} requests a batch."
+    )
+    out = {"conditions": line, "precision": note}
+    high = stats.get(f"overhead_vs_production_high_{q.get('scope') or 'prove.steady'}")
+    if isinstance(high, dict) and high.get("value") is not None:
+        extra = ""
+        if count.get("serving_high") and count["serving_high"] > count["system"]:
+            extra = (f"; at high load: the prover's {count['system']} prompts plus "
+                     f"{count['serving_high'] - count['system']} further windows of the same "
+                     "seeded generator")  # fmt: skip
+        out["high"] = (f"At {known(batch['high'])} requests a batch: "
+                       f"{_num(float(high['value']))}\u00d7 ({_range(high)}); "
+                       f"{_scoped(high)}; "
+                       f"{known(per['serving_high'])} batches for serving on "
+                       f"{known(gpus.get('serving_high'))} \u00d7 {c['gpu_model']}, "
+                       f"{engine.get('settings_high') or 'settings not recorded'}"
+                       f"{extra}.")  # fmt: skip
+    return out
 
 
 def site_view(root: Path) -> dict[str, Any]:

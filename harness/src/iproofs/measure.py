@@ -16,7 +16,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Literal, Protocol
@@ -289,6 +289,13 @@ class GpuBackend(Protocol):
     def compute_processes(self) -> int: ...
 
 
+def _backend(gpu: int | Sequence[int]) -> GpuBackend:
+    """One GPU's NVML backend, or the bound GPUs of a serving job read as one (`ManyGpus`)."""
+    if isinstance(gpu, int):
+        return NvmlBackend(gpu)
+    return NvmlBackend(gpu[0]) if len(gpu) == 1 else ManyGpus([NvmlBackend(i) for i in gpu])
+
+
 class NvmlBackend:
     """`nvidia-ml-py` (the `[gpu]` extra), imported lazily (INV-ARCH-6), bound to one GPU."""
 
@@ -313,6 +320,28 @@ class NvmlBackend:
 
     def compute_processes(self) -> int:
         return len(self.nvml.nvmlDeviceGetComputeRunningProcesses(self.handle))
+
+
+class ManyGpus:
+    """RFC-0011 (amendment of 2026-11-09): the bound GPUs of a serving job read as one: memory
+    the maximum over the GPUs, utilisation the mean over them at each sample (so `_util_mean`
+    and `_p95` are over samples of that mean), energy the sum, compute processes the sum."""
+
+    def __init__(self, backends: Sequence[GpuBackend]) -> None:
+        self.backends = list(backends)
+
+    def memory_used_mib(self) -> float:
+        return max(b.memory_used_mib() for b in self.backends)
+
+    def util_pct(self) -> int:
+        return round(sum(b.util_pct() for b in self.backends) / len(self.backends))
+
+    def energy_mj(self) -> int | None:
+        values = [b.energy_mj() for b in self.backends]
+        return None if any(v is None for v in values) else sum(v for v in values if v is not None)
+
+    def compute_processes(self) -> int:
+        return sum(b.compute_processes() for b in self.backends)
 
 
 @dataclass(frozen=True, slots=True)
@@ -393,14 +422,14 @@ class Sampler:
 
     def __init__(
         self,
-        gpu_index: int | None,
+        gpu_index: int | Sequence[int] | None,
         cgroup: CgroupReader,
         target_hz: float = 20.0,
         *,
         backend: GpuBackend | None = None,
         clock: Callable[[], int] = time.monotonic_ns,
     ) -> None:
-        self.gpu = backend if backend is not None or gpu_index is None else NvmlBackend(gpu_index)
+        self.gpu = backend if backend is not None or gpu_index is None else _backend(gpu_index)
         self.cgroup = cgroup
         self.target_hz = target_hz
         self.clock = clock
@@ -459,6 +488,61 @@ class Sampler:
         lines = ["second,memory_used_mib_max,util_gpu_pct_max\n"]
         lines += [f"{sec},{mem:.1f},{util}\n" for sec, (mem, util) in sorted(rows.items())]
         path.write_text("".join(lines))
+
+
+class IdleWatch:
+    """RFC-0006 PC-GPU-IDLE during a step: every visible unbound GPU read on its own thread once
+    per `period_s` (1 s) while the call runs, beside the bound GPUs' sampler. `read(index)`
+    returns NVML's compute-process count, memory used (MiB) and utilisation (%) of one GPU, or
+    None when it cannot be read. `stop()` returns each GPU's maxima over its readings, in the
+    machine record's `unbound_samples` form. A use shorter than the period can fall between
+    two readings; the machine records before `info` and after the last step are taken too."""
+
+    def __init__(
+        self,
+        indices: Sequence[int],
+        read: Callable[[int], Mapping[str, object] | None],
+        period_s: float = 1.0,
+    ) -> None:
+        self.indices, self.read, self.period_s = list(indices), read, period_s
+        self.maxima: dict[int, dict[str, object]] = {}
+        self._stop = threading.Event()
+        self._thread: threading.Thread | None = None
+
+    def _sample(self) -> None:
+        for i in self.indices:
+            got = self.read(i)
+            if got is None:
+                continue
+            row = self.maxima.setdefault(i, {"index": i, "samples": 0,
+                                             "compute_processes_max": 0,
+                                             "memory_used_mib_max": 0,
+                                             "util_percent_max": 0.0})  # fmt: skip
+            row["samples"] = int(str(row["samples"])) + 1
+            for key, top in (("compute_processes", "compute_processes_max"),
+                             ("memory_used_mib", "memory_used_mib_max"),
+                             ("util_percent", "util_percent_max")):  # fmt: skip
+                value = got.get(key)
+                if isinstance(value, int | float) and value > float(str(row[top])):
+                    row[top] = value
+
+    def _loop(self) -> None:
+        while True:
+            self._sample()
+            if self._stop.wait(self.period_s):
+                return
+
+    def start(self) -> None:
+        if self.indices:
+            self._thread = threading.Thread(target=self._loop, daemon=True)
+            self._thread.start()
+
+    def stop(self) -> list[dict[str, object]]:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join()
+            self._sample()  # one reading at the call's end
+        return [self.maxima[i] for i in sorted(self.maxima)]
 
 
 # ---------------------------------------------------------------- self-test checks (RFC-0011)

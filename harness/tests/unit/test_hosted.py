@@ -132,7 +132,7 @@ def test_image_environment_drops_the_providers_additions() -> None:
     environ = "\0".join([
         "PATH=/usr/bin", "IPROOFS_ADAPTER_COMMIT=abc", "VAST_CONTAINERLABEL=C.1",
         "CONTAINER_API_KEY=x", "HF_TOKEN=y", "HOSTNAME=h", "GPU_COUNT=1", "PUBLIC_IPADDR=z",
-        "SSH_PUBLIC_KEY=k", "NOVALUE",
+        "SSH_PUBLIC_KEY=k", "NOVALUE", "IPROOFS_DEV_IMAGE=r@sha256:0",
     ])  # fmt: skip
     assert image_environment(environ) == {"PATH": "/usr/bin", "IPROOFS_ADAPTER_COMMIT": "abc"}
 
@@ -170,6 +170,24 @@ def test_hosted_runner_runs_the_fake_adapter(tmp_path: Path) -> None:
                         cpuset="0", mems="0", memory=None, timeout_s=60)  # fmt: skip
     assert result.exit_code == 0, result.stderr_tail
     assert result.argv[0] == "hosted"
+
+
+def test_local_image() -> None:
+    """RFC-0014: --image is recorded under local/ (digest_kind config). An ID names a local
+    build of the system; in hosted mode a full reference names the image the provider started,
+    with the adapter installed from the checkout, never an adapter image that was not built."""
+    digest = "sha256:" + "a" * 64
+    for hosted in (False, True):
+        assert cli.local_image("ref-serve", digest, hosted=hosted) == (f"local/ref-serve@{digest}")
+    engine = f"docker.io/vllm/vllm-openai@{digest}"
+    assert cli.local_image("ref-serve", engine, hosted=True) == f"local/{engine}"
+    assert cli.local_image("x", f"local/{engine}", hosted=True) == f"local/{engine}"
+    with pytest.raises(IProofsError, match="only with --hosted"):
+        cli.local_image("ref-serve", engine, hosted=False)
+    with pytest.raises(IProofsError, match="is not <repository>@sha256"):
+        cli.local_image("ref-serve", "docker.io/vllm/vllm-openai:v0.32.0", hosted=True)
+    with pytest.raises(IProofsError, match="is not <repository>@sha256"):
+        cli.local_image("ref-serve", "abc", hosted=False)
 
 
 def test_entrypoint_argv() -> None:
@@ -212,6 +230,22 @@ def test_gpu_environment() -> None:
     lost = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:99:00.0"})
     with pytest.raises(IProofsError, match="no NUMA node"):
         GpuEnvironment(0, lost, n_prover=1, n_verifier=1)
+
+
+def test_serving_environment() -> None:
+    """RFC-0006 R6: a serving host binds every listed GPU and gives the server every CPU the
+    container may use (the fixture host's four), with no verifier CPUs: it needs none beside
+    the first GPU's node's `n_prover`."""
+    from iproofs import provenance, runner  # noqa: PLC0415
+
+    host = Host(FIXTURE, run=lambda _: None, nvml=lambda i: {"pci_bus_id": "00000000:17:00.0"})
+    env = runner.ServingEnvironment([0, 1, 2, 3], host, n_prover=1)
+    assert (env.gpu(), env.gpus(), runner.bound_gpus(env)) == (0, (0, 1, 2, 3), (0, 1, 2, 3))
+    prover, _ = env.cpus("prover")
+    assert prover == ",".join(str(c.id) for c in provenance.read_topology(FIXTURE).cpus)
+    assert env.cpus("verifier")[0] == ""
+    with pytest.raises(IProofsError, match="distinct indices"):
+        runner.ServingEnvironment([0, 0], host, n_prover=1)
 
 
 def test_disk_of_a_results_directory_not_made_yet(tmp_path: Path) -> None:

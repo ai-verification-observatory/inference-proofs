@@ -38,7 +38,7 @@ METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
-    "overhead": "overhead_vs_serving_prove.session",
+    "overhead": "overhead_vs_production_prove.steady",
 }
 WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}
 VAL = re.compile(r'<a class="val" href="([^"]*)" title="([^"]*)">(.*?)</a>', re.S)

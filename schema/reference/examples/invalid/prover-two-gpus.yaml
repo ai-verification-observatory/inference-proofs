@@ -1,0 +1,34 @@
+# Reference profiles and cost basis (RFC-0006 §Reference file). RFC-0006 R1 and R6: a prover profile binds one GPU; more need a serving profile.
+schema: "reference/1"
+release: "v0.1"
+profiles:
+  prover-h200x2:
+    kind: "prover"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 2, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 23}
+    host_memory_gib_min: 200
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+  verifier-cpu:
+    kind: "verifier"
+    gpu: null
+    cpu: {logical_cpus: 8}
+    host_memory_gib: 32
+    emulation: {allowed_on: ["prover-h100"]}
+cost:
+  price_per_gpu_hour_usd:
+    value: 0.0
+    unit: "USD/gpu_hour"
+    scope: null
+    grade: "asserted"
+    tier: "reported"
+    source: {kind: "reference_file", ref: "reference/v0.1.yaml#/cost"}
+    null_reason: null
+  basis: "median on-demand list price of the named providers on the named date"
+  providers: []
+  date: "2026-11-03"
+  priced: ["gpu"]
+  not_priced: ["cpu", "host_memory", "disk", "network"]

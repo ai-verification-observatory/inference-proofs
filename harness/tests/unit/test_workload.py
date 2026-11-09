@@ -6,7 +6,14 @@ import pytest
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.provenance import file_digest
 from iproofs.schema import SchemaRegistry
-from iproofs.workloads import asserted_inputs, load_workload, weight_bits, workload_digest
+from iproofs.workloads import (
+    asserted_inputs,
+    load_workload,
+    reference_role,
+    serving_system,
+    weight_bits,
+    workload_digest,
+)
 
 ROOT = Path(__file__).resolve().parents[3]
 EXAMPLE = ROOT / "schema/workload/examples/valid/fake-tiny-ci.yaml"
@@ -108,6 +115,45 @@ def test_tokenizer_file_names_second_source(tree: Path, registry: SchemaRegistry
 def test_unknown_system_in_workload(tree: Path, registry: SchemaRegistry) -> None:
     shutil.rmtree(tree / "systems/fake-broken")
     assert "'fake-broken' has no systems/fake-broken/system.yaml" in config_error(tree, registry)
+
+
+def reference(tree: Path, name: str, role: str) -> None:
+    (tree / "systems" / name).mkdir(parents=True)
+    (tree / "systems" / name / "system.yaml").write_text(
+        f"schema: system/1\nkind: reference\nreference_role: {role}\n"
+    )
+
+
+def test_srv7_two_plain_serving_systems(tree: Path, registry: SchemaRegistry) -> None:
+    """TC-SRV-7: a workload naming two systems with reference_role serve fails config at load;
+    one serve and one recompute system load, and the one serve system is the one joined."""
+    for name, role in (("ref-a", "serve"), ("ref-b", "serve"), ("ref-c", "recompute")):
+        reference(tree, name, role)
+    edit(tree, 'systems: ["fake", "fake-broken"]', 'systems: ["fake", "ref-a", "ref-b"]')
+    message = config_error(tree, registry)
+    assert "SRV-7: systems names 2 production-serving systems ['ref-a', 'ref-b']" in message
+    edit(tree, 'systems: ["fake", "ref-a", "ref-b"]', 'systems: ["fake", "ref-c", "ref-b"]')
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    assert serving_system(tree, wl.systems) == "ref-b"
+    assert reference_role(tree, "fake") is None  # not a reference system
+    assert reference_role(tree, "gone") is None  # no system.yaml
+
+
+def test_srv7_none_named(tree: Path, registry: SchemaRegistry) -> None:
+    """A CI workload names no production-serving system and loads; nothing is joined."""
+    wl = load_workload("fake-tiny-ci", root=tree, registry=registry)
+    assert serving_system(tree, wl.systems) is None
+
+
+def test_srv7_repository_workloads(registry: SchemaRegistry) -> None:
+    """Each native workload names one production-serving system, ref-serve (RFC-0015 SRV-7)."""
+    named = {}
+    for path in sorted((ROOT / "workloads").glob("*.yaml")):
+        wl = load_workload(path.stem, root=ROOT, registry=registry)
+        named[wl.id] = serving_system(ROOT, wl.systems)
+    assert named["fp-maverick-w1024-b1"] == named["fp-maverick-w1024-b24"] == "ref-serve"
+    assert named["sash-l31-8b-c1024"] == named["sash-l31-8b-c4096"] == "ref-serve"
+    assert named["fake-tiny-ci"] is None
 
 
 def test_version_mismatch(tree: Path, registry: SchemaRegistry) -> None:

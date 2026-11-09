@@ -266,6 +266,7 @@
           "value": 36.0
         }
       },
+      "steady_boundary": "first-proof boundary (before 2026-11-09)",
       "system": "fake",
       "workload": {
         "id": "fake-tiny-ci",
@@ -503,9 +504,9 @@
       }
     }
   },
-  "inputs_digest": "sha256:56dda688f612d1babaa3060172d18d42f31b9c52a5cf9a42e31b55ab8f48f20c",
+  "inputs_digest": "sha256:76d7997176ad37f46655a1b781429d9c8552d20b6d4424ce06cf946c6b23d4f4",
   "reference": {
-    "digest": "sha256:f53face597c3ae122735259880c66ad54697ac430a42ce2a4b9b801eb1cea676",
+    "digest": "sha256:5a6639f10a7db4536d7ef2d3eeca2cc6356302f0eb0ba02d2ea38ba450bed3f9",
     "file": "reference/v0.1.yaml"
   },
   "release": "v0.1",

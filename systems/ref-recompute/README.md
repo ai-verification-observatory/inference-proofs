@@ -1,6 +1,6 @@
 # ref-recompute
 
-Recompute by a verifier holding the weights ([RFC-0015 §Recompute](../../rfcs/0015-reference-rows.md#recompute-ref-recompute)). The engine pin, the precision per workload and every engine option are those of [`ref-serve`](../ref-serve/README.md); `system.yaml` here differs only in `reference_role: recompute`, `--max-num-seqs 1` for every workload (RC-2), and `--max-model-len` one token longer, because the engine generates one token after the prompt plus claimed output. The image runs the same entrypoint, `systems/ref-serve/entrypoint`, with this `system.yaml` (`Dockerfile`).
+Recompute by a verifier holding the weights ([RFC-0015 §Recompute](../../rfcs/0015-reference-rows.md#recompute-ref-recompute)). The engine pin, the precision per workload and every engine option are documented in [`ref-serve`'s README, §Recompute](../ref-serve/README.md#recompute-ref-recompute): `--max-num-seqs 1` for every workload (RC-2), and `--max-model-len` one token longer than the workload's sequence, because the engine generates one token after the prompt plus claimed output. Production serving (`ref-serve`, RFC-0015 SRV-6) runs other weights and options; this system keeps the PM rules. The image runs the same entrypoint, `systems/ref-serve/entrypoint`, with this `system.yaml` (`Dockerfile`).
 
 ## What `prove` does
 

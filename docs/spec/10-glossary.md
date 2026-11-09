@@ -74,9 +74,11 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="null-reason"></a>**Null reason.** The required explanation when a quantity's value is null: `not_externally_observable`, `fewer_than_two_proofs`, `not_applicable`, `step_failed`, `not_measurable_on_profile`, `missing_input`. [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
-<a id="overhead"></a>**Overhead.** The mean plain-serving rate of a workload over the mean rate of a proving system on it, same workload version, profile, phase and batch size (`D-OVERHEAD-S`). One of the two figures that compare provers across models; the other is [prover time per bit of active weights](#prover-time-per-bit). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md), [RFC-0015](../../rfcs/0015-reference-rows.md).
+<a id="overhead"></a>**Overhead.** The prover's GPU-seconds per token on its profile over [production serving](#production-serving)'s GPU-seconds per token on its own (vLLM, the publisher's release precision, every weight in GPU memory, the fewest GPUs of the same model that hold it), same workload version, steady scope, matched load (`D-OVERHEAD-S`); at high load as context (`D-OVERHEAD-HIGH-S`). A system with no steady scope (SASH) shows the session figure instead, start-up included on both sides (`D-OVERHEAD-SESSION`, Draft). One of the two figures that compare provers across models; the other is [prover time per bit of active weights](#prover-time-per-bit). [RFC-0004](../../rfcs/0004-metrics-timing-grades.md), [RFC-0015](../../rfcs/0015-reference-rows.md).
 
-<a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines the reference `prover-h200`, its hosted form `prover-h200-hosted`, `prover-h100`, `prover-h100-hosted` and `verifier-cpu`. Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
+<a id="production-serving"></a>**Production serving.** The model served unproved as providers serve it: the pinned vLLM release with its defaults, the publisher's release precision, every weight in GPU memory, tensor parallel over the fewest GPUs of the proving system's GPU model that hold it, at two load points (the workload's batch size, `matched`, and a high-load batch, `high`). The baseline of the [overhead](#overhead). [RFC-0015](../../rfcs/0015-reference-rows.md) SRV-6.
+
+<a id="profile"></a>**Profile.** A named machine specification in `reference/<release>.yaml`. v0.1 defines the reference `prover-h200`, its hosted form `prover-h200-hosted`, `prover-h100`, `prover-h100-hosted`, `verifier-cpu`, and the serving profiles `serving-h200x1-hosted` and `serving-h200x4-hosted` (RFC-0006 R6). Every row names its profile; nothing is compared across profiles without the profile in the row. [RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md).
 
 <a id="proof"></a>**Proof.** In this project, the set of files (parts) that one `verify` call checks for one request, released atomically as `/io/proofs/<proof_id>/`. For a segment-grid system it is the set of segment proofs for one sequence plus whatever the grid check needs. [RFC-0005](../../rfcs/0005-adapter-contract.md).
 
@@ -88,7 +90,7 @@ This file quotes the neutral-language rule and its banned words, so it is on the
 
 <a id="quantity"></a>**Quantity (labelled quantity).** The only form in which a number is stored: `{value, unit, scope, grade, tier, source, null_reason}`. A statistic adds `stats: {n, n_failed, mean, stdev, min, max}`. [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
-<a id="reference-row"></a>**Reference row.** A row produced by a reference system on the same workload as a proving row, so a proving cost reads against something: plain serving (`systems/ref-serve`) and naive recompute (`systems/ref-recompute`). [RFC-0015](../../rfcs/0015-reference-rows.md).
+<a id="reference-row"></a>**Reference row.** A row produced by a reference system on the same workload as a proving row, so a proving cost reads against something: [production serving](#production-serving) (`systems/ref-serve`) and naive recompute (`systems/ref-recompute`). [RFC-0015](../../rfcs/0015-reference-rows.md).
 
 <a id="relation"></a>**Relation.** The claim card's one-sentence statement of what is true when the verifier accepts. [RFC-0002](../../rfcs/0002-claim-card.md).
 

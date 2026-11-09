@@ -27,6 +27,7 @@ class Unit(StrEnum):
     PERCENT = "%"
     PARAM_TOKEN_PER_S = "param_token/s"
     S_PER_BIT_TOKEN = "s/bit_token"
+    GPU_S_PER_TOKEN = "gpu_s/token"
     BIT_PER_WEIGHT = "bit/weight"
     RATIO = "ratio"
 
@@ -87,6 +88,7 @@ class ScopeMapping(StrEnum):
 TIME_UNITS = frozenset({
     Unit.S, Unit.NS, Unit.TOKEN_PER_S, Unit.S_PER_TOKEN,
     Unit.USD, Unit.USD_PER_1K_TOKEN, Unit.PARAM_TOKEN_PER_S, Unit.S_PER_BIT_TOKEN,
+    Unit.GPU_S_PER_TOKEN,
 })  # fmt: skip
 
 TIER_ORDER = (Tier.REPORTED, Tier.PEER_REVIEWED, Tier.REPRODUCED)
