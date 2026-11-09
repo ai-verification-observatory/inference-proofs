@@ -98,7 +98,10 @@ def test_sections_found_by_what_they_hold(site, entries):
     # other words only, then a group's entries together (the page in view first)
     js = (site.web / "words.js").read_text()
     assert js.count("(a.x.tier === 5) - (b.x.tier === 5) || (a.r[0] === 2) - (b.r[0] === 2)") == 1
-    assert js.count("a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group)") == 1
+    assert (
+        js.count("a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group)")
+        == 1
+    )
 
 
 def test_sections_carry_their_system_and_figures(site, entries):

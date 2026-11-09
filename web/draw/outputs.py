@@ -57,7 +57,9 @@ SECTIONS = (
 )
 # what a not-benchmarked system's facts say is absent: shown on its card, never searched by
 ABSENT = re.compile(r"^(?:no |not named|model not named)", re.I)
-ABSENT_NOTES = re.compile(r"\s*\((?:model id as given|size not stated)\)|,\s*(?:size not stated|none named)")
+ABSENT_NOTES = re.compile(
+    r"\s*\((?:model id as given|size not stated)\)|,\s*(?:size not stated|none named)"
+)
 
 
 def model_terms(models):
@@ -75,16 +77,18 @@ def model_terms(models):
 def search_entries():
     out = []
 
-    def add(kind, name, url, meta, pie, found=(), fam="", group=None, terms="", figures=None,
-            context=""):  # fmt: skip
+    def add(kind, name, url, meta, pie, found=(), fam="", **more):
         """One entry. Its context line is searched by too, except a not-benchmarked system's,
         which may show an absence ("Model not named"); its terms say what it does name: the
-        phrases it shows when found by one (`found`), its figures' names and `terms`, words it
-        is found by and never shows."""
+        phrases it shows when found by one (`found`), its figures' names (`figures`) and
+        `terms`, words it is found by and never shows; `group`, where not its kind's; a
+        section's `context`."""
+        group, terms, figures, context = (more.get(k) for k in ("group", "terms", "figures",
+                                                                "context"))  # fmt: skip
         found = [x for x in dict.fromkeys(found) if x]
         shown = "" if kind == "unbenchmarked" else meta
         said = [*found, *(f["name"] for f in figures or [])]
-        words_ = " ".join([name, shown, *said, terms, TERMS.get(fam, ""), fam])
+        words_ = " ".join([name, shown, *said, terms or "", TERMS.get(fam, ""), fam])
         entry = {
             "kind": kind,
             "tier": TIER[kind],
@@ -140,12 +144,22 @@ def search_entries():
         cfg = first_config(sid)
         # each figure leads to its plate in the setup the overview row shows; the more-numbers
         # rows to the figures
-        figures = [{"name": HEAD[c], "url": fig_href(board[sid], c)} for c in (*COLS, *PER_GBIT_COLS)]
+        figures = [
+            {"name": HEAD[c], "url": fig_href(board[sid], c)} for c in (*COLS, *PER_GBIT_COLS)
+        ]
         figures += [{"name": label, "url": f"{S.PAGE[sid]}#figures"} for _, label in MORE]
         # a section is found by its system's name and models beside a word of its own ("sash
         # tamper"), never by them alone: the system's entry is that match
-        whose = " ".join([name_of(sid), *dict.fromkeys(S.MODEL_NAME[c["workload"]["model"]["digest"]]
-                                                       for c in S.CONFIGS if c["system"] == sid)])
+        whose = " ".join(
+            [
+                name_of(sid),
+                *dict.fromkeys(
+                    S.MODEL_NAME[c["workload"]["model"]["digest"]]
+                    for c in S.CONFIGS
+                    if c["system"] == sid
+                ),
+            ]
+        )
         for title, anchor, terms in SECTIONS:
             add("section", title, f"{S.PAGE[sid]}#{anchor.format(configuration=cfg['configuration'])}",
                 "", "", group=name_of(sid), terms=terms, context=whose,
