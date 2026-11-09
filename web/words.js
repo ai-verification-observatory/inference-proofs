@@ -10,14 +10,13 @@
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
   // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
-  // glyph: the slice under the pointer lifts, and its property's name and state show in place of the model lines under
-  // the system's name (the name stays), on a not-benchmarked card or the reference page in place of the line beside the
-  // glyph; nothing moves. The others keep
+  // glyph: the slice under the pointer lifts, and its property's name and state show in a card under a row's glyph
+  // (its pointer on the petal), on a not-benchmarked card or the reference page in place of the line beside the glyph;
+  // nothing moves. The others keep
   // their ink. The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
   $$('.row .pie, .nb .nbpie, .refone .refpie').forEach((pie) => {
     const card = pie.closest('.nb, .refone');
-    // a row's tip sits in its model lines' place, a card's in its line's place
-    const tip = $('.tip', card || pie.closest('.row'));
+    const tip = $('.tip', card || pie);
     let hot = 0;
     const set = (n) => {
       if (n === hot) return;
@@ -37,6 +36,11 @@
         const st = document.createElement('span');
         st.append(sw, document.createTextNode(sl.dataset.word));
         tip.replaceChildren(b, st);
+        // a row's card: its pointer on the petal's middle; over the glyph when under it would leave the screen
+        const hp = $$(`.hit path[data-n="${n}"]`, pie).map((x) => x.getBoundingClientRect()).find((r) => r.width);
+        const pr = pie.getBoundingClientRect();
+        if (hp) tip.style.setProperty('--cx', `${Math.round(hp.left + hp.width / 2 - pr.left)}px`);
+        tip.classList.toggle('up', pr.bottom + 12 + tip.offsetHeight > innerHeight && pr.top - 12 - tip.offsetHeight > 0);
       }
     };
     pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });

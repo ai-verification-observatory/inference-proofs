@@ -8,7 +8,7 @@ ok   one table across models, FlashProve then SASH (overhead ascending); no work
 ok   one row per system on the overview, its glyph once {"systems":["/flashprove","/sash"],"pies":["/flashprove","/sash"]}
 ok   no reference row on the overview (the baseline is named in each overhead cell), no "same as above" []
 ok   sections in order: benchmarked, then 19 not benchmarked yet ["benchmarked","not-yet"]
-ok   row slice hover shows its name and state in the model lines' place, over no text, the system's name still shown {"path":"/","hot":"2","shown":true,"pos":"static","named":true,"text":"Model boundPartly","sw":true,"over":[]}
+ok   row slice hover names its property and state in a raised card pointing at the petal, on screen, the system's name still shown {"path":"/","hot":"2","shown":true,"pos":"absolute","named":true,"card":true,"aim":true,"inView":true,"text":"Model boundPartly","sw":true,"over":[]}
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
 ok   a Not stated slot is a ghost slot in a grey outline and lifts like the others {"hot":"1","unstated":true,"fill":"#1f1e1e","ghost":"#1f1e1e","stroke":"#67635c","grey":"#67635c","moved":true,"loose":0}
@@ -223,7 +223,7 @@ ok   home-360: one note over four level figure heads, sort buttons 32 px tall or
 ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":372,"cols":2,"qq":true}
 ok   home-320: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
 ok   home-390: every figure in paper, whichever column sorts ["overhead:on","per_bit:on","size_bit:on","check_bit:on","overhead:on","per_bit:on","size_bit:on","check_bit:on"]
-ok   touch: a first tap on a triangle names it, over no text, the system's name still shown, and stays on the page {"path":"/","hot":"2","shown":true,"pos":"static","named":true,"text":"Model boundPartly","sw":true,"over":[]}
+ok   touch: a first tap on a triangle names it in a card pointing at it, on screen, the system's name still shown, and stays on the page {"path":"/","hot":"2","shown":true,"pos":"absolute","named":true,"card":true,"aim":true,"inView":true,"text":"Model boundPartly","sw":true,"over":["Llama 4 Maverick","17B active","·","4.839-bit","61.28","×","68.21"]}
 ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4447/flashprove#claims-exact-match-cp-verify
 ok   flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs {"wide":340,"inside":true,"out":[],"names":["WEIGHTS HIDDEN","MODEL BOUND","WHOLE OUTPUT CHECKED","FORMALLY VERIFIED","SECURITY LEVEL","NO TRUSTED PARTY"],"stateless":true,"order":"123456","below":true,"col":1,"keys":0}
 ok   touch: a tap on a slice lifts it and marks its property {"s2":"matrix(1, 0, 0, 1, 6, 0)","rn":"rgb(241, 239, 233)","path":"/flashprove"}

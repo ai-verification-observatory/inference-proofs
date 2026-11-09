@@ -9,12 +9,14 @@ try { AxeBuilder = (await import(process.env.AXE_MODULE || '@axe-core/playwright
 const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 // a row's glyph tip in the page: shown, its words, and any visible text of the row it covers
 const tipSeen = (row) => {
-  const pie = document.querySelector(`${row} .pie`); const t = document.querySelector(`${row} .mc .tip`); const tr = t.getBoundingClientRect();
+  const pie = document.querySelector(`${row} .pie`); const t = pie.querySelector('.tip'); const tr = t.getBoundingClientRect();
+  const cs = getComputedStyle(t); const hp = [...pie.querySelectorAll(`.hit path[data-n="${pie.dataset.hot}"]`)].map((x) => x.getBoundingClientRect()).find((r) => r.width);
+  const caret = getComputedStyle(t, '::before'); const cx = tr.left + parseFloat(caret.left);
   const nm = document.querySelector(`${row} .name`);
   const hit = (b) => b.width && b.height && b.left < tr.right && tr.left < b.right && b.top < tr.bottom && tr.top < b.bottom;
   const clipped = (x) => { for (let e = x; e; e = e.parentElement) if (getComputedStyle(e).clipPath === 'inset(50%)') return true; return false; };
   const over = [...document.querySelectorAll(`${row} .sysc *, ${row} .vals *`)].filter((x) => !t.contains(x) && !x.closest('.pie') && getComputedStyle(x).visibility === 'visible' && x.childElementCount === 0 && x.textContent.trim() && !clipped(x) && hit(x.getBoundingClientRect())).map((x) => x.textContent.trim());
-  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, named: getComputedStyle(nm).visibility === 'visible' && nm.getBoundingClientRect().width > 0, text: t.textContent, sw: !!t.querySelector('.sw'), over };
+  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, named: getComputedStyle(nm).visibility === 'visible' && nm.getBoundingClientRect().width > 0, card: cs.position === 'absolute' && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && +cs.zIndex > 0 && cs.borderTopStyle === 'solid', aim: !!hp && Math.abs(cx - (hp.left + hp.width / 2)) <= 2, inView: tr.left >= 0 && tr.right <= innerWidth && tr.top >= 0 && tr.bottom <= innerHeight, text: t.textContent, sw: !!t.querySelector('.sw'), over };
 };
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
@@ -124,7 +126,7 @@ const sortBy = async (p, col, dir) => {
   await p.mouse.move(pie.x + pie.width * 0.8, pie.y + pie.height * 0.5); await p.waitForTimeout(400);
   // the name and state sit in the glyph's empty column, over no text of the row
   const tip = await p.evaluate(tipSeen, '#flashprove');
-  ok(tip.shown && tip.named && tip.text.length > 3 && !tip.over.length, 'row slice hover shows its name and state in the model lines\' place, over no text, the system\'s name still shown', tip);
+  ok(tip.shown && tip.named && tip.card && tip.aim && tip.inView && tip.text.length > 3, 'row slice hover names its property and state in a raised card pointing at the petal, on screen, the system\'s name still shown', tip);
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
@@ -655,7 +657,7 @@ for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
   await p.touchscreen.tap(...at); await p.waitForTimeout(300);
   const tip = await p.evaluate(tipSeen, '#flashprove');
-  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && tip.named && !tip.over.length, 'touch: a first tap on a triangle names it, over no text, the system\'s name still shown, and stays on the page', tip);
+  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && tip.named && tip.card && tip.aim && tip.inView, 'touch: a first tap on a triangle names it in a card pointing at it, on screen, the system\'s name still shown, and stays on the page', tip);
   await p.touchscreen.tap(...at); await p.waitForTimeout(800);
   ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
   // the system page: the glyph once, wide, each triangle carrying its property's name and never a state
