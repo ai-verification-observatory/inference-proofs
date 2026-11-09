@@ -210,6 +210,23 @@
       "unit": "USD/1k_token",
       "value": 0.025
     },
+    "proof_bytes_per_active_weight_bit_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/proof_bytes_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-BPAB@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "B/bit_token",
+      "value": 3.125e-08
+    },
     "proof_bytes_per_token": {
       "grade": "derived",
       "null_reason": null,
@@ -484,6 +501,23 @@
       "tier": "reported",
       "unit": "token",
       "value": 5000
+    },
+    "verify_seconds_per_active_weight_bit_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/verify_seconds_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/active_parameters_per_token",
+          "harness/tests/fixtures/derive/worked-example/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPAB@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 7.812500000000001e-14
     },
     "verify_seconds_per_token": {
       "grade": "derived",

@@ -21,6 +21,7 @@ class Unit(StrEnum):
     TOKEN_PER_S = "token/s"
     S_PER_TOKEN = "s/token"
     B_PER_TOKEN = "B/token"
+    B_PER_BIT_TOKEN = "B/bit_token"
     USD = "USD"
     USD_PER_1K_TOKEN = "USD/1k_token"
     USD_PER_GPU_HOUR = "USD/gpu_hour"

@@ -31,6 +31,9 @@ WARM = "overhead_vs_production_warm"  # RFC-0004 INV-DERIVE-11: no steady scope 
 # figure, or the session figure where the steady one is null (owner decision of 2026-11-09)
 PER_BIT = ("seconds_per_active_weight_bit_token_prove.steady",
            "seconds_per_active_weight_bit_token_prove.session")  # fmt: skip
+# RFC-0004 D-BPAB and D-VSPAB: proof size and check time on the same basis, for the overview
+PER_BIT_SIZE = ("proof_bytes_per_active_weight_bit_token",
+                "verify_seconds_per_active_weight_bit_token")  # fmt: skip
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
@@ -344,7 +347,7 @@ def _configuration(
                 "short": facts.gpus.get(str(gpu.get("model")))},
         "card": _card(root, index, config["system"], config["configuration"]),
         "figures": {m: figure(index_path, position, stats, m, records)
-                    for m in (*FIGURES, *PER_BIT, *MORE)},
+                    for m in (*FIGURES, *PER_BIT, *PER_BIT_SIZE, *MORE)},
         "per_bit_metric": per_bit_metric(stats),
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
         "overhead_metric": overhead_metric(config),
@@ -475,7 +478,8 @@ def overhead_words(
     served = f"{model.get('publisher', 'not stated')} {model.get('precision', 'not stated')}"
     brief = (f"{proved}{f' ({said})' if said else ''} proved vs {served} served, "
              f"{engine['name']} {engine['version']}, {batch['matched']} a batch")  # fmt: skip
-    out = {"conditions": line, "precision": note, "brief": brief}
+    short = f"{proved} vs {model.get('precision', 'not stated')}"  # a phone's compact line
+    out = {"conditions": line, "precision": note, "brief": brief, "short": short}
     # INV-DERIVE-11: no high-load figure pairs the prover's session with serving's steady scope
     scope = q.get("scope") or "prove.steady"
     high = None if warm else stats.get(f"overhead_vs_production_high_{scope}")

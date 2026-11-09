@@ -50,7 +50,16 @@ STEADY_LINE = "steady state on both sides, start-up excluded"
 # the scope line of an overhead, by its stored statistic
 SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE,
                "overhead_vs_production_prove.session": SESSION_LINE, WARM: WARM_LINE}  # fmt: skip
-# RFC-0004 INV-DERIVE-7: printed beside prover time per active weight bit wherever it is shown
+# the overview's scopes in short, for a phone's compact lines (the full words ride beside them)
+SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "session", "verify": "{cpus} threads",
+               "overhead_vs_production_prove.steady": "steady",
+               "overhead_vs_production_prove.session": "session", WARM: "session vs warm"}  # fmt: skip
+# RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns, and
+# its reading unit for every row (1e-12 s per bit is 1 ms per Gbit, 1e-6 B per bit 1 kB per Gbit)
+PER_GBIT = "per token, per Gbit of active weights"
+PER_GBIT_UNIT = {"s/bit_token": (1e12, "ms"), "B/bit_token": (1e6, "kB")}
+RANGE_DASH = "\u2013"  # a range's two ends in short, on a phone
+# RFC-0004 INV-DERIVE-7: printed beside a figure per active weight bit wherever it is shown
 PER_BIT_LIMIT = ("Attention cost grows with prompt length and is not in this normaliser, so two "
                  "workloads of one model with different prompt lengths differ for that reason too "
                  "(the SASH workloads have 1,024 and 4,096 prompt tokens). Weight bits are as the "
@@ -171,8 +180,9 @@ def amount(v, unit):
         if abs(v) < 1e3:
             return sig4(v), "s"
         return (sig4(v / 60), "min") if abs(v) < 6e4 else (sig4(v / 3600), "h")
-    if unit == "s/bit_token":  # one reading unit for every row: picoseconds
-        return sig4(v * 1e12), "ps"
+    if unit in PER_GBIT_UNIT:
+        scale, words = PER_GBIT_UNIT[unit]
+        return sig4(v * scale), words
     words = {"token": "positions", "token/s": "positions/s", "USD/1k_token": "USD / 1k positions"}
     return sig4(v), words.get(unit, unit)
 

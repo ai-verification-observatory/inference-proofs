@@ -155,14 +155,19 @@ html:not(.js) .search { display: none; }
 .nbm { font: 400 12px/1.45 var(--mono); color: var(--muted); }
 
 /* ---------------------------------------------------------------- rows */
-/* the board: system, model, then the four figures */
-.heads, .r-main { display: grid; grid-template-columns: 330px minmax(0, 1fr) repeat(4, minmax(0, 1fr)); column-gap: 24px; }
+/* the board: the system (its model under its name), then the four figures */
+.heads, .r-main { display: grid; grid-template-columns: 400px repeat(4, minmax(0, 1fr)); column-gap: 24px; }
 .sysc { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 18px; align-items: start; min-width: 0; }
+.sysc .pie { grid-row: span 2; }
 .heads { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; padding: 14px 0 0; align-items: end; }
+/* the heads' second line: each figure's head under the line its group shares (the overhead's
+   baseline; the per-Gbit basis of the other three, ruled across them) */
+.heads .hc { grid-row: 2; min-width: 0; }
+.hg { grid-row: 1; font: 400 12px/1.35 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; padding-bottom: 5px; border-bottom: 1px solid var(--line); align-self: end; }
+.hg-overhead { grid-column: 2; }
+.hg-per_bit { grid-column: 3 / span 3; }
 /* sortable heads: real buttons, each with its glyph; the pressed one in paper with a rule under it */
 .hsys { padding-left: 114px; }
-/* Model: a head, not a sort button (a model is not a result) */
-.hmod > span { display: inline-block; padding: 6px 0 9px; }
 /* the glyph follows the last word after a no-break space, so a head that wraps keeps it beside its word */
 .sb { display: inline-block; padding: 6px 0 9px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s; }
 .sb .g { font: 500 13px/1 var(--mono); letter-spacing: 0; display: inline; }
@@ -205,12 +210,11 @@ html:not(.js) .search { display: none; }
 .name a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
 .wl { display: flex; flex-direction: column; align-items: flex-start; margin-top: 8px; font: 400 12px/18px var(--mono); color: var(--muted); }
 .pin { display: inline-block; font: 500 12px/1 var(--mono); margin-top: 2px; padding-block: 6px; margin-bottom: -6px; color: var(--paper); }
-/* the model: its name, its size, what the workload ran */
-.mc { min-width: 0; padding-top: 14px; }
-.mn { font: 800 24px/1.05 var(--disp); font-stretch: 80%; margin: 0; }
-.ms { font: 400 12px/1.5 var(--mono); color: var(--muted); margin: 6px 0 0; }
+/* the model under the system's name: its name, its size and weight width, what the workload ran */
+.mc { grid-column: 2; min-width: 0; padding-top: 12px; }
+.mn { font: 800 22px/1.05 var(--disp); font-stretch: 80%; margin: 0; }
+.ms { font: 400 12px/1.5 var(--mono); color: var(--muted); margin: 4px 0 0; }
 .ms + .ms { margin-top: 2px; }
-.mc .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .vals { display: contents; }
 .vc { min-width: 0; }
 .val { display: block; align-self: start; min-width: 0; padding-top: 14px; position: relative; text-decoration: none; }
@@ -229,11 +233,14 @@ html:not(.js) .search { display: none; }
 .na { font: 600 22px/1.2 var(--disp); font-stretch: 84%; color: var(--muted); display: inline-block; padding-top: 14px; text-wrap: balance; }
 .sub > span { text-wrap: balance; }
 .sub { display: flex; flex-direction: column; align-items: flex-start; font: 400 12px/1.5 var(--mono); color: var(--muted); margin-top: 6px; }
+/* the same labels in short (scope, n and range), shown on phones in place of .sub */
+.subc { display: none; }
 .qs { display: inline-block; font: 400 12px/1.45 var(--mono); color: var(--muted); margin-top: 8px; }
 .plates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
-.plates.p5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 .plate { min-width: 0; }
 .plate .lbl { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+/* a per-Gbit plate's label runs to two lines */
+.pgb .plate .lbl { line-height: 1.3; }
 .plate dl { margin: 0; font: 400 12px/1.45 var(--mono); }
 .plate dl div { padding: 5px 0; border-top: 1px solid var(--line); }
 .plate dt { color: var(--muted); }
@@ -484,7 +491,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .agree { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
 }
 @media (max-width: 1180px) {
-  .heads, .r-main { grid-template-columns: 250px minmax(0, 1fr) repeat(4, minmax(0, 1fr)); column-gap: 18px; }
+  .heads, .r-main { grid-template-columns: 300px repeat(4, minmax(0, 1fr)); column-gap: 18px; }
   .sysc { grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; }
   .hsys { padding-left: 78px; }
   .row .pie { width: 64px; height: 64px; }
@@ -494,33 +501,35 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 /* the legend: smaller key glyphs and names */
 @media (max-width: 1099px) {
   /* the board stacks: glyph, name and pin on one line, the model under them, then the four
-     figures with their labels; the heads become a strip of sort buttons, and in each row the
-     figure the table is sorted by has its label in paper with the order's arrow */
+     figures on the next in columns that line up with the heads from row to row. The heads are a
+     grid of sort buttons (System on its own line, the group lines above the figures' heads); each
+     figure's label is the head above it (still read aloud in the cell); the figure the table is
+     sorted by in paper, the others muted */
   .r-main { grid-template-columns: minmax(0, 1fr); }
   .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+  .sysc .pie { grid-row: auto; }
   .row .pie { width: 52px; height: 52px; }
   .board .pie[data-hot="1"] .s1, .board .pie[data-hot="2"] .s2, .board .pie[data-hot="3"] .s3, .board .pie[data-hot="4"] .s4, .board .pie[data-hot="5"] .s5, .board .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke-width: 1.5; }
   .who { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-top: 0; }
   .board .name { font-size: 32px; }
   .wl { margin-top: 0; }
-  .row { padding: 14px 0 20px; }
-  .mc { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-top: 10px; }
-  .ms { margin-top: 0; }
-  .ms + .ms { flex-basis: 100%; margin-top: 2px; }
-  .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; row-gap: 4px; margin-top: 4px; }
-  .val { padding-top: 12px; }
-  .val .lbl { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; display: block; }
+  .row { padding: 14px 0 18px; }
+  .mc { grid-column: 1 / -1; padding-top: 8px; }
+  .mn { font-size: 18px; }
+  .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; margin-top: 2px; }
+  .val { padding-top: 8px; }
   .tip { top: calc(100% + 2px); padding: 2px 6px 2px 0; }
-  .hsys { padding-left: 0; }
-  .hmod { display: none; }
-  .heads { display: flex; flex-wrap: wrap; gap: 4px 18px; padding-top: 12px; }
+  .heads { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; }
+  .heads .hc { grid-row: 3; }
+  .heads .hsys { grid-column: 1 / -1; grid-row: 1; padding-left: 0; }
+  .hg { grid-row: 2; padding-top: 6px; }
+  .hg-overhead { grid-column: 1; }
+  .hg-per_bit { grid-column: 2 / span 3; }
   .heads .sb { padding: 10px 0 11px; text-align: left; }
-  .tbl[data-col="overhead"] .vc[data-col="overhead"] .lbl, .tbl[data-col="per_bit"] .vc[data-col="per_bit"] .lbl,
-  .tbl[data-col="proof_size"] .vc[data-col="proof_size"] .lbl, .tbl[data-col="check_time"] .vc[data-col="check_time"] .lbl { color: var(--paper); }
-  .tbl[data-col="overhead"][data-dir="asc"] .vc[data-col="overhead"] .lbl:after, .tbl[data-col="per_bit"][data-dir="asc"] .vc[data-col="per_bit"] .lbl:after,
-  .tbl[data-col="proof_size"][data-dir="asc"] .vc[data-col="proof_size"] .lbl:after, .tbl[data-col="check_time"][data-dir="asc"] .vc[data-col="check_time"] .lbl:after { content: "\00a0↑" / ""; }
-  .tbl[data-col="overhead"][data-dir="desc"] .vc[data-col="overhead"] .lbl:after, .tbl[data-col="per_bit"][data-dir="desc"] .vc[data-col="per_bit"] .lbl:after,
-  .tbl[data-col="proof_size"][data-dir="desc"] .vc[data-col="proof_size"] .lbl:after, .tbl[data-col="check_time"][data-dir="desc"] .vc[data-col="check_time"] .lbl:after { content: "\00a0↓" / ""; }
+  .tbl:not([data-col="system"]) .vc { color: var(--muted); }
+  .tbl:not([data-col="system"]) .vc .na.word { color: var(--muted); }
+  .tbl[data-col="overhead"] .vc[data-col="overhead"], .tbl[data-col="per_bit"] .vc[data-col="per_bit"],
+  .tbl[data-col="size_bit"] .vc[data-col="size_bit"], .tbl[data-col="check_bit"] .vc[data-col="check_bit"] { color: var(--paper); }
   .q { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
   .q .kmini { width: 40px; height: 40px; }
   .qw { font-size: 28px; }
@@ -565,7 +574,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   body.notfound .slist { left: 0; right: 0; top: calc(100% + 6px); max-height: min(70vh, 560px); }
 }
 @media (max-width: 920px) {
-  .plates, .plates-sys, .plates.p5 { grid-template-columns: 1fr 1fr; column-gap: 14px; }
+  .plates, .plates-sys { grid-template-columns: 1fr 1fr; column-gap: 14px; }
   .fig .n { font-size: 34px; }
   .facts { columns: 1; }
 }
@@ -585,7 +594,6 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mtab .mv { text-align: right; }
   .mtab .mv .fig { justify-content: flex-end; }
   .sec { padding-top: 28px; }
-  .vals { grid-template-columns: 1fr 1fr; }
   .tlab > div { grid-template-columns: 1fr; gap: 2px; }
   .sysname { font-size: min(72px, 18vw); }
   .sect { font-size: 34px; }
@@ -702,14 +710,27 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .so .sm { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .facts div { grid-template-columns: 1fr; gap: 2px; }
   /* one plate per line, so a source path keeps its parts whole */
-  .plates, .plates-sys, .plates.p5 { grid-template-columns: 1fr; }
+  .plates, .plates-sys { grid-template-columns: 1fr; }
+  .pgb { margin-top: 0; border-top: 1px solid var(--rule); padding-top: 14px; }
   .crit .ch { grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; }
   .crit .kmini { width: 32px; height: 32px; }
-  /* the board: the two figures that compare across models at full width, proof size and check time side by side */
-  .board .name { font-size: min(30px, 8vw); }
-  .board .vc[data-col="overhead"], .board .vc[data-col="per_bit"] { grid-column: 1 / -1; }
-  .board .fig .n { font-size: 30px; }
+  /* the board: every figure of a system on one line, smaller, under its head; the labels in
+     short (scope, n and range) */
+  .heads, .vals { column-gap: 10px; }
   .heads .sb { font-size: 11px; letter-spacing: .02em; line-height: 1.25; }
+  .hg { font-size: 10px; line-height: 1.3; padding-bottom: 3px; }
+  .sysc { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
+  .row .pie { width: 40px; height: 40px; }
+  .board .name { font-size: min(26px, 7vw); }
+  .row { padding: 12px 0 14px; }
+  .mc { padding-top: 6px; }
+  .mn { font-size: 16px; }
+  .ms { font-size: 11px; line-height: 1.4; margin-top: 2px; }
+  .board .fig .n { font-size: 21px; }
+  .board .fig .u { font-size: 11px; }
+  .board .na { font-size: 15px; }
+  .board .sub { display: none; }
+  .board .subc { display: flex; flex-direction: column; align-items: flex-start; font: 400 10px/1.35 var(--mono); margin-top: 4px; overflow-wrap: anywhere; }
 }
 /* narrow phones: a smaller logo and closer items, so the first line fits */
 @media (max-width: 400px) {
@@ -720,7 +741,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
 @media (max-width: 360px) {
   .fig .n { font-size: 28px; }
   .fig .u { font-size: 12px; }
-  .board .fig .n { font-size: 26px; }
+  .heads, .vals { column-gap: 8px; }
+  .board .fig .n { font-size: 19px; }
 }
 /* phones from 350 px: a label beside its value (below, the source parts no longer fit beside one) */
 @media (min-width: 350px) and (max-width: 560px) {

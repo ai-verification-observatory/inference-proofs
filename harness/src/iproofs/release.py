@@ -878,7 +878,7 @@ def _same_inputs(
         recorded = r.run.get("inputs")
         if isinstance(recorded, dict):
             params, bits = recorded["active_parameters_per_token"], recorded["weight_bits"]
-        elif any(name.startswith("seconds_per_active") for name in evaluated[r.run_id]):
+        elif any("per_active_weight_bit" in name for name in evaluated[r.run_id]):
             (_, params), (_, bits) = late.workload_inputs(r)
         else:
             continue

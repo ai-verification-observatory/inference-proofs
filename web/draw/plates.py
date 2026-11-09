@@ -13,13 +13,17 @@ from . import state as S
 from .words import (
     BITS_BASIS,
     PER_BIT_LIMIT,
+    PER_GBIT,
+    RANGE_DASH,
     SCOPE_LINES,
+    SCOPE_SHORT,
     STATE_WORD,
     e,
     gpu_words,
     labels,
     scope_words,
     shown,
+    sig4,
     spread_line,
     spread_parts,
     why_words,
@@ -119,24 +123,35 @@ def fig(v):
 
 # the plates of a system page, and the figures of a reference (whose rows make no proof)
 COLS = ["covers", "proof_size", "check_time", "overhead"]
-SYS_COLS = [*COLS, "per_bit"]
-# the overview's figures, after the model (RFC-0009 S6): the two that compare provers across
-# models first, then the proof's own
-BOARD = ["overhead", "per_bit", "proof_size", "check_time"]
+# the three cost figures on one basis, per token covered per Gbit of active weights (PER_GBIT):
+# prover time (D-SPAB-S), proof size (D-BPAB), check time (D-VSPAB)
+PER_GBIT_COLS = ["per_bit", "size_bit", "check_bit"]
+SYS_COLS = [*COLS, *PER_GBIT_COLS]
+# the overview's figures (RFC-0009 S6): the overhead, then the three on the per-Gbit basis
+BOARD = ["overhead", *PER_GBIT_COLS]
+# each figure's full name: a plate's label, and the name a screen reader hears in a row's cell
 HEAD = {
     "covers": "One proof covers",
     "proof_size": "Proof size",
     "check_time": "Check time",
     "overhead": "Overhead vs production serving",
-    "per_bit": "Prover ps per active weight bit·token",
+    "per_bit": f"Proving time {PER_GBIT}",
+    "size_bit": f"Proof size {PER_GBIT}",
+    "check_bit": f"Check time {PER_GBIT}",
 }
-# the stored statistic behind each column (iproofs.site.view.FIGURES, PER_BIT)
+# the overview's column heads, under one line each group shares (BOARD_GROUPS)
+BOARD_HEAD = {"overhead": "Overhead", "per_bit": "Proving time", "size_bit": "Proof size",
+              "check_bit": "Check time"}  # fmt: skip
+BOARD_GROUPS = [(["overhead"], "vs production serving"), (PER_GBIT_COLS, PER_GBIT)]
+# the stored statistic behind each column (iproofs.site.view.FIGURES, PER_BIT, PER_BIT_SIZE)
 METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
     "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
+    "size_bit": "proof_bytes_per_active_weight_bit_token",
+    "check_bit": "verify_seconds_per_active_weight_bit_token",
 }
 
 
@@ -172,7 +187,9 @@ SORT_WORDS = {
         "asc": "closer to production serving first",
         "desc": "further from production serving first",
     },
-    "per_bit": {"asc": "less prover time first", "desc": "more prover time first"},
+    "per_bit": {"asc": "less proving time first", "desc": "more proving time first"},
+    "size_bit": {"asc": "small to large", "desc": "large to small"},
+    "check_bit": {"asc": "short to long", "desc": "long to short"},
 }
 # More numbers on a system page, in this order: the stored statistic and its row label
 MORE = [
@@ -344,17 +361,18 @@ def blob(path):
 
 
 def cell_words(cfg, col):
-    """(value html, lines, title, measured) for one overview figure of a configuration."""
+    """(value html, lines, title, measured, compact lines) for one overview figure of a
+    configuration; the compact lines are what a phone shows under it (scope, n and range)."""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
         if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
-            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
-        return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False
+            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False, []
+        return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False, []
     f = cfg["figures"][metric_of(cfg, col)]
     if f["value"] is None:
         why = why_words(f, cfg)
-        return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False
+        return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False, []
     value = shown(f["value"], f["unit"])
     unit_line = {"covers": "{n} token{s} checked", "proof_size": "per proof",
                  "check_time": "per check"}.get(col)  # fmt: skip
@@ -364,41 +382,63 @@ def cell_words(cfg, col):
         if unit_line
         else []
     )
+    short = [*compact_spread(f)]
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
         pairs = f.get("pairs") or {}
-        brief = (cfg.get("overhead_words") or {}).get("brief")
-        runs = []
+        words = cfg.get("overhead_words") or {}
+        runs, short = [], [SCOPE_SHORT[f["metric"]]]
         if pairs.get("n_system") is not None:
             ns, nv = pairs["n_system"], pairs["n_serving"]
             runs.append(
                 f"{ns} prover run{'s' if ns != 1 else ''} × {nv} serving run{'s' if nv != 1 else ''}"
             )
+            short.append(f"{ns}×{nv} runs")
         if pairs.get("min") is not None:
             runs.append(f"{shown(pairs['min'], 'ratio')} to {shown(pairs['max'], 'ratio')}")
-        tail = [SCOPE_LINES[f["metric"]], *runs, *([brief] if brief else [])]
-    if col == "per_bit":  # its scope and the width it divides by (RFC-0004 INV-DERIVE-7)
+            short.append(f"{sig4(pairs['min'])}{RANGE_DASH}{shown(pairs['max'], 'ratio')}")
+        tail = [SCOPE_LINES[f["metric"]], *runs, *([words["brief"]] if words.get("brief") else [])]
+        short += [words["short"]] if words.get("short") else []
+    if col in ("per_bit", "check_bit"):  # its timing scope (RFC-0004 INV-SCOPE-1)
         scope = scope_words(f, cfg)
-        tail = [scope[:1].upper() + scope[1:], bits_words(cfg)]
-    title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
+        tail = [scope[:1].upper() + scope[1:]]
+        short = [SCOPE_SHORT[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"]), *short]
+    # the basis and its limit ride in the title (RFC-0004 INV-DERIVE-7)
+    value_said = f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value
+    title = " · ".join([value_said, *(f"{k}: {v}" for k, v in labels(f, cfg)),
                         f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
-                       else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
+                       else [value_said, *(f"{k}: {v}" for k, v in labels(f, cfg)),
                              f"source: {f['source']}"])  # fmt: skip
-    if col == "per_bit":
-        title += f" · {PER_BIT_LIMIT}"
-    return fig(value), [*spread_parts(f), *tail], title, True
+    if col in PER_GBIT_COLS:
+        title += f" · weight bits: {bits_words(cfg)} · {PER_BIT_LIMIT}"
+    return fig(value), [*spread_parts(f), *tail], title, True, short
+
+
+def compact_spread(f):
+    """The sample size and the range in short, for a phone: "n=4", "n=3, 1 failed", and the
+    range's two ends in the figure's reading unit (the figure above names the unit)."""
+    st = f.get("stats")
+    if not st:
+        return []
+    n = f"n={st['n']}" + (f", {st['n_failed']} failed" if st["n_failed"] else "")
+    lo, hi = (shown(st[k], f["unit"]).rsplit(" ", 1)[0] for k in ("min", "max"))
+    return [n, f"{lo}{RANGE_DASH}{hi}"]
 
 
 def value_link(cfg, col, href, who=""):
     """A figure on the overview row: a link to the figure's own plate; its labels ride in the
-    title. The lines under it are plain text (a link cannot hold the rule links the plates carry)."""
-    inner, shown_lines, title, measured = cell_words(cfg, col)
+    title. The lines under it are plain text (a link cannot hold the rule links the plates carry);
+    a phone shows the compact lines instead (words.css)."""
+    inner, shown_lines, title, measured, short = cell_words(cfg, col)
     title = sentence_case(readable(title) if measured else title)
     lines = "".join(f"<span>{keep(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
+    compact = "".join(f"<span>{keep(ln)}</span>" for ln in short if ln)
     name = f'<span class="sr">, {e(who)}</span>' if who else ""
     return (
         f'<a class="val" href="{e(href)}" title="{e(title)}">'
         f'<span class="lbl">{e(HEAD[col])}{name}</span><span class="vm">{inner}</span>'
-        f'<span class="sub">{lines}</span></a>'
+        f'<span class="sub">{lines}</span>'
+        + (f'<span class="subc">{compact}</span>' if compact else "")
+        + "</a>"
     )
 
 
@@ -432,7 +472,7 @@ def plate(cfg, col, pid=""):
             for key in ("conditions", "precision", "high"):  # RFC-0004 INV-DERIVE-9
                 if words and words.get(key):
                     kv.append((key, words[key], None))
-        if col == "per_bit":  # RFC-0004 INV-DERIVE-7: the width, its note and the limit
+        if col in PER_GBIT_COLS:  # RFC-0004 INV-DERIVE-7: the width, its note and the limit
             wb = cfg["workload"]["precision"].get("weight_bits") or {}
             kv.append(("weight bits", bits_words(cfg), wb.get("source")))
             if wb.get("note"):
