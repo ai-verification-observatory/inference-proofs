@@ -321,9 +321,17 @@ def boundary_words(cfg):
     return f"steady window from the first proof (runs before {m[1]})" if m else label
 
 
+# production serving proves nothing (AGENTS.md rule 10): its timed scopes, in its own words
+SERVING_SCOPE_WORD = {"prove.steady": "serving, steady state",
+                      "prove.session": "serving session, start-up included"}  # fmt: skip
+
+
 def scope_words(f, cfg):
-    """A figure's scope in words; a steady figure of a configuration whose runs cut their steady
-    window at another boundary names it (RFC-0004 INV-SCOPE-5)."""
+    """A figure's scope in words, a serving reference's in its own; a steady figure of a
+    configuration whose runs cut their steady window at another boundary names it (RFC-0004
+    INV-SCOPE-5)."""
+    if cfg.get("reference_role") == "serve" and f["scope"] in SERVING_SCOPE_WORD:
+        return SERVING_SCOPE_WORD[f["scope"]]
     words = SCOPE_WORD[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"])
     if f["scope"] == "prove.steady" and cfg.get("steady_boundary"):
         words += f", {boundary_words(cfg)}"

@@ -134,7 +134,7 @@
       "name": "Rerun by a weights holder"
     },
     "ref-serve": {
-      "kind_words": "Production serving: the baseline with no check, for cost comparison.",
+      "kind_words": "Production serving: the baseline for cost comparison.",
       "name": "Production serving"
     },
     "remainder": {

@@ -133,17 +133,21 @@ def facts_dl(items):
     )
 
 
-def price_words(cfg):
-    """The GPU-hour price a cost assumes (RFC-0006 C1, C7), from the release's reference file,
-    linked to it: "at 5.345 USD per H200-hour (median list price, 4 providers, 2026-11-08)"."""
+def price_text(cfg):
+    """The GPU-hour price a cost assumes (RFC-0006 C1, C7), from the release's reference file:
+    "at 5.345 USD per H200-hour (median list price, four providers, 2026-11-08)"; "" without."""
     pr = cfg.get("price")
     if not pr:
         return ""
     gpu = cfg["gpu"]["short"] or cfg["gpu"]["model"]
-    said = (f"at {sig4(pr['usd_per_gpu_hour'])}\u00a0USD per {gpu}-hour (median list price, "
+    return (f"at {sig4(pr['usd_per_gpu_hour'])}\u00a0USD per {gpu}-hour (median list price, "
             f"{count_word(pr['providers'])} providers, {pr['date']})")  # fmt: skip
-    href = blob(pr["file"])
-    return f'<a href="{e(href)}">{e(said)}{EXT}</a>'
+
+
+def price_words(cfg):
+    """`price_text`, linked to the reference file it comes from."""
+    said = price_text(cfg)
+    return f'<a href="{e(blob(cfg["price"]["file"]))}">{e(said)}{EXT}</a>' if said else ""
 
 
 def more_table(cfg, caption, shared=None):
@@ -553,57 +557,94 @@ def build_system(sid):
     )
 
 
-# what production serving measured, each in a column of the reference page's table
-SERVING_COLS = (("gpu_seconds_per_token_prove.steady", "GPU time per token"),
-                ("rate_prove.steady", "Tokens per second"),
-                ("cost_per_1k_tokens_prove.steady", "GPU cost per 1M tokens"))  # fmt: skip
+# what production serving measured, each in a column of the reference page's table: the stored
+# statistic, the head, and the unit the head names (its cells print the number alone when they
+# all read in it)
+SERVING_COLS = (("gpu_seconds_per_token_prove.steady", "GPU time per token", None),
+                ("rate_prove.steady", "Tokens per second", "tokens/s"),
+                ("cost_per_1k_tokens_prove.steady", "GPU cost per 1M tokens", None))  # fmt: skip
 
 
-def serving_setup(cfg):
-    """What a serving configuration ran, as the overhead's conditions record it."""
+def engine_words(cfg):
+    sv = cfg.get("serving") or {}
+    return f"{sv['engine']} {sv['version']}" if sv.get("engine") else ""
+
+
+def serving_setup(cfg, shared=()):
+    """What a serving configuration ran, as the overhead's conditions record it, less what
+    every row of the table shares (`shared`, said once in its caption)."""
     sv = cfg.get("serving") or {}
     model = S.MODEL_NAME[cfg["workload"]["model"]["digest"]]
     gpus = sv.get("gpus") or cfg["gpu"]["count"]
     parts = [model, f"{sv.get('publisher')} {sv.get('precision')}" if sv.get("precision") else "",
-             f"{sv['engine']} {sv['version']}" if sv.get("engine") else "",
-             f"{count_word(gpus)} {cfg['gpu']['short'] or cfg['gpu']['model']}"]  # fmt: skip
+             engine_words(cfg), f"{count_word(gpus)} {cfg['gpu']['short'] or cfg['gpu']['model']}"]  # fmt: skip
     if sv.get("batch"):
         b = sv["batch"]
         parts.append(f"{b:,} request{'s' if b != 1 else ''} per batch ({sv['load']} load)")
-    return " · ".join(x for x in parts if x)
+    return " · ".join(x for x in parts if x and x not in shared)
 
 
-def serving_cell(cfg, metric, head):
-    """One measured value of production serving: the value, its scope and n in short under it,
-    every label and its record in its title (S2, S3)."""
+def serving_cols(cfgs):
+    """Per column, whether its cells print the number alone: every row's value reads in the
+    unit its head names."""
+    bare = {}
+    for metric, _, unit in SERVING_COLS:
+        units = {amount(c["figures"][metric]["value"], c["figures"][metric]["unit"])[1]
+                 for c in cfgs if c["figures"][metric]["value"] is not None}  # fmt: skip
+        bare[metric] = unit is not None and units == {unit}
+    return bare
+
+
+def serving_cell(cfg, metric, bare):
+    """One measured value of production serving: the value (the number alone where its head
+    names its unit, `bare`), every label and its record in its title (S2, S3)."""
     f = cfg["figures"][metric]
     if f["value"] is None:
-        return f'<td data-h="{e(head)}"><span class="na">No value</span></td>'
+        return '<td><span class="na">No value</span></td>'
     n, u = amount(f["value"], f["unit"])
-    val = fig(f"{n} {u.removesuffix('/token').split(' per ')[0]}")  # the head names "per token"
+    val = fig(n if bare else f"{n} {u.removesuffix('/token').split(' per ')[0]}")
     st = f.get("stats") or {}
-    sub = f"steady · n\u00a0{st['n']}" if st else "steady"
     said = [f"{n} {u}", scope_words(f, cfg), *([spread_line(f, count=True)] if st else []),
             *(f"{k}: {v}" for k, v in labels(f, cfg)[1:]), f"source: {source_words(f)}"]  # fmt: skip
-    if f["unit"] == "USD/1k_token" and cfg.get("price"):
-        pr = cfg["price"]
-        said.append(f"at {sig4(pr['usd_per_gpu_hour'])} USD per GPU-hour ({pr['date']})")
-    return (f'<td data-h="{e(head)}" title="{e(readable(" · ".join(said)))}">{val}'
-            f'<span class="sub">{e(sub)}</span></td>')  # fmt: skip
+    if f["unit"] == "USD/1k_token" and (price := price_text(cfg)):
+        said.append(price)
+    return f'<td title="{e(readable(" · ".join(said)))}">{val}</td>'
+
+
+def serving_runs(cfg):
+    """The run count a row's figures share ("3 runs"), or None where they differ."""
+    ns = {cfg["figures"][m]["stats"]["n"] for m, _, _ in SERVING_COLS
+          if cfg["figures"][m].get("stats")}  # fmt: skip
+    return f"{(n := ns.pop()):,} run{'s' if n != 1 else ''}" if len(ns) == 1 else None
 
 
 def serving_table(gid, cfgs):
-    """Production serving's measurements: one row per configuration it ran, the setup, then the
-    steady GPU time per token, the rate and the cost per 1M tokens."""
-    rows = "".join(
-        f'<tr><th scope="row">{keep(readable(serving_setup(c)))}</th>'
-        + "".join(serving_cell(c, m, h) for m, h in SERVING_COLS) + "</tr>"
-        for c in cfgs if has_figures(c)
-    )  # fmt: skip
-    if not rows:
+    """Production serving's measurements: one row per configuration it ran, its setup and its run
+    count, then the steady GPU time per token, the rate and the cost per 1M tokens. What every
+    row shares (the scope, the engine) is said once, in the caption; a head that names its
+    unit holds it for its cells."""
+    rows_of = [c for c in cfgs if has_figures(c)]
+    if not rows_of:
         return ""
-    heads = "".join(f'<th scope="col">{e(h)}</th>' for _, h in SERVING_COLS)
-    return (f'<table class="mtab stab" id="{e(gid)}-figures"><caption class="sect sm">Measured</caption>'
+    scopes = {scope_words(c["figures"][m], c) for c in rows_of for m, _, _ in SERVING_COLS
+              if c["figures"][m]["value"] is not None}  # fmt: skip
+    engines = {engine_words(c) for c in rows_of}
+    shared = [
+        *(scopes if len(scopes) == 1 else []),
+        *(x for x in engines if len(engines) == 1 and x),
+    ]
+    bare = serving_cols(rows_of)
+    rows = ""
+    for c in rows_of:
+        runs = serving_runs(c)
+        head = serving_setup(c, shared) + (f" · {runs}" if runs else "")
+        rows += (f'<tr><th scope="row">{keep(readable(head))}</th>'
+                 + "".join(serving_cell(c, m, bare[m]) for m, _, _ in SERVING_COLS) + "</tr>")  # fmt: skip
+    heads = "".join(f'<th scope="col">{e(h)}</th>' for _, h, _ in SERVING_COLS)
+    # the caption heads a table of serving: a shared scope reads without its "serving, " lead
+    caption = "\u00a0· ".join(f'<span class="nw">{e(x.removeprefix("serving, "))}</span>'
+                              for x in ["Measured", *shared])  # fmt: skip
+    return (f'<table class="mtab stab" id="{e(gid)}-figures"><caption class="sect sm">{caption}</caption>'
             f'<thead><tr><th scope="col">Setup</th>{heads}</tr></thead><tbody>{rows}</tbody></table>')  # fmt: skip
 
 
@@ -619,16 +660,16 @@ def common_reason(g):
 
 
 def reference_claims(gid, g, name):
-    """A reference's six states: where all six are one, the glyph once, small, beside one line
-    ("No on all six"); otherwise the glyph with each property beside its slice."""
+    """A reference's six states: where all six are one, the glyph once, small, a link to what
+    the states mean (its states read in its label), beside the reason the six share ("By
+    definition: nothing is checked."; RFC-0016 SRC-5, SRC-7); otherwise the glyph with each
+    property beside its slice."""
     if len(set(g["states"])) == 1:
-        word = g["cells"][0]["word"]
         why = common_reason(g)
-        line = (f'<a href="{CRIT_PAGE}">{e(word)} on all six</a>'
-                + (f". {e(words(why))}." if why else "."))  # fmt: skip
+        line = f'<p class="refline">{e(words(why))}.</p>' if why else ""
         pie = sized(lambda s: hex_svg(s, states=g["states"]), (120, 72))
-        return (f'<div class="refone"><span class="refpie" role="img" aria-label="{e(aria(g, name))}">'
-                f'{pie}</span><p class="refline">{line}</p></div>')  # fmt: skip
+        return (f'<div class="refone"><a class="refpie" href="{CRIT_PAGE}" aria-label="{e(aria(g, name))}">'
+                f"{pie}</a>{line}</div>")  # fmt: skip
     return f'<div class="over">{rose(g, f"h-{gid}-props", name, level=3, pre=f"{gid}-")}</div>'
 
 
