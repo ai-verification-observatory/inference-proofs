@@ -27,8 +27,11 @@ VAL = re.compile(r'<a class="val" href="[^"]*" title="([^"]*)">(.*?)</a>', re.S)
 ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" data-k="([^"]+)">')
 PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
-SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0,
+SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
+         "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
+         "\N{MULTIPLICATION SIGN}": 1.0,
+         # GPU memory, stored in MiB
+         "KiB": 1 / 1024, "MiB": 1.0, "GiB": 1024.0,
          # more numbers: token/s, and USD per 1,000 tokens (the row names the basis)
          "positions/s": 1.0, "USD": 1.0}  # fmt: skip
 MORE_ROW = re.compile(r'<tr><th scope="row">.*?</tr>', re.S)
@@ -37,7 +40,20 @@ COLUMN = {
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
+    "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
+    "size_bit": "proof_bytes_per_active_weight_bit_token",
+    "check_bit": "verify_seconds_per_active_weight_bit_token",
 }
+
+
+def column(statistics: dict[str, Any], headline: dict[str, Any] | None, col: str) -> str:
+    """The statistic an overview column shows: the overhead the index names as the headline,
+    prover time per active weight bit at `prove.steady`, else at `prove.session`."""
+    if col == "overhead" and headline:
+        return str(headline["metric"])
+    if col == "per_bit" and (statistics.get(COLUMN[col]) or {}).get("value") is None:
+        return "seconds_per_active_weight_bit_token_prove.session"
+    return COLUMN[col]
 
 
 @pytest.fixture(scope="module")
@@ -74,8 +90,11 @@ def pages(out: Path) -> dict[str, str]:
     return {p.name: p.read_text("utf-8") for p in sorted(out.glob("*.html"))}
 
 
-def printed(number: str, unit: str) -> float:
-    return float(number.replace(",", "")) * SCALE[unit]
+def printed(number: str, unit: str, stored_unit: str = "") -> float:
+    """A printed figure in its stored base unit; a per-bit unit (s/bit_token, B/bit_token) is
+    printed per Gbit of active weights, 1e9 bits."""
+    per_gbit = 1e-9 if stored_unit.endswith("/bit_token") else 1.0
+    return float(number.replace(",", "")) * SCALE[unit] * per_gbit
 
 
 def close_at_4(value: float, stored: float) -> bool:
@@ -92,8 +111,8 @@ def test_every_configuration_on_the_pages(built: tuple[Path, Path]) -> None:
     assert systems == {"flashprove", "sash", "ref-serve", "ref-recompute"}
     rows = {rid for rid, _ in ROW.findall(site["index.html"])}
     for c in doc["configurations"]:
-        if c["system"].startswith("ref-"):
-            assert f'<div class="row" id="{c["system"]}" role="row">' in site["index.html"]
+        if c["system"].startswith("ref-"):  # the baseline, on /reference, not an overview row
+            assert f'<div class="row" id="{c["system"]}"' not in site["index.html"]
             assert f'id="{c["system"]}" aria-labelledby' in site["reference.html"]
         else:
             assert c["system"] in rows
@@ -120,7 +139,7 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
         stat = resolve(doc, found[1])
         number = NUMBER.search(inner)
         assert number, title
-        assert close_at_4(printed(number[1], number[2]), stat["value"]), title
+        assert close_at_4(printed(number[1], number[2], stat["unit"]), stat["value"]), title
         traced += 1
     for name in ("flashprove.html", "sash.html"):
         for body in PLATE.findall(site[name]):
@@ -136,7 +155,8 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
                 assert stat["null_reason"], found[1]
                 continue
             assert number, (name, found[1])
-            assert close_at_4(printed(number[1], number[2]), stat["value"]), (name, found[1])
+            value = printed(number[1], number[2], stat["unit"])
+            assert close_at_4(value, stat["value"]), (name, found[1])
             traced += 1
     assert traced >= 12  # two systems, three measured figures, on the overview and the plates
     more = 0
@@ -160,11 +180,17 @@ def test_every_figure_traces_to_the_index(built: tuple[Path, Path]) -> None:
             assert spread in re.sub(r"<[^>]+>", "", row).replace("\N{NO-BREAK SPACE}", " ")
             more += 1
     assert more >= 6  # two systems: proving rate, GPU cost, commit once
-    for rid, keys in ROW.findall(site["index.html"]):
+    _keys_are_stored(doc, site["index.html"])
+
+
+def _keys_are_stored(doc: dict[str, Any], index_html: str) -> None:
+    """Each overview sort key is the value the index stores for that row's column."""
+    for rid, keys in ROW.findall(index_html):
         position = next(i for i, c in enumerate(doc["configurations"]) if c["system"] == rid)
         statistics = doc["configurations"][position]["statistics"]
+        headline = doc["configurations"][position].get("overhead_headline")
         for col, key in json.loads(html.unescape(keys)).items():
-            stored = statistics.get(COLUMN[col], {}).get("value")
+            stored = statistics.get(column(statistics, headline, col), {}).get("value")
             assert key == stored, (rid, col)
 
 

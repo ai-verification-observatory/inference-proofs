@@ -40,7 +40,7 @@ def test_keys_are_the_stored_values(site, keys):
     for cfg in site.view["configurations"]:
         if cfg["kind"] != "prover":
             continue
-        for col in site.build.METRIC:
+        for col in site.build.BOARD:
             metric = site.build.metric_of(cfg, col)  # the overhead: the row's headline
             assert keys[cfg["system"]][col] == cfg["figures"][metric]["value"], (cfg["system"], col)
 
@@ -56,16 +56,6 @@ def test_check_time_in_seconds(keys):
     # 3.120 s against 121.3 s
     assert close(keys["flashprove"]["check_time"], 3.12)
     assert abs(keys["sash"]["check_time"] - 121.3) <= 0.05
-
-
-def test_covers_in_positions(site, keys):
-    # D-TPP, positions one proof covers: FlashProve proves the 1,024-token window of its
-    # workload; SASH's prompt_plus_output rule counts its own workload's 1,024 prompt plus 64
-    # output tokens, 1,088 by hand
-    shapes = {c["system"]: c["workload"]["shape"] for c in site.view["configurations"]}
-    assert keys["flashprove"]["covers"] == shapes["flashprove"]["context_window"] == 1024
-    sash = shapes["sash"]
-    assert keys["sash"]["covers"] == sash["prompt_tokens"] + sash["output_tokens"] == 1088
 
 
 def test_overhead_missing(site, keys):
@@ -95,7 +85,8 @@ def test_warm_overhead_names_both_scopes(site):
     assert b.readable(b.WARM_LINE) in b.plate(cfg, "overhead")
     assert "steady state" in b.plate(cfg, "overhead")
     warm["value"] = 1000.0
-    assert b.cell_words(cfg, "overhead")[1] == [b.WARM_LINE]
+    assert b.cell_words(cfg, "overhead")[1] == [b.SCOPE_SHORT[b.WARM]]
+    assert f"scope: {b.WARM_LINE}" in b.cell_words(cfg, "overhead")[2]
     plate = b.plate(cfg, "overhead")
     assert f"<dt>scope</dt><dd>{b.readable(b.WARM_LINE)}</dd>" in plate
     assert "start-up included on both sides" not in plate
@@ -108,6 +99,11 @@ def test_units_normalise(site):
     assert b.amount(2410.5333, "s") == ("40.18", "min")
     assert b.amount(64.3667, "s") == ("64.37", "s")
     assert b.amount(0.03, "s") == ("30.00", "ms")
+    # the prefix that leaves no leading zero: 68.21 µs, 222.9 B, 56.49 GiB; 999.96 µs is 1.000 ms
+    assert b.amount(6.821e-14, "s/bit_token") == ("68.21", "\N{MICRO SIGN}s")
+    assert b.amount(2.229e-7, "B/bit_token") == ("222.9", "B")
+    assert b.amount(57850, "MiB") == ("56.49", "GiB")
+    assert b.amount(0.00099996, "s") == ("1.000", "ms")
     assert b.shown(1583, "ratio") == "1,583×"
     assert b.shown(1024.0, "token") == "1,024 positions"
     assert b.shown(0.0114974, "USD/1k_token") == "0.01150 USD / 1k positions"
@@ -134,24 +130,7 @@ def test_sort_words(site):
     assert w["system"]["asc"] == "A to Z"
     assert w["proof_size"]["asc"] == "small to large"
     assert w["check_time"]["desc"] == "long to short"
-    assert set(w) == {"system", *site.build.COLS}
-
-
-def test_two_models(site):
-    # one table per model, largest first by the workload record's total parameters (RFC-0009
-    # S6): Llama 4 Maverick (FlashProve), then Llama 3.1 8B (SASH); no table across models, so
-    # each system once; the two references
-    tables = site.build.tables()
-    assert [(site.build.MODEL_NAME[d], [c["system"] for c in rows]) for d, _, rows in tables] == [
-        ("Llama 4 Maverick", ["flashprove"]),
-        ("Llama 3.1 8B", ["sash"]),
-    ]
-    sizes = [rows[0]["workload"]["model"]["parameters"]["total"] for _, _, rows in tables]
-    assert sizes == [400_000_000_000, 8_030_261_248]
-    assert all({c["workload"]["model"]["digest"] for c in rows} == {d} for d, _, rows in tables)
-    systems = [c["system"] for _, _, rows in tables for c in rows]
-    assert sorted(systems) == sorted(set(systems)) == site.view["orders"]["benchmarked"]
-    assert site.view["orders"]["reference"] == ["ref-serve", "ref-recompute"]
+    assert set(w) == {"system", *site.build.BOARD}
 
 
 def test_reference_cells(site):
@@ -189,19 +168,22 @@ def test_readable_labels(site):
 
 
 def test_home_figures_show_spread(site):
-    # every measured figure shows its sample size and range first (S3), One proof covers included
+    # every measured overview figure carries its sample size and range in its title (S3); the
+    # plate it links holds them in view
     seen = 0
     for cfg in site.build.PROVERS:
-        for col in site.build.COLS:
+        for col in site.build.BOARD:
             f = cfg["figures"][site.build.metric_of(cfg, col)]
-            if f["value"] is None:
+            if f["value"] is None or not f.get("stats"):
                 continue
-            lines = site.build.cell_words(cfg, col)[1]
+            title = site.build.cell_words(cfg, col)[2]
             st = f["stats"]
-            assert lines[0] == f"{st['n']} completed, {st['n_failed']} failed", (cfg["system"], col)
-            assert " to " in lines[1]
+            assert f"spread: {st['n']} completed, {st['n_failed']} failed" in title, (
+                cfg["system"],
+                col,
+            )
             seen += 1
-    assert seen == 6
+    assert seen
 
 
 def test_every_stored_id_has_words(site):

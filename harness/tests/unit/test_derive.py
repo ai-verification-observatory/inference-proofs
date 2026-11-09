@@ -340,7 +340,11 @@ def test_freeze_values_fill_only_missing_keys() -> None:
     )  # fmt: skip
     spab = [f"seconds_per_active_weight_bit_token_{s}" for s in ("prove.steady", "prove.session",
                                                                    "whole_wall")]  # fmt: skip
-    assert sorted(late) == sorted([*spab, "tokens_covered_per_proof"])
+    per_bit = ["proof_bytes_per_active_weight_bit_token",
+               "verify_seconds_per_active_weight_bit_token"]  # fmt: skip
+    assert sorted(late) == sorted([*spab, *per_bit, "tokens_covered_per_proof"])
+    for name in per_bit:  # their D-BPT and D-VSPT inputs are not in this stored run
+        assert (late[name]["value"], late[name]["null_reason"]) == (None, "missing_input")
     assert late[SPAB]["source"]["inputs"][0] == f"{RUN}#/metrics/seconds_per_token_prove.steady"  # type: ignore[index]
     assert math.isclose(late[SPAB]["value"], 1.5625e-13, rel_tol=1e-12)  # type: ignore[arg-type]
     assert late["tokens_covered_per_proof"]["value"] == 1000
@@ -364,3 +368,76 @@ def test_seconds_per_active_weight_bit_follows_steady_null() -> None:
     metrics = scope_seconds(events, [2 * NS], observable=True, run_json=RUN)
     metrics["tokens_covered_steady"] = q("tokens_covered_steady", 0)
     assert derive(metrics)[SPAB]["null_reason"] == "fewer_than_two_proofs"
+
+
+BPAB = "proof_bytes_per_active_weight_bit_token"
+VSPAB = "verify_seconds_per_active_weight_bit_token"
+
+
+def per_bit_case(
+    proofs: int,
+    tokens_per_proof: int,
+    bytes_per_proof: float,
+    verify_per_proof: float,
+    params: float,
+    bits: float,
+) -> dict[str, QuantityTree]:
+    """One repetition's recorded totals (fixture values, not a result), derived."""
+    metrics = {
+        "proofs_count": q("proofs_count", proofs),
+        "tokens_covered_total": q("tokens_covered_total", proofs * tokens_per_proof),
+        "proof_bytes_total": q("proof_bytes_total", proofs * bytes_per_proof),
+        "verify_seconds_total": q("verify_seconds_total", proofs * verify_per_proof),
+    }
+    return derive(metrics, params=params, bits=bits)
+
+
+def test_per_bit_proof_size_and_check_time_flashprove_like() -> None:
+    """TC-BPAB-WORKED, TC-VSPAB-WORKED, a FlashProve-like case (fixture values, not a result):
+    120 proofs of 1,024 positions each, 17,408,000 B and 17.408 s to check per proof, 17e9
+    active parameters at 4 bits, so 6.8e10 bits of active weights per token.
+    D-BPT = 120 x 17,408,000 / (120 x 1,024) = 17,000 B/token;
+    D-BPAB = 17,000 / 6.8e10 = 2.5e-7 B/bit_token (250 B per token per Gbit).
+    D-VSPT = 120 x 17.408 / (120 x 1,024) = 0.017 s/token;
+    D-VSPAB = 0.017 / 6.8e10 = 2.5e-13 s/bit_token (0.25 ms per token per Gbit)."""
+    out = per_bit_case(120, 1024, 17_408_000, 17.408, 17e9, 4.0)
+    assert math.isclose(out["proof_bytes_per_token"]["value"], 17_000, rel_tol=1e-12)  # type: ignore[arg-type]
+    assert math.isclose(out[BPAB]["value"], 2.5e-7, rel_tol=1e-12)  # type: ignore[arg-type]
+    assert math.isclose(out[VSPAB]["value"], 2.5e-13, rel_tol=1e-12)  # type: ignore[arg-type]
+    assert (out[BPAB]["unit"], out[BPAB]["scope"], out[BPAB]["grade"]) == (
+        "B/bit_token", None, "derived")  # fmt: skip
+    assert (out[VSPAB]["unit"], out[VSPAB]["scope"], out[VSPAB]["grade"]) == (
+        "s/bit_token", "verify", "derived")  # fmt: skip
+    assert out[BPAB]["source"] == {
+        "kind": "derivation",
+        "ref": "derive:D-BPAB@0.1.0",
+        "inputs": [f"{RUN}#/metrics/proof_bytes_per_token", PARAMS_REF, BITS_REF],
+    }
+    assert out[VSPAB]["source"]["inputs"] == [  # type: ignore[index]
+        f"{RUN}#/metrics/verify_seconds_per_token", PARAMS_REF, BITS_REF]  # fmt: skip
+
+
+def test_per_bit_proof_size_and_check_time_sash_like() -> None:
+    """TC-BPAB-WORKED, TC-VSPAB-WORKED, a SASH-like case (fixture values, not a result): one
+    proof of 1,088 positions (1,024 prompt and 64 output), 43,520,000,000 B and 3,481.6 s to
+    check, 8e9 active parameters at 8 bits, so 6.4e10 bits of active weights per token.
+    D-BPT = 43,520,000,000 / 1,088 = 40,000,000 B/token;
+    D-BPAB = 40,000,000 / 6.4e10 = 6.25e-4 B/bit_token (625 kB per token per Gbit).
+    D-VSPT = 3,481.6 / 1,088 = 3.2 s/token;
+    D-VSPAB = 3.2 / 6.4e10 = 5e-11 s/bit_token (50 ms per token per Gbit)."""
+    out = per_bit_case(1, 1088, 43_520_000_000, 3481.6, 8e9, 8.0)
+    assert math.isclose(out["verify_seconds_per_token"]["value"], 3.2, rel_tol=1e-12)  # type: ignore[arg-type]
+    assert math.isclose(out[BPAB]["value"], 6.25e-4, rel_tol=1e-12)  # type: ignore[arg-type]
+    assert math.isclose(out[VSPAB]["value"], 5e-11, rel_tol=1e-12)  # type: ignore[arg-type]
+
+
+def test_per_bit_proof_size_and_check_time_nulls() -> None:
+    """No weight bits: both null `missing_input`; a reference row: both null `not_applicable`."""
+    metrics = {"proofs_count": q("proofs_count", 1),
+               "tokens_covered_total": q("tokens_covered_total", 1000),
+               "proof_bytes_total": q("proof_bytes_total", 1e6),
+               "verify_seconds_total": q("verify_seconds_total", 1.0)}  # fmt: skip
+    for kw, reason in (({"bits": None}, "missing_input"), ({"reference": True}, "not_applicable")):
+        out = derive(metrics, **kw)
+        for name in (BPAB, VSPAB):
+            assert (out[name]["value"], out[name]["null_reason"]) == (None, reason), (name, kw)

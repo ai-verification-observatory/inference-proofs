@@ -25,6 +25,13 @@ FIGURES = ("tokens_covered_per_proof", "proof_bytes", "verify_seconds",
            "overhead_vs_production_warm")  # fmt: skip
 OVERHEAD = "overhead_vs_production_prove.steady"  # RFC-0004 INV-DERIVE-9, the headline
 WARM = "overhead_vs_production_warm"  # RFC-0004 INV-DERIVE-11: no steady scope of its own
+# RFC-0004 D-SPAB-S, prover seconds per active weight bit per token: the overview shows the steady
+# figure, or the session figure where the steady one is null (owner decision of 2026-11-09)
+PER_BIT = ("seconds_per_active_weight_bit_token_prove.steady",
+           "seconds_per_active_weight_bit_token_prove.session")  # fmt: skip
+# RFC-0004 D-BPAB and D-VSPAB: proof size and check time on the same basis, for the overview
+PER_BIT_SIZE = ("proof_bytes_per_active_weight_bit_token",
+                "verify_seconds_per_active_weight_bit_token")  # fmt: skip
 MORE = ("rate_prove.session", "cost_per_1k_tokens_prove.session", "commit_seconds",
         "verify_host_memory_peak_anon", "prove_gpu_memory_peak")  # fmt: skip
 AGREEMENT = "agreement_rate"
@@ -69,6 +76,7 @@ def figure(
         "repetition_formula": _repetition_formula(q, records),
         "source": f"{index_path}#/configurations/{position}/statistics/{_escape(metric)}",
         "sort_key": None if value is None else float(value),
+        "pairs": q.get("pairs"),  # an overhead's prover and serving run counts and range
     }
 
 
@@ -331,12 +339,14 @@ def _configuration(
         "gpu": {"model": gpu.get("model"), "count": gpu.get("count"),
                 "short": facts.gpus.get(str(gpu.get("model")))},
         "card": _card(root, index, config["system"], config["configuration"]),
-        "figures": {m: figure(index_path, position, stats, m, records) for m in (*FIGURES, *MORE)},
+        "figures": {m: figure(index_path, position, stats, m, records)
+                    for m in (*FIGURES, *PER_BIT, *PER_BIT_SIZE, *MORE)},
+        "per_bit_metric": per_bit_metric(stats),
         "agreement": figure(index_path, position, stats, AGREEMENT, records),
         "overhead_metric": overhead_metric(config),
         "overhead_words": overhead_words(
-            config.get("overhead_conditions"), stats, wl, overhead_metric(config)
-        ),
+            config.get("overhead_conditions"), stats, wl, overhead_metric(config),
+            None if model is None else dict(model.precision_words or {})),
         "runs": _runs(config, records),
         "insufficient_repetitions": config["insufficient_repetitions"],
         "controls": controls,
@@ -377,11 +387,20 @@ def overhead_metric(config: dict[str, Any]) -> str:
     return str(headline.get("metric") or OVERHEAD)
 
 
+def per_bit_metric(stats: dict[str, Any]) -> str:
+    """The D-SPAB-S statistic the overview shows: `prove.steady`, or `prove.session` where the
+    steady figure is null (a system with no steady scope); the cell names the scope it shows."""
+    steady = stats.get(PER_BIT[0])
+    has_steady = isinstance(steady, dict) and steady.get("value") is not None
+    return PER_BIT[0] if has_steady else PER_BIT[1]
+
+
 def overhead_words(
     conditions: dict[str, Any] | None,
     stats: dict[str, Any],
     wl: dict[str, Any],
     metric: str = OVERHEAD,
+    precision_words: dict[str, str] | None = None,
 ) -> dict[str, str] | None:
     """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load context
     of a system row's headline overhead `metric` (INV-DERIVE-10, -11), every value from the
@@ -440,7 +459,13 @@ def overhead_words(
         f"{WARM_NOTE if warm else 'steady'}, "
         f"at {batch['matched']} requests a batch."
     )
-    out = {"conditions": line, "precision": note}
+    proved = c["proved_precision"]
+    said = (precision_words or {}).get(proved)
+    served = f"{model.get('publisher', 'not stated')} {model.get('precision', 'not stated')}"
+    brief = (f"{proved}{f' ({said})' if said else ''} proved vs {served} served, "
+             f"{engine['name']} {engine['version']}, {batch['matched']} a batch")  # fmt: skip
+    short = f"{proved} vs {model.get('precision', 'not stated')}"  # a phone's compact line
+    out = {"conditions": line, "precision": note, "brief": brief, "short": short}
     # INV-DERIVE-11: no high-load figure pairs the prover's session with serving's steady scope
     scope = q.get("scope") or "prove.steady"
     high = None if warm else stats.get(f"overhead_vs_production_high_{scope}")
@@ -623,6 +648,7 @@ def _facts_row(row: Any) -> dict[str, Any]:
         "models": list(row.models or []),
         "code": row.code,
         "licence": None if licence is None else {"name": licence.name, "url": licence.url},
+        "overview_workload": row.overview_workload,
         "status": None if status is None else {
             "state": status.state, "last_push": status.last_push, "source": status.source,
             "retrieved": status.retrieved, "quote": status.quote},

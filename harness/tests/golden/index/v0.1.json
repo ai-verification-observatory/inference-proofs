@@ -58,6 +58,23 @@
           "unit": "B",
           "value": 64.0
         },
+        "proof_bytes_per_active_weight_bit_token": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": null,
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/proof_bytes_per_active_weight_bit_token",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/proof_bytes_per_active_weight_bit_token",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/proof_bytes_per_active_weight_bit_token"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "B/bit_token",
+          "value": null
+        },
         "prove_gpu_memory_peak": {
           "grade": "derived",
           "null_reason": "not_applicable",
@@ -259,6 +276,23 @@
           "tier": "reported",
           "unit": "token",
           "value": 36.0
+        },
+        "verify_seconds_per_active_weight_bit_token": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "verify",
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/verify_seconds_per_active_weight_bit_token",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/verify_seconds_per_active_weight_bit_token",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/verify_seconds_per_active_weight_bit_token"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "s/bit_token",
+          "value": null
         }
       },
       "steady_boundary": "first-proof boundary (before 2026-11-09)",
@@ -292,6 +326,23 @@
   ],
   "freeze_derived": {
     "2026-11-03-fake-fake-tiny-ci-ci-cpu-1": {
+      "proof_bytes_per_active_weight_bit_token": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/proof_bytes_per_token",
+            "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+            "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-BPAB@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "B/bit_token",
+        "value": null
+      },
       "seconds_per_active_weight_bit_token_prove.session": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -358,9 +409,43 @@
         "tier": "reported",
         "unit": "token",
         "value": null
+      },
+      "verify_seconds_per_active_weight_bit_token": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "verify",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/verify_seconds_per_token",
+            "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+            "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-VSPAB@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "s/bit_token",
+        "value": null
       }
     },
     "2026-11-05-fake-fake-tiny-ci-ci-cpu-2": {
+      "proof_bytes_per_active_weight_bit_token": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/proof_bytes_per_token",
+            "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+            "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-BPAB@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "B/bit_token",
+        "value": null
+      },
       "seconds_per_active_weight_bit_token_prove.session": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -427,9 +512,43 @@
         "tier": "reported",
         "unit": "token",
         "value": null
+      },
+      "verify_seconds_per_active_weight_bit_token": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "verify",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/verify_seconds_per_token",
+            "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+            "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-VSPAB@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "s/bit_token",
+        "value": null
       }
     },
     "2026-11-06-fake-fake-tiny-ci-ci-cpu-3": {
+      "proof_bytes_per_active_weight_bit_token": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/proof_bytes_per_token",
+            "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+            "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-BPAB@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "B/bit_token",
+        "value": null
+      },
       "seconds_per_active_weight_bit_token_prove.session": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -495,6 +614,23 @@
         },
         "tier": "reported",
         "unit": "token",
+        "value": null
+      },
+      "verify_seconds_per_active_weight_bit_token": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "verify",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/verify_seconds_per_token",
+            "workloads/fake-tiny-ci.yaml#/model/parameters/active_per_token",
+            "workloads/fake-tiny-ci.yaml#/precision/weight_bits"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-VSPAB@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "s/bit_token",
         "value": null
       }
     }

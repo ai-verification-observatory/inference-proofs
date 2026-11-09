@@ -1271,6 +1271,7 @@ class RowFacts(Document):
     code: str | None = None
     licence: LicenceFacts | None = None
     status: StatusFacts | None = None
+    overview_workload: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

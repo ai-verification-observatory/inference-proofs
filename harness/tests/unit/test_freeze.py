@@ -151,7 +151,12 @@ def test_gate_failure_stops_freeze(
 
 WORKED = ROOT / "harness/tests/fixtures/derive/worked-example/run.json"
 SCOPES = ("prove.steady", "prove.session", "whole_wall")
-LATE = ("tokens_covered_per_proof", *(f"seconds_per_active_weight_bit_token_{s}" for s in SCOPES))
+LATE = (
+    "tokens_covered_per_proof",
+    *(f"seconds_per_active_weight_bit_token_{s}" for s in SCOPES),
+    "proof_bytes_per_active_weight_bit_token",
+    "verify_seconds_per_active_weight_bit_token",
+)
 
 
 def stored_run(n: int, *, late_keys: bool, inputs: dict[str, Any] | None) -> RunView:
@@ -198,6 +203,12 @@ def test_freeze_evaluates_a_stored_run_without_the_key() -> None:
     # hand-computed: 0.01 s/token over 64 parameters x 8 bits (fake-tiny-ci, file size)
     assert spab["value"] == 0.01 / (64 * 8.0)
     assert late.values[old.run_id]["tokens_covered_per_proof"]["value"] == 1000
+    # hand-computed: 2,000 B/token and 0.005 s/token (worked example) over 64 x 8 bits
+    bpab = late.values[old.run_id]["proof_bytes_per_active_weight_bit_token"]
+    assert bpab["value"] == 2000 / (64 * 8.0)
+    assert bpab["source"]["inputs"][0] == f"{_rel(old)}/run.json#/metrics/proof_bytes_per_token"  # type: ignore[index]
+    vspab = late.values[old.run_id]["verify_seconds_per_active_weight_bit_token"]
+    assert vspab["value"] == 0.005 / (64 * 8.0)
 
 
 def test_freeze_value_of_another_workload_version_is_missing_input() -> None:

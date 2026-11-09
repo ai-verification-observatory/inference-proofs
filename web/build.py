@@ -112,7 +112,6 @@ def setup(view, out):
     S.MODEL_NAME = {d: view["facts"]["models"][d]["name"]
                     for d in {c["workload"]["model"]["digest"] for c in S.CONFIGS}}  # fmt: skip
     assert len(set(S.MODEL_NAME.values())) == len(S.MODEL_NAME), "two models share a name"
-    S.MODELS = draw.overview.models_by_size(S.PROVERS, S.MODEL_NAME)
     text = json.dumps(S.CRIT, ensure_ascii=False) + json.dumps(view["facts"], ensure_ascii=False)
     for k in draw.plates.PHRASES:
         assert k in text, f"PHRASES: {k!r} no longer in the criteria or facts file"

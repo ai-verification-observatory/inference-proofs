@@ -167,6 +167,8 @@ Inputs named `metrics.X` are recorded metrics of the same repetition. `ref.*` in
 | D-SPAB-S | `seconds_per_active_weight_bit_token_<S>` | repetition | D-SPT-S / (`active_parameters_per_token` × `weight_bits`) | s/bit_token | S | D-SPT-S null (its reason); weight bits or parameter count missing (`missing_input`); parameter count or weight bits 0 (`not_applicable`); always null with `not_applicable` for `kind: reference` (INV-DERIVE-7) |
 | D-BPT | `proof_bytes_per_token` | repetition | `proof_bytes_total` / tokens_covered_total | B/token | null | tokens 0 |
 | D-VSPT | `verify_seconds_per_token` | repetition | `verify_seconds_total` / tokens_covered_total | s/token | `verify` | tokens 0 |
+| D-BPAB | `proof_bytes_per_active_weight_bit_token` | repetition | D-BPT / (`active_parameters_per_token` × `weight_bits`): proof bytes per token covered per bit of active weights, the D-SPAB-S basis (amendment of 2026-11-09) | B/bit_token | null | D-BPT null (its reason); as D-SPAB-S for the parameter count and weight bits; always null with `not_applicable` for `kind: reference` |
+| D-VSPAB | `verify_seconds_per_active_weight_bit_token` | repetition | D-VSPT / (`active_parameters_per_token` × `weight_bits`): check seconds per token covered per bit of active weights (amendment of 2026-11-09) | s/bit_token | `verify` | as D-BPAB, with D-VSPT |
 | D-VSPT-1T | `verify_single_thread_seconds_per_token` | repetition | single-thread verify seconds of the first proof / tokens covered by the first proof (single-thread verify runs on the first proof only, RFC-0010) | s/token | `verify.single_thread` | as D-VSPT |
 | D-TPP | `tokens_covered_per_proof` | repetition | `tokens_covered_total` / `proofs_count` | token | null | tokens 0 or `proofs_count` 0 (`not_applicable`); always null with `not_applicable` for `kind: reference` (INV-DERIVE-6) |
 | D-VERIFY-HOST | `verify_host_ratio` | configuration | mean `verify` seconds on a separate verifier host / mean `verify` seconds on the emulated verifier profile, same proofs | ratio | `verify` | null with `missing_input` unless both host kinds ran the same proofs (RFC-0006 verifier emulation check) |
@@ -238,6 +240,8 @@ Inputs: one repetition, 1 GPU, `price` 3.60 USD/gpu_hour (fixture value), `activ
 | D-SPAB-prove.steady | 0.01 / (8.0e9 × 8) | 1.5625e-13 s/bit_token |
 | D-BPT | 10,000,000 / 5,000 | 2,000 B/token |
 | D-VSPT | 25 / 5,000 | 0.005 s/token |
+| D-BPAB | 2,000 / (8.0e9 × 8) | 3.125e-8 B/bit_token |
+| D-VSPAB | 0.005 / (8.0e9 × 8) | 7.8125e-14 s/bit_token |
 | D-TPP | 5,000 / 5 | 1,000 token |
 | D-GSPT-prove.steady (system, 1 GPU) | 0.01 × 1 | 0.01 gpu_s/token |
 | D-GSPT-prove.steady (serving fixture, 4 GPUs, 40,000 token/s) | 0.000025 × 4 | 0.0001 gpu_s/token |
@@ -315,6 +319,8 @@ The amendment of 2026-11-09 adds INV-DERIVE-11 (Draft, owner direction: the over
 
 The amendment of 2026-11-09 adds INV-SCOPE-5 (steady scope by batch membership). At batch size 1 nothing changes. At batch size b > 1 the steady start moves from r_1 to the first batch's last release and the steady tokens drop the first batch, so a run released batch by batch no longer counts the other b − 1 requests of the first batch, whose work finished before r_1. `iproofs.derive.scope_seconds` and `tokens_metrics` take the batch size, each release's `request_index` and the release times (TC-STEADY-BATCH): a later-batch request released before the start leaves the steady tokens, so a system that overlaps batches does not count work done before the window. Every manifest records `workload.steady_rule`; a release labels a configuration with an earlier run at b > 1 (`steady_boundary`), and such a run joins no overhead. Stored runs keep their values (APP-1).
 
+The amendment of 2026-11-09 adds D-BPAB (`proof_bytes_per_active_weight_bit_token`, new unit `B/bit_token`) and D-VSPAB (`verify_seconds_per_active_weight_bit_token`, `s/bit_token` at `verify`) on the owner decision of that date: proof size and check time on the D-SPAB-S basis, so the overview's three cost columns share one normalisation (per token covered, per bit of active weights). D-BPT and D-VSPT divide by tokens covered, so D-BPAB equals mean proof bytes / tokens covered per proof / (active parameters × weight bits), and D-VSPAB likewise with check seconds. Both join `COMPUTE`, `FORMULAS`, `derive_repetition`, `PROVER_ONLY` and FREEZE_FORMULAS (Q3): stored v0.1 runs hold `proof_bytes_per_token`, `verify_seconds_per_token` and run.json `inputs`, so the freeze evaluates both into `freeze_derived` and no run.json changes (APP-1). The unit enum and the metric-id pattern of `schema/quantity/1.schema.json` gain them. The INV-DERIVE-7 limit (attention left out of the normaliser) applies to both.
+
 ## Testing Strategy
 
 Unit tests in `harness/tests/unit/`, in `test_derive.py` unless an entry names another file:
@@ -347,6 +353,7 @@ Unit tests in `harness/tests/unit/`, in `test_derive.py` unless an entry names a
 - TC-TPP-SOURCE (`test_tokens_covered_per_proof_source`): `source.ref` is `derive:D-TPP@<harness version>` and `source.inputs` points at `tokens_covered_total` then `proofs_count`, in that order (INV-DERIVE-4).
 - TC-TPP-STAT (`test_stats.py::test_tokens_covered_per_proof_constant_statistics`): the constant-count statistics fixture; asserts n 3, n_failed 0, mean 1,000, stdev 0, min 1,000, max 1,000.
 
+- TC-BPAB-WORKED, TC-VSPAB-WORKED (`test_per_bit_proof_size_and_check_time_flashprove_like`, `test_per_bit_proof_size_and_check_time_sash_like`, `test_per_bit_proof_size_and_check_time_nulls`): two hand-computed cases with the arithmetic in their docstrings (120 proofs of 1,024 positions at 17e9 × 4 bits: 2.5e-7 B/bit_token and 2.5e-13 s/bit_token; one proof of 1,088 positions at 8e9 × 8 bits: 6.25e-4 B/bit_token and 5e-11 s/bit_token), units, scopes, inputs in order, and the null rules; the worked example gains the D-BPAB and D-VSPAB rows.
 - TC-SPAB-WORKED (`test_seconds_per_active_weight_bit_worked_example`): the worked example's D-SPAB row, 0.01 / (8.0e9 × 8) = 1.5625e-13 s/bit_token within `rel_tol=1e-12`, with grade `derived`, unit `s/bit_token`, scope `prove.steady` and tier `reported`.
 - TC-SPAB-SOURCE (`test_seconds_per_active_weight_bit_source`): `source.ref` is `derive:D-SPAB-S@<harness version>` and `source.inputs` points at `seconds_per_token_<S>`, then the parameter count, then the weight bits.
 - TC-SPAB-NO-BITS (`test_seconds_per_active_weight_bit_no_bits_is_missing_input`, `test_seconds_per_active_weight_bit_recorded_null_bits`): no weight bits, as an absent input or as the runner's null `inputs.weight_bits` with `missing_input`, gives null with `missing_input` in all three scopes, while D-SPT-S keeps its value.

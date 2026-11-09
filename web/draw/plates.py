@@ -11,13 +11,16 @@ import re
 
 from . import state as S
 from .words import (
+    BITS_BASIS,
+    PER_BIT_LIMIT,
+    PER_GBIT,
     SCOPE_LINES,
+    SCOPE_SHORT,
     STATE_WORD,
     e,
     labels,
     shown,
     spread_line,
-    spread_parts,
     why_words,
 )
 
@@ -113,29 +116,60 @@ def fig(v):
     )
 
 
+# the plates of a system page, and the figures of a reference (whose rows make no proof)
 COLS = ["covers", "proof_size", "check_time", "overhead"]
+# the three cost figures on one basis, per token covered per Gbit of active weights (PER_GBIT):
+# prover time (D-SPAB-S), proof size (D-BPAB), check time (D-VSPAB)
+PER_GBIT_COLS = ["per_bit", "size_bit", "check_bit"]
+SYS_COLS = [*COLS, *PER_GBIT_COLS]
+# the overview's figures (RFC-0009 S6): the overhead, then the three on the per-Gbit basis
+BOARD = ["overhead", *PER_GBIT_COLS]
+# each figure's full name: a plate's label, and the name a screen reader hears in a row's cell
 HEAD = {
     "covers": "One proof covers",
     "proof_size": "Proof size",
     "check_time": "Check time",
-    "overhead": "Overhead",
+    "overhead": "Overhead vs production serving",
+    "per_bit": f"Proving time {PER_GBIT}",
+    "size_bit": f"Proof size {PER_GBIT}",
+    "check_bit": f"Check time {PER_GBIT}",
 }
-# the stored statistic behind each overview column (iproofs.site.view.FIGURES)
+# the overview's column heads, under one line each group shares (BOARD_GROUPS)
+BOARD_HEAD = {"overhead": "Overhead", "per_bit": "Proving time", "size_bit": "Proof size",
+              "check_bit": "Check time"}  # fmt: skip
+BOARD_GROUPS = [(["overhead"], "vs production serving"), (PER_GBIT_COLS, PER_GBIT)]
+# the stored statistic behind each column (iproofs.site.view.FIGURES, PER_BIT, PER_BIT_SIZE)
 METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
+    "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
+    "size_bit": "proof_bytes_per_active_weight_bit_token",
+    "check_bit": "verify_seconds_per_active_weight_bit_token",
 }
 
 
 def metric_of(cfg, col):
-    """The stored statistic behind one overview column of a configuration: the overhead column
-    shows the row's headline overhead, which release code names (`overhead_metric`: the steady
-    figure, or the warm figure for a system with no steady scope, RFC-0004 INV-DERIVE-11)."""
+    """The stored statistic behind one column of a configuration: the overhead column shows the
+    row's headline overhead, which release code names (`overhead_metric`: the steady figure, or
+    the warm figure for a system with no steady scope, RFC-0004 INV-DERIVE-11); prover time per
+    active weight bit the steady figure, or the session figure where it is null (`per_bit_metric`)."""
     if col == "overhead":
         return cfg.get("overhead_metric") or METRIC[col]
+    if col == "per_bit":
+        return cfg.get("per_bit_metric") or METRIC[col]
     return METRIC[col]
+
+
+def bits_words(cfg):
+    """The weight width D-SPAB-S divides by, as the workload records it (RFC-0003 WB-1 to WB-5)."""
+    wb = cfg["workload"]["precision"].get("weight_bits") or {}
+    if not wb:
+        return "weight bits not recorded"
+    bits = f"{wb['bits']:.4g} bits" if wb.get("bits") is not None else "bits"
+    part = ", part of the weights" if wb.get("covers") == "part" else ""
+    return f"{bits} per active weight, {BITS_BASIS.get(wb.get('basis'), wb.get('basis'))}{part}"
 
 
 # how each order reads aloud
@@ -148,6 +182,9 @@ SORT_WORDS = {
         "asc": "closer to production serving first",
         "desc": "further from production serving first",
     },
+    "per_bit": {"asc": "less proving time first", "desc": "more proving time first"},
+    "size_bit": {"asc": "small to large", "desc": "large to small"},
+    "check_bit": {"asc": "short to long", "desc": "long to short"},
 }
 # More numbers on a system page, in this order: the stored statistic and its row label
 MORE = [
@@ -315,46 +352,76 @@ def blob(path):
 
 
 def cell_words(cfg, col):
-    """(value html, lines, title, measured) for one overview figure of a configuration."""
+    """(value html, lines, title, measured) for one overview figure of a configuration. The line
+    under it is its scope in one word where the rows of its column differ in it (steady, session,
+    session vs warm), else none; every label rides in its title, and the plate it links holds
+    them all in view (S2, S3)."""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
         if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
             return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
-        return f'<span class="na">{e(word)}</span>', [no_rule(line)], word, False
+        return f'<span class="na">{e(word)}</span>', [], no_rule(line), False
     f = cfg["figures"][metric_of(cfg, col)]
     if f["value"] is None:
-        why = why_words(f, cfg)
-        return '<span class="na">No value</span>', [no_rule(why)], no_rule(why), False
+        return '<span class="na">No value</span>', [], no_rule(why_words(f, cfg)), False
     value = shown(f["value"], f["unit"])
-    unit_line = {"covers": "{n} token{s} checked", "proof_size": "per proof",
-                 "check_time": "per check"}.get(col)  # fmt: skip
-    out_tokens = cfg["workload"]["shape"]["output_tokens"]
-    tail = (
-        [unit_line.format(n=f"{out_tokens:,}", s="" if out_tokens == 1 else "s")]
-        if unit_line
-        else []
-    )
+    said = [*(f"{k}: {v}" for k, v in labels(f, cfg))]
+    lines = []
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
-        tail = [SCOPE_LINES[f["metric"]]]
-    title = " · ".join([value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
-                        f"source: {f['source']}", f"spread: {spread_line(f)}"] if f.get("stats")
-                       else [value, *(f"{k}: {v}" for k, v in labels(f, cfg)),
-                             f"source: {f['source']}"])  # fmt: skip
-    return fig(value), [*spread_parts(f), *tail], title, True
+        lines = [SCOPE_SHORT[f["metric"]]]
+        said[0] = f"scope: {SCOPE_LINES[f['metric']]}"  # both sides' scope (INV-DERIVE-11)
+        if pairs := pairs_words(f):
+            said.append(f"pairs: {pairs}")
+        brief = (cfg.get("overhead_words") or {}).get("brief")
+        if brief:
+            said.append(f"ran: {brief}")
+    if (
+        col == "per_bit"
+    ):  # steady, or session where the steady figure is null (RFC-0004 INV-SCOPE-1)
+        lines = [SCOPE_SHORT[f["scope"]]]
+    # the basis and its limit ride in the title (RFC-0004 INV-DERIVE-7)
+    value_said = f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value
+    title = " · ".join([value_said, *said, f"source: {f['source']}",
+                        *([f"spread: {spread_line(f)}"] if f.get("stats") else [])])  # fmt: skip
+    if col in PER_GBIT_COLS:
+        title += f" · weight bits: {bits_words(cfg)} · {PER_BIT_LIMIT}"
+    return fig(value), lines, title, True
+
+
+def pairs_words(f):
+    """An overhead's runs and range: its prover runs times its serving runs, and the least and
+    greatest ratio over those pairs; "" when the figure holds none."""
+    pairs = f.get("pairs") or {}
+    if pairs.get("n_system") is None:
+        return ""
+    ns, nv = pairs["n_system"], pairs["n_serving"]
+    out = f"{ns} prover run{'s' if ns != 1 else ''} × {nv} serving run{'s' if nv != 1 else ''}"
+    if pairs.get("min") is not None:
+        out += f", {shown(pairs['min'], 'ratio')} to {shown(pairs['max'], 'ratio')}"
+    return out
+
+
+def spread_kv(f):
+    """A plate's spread: n, range, mean and sd; an overhead's runs and range over its pairs."""
+    if f.get("stats"):
+        return [("spread", spread_line(f), None)]
+    pairs = pairs_words(f)
+    return [("pairs", pairs, None)] if pairs else []
 
 
 def value_link(cfg, col, href, who=""):
-    """A figure on the overview row: a link to the figure's own plate; its labels ride in the
-    title. The lines under it are plain text (a link cannot hold the rule links the plates carry)."""
-    inner, shown_lines, title, measured = cell_words(cfg, col)
+    """A figure on the overview row: a link to the figure's own plate, its scope in one word
+    under it where it has one; its labels ride in the title."""
+    inner, lines, title, measured = cell_words(cfg, col)
     title = sentence_case(readable(title) if measured else title)
-    lines = "".join(f"<span>{e(sentence_case(readable(ln)))}</span>" for ln in shown_lines if ln)
+    sub = "".join(f"<span>{keep(ln)}</span>" for ln in lines if ln)
     name = f'<span class="sr">, {e(who)}</span>' if who else ""
     return (
         f'<a class="val" href="{e(href)}" title="{e(title)}">'
         f'<span class="lbl">{e(HEAD[col])}{name}</span><span class="vm">{inner}</span>'
-        f'<span class="sub">{lines}</span></a>'
+        + (f'<span class="sub">{sub}</span>' if sub else "")
+        + "</a>"
     )
 
 
@@ -380,14 +447,19 @@ def plate(cfg, col, pid=""):
                 kv.append(("scope", SCOPE_LINES[f["metric"]], None))
         else:
             val = fig(shown(f["value"], f["unit"]))
-            if f.get("stats"):
-                kv.append(("spread", spread_line(f), None))
+            kv += spread_kv(f)
             kv += [(k, v, None) for k, v in labels(f, cfg)]
             kv.append(("workload", *workload_link(cfg)))
             words = cfg.get("overhead_words") if col == "overhead" else None
             for key in ("conditions", "precision", "high"):  # RFC-0004 INV-DERIVE-9
                 if words and words.get(key):
                     kv.append((key, words[key], None))
+        if col in PER_GBIT_COLS:  # RFC-0004 INV-DERIVE-7: the width, its note and the limit
+            wb = cfg["workload"]["precision"].get("weight_bits") or {}
+            kv.append(("weight bits", bits_words(cfg), wb.get("source")))
+            if wb.get("note"):
+                kv.append(("note", wb["note"], None))
+            kv.append(("limit", PER_BIT_LIMIT, None))
         steady = cfg["figures"].get(METRIC["overhead"]) if col == "overhead" else None
         if steady and steady["metric"] != f["metric"] and steady["value"] is None:
             kv.append(("steady state", why_words(steady, cfg), None))  # why the session figure

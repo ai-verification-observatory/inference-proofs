@@ -32,13 +32,31 @@ from iproofs.site import renderer
 from iproofs.site.view import site_view
 
 ROOT = Path(__file__).resolve().parents[3]
-COLS = ("covers", "proof_size", "check_time", "overhead")
+# a system page's plates; the overview's figures (RFC-0009 S6)
+PER_GBIT_COLS = ("per_bit", "size_bit", "check_bit")
+COLS = ("covers", "proof_size", "check_time", "overhead", *PER_GBIT_COLS)
+BOARD = ("overhead", *PER_GBIT_COLS)
 METRIC = {
     "covers": "tokens_covered_per_proof",
     "proof_size": "proof_bytes",
     "check_time": "verify_seconds",
     "overhead": "overhead_vs_production_prove.steady",
+    "per_bit": "seconds_per_active_weight_bit_token_prove.steady",
+    "size_bit": "proof_bytes_per_active_weight_bit_token",
+    "check_bit": "verify_seconds_per_active_weight_bit_token",
 }
+
+
+def metric(cfg: dict[str, Any], col: str) -> str:
+    """The statistic a column shows for a configuration: the headline overhead the index names,
+    prover time per active weight bit at the scope the view chose (steady, else session)."""
+    if col == "overhead":
+        return str(cfg["overhead_metric"])
+    if col == "per_bit":
+        return str(cfg["per_bit_metric"])
+    return METRIC[col]
+
+
 WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}
 VAL = re.compile(r'<a class="val" href="([^"]*)" title="([^"]*)">(.*?)</a>', re.S)
 ROW = re.compile(
@@ -47,18 +65,11 @@ ROW = re.compile(
     re.S,
 )
 TABLE = re.compile(
-    r'<section class="sec bench" id="([^"]+)".*?<div class="tbl" role="table".*?'
+    r'<section class="sec board" id="([^"]+)".*?<div class="tbl" role="table".*?'
     r'<div class="rows" role="rowgroup">(.*?)</section>',
     re.S,
 )
-SECTION = re.compile(r'<section class="sec bench" id="[^"]+".*?</section>', re.S)
-# S6: a run of native tables under the native header, which heads the group
-NATIVES = re.compile(
-    r'<div class="natives" role="group" aria-labelledby="([^"]+)"><p class="sec-l nat" id="\1">'
-    r"([^<]*)</p>(.*?</section>)\n  </div>",
-    re.S,
-)
-NATIVE_HEADER = "Native workloads differ: rows are not a head-to-head comparison"
+SECTION = re.compile(r'<section class="sec board" id="[^"]+".*?</section>', re.S)
 HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
 HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
 PLATE = re.compile(r'<div class="plate" id="([^"]+)" data-col="([^"]+)">(.*?)</dl></div>', re.S)
@@ -69,8 +80,9 @@ SPREAD = re.compile(
     r" · sd \S+(?: \S+)?"
 )
 # reading units back to the stored base unit, by hand (RFC-0012: scaling is display only)
-SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
+SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
+         "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
+         "\N{MULTIPLICATION SIGN}": 1.0}  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -129,11 +141,15 @@ def provers(view: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def row_config(view: dict[str, Any], rid: str) -> dict[str, Any]:
-    """The configuration an overview row id names: `system` or `system--configuration--workload`."""
+    """The configuration a row id names: `system` (its overview row: the workload `facts.json`
+    names for it, or its only configuration) or `system--configuration--workload`."""
     system, _, rest = rid.partition("--")
     configuration, _, workload = rest.partition("--")
     found = [c for c in provers(view) if c["system"] == system and (not configuration or (
         c["configuration"], c["workload"]["id"]) == (configuration, workload))]  # fmt: skip
+    named = view["facts"]["rows"][system].get("overview_workload")
+    if not configuration and named is not None:
+        found = [c for c in found if c["workload"]["id"] == named]
     assert len(found) == 1, rid
     return found[0]
 
@@ -248,20 +264,22 @@ def test_every_number_has_labels(site: Build) -> None:
         for label in ("scope: ", "grade: ", "checked: ", "source: releases/"):
             assert label in plain(title), (label, title)
         seen += 1
-    assert seen >= 6  # two systems, three measured figures each
+    assert seen >= 6  # two systems, at least three measured figures each
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         configs = system_configs(site, system)
         plates = PLATE.findall(text)
         assert len(plates) == len(COLS) * len(configs)
         for pid, col, body in plates:
-            figures = plate_config(site, system, pid)["figures"]
+            cfg = plate_config(site, system, pid)
             dts = {dt for dt, _ in DD.findall(body)}
             if 'class="fig"' in body:
                 assert {"spread", "scope", "grade", "checked", "workload", "source"} <= dts, pid
             else:  # a null value names its record; a metric the runs did not record has none
                 assert "why" in dts, pid
-                assert ("source" in dts) == figures[METRIC[col]]["recorded"], pid
+                assert ("source" in dts) == cfg["figures"][metric(cfg, col)]["recorded"], pid
+            if col in PER_GBIT_COLS:  # RFC-0004 INV-DERIVE-7: the width and the limit beside it
+                assert {"weight bits", "limit"} <= dts, pid
         rows = more_rows(text)
         assert len(rows) == 5 * len(configs)
         for row in rows:  # every label a plate holds, or why there is no value
@@ -288,10 +306,8 @@ def test_glyph_before_numbers(site: Build) -> None:
         assert f'<a href="/{system}#{anchor}">' in head, rid
         assert f'<a class="pie" href="/{system}#{anchor}"' in head, rid
         assert site.pages[f"{system}.html"].count(f'id="{anchor}"') == 1, rid
-    for ref in site.view["orders"]["reference"]:
-        row = index[index.index(f'<div class="row" id="{ref}"') :]
-        assert row.index('class="pie"') < row.index('class="vc"'), ref
-        assert f'href="/reference#{ref}"' in row[: row.index('class="vc"')], ref
+    for ref in site.view["orders"]["reference"]:  # a baseline, not a row (RFC-0009 S6)
+        assert f'<div class="row" id="{ref}"' not in index, ref
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         assert text.index('class="rpie"') < text.index('class="plate"'), system
@@ -617,19 +633,19 @@ def _strings(value: object) -> list[str]:
 
 def test_statistics_shown(site: Build) -> None:
     """S3: every statistic shows its six values (completed, failed, minimum, maximum, mean, sd)
-    on system pages, and its counts and range on the overview, equal to the stored ones; a
-    reference whose runs all failed shows its counts and "below minimum repetitions" on the
-    overview and on `/reference`; each more-numbers row shows the six values too."""
+    on system pages, and the same in the title of its overview cell (owner decision of
+    2026-11-09: nothing but a scope word under an overview figure), equal to the stored ones; a
+    reference whose runs all failed shows its counts and "below minimum repetitions" on
+    `/reference`; each more-numbers row shows the six values too."""
     for _, title, inner in VAL.findall(site.pages["index.html"]):
-        if "spread: " not in html.unescape(title):
+        if 'class="fig"' not in inner or "spread: " not in html.unescape(title):
             continue
-        assert re.search(r"\d+ completed, \d+ failed", plain(inner)), inner
-        assert " to " in plain(inner), inner
+        assert SPREAD.search(plain(html.unescape(title))), title
     for system in site.view["orders"]["benchmarked"]:
         text = site.pages[f"{system}.html"]
         for pid, col, body in PLATE.findall(text):
             cfg = plate_config(site, system, pid)
-            stats = cfg["figures"][METRIC[col]].get("stats")
+            stats = cfg["figures"][metric(cfg, col)].get("stats")
             if not stats:
                 continue
             spread = dict(DD.findall(body))["spread"]
@@ -638,9 +654,9 @@ def test_statistics_shown(site: Build) -> None:
             assert (int(got[1]), int(got[2])) == (stats["n"], stats["n_failed"])
         for cfg, rows in zip(system_configs(site, system),
                              _chunks(more_rows(text), 5), strict=True):  # fmt: skip
-            for (metric, _), row in zip(MORE, rows, strict=True):
-                stats = cfg["figures"][metric].get("stats")
-                if not stats or cfg["figures"][metric]["value"] is None:
+            for (stat, _), row in zip(MORE, rows, strict=True):
+                stats = cfg["figures"][stat].get("stats")
+                if not stats or cfg["figures"][stat]["value"] is None:
                     continue
                 got = MORE_SPREAD.search(plain(row))
                 assert got, row
@@ -648,7 +664,7 @@ def test_statistics_shown(site: Build) -> None:
     failed = [c for c in site.view["configurations"]
               if c["kind"] == "reference" and c["insufficient_repetitions"]]  # fmt: skip
     assert failed
-    for page in ("index.html", "reference.html"):
+    for page in ("reference.html",):  # the overview holds no reference row (RFC-0009 S6)
         assert site.pages[page].count("below minimum repetitions") == len(failed), page
         for c in failed:
             n = f"{len(c['runs']['completed'])} completed, {len(c['runs']['failed'])} failed"
@@ -680,10 +696,10 @@ def test_sort_key_is_stored_value(site: Build) -> None:
     for rid, _, keys, body in rows:
         cfg = row_config(site.view, rid)
         got = json.loads(html.unescape(keys))
-        assert set(got) == set(COLS)
+        assert set(got) == set(BOARD)
         cells = dict(re.findall(r'data-col="([^"]+)">(<a class="val".*?</a>)</div>', body, re.S))
-        for col, metric in METRIC.items():
-            stored = cfg["figures"][metric]["value"]
+        for col in BOARD:
+            stored = cfg["figures"][metric(cfg, col)]["value"]
             assert got[col] == stored, (rid, col)
             printed = NUMBER.search(cells[col])
             if stored is None:
@@ -692,101 +708,174 @@ def test_sort_key_is_stored_value(site: Build) -> None:
             assert printed, (rid, col)
             number, unit = printed[1], printed[2]
             assert _significant(number) == 4 or float(number.replace(",", "")).is_integer()
-            value = float(number.replace(",", "")) * SCALE[unit]
+            # no leading zero where a prefix can avoid one: 68.21 µs, not 0.06821 ms
+            assert float(number.replace(",", "")) >= 1 or unit in ("B", "\N{MULTIPLICATION SIGN}")
+            # per token, per Gbit of active weights: seconds and bytes per 1e9 bits
+            per_gbit = 1e-9 if col in PER_GBIT_COLS else 1.0
+            value = float(number.replace(",", "")) * SCALE[unit] * per_gbit
             exponent = math.floor(math.log10(abs(value)))
             assert abs(value - stored) <= 0.5 * 10 ** (exponent - 3) * 1.0001, (rid, col)
 
 
-def test_default_order_alphabetical(site: Build) -> None:
-    """S5: the HTML as sent holds every table's rows A to Z by name; other orders on request.
-    The order of the tables is `test_tables_by_model_size`."""
-    tables = TABLE.findall(site.pages["index.html"])
-    assert tables
+def test_default_order_by_overhead(site: Build) -> None:
+    """S5: the HTML as sent holds the rows by overhead against production serving, ascending, by
+    the stored value (the row's headline, steady or warm, its scope in its cell); a row with no
+    overhead last; ties by name. The overhead head carries `aria-sort`; other orders on request
+    (`shoot.mjs`). Not benchmarked yet stays A to Z."""
+    index = site.pages["index.html"]
     names = site.view["facts"]["rows"]
-    for _, body in tables:
-        shown = [names[row_config(site.view, rid)["system"]]["name"].lower()
-                 for rid, *_ in ROW.findall(body)]  # fmt: skip
-        assert shown == sorted(shown)
-    assert 'aria-sort="ascending"' in site.pages["index.html"]
+    rows = [(row_config(site.view, rid), json.loads(html.unescape(k))["overhead"])
+            for rid, _, k, _ in ROW.findall(index)]  # fmt: skip
+    assert rows
+    want = sorted(rows, key=lambda r: (r[1] is None, r[1] or 0.0,
+                                       names[r[0]["system"]]["name"].lower()))  # fmt: skip
+    assert [c["system"] for c, _ in rows] == [c["system"] for c, _ in want]
+    for cfg, key in rows:  # each figure carries its scope in its cell
+        assert key == cfg["figures"][cfg["overhead_metric"]]["value"]
+    head = r'<div class="hc[^"]*" role="columnheader" data-col="([^"]+)"([^>]*)>'
+    heads = re.findall(head, index)
+    assert [c for c, a in heads if "aria-sort" in a] == ["overhead"]
+    assert 'data-col="overhead" data-dir="asc"' in index
     nb = site.view["orders"]["not_benchmarked"]
     assert [names[r]["name"].lower() for r in nb] == sorted(names[r]["name"].lower() for r in nb)
 
 
-def test_tables_by_model_size(site: Build) -> None:
-    """S5, S6: the tables follow the size of the model proved, `workload.model.parameters.total`
-    descending (Llama 4 Maverick, 400B, then Llama 3.1 8B, 8.03B, in both builds), and within a
-    model its divisions in RFC-0003's order (`test_division_named`); the HTML as sent holds them
-    so, and the hash reorders rows within each table only (`shoot.mjs`)."""
-    sizes = []
-    for _, body in TABLE.findall(site.pages["index.html"]):
-        models = {row_config(site.view, rid)["workload"]["model"]["digest"]
-                  for rid, *_ in ROW.findall(body)}  # fmt: skip
-        assert len(models) == 1  # no table across models
-        (digest,) = models
-        cfg = next(c for c in provers(site.view) if c["workload"]["model"]["digest"] == digest)
-        sizes.append((cfg["workload"]["model"]["parameters"]["total"], digest))
-    assert sizes == sorted(sizes, key=lambda s: -s[0])
-    names = [site.view["facts"]["models"][d]["name"] for d in dict.fromkeys(d for _, d in sizes)]
-    assert names == ["Llama 4 Maverick", "Llama 3.1 8B"]
+def test_each_figure_names_its_scope(site: Build) -> None:
+    """S2, owner decisions of 2026-11-09: on the overview each figure carries every label in its
+    title (scope, grade, tier, source, and the spread where it has one); the overhead's title
+    names its scope (both sides', or the warm pairing's), its prover and serving run counts and
+    what each side ran, and the cell its scope in a word; proving time per token per Gbit names
+    its scope in a word (steady, or session where the steady figure is null), check time its
+    scope in its title; the row header names the weight width they divide by. Nothing else sits
+    under a figure: the full details are on the plate it links."""
+    b = renderer(ROOT).draw
+    title = re.compile(r'title="([^"]*)"')
+    rows = ROW.findall(site.pages["index.html"])
+    for rid, _, _, body in rows:
+        cfg = row_config(site.view, rid)
+        cells = dict(re.findall(r'data-col="([^"]+)">(<a class="val".*?</a>)</div>', body, re.S))
+        said = {c: plain(html.unescape(t[1])) if (t := title.search(v)) else ""
+                for c, v in cells.items()}  # fmt: skip
+        sub = re.compile(r'<span class="sub">(.*?)</span></a>')
+        under = {c: plain(m[1]) if (m := sub.search(v)) else "" for c, v in cells.items()}
+        over = cfg["figures"][cfg["overhead_metric"]]
+        if over["value"] is not None:
+            assert plain(b.words.SCOPE_LINES[over["metric"]]) in said["overhead"], rid
+            pairs = over["pairs"]
+            assert f"{pairs['n_system']} prover run" in said["overhead"], rid
+            assert f"{pairs['n_serving']} serving run" in said["overhead"], rid
+            assert plain(cfg["overhead_words"]["brief"]) in said["overhead"], rid
+            assert under["overhead"] == b.words.SCOPE_SHORT[over["metric"]], rid
+        bit = cfg["figures"][cfg["per_bit_metric"]]
+        steady = cfg["figures"][METRIC["per_bit"]]
+        assert cfg["per_bit_metric"] == (
+            METRIC["per_bit"]
+            if steady["value"] is not None
+            else "seconds_per_active_weight_bit_token_prove.session"
+        )
+        if bit["value"] is not None:
+            scope = {"prove.steady": "proving, steady state", "prove.session": "proving session"}
+            assert f"scope: {scope[bit['scope']]}" in said["per_bit"], rid
+            assert (
+                under["per_bit"]
+                == {"prove.steady": "steady", "prove.session": "session"}[bit["scope"]]
+            ), rid
+            assert f"{bit['stats']['n']} completed" in said["per_bit"], rid
+        check = cfg["figures"][METRIC["check_bit"]]
+        if check["value"] is not None:
+            assert "scope: checking (" in said["check_bit"], rid
+        assert under["size_bit"] == under["check_bit"] == "", rid
+        header = HEADER.search(body)
+        assert header, rid
+        # the width in short in view, in full in the model cell's title
+        wb = cfg["workload"]["precision"]["weight_bits"]
+        assert f"{wb['bits']:.2g}-bit" in plain(header[1]), rid
+        assert "per active weight" in html.unescape(header[1]), rid
 
 
-def test_models_by_size_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
-    """S6 on a hand-made case: 400B before 8.03B whatever the order of the rows or the names,
-    two models of one size by name, a model with no system row has no table, and two workloads
-    of one model that state different totals stop the build."""
+def test_deployed_figures_by_hand() -> None:
+    """The deployed release's overview figures, against the values its `index.json` stores
+    (Hugging Face H200 runs, `reported` tier): FlashProve on fp-maverick-w1024-b24 shows the
+    steady overhead (D-OVERHEAD-S) and the steady proving time per token per Gbit of active
+    weights, 6.82e-14 s/bit_token printed as 68.21 µs (x 1e9 bits per Gbit, x 1e6 µs per s);
+    SASH shows the warm overhead (D-OVERHEAD-WARM) and, with no steady scope, the session time,
+    7.54e-11 s/bit_token printed as 75.41 ms. Proof size per token per Gbit (D-BPAB):
+    FlashProve 18,335.17 B/token / (17e9 x 4.83916 bits) = 2.2288e-7 B/bit_token, 222.9 B;
+    SASH 41,105,525 B/token / (8,030,261,248 x 8 bits) = 6.3985e-4 B/bit_token, 639.9 kB. Check
+    time per token per Gbit (D-VSPAB): FlashProve 0.0163436 s/token / 8.22658e10 bits =
+    1.9867e-13 s/bit_token, 198.7 µs; SASH 3.279154 s/token / 6.42421e10 bits =
+    5.1044e-11 s/bit_token, 51.04 ms."""
+    index = ROOT / "releases/v0.1/index.json"
+    if not index.exists():
+        pytest.skip("no frozen release")
+    view = site_view(ROOT)
+    b = renderer(ROOT).draw
+    got = {c["system"]: c for c in view["configurations"] if c["kind"] == "prover"
+           and c["workload"]["id"] in ("fp-maverick-w1024-b24", "sash-l31-8b-c1024")}  # fmt: skip
+    fp, sash = got["flashprove"], got["sash"]
+    assert fp["per_bit_metric"].endswith("prove.steady")
+    assert sash["per_bit_metric"].endswith("prove.session")
+    assert sash["overhead_metric"] == "overhead_vs_production_warm"
+    assert b.words.shown(6.82085750604253e-14, "s/bit_token") == "68.21 \N{MICRO SIGN}s"
+    assert b.words.shown(7.540596017714907e-11, "s/bit_token") == "75.41 ms"
+    assert math.isclose(fp["figures"][fp["per_bit_metric"]]["value"], 6.82085750604253e-14)
+    assert math.isclose(sash["figures"][sash["per_bit_metric"]]["value"], 7.540596017714907e-11)
+    size, check = METRIC["size_bit"], METRIC["check_bit"]
+    for cfg, bits, bpt, vspt, size_shown, check_shown in (
+        (fp, 17e9 * 4.83916475612899, 18335.170963541666, 0.016343559571372478,
+         "222.9 B", "198.7 \N{MICRO SIGN}s"),
+        (sash, 8030261248 * 8, 41105524.851715684, 3.279154322772059, "639.9 kB", "51.04 ms"),
+    ):  # fmt: skip
+        assert math.isclose(cfg["figures"][size]["value"], bpt / bits, rel_tol=1e-9)
+        assert math.isclose(cfg["figures"][check]["value"], vspt / bits, rel_tol=1e-9)
+        assert b.words.shown(cfg["figures"][size]["value"], "B/bit_token") == size_shown
+        assert b.words.shown(cfg["figures"][check]["value"], "s/bit_token") == check_shown
+
+
+def test_board_order_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
+    """S5 on hand-made rows: overhead ascending by stored value, whatever the scope; a row with
+    no overhead last; ties by system name whatever its case, then profile, then position."""
     draw = renderer(ROOT).draw
-
-    def cfg(digest: str, total: int) -> dict[str, Any]:
-        return {"workload": {"model": {"digest": digest, "parameters": {"total": total}}}}
-
-    names = {"d8": "A small", "d400": "Z large", "e8": "B small"}
-    got = draw.overview.models_by_size(
-        [cfg("d8", 8_030_261_248), cfg("e8", 8_030_261_248), cfg("d400", 400_000_000_000)],
-        names,
-    )
-    assert got == ["d400", "d8", "e8"]
-    assert draw.overview.models_by_size([cfg("d8", 8_030_261_248)], names) == ["d8"]
-    with pytest.raises(AssertionError, match=r"d8: workloads disagree on parameters\.total"):
-        draw.overview.models_by_size([cfg("d8", 8_030_261_248), cfg("d8", 8_000_000_000)], names)
-
-
-def test_rows_by_name_then_profile(monkeypatch: pytest.MonkeyPatch) -> None:
-    """S5 on a hand-made table: rows A to Z by system name whatever its case, then profile id,
-    then the configuration's position in the release's `index.json`, whatever order they come
-    in."""
-    draw = renderer(ROOT).draw
-    rows = {"a": {"name": "alpha"}, "b": {"name": "Beta"}}
+    rows = {"a": {"name": "alpha"}, "b": {"name": "Beta"}, "c": {"name": "gamma"}}
     monkeypatch.setattr(draw.state, "V", {"facts": {"rows": rows}})
 
-    def cfg(system: str, profile: str, position: int) -> dict[str, Any]:
-        return {"system": system, "profile": profile, "position": position}
+    def cfg(system: str, overhead: float | None, profile: str = "p", position: int = 0) -> Any:
+        figs: dict[str, dict[str, float | None]] = {m: {"sort_key": None} for m in
+                ("proof_bytes_per_active_weight_bit_token",
+                 "verify_seconds_per_active_weight_bit_token", "per-bit")}  # fmt: skip
+        figs["over"] = {"sort_key": overhead}
+        return {"system": system, "profile": profile, "position": position, "figures": figs,
+                "overhead_metric": "over", "per_bit_metric": "per-bit"}  # fmt: skip
 
-    given = [cfg("b", "p-a", 0), cfg("a", "p-z", 1), cfg("a", "p-a", 4), cfg("a", "p-a", 2)]
-    got = [(c["system"], c["profile"], c["position"]) for c in draw.overview.by_name(given)]
-    assert got == [("a", "p-a", 2), ("a", "p-a", 4), ("a", "p-z", 1), ("b", "p-a", 0)]
+    given = [cfg("a", None), cfg("c", 15756.0), cfg("b", 61.28), cfg("a", 61.28, "p", 3),
+             cfg("a", 61.28, "p", 1)]  # fmt: skip
+    got = [(c["system"], c["position"]) for c in draw.overview.board_order(given)]
+    assert got == [("a", 1), ("a", 3), ("b", 0), ("c", 0), ("a", 0)]
 
 
-def test_each_row_once(site: Build) -> None:
-    """S6: the overview has no table across models, so no row is repeated: each (system,
-    configuration, workload, profile) has exactly one row, in its workload's table, however
-    RFC-0009 Q5 is resolved. In the deployed build each benchmarked system has one such row, so
-    its glyph is on the overview once."""
+def test_one_row_per_system(site: Build) -> None:
+    """S6: one table across models, one row per benchmarked system, on the workload
+    `facts.json` names for it (`overview_workload`) or its only one; its glyph once. A system's
+    other configurations are on its system page only; reference rows are not on the overview
+    (they are the baseline the overhead divides by)."""
     index = site.pages["index.html"]
-    rows = [rid for _, body in TABLE.findall(index) for rid, *_ in ROW.findall(body)]
-    assert len(rows) == len(set(rows))
-
-    def key(c: dict[str, Any]) -> tuple[str, str, str, str]:
-        return c["system"], c["configuration"], c["workload"]["id"], c["profile"]
-
-    shown = [key(row_config(site.view, r)) for r in rows]
-    assert len(shown) == len(set(shown))
-    assert sorted(shown) == sorted(map(key, provers(site.view)))
-    if site.kind == "extras":
-        return
-    for system in site.view["orders"]["benchmarked"]:
-        assert [row_config(site.view, r)["system"] for r in rows].count(system) == 1, system
+    assert len(TABLE.findall(index)) == 1
+    rows = [rid for rid, *_ in ROW.findall(index)]
+    assert sorted(rows) == sorted(site.view["orders"]["benchmarked"])
+    for system in rows:
+        cfgs = [c for c in provers(site.view) if c["system"] == system]
+        named = site.view["facts"]["rows"][system].get("overview_workload")
+        want = named or cfgs[0]["workload"]["id"]
+        assert len(cfgs) == 1 or named, system
+        assert row_config(site.view, system)["workload"]["id"] == want, system
         assert index.count(f'<a class="pie" href="/{system}#') == 1, system
         assert f'id="nb-{system}"' not in index, system
+    for ref in site.view["orders"]["reference"]:
+        assert f'<div class="row" id="{ref}"' not in index, ref
+    if site.kind == "extras":  # FlashProve's batch-1 workload stays on its system page
+        fp = [c["workload"]["id"] for c in provers(site.view) if c["system"] == "flashprove"]
+        assert sorted(fp) == ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
+        assert row_config(site.view, "flashprove")["workload"]["id"] == "fp-maverick-w1024-b24"
 
 
 def test_no_ranking(site: Build) -> None:
@@ -803,123 +892,18 @@ def test_no_ranking(site: Build) -> None:
 
 def test_division_named(site: Build) -> None:
     """S6: the system page names the workload, its division and the profile of the configuration
-    it shows; on the overview a closed or open table sits after the model's native tables, under
-    a heading naming its workload, division and profile, and holds that workload's rows only
-    (RFC-0003 §Divisions, #334). Headings naming them on native tables and on `/reference` are
-    RFC-0009 §Site gaps (an owner decision on the overview's look)."""
+    it shows; on the overview a row on a closed or open workload names its division beside its
+    model (RFC-0003 §Divisions); a native row names none."""
     for system in site.view["orders"]["benchmarked"]:
         text = plain(site.pages[f"{system}.html"])
         for cfg in system_configs(site, system):
             assert cfg["workload"]["division"] in {"native", "closed", "open"}
             where = f"{cfg['workload']['id']} · {cfg['workload']['division']} · {cfg['profile']}"
             assert where in text, system
-    seen: dict[str, list[str]] = {}  # model name -> its tables' divisions, in page order
-    for sid, body in TABLE.findall(site.pages["index.html"]):
-        section = re.search(rf'<section class="sec bench" id="{sid}".*?</section>',
-                            site.pages["index.html"], re.S)[0]  # type: ignore[index]  # fmt: skip
-        head = re.search(r'<div class="sec-h">(.*?)</div>', section, re.S)[1]  # type: ignore[index]
-        model = plain(re.search(r'<h2 [^>]*class="sect">(.*?)</h2>', head)[1])  # type: ignore[index]
-        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
-        assert len({c["workload"]["id"] for c in cfgs}) == 1, sid  # one workload per table
-        wl = cfgs[0]["workload"]
-        seen.setdefault(model, []).append(wl["division"])
-        profiles = ", ".join(sorted({c["profile"] for c in cfgs}))
-        where = f"{wl['id']} · {wl['division']} division · {profiles}"
-        assert (where in plain(head)) == (wl["division"] != "native"), sid
-    for model, divisions in seen.items():  # native tables first, then closed, then open
-        order = ["native", "closed", "open"]
-        assert divisions == sorted(divisions, key=order.index), model
-    if site.kind == "web":
-        pytest.skip(
-            "the deployed release has native workloads only; the extras build, a closed one"
-        )
-    closed = [m for m, d in seen.items() if "closed" in d]
-    assert closed
-    for sid, body in TABLE.findall(site.pages["index.html"]):  # two systems of its class
-        cfgs = [row_config(site.view, rid) for rid, *_ in ROW.findall(body)]
-        if cfgs[0]["workload"]["division"] == "closed":
-            assert len({c["system"] for c in cfgs}) >= 2, sid  # RFC-0003 Q7
-
-
-def test_native_workloads_header(site: Build) -> None:
-    """S6: tables of different native workloads side by side (two workloads on one model, or a
-    page across models) carry the header above them: the header heads a group holding them, once
-    here, since no closed or open table comes between native ones. A closed or open table never
-    counts toward it, carries it or sits in its group (it compares directly within its
-    workload, RFC-0003 §Divisions). Both builds hold native tables of two models (Llama 4
-    Maverick and Llama 3.1 8B); the extras build also a closed table, after them.
-    `test_native_header_by_hand` covers the counts the builds do not."""
-    index = site.pages["index.html"]
-    sections = SECTION.findall(index)
-    cfgs = provers(site.view)
-    division = {c["workload"]["id"]: c["workload"]["division"] for c in cfgs}
-    assert len(sections) == len(division)
-    groups = NATIVES.findall(index)
-    assert [(header, len(SECTION.findall(body))) for _, header, body in groups] == [
-        (NATIVE_HEADER, sum(d == "native" for d in division.values()))
-    ]
-    assert index.count(NATIVE_HEADER) == 1
-    assert index.index(NATIVE_HEADER) < index.index('<section class="sec bench"')
-    grouped = "".join(body for *_, body in groups)
-    for section in sections:
-        rows = [row_config(site.view, rid) for rid, *_ in ROW.findall(section)]
-        native = rows[0]["workload"]["division"] == "native"
-        assert (section in grouped) == native, rows[0]["workload"]["id"]
-        assert NATIVE_HEADER not in section
-    if site.kind == "extras":
-        assert "closed" in division.values()
-
-
-def _prover(system: str, workload: str, division: str, model: str) -> dict[str, Any]:
-    wl = {"id": workload, "division": division, "model": {"digest": model}}
-    return {"system": system, "position": 0, "profile": "prover-h100", "workload": wl}
-
-
-@pytest.mark.parametrize(
-    ("configs", "headers", "grouped"),
-    [
-        # one native table and one closed table: no header
-        ([("a", "w-n", "native", "d2"), ("b", "w-c", "closed", "d2")], 0, []),
-        # two native tables and one closed table: the header once, over the native tables only
-        (
-            [("a", "w-big", "native", "d1"), ("a", "w-n", "native", "d2"),
-             ("b", "w-c", "closed", "d2")],
-            1,
-            [["big", "small-w-n"]],
-        ),
-        # a larger model's closed table between native ones: each run of natives is headed
-        (
-            [("a", "w-big", "native", "d1"), ("b", "w-o", "open", "d1"),
-             ("a", "w-n", "native", "d2")],
-            2,
-            [["big-w-big"], ["small"]],
-        ),
-    ],
-)  # fmt: skip
-def test_native_header_by_hand(
-    monkeypatch: pytest.MonkeyPatch,
-    configs: list[tuple[str, str, str, str]],
-    headers: int,
-    grouped: list[list[str]],
-) -> None:
-    """S6 on hand-made tables: the native header counts native tables only, and heads a group
-    of them that holds no closed or open table (`tables` orders them, `under_header` groups
-    them, as `build_index` does)."""
-    draw = renderer(ROOT).draw
-    state, overview = draw.state, draw.overview
-    monkeypatch.setattr(state, "V", {"facts": {"rows": {"a": {"name": "A"}, "b": {"name": "B"}}}})
-    monkeypatch.setattr(state, "MODELS", ["d1", "d2"])
-    monkeypatch.setattr(state, "MODEL_NAME", {"d1": "Big", "d2": "Small"})
-    monkeypatch.setattr(state, "PROVERS", [_prover(*c) for c in configs])
-    parts = [(overview.is_native(rows), f'\n  <section class="sec bench" id="{sid}"></section>')
-             for _, sid, rows in overview.tables()]  # fmt: skip
-    out = overview.under_header(parts)
-    assert out.count(NATIVE_HEADER) == headers
-    groups = NATIVES.findall(out)
-    assert [re.findall(r'id="([^"]+)"', body) for *_, body in groups] == grouped
-    assert all(header == NATIVE_HEADER for _, header, _ in groups)
-    natives = sum(native for native, _ in parts)
-    assert (headers > 0) == (natives > 1)
+    for rid, *_, body in ROW.findall(site.pages["index.html"]):  # a closed row says so
+        division = row_config(site.view, rid)["workload"]["division"]
+        model = plain(re.search(r'<div class="mc"[^>]*>(.*?)</div>', body, re.S)[1])  # type: ignore[index]
+        assert (f"{division} division" in model) == (division != "native"), rid
 
 
 def test_runs_left_out_listed(site: Build) -> None:
@@ -1064,27 +1048,16 @@ def test_table_semantics(site: Build) -> None:
     """S9: every cell of a table across systems has one column header and one row header through
     ARIA roles, a sorted column's header carries `aria-sort`, and every glyph state is a word in
     the row header's cell, read after the system's name (a row under a pending disclosure has no
-    state and no text, RFC-0016 OVR-8); the References table too, through the same roles, its
-    heads not sortable; the more-numbers tables use `th` with `scope`."""
+    state and no text, RFC-0016 OVR-8); the more-numbers tables use `th` with `scope`."""
     index = site.pages["index.html"]
-    refs = index[index.index('id="references"') : index.index('id="not-yet"')]
-    assert refs.count('role="table"') == 1
-    assert refs.count('role="columnheader"') == 1 + len(COLS)
-    assert "aria-hidden" not in refs[: refs.index('<div class="row"')]
-    for ref in site.view["orders"]["reference"]:
-        row = refs[refs.index(f'<div class="row" id="{ref}" role="row">') :]
-        row = row[: row.index("\n</div>")]
-        assert row.count('role="rowheader"') == 1, ref
-        assert row.count('role="cell"') == len(COLS), ref
-        assert "data-k=" not in row, ref  # not sorted (S5)
     for sec in SECTION.findall(index):
         heads = HEAD.findall(sec)
-        assert len(heads) == 1 + len(COLS)
+        assert len(heads) == 1 + len(BOARD)  # System (the model under its name), the figures
         assert sec.count('role="columnheader"') == len(heads)
         assert sec.count('aria-sort="') == 1
         for rid, _, _, row in ROW.findall(sec):
             assert row.count('role="rowheader"') == 1, rid
-            assert row.count('role="cell"') == len(COLS), rid
+            assert row.count('role="cell"') == len(BOARD), rid
             head = HEADER.search(row)[1]  # type: ignore[index]
             if not site.view["criteria"]["rows"][row_config(site.view, rid)["system"]]["drawn"]:
                 assert '<p class="sr">' not in head, rid
@@ -1135,8 +1108,8 @@ def test_reads_without_script(site: Build) -> None:
         assert not re.search(r"url\(\s*['\"]?(https?:)?//", text), name
     index = site.pages["index.html"]
     rows = ROW.findall(index)
-    for cfg in provers(site.view):
-        assert any(row_config(site.view, rid) is cfg for rid, *_ in rows)
+    for system in site.view["orders"]["benchmarked"]:
+        assert any(rid == system for rid, *_ in rows)
     assert all(NUMBER.search(body) for *_, body in rows)  # figures are in the HTML as sent
     for ref in site.view["orders"]["not_benchmarked"]:
         assert site.view["facts"]["rows"][ref]["name"] in plain(index), ref
@@ -1209,8 +1182,7 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
 def test_figures_link_their_own_plate(site: Build) -> None:
     """S2, S11: each overview figure of a system row links a plate on its system page, in the
     same column and of the row's own configuration (its source names the configuration's
-    position in the index); a reference row's figures link their own plates on `/reference`
-    (`<reference>-fig-<column>`)."""
+    position in the index)."""
     index = site.pages["index.html"]
     linked = 0
     for rid, _, _, body in ROW.findall(index):
@@ -1223,20 +1195,10 @@ def test_figures_link_their_own_plate(site: Build) -> None:
             assert plate_config(site, cfg["system"], frag) is cfg, href
             assert plates[frag][0] == col, href
             source = re.sub(r"<[^>]+>", "", plates[frag][1])
-            if cfg["figures"][METRIC[col]]["recorded"]:  # its record is this configuration's
+            if cfg["figures"][metric(cfg, col)]["recorded"]:  # its record is this configuration's
                 assert f"#/configurations/{cfg['position']}/statistics/" in source, href
             linked += 1
-    assert linked == len(COLS) * len(provers(site.view))
-    ref = site.pages["reference.html"]
-    plates = {pid: col for pid, col, _ in PLATE.findall(ref)}
-    for gid in site.view["orders"]["reference"]:
-        row = index[index.index(f'<div class="row" id="{gid}"') :]
-        row = row[: row.index("\n</div>")]
-        found = re.findall(r'data-col="([^"]+)"><a class="val" href="([^"]*)"', row)
-        assert [c for c, _ in found] == list(COLS)
-        for col, href in found:
-            assert href == f"/reference#{gid}-fig-{col}"
-            assert plates[f"{gid}-fig-{col}"] == col
+    assert linked == len(BOARD) * len(site.view["orders"]["benchmarked"])
 
 
 def test_generated_html_passes_g8(site: Build, tmp_path: Path) -> None:

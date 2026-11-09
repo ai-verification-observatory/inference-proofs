@@ -760,6 +760,8 @@ def _fixture_prover(root: Path) -> None:
     facts_path = root / "web/_data/facts.json"
     facts = json.loads(facts_path.read_text())
     facts["rows"][FIXTURE] = {**facts["rows"]["sash"], "name": FIXTURE_NAME}
+    # SASH runs its native workload and the closed one here: its overview row is the native one
+    facts["rows"]["sash"]["overview_workload"] = SASH_WORKLOAD
     write_json(facts_path, facts)
     crit_path = root / "web/_data/criteria.json"
     crit = json.loads(crit_path.read_text())
