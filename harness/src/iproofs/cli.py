@@ -870,8 +870,11 @@ def machine_record_command(args: argparse.Namespace) -> int:
     image = f"local/fake@{args.probe_image}" if args.probe_image else None
     entry = repo_root(Path.cwd()) / "systems/fake/entrypoint" if args.hosted else None
     with tempfile.TemporaryDirectory(dir=Path.cwd()) as work:  # not /tmp, the adapter's
-        checks = selftest.run_selftest(
-            gpu_index=args.gpu, probe_image=image, work=Path(work), hosted_probe=entry
+        checks = selftest.run_selftest(  # a serving host's first bound GPU (RFC-0006 R6)
+            gpu_index=args.gpus[0] if args.gpus else args.gpu,
+            probe_image=image,
+            work=Path(work),
+            hosted_probe=entry,
         )
     selftest.report(checks)
     result = selftest.as_record(checks)

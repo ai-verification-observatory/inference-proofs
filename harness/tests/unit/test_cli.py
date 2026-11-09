@@ -117,3 +117,19 @@ def test_error_message_is_redacted(
 
     run_with(leak, ["fetch-model", "w"], monkeypatch)
     assert sample("SEC-5") not in capsys.readouterr().err
+
+
+def test_gpus_list() -> None:
+    """`--gpus 0,1,2,3` (RFC-0006 R6): distinct non-negative indices; `--load` takes the two
+    load points of RFC-0015 SRV-1."""
+
+    from iproofs.cli import build_parser, gpu_list  # noqa: PLC0415
+
+    assert gpu_list("0,1,2,3") == [0, 1, 2, 3]
+    for bad in ("0,0", "a", "-1", ""):
+        with pytest.raises(argparse.ArgumentTypeError):
+            gpu_list(bad)
+    argv = ["run", "--system", "ref-serve", "--workload", "w", "--profile", "p", "--gpus", "4,5",
+            "--load", "high"]  # fmt: skip
+    args = build_parser().parse_args(argv)
+    assert (args.gpus, args.load) == ([4, 5], "high")
