@@ -195,11 +195,12 @@ html:not(.js) .search { display: none; }
 .pie .sl, .rpie .sl { pointer-events: none; }
 /* the slice under the pointer steps out with a paper edge; the others keep their ink */
 .pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-/* its name and state, under the pie, over the row's own margin: positioned, so nothing moves; far
-   enough below that a lifted triangle (6 px out) never reaches it */
-.tip { display: none; position: absolute; left: 6px; top: calc(100% + 10px); z-index: 2; white-space: nowrap; pointer-events: none; font: 500 12px/1 var(--mono); color: var(--paper); background: var(--ground); padding: 4px 6px 4px 0; }
+/* its name and state, under the pie in the glyph's own column, empty below it, so they overlap no
+   text: positioned, so nothing moves; far enough below that a lifted triangle (6 px out) never
+   reaches them; the words wrap within the column */
+.tip { display: none; position: absolute; left: 0; top: calc(100% + 12px); width: 100%; z-index: 2; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
 .pie[data-hot] .tip { display: block; }
-.tip b { font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; margin-right: .8em; }
+.tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
 
 .who { padding-top: 10px; min-width: 0; }
 .name { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; padding-bottom: .04em; text-wrap: balance; }
@@ -231,10 +232,8 @@ html:not(.js) .search { display: none; }
 .fig .ux { flex-basis: 100%; font: 500 12px/1.5 var(--mono); margin-top: 4px; }
 .na.word { color: var(--paper); }
 .na { font: 600 22px/1.2 var(--disp); font-stretch: 84%; color: var(--muted); display: inline-block; padding-top: 14px; text-wrap: balance; }
-.sub > span { text-wrap: balance; }
-.sub { display: flex; flex-direction: column; align-items: flex-start; font: 400 12px/1.5 var(--mono); color: var(--muted); margin-top: 6px; }
-/* the same labels in short (scope, n and range), shown on phones in place of .sub */
-.subc { display: none; }
+/* the one line under a figure: its scope in a word, where it has one (every label is in its title and on its plate) */
+.sub { display: block; font: 400 12px/1.5 var(--mono); color: var(--muted); margin-top: 6px; }
 .qs { display: inline-block; font: 400 12px/1.45 var(--mono); color: var(--muted); margin-top: 8px; }
 .plates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
 .plate { min-width: 0; }
@@ -282,9 +281,6 @@ html:not(.js) .search { display: none; }
    its rule like the card in full's just below it */
 .over > .howread { grid-column: 1 / -1; grid-row: 2; }
 .over > .facts { grid-column: 2; grid-row: 1; }
-/* the card's identity makes the facts taller than the pie: the pie keeps to their top, where main drew it, rather
-   than sinking to their middle */
-.claims .over > .rose { align-self: start; }
 /* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
    from its top */
 .wrap > .claims:first-child { scroll-margin-top: 100vh; }
@@ -506,7 +502,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
      figure's label is the head above it (still read aloud in the cell); the figure the table is
      sorted by in paper, the others muted */
   .r-main { grid-template-columns: minmax(0, 1fr); }
-  .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; }
+  .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; container-type: inline-size; }
   .sysc .pie { grid-row: auto; }
   .row .pie { width: 52px; height: 52px; }
   .board .pie[data-hot="1"] .s1, .board .pie[data-hot="2"] .s2, .board .pie[data-hot="3"] .s3, .board .pie[data-hot="4"] .s4, .board .pie[data-hot="5"] .s5, .board .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke-width: 1.5; }
@@ -518,7 +514,12 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mn { font-size: 18px; }
   .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; margin-top: 2px; }
   .val { padding-top: 8px; }
-  .tip { top: calc(100% + 2px); padding: 2px 6px 2px 0; }
+  /* the model is under the glyph here, so a triangle's name and state take the place of the system's name beside it
+     while it is named (overlapping no text) */
+  .tip { left: calc(100% + 14px); top: 50%; width: max-content; max-width: calc(100cqw - 100% - 14px); transform: translateY(-50%); }
+  .pie[data-hot] .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
+  .tip b { margin-bottom: 0; }
+  .sysc:has(.pie[data-hot]) .who { visibility: hidden; }
   .heads { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; }
   .heads .hc { grid-row: 3; }
   .heads .hsys { grid-column: 1 / -1; grid-row: 1; padding-left: 0; }
@@ -729,8 +730,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .board .fig .n { font-size: 21px; }
   .board .fig .u { font-size: 11px; }
   .board .na { font-size: 15px; }
-  .board .sub { display: none; }
-  .board .subc { display: flex; flex-direction: column; align-items: flex-start; font: 400 10px/1.35 var(--mono); margin-top: 4px; overflow-wrap: anywhere; }
+  .board .sub { font: 400 10px/1.35 var(--mono); margin-top: 4px; }
+  .tip { left: calc(100% + 12px); max-width: calc(100cqw - 100% - 12px); }
 }
 /* narrow phones: a smaller logo and closer items, so the first line fits */
 @media (max-width: 400px) {

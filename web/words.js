@@ -10,7 +10,7 @@
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
   // ------------------------------------------------------------ row pies: the slice under the pointer lifts,
-  // and its property's name and state show under the pie (positioned: nothing moves). The others keep their ink.
+  // and its property's name and state show beside it (positioned: nothing moves). The others keep their ink.
   // The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
   $$('.row .pie').forEach((pie) => {
     const tip = $('.tip', pie);
@@ -28,7 +28,9 @@
         const sw = document.createElement('i');
         // the slice's state class (yes, partly, no, unstated) is the one besides sl, sN
         sw.className = `sw ${[...sl.classList].find((c) => c !== 'sl' && !/^s\d$/.test(c)) || ''}`;
-        tip.replaceChildren(b, sw, document.createTextNode(sl.dataset.word));
+        const st = document.createElement('span');
+        st.append(sw, document.createTextNode(sl.dataset.word));
+        tip.replaceChildren(b, st);
       }
     };
     pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });

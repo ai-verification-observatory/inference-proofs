@@ -27,8 +27,11 @@ VAL = re.compile(r'<a class="val" href="[^"]*" title="([^"]*)">(.*?)</a>', re.S)
 ROW = re.compile(r'<div class="row" id="([^"]+)" role="row" data-name="[^"]+" data-k="([^"]+)">')
 PLATE = re.compile(r'<div class="plate" id="[^"]+" data-col="[^"]+">(.*?)</dl></div>', re.S)
 NUMBER = re.compile(r'<span class="n">([^<]+)</span><span class="u">([^<]+)</span>')
-SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ms": 1e-3,
-         "s": 1.0, "min": 60.0, "h": 3600.0, "\N{MULTIPLICATION SIGN}": 1.0,
+SCALE = {"positions": 1.0, "B": 1.0, "kB": 1e3, "MB": 1e6, "GB": 1e9, "TB": 1e12, "ns": 1e-9,
+         "\N{MICRO SIGN}s": 1e-6, "ms": 1e-3, "s": 1.0, "min": 60.0, "h": 3600.0,
+         "\N{MULTIPLICATION SIGN}": 1.0,
+         # GPU memory, stored in MiB
+         "KiB": 1 / 1024, "MiB": 1.0, "GiB": 1024.0,
          # more numbers: token/s, and USD per 1,000 tokens (the row names the basis)
          "positions/s": 1.0, "USD": 1.0}  # fmt: skip
 MORE_ROW = re.compile(r'<tr><th scope="row">.*?</tr>', re.S)
