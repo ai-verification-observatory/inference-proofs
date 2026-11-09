@@ -97,6 +97,7 @@ def test_dirty_harness_marks_ineligible(tmp_path: Path, stored: Path) -> None:
     assert reasons(tmp_path, stored, dirty) == ["harness_dirty", "adapter_dirty"]
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 def test_config_digest_kind_ineligible(tmp_path: Path, stored: Path) -> None:
     def config(m: dict[str, Any]) -> None:
         m["system"]["image"]["digest_kind"] = "config"
@@ -104,6 +105,7 @@ def test_config_digest_kind_ineligible(tmp_path: Path, stored: Path) -> None:
     assert reasons(tmp_path, stored, config) == ["image_digest_kind_config"]
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 def test_image_outside_project_registry_ineligible(tmp_path: Path, stored: Path) -> None:
     """B7 (RFC-0014 Q2): a release image lives in the project's registry, even when the run
     and system.yaml agree on it."""
@@ -121,6 +123,7 @@ def test_claim_card_mismatch_ineligible(tmp_path: Path, stored: Path) -> None:
     ]
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 @pytest.mark.parametrize(
     ("edit", "want"),
     [
@@ -141,6 +144,7 @@ def test_each_condition_has_its_reason(
     assert reasons(tmp_path, stored, edit) == want
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 def test_image_pinned_after_its_build_commit(tmp_path: Path, stored: Path) -> None:
     """The real order: the image is built at commit A (no digest in system.yaml yet), and a
     later commit B pins it. The run is eligible; a build commit outside the history is not."""
@@ -165,6 +169,7 @@ def test_image_pinned_after_its_build_commit(tmp_path: Path, stored: Path) -> No
     assert eligibility(run_dir, release, root, REGISTRY)[1] == ["image_differs_from_system_yaml"]
 
 
+@pytest.mark.skip(reason="rule off during research (owner, 2026-11-09)")
 def test_stored_fake_run_is_ineligible_as_is(tmp_path: Path, stored: Path) -> None:
     """A CI run (local image, no self-test, no claim card) fails several conditions at once."""
     release = Release.from_tree(

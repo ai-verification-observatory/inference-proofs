@@ -1,0 +1,955 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 89562011973545
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 89562075976578
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 89562097775787
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 90192576553458
+    },
+    {
+      "event": "commit.start",
+      "mono_ns": 90192605888636
+    },
+    {
+      "event": "commit.end",
+      "mono_ns": 91982224746368
+    },
+    {
+      "event": "prove.start",
+      "mono_ns": 91986679951327
+    },
+    {
+      "event": "prove.end",
+      "mono_ns": 92177232897765
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 92071560097632
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 92094254480223
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 92116171148919
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 92138290462785
+    },
+    {
+      "event": "proof.released",
+      "mono_ns": 92160208701094
+    }
+  ],
+  "failure": null,
+  "inputs": {
+    "active_parameters_per_token": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fp-maverick-w1024-b1.yaml#/model/parameters/active_per_token"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 17000000000
+    },
+    "weight_bits": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "workloads/fp-maverick-w1024-b1.yaml#/precision/weight_bits"
+      },
+      "tier": "reported",
+      "unit": "bit/weight",
+      "value": 4.83916475612899
+    }
+  },
+  "metrics": {
+    "active_param_tokens_per_second_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/rate_prove.session",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 501588354188.39874
+    },
+    "active_param_tokens_per_second_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/rate_prove.steady",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 785483327211.6731
+    },
+    "active_param_tokens_per_second_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/rate_whole_wall",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-APT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "param_token/s",
+      "value": 44236570230.99419
+    },
+    "commit_cpu_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 5165.831539
+    },
+    "commit_gpu_energy": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "J",
+      "value": 871846.778
+    },
+    "commit_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": 137787.875
+    },
+    "commit_gpu_util_mean": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 74.72881366832557
+    },
+    "commit_gpu_util_p95": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 100.0
+    },
+    "commit_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 287401181184
+    },
+    "commit_host_memory_peak_kernel": {
+      "grade": "measured",
+      "null_reason": "not_measurable_on_profile",
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/commit"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": null
+    },
+    "commit_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 1789.618857732
+    },
+    "commit_seconds_per_token_h1": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/commit_seconds",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 1.7476746657539062
+    },
+    "commit_seconds_per_token_h1000": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/commit_seconds",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COMMIT-AMORT-H1000@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.0017476746657539063
+    },
+    "cost_per_1k_tokens_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.session",
+          "reference/v0.1.yaml#/costs/h200/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.05032070136201253
+    },
+    "cost_per_1k_tokens_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.steady",
+          "reference/v0.1.yaml#/costs/h200/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.032133435431884086
+    },
+    "cost_per_1k_tokens_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_whole_wall",
+          "reference/v0.1.yaml#/costs/h200/price_per_gpu_hour_usd"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-1K-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "USD/1k_token",
+      "value": 0.5705749258131516
+    },
+    "info_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064003033
+    },
+    "proof_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "stats": {
+        "max": 18781568.0,
+        "mean": 18774680.0,
+        "min": 18762944.0,
+        "n": 5,
+        "n_failed": 0,
+        "stdev": 7335.3369384098505
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 18774680.0
+    },
+    "proof_bytes_per_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/proof_bytes_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-BPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "B/token",
+      "value": 18334.6484375
+    },
+    "proof_bytes_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 93873400.0
+    },
+    "proofs_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 5
+    },
+    "prove_call_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 190.552946438
+    },
+    "prove_cpu_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 352.630468
+    },
+    "prove_gpu_energy": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "J",
+      "value": 51361.36
+    },
+    "prove_gpu_memory_peak": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "MiB",
+      "value": 57853.875
+    },
+    "prove_gpu_util_mean": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 61.570889915327854
+    },
+    "prove_gpu_util_p95": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "%",
+      "value": 100.0
+    },
+    "prove_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 252344307712
+    },
+    "prove_host_memory_peak_kernel": {
+      "grade": "measured",
+      "null_reason": "not_measurable_on_profile",
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/prove"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": null
+    },
+    "prove_session_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 173.528749767
+    },
+    "prove_steady_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 88.648603462
+    },
+    "prover_keep_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 2153984000
+    },
+    "rate_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/prove_session_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 29.505197305199925
+    },
+    "rate_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_steady",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/prove_steady_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 46.204901600686654
+    },
+    "rate_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/whole_wall_seconds"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-RATE-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token/s",
+      "value": 2.6021511900584815
+    },
+    "requests_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 5
+    },
+    "seconds_per_active_weight_bit_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.session",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 4.119857047151059e-13
+    },
+    "seconds_per_active_weight_bit_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_prove.steady",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 2.6308289993978443e-13
+    },
+    "seconds_per_active_weight_bit_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/seconds_per_token_whole_wall",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/active_parameters_per_token",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/inputs/weight_bits"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPAB-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/bit_token",
+      "value": 4.6714116962081055e-12
+    },
+    "seconds_per_token_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/prove_session_seconds",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.03389233393886719
+    },
+    "seconds_per_token_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/prove_steady_seconds",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_steady"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.021642725454589843
+    },
+    "seconds_per_token_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/whole_wall_seconds",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-SPT-S@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.38429742430820313
+    },
+    "setup_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 630.478777671
+    },
+    "tokens_covered_output": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 0
+    },
+    "tokens_covered_per_proof": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/proofs_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-TPP@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 1024.0
+    },
+    "tokens_covered_prompt": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 5120
+    },
+    "tokens_covered_steady": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 4096
+    },
+    "tokens_covered_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "token",
+      "value": 5120
+    },
+    "verdicts_accept_count": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "count",
+      "value": 5
+    },
+    "verifier_download_bytes": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 6468500
+    },
+    "verify_host_memory_peak_anon": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/raw/verify"
+      },
+      "tier": "reported",
+      "unit": "B",
+      "value": 4192550912
+    },
+    "verify_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/verifier"
+      },
+      "stats": {
+        "max": 16.736335451,
+        "mean": 16.665867425,
+        "min": 16.584700011,
+        "n": 5,
+        "n_failed": 0,
+        "stdev": 0.05744807214210076
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 16.665867425
+    },
+    "verify_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/verify_seconds_total",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/tokens_covered_total"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.01627526115722656
+    },
+    "verify_seconds_total": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/verifier"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 83.329337125
+    },
+    "verify_single_thread_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "verify.single_thread",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/verifier"
+      },
+      "stats": {
+        "max": 24.196298776,
+        "mean": 24.196298776,
+        "min": 24.196298776,
+        "n": 1,
+        "n_failed": 0,
+        "stdev": null
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 24.196298776
+    },
+    "verify_single_thread_seconds_per_token": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "verify.single_thread",
+      "source": {
+        "inputs": [
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/metrics/verify_single_thread_seconds",
+          "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/proofs/0/tokens_covered"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPT-1T@0.1.0.dev0"
+      },
+      "tier": "reported",
+      "unit": "s/token",
+      "value": 0.0236291980234375
+    },
+    "whole_wall_seconds": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/run.json#/events"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 1967.602812458
+    }
+  },
+  "profile": "prover-h200-hosted",
+  "proofs": [
+    {
+      "claimed_output": [
+        1425
+      ],
+      "proof_id": "req-0",
+      "release_mono_ns": 92071560097632,
+      "request_index": 0,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        23592
+      ],
+      "proof_id": "req-3",
+      "release_mono_ns": 92094254480223,
+      "request_index": 3,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        3357
+      ],
+      "proof_id": "req-2",
+      "release_mono_ns": 92116171148919,
+      "request_index": 2,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        28942
+      ],
+      "proof_id": "req-1",
+      "release_mono_ns": 92138290462785,
+      "request_index": 1,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    },
+    {
+      "claimed_output": [
+        24
+      ],
+      "proof_id": "req-4",
+      "release_mono_ns": 92160208701094,
+      "request_index": 4,
+      "tokens_covered": 1024,
+      "verdict": "accept"
+    }
+  ],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 2,
+  "replaces": null,
+  "run_id": "2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1",
+  "schema": "run/1",
+  "status": "completed",
+  "system": "flashprove",
+  "system_kind": "prover",
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "id": "fp-maverick-w1024-b1",
+    "version": 1
+  }
+}

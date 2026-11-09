@@ -13,6 +13,11 @@ run.json /proofs/*/agreement/*
 run.json /failure/exit_code
 manifest.json /workload/version
 manifest.json /claim/card_version
+manifest.json /serving_model/version
+manifest.json /workload/batch_size_run
+manifest.json /workload/batches_per_session_run
+manifest.json /workload/prompt_count_run
+manifest.json /engine/observed/max_num_batched_tokens
 manifest.json /commands/*/exit_code
 manifest.json /commitment/verifier_files/*/bytes
 manifest.json /commitment/prover_files/*/bytes
@@ -32,3 +37,5 @@ index.json /controls/*/workload/version
 index.json /controls/*/counts/*
 index.json /targets/*/workload/version
 index.json /claim_cards/*/card_version
+index.json /configurations/*/overhead_conditions/*/*
+index.json /configurations/*/overhead_conditions/*/*/*

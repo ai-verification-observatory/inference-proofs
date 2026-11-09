@@ -1,0 +1,6 @@
+{
+  "raw_exit_code": 0,
+  "raw_last_line": "grid: 17 block(s), 546 chunk(s) on the grid, 0 off it; layer 529/529 of 529 implied, token 512/512 of 512 implied; verified 546/546; ids prompt 1024 + generated 64 (0 bad, 0 unbacked)",
+  "seconds": 7243.953245786994,
+  "verdict": "accept"
+}

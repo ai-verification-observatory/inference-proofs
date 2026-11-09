@@ -1,0 +1,318 @@
+{
+  "control_seed": "0xc651799dabb53ea7",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "index": 0,
+            "token": 538
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: reply-differs",
+          "seconds": 16.484446407,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C2",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "position": 323,
+            "token": 35484
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.517131907,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C3",
+      "note": "no perturbed commitment for this workload",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C4",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "request_of": "req-0"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.517081261,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C5",
+      "note": null,
+      "outcome": "rejected",
+      "parts_not_read": [
+        {
+          "part": "response.y",
+          "reason": "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "bytes": 9389038,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 9.576170742,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C6",
+      "note": null,
+      "outcome": "rejected",
+      "parts_not_read": [
+        {
+          "part": "response.y",
+          "reason": "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "bit_offset": 131203415,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 16.234372305,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 1545184,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.517079314,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 66785142,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 8.574809618,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 36504695,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 5.570974818,
+          "seed_index": 3,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 80704261,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 9.826225842,
+          "seed_index": 4,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C7",
+      "note": "batch size 1: no two proofs in one batch",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C8",
+      "note": null,
+      "outcome": "invalid_call",
+      "parts_not_read": [
+        {
+          "part": "response.y",
+          "reason": "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "dropped": "response.proof"
+          },
+          "outcome": "invalid_call",
+          "raw_exit_code": 2,
+          "raw_last_line": "input-unreadable-proof: the proof file cannot be read: No such file or directory",
+          "seconds": 0.064155382,
+          "seed_index": 0,
+          "verdict": "invalid_call"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "prover_failed",
+        "rejected"
+      ],
+      "id": "P1",
+      "note": "no perturbed commitment; run iproofs controls --prepare-perturbed fp-maverick-w1024-b1",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "prover",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    },
+    {
+      "expected": [
+        "prover_failed",
+        "rejected"
+      ],
+      "id": "P2",
+      "note": "the workload declares one precision",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "prover",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    }
+  ],
+  "disclosure_pending": false,
+  "image": "ghcr.io/ai-verification-observatory/flashprove@sha256:7ca6c9ee8c6568b9b925a5c8a8d8eb2f3cd7e394b0f047cde3096d99145a91f8",
+  "perturbed_commitment": null,
+  "run_id": "2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2",
+  "schema": "controls/1",
+  "summary": {
+    "accepted": 0,
+    "error": 0,
+    "invalid_call": 1,
+    "no_verdict": 0,
+    "not_applicable": 4,
+    "passed": 6,
+    "prover_failed": 0,
+    "rejected": 5,
+    "run": 10,
+    "void": 0
+  },
+  "verifier_profile": "verifier-cpu"
+}

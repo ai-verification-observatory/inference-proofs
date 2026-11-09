@@ -1,0 +1,10 @@
+{"ts":"2026-11-08T22:59:46.994Z","mono_ns":22794137624652,"level":"info","event":"runner.start","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":null,"harness_version":"0.1.0.dev0"}
+{"ts":"2026-11-08T22:59:46.994Z","mono_ns":22794137754857,"level":"info","event":"job.state","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"resolved","from":"pending","to":"resolved"}
+{"ts":"2026-11-08T23:00:13.246Z","mono_ns":22820389370631,"level":"info","event":"integrity.model_rehash","job":null,"step":null,"what":"sash-l31-8b-c1024","seconds":26.219032459}
+{"ts":"2026-11-08T23:00:23.279Z","mono_ns":22830422543072,"level":"info","event":"job.state","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"image_ready","from":"resolved","to":"image_ready"}
+{"ts":"2026-11-08T23:00:23.279Z","mono_ns":22830422840301,"level":"info","event":"job.state","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"machine_recorded","from":"image_ready","to":"machine_recorded"}
+{"ts":"2026-11-08T23:00:23.298Z","mono_ns":22830441101632,"level":"info","event":"job.state","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"info","from":"machine_recorded","to":"info"}
+{"ts":"2026-11-08T23:00:23.375Z","mono_ns":22830518366318,"level":"info","event":"job.state","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"setup","from":"info","to":"setup"}
+{"ts":"2026-11-08T23:00:23.461Z","mono_ns":22830604256933,"level":"info","event":"job.state","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"commit","from":"setup","to":"commit"}
+{"ts":"2026-11-09T00:09:03.424Z","mono_ns":26950567947016,"level":"error","event":"job.failed","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"commit","kind":"adapter","message":"commit exited 1","exit_code":1}
+{"ts":"2026-11-09T00:09:03.591Z","mono_ns":26950734599404,"level":"info","event":"job.written","job":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","step":"written","run_dir":"2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1","outcome":"failed"}

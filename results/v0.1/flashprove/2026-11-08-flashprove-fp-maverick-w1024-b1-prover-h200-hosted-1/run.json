@@ -1,0 +1,53 @@
+{
+  "adapter_phases": {},
+  "claim": null,
+  "control": false,
+  "events": [
+    {
+      "event": "info.start",
+      "mono_ns": 2264093956741
+    },
+    {
+      "event": "info.end",
+      "mono_ns": 2264158132513
+    },
+    {
+      "event": "setup.start",
+      "mono_ns": 2264178470147
+    },
+    {
+      "event": "setup.end",
+      "mono_ns": 2783560404078
+    }
+  ],
+  "failure": {
+    "at": "2026-11-08T17:26:16Z",
+    "exit_code": 1,
+    "kind": "adapter",
+    "last_lines": [
+      "flashprove: /src/scales/calibrate.py exited non-zero, last line 'calibrate.py: the output folder results/v0.1/flashprove/.staging-2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/io/fit/calibration lies below results/v0.1/flashprove/.staging-2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/io, which another account may be able to change (its group or others can write in it, and it has no sticky bit): it could put another folder in its place and choose what runs as you. If results/v0.1/flashprove/.staging-2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1/io is yours, close it with chmod go-w (a further such folder below it, if any, is named in turn); otherwise name a new output folder below folders that only you or root can change (such as one in your home folder, or in /tmp, whose sticky bit keeps others from replacing it); nothing was run'"
+    ],
+    "message": "setup exited 1",
+    "step": "setup"
+  },
+  "metrics": {},
+  "profile": "prover-h200-hosted",
+  "proofs": [],
+  "raw": {},
+  "release": "v0.1",
+  "repetition": 1,
+  "replaces": null,
+  "run_id": "2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1",
+  "schema": "run/1",
+  "status": "failed",
+  "system": "flashprove",
+  "system_kind": "prover",
+  "warnings": [
+    "repetitions_below_minimum",
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "id": "fp-maverick-w1024-b1",
+    "version": 1
+  }
+}

@@ -1,0 +1,49 @@
+schema: release/1
+release: v0.1
+reference_file: reference/v0.1.yaml
+rfc_commit: 9124debd7a44b1c7dd03fe9aff9b07eb00a9f9ff
+harness_version: 0.1.0.dev0
+runs:
+- results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1
+- results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2
+- results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-3
+- results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1
+- results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-2
+- results/v0.1/flashprove/2026-11-08-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-3
+- results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-1
+- results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b1-prover-h200-hosted-2
+- results/v0.1/flashprove/2026-11-09-flashprove-fp-maverick-w1024-b24-prover-h200-hosted-1
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-1
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-2
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-3
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-4
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-5
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-6
+- results/v0.1/ref-serve/2026-11-09-ref-serve-fp-maverick-w1024-b24-serving-h200x4-hosted-7
+- results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1
+- results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-2
+- results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-3
+- results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-4
+- results/v0.1/ref-serve/2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-5
+- results/v0.1/sash/2026-11-08-sash-sash-l31-8b-c1024-prover-h200-hosted-1
+- results/v0.1/sash/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-1
+- results/v0.1/sash/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-2
+- results/v0.1/sash/2026-11-09-sash-sash-l31-8b-c1024-prover-h200-hosted-3
+superseded_runs: []
+claim_cards:
+- system: sash
+  configuration: sound-defaults
+  card_version: 1
+  path: systems/sash/claim.yaml
+  digest: sha256:6da4277315a62e0fd5110e593825fdc20e66be6d86fc54382ed78f694ed4cf15
+- system: flashprove
+  configuration: exact-match-cp-verify
+  card_version: 1
+  path: systems/flashprove/claim.yaml
+  digest: sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e
+review_window:
+  opens: '2026-11-09'
+  closes: '2026-11-09'
+freeze_date: '2026-11-09'
+replies: {}
+sponsors: []
