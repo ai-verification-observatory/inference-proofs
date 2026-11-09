@@ -120,68 +120,6 @@
       "format": "date",
       "type": "string"
     },
-    "disclosure": {
-      "additionalProperties": false,
-      "allOf": [
-        {
-          "else": {
-            "not": {
-              "anyOf": [
-                {
-                  "required": [
-                    "date"
-                  ]
-                },
-                {
-                  "required": [
-                    "url"
-                  ]
-                }
-              ]
-            }
-          },
-          "if": {
-            "properties": {
-              "state": {
-                "const": "published"
-              }
-            },
-            "required": [
-              "state"
-            ]
-          },
-          "then": {
-            "required": [
-              "date",
-              "url"
-            ]
-          }
-        }
-      ],
-      "properties": {
-        "date": {
-          "$ref": "#/$defs/date"
-        },
-        "run_id": {
-          "$ref": "../quantity/1.schema.json#/$defs/runId"
-        },
-        "state": {
-          "enum": [
-            "pending",
-            "published"
-          ]
-        },
-        "url": {
-          "pattern": "^https://\\S+$",
-          "type": "string"
-        }
-      },
-      "required": [
-        "run_id",
-        "state"
-      ],
-      "type": "object"
-    },
     "own_source": {
       "anyOf": [
         {
@@ -577,13 +515,6 @@
             "no_trusted_party"
           ],
           "type": "object"
-        },
-        "disclosures": {
-          "items": {
-            "$ref": "#/$defs/disclosure"
-          },
-          "minItems": 1,
-          "type": "array"
         },
         "family": {
           "enum": [

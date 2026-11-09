@@ -139,19 +139,9 @@ def search_box(here):
     )
 
 
-def criteria_label():
-    """The criteria's standing, from RFC-0016's own status line: (label, short label, RFC the
-    label cites). The label changes only once the RFC is Accepted."""
-    rfc = S.CRIT["rfc"]
-    if rfc["status"].startswith(("Accepted", "Final")):
-        return "Criteria", "Criteria", rfc["file"][:4]
-    return "Draft criteria, needs an RFC", "Draft criteria, needs an RFC", "0001"
-
-
 def footer():
     """Every page's footer: the criteria and their file, then the release (its page and its
     `index.json`) and the licence."""
-    head, _, rfc = criteria_label()
     rel = S.V["release"]
     index = (
         f'<a class="nw" href="{e(S.REPO_URL)}/blob/{S.LINK_REF}/{e(rel["index"])}">index.json</a>'
@@ -159,8 +149,7 @@ def footer():
     name = f"Release {rel['id']}"
     licence = readable(f"licence {rel['licence']}").replace("CC BY 4.0", "CC\u00a0BY\u00a04.0")
     return (
-        f'<footer class="foot"><p><a href="{CRIT_PAGE}">{e(head)}</a>'
-        f' (<a class="nw" href="{e(S.REPO_URL)}/blob/{S.RFC_REF}/rfcs/{S.RFC_FILES[rfc]}">RFC-{rfc}</a>)'
+        f'<footer class="foot"><p><a href="{CRIT_PAGE}">Criteria</a>'
         f'\u00a0· <a href="{e(S.REPO_URL)}/blob/main/{e(S.CRIT["path"])}">criteria.json</a> sha256 <code>{S.crit_sha[:12]}</code></p>'
         f'<p><a class="nw" href="{RELEASE_PAGE}">{e(name)}</a>\u00a0· {index}'
         f"\u00a0· {e(licence)}</p></footer>"
@@ -203,7 +192,7 @@ def states_key():
 
 
 def keyline():
-    return f'<p class="keyline">{states_key()}<a class="draft" href="{CRIT_PAGE}">{e(criteria_label()[1])}<span aria-hidden="true">\u00a0→</span></a></p>'
+    return f'<p class="keyline">{states_key()}<a class="crit" href="{CRIT_PAGE}">Criteria<span aria-hidden="true">\u00a0→</span></a></p>'
 
 
 def masthead():
@@ -248,15 +237,13 @@ def cards_record():
 
 def card_alt(card):
     """The picture in words, from the same data the picture draws."""
-    draft = criteria_label()[1]
     if card == "home":
         return "Inference proofs: " + ", ".join(p["name"] for p in S.PROPS) + "."
     cfg = first_config(card)
     g = glyph(card)
-    states = ("No state is drawn while a disclosure is pending" if not g["drawn"]
-              else "; ".join(f"{c['name']}: {c['word']}" for c in g["cells"]))  # fmt: skip
+    states = "; ".join(f"{c['name']}: {c['word']}" for c in g["cells"])
     model = S.MODEL_NAME[cfg["workload"]["model"]["digest"]]
-    return f"{name_of(card)} on {model} @{upstream(cfg)['commit'][:8]}. {states}. {draft}."
+    return f"{name_of(card)} on {model} @{upstream(cfg)['commit'][:8]}. {states}."
 
 
 def share_meta(title, desc, path, card):

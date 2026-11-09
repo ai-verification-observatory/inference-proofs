@@ -151,11 +151,9 @@ def property_controls(
     """OVR-7: per property, each mapped control's outcome in every run OVR-5 reads; the site
     lists, it never sets a state. With no criteria `release` no run is read (OVR-5); "not run"
     is a mapped control absent from a read run's controls.json, or a read run with none. Each
-    run read carries its `run.json` and, when it has one, its `controls.json`. OVR-8 withholds
-    the lists. A run of the rendered release is read from `records`; only a run of an earlier
+    run read carries its `run.json` and, when it has one, its `controls.json`. A run of the
+    rendered release is read from `records`; only a run of an earlier
     release is read again from disk."""
-    if row["pending"]:
-        return {"withheld": True, "properties": {}, "runs": []}
     read = runs_read(root, criteria.release, str(row["card"]["system"]), configuration)
     held = {rec["dir"]: rec["controls"] for rec in records.values()}
     controls: dict[str, dict[str, Any]] = {}
@@ -193,7 +191,7 @@ def property_controls(
         out[prop] = {"mapped": mapped, "outcomes": entries, "contradicted": contradicted}
     runs = [{"run_id": rid, "record": f"{d}/run.json", "controls": where.get(rid)}
             for rid, d in dirs.items()]  # fmt: skip
-    return {"withheld": False, "properties": out, "runs": runs}
+    return {"properties": out, "runs": runs}
 
 
 def _system_controls(
@@ -288,12 +286,9 @@ def _card(root: Path, index: dict[str, Any], system: str, configuration: str | N
         return None
     card = dict(found[0])
     body = inputs.read_yaml(root / card["path"])
-    reviewed = body.get("reviewed_by") or []
     card |= {
         "body": body,
         "upstream": body.get("upstream"),
-        "reviewed": any(r.get("card_version") == card["card_version"] for r in reviewed
-                        if isinstance(r, dict)),
         "link": f"{REPOSITORY}/blob/{LINK_REF}/{card['path']}",
     }  # fmt: skip
     return card
@@ -540,7 +535,6 @@ def site_view(root: Path) -> dict[str, Any]:
             "path": criteria.path,
             "sha256": criteria.sha256,
             "release": criteria.release,
-            "rfc": inputs.rfc_status(root, "0016"),
             "order": list(criteria.order),
             "states": criteria.states,
             "properties": list(criteria.properties),
@@ -597,7 +591,7 @@ def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[st
       configuration;
     - no state is drawn that a stored outcome contradicts (OVR-3, OVR-4): an `accepted` control
       outside its expected set (`index.controls[].outside_expected`), mapped to a property
-      (OVR-2), on a configuration whose row is drawn and whose cell for that property is `yes`
+      (OVR-2), on a configuration whose cell for that property is `yes`
       or `partly`, needs that control and run in the cell's `contradicted_by`. A file with no
       `release` reads no run (OVR-5), so it can name none: such an outcome stops the build until
       the file names the release.
@@ -622,7 +616,7 @@ def check_rows(criteria: inputs.Criteria, release_id: str, configs: list[dict[st
                           "keys a card row by its system")  # fmt: skip
     for c in configs:
         row = criteria.rows.get(c["system"])
-        if c["kind"] != "prover" or row is None or not row["drawn"]:
+        if c["kind"] != "prover" or row is None:
             continue
         for entry in c["controls"]["outside_expected"]:
             prop = CONTROL_PROPERTY.get(str(entry["control_id"]))

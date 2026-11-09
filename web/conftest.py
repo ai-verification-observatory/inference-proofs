@@ -1,9 +1,10 @@
-"""The site the web/ tests read: the placeholder release, frozen and built once per session.
+"""The site the web/ tests read: the synthetic placeholder release, frozen and built once per
+session.
 
 Run from the repository root: `uv run pytest web -q` (pyproject's pytest `pythonpath` makes
-`harness/tests/fixtures` importable). Until #146 the deployed pages come from this placeholder
-release (`python -m fixtures.placeholder_release --site web`); the tests compare the committed
-files in web/ with a fresh build and check the build against hand-computed cases.
+`harness/tests/fixtures` importable). The deployed pages are built from the frozen release
+(`iproofs site build`); these tests check the renderer and the preview-card sources on the
+fixture build.
 """
 
 from pathlib import Path

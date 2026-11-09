@@ -1,4 +1,4 @@
-"""A card's validated claims on its system page (RFC-0009 S1, RFC-0016 OVR-7, OVR-8): beside
+"""A card's validated claims on its system page (RFC-0009 S1, RFC-0016 OVR-7): beside
 each property, its state, our reason and a link to its entry in "How we read it", and, for an
 overridden cell, its stated state and what contradicts it; then, folded in "How we read it", per
 property the deciding quote with its source at the pin, both quotes of a conflict, the sources
@@ -178,7 +178,7 @@ def contradicted_line(cell, pc, prop):
     properties off their triangles. A screen reader hears the id in the link."""
     if not cell.get("stated"):
         return ""
-    found = pc["properties"][prop]["contradicted"] if pc and not pc["withheld"] else []
+    found = pc["properties"][prop]["contradicted"] if pc else []
     said = e(STATE_WORD[cell["stated"]])
     if found:
         controls = ", ".join(dict.fromkeys(x["control"] for x in found))
@@ -191,10 +191,10 @@ def contradicted_line(cell, pc, prop):
 
 def evidence(sid, prop, pc):
     """What one property's block holds under its state and reason besides the link to how we
-    read it: for an overridden cell, its stated state and what contradicts it (not under a
-    pending disclosure: OVR-8, `pc` withheld), since that line changes the state; else nothing."""
+    read it: for an overridden cell, its stated state and what contradicts it, since that line
+    changes the state; else nothing."""
     cell = S.CRIT["rows"][sid]["cells"][prop]
-    if pc is None or pc["withheld"]:
+    if pc is None:
         return ""
     line = contradicted_line(cell, pc, prop)
     return f'<div class="ev">{line}</div>' if line else ""
@@ -222,8 +222,8 @@ def read_entries(sid, pc, order):
     id, in `order`: the deciding quote verbatim with its source at the pin (in a conflict, every
     quote with the state whose rule it meets), the sources read (one line per repository, linked
     at its commit, with the paths read; a list equal to an earlier property's names that
-    property), and the controls the map ties to it with their outcome in every run read (none
-    under a pending disclosure, OVR-8). A property with none of these has no entry."""
+    property), and the controls the map ties to it with their outcome in every run read. A
+    property with none of these has no entry."""
     out, seen = {}, {}
     for prop in order:
         cell = S.CRIT["rows"][sid]["cells"][prop]
@@ -235,7 +235,7 @@ def read_entries(sid, pc, order):
             key = json.dumps(cell["sources_read"], sort_keys=True)
             body += sources_read(cell["sources_read"], seen.get(key))
             seen.setdefault(key, prop)
-        if pc is not None and not pc["withheld"]:
+        if pc is not None:
             body += control_lines(pc, prop)
         if body:
             out[prop] = body
@@ -263,8 +263,7 @@ def how_we_read(entries):
 
 
 def card_fact(cfg):
-    """S1 item 2: the card's identity, a link to its file and its digest, and whether a system
-    maintainer reviewed this version (RFC-0002 §Failure modes)."""
+    """S1 item 2: the card's identity, a link to its file and its digest."""
     card = cfg["card"]
     digest = str(card["digest"]).removeprefix("sha256:")
     lines = [
@@ -272,8 +271,6 @@ def card_fact(cfg):
         f'<a href="{e(card["link"])}">{path_html(card["path"], ext=True)}</a>',
         f"sha256 <code>{e(digest[:12])}</code>",
     ]
-    if not card["reviewed"]:
-        lines.append("card not reviewed by system maintainers")
     return '<span class="links cardid">' + "".join(f"<span>{x}</span>" for x in lines) + "</span>"
 
 

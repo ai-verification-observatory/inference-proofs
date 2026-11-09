@@ -23,8 +23,7 @@ def slug(s):
 # The fixed words a stored value prints as (RFC-0009 S2: the generator may word a stored value;
 # it never changes it). Keyed by the stored ids, so an id with no words stops the build.
 STATE_WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}
-# None: a row under a pending disclosure, drawn with no state (RFC-0016 OVR-8; words.css .sl.none)
-STATE_CLS = {"yes": "yes", "partly": "partly", "no": "no", "not_stated": "unstated", None: "none"}
+STATE_CLS = {"yes": "yes", "partly": "partly", "no": "no", "not_stated": "unstated"}
 STATE_ORDER = ("yes", "partly", "no", "not_stated")  # the legend's order, display only
 FAMILY_WORD = {"proved": "Proved", "attested": "Attested", "re_executed": "Re-executed",
                "fingerprinted": "Fingerprinted", "unchecked": "Unchecked"}  # fmt: skip
@@ -134,16 +133,6 @@ ACCEPTED_WHY = {
     ("system", False): "{id}, outside its expected outcomes",
     ("shared", False): "{id}, outside its expected outcomes",
 }
-# RFC-0016 OVR-8 and RFC-0008 §Disclosure: what a page prints while a disclosure is pending
-PENDING = (
-    "A disclosure is pending (RFC-0008): a control outcome of this system is under embargo. "
-    "Until the finding is published, the outcomes of its controls are not printed and its "
-    "states are not drawn; the states below are the ones its documentation states at the pin."
-)
-PENDING_TAMPER = (
-    "A disclosure is pending (RFC-0008): the outcomes of this setup's controls are not printed "
-    "until the finding is published."
-)
 COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
               8: "eight", 9: "nine", 10: "ten"}  # fmt: skip
 REF_LEAD = "The same model and task without a proof: production serving checks nothing, a rerun needs the weights; they are baselines, not systems."

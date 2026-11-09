@@ -1,4 +1,4 @@
-# Shape only (RFC-0005 §system.yaml). Maintainers, image digest and flags are filled by #68 and #69.
+# Shape only (RFC-0005 §system.yaml).
 schema: "system/1"
 name: "flashprove"
 kind: "prover"

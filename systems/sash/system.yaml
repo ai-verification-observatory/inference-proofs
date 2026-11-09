@@ -1,7 +1,4 @@
 # SASH zk-inference-prover (RFC-0005). Values and their upstream sources: systems/sash/README.md.
-# RFC-0001 §System inclusion: no SASH team member has been reached yet, so `maintainers` is empty
-# and no consent is recorded. Rows carry the note "system maintainers not reached" and the claim
-# card stays unreviewed until a system maintainer is named; silence is never consent.
 # RFC-0014 B7: built by the images workflow from main at aa3fbb2cd5f9f53fadf7966f02784492aaca5392
 # (adapter_dirty false) and pushed to the project registry.
 schema: "system/1"
@@ -15,7 +12,6 @@ upstream:
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
   digest: "sha256:bf548d5666b10d653babb23612d670dfa7c86f7b75f3784da0451d53ec90f577"
-maintainers: []
 workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
 profile: "prover-h100"
 deterministic_proofs: true

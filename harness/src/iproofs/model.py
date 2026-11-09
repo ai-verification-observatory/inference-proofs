@@ -1315,7 +1315,6 @@ class CriteriaRow(Document):
     source_class: str
     cells: Mapping[str, Mapping[str, object]]
     card: Mapping[str, str] | None = None
-    disclosures: tuple[Mapping[str, str], ...] | None = None
     workloads: tuple[str, ...] | None = None
     own_sources: tuple[Mapping[str, str], ...] | None = None
 

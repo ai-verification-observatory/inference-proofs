@@ -5,7 +5,6 @@ or a tree with no `.git` (CLI-4). Each file is read once per build.
 """
 
 import json
-import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -24,11 +23,10 @@ SCHEMA = "criteria/1"  # RFC-0016 §Criteria file contract
 STATES = ("yes", "partly", "no", "not_stated")
 FAMILIES = ("proved", "attested", "re_executed", "fingerprinted", "unchecked")
 SOURCE_CLASSES = ("claim_card_at_pin", "reference_rfc_0015", "public_sources")
-ROW_KEYS = {"id", "name", "family", "source_class", "tab", "cells", "card", "disclosures",
-            "workloads", "own_sources"}  # fmt: skip
+ROW_KEYS = {"id", "name", "family", "source_class", "tab", "cells", "card", "workloads",
+            "own_sources"}  # fmt: skip
 CELL_KEYS = {"state", "stated", "reason", "quotes", "sources_read", "not_copied", "note",
              "conflict", "aside", "outside_pin", "contradicted_by"}  # fmt: skip
-STATUS_LINE = re.compile(r"^- Status: (.+)$", re.M)
 
 
 def _config(message: str) -> IProofsError:
@@ -64,11 +62,8 @@ class Criteria:
 def load_criteria(root: Path) -> Criteria:
     """Read `web/_data/criteria.json` (`criteria/1`; G2 validates it against the schema). An
     unknown schema, row or cell key, state, family or source class raises. Each cell keeps the
-    state the file sets; a card row with a `pending` disclosure gets `drawn: False` (OVR-8: the
-    glyph draws no state, and the system page prints the stated states beside the RFC-0008
-    notice, undrawn). Under a pending disclosure no cell carries `stated` or `contradicted_by`
-    (OVR-8), so each cell's state is its stated state. Card rows are also keyed by their card's
-    system and configuration (SRC-1: one row per card)."""
+    state the file sets. Card rows are also keyed by their card's system and configuration
+    (SRC-1: one row per card)."""
     path = root / CRITERIA
     doc = json.loads(path.read_text("utf-8"))
     if doc.get("schema") != SCHEMA:
@@ -90,15 +85,11 @@ def load_criteria(root: Path) -> Criteria:
             raise _config(f"{CRITERIA} row {rid}: unknown family {raw['family']!r}")
         if raw["source_class"] not in SOURCE_CLASSES:
             raise _config(f"{CRITERIA} row {rid}: unknown source class {raw['source_class']!r}")
-        pending = any(d.get("state") == "pending" for d in raw.get("disclosures") or [])
         cells: dict[str, dict[str, Any]] = {}
         for prop in order:
             cell = raw["cells"][prop]
             if unknown := set(cell) - CELL_KEYS:
                 raise _config(f"{CRITERIA} {rid}/{prop}: unknown keys {sorted(unknown)}")
-            if pending and ("stated" in cell or "contradicted_by" in cell):
-                raise _config(f"{CRITERIA} {rid}/{prop}: `stated` under a pending disclosure "
-                              "(RFC-0016 OVR-8)")  # fmt: skip
             cells[prop] = {
                 "state": _state(cell["state"], f"{rid}/{prop}"),
                 "stated": _state(cell.get("stated"), f"{rid}/{prop} stated"),
@@ -122,25 +113,11 @@ def load_criteria(root: Path) -> Criteria:
             "source_class": raw["source_class"],
             "tab": raw["tab"],
             "card": card,
-            "pending": pending,
-            "drawn": not pending,
-            "disclosures": list(raw.get("disclosures") or []),
             "cells": cells,
         }
     pins = {str(k): str(v) for k, v in (doc.get("pins") or {}).items()}
     return Criteria(CRITERIA, file_digest(path), doc.get("release"), order, states, properties,
                     rows, pins, cards)  # fmt: skip
-
-
-def rfc_status(root: Path, number: str) -> dict[str, str]:
-    """RFC-0016 contract: the site reads the RFC's own status line."""
-    found = sorted((root / "rfcs").glob(f"{number}-*.md"))
-    if not found:
-        raise _config(f"no rfcs/{number}-*.md")
-    match = STATUS_LINE.search(found[0].read_text("utf-8"))
-    if match is None:
-        raise _config(f"{found[0].name}: no status line")
-    return {"file": found[0].name, "status": match[1].strip()}
 
 
 # ---------------------------------------------------------------- facts (site-facts/1)
@@ -181,8 +158,8 @@ def newest_release(root: Path) -> str:
     if not found:
         raise IProofsError(
             ErrorKind.CONFIG,
-            "site: no frozen release (releases/*/index.json); until v0.1 build the placeholder: "
-            "PYTHONPATH=harness/tests uv run python -m fixtures.placeholder_release --site web",
+            "site: no frozen release (releases/*/index.json); freeze one with "
+            "`iproofs release freeze`",
         )
     return max(found)[1]
 

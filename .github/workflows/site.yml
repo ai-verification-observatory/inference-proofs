@@ -3,9 +3,7 @@
 # as committed, so this check holds them to what `iproofs site build` writes from the frozen
 # release (RFC-0009 §Site): a pull request whose pages are stale, whose tests fail, or whose
 # preview pictures were not rendered from their committed sources (og/cards.json), does not
-# pass. Until v0.1 is frozen (#146) the release is the placeholder one in
-# harness/tests/fixtures/placeholder_release.py, built in a temporary tree; from then on the
-# step is `uv run iproofs site build`. No secrets, no upload.
+# pass. No secrets, no upload.
 name: site
 
 on:
