@@ -132,7 +132,9 @@ def test_labels_read_whole(site):
     )
     assert b.boundary_words(cfg) == "steady window from the first proof (runs before 2026-11-09)"
     cost = {"unit": "USD/1k_token", "source": "x#/s/cost_per_1k_tokens_prove.session"}
-    assert b.source_words(cost, {"source": "x#/s/"}) == "cost_per_1k_tokens_prove.session × 1,000"
+    assert b.source_words(cost, {"source": "x#/s/"}) == (
+        "cost_per_1k_tokens_prove.session\N{NO-BREAK SPACE}×\N{NO-BREAK SPACE}1,000"
+    )
     rate = {"unit": "token/s", "source": "x#/s/rate_prove.session"}
     assert b.source_words(rate, {"source": "x#/s/"}) == "rate_prove.session"
 
@@ -276,3 +278,26 @@ def test_card_reads_each_thing_once(site):
         ]
     finally:
         b.S.HOME = ""
+
+
+def test_bound_phrases_never_part(site):
+    """The one no-break pass (by hand): a count stays with its unit word, a product sign with its
+    numbers, a date whole in HTML, never inside a tag; a link's words break only after a "/", a
+    repository's name or a commit hash, the file with its lines and arrow whole."""
+    b = site.build
+    nb = "\N{NO-BREAK SPACE}"
+    assert b.nobreak("over 1 × 3 pairs; one value, 3 runs; 124 bits per query") == (
+        f"over 1{nb}×{nb}3{nb}pairs; one value, 3{nb}runs; 124{nb}bits per query"
+    )
+    assert b.readable("range 67.59 to 68.04 over 1 × 3 pairs") == (
+        f"range 67.59 to 68.04{nb}over 1{nb}×{nb}3{nb}pairs"
+    )
+    held = b.dates_html('<a href="/r/2026-11-08-x">(runs before 2026-11-09)</a>')
+    assert held == '<a href="/r/2026-11-08-x">(runs before <span class="nw">2026-11-09</span>)</a>'
+    link = b.path_html("docs/figures.tsv L45", ext=True)
+    assert link.endswith(
+        '<span class="nw"><span class="seg">figures.tsv L45</span>' + b.EXT + "</span>"
+    )
+    assert link.count('<span class="seg">') == 2
+    other = b.path_html("zk-inference-results: REPRODUCE.md L1406", ext=True)
+    assert other.startswith('<span class="seg">zk-inference-results: </span><wbr>')

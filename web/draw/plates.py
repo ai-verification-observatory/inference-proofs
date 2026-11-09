@@ -21,10 +21,12 @@ from .words import (
     TIER_WORD,
     WARM,
     boundary_words,
+    dates_html,
     e,
     gpu_words,
     labels,
     mean_words,
+    nobreak,
     scope_words,
     shown,
     spread_line,
@@ -307,8 +309,8 @@ def readable(text):
     # a count word stays with what it counts ("one H100"), a statistic with its number ("sd 0")
     text = re.sub(r"\b(one|two|three|four|five|six|seven|eight|nine|ten) (?=\w)", "\\1\u00a0", text)
     text = re.sub(r"\b(mean|sd) (?=[\d.])", "\\1\u00a0", text)
-    # a number stays with its unit, not with the "to" of a range
-    return re.sub(r"(\d) (?=(?!to )[A-Za-zµ%×])", "\\1\u00a0", text)
+    # a number stays with its unit, not with the "to" of a range; a product sign with its numbers
+    return nobreak(re.sub(r"(\d) (?=(?!to )[A-Za-zµ%×])", "\\1\u00a0", text))
 
 
 # an outside link's arrow: not read aloud, not underlined (an inline block), held to the word
@@ -316,10 +318,22 @@ def readable(text):
 EXT = '<span class="xa" aria-hidden="true">\u00a0↗</span>'
 
 
+# where a link's words may break: after a "/", after a repository's name ("zk-inference-results: ")
+# and after a commit hash ("FlashProve@9e2bdd8f ")
+LINK_BREAK = re.compile(r"(?<=/)|(?<=: )|(?<=@[0-9a-f]{8} )")
+
+
 def path_html(text, ext=False):
     """A source path that breaks only after a "/" or "_", before a ".", or after a " · ", never
-    inside a word, and whose separator ends a line rather than starts one. ext: end it with the
-    outside link's arrow, held to the last part so the arrow never wraps onto a line of its own."""
+    inside a word, and whose separator ends a line rather than starts one. ext: a link's words,
+    which break only after a "/", a repository's name or a commit hash, the last part whole
+    with its lines and the outside link's arrow ("figures.tsv L45 ↗"), so a file's name never
+    parts from its extension or its lines and the arrow never wraps onto a line of its own."""
+    if ext:
+        parts = [x for x in LINK_BREAK.split(text) if x]
+        head = "<wbr>".join(f'<span class="seg">{e(x)}</span>' for x in parts[:-1])
+        last = f'<span class="nw"><span class="seg">{e(parts[-1])}</span>{EXT}</span>'
+        return f"{head}<wbr>{last}" if head else last
     segs = re.split("\u00a0· | · ", text)
     out = []
     for i, sg in enumerate(segs):
@@ -331,11 +345,7 @@ def path_html(text, ext=False):
                 for j, s in enumerate(subs)
             )
         )
-    html = " ".join(out)
-    if ext:
-        head, _, last = html.rpartition('<span class="seg">')
-        html = f'{head}<span class="nw"><span class="seg">{last}{EXT}</span>'
-    return html
+    return " ".join(out)
 
 
 def keep(text):
@@ -635,7 +645,7 @@ def source_words(f, shared=None):
     to the stored value where the key names another unit (a cost stored per 1k tokens, shown
     per 1M: "cost_per_1k_tokens_prove.session × 1,000")."""
     key = source_key(f, shared)
-    return f"{key} × 1,000" if f["unit"] == "USD/1k_token" else key
+    return f"{key}\u00a0×\u00a01,000" if f["unit"] == "USD/1k_token" else key
 
 
 def plate_label(col, tag="p"):
@@ -678,18 +688,13 @@ def plate(cfg, col, pid="", shared=None):
             kv.append(("workload", *workload_link(cfg)))
         kv.append(("source", source_words(f, shared), None))
     dl = "".join(
-        f"<div><dt>{e(k)}</dt><dd>{v if isinstance(v, Html) else path_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
+        f"<div><dt>{e(k)}</dt><dd>{v if isinstance(v, Html) else path_html(v) if k == 'source' else dates_html(link_or_text(readable(v), href))}</dd></div>"
         for k, v, href in kv
     )
     return (
         f'<div class="plate"{pid_attr} data-col="{col}">{plate_label(col)}'
         f'<p class="pv"{f' title="{e(said)}"' if said else ""}>{val}</p><dl>{dl}</dl></div>'
     )
-
-
-def dates_html(html):
-    """A date (2026-11-08) in text that never breaks at its hyphens."""
-    return re.sub(r"\b\d{4}-\d{2}-\d{2}\b", lambda m: f'<span class="nw">{m[0]}</span>', html)
 
 
 def flags_html(html):
@@ -707,7 +712,7 @@ def overhead_notes(cfg):
         return ""
     f = cfg["figures"][metric_of(cfg, "overhead")]
     words = cfg.get("overhead_words") or {}
-    rows = [(label, flags_html(with_rule(readable(words[key]))))
+    rows = [(label, dates_html(flags_html(with_rule(readable(words[key])))))
             for key, label in (("conditions", "conditions"), ("precision", "precision"),
                                ("high", "at high load")) if words.get(key)]  # fmt: skip
     steady = cfg["figures"].get(METRIC["overhead"])

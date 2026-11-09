@@ -687,26 +687,41 @@ for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   ok(lift.s2 !== 'none' && lift.rn === 'rgb(241, 239, 233)' && lift.path === '/flashprove', 'touch: a tap on a slice lifts it and marks its property', lift);
   await ctx.close();
 }
-// "sd < 0.1 %" on one line on phones: the statistic, its sign and its number never part
-for (const w of [320, 360, 390]) {
+// bound phrases on one line, folds open, phones and laptops: "sd < 0.1 %", a record key's factor, a pair count, a date,
+// a count and its unit word never part at a line's end
+for (const w of [320, 360, 390, 1100, 1280]) {
   for (const name of ['flashprove', 'sash']) {
     const { ctx, p } = await pg(w, 844);
     await p.goto(BASE + name, { waitUntil: 'networkidle' });
-    const sd = await p.evaluate(() => {
+    await p.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
+    const bound = await p.evaluate(() => {
+      const phrases = [/sd\s<\s0\.1\s%/g, /\.session\s×\s1,000/g, /\d+\s×\s\d+\spairs/g, /\b\d{4}-\d{2}-\d{2}\b/g, /\b\d+\s(?:runs?|bits|tokens|threads|trials)\b/g];
       const out = []; let n = 0;
       const tw = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+      const lines = (r) => new Set([...r.getClientRects()].filter((x) => x.width > 0.5).map((x) => Math.round(x.top))).size;
       for (let t = tw.nextNode(); t; t = tw.nextNode()) {
-        for (const m of t.data.matchAll(/sd\s<\s0\.1\s%/g)) {
-          const r = document.createRange(); r.setStart(t, m.index); r.setEnd(t, m.index + m[0].length);
-          const tops = new Set([...r.getClientRects()].filter((x) => x.width).map((x) => Math.round(x.top)));
-          if (!tops.size) continue;
-          n++;
-          if (tops.size > 1) out.push(t.data.slice(Math.max(0, m.index - 24), m.index + m[0].length));
+        // read aloud only, or a failed run's last line as logged (a raw path breaks anywhere)
+        if (t.parentElement.closest('.sr, .ll p')) continue;
+        for (const re of phrases) {
+          for (const m of t.data.matchAll(re)) {
+            const r = document.createRange(); r.setStart(t, m.index); r.setEnd(t, m.index + m[0].length);
+            const k = lines(r);
+            if (!k) continue;
+            n++;
+            if (k > 1) out.push(t.data.slice(Math.max(0, m.index - 16), m.index + m[0].length + 4));
+          }
         }
       }
+      // a record key in parts: its last part holds its factor (".session × 1,000") on one line
+      document.querySelectorAll('.src').forEach((src) => {
+        const last = [...src.querySelectorAll('.seg')].pop();
+        if (!last || !/×\s1,000$/.test(last.textContent)) return;
+        const r = document.createRange(); r.selectNodeContents(last); n++;
+        if (lines(r) > 1) out.push(src.textContent);
+      });
       return { n, out };
     });
-    ok(sd.n > 0 && !sd.out.length, `${name}-${w}: "sd < 0.1 %" never breaks`, sd);
+    ok(bound.n > 0 && !bound.out.length, `${name}-${w}: bound phrases never part at a line's end`, bound);
     await ctx.close();
   }
 }
@@ -843,11 +858,16 @@ for (const w of [390, 320]) {
     }
     const o = await overflow(p);
     ok(o.over <= 0 && !o.wide.length, `${name}-${w}: no horizontal overflow, both folds open`, o);
+    // the whole page in view, so a press can be tried anywhere on it: each target's hit height is what a press at its
+    // middle reaches (document.elementFromPoint), so a box the next line covers counts only where it is reached
+    const vp = p.viewportSize();
+    await p.setViewportSize({ width: vp.width, height: await p.evaluate(() => document.documentElement.scrollHeight) }); await p.waitForTimeout(200);
     const t = await p.evaluate(() => {
-      const sel = '.ev a, .rp .psrc, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
+      const sel = '.ev a, .rp .psrc, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a, .mtab a';
       const els = [...document.querySelectorAll(sel)].filter((a) => a.getClientRects().length && !a.closest('.sr, [hidden]'));
       const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
-      const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));
+      const reach = (a, r) => { let n = 0; const x = r.left + Math.min(r.width / 2, 8); for (let y = r.top - 8; y < r.bottom + 8; y += 0.5) { const at = document.elementFromPoint(x, y); if (at && (at === a || a.contains(at))) n += 0.5; } return n; };
+      const small = bx.filter((x) => x.rs.some((r) => reach(x.a, r) < 24)).map((x) => `${x.a.textContent.trim().slice(0, 24)} ${Math.min(...x.rs.map((r) => reach(x.a, r)))}`);
       const hit = [];
       for (let i = 0; i < bx.length; i++) for (let j = i + 1; j < bx.length; j++) {
         if (bx[i].a.contains(bx[j].a) || bx[j].a.contains(bx[i].a)) continue;
@@ -855,7 +875,8 @@ for (const w of [390, 320]) {
       }
       return { n: els.length, small, hit };
     });
-    ok(t.n > 0 && !t.small.length && !t.hit.length, `${name}-${w}: the new blocks' links and buttons 24 px tall or more, none overlapping`, t);
+    ok(t.n > 0 && !t.small.length && !t.hit.length, `${name}-${w}: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping`, t);
+    await p.setViewportSize(vp);
     // a label wider than its column runs into its value without overflowing the page: each dt's
     // text ends before its dd starts, when the two sit on one line
     const lab = await p.evaluate(() => {

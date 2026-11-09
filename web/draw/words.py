@@ -19,6 +19,27 @@ def slug(s):
     return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
 
 
+# words a count never leaves at a line's end ("3 runs", "124 bits"), and a product sign held to
+# both its numbers ("1 × 3 pairs", "× 1,000"): the one no-break pass of every label builder
+UNIT_WORD = re.compile(
+    r"(\d) (?=(?:runs?|bits|tokens?|threads?|trials?|requests?|batches|pairs)\b)"
+)
+TIMES = re.compile(r"(?<=[\d\w])[ \u00a0]×[ \u00a0](?=\d)")
+
+
+def nobreak(text):
+    """Plain text whose bound phrases never part at a line's end: a count and its unit word, a
+    product sign and its numbers. Dates are held in HTML (`dates_html`)."""
+    return TIMES.sub("\u00a0×\u00a0", UNIT_WORD.sub("\\1\u00a0", text))
+
+
+def dates_html(html):
+    """Every date (2026-11-08) in an HTML fragment's text, never in a tag, held whole: a span
+    that never breaks at its hyphens."""
+    return re.sub(r"(<[^>]+>)|\b(\d{4}-\d{2}-\d{2})\b",
+                  lambda m: m[1] or f'<span class="nw">{m[2]}</span>', html)  # fmt: skip
+
+
 def curly(text):
     """Straight double quotes curly: opening at the start or after a space or bracket, closing
     elsewhere (`LLaMA (branch "llama")` reads `LLaMA (branch “llama”)`)."""

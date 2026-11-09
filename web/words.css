@@ -519,6 +519,8 @@ html:has(.top.s-on) { overflow: hidden; }
 .mtab .fig { --nfs: 22px; }
 .mtab .na { padding-top: 0; }
 .mtab .ml { color: var(--muted); }
+/* a record's key moves to the next line whole, breaking at its parts only when longer than a line */
+.mtab .src { display: inline-block; max-width: 100%; }
 /* a spread on one line where the columns have room */
 .mtab .m-spread { white-space: nowrap; }
 /* a more-numbers label's key: its column's head names it; shown where the cells stack (phones) */
@@ -936,6 +938,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .rr a.psrc, .rs a.psrc { padding-block: 5px; }
   .refline a { padding-block: 2px; }
   .facts .links a, .facts dd > a { display: inline-block; padding-block: 4px; margin-block: -4px; }
+  /* a padded link followed by more text: lines tall enough that the next one never covers its box */
+  .facts dd:has(> a), .facts .links > span:has(> a), .tlab dd:has(> a:not(.run)) { line-height: 26px; }
   .foot a { display: inline-block; padding-block: 5px; margin-block: -5px; }
   .plate dd a:has(.seg) { padding-block: 5px; }
   .tlab dd a, .runs a, .unexp a, a.run, .mtab .ml a { display: inline-block; padding-block: 5px; margin-block: -5px; }

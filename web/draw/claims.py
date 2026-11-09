@@ -32,9 +32,11 @@ from .words import (
     STATE_WORD,
     count_word,
     curly,
+    dates_html,
     e,
     labels,
     mean_words,
+    nobreak,
     note_words,
     sig4,
     spread_line,
@@ -426,10 +428,10 @@ def card_text(v):
         return f"\x00{len(codes) - 1}\x00"
 
     t = curly(re.sub(r"`([^`]+)`", hold, str(v)))
-    t = re.sub(r"(\d) (?=[%‰])", "\\1\u202f", t)
+    t = nobreak(re.sub(r"(\d) (?=[%‰])", "\\1\u202f", t))  # a count with its unit word
     t = e(t)
     t = re.sub(r"\*\*([^*\s][^*]*?)\*\*", r"<strong>\1</strong>", t)
-    t = re.sub(r"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", r"<em>\1</em>", t)
+    t = dates_html(re.sub(r"(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])", r"<em>\1</em>", t))
     return re.sub(r"\x00(\d+)\x00", lambda m: f"<code>{e(codes[int(m[1])])}</code>", t)
 
 

@@ -69,6 +69,7 @@ from .words import (
     TAMPERS,
     amount,
     count_word,
+    dates_html,
     e,
     gpu_words,
     labels,
@@ -151,7 +152,8 @@ def price_text(cfg):
 def price_words(cfg):
     """`price_text`, linked to the reference file it comes from."""
     said = price_text(cfg)
-    return f'<a href="{e(blob(cfg["price"]["file"]))}">{e(said)}{EXT}</a>' if said else ""
+    return (f'<a href="{e(blob(cfg["price"]["file"]))}">{dates_html(e(said))}{EXT}</a>'
+            if said else "")  # fmt: skip
 
 
 def label_cell(key, html):
@@ -183,7 +185,8 @@ def more_table(cfg, caption, shared=None):
         cells = {k: v for k, v, _ in figure_rows(cfg, f) if k not in shared}
         spread = with_rule(readable(cells.pop("spread", "")))
         scope = [cells.pop("scope")] if "scope" in cells else []
-        scope = with_rule(readable(" · ".join(scope + [f"{k}: {v}" for k, v in cells.items()])))
+        scope = " · ".join(scope + [f"{k}: {v}" for k, v in cells.items()])
+        scope = dates_html(with_rule(readable(scope)))
         if f["unit"] == "USD/1k_token" and (price := price_words(cfg)):
             scope += ("\u00a0· " if scope else "") + price
         n, u = amount(f["value"], f["unit"])
