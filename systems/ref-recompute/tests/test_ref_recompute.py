@@ -123,4 +123,6 @@ def test_claims_required(adapter: ModuleType) -> None:
 def test_dockerfile_rules() -> None:
     lock = (SYSTEM / "inputs.lock").read_text()
     assert dockerfile_problems((SYSTEM / "Dockerfile").read_text(), lock) == []
-    assert lock == (SYSTEM.parent / "ref-serve/inputs.lock").read_text()  # the same engine image
+    # the same engine image as ref-serve; the GGUF plugin is recompute's only (RFC-0015 SRV-6)
+    assert "vllm_gguf_plugin-0.0.5" in lock
+    assert "vllm_gguf_plugin" not in (SYSTEM.parent / "ref-serve/inputs.lock").read_text()

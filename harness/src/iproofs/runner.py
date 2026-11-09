@@ -952,6 +952,12 @@ class Runner:
         if sub in {"commit", "prove"} and result.exit_code == 0:
             shutil.copyfile(io / "out.json", io / f"{sub}.out.json")
         if result.exit_code != 0 or result.out is None:
+            declared = _declared_failure(io, job) if result.exit_code != 0 else None
+            if declared is not None:  # RFC-0005 amendment of 2026-11-09, reference adapters
+                kind, message, evidence = declared
+                raise IProofsError(kind, f"{sub}: {message}", step=sub,
+                                   exit_code=result.exit_code,
+                                   last_lines=(*result.stderr_tail, *evidence))  # fmt: skip
             raise IProofsError(
                 ErrorKind.ADAPTER,
                 f"{sub} exited {result.exit_code}",
@@ -2121,6 +2127,30 @@ def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
         shutil.copytree(job.staging / COMMITMENT_STORE, out / "commitment")
         write_json(out / "perturbed.json", record)
     return out / "perturbed.json"
+
+
+DECLARABLE = {"config": ErrorKind.CONFIG, "resource": ErrorKind.RESOURCE}
+
+
+def _declared_failure(io: Path, job: Job) -> tuple[ErrorKind, str, list[str]] | None:
+    """RFC-0005 (amendment of 2026-11-09): a reference adapter that exits non-zero may declare
+    why in `/io/failure.json` {kind, message, evidence}: `config` (an engine environment
+    variable the image does not set, a GPU count other than the tensor-parallel size, RFC-0015
+    SRV-3) or `resource` (the engine's KV cache below the matched load, with the engine's own
+    line as evidence, SRV-6). Anything else, or a proving system, stays an `adapter` failure."""
+    path = io / "failure.json"
+    if not _reference(job) or not path.is_file():
+        return None
+    try:
+        doc = json.loads(path.read_text())
+    except ValueError:
+        return None
+    kind = DECLARABLE.get(str(doc.get("kind"))) if isinstance(doc, dict) else None
+    if kind is None:
+        return None
+    evidence = doc.get("evidence")
+    lines = [str(x)[:1000] for x in evidence[:20]] if isinstance(evidence, list) else []
+    return kind, str(doc.get("message", ""))[:1000], lines
 
 
 def profile_gpu_count(profile: object, name: str) -> int | None:
