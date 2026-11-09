@@ -145,7 +145,7 @@ const sortBy = async (p, col, dir) => {
   // the labels ride in each figure's title: sample size and range for the three with a spread, the
   // overhead's pairs; under each figure at most its scope in a few words
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => a.querySelector('.fig'))
-    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+(\sto\s|\sin\sall\s\d+\sruns)/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 4 })));
+    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+(\sto\s|\sin\sall\s\d+\sruns)/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: [...a.querySelectorAll('.sub > span:not(.sr)')].map((x) => x.textContent).join(' ').split(' ').length <= 4 })));
   ok(spreads.length === 8 && spreads.every((x) => x.t && x.sub), 'each figure carries its labels in its title, at most a scope word under it', spreads);
   // no states key under the legend: the slice inks and their tips name the states
   ok(await p.evaluate(() => !document.querySelector('.mast .keyline, .mast .chip, .mast a')), 'the legend holds no states key and no link');
@@ -303,6 +303,25 @@ for (const w of [1340, 1440]) {
   ok(JSON.stringify((await opts()).map((o) => o.name)) === '["SASH","LuminAIR"]', '"stark" finds only the systems whose stated technique is one');
   await type('a');
   ok((await opts()).some((o) => o.name === 'Attestable prover'), 'one letter still lists the not-benchmarked names that start with it');
+  // a match in the name comes before one in the other words only; not-benchmarked systems stay last
+  for (const [q, want] of [['weights', ['Weights hidden']], ['model', ['Model bound']], ['zk', ['FlashProve', 'SASH']], ['sash tamper', ['Tamper tests']]]) {
+    await type(q);
+    const got = await opts();
+    ok(JSON.stringify(got.slice(0, want.length).map((o) => o.name)) === JSON.stringify(want) && (q !== 'sash tamper' || (got.length === 1 && got[0].group === 'SASH')), `"${q}" lists ${want.join(', ')} first`, got.map((o) => `${o.group}:${o.name}`).slice(0, 6));
+  }
+  // a result found by its other words shows the phrase that holds them, a figure its plate; a section has no glyph gutter
+  await type('proving time');
+  const pt = await p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ meta: o.querySelector('.sm')?.textContent, gutter: !!o.querySelector('.sp'), x: Math.round(o.querySelector('.sn').getBoundingClientRect().left - o.getBoundingClientRect().left) })));
+  ok(pt.length === 2 && pt.every((o) => /^Proving time per token/.test(o.meta) && !o.gutter && o.x <= 12), '"proving time" names the figure each Figures result was found by, no empty glyph gutter', pt);
+  await type('weights');
+  const ws = await opts();
+  const sashWhy = await p.evaluate(() => [...document.querySelectorAll('#q-list .so')].find((o) => o.querySelector('.sn').textContent === 'SASH')?.querySelector('.sm')?.textContent);
+  ok(/weights/i.test(sashWhy || ''), '"weights" shows the phrase SASH was found by', { sashWhy, ws: ws.map((o) => o.name) });
+  await type('proving time');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(/^\/flashprove#.*fig-per_bit$/.test(new URL(p.url()).pathname + new URL(p.url()).hash), 'Enter on a figure found by its name opens its plate', p.url());
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.focus('#q'); await p.waitForTimeout(300);
   await type('weights hidden');
   await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/criteria#weights_hidden', 'Enter goes to the first result of a typed search', p.url());
@@ -321,6 +340,19 @@ for (const w of [1340, 1440]) {
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
   await p.focus('#q'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   ok(new URL(p.url()).pathname === '/', 'Enter in an empty field picks nothing', p.url());
+  // on a system page its own sections come first: "tamper" and Enter stay on /sash
+  await p.goto(BASE + 'sash', { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.focus('#q'); await p.waitForTimeout(300); await type('tamper');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/sash#tamper', '"tamper" from /sash opens its own tamper tests', p.url());
+  // "/" mid-page opens the field over the page where it is; Escape closes it, the page where it was
+  await p.goto(BASE + 'flashprove', { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.evaluate(() => scrollTo(0, 3300)); await p.waitForTimeout(200);
+  await p.keyboard.press('/'); await p.waitForTimeout(400);
+  const mid = await p.evaluate(() => ({ y: Math.round(scrollY), focus: document.activeElement.id, top: Math.round(document.querySelector('.sfield').getBoundingClientRect().top), list: !document.getElementById('q-list').hidden }));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  const after = await p.evaluate(() => ({ y: Math.round(scrollY), on: document.querySelector('.top').classList.contains('s-on'), inert: !!document.querySelector('[inert]') }));
+  ok(mid.y === 3300 && mid.focus === 'q' && mid.top >= 0 && mid.top < 60 && mid.list && after.y === 3300 && !after.on && !after.inert, '"/" mid-page opens search on screen without scrolling; Escape leaves the page where it was', { mid, after });
   await ctx.close();
   // phones: a button opens the field over the first line
   const ph = await pg(390, 844, { touch: true });

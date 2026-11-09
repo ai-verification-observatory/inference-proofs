@@ -105,8 +105,9 @@
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
   // only from its first letter on. Order: not-benchmarked systems after every other match; within
-  // each part, where the words matched, then the kind of entry, then how closely, then the name. It
-  // never orders by how good a system is.
+  // each part, a match in the name before one in the other words only, then the kind of entry, the
+  // page in view, how closely, then the name. It never orders by how good a system is. A result
+  // found by its other words shows the phrase that holds them (a figure leads to its plate).
   const sbox = $('.search');
   if (sbox) {
     const input = $('#q', sbox);
@@ -129,7 +130,9 @@
       .replace(/([a-z])(\d)/g, '$1 $2').replace(/[^a-z0-9.]+/g, ' ').trim();
     const load = () => {
       loading = loading || fetch(list.dataset.index).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((d) => {
-        entries = d.entries.map((x) => ({ ...x, nw: norm(x.name).split(' '), tw: norm(x.terms).split(' '), n: norm(x.name) }));
+        const said = (p) => ({ ...p, w: norm(p.name).split(' ') });
+        entries = d.entries.map((x) => ({ ...x, nw: norm(x.name).split(' '), tw: norm(x.terms).split(' '), n: norm(x.name), cw: x.context ? norm(x.context).split(' ') : [],
+          mw: norm(x.meta).split(' '), why: [...(x.figures || []).map(said), ...(x.found || []).map((name) => said({ name }))] }));
       }).catch(() => { failed = true; });
       return loading;
     };
@@ -162,21 +165,38 @@
       if (inName.every((s) => s < 9)) return [1, inName.reduce((a, b) => a + b, 0)];
       if (whole.length < 2) return null;  // one letter: names only
       const inAll = qs.map((q, k) => Math.min(nameScore(q, x.nw, typo[k]), wordScore(q, x.tw, typo[k])));
-      if (inAll.every((s) => s < 9)) return [2, inAll.reduce((a, b) => a + b, 0)];
+      // a section's system and models count only beside a word of its own
+      const inCtx = qs.map((q, k) => Math.min(inAll[k], wordScore(q, x.cw, typo[k])));
+      if (inCtx.every((s) => s < 9) && inAll.some((s) => s < 9)) return [2, inCtx.reduce((a, b) => a + b, 0)];
       return null;
     };
-    // every match, by group (benchmarked first, not benchmarked last; a system's sections under its name, the
-    // systems A to Z), within a group where the words matched (a name that starts with the query first), then
-    // how closely, then the name
+    // why a result found by its other words was found: the words its name does not hold, in its line of context,
+    // or else the figure or phrase holding the most of them (the first such); null when its line already says it
+    const reason = (x, qs, typo) => {
+      const rest = qs.filter((q, k) => nameScore(q, x.nw, typo[k]) === 9);
+      const held = (ws) => rest.filter((q) => wordScore(q, ws, typo[qs.indexOf(q)]) < 9).length;
+      if (!rest.length || held(x.mw) === rest.length) return null;
+      let best = null; let most = 0;
+      x.why.forEach((p) => { const n = held(p.w); if (n > most) { best = p; most = n; } });
+      return best;
+    };
+    // every match: not benchmarked last; a match in the name before one in the other words only; then by group
+    // (benchmarked first; a system's sections under its name, the page in view first, the systems A to Z), within a
+    // group where the words matched (a name that starts with the query first), then how closely, then the name
     const results = (q) => {
       const whole = norm(q);
       if (!whole) return entries.filter((x) => x.kind === 'system');
       const qs = whole.split(' ');
       // a word some entry has is matched as typed; only a word no entry has gets typo matching
-      const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
+      const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9 || wordScore(w, x.cw, false) < 9));
+      const here = (m) => m.x.url.split('#')[0] === location.pathname;
       return entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
-        .sort((a, b) => a.x.tier - b.x.tier || a.x.group.localeCompare(b.x.group) || a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
-        .map((m) => m.x);
+        .sort((a, b) => (a.x.tier === 5) - (b.x.tier === 5) || (a.r[0] === 2) - (b.r[0] === 2)
+          || a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group) || a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
+        .map((m) => {
+          const why = m.r[0] === 2 ? reason(m.x, qs, typo) : null;
+          return why ? { ...m.x, meta: why.name, url: why.url || m.x.url } : m.x;
+        });
     };
     const note = (text) => {
       const li = document.createElement('li'); li.className = 'snone'; li.setAttribute('role', 'presentation'); li.textContent = text;
@@ -185,10 +205,13 @@
     const option = (x, i) => {
       const li = document.createElement('li');
       li.id = `q-o${i}`; li.className = `so k-${x.kind}`; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
-      // name, then the line of context: the order a screen reader reads; the group names the kind
-      const pie = document.createElement('span'); pie.className = 'sp'; pie.innerHTML = x.pie;  // the build's own svg
+      // name, then the line of context: the order a screen reader reads; the group names the kind; a section has
+      // no glyph and no room kept for one
       const b = document.createElement('b'); b.className = 'sn'; b.textContent = x.name;
-      li.append(pie, b);
+      if (x.pie) {
+        const pie = document.createElement('span'); pie.className = 'sp'; pie.innerHTML = x.pie;  // the build's own svg
+        li.append(pie, b);
+      } else { li.classList.add('np'); li.append(b); }
       if (x.meta) { const m = document.createElement('span'); m.className = 'sm'; m.textContent = x.meta; li.append(m); }
       li.addEventListener('pointerdown', hold);  // keep focus in the field
       li.addEventListener('pointermove', () => { if (active !== i) mark(i); });  // hover and the arrows mark one row
@@ -246,16 +269,25 @@
       }
     };
     const phone = () => opener && getComputedStyle(opener).display !== 'none';
+    const sheet = () => top.classList.contains('s-on');
     // while the sheet is open, what it covers is out of reach (Tab, screen readers): only the search stays live
     const covered = () => [...document.body.children, ...top.children].filter((el) => el !== top && el !== sbox && !el.contains(sbox) && el.tagName !== 'SCRIPT' && el !== live);
+    // the field the sheet holds is on screen: focusing it never scrolls the page
     const setPhone = (on) => {
       covered().forEach((el) => { el.inert = on; });
       top.classList.toggle('s-on', on);
       if (opener) opener.setAttribute('aria-expanded', String(on));
-      if (on) input.focus();
+      if (on) input.focus({ preventScroll: true });
     };
-    // phones: the open field is a sheet; closing it returns focus to the button that opened it
-    const close = () => { open(false); setPhone(false); opener.focus(); };
+    // the open field is a sheet on phones, and on wider screens when "/" opens it mid-page; closing it returns focus
+    // to the button that opened it, or to what had it before the shortcut, the page where it was
+    let back = null;
+    const close = () => {
+      open(false); setPhone(false);
+      const to = phone() ? opener : back;
+      back = null;
+      if (to && to !== document.body && to.isConnected) to.focus({ preventScroll: true }); else input.blur();
+    };
     // the list opens on typing, the arrow down, a press on the field or the shortcut; a Tab onto the field
     // only loads the index
     let wanted = false;
@@ -263,8 +295,12 @@
     input.addEventListener('pointerdown', want);
     input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(() => { if (wanted) render(); wanted = false; }); });
     input.addEventListener('input', () => { load().then(render); });
-    // on a phone, hiding the keyboard blurs the field: the sheet and its list stay until closed
-    input.addEventListener('blur', () => { if (pressing) pressing = false; else if (!phone()) open(false); });
+    // on a phone, hiding the keyboard blurs the field: the sheet and its list stay until closed; elsewhere leaving
+    // the field closes its list, and the sheet it opened in
+    input.addEventListener('blur', () => {
+      if (pressing) pressing = false;
+      else if (!phone()) { open(false); if (sheet()) { setPhone(false); back = null; } }
+    });
     input.addEventListener('keydown', (ev) => {
       const n = shown.length;
       if (ev.key === 'ArrowDown' && list.hidden) { ev.preventDefault(); load().then(render); } else if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
@@ -273,9 +309,11 @@
         if (x) { ev.preventDefault(); go(x); }
       } else if (ev.key === 'Escape') {
         // an open list closes first; a closed one clears the field; on a phone the sheet closes last (the
-        // search field's own Escape, which clears it at once, is not let through)
+        // search field's own Escape, which clears it at once, is not let through); a sheet opened mid-page by "/"
+        // closes at once, the page where it was
         ev.preventDefault();
-        if (!list.hidden) { open(false); say(''); } else if (input.value) { input.value = ''; say(''); } else if (phone()) close();
+        if (sheet() && !phone()) close();
+        else if (!list.hidden) { open(false); say(''); } else if (input.value) { input.value = ''; say(''); } else if (phone()) close();
       }
     });
     if (opener) {
@@ -296,13 +334,15 @@
         vv.addEventListener('resize', fit); fit();
       }
     }
-    // "/" or Ctrl/Cmd + K, from anywhere but a field
+    // "/" or Ctrl/Cmd + K, from anywhere but a field: the field in the header, or, with the header scrolled away, the
+    // sheet, so the page never jumps to its top
     addEventListener('keydown', (ev) => {
       const typing = ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable]');
       if ((ev.key === '/' && !typing && !ev.metaKey && !ev.ctrlKey) || (ev.key.toLowerCase() === 'k' && (ev.metaKey || ev.ctrlKey))) {
         ev.preventDefault();
         want();
-        if (phone()) setPhone(true); else input.focus();
+        if (phone()) setPhone(true);
+        else if (top.getBoundingClientRect().bottom < 0) { back = document.activeElement; setPhone(true); } else input.focus();
         input.select();
       }
     });

@@ -1,26 +1,99 @@
 {
   "entries": [
     {
+      "found": [
+        "Proved: hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside",
+        "anthropics/FlashProve",
+        "fp-maverick-w1024-b1",
+        "Llama 4 Maverick",
+        "UD-Q4_K_XL (GGUF)",
+        "NVIDIA H200",
+        "H200",
+        "prover-h200-hosted",
+        "fp-maverick-w1024-b24"
+      ],
       "group": "Benchmarked",
       "kind": "system",
       "meta": "Llama 4 Maverick",
       "name": "FlashProve",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "flashprove llama 4 maverick proved: hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside anthropics/flashprove fp-maverick-w1024-b1 llama 4 maverick ud-q4_k_xl gguf h200 nvidia h200 prover-h200-hosted fp-maverick-w1024-b24 zk proof cryptographic proved",
+      "terms": "flashprove llama 4 maverick proved: hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside anthropics/flashprove fp-maverick-w1024-b1 llama 4 maverick ud-q4_k_xl (gguf) nvidia h200 h200 prover-h200-hosted fp-maverick-w1024-b24 zk proof cryptographic proved",
       "tier": 0,
       "url": "/flashprove"
     },
     {
+      "found": [
+        "Proved: STARK over an execution trace (Circle STARK)",
+        "sg-ai-safety-hub/zk-inference-prover",
+        "sash-l31-8b-c1024",
+        "Llama 3.1 8B",
+        "W8A8 (8-bit weights and activations)",
+        "NVIDIA H200",
+        "H200",
+        "prover-h200-hosted"
+      ],
       "group": "Benchmarked",
       "kind": "system",
       "meta": "Llama 3.1 8B",
       "name": "SASH",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "sash llama 3.1 8b proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover sash-l31-8b-c1024 llama 3.1 8b w8a8 8-bit weights and activations h200 nvidia h200 prover-h200-hosted zk proof cryptographic proved",
+      "terms": "sash llama 3.1 8b proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover sash-l31-8b-c1024 llama 3.1 8b w8a8 (8-bit weights and activations) nvidia h200 h200 prover-h200-hosted zk proof cryptographic proved",
       "tier": 0,
       "url": "/sash"
     },
     {
+      "context": "flashprove llama 4 maverick",
+      "figures": [
+        {
+          "name": "One proof covers",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-covers"
+        },
+        {
+          "name": "Proof size",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-proof_size"
+        },
+        {
+          "name": "Check time",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-check_time"
+        },
+        {
+          "name": "Overhead vs production serving",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-overhead"
+        },
+        {
+          "name": "Proving time per token, per Gbit of active weights",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-per_bit"
+        },
+        {
+          "name": "Proof size per token, per Gbit of active weights",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-size_bit"
+        },
+        {
+          "name": "Check time per token, per Gbit of active weights",
+          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-check_bit"
+        },
+        {
+          "name": "Proving rate",
+          "url": "/flashprove#figures"
+        },
+        {
+          "name": "GPU cost per 1M tokens",
+          "url": "/flashprove#figures"
+        },
+        {
+          "name": "Preparing the model (once)",
+          "url": "/flashprove#figures"
+        },
+        {
+          "name": "Checker memory",
+          "url": "/flashprove#figures"
+        },
+        {
+          "name": "GPU memory",
+          "url": "/flashprove#figures"
+        }
+      ],
+      "found": [],
       "group": "FlashProve",
       "kind": "section",
       "meta": "",
@@ -31,6 +104,8 @@
       "url": "/flashprove#figures"
     },
     {
+      "context": "flashprove llama 4 maverick",
+      "found": [],
       "group": "FlashProve",
       "kind": "section",
       "meta": "",
@@ -41,6 +116,8 @@
       "url": "/flashprove#tamper"
     },
     {
+      "context": "flashprove llama 4 maverick",
+      "found": [],
       "group": "FlashProve",
       "kind": "section",
       "meta": "",
@@ -51,6 +128,8 @@
       "url": "/flashprove#how-we-read"
     },
     {
+      "context": "flashprove llama 4 maverick",
+      "found": [],
       "group": "FlashProve",
       "kind": "section",
       "meta": "",
@@ -61,6 +140,58 @@
       "url": "/flashprove#card-exact-match-cp-verify"
     },
     {
+      "context": "sash llama 3.1 8b",
+      "figures": [
+        {
+          "name": "One proof covers",
+          "url": "/sash#fig-covers"
+        },
+        {
+          "name": "Proof size",
+          "url": "/sash#fig-proof_size"
+        },
+        {
+          "name": "Check time",
+          "url": "/sash#fig-check_time"
+        },
+        {
+          "name": "Overhead vs production serving",
+          "url": "/sash#fig-overhead"
+        },
+        {
+          "name": "Proving time per token, per Gbit of active weights",
+          "url": "/sash#fig-per_bit"
+        },
+        {
+          "name": "Proof size per token, per Gbit of active weights",
+          "url": "/sash#fig-size_bit"
+        },
+        {
+          "name": "Check time per token, per Gbit of active weights",
+          "url": "/sash#fig-check_bit"
+        },
+        {
+          "name": "Proving rate",
+          "url": "/sash#figures"
+        },
+        {
+          "name": "GPU cost per 1M tokens",
+          "url": "/sash#figures"
+        },
+        {
+          "name": "Preparing the model (once)",
+          "url": "/sash#figures"
+        },
+        {
+          "name": "Checker memory",
+          "url": "/sash#figures"
+        },
+        {
+          "name": "GPU memory",
+          "url": "/sash#figures"
+        }
+      ],
+      "found": [],
       "group": "SASH",
       "kind": "section",
       "meta": "",
@@ -71,6 +202,8 @@
       "url": "/sash#figures"
     },
     {
+      "context": "sash llama 3.1 8b",
+      "found": [],
       "group": "SASH",
       "kind": "section",
       "meta": "",
@@ -81,6 +214,8 @@
       "url": "/sash#tamper"
     },
     {
+      "context": "sash llama 3.1 8b",
+      "found": [],
       "group": "SASH",
       "kind": "section",
       "meta": "",
@@ -91,6 +226,8 @@
       "url": "/sash#how-we-read"
     },
     {
+      "context": "sash llama 3.1 8b",
+      "found": [],
       "group": "SASH",
       "kind": "section",
       "meta": "",
@@ -101,16 +238,33 @@
       "url": "/sash#card-sound-defaults"
     },
     {
+      "found": [
+        "fp-maverick-w1024-b24",
+        "Llama 4 Maverick",
+        "NVIDIA H200",
+        "H200",
+        "serving-h200x4-hosted",
+        "vLLM",
+        "FP8",
+        "sash-l31-8b-c1024",
+        "Llama 3.1 8B",
+        "serving-h200x1-hosted",
+        "BF16"
+      ],
       "group": "References",
       "kind": "reference",
       "meta": "The baseline for cost comparison.",
       "name": "Production serving",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "production serving the baseline for cost comparison. reference references baseline fp-maverick-w1024-b24 llama 4 maverick h200 nvidia h200 serving-h200x4-hosted vllm fp8 sash-l31-8b-c1024 llama 3.1 8b serving-h200x1-hosted bf16",
+      "terms": "production serving the baseline for cost comparison. fp-maverick-w1024-b24 llama 4 maverick nvidia h200 h200 serving-h200x4-hosted vllm fp8 sash-l31-8b-c1024 llama 3.1 8b serving-h200x1-hosted bf16 reference references baseline",
       "tier": 2,
       "url": "/reference#ref-serve"
     },
     {
+      "found": [
+        "Gemma 4 31B",
+        "closed source"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Gemma 4 31B",
@@ -121,6 +275,12 @@
       "url": "/#nb-attestable"
     },
     {
+      "found": [
+        "GPT-2, Gemma 3, Llama 2",
+        "google/gemma-3-1b-it",
+        "meta-llama/Llama-2-7b-hf",
+        "sumcheck / GKR interactive proofs"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "GPT-2, Gemma 3, Llama 2",
@@ -131,6 +291,10 @@
       "url": "/#nb-deepprove"
     },
     {
+      "found": [
+        "nanoGPT example",
+        "circuit compiled to a PLONKish SNARK (Halo2)"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "nanoGPT example (size not stated)",
@@ -141,6 +305,11 @@
       "url": "/#nb-ezkl"
     },
     {
+      "found": [
+        "GPT-2 (125M)",
+        "Qwen/Qwen2-0.5B",
+        "lookup-centric (Jolt-style) with sumcheck"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "GPT-2 (125M); Qwen/Qwen2-0.5B",
@@ -151,6 +320,10 @@
       "url": "/#nb-jolt-atlas"
     },
     {
+      "found": [
+        "LeNet demo",
+        "sumcheck / GKR interactive proofs"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "LeNet demo; no LLM named",
@@ -161,6 +334,9 @@
       "url": "/#nb-jstprove"
     },
     {
+      "found": [
+        "STARK over an execution trace (Circle STARK)"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "No LLM named",
@@ -171,6 +347,9 @@
       "url": "/#nb-luminair"
     },
     {
+      "found": [
+        "closed source"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Model not named",
@@ -181,16 +360,23 @@
       "url": "/#nb-nanozk"
     },
     {
+      "found": [
+        "Unmaintained",
+        "LLaMA (branch “llama”)"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "LLaMA (branch “llama”), size not stated",
       "name": "opML",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 unstated\" data-n=\"1\" d=\"M15.67 2.12L24.21 7.05L15.95 11.49Z\"/><path class=\"sl s2 unstated\" data-n=\"2\" d=\"M25.38 9.07L25.38 18.93L17.40 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 unstated\" data-n=\"4\" d=\"M13.33 25.88L4.79 20.95L13.05 16.51Z\"/><path class=\"sl s5 unstated\" data-n=\"5\" d=\"M3.63 18.93L3.63 9.07L11.60 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "opml unmaintained llama (branch \"llama\") rerun re-execution recompute optimistic dispute re-executed",
+      "terms": "opml unmaintained llama (branch “llama”) rerun re-execution recompute optimistic dispute re-executed",
       "tier": 5,
       "url": "/#nb-opml"
     },
     {
+      "found": [
+        "Archived"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Model not named",
@@ -201,6 +387,9 @@
       "url": "/#nb-private-ml-sdk"
     },
     {
+      "found": [
+        "sumcheck / GKR interactive proofs"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "No LLM named",
@@ -211,6 +400,7 @@
       "url": "/#nb-remainder"
     },
     {
+      "found": [],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Model not named",
@@ -221,6 +411,9 @@
       "url": "/#nb-tinfoil"
     },
     {
+      "found": [
+        "Llama 3.1-8B-Instruct"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Llama 3.1-8B-Instruct",
@@ -231,6 +424,9 @@
       "url": "/#nb-toploc"
     },
     {
+      "found": [
+        "closed source"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Model not named",
@@ -241,6 +437,11 @@
       "url": "/#nb-verde"
     },
     {
+      "found": [
+        "Llama 4 Maverick (400B-parameter mixture of experts)",
+        "Llama-2-7B",
+        "hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Llama 4 Maverick (400B-parameter mixture of experts); Llama-2-7B",
@@ -251,6 +452,10 @@
       "url": "/#nb-verinf"
     },
     {
+      "found": [
+        "GPT-2",
+        "closed source"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "GPT-2",
@@ -261,6 +466,10 @@
       "url": "/#nb-zkgpt"
     },
     {
+      "found": [
+        "Archived",
+        "Llama-2-7B and Llama-2-13B"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Llama-2-7B and Llama-2-13B",
@@ -271,6 +480,11 @@
       "url": "/#nb-zkllm"
     },
     {
+      "found": [
+        "Unmaintained",
+        "A distilled GPT-2",
+        "circuit compiled to a PLONKish SNARK (Halo2)"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "A distilled GPT-2",
@@ -281,6 +495,11 @@
       "url": "/#nb-zkml"
     },
     {
+      "found": [
+        "Llama-3 (8B parameters)",
+        "VGG-16",
+        "closed source"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "Llama-3 (8B parameters); VGG-16",
@@ -291,6 +510,10 @@
       "url": "/#nb-zkpytorch"
     },
     {
+      "found": [
+        "MLPerf Edge Inference v4.1 models, LLMs among them",
+        "accumulation / folding of repeated blocks"
+      ],
       "group": "Not benchmarked",
       "kind": "unbenchmarked",
       "meta": "MLPerf Edge Inference v4.1 models, LLMs among them, none named",
@@ -301,6 +524,7 @@
       "url": "/#nb-zktorch"
     },
     {
+      "found": [],
       "group": "Properties",
       "kind": "property",
       "meta": "Does the checker learn nothing about the weights?",
@@ -311,6 +535,7 @@
       "url": "/criteria#weights_hidden"
     },
     {
+      "found": [],
       "group": "Properties",
       "kind": "property",
       "meta": "Is each checked token tied to the committed weights?",
@@ -321,6 +546,7 @@
       "url": "/criteria#model_bound"
     },
     {
+      "found": [],
       "group": "Properties",
       "kind": "property",
       "meta": "Does one check cover every output token of a request?",
@@ -331,6 +557,7 @@
       "url": "/criteria#whole_output"
     },
     {
+      "found": [],
       "group": "Properties",
       "kind": "property",
       "meta": "Is the security argument for this configuration checked by a proof assistant?",
@@ -341,6 +568,7 @@
       "url": "/criteria#formally_verified"
     },
     {
+      "found": [],
       "group": "Properties",
       "kind": "property",
       "meta": "Is a soundness level stated for this configuration, and proven?",
@@ -351,6 +579,7 @@
       "url": "/criteria#security_level"
     },
     {
+      "found": [],
       "group": "Properties",
       "kind": "property",
       "meta": "Does a check hold without trusting a chip maker, a setup ceremony or an honest party?",
@@ -361,6 +590,7 @@
       "url": "/criteria#no_trusted_party"
     },
     {
+      "found": [],
       "group": "Pages",
       "kind": "page",
       "meta": "What each state means for each property",
@@ -371,6 +601,7 @@
       "url": "/criteria"
     },
     {
+      "found": [],
       "group": "Pages",
       "kind": "page",
       "meta": "Its runs, claim cards and reference file",

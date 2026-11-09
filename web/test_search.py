@@ -94,9 +94,42 @@ def test_sections_found_by_what_they_hold(site, entries):
         system = next(x for x in entries if x["kind"] == "system" and x["name"] == name)
         for c in (c for c in site.view["configurations"] if c["system"] == sid):
             assert c["workload"]["precision"]["proved"].lower() in system["terms"].split()
-    # words.js lists a group's entries together: the sort puts the group after the tier
+    # words.js lists not-benchmarked systems last, then a match in the name before one in the
+    # other words only, then a group's entries together (the page in view first)
     js = (site.web / "words.js").read_text()
-    assert js.count("a.x.tier - b.x.tier || a.x.group.localeCompare(b.x.group)") == 1
+    assert js.count("(a.x.tier === 5) - (b.x.tier === 5) || (a.r[0] === 2) - (b.r[0] === 2)") == 1
+    assert js.count("a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group)") == 1
+
+
+def test_sections_carry_their_system_and_figures(site, entries):
+    """A section is found beside its system's name and models ("sash tamper"), which it holds
+    apart from its terms (they never find it alone); a Figures section names each figure with
+    the plate it leads to; a system shows the phrase it was found by, the precision it proved
+    with its words among them."""
+    b = site.build
+    for sid in site.view["orders"]["benchmarked"]:
+        name = site.view["facts"]["rows"][sid]["name"]
+        models = {b.S.MODEL_NAME[c["workload"]["model"]["digest"]]
+                  for c in site.view["configurations"] if c["system"] == sid}  # fmt: skip
+        mine = [x for x in entries if x["kind"] == "section" and x["group"] == name]
+        for x in mine:
+            assert name.lower() in x["context"], x["name"]
+            assert all(m.lower() in x["context"] for m in models), x["name"]
+            assert name.lower() not in x["terms"].split(), x["name"]
+        figs = next(x for x in mine if x["name"] == "Figures")["figures"]
+        assert [f["name"] for f in figs][: len(b.COLS) + len(b.PER_GBIT_COLS)] == [
+            b.HEAD[c] for c in (*b.COLS, *b.PER_GBIT_COLS)
+        ]
+        for f in figs:
+            path, _, frag = f["url"].partition("#")
+            page = (site.out / f"{path.strip('/')}.html").read_text()
+            assert len(re.findall(f' id="{re.escape(frag)}"', page)) == 1, f["url"]
+        system = next(x for x in entries if x["kind"] == "system" and x["name"] == name)
+        for c in (c for c in site.view["configurations"] if c["system"] == sid):
+            proved = c["workload"]["precision"]["proved"]
+            said = site.view["facts"]["models"][c["workload"]["model"]["digest"]]
+            words = said.get("precision_words", {}).get(proved)
+            assert (f"{proved} ({words})" if words else proved) in system["found"]
 
 
 def test_no_absence_is_searched_by(entries):

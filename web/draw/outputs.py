@@ -20,17 +20,21 @@ from .chrome import (
 )
 from .hexagon import key_mini, mark_svg, pie_svg
 from .inks import GHOST, GROUND, MUTED, PAPER, UNSTATED, VIOLET, ratio
-from .overview import kind_words, nb_meta, nb_models
+from .overview import board_configs, fig_href, kind_words, nb_meta, nb_models
 from .pages import SIDE
 from .plates import COLS, HEAD, MORE, PER_GBIT_COLS, first_config, glyph, name_of, upstream
-from .words import FAMILY_WORD, STATE_CLS, e
+from .words import FAMILY_WORD, STATE_CLS, curly, e
 
 # ------------------------------------------------------------------ search
 # search.json, the local index the header's search reads (words.js; nothing leaves the browser).
 # Systems, references, properties and the pages. Each entry: its name, where it leads, its kind,
 # the group words.js lists it under and the group's tier (benchmarked first, not benchmarked last:
 # the order says what kind of entry it is, never how good a system is), a line of context, its pie
-# and the words it is found by. TERMS adds the words people search with for a family of systems.
+# and the words it is found by; the phrases among them a result shows in place of its line of
+# context when it was found by one (`found`), and a Figures section's figures, each with the
+# plate it leads to (`figures`); a section's `context`, its system's name and models, which find it
+# only beside a word of its own ("sash tamper"). TERMS adds the words people search with for a
+# family of systems.
 # Only words true of every system in the family: how a system proves (STARK, SNARK, sumcheck...) comes
 # from its own stated technique, never from its family (AGENTS.md rule 9).
 TERMS = {
@@ -57,41 +61,51 @@ ABSENT_NOTES = re.compile(r"\s*\((?:model id as given|size not stated)\)|,\s*(?:
 
 
 def model_terms(models):
-    """A system's models as words to search by: each name, its notes and every phrase that says
+    """A system's models as phrases to search by: each name, its notes and every phrase that says
     a model is absent ("not named", "no LLM named", "size not stated") left out."""
     out = []
     for given in models:
         for part in given.split(";"):
             said = ABSENT_NOTES.sub("", part).strip()
             if said and not ABSENT.match(said):
-                out.append(said)
-    return " ".join(out)
+                out.append(curly(said))
+    return out
 
 
 def search_entries():
     out = []
 
-    def add(kind, name, url, meta, pie, terms, fam="", group=None):
+    def add(kind, name, url, meta, pie, found=(), fam="", group=None, terms="", figures=None,
+            context=""):  # fmt: skip
         """One entry. Its context line is searched by too, except a not-benchmarked system's,
-        which may show an absence ("Model not named"); its terms say what it does name."""
+        which may show an absence ("Model not named"); its terms say what it does name: the
+        phrases it shows when found by one (`found`), its figures' names and `terms`, words it
+        is found by and never shows."""
+        found = [x for x in dict.fromkeys(found) if x]
         shown = "" if kind == "unbenchmarked" else meta
-        words_ = " ".join([name, shown, terms, TERMS.get(fam, ""), fam])
-        out.append(
-            {
-                "kind": kind,
-                "tier": TIER[kind],
-                "group": group or GROUP[kind],
-                "name": name,
-                "url": url,
-                "meta": meta,
-                "pie": pie,
-                "terms": " ".join(words_.lower().split()),
-            }
-        )
+        said = [*found, *(f["name"] for f in figures or [])]
+        words_ = " ".join([name, shown, *said, terms, TERMS.get(fam, ""), fam])
+        entry = {
+            "kind": kind,
+            "tier": TIER[kind],
+            "group": group or GROUP[kind],
+            "name": name,
+            "url": url,
+            "meta": meta,
+            "pie": pie,
+            "terms": " ".join(words_.lower().split()),
+            "found": found,
+        }
+        if figures:
+            entry["figures"] = figures
+        if context:
+            entry["context"] = " ".join(context.lower().split())
+        out.append(entry)
 
     def ran(sid):
-        """What a system's or reference's configurations ran: workloads, models, the precision
-        proved (with its words), GPUs, engines."""
+        """What a system's or reference's configurations ran, phrase by phrase: workloads,
+        models, the precision proved with its words ("W8A8 (8-bit weights and activations)"),
+        GPUs, profiles, engines."""
         out_ = []
         for c in (c for c in S.CONFIGS if c["system"] == sid):
             sv = c.get("serving") or {}
@@ -101,10 +115,13 @@ def search_entries():
                 (c["workload"]["precision"].get("proved") or "") if c["kind"] == "prover" else ""
             )
             said = S.V["facts"]["models"].get(digest, {}).get("precision_words", {}).get(proved)
-            out_ += [c["workload"]["id"], S.MODEL_NAME[digest], proved, said or "",
-                     c["gpu"]["short"] or "", c["gpu"]["model"] or "", c["profile"],
+            out_ += [c["workload"]["id"], S.MODEL_NAME[digest],
+                     f"{proved} ({said})" if proved and said else proved,
+                     c["gpu"]["model"] or "", c["gpu"]["short"] or "", c["profile"],
                      sv.get("engine") or "", sv.get("precision") or ""]  # fmt: skip
-        return " ".join(dict.fromkeys(x for x in out_ if x))
+        return list(dict.fromkeys(x for x in out_ if x))
+
+    board = {c["system"]: c for c in board_configs()}
 
     for sid in S.V["orders"]["benchmarked"]:
         cfg = first_config(sid)
@@ -116,17 +133,23 @@ def search_entries():
             S.PAGE[sid],
             S.MODEL_NAME[cfg["workload"]["model"]["digest"]],
             pie_svg(glyph(sid)["states"], 28),
-            f"{kind_title} {upstream(cfg)['repo']} {ran(sid)}",
+            [kind_title, upstream(cfg)["repo"], *ran(sid)],
             fam.lower(),
         )
     for sid in S.V["orders"]["benchmarked"]:
         cfg = first_config(sid)
-        cols = [c for c in (*COLS, *PER_GBIT_COLS)]
-        figures = " ".join([*(HEAD[c] for c in cols), *(label for _, label in MORE)])
+        # each figure leads to its plate in the setup the overview row shows; the more-numbers
+        # rows to the figures
+        figures = [{"name": HEAD[c], "url": fig_href(board[sid], c)} for c in (*COLS, *PER_GBIT_COLS)]
+        figures += [{"name": label, "url": f"{S.PAGE[sid]}#figures"} for _, label in MORE]
+        # a section is found by its system's name and models beside a word of its own ("sash
+        # tamper"), never by them alone: the system's entry is that match
+        whose = " ".join([name_of(sid), *dict.fromkeys(S.MODEL_NAME[c["workload"]["model"]["digest"]]
+                                                       for c in S.CONFIGS if c["system"] == sid)])
         for title, anchor, terms in SECTIONS:
             add("section", title, f"{S.PAGE[sid]}#{anchor.format(configuration=cfg['configuration'])}",
-                "", "", f"{figures if anchor == 'figures' else ''} {terms}",
-                group=name_of(sid))  # fmt: skip
+                "", "", group=name_of(sid), terms=terms, context=whose,
+                figures=figures if anchor == "figures" else None)  # fmt: skip
     for gid in S.V["orders"]["reference"]:
         add(
             "reference",
@@ -134,7 +157,8 @@ def search_entries():
             f"{REF_PAGE}#{gid}",
             kind_words(gid),
             pie_svg(glyph(gid)["states"], 28),
-            f"reference references baseline {ran(gid)}",
+            ran(gid),
+            terms="reference references baseline",
         )
     for rid in S.V["orders"]["not_benchmarked"]:
         r = S.V["facts"]["rows"][rid]
@@ -147,18 +171,16 @@ def search_entries():
             pie_svg(glyph(rid)["states"], 28),
             # status, models, source and stated technique, never an absence ("not named", "no
             # repository", "no public code"); not the people behind it
-            " ".join(
-                [
-                    "" if r["status"]["state"] == "no_repository" else nb_meta(rid),
-                    model_terms(r["models"]),
-                    CODE_TERMS.get(r.get("code"), ""),
-                    r.get("technique") or "",
-                ]
-            ),
+            [
+                "" if r["status"]["state"] == "no_repository" else nb_meta(rid),
+                *model_terms(r["models"]),
+                CODE_TERMS.get(r.get("code"), ""),
+                r.get("technique") or "",
+            ],
             fam.lower(),
         )
     for i, p in enumerate(S.PROPS):
-        add("property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(i + 1, 28), "")
+        add("property", p["name"], f"{CRIT_PAGE}#{p['id']}", p["question"], key_mini(i + 1, 28))
     rel = S.V["release"]
     refs = S.V["orders"]["reference"]
     # while /reference holds one reference, its entry is the page's: one entry, not two
@@ -169,7 +191,7 @@ def search_entries():
              (f"Release {rel['id']}", RELEASE_PAGE, "Its runs, claim cards and reference file",
               "release runs records index overhead cost price")]  # fmt: skip
     for name, url, meta, terms in pages:
-        add("page", name, url, meta, mark_svg(28, cls="pie-svg lm"), terms)
+        add("page", name, url, meta, mark_svg(28, cls="pie-svg lm"), terms=terms)
     return out
 
 
