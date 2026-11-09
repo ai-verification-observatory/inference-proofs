@@ -14,6 +14,7 @@ from .plates import (
     BOARD,
     BOARD_GROUPS,
     BOARD_HEAD,
+    HEAD,
     SORT_WORDS,
     aria,
     bits_words,
@@ -114,8 +115,14 @@ def sort_heads():
         f'<div class="hg hg-{e(cols[0])}" aria-hidden="true"{limit.get(words, "")}><span>{e(words)}</span></div>'
         for cols, words in BOARD_GROUPS
     )
+    # where the rows stack (phones and tablets) the first column is too narrow for its group line:
+    # both lines as one note across the four columns, above their heads
+    note = (
+        '<div class="hn" aria-hidden="true">'
+        f"{e(HEAD['overhead'])}; the other figures {e(PER_GBIT)}</div>"
+    )
     return (
-        f'<div class="heads" role="row">{head("system", "System", cls=" hsys")}{groups}'
+        f'<div class="heads" role="row">{head("system", "System", cls=" hsys")}{groups}{note}'
         + "".join(head(c, e(BOARD_HEAD[c]), group_of.get(c, "")) for c in BOARD)
         + "</div>"
     )
@@ -142,13 +149,15 @@ def model_lines(cfg):
     title = " · ".join([size, bits_words(cfg), shape_words(cfg)])
     return (
         f'<div class="mc" title="{e(title)}"><p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
-        f'<p class="ms">{facts_line(readable(" · ".join(short)))}</p></div>'
+        f'<p class="ms">{facts_line(readable(" · ".join(short)))}</p>'
+        # a hovered petal's name and state, in these two lines' place, so the system's name stays
+        '<span class="tip" aria-hidden="true"></span></div>'
     )
 
 
 def board_row(cfg):
     """One overview row: the row header (glyph, name, its pin in the name's title, and the model
-    under them), then the figures, each a link to its own plate on the system page."""
+    under them, where a hovered petal names itself), then the figures, each a link to its own plate on the system page."""
     sid = cfg["system"]
     name, g, href = name_of(sid), glyph(sid), claims_href(cfg)
     said = f'<p class="sr">{e(states_said(g))}</p>'
@@ -161,7 +170,7 @@ def board_row(cfg):
 <div class="row" id="{e(sid)}" role="row" data-name="{e(name.lower())}" data-k="{keys}">
   <div class="r-main">
     <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
-      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{sized(lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == ROW_PIE[0] else None, hit=True), ROW_PIE)}<span class="tip"></span></a>
+      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{sized(lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == ROW_PIE[0] else None, hit=True), ROW_PIE)}</a>
       <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}" title="pinned at {e(upstream(cfg)["commit"][:8])}">{e(name)}</a></h3>{said}</div>
       {model_lines(cfg)}
     </div>

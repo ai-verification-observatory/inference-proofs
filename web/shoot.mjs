@@ -9,11 +9,12 @@ try { AxeBuilder = (await import(process.env.AXE_MODULE || '@axe-core/playwright
 const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 // a row's glyph tip in the page: shown, its words, and any visible text of the row it covers
 const tipSeen = (row) => {
-  const pie = document.querySelector(`${row} .pie`); const t = pie.querySelector('.tip'); const tr = t.getBoundingClientRect();
+  const pie = document.querySelector(`${row} .pie`); const t = document.querySelector(`${row} .mc .tip`); const tr = t.getBoundingClientRect();
+  const nm = document.querySelector(`${row} .name`);
   const hit = (b) => b.width && b.height && b.left < tr.right && tr.left < b.right && b.top < tr.bottom && tr.top < b.bottom;
   const clipped = (x) => { for (let e = x; e; e = e.parentElement) if (getComputedStyle(e).clipPath === 'inset(50%)') return true; return false; };
   const over = [...document.querySelectorAll(`${row} .sysc *, ${row} .vals *`)].filter((x) => !t.contains(x) && !x.closest('.pie') && getComputedStyle(x).visibility === 'visible' && x.childElementCount === 0 && x.textContent.trim() && !clipped(x) && hit(x.getBoundingClientRect())).map((x) => x.textContent.trim());
-  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, text: t.textContent, sw: !!t.querySelector('.sw'), over };
+  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, named: getComputedStyle(nm).visibility === 'visible' && nm.getBoundingClientRect().width > 0, text: t.textContent, sw: !!t.querySelector('.sw'), over };
 };
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
@@ -123,7 +124,7 @@ const sortBy = async (p, col, dir) => {
   await p.mouse.move(pie.x + pie.width * 0.8, pie.y + pie.height * 0.5); await p.waitForTimeout(400);
   // the name and state sit in the glyph's empty column, over no text of the row
   const tip = await p.evaluate(tipSeen, '#flashprove');
-  ok(tip.shown && tip.pos === 'absolute' && tip.text.length > 3 && !tip.over.length, 'row slice hover shows its name and state, over no text', tip);
+  ok(tip.shown && tip.named && tip.text.length > 3 && !tip.over.length, 'row slice hover shows its name and state in the model lines\' place, over no text, the system\'s name still shown', tip);
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
@@ -625,19 +626,21 @@ for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   // 375 x 667: the first glyph whole; 320 x 568: the first row starts on screen
   const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
   ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
-  // the table on a phone: the heads a grid of sort buttons 32 px tall or more; each system's four figures
-  // on one line, under their heads (each cell's label read aloud), each with its labels in its title
+  // the table on a phone: one note over the heads, then the four figure heads, level, sort buttons 32 px
+  // tall or more (no System head: the rows stack); each system's four figures on one line, under their
+  // heads (each cell's label read aloud), each with its labels in its title
   const s = await p.evaluate(() => {
     const r = (x) => x.getBoundingClientRect();
     const t = document.querySelector('.board');
-    const b = [...t.querySelectorAll('.hc .sb')];
+    const b = [...t.querySelectorAll('.hc .sb')].filter((x) => r(x).height);
     const cells = [...t.querySelectorAll('.row .vc')];
+    const note = t.querySelector('.hn'); const heads = b.length === 4 && new Set(b.map((x) => Math.round(r(x).bottom))).size === 1 && !!note && r(note).height > 0 && r(note).bottom <= Math.min(...b.map((x) => r(x).top));
     const line = [...t.querySelectorAll('.row')].every((row) => new Set([...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).top))).size === 1);
     // each unit on its number's line: its box inside the number's, never wrapped under it
     const units = [...t.querySelectorAll('.row .fig')].every((f) => { const n = r(f.querySelector('.n')); const u = f.querySelector('.u'); if (!u) return true; const b = r(u); return b.top >= n.top - 1 && b.bottom <= n.bottom + 1; });
-    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /evidence: /.test(c.querySelector('.val').title)), line, units, n: cells.length };
+    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), heads, labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /evidence: /.test(c.querySelector('.val').title)), line, units, n: cells.length };
   });
-  ok(s.h >= 32 && s.labels && s.subs && s.line && s.units && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title`, s);
+  ok(s.h >= 32 && s.heads && s.labels && s.subs && s.line && s.units && s.n === 8, `home-${w}: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title`, s);
   await ctx.close();
 }
 {
@@ -652,7 +655,7 @@ for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
   await p.touchscreen.tap(...at); await p.waitForTimeout(300);
   const tip = await p.evaluate(tipSeen, '#flashprove');
-  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && !tip.over.length, 'touch: a first tap on a triangle names it, over no text, and stays on the page', tip);
+  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && tip.named && !tip.over.length, 'touch: a first tap on a triangle names it, over no text, the system\'s name still shown, and stays on the page', tip);
   await p.touchscreen.tap(...at); await p.waitForTimeout(800);
   ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
   // the system page: the glyph once, wide, each triangle carrying its property's name and never a state

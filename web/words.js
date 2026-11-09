@@ -10,12 +10,14 @@
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
   // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
-  // glyph: the slice under the pointer lifts, and its property's name and state show beside it (positioned: nothing
-  // moves), on a not-benchmarked card or the reference page in place of the line beside the glyph. The others keep
+  // glyph: the slice under the pointer lifts, and its property's name and state show in place of the model lines under
+  // the system's name (the name stays), on a not-benchmarked card or the reference page in place of the line beside the
+  // glyph; nothing moves. The others keep
   // their ink. The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
   $$('.row .pie, .nb .nbpie, .refone .refpie').forEach((pie) => {
     const card = pie.closest('.nb, .refone');
-    const tip = $('.tip', pie) || $('.tip', card);
+    // a row's tip sits in its model lines' place, a card's in its line's place
+    const tip = $('.tip', card || pie.closest('.row'));
     let hot = 0;
     const set = (n) => {
       if (n === hot) return;

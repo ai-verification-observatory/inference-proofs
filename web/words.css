@@ -201,6 +201,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .hg { grid-row: 1; font: 400 12px/1.35 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; padding-bottom: 5px; border-bottom: 1px solid var(--line); align-self: end; }
 .hg-overhead { grid-column: 2; }
 .hg-per_bit { grid-column: 3 / span 3; }
+.hn { display: none; }
 /* sortable heads: real buttons, each with its glyph; the pressed one in paper with a rule under it */
 .hsys { padding-left: 114px; }
 /* the glyph follows the last word after a no-break space, so a head that wraps keeps it beside its word */
@@ -232,13 +233,19 @@ html:has(.top.s-on) { overflow: hidden; }
 .pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
 .refpie[data-hot="1"] .s1, .refpie[data-hot="2"] .s2, .refpie[data-hot="3"] .s3, .refpie[data-hot="4"] .s4, .refpie[data-hot="5"] .s5, .refpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
 .nbpie[data-hot="1"] .s1, .nbpie[data-hot="2"] .s2, .nbpie[data-hot="3"] .s3, .nbpie[data-hot="4"] .s4, .nbpie[data-hot="5"] .s5, .nbpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke: var(--paper); stroke-width: 1.5; }
-/* its name and state beside the glyph, in place of the system's name, hidden while it is named, so
-   they overlap no text: positioned, so nothing moves; one line at every width */
-.sysc { container-type: inline-size; }
-.tip { display: none; position: absolute; left: calc(100% + 14px); top: 50%; width: max-content; max-width: calc(100cqw - 100% - 14px); transform: translateY(-50%); z-index: 2; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
-.pie[data-hot] .tip { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .8em; row-gap: 2px; }
+/* its name and state in place of the model lines, which hide while it is named: the system's name
+   stays, and the tip takes the same two lines (the property in the model's face, its state in the
+   line under it), so nothing moves */
+.tip { display: none; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
 .tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: var(--track); }
-.sysc:has(.pie[data-hot]) .who { visibility: hidden; }
+.mc { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; }
+.mc > .mn { grid-area: 1 / 1; }
+.mc > .ms { grid-area: 2 / 1; }
+.mc > .tip { grid-area: 1 / 1 / 3 / 2; align-self: start; min-width: 0; }
+.mc > .tip b { font: 800 22px/1.05 var(--disp); font-stretch: 80%; text-transform: none; letter-spacing: 0; }
+.mc > .tip span { display: block; font: 400 12px/1.5 var(--mono); color: var(--paper); margin-top: 4px; }
+.row:has(.pie[data-hot]) .mc > .tip { display: block; }
+.row:has(.pie[data-hot]) .mc > p { visibility: hidden; }
 
 .who { padding-top: 10px; min-width: 0; }
 .name { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; padding-bottom: .04em; text-wrap: balance; }
@@ -645,16 +652,13 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .mn { font-size: 18px; }
   .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; margin-top: 2px; }
   .val { padding-top: 8px; }
+  /* two rows: one note naming both groups across the four columns, then the four heads, level, over
+     the columns they sort. No System head: the rows stack, so there is no system column to sort */
   .heads { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; }
-  .heads .hc { grid-row: 3; }
-  /* System sorts from the group line's row, so it takes no row of its own; the overhead's baseline
-     words go under its head, the per-Gbit line spans the other three */
-  .heads .hsys { grid-column: 1; grid-row: 2; padding-left: 0; align-self: end; }
-  .hg { grid-row: 2; padding-top: 6px; align-self: end; text-wrap: balance; }
-  .hg-overhead { display: none; }
-  .hg-per_bit { grid-column: 2 / span 3; }
-  .heads .sb { padding: 10px 0 11px; text-align: left; }
-  .hc[data-col="overhead"] .gw { display: block; position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; margin-top: 3px; font: 400 11px/1.3 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; text-wrap: balance; }
+  .heads .hc { grid-row: 2; align-self: stretch; display: flex; }
+  .heads .hc.hsys, .hg { display: none; }
+  .hn { display: block; grid-row: 1; grid-column: 1 / -1; font: 400 12px/1.4 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; text-wrap: pretty; max-width: 60ch; }
+  .heads .sb { padding: 10px 0 11px; text-align: left; align-self: end; }
   .q { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
   .q .kmini { width: 40px; height: 40px; }
   .q .kmini.w48 { display: none; }
@@ -861,7 +865,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
      short (scope, n and range) */
   .heads, .vals { column-gap: 10px; }
   .heads .sb { font-size: 11px; letter-spacing: .02em; line-height: 1.25; min-height: calc(2lh + 21px); }
-  .hg { font-size: 11px; line-height: 1.3; padding-bottom: 3px; }
+  .hn { font-size: 11px; }
   .sysc { column-gap: 12px; }
   .board .name { font-size: min(26px, 7vw); }
   .row { padding: 12px 0 14px; }
@@ -873,7 +877,8 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
   .board .fig .u { font-size: 11px; }
   .board .na { font-size: 15px; }
   .board .sub { font: 400 11px/1.35 var(--mono); margin-top: 4px; }
-  .tip { left: calc(100% + 12px); max-width: calc(100cqw - 100% - 12px); }
+  .mc > .tip b { font-size: 16px; }
+  .mc > .tip span { font-size: 11px; line-height: 1.4; margin-top: 2px; }
 }
 /* narrow phones: a smaller logo and closer items, so the first line fits */
 @media (max-width: 400px) {

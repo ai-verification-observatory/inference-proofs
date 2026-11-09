@@ -8,7 +8,7 @@ ok   one table across models, FlashProve then SASH (overhead ascending); no work
 ok   one row per system on the overview, its glyph once {"systems":["/flashprove","/sash"],"pies":["/flashprove","/sash"]}
 ok   no reference row on the overview (the baseline is named in each overhead cell), no "same as above" []
 ok   sections in order: benchmarked, then 19 not benchmarked yet ["benchmarked","not-yet"]
-ok   row slice hover shows its name and state, over no text {"path":"/","hot":"2","shown":true,"pos":"absolute","text":"Model boundPartly","sw":true,"over":[]}
+ok   row slice hover shows its name and state in the model lines' place, over no text, the system's name still shown {"path":"/","hot":"2","shown":true,"pos":"static","named":true,"text":"Model boundPartly","sw":true,"over":[]}
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
 ok   a Not stated slot is a ghost slot in a grey outline and lifts like the others {"hot":"1","unstated":true,"fill":"#1f1e1e","ghost":"#1f1e1e","stroke":"#67635c","grey":"#67635c","moved":true,"loose":0}
@@ -76,12 +76,12 @@ ok   "zk" lists FlashProve, SASH first ["Benchmarked:FlashProve","Benchmarked:SA
 ok   "sash tamper" lists Tamper tests first ["SASH:Tamper tests"]
 ok   "proving time" names the figure each Figures result was found by, no empty glyph gutter [{"meta":"Proving time per token, per Gbit of active weights","gutter":false,"x":12},{"meta":"Proving time per token, per Gbit of active weights","gutter":false,"x":12}]
 ok   "weights" shows the phrase SASH was found by {"sashWhy":"W8A8 (8-bit weights and activations)","ws":["Weights hidden","SASH","Figures","Figures","Model bound"]}
-ok   Enter on a figure found by its name opens its plate http://127.0.0.1:4471/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-per_bit
-ok   Enter goes to the first result of a typed search http://127.0.0.1:4471/criteria#weights_hidden
+ok   Enter on a figure found by its name opens its plate http://127.0.0.1:4447/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-per_bit
+ok   Enter goes to the first result of a typed search http://127.0.0.1:4447/criteria#weights_hidden
 ok   the arrows mark one other result {"second":5,"marked":true}
 ok   Escape closes the list, then clears the field {"esc":{"hidden":true,"value":"weights"},"esc2":""}
-ok   Enter in an empty field picks nothing http://127.0.0.1:4471/
-ok   "tamper" from /sash opens its own tamper tests http://127.0.0.1:4471/sash#tamper
+ok   Enter in an empty field picks nothing http://127.0.0.1:4447/
+ok   "tamper" from /sash opens its own tamper tests http://127.0.0.1:4447/sash#tamper
 ok   "/" mid-page opens search on screen without scrolling; Escape leaves the page where it was {"mid":{"y":3300,"focus":"q","top":12,"list":true},"after":{"y":3300,"on":false,"inert":false}}
 ok   phone: a search button, the field hidden
 ok   phone: the button opens the field and its results, nothing overflows {"over":0,"wide":[],"clipped":[]}
@@ -112,8 +112,8 @@ ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   release-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 430 px
-ok   home-390 first system name shows on landing 430
+home-390 first system name bottom 395 px
+ok   home-390 first system name shows on landing 395
 ok   home-390 no horizontal overflow {"over":0,"wide":["SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -198,8 +198,8 @@ ok   overview-390: following a row header's link leaves the system's name in vie
 ok   sash: no work-in-progress label; its figures name their model, Llama 3.1 8B
 ok   /nope answers the styled 404 page 404
 ok   /a/b/c answers the styled 404 page 404
-ok   /system redirects to /flashprove http://127.0.0.1:4471/flashprove
-ok   /system.html redirects to /flashprove http://127.0.0.1:4471/flashprove
+ok   /system redirects to /flashprove http://127.0.0.1:4447/flashprove
+ok   /system.html redirects to /flashprove http://127.0.0.1:4447/flashprove
 ok   a malformed hash does not stop hash sorting
 ok   landscape phone: the table heading shows on landing 193
 ok   phone: the search field is set at 16 px or more, so focusing it does not zoom 16
@@ -209,22 +209,22 @@ ok   phone: a 44 px close button closes search and returns focus to the search b
 ok   phone: the open sheet stays on screen, the page under it is locked and inert {"field":4,"lock":"hidden","main":true,"repo":true,"search":false}
 ok   phone: closing the sheet gives the page back
 ok   phone: the results end above the keyboard (390 x 500 visible) 488
-ok   phone: a tap on a result opens it http://127.0.0.1:4471/flashprove
+ok   phone: a tap on a result opens it http://127.0.0.1:4447/flashprove
 ok   header-320x640: the pages share the logo's line {"h":52,"dy":[1,1]}
 ok   header-390x844: the pages share the logo's line {"h":52,"dy":[1,1]}
 ok   header-600x900: the pages share the logo's line {"h":53,"dy":[1,1]}
 ok   header-768x1024: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-844x390: the pages share the logo's line {"h":45,"dy":[1,1]}
 ok   header-390: search and GitHub 44 px to press, the pages 32 px {"sopen":44,"repo":44,"nav":[32,32]}
-ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":457,"cols":2,"qq":true}
-ok   home-375: sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"labels":true,"subs":true,"line":true,"units":true,"n":8}
-ok   home-360x640: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":406,"cols":2,"qq":true}
-ok   home-360: sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"labels":true,"subs":true,"line":true,"units":true,"n":8}
-ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":406,"cols":2,"qq":true}
-ok   home-320: sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"labels":true,"subs":true,"line":true,"units":true,"n":8}
+ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":407,"cols":2,"qq":true}
+ok   home-375: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
+ok   home-360x640: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":356,"cols":2,"qq":true}
+ok   home-360: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
+ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":372,"cols":2,"qq":true}
+ok   home-320: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
 ok   home-390: every figure in paper, whichever column sorts ["overhead:on","per_bit:on","size_bit:on","check_bit:on","overhead:on","per_bit:on","size_bit:on","check_bit:on"]
-ok   touch: a first tap on a triangle names it, over no text, and stays on the page {"path":"/","hot":"2","shown":true,"pos":"absolute","text":"Model boundPartly","sw":true,"over":[]}
-ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4471/flashprove#claims-exact-match-cp-verify
+ok   touch: a first tap on a triangle names it, over no text, the system's name still shown, and stays on the page {"path":"/","hot":"2","shown":true,"pos":"static","named":true,"text":"Model boundPartly","sw":true,"over":[]}
+ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4447/flashprove#claims-exact-match-cp-verify
 ok   flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs {"wide":340,"inside":true,"out":[],"names":["WEIGHTS HIDDEN","MODEL BOUND","WHOLE OUTPUT CHECKED","FORMALLY VERIFIED","SECURITY LEVEL","NO TRUSTED PARTY"],"stateless":true,"order":"123456","below":true,"col":1,"keys":0}
 ok   touch: a tap on a slice lifts it and marks its property {"s2":"matrix(1, 0, 0, 1, 6, 0)","rn":"rgb(241, 239, 233)","path":"/flashprove"}
 ok   flashprove-320: bound phrases never part at a line's end {"n":41,"out":[]}
@@ -272,7 +272,7 @@ ok   nope-320: every link and button 24 px tall or more, none overlapping {"smal
 ok   sash-844x390: the whole glyph on the first screen 339
 ok   flashprove-844x390: the whole glyph on the first screen 339
 ok   404-390: the header on one row, the systems listed, nothing focused {"h":52,"links":2,"focus":"BODY"}
-ok   404-390: search leads on from the 404 page http://127.0.0.1:4471/sash
+ok   404-390: search leads on from the 404 page http://127.0.0.1:4447/sash
 sash-390 Figures heading at 1755 px
 flashprove-390 Figures heading at 2724 px
 sash-1440 Figures heading at 871 px
