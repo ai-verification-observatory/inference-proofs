@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -134,6 +135,20 @@ def test_gpus_list() -> None:
             "--load", "high"]  # fmt: skip
     args = build_parser().parse_args(argv)
     assert (args.gpus, args.load) == ([4, 5], "high")
+    assert args.sizing_batches is None
+    assert build_parser().parse_args([*argv[:-2], "--sizing-batches", "50"]).sizing_batches == 50
+
+
+def test_sizing_batches_serving_only(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--sizing-batches` (RFC-0015 SRV-1) on a system that is not production serving is
+    `config` before any step."""
+    monkeypatch.chdir(Path(__file__).resolve().parents[3])
+    argv = ["run", "--system", "fake", "--workload", "fake-tiny-ci", "--profile", "ci-cpu",
+            "--in-process", "--sizing-batches", "4"]  # fmt: skip
+    assert cli.main(argv) == 2
+    assert "--sizing-batches is for production serving" in capsys.readouterr().err
 
 
 def test_fetch_model_no_weights(

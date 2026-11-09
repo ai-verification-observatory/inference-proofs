@@ -403,7 +403,7 @@ hf jobs run --detach --flavor cpu-basic --timeout 15m --name iproofs-serving-s0 
 
 A variable in the `env` lines that the image's ENV does not hold (compare with `inputs.json` `image_env` of S1, or the registry config) makes every serving job refuse itself (`config`, SRV-3): stop and put it to the owner.
 
-**S1, Llama 3.1 8B BF16 on `h200`** (TP1, `serving-h200x1-hosted`), matched load, one repetition, replaying the completed SASH run of stage 2 (label `sash-c1024-r1`, on `prover-h200-hosted`). The workload has batch size 1 and one batch a session, so S1 serves the SASH run's one prompt: 1,024 prompt tokens and 64 output tokens. SASH's steady scope is not externally observable, so this run feeds SASH's session overhead, D-OVERHEAD-SESSION, start-up included on both sides (RFC-0004 INV-DERIVE-10), and no steady one. Find the run: its folder ends in `-sash-c1024-r1` and holds `upload.done`, and its run directory is the one SASH run under it:
+**S1, Llama 3.1 8B BF16 on `h200`** (TP1, `serving-h200x1-hosted`), matched load, one repetition, replaying the completed SASH run of stage 2 (label `sash-c1024-r1`, on `prover-h200-hosted`). The workload has batch size 1 and one batch a session, so S1 serves the SASH run's one prompt: 1,024 prompt tokens and 64 output tokens. Its capture (`2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1`) recorded `prove.session` 58.464736204 s (measured, tier reported, n = 1, development run), engine start-up and one request together, and no steady scope, so it sizes nothing (RFC-0015 SRV-1). SASH's steady scope is not externally observable, so SASH's headline overhead is D-OVERHEAD-WARM: its proving session over production serving's steady scope (RFC-0004 INV-DERIVE-11). That needs a serving run with a steady scope of at least 60 s, which S1b sizes and S1c makes. Find the run: its folder ends in `-sash-c1024-r1` and holds `upload.done`, and its run directory is the one SASH run under it:
 
 ```sh
 hf buckets list "$NS/iproofs-dev-runs/runs" -h
@@ -414,6 +414,36 @@ iproofs_serving_job h200 3600 serving-h200x1-hosted serving-l31-bf16-s1 \
 ```
 
 `iproofs run` refuses, before any step, a `from=` run that did not complete or ran another workload version (`recorded_seed`).
+
+**S1b, the sizing capture of Llama 3.1 8B BF16** (TP1, `serving-h200x1-hosted`, RFC-0015 SRV-1, resolving Q10): the matched entry's `batches_per_session_run` is null, so the step option `sizing=50` runs `iproofs run ... --sizing-batches 50`: 50 batches of 1, the SASH run's prompt first, then 49 further windows of the same seeded generator (`prompt_prefix_digest` equals the SASH run's `prompt_set_digest`, SRV-8). The manifest records `workload.sizing_capture: true` and run.json warns "sizing capture: it sizes batches_per_session_run and joins no overhead (RFC-0015 SRV-1)"; it also carries "steady scope under 60 s". It joins no overhead (RFC-0004 INV-DERIVE-2 (f)).
+
+```sh
+iproofs_serving_job h200 3600 serving-h200x1-hosted serving-l31-bf16-size \
+  run ref-serve "sash-l31-8b-c1024:1:sizing=50:from=$SASH_RUN"
+```
+
+Why 50 (projected, never measured on this profile): one request is 1,024 prompt tokens and 64 generated at batch 1 on one H200. The prefill is about 0.04 s (16 GFLOP a token for 8B parameters, times 1,024 tokens, at an assumed 400 TFLOP/s); the 64 decode steps read the 16.07 GB of weights once each, about 3.3 ms a step at the H200's 4.8 TB/s, so about 6.5 ms a step assumed with the engine's overheads, 0.42 s; with the request round trip, about 0.5 s a request (assumed range 0.3 to 0.8 s). The steady scope covers 49 batches: about 25 s (range 15 to 40 s), well above a second, so the sizing reads a time per batch dominated by serving rather than by the watcher's granularity, and the requests add about 25 s to the job. Timeout 1 h: cap 1 h x 5.00 = 5.00 USD. Estimate (projected): pull and install 600 s (assumed); weights about 60 s and their hash about 16 s (assumed, as S1); the run's rehash about 28 s (as S1); the tokenizer check about 30 s (assumed); engine start-up with the first request about 58 s (S1's `prove.session`, measured, n = 1); the other 49 requests about 25 s: about 817 s (0.23 h), 1.13 USD.
+
+Then size the session from the stored capture, on any machine with the repository (CPU only):
+
+```sh
+hf buckets list "$NS/iproofs-dev-runs/runs" -h   # the folder ending in -serving-l31-bf16-size
+SIZE_RUN=runs/<UTC time>-serving-l31-bf16-size/dev-results/v0.1/ref-serve/<date>-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1
+mkdir -p /tmp/size && for f in run.json manifest.json; do
+  hf buckets cp "hf://buckets/$NS/iproofs-dev-runs/$SIZE_RUN/$f" "/tmp/size/$f"; done
+uv run iproofs serving size-session /tmp/size
+```
+
+It prints `batches_per_session_run` (at 0.5 s a request, projected: 240 steady batches reach 120 s, so 241) and, on stderr, the `system.yaml` line. Set it in the `sash-l31-8b-c1024` matched entry, with a comment naming the capture's run id, its bucket folder and the command, and add the capture to `harness/tests/unit/test_session_size.py` with its recorded values, by pull request (the test checks the stored count is the computed one, AGENTS.md rule 3).
+
+**S1c, three matched repetitions of Llama 3.1 8B BF16** (TP1), after that pull request is merged and `IPROOFS_COMMIT` contains it: each repetition serves `batches_per_session_run` batches of 1, the SASH run's prompt first (SRV-8), and its steady figure is the serving side of SASH's D-OVERHEAD-WARM. Its session figure feeds D-OVERHEAD-SESSION, computed and not displayed: the lengthened session spreads the engine's start-up over every request it serves (RFC-0015 Q10 (b)).
+
+```sh
+iproofs_serving_job h200 3600 serving-h200x1-hosted serving-l31-bf16-s3 \
+  run ref-serve "sash-l31-8b-c1024:3:from=$SASH_RUN"
+```
+
+Timeout 1 h: cap 5.00 USD. Estimate (projected, at the projected count of 241): pull, install, weights, hash and tokenizer check about 706 s (as S1b); per repetition the rehash about 28 s, start-up and the first request about 58 s, and 240 further requests about 120 s: about 1,324 s (0.37 h), 1.84 USD. A repetition whose steady scope falls under 60 s carries the warning and joins nothing (SRV-1): then put the capture and the three runs to the owner before any further job.
 
 Timeout 1 h: cap 1 h x 5.00 = 5.00 USD. Estimate (projected): pull and install 600 s (assumed, as stage 3); weights 16.07 GB, about 60 s (assumed); `fetch-model`'s hash about 16 s (1 GB/s, assumed); the run's rehash about 28 s (scaled from the 395 to 418 s for 232.1 GB, measured, tier reported, n = 6, stage 3 table); engine load and compile 300 s (assumed); requests about 62 s (assumed); the tokenizer check before the weights about 30 s (assumed): about 1,096 s (0.30 h), 1.52 USD.
 
@@ -435,11 +465,11 @@ Timeout 3 h: cap 3 h x 20.00 = 60.00 USD. Estimate (projected): pull and install
 
 **S2', only if every S2 attempt failed `resource`** with the KV-capacity line (or an out-of-memory) as evidence: the same content at TP8 on `h200x8` (timeout 3 h, cap 120.00 USD), after an amendment declares `serving-h200x8-hosted` and its `system.yaml` entries (RFC-0015 NM-1). An `adapter` failure never moves the count: fix it and rerun S2.
 
-S0 to S2: about 32.29 USD projected, caps 65.01 USD, before S2'. The owner allots them from what the stop rule below leaves. Every figure from these jobs is a development figure: quote it with its scope, grade, tier `reported`, the profile, the flavor, n and the bucket folder (AGENTS.md rule 2). The repetitions for figures (three per load point) wait until the rebuilt `ref-serve` image is public and pinned and a driver pin exists (RFC-0006 Q5).
+S0 to S2 with S1b and S1c: about 35.26 USD projected (32.29 before them), caps 75.01 USD, before S2'. The owner allots them from what the stop rule below leaves. Every figure from these jobs is a development figure: quote it with its scope, grade, tier `reported`, the profile, the flavor, n and the bucket folder (AGENTS.md rule 2). The repetitions for figures (three per load point) wait until the rebuilt `ref-serve` image is public and pinned and a driver pin exists (RFC-0006 Q5).
 
 RISK: the engine image is built on CUDA 13.0 (`NVIDIA_REQUIRE_CUDA=cuda>=13.0` in its ENV, read 2026-11-09). If the provider's driver cannot run it, `dev_install.py`'s GPU check fails within the job's first minutes, before the weights: keep the job's log, put it to the owner, and change neither the engine nor the adapter (AGENTS.md rule 1).
 
-Read afterwards, in the bucket folder: `job.log` (the `dev-install:` lines, the binding, the GPU check), the run directory's `run.json` (`status`, `metrics`, `warnings`, `failure.kind` and `failure.last_lines`, which end with the KV-capacity line for a `resource` failure), `manifest.json` (`engine`, `serving_model`, `workload.prompt_prefix_digest`, `machine.gpu.unbound_samples`, `machine.container.shm_bytes`, `machine.gpu.nvlink_active_links`), and `io/commands.jsonl` and `io/engine.log`. The first captures set `batches_per_session_run` (SRV-1: `iproofs serving size-session RUN_DIR` on the matched run directory, a 120 s steady target for the 60 s minimum; a one-request capture is refused, RFC-0015 Q10), the PC-GPU-IDLE baseline and whether NVML reports NVLink state (PC-GPU-LINK), and become the adapter's replay fixtures (its stored resolved-configuration line among them), by pull request.
+Read afterwards, in the bucket folder: `job.log` (the `dev-install:` lines, the binding, the GPU check), the run directory's `run.json` (`status`, `metrics`, `warnings`, `failure.kind` and `failure.last_lines`, which end with the KV-capacity line for a `resource` failure), `manifest.json` (`engine`, `serving_model`, `workload.prompt_prefix_digest`, `machine.gpu.unbound_samples`, `machine.container.shm_bytes`, `machine.gpu.nvlink_active_links`), and `io/commands.jsonl` and `io/engine.log`. The first captures set `batches_per_session_run` (SRV-1: `iproofs serving size-session RUN_DIR` on the matched run directory, a 120 s steady target for the 60 s minimum; a one-request capture is refused, so a workload of one batch is sized from a sizing capture, S1b), the PC-GPU-IDLE baseline and whether NVML reports NVLink state (PC-GPU-LINK), and become the adapter's replay fixtures (its stored resolved-configuration line among them), by pull request.
 
 ## Stop rule
 

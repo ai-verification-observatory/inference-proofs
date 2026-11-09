@@ -21,10 +21,11 @@
       "ineligible": [],
       "insufficient_repetitions": false,
       "overhead_headline": {
-        "formula": "D-OVERHEAD-SESSION",
-        "metric": "overhead_vs_production_prove.session",
+        "formula": "D-OVERHEAD-WARM",
+        "metric": "overhead_vs_production_warm",
         "scope": "whole_wall",
-        "start_up": "included"
+        "serving_scope": "prove.steady",
+        "start_up": "prover_only"
       },
       "profile": "prover-h100",
       "runs": [

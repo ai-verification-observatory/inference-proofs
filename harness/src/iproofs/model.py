@@ -287,6 +287,7 @@ class WorkloadRecord(Document):
     batches_per_session_run: int | None = None
     prompt_count_run: int | None = None
     prompt_prefix_digest: str | None = None  # RFC-0015 SRV-8
+    sizing_capture: bool | None = None  # RFC-0015 SRV-1: joins no overhead
     steady_rule: str | None = None  # RFC-0004 INV-SCOPE-5 (absent: first-proof boundary)
 
 

@@ -126,6 +126,8 @@ from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.serving import (
     SHORT_STEADY,
+    SIZING_MIN_BATCHES,
+    SIZING_WARNING,
     ensure_serving_model,
     placement_problem,
     record_for,
@@ -397,6 +399,7 @@ class Job:
     serving_record: ServingModel | None = None
     run_shape: tuple[int, int] | None = None  # (batch size, batches) when not the workload's
     prompt_prefix_digest: str | None = None
+    sizing: bool = False  # RFC-0015 SRV-1: a sizing capture (--sizing-batches)
     engine_interface: str | None = None  # from the recorded engine command (RFC-0015 Q8)
     engine_observed: dict[str, object] | None = None  # the engine as the adapter saw it run
 
@@ -423,6 +426,7 @@ class Runner:
         hosted: bool = False,
         load: str = "matched",
         source_prompt_digest: str | None = None,
+        sizing_batches: int | None = None,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -447,6 +451,7 @@ class Runner:
         self.hosted = hosted  # RFC-0006 §Hosted execution
         self.load = load  # RFC-0015 SRV-1: a production-serving job's load point
         self.source_prompt_digest = source_prompt_digest  # the --prompts-from run's (SRV-8)
+        self.sizing_batches = sizing_batches  # RFC-0015 SRV-1: a sizing capture's batch count
         self.readers: CgroupReader = NullCgroupReader()
 
     # ---------------------------------------------------------------- public
@@ -678,6 +683,9 @@ class Runner:
                                "serving only (RFC-0006 R6)")  # fmt: skip
         elif self.load != "matched":
             raise IProofsError(ErrorKind.CONFIG, "--load is for production serving (SRV-1)")
+        elif self.sizing_batches is not None:
+            raise IProofsError(ErrorKind.CONFIG, "--sizing-batches is for production serving "
+                               "(RFC-0015 SRV-1)")  # fmt: skip
         bound = bound_gpus(self.env)
         if count is not None and bound and len(bound) != count:  # PC-GPU-COUNT, INV-DERIVE-8
             raise IProofsError(ErrorKind.CONFIG, f"{len(bound)} bound GPU(s) {list(bound)}, "
@@ -708,7 +716,9 @@ class Runner:
                                f"{spec.workload} on {count} GPU(s) (RFC-0015 SRV-6)")  # fmt: skip
         job.serving_entry = entry = entries[0]
         wl = job.workload
-        if self.load == "high":
+        if self.sizing_batches is not None:  # SRV-1: a sizing capture, matched load only
+            job.run_shape = (wl.shape.batch_size, self._sizing(job, entry))
+        elif self.load == "high":
             job.run_shape = (entry.batch_size or wl.shape.batch_size,
                              max(wl.shape.batches_per_session, 2))  # fmt: skip
         else:
@@ -722,6 +732,30 @@ class Runner:
             placement_problem = self._placement(job, count)
             if placement_problem:
                 raise IProofsError(ErrorKind.CONFIG, placement_problem)
+
+    def _sizing(self, job: Job, entry: ReferenceWorkload) -> int:
+        """RFC-0015 SRV-1: a sizing capture serves the declared batch count at the workload's
+        batch size, only while the entry's `batches_per_session_run` is null and only at the
+        matched load, and at least 2 batches, so that the capture has a steady scope for
+        `iproofs serving size-session`. The manifest marks it and run.json warns: it sizes
+        the session and joins no overhead (RFC-0004 INV-DERIVE-2)."""
+        n = self.sizing_batches
+        assert n is not None
+        if self.load != "matched":
+            raise IProofsError(ErrorKind.CONFIG, "--sizing-batches sizes the matched load only "
+                               "(RFC-0015 SRV-1)")  # fmt: skip
+        if entry.batches_per_session_run is not None:
+            raise IProofsError(ErrorKind.CONFIG, f"{entry.id} matched already has "
+                               f"batches_per_session_run {entry.batches_per_session_run}; a "
+                               "sizing capture is for a null count (RFC-0015 SRV-1)")  # fmt: skip
+        if n < SIZING_MIN_BATCHES:
+            raise IProofsError(ErrorKind.CONFIG, f"--sizing-batches {n}: a sizing capture needs "
+                               f"at least {SIZING_MIN_BATCHES} batches, so that it has a steady "
+                               "scope (RFC-0015 SRV-1)")  # fmt: skip
+        job.sizing = True
+        if SIZING_WARNING not in job.warnings:
+            job.warnings.append(SIZING_WARNING)
+        return n
 
     def _placement(self, job: Job, count: int) -> str | None:
         """RFC-0015 SRV-6 placement over the attempts this results root holds: a job of a larger
@@ -2009,6 +2043,8 @@ class Runner:
                                   "prompt_count_run": batch * batches}  # fmt: skip
         if job.prompt_prefix_digest is not None:
             out["prompt_prefix_digest"] = job.prompt_prefix_digest
+        if job.sizing:
+            out["sizing_capture"] = True
         return out
 
     def _serving_manifest(self, job: Job) -> dict[str, object]:

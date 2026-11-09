@@ -481,18 +481,14 @@ def test_overhead_conditions_words() -> None:
     assert overhead_words(conditions, stats, wl) is None
 
 
-def test_overhead_session_words() -> None:
-    """RFC-0004 INV-DERIVE-10: a row whose headline is the session figure (SASH) says that
-    start-up is inside it on both sides, and its high-load context is the session one too
-    (fixture values, not a result); the index's `overhead_headline` names the statistic."""
-    from iproofs.site.view import overhead_metric, overhead_words  # noqa: PLC0415
-
-    conditions = {
+def sash_conditions(warm: bool) -> dict[str, Any]:
+    """A conditions block of a SASH-like row: one request a batch, one GPU on each side."""
+    return {
         "engine": {"name": "vllm", "version": "0.32.0", "interface": "vllm serve",
                    "image_digest": None, "settings": "engine defaults except x",
                    "settings_high": None,
                    "max_num_batched_tokens": {"matched": 8192, "high": None}},
-        "decoding": "greedy", "warm": False, "runtime": "hosted",
+        "decoding": "greedy", "warm": warm, "runtime": "hosted",
         "serving_model": {"id": "m", "version": 1, "digest": "sha256:" + "0" * 64,
                           "publisher": "Meta", "precision": "BF16", "release_statement": "q"},
         "proved_precision": "BF16", "weight_bits": None,
@@ -504,6 +500,15 @@ def test_overhead_session_words() -> None:
         "prompt_count_run": {"system": 1, "serving_matched": 1, "serving_high": None},
         "n": {"system": 1, "serving_matched": 1, "serving_high": 0},
     }  # fmt: skip
+
+
+def test_overhead_session_words() -> None:
+    """RFC-0004 INV-DERIVE-10: the session figure's words say that start-up is inside it on
+    both sides, and its high-load context is the session one too (fixture values, not a
+    result)."""
+    from iproofs.site.view import overhead_words  # noqa: PLC0415
+
+    conditions = sash_conditions(warm=False)
     pairs = {"n_system": 1, "n_serving": 1, "min": 200.0, "max": 200.0}
     session = "overhead_vs_production_prove.session"
     stats = {
@@ -514,11 +519,6 @@ def test_overhead_session_words() -> None:
                                                      "scope": "prove.steady"},
     }  # fmt: skip
     wl = {"precision": {"weight_bits": {"bits": 16, "basis": "computed"}}}
-    headline = {"overhead_headline": {"metric": session, "formula": "D-OVERHEAD-SESSION",
-                                      "scope": "prove.session",
-                                      "start_up": "included"}}  # fmt: skip
-    assert overhead_metric(headline) == session
-    assert overhead_metric({}) == "overhead_vs_production_prove.steady"
     words = overhead_words(conditions, stats, wl, session)
     assert words is not None
     assert words["conditions"].startswith(
@@ -533,3 +533,41 @@ def test_overhead_session_words() -> None:
     )
     assert "high" not in words  # the steady high-load figure is not this row's context
     assert overhead_words(conditions, stats, wl) is None  # the steady figure has no value
+
+
+def test_overhead_warm_words() -> None:
+    """RFC-0004 INV-DERIVE-11: a row whose headline is the warm figure (SASH) names both
+    scopes, the prover's session with its start-up and serving's steady scope, and prints no
+    high-load context (no high-load figure pairs those scopes); the index's
+    `overhead_headline` names the statistic (fixture values, not a result)."""
+    from iproofs.site.view import WARM, overhead_metric, overhead_words  # noqa: PLC0415
+
+    pairs = {"n_system": 1, "n_serving": 3, "min": 900.0, "max": 1100.0}
+    stats = {
+        "overhead_vs_production_prove.steady": {"value": None, "pairs": pairs,
+                                                "scope": "prove.steady"},
+        WARM: {"value": 1000.0, "pairs": pairs, "scope": "prove.session"},
+        "overhead_vs_production_high_prove.session": {"value": 9.0, "pairs": pairs,
+                                                      "scope": "prove.session"},
+    }  # fmt: skip
+    wl = {"precision": {"weight_bits": {"bits": 16, "basis": "computed"}}}
+    headline = {"overhead_headline": {"metric": WARM, "formula": "D-OVERHEAD-WARM",
+                                      "scope": "prove.session", "serving_scope": "prove.steady",
+                                      "start_up": "prover_only"}}  # fmt: skip
+    assert overhead_metric(headline) == WARM
+    assert overhead_metric({}) == "overhead_vs_production_prove.steady"
+    words = overhead_words(sash_conditions(warm=True), stats, wl, WARM)
+    assert words is not None
+    assert words["conditions"].startswith(
+        "prove.session scope for the prover, from the start of its prove call to its last "
+        "proof (its start-up included: it releases no proof before the whole request is "
+        "proved), prove.steady scope for production serving"
+    )
+    assert "greedy decoding, warm serving, the prover's start-up inside its session" in (
+        words["conditions"])  # fmt: skip
+    assert "range 900 to 1,100 over 1 \u00d7 3 pairs" in words["conditions"]
+    assert words["precision"].endswith(
+        "in GPU-seconds per token, per proving session with the prover's start-up, against "
+        "warm serving (steady), at 1 requests a batch."
+    )
+    assert "high" not in words

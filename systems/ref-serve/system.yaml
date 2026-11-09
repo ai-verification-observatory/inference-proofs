@@ -50,7 +50,8 @@ workloads:
   load_point: matched
   gpus: 1
   # The first capture (2026-11-09-ref-serve-sash-l31-8b-c1024-serving-h200x1-hosted-1) serves
-  # one request: no steady scope, so `iproofs serving size-session` refuses it (SRV-1).
+  # one request: no steady scope, so `iproofs serving size-session` refuses it (SRV-1). Set from
+  # a sizing capture of 50 batches (`--sizing-batches 50`, SRV-1, docs/runbooks/hf-jobs.md S1b).
   batches_per_session_run: null
   precision_used: BF16
   precision_substitution: null
