@@ -19,9 +19,9 @@
     band.prepend(cv);
     const cx = cv.getContext('2d');
     if (!cx) return;
-    // one hue: a deeper violet, the brand's violet (#c45cff, most of the band), then lighter violets, lavender and a
-    // near-white lilac as slow highlights; black text above 5:1 on each (deeper violet 5.4:1, lilac 17:1)
-    const INKS = [[155, 92, 255], [178, 92, 255], [196, 92, 255], [196, 92, 255], [211, 140, 255], [230, 194, 255], [244, 232, 255]];
+    // one hue, dark to light: deep violets at the floor black text allows (#8a4dff 4.6:1, #9a52ff 5:1), the brand's
+    // violet (#c45cff) in the middle, then lighter violet, lavender and a near-white lilac (17:1)
+    const INKS = [[138, 77, 255], [154, 82, 255], [176, 88, 255], [196, 92, 255], [214, 140, 255], [232, 196, 255], [244, 232, 255]];
     const P = new Uint8Array(512);
     for (let i = 0, s = 7; i < 256; i++) P[i] = i;
     for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
@@ -61,7 +61,8 @@
           const fa = noise(u * 1.7 + t * 0.5, v * 0.55, t * 0.6);
           const fb = noise(u * 1.1 - t * 0.35 + 7.3, v * 0.8 + 2.1, t * 0.45 + 4);
           const drift = 0.12 * Math.sin(t * 0.8);
-          const n = Math.min(1, Math.max(0, 0.35 * sweep + 0.7 * fa + 0.45 * fb - 0.34 + drift));
+          // spread toward both ends, so dark and light swells meet in the same frame
+          const n = Math.min(1, Math.max(0, 0.5 + 1.7 * (0.35 * sweep + 0.7 * fa + 0.45 * fb - 0.84 + drift)));
           const [r, g, b] = ink(n); const o = (y * w + x) * 4;
           d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
         }
