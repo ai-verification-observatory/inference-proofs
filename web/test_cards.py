@@ -82,13 +82,6 @@ def test_picture_size(site):
         assert png.stat().st_size < 1_000_000  # well under the 5 MB the platforms accept
 
 
-def test_system_cards_carry_the_draft_label(site):
-    # the states are draft criteria; a picture travels without the page around it, so it says so
-    draft = html.escape(site.build.criteria_label()[1])
-    for sid in site.build.PAGE:
-        assert draft in (OG / f"{sid}.html").read_text(), sid
-
-
 def test_home_card_holds_nothing_that_changes(site):
     # link previews stay cached in message apps: the home picture names no system and no model
     src = (OG / "home.html").read_text()

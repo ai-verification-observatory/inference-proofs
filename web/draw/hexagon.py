@@ -125,8 +125,7 @@ def hex_svg(
     size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg", names=None
 ):
     """The glyph: six filled triangles, always. states: six RFC-0016 state ids, inked by words.css
-    (.sl.yes ... .sl.unstated, a grey of its own; None, a row under a pending disclosure, draws
-    none of the four). key: n, the legend key (slot n in full ink, the other five faint). mono:
+    (.sl.yes ... .sl.unstated, a grey of its own). key: n, the legend key (slot n in full ink, the other five faint). mono:
     every slot in currentColor (the logo). cells: each slot carries its property's name and state
     word (read by words.js). hit: a still copy of the six triangles on top takes the pointer, so a
     lifted slot never slips from under it. names: each slot's property name set in it (shown on

@@ -117,7 +117,7 @@
       "rules": {
         "no": "The documentation says the settings give no meaningful soundness, for example a test-only setting; or the row is a reference, which has no soundness level by definition.",
         "not_stated": "No level stated for the configuration in the sources read, or not copied yet.",
-        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system. A level stated without saying it is proven or conjectured is Partly (RFC-0016 Q10, resolved 2026-11-08).",
+        "partly": "A numeric level is stated but called conjectured, or stated only in code or configuration, or for part of the system. A level stated without saying it is proven or conjectured is Partly (RFC-0016 Q10).",
         "yes": "The documentation states a numeric soundness bound for the configuration the row reads and says it is proven, by hand or by machine, under named assumptions."
       }
     },
@@ -1126,7 +1126,7 @@
           "state": "yes"
         },
         "security_level": {
-          "note": "The page states the level and the hash-function assumption; it does not say the level is proven or conjectured. Partly by RFC-0016 Q10, which the owner resolved on 2026-11-08 by keeping that default.",
+          "note": "The page states the level and the hash-function assumption; it does not say the level is proven or conjectured. Partly by RFC-0016 Q10.",
           "quotes": [
             {
               "archive_url": "https://web.archive.org/web/20261108141405/https://attestable.com/blog/proving-llms-scale",

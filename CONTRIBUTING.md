@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you for helping. This project measures provers; it does not build, rank or certify them. Read [AGENTS.md](AGENTS.md) (rules for every contributor, human or agent), [docs/SPEC.md](docs/SPEC.md) and the RFCs your change touches. The project is in a research phase: the rules listed in [rfcs/README.md](rfcs/README.md#out-for-the-research-phase) are out.
+Thank you for helping. This project measures provers; it does not build, rank or certify them. Read [AGENTS.md](AGENTS.md) (rules for every contributor, human or agent), [docs/SPEC.md](docs/SPEC.md) and the RFCs your change touches.
 
 ## Issues
 

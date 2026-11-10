@@ -199,7 +199,7 @@ def test_verdicts_against_prover_h200(tmp_path: Path, monkeypatch: pytest.Monkey
                 "cgroup_v2", "systemd", "cpu_quota", "docker_engine", "docker_cgroup_driver",
                 "nvidia_container_toolkit", "reach_ghcr.io", "reach_huggingface.co"):  # fmt: skip
         assert v[rid] == "pass", rid
-    assert v["driver"] == "record"  # unpinned until #77
+    assert v["driver"] == "record"  # the profile pins no driver
     assert v["cpus_total"] == "fail"
     assert v["cpus_usable"] == "fail"  # 4 < 24 + 8
     assert v["cpus_on_gpu_numa_node"] == "fail"  # GPU 1 has no NUMA node: iproofs run refuses it

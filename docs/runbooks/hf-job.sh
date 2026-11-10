@@ -25,7 +25,7 @@
 # `sash-l31-8b-c1024:1:sizing=50:from=runs/X/dev-results/v0.1/sash/R`. `keep-io` is
 # refused for flashprove: its io/ holds a copy of the weights and its commitment store the
 # prover's secret key. Every run is a development run on IPROOFS_PROFILE
-# (--allow-nonconforming until RFC-0006 Q5 pins the driver), written outside the checkout and
+# (--allow-nonconforming: the profile pins no driver, RFC-0006 Q5), written outside the checkout and
 # never copied into results/ (POL-4). An upload that copied everything ends with upload.done in
 # its bucket folder; `seed`, `controls` and `merge` refuse a stored run whose folder has none.
 # Every mode uploads the same way: through the bucket API, checked file by file, when HF_TOKEN

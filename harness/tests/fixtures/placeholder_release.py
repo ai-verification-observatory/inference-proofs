@@ -1,4 +1,4 @@
-"""The placeholder frozen release the public site is built from until v0.1 exists (#320, #146).
+"""A synthetic frozen release the site tests build the pages from.
 
 `build_placeholder(root, repetitions=3, extras=False)` writes a git repository at `root` and
 returns its `releases/v0.1/release.yaml`. The tree holds copies of the real `schema/`,
@@ -30,7 +30,7 @@ rerun reference replays FlashProve's runs only: a replay of SASH's run on the Ma
 refused by the runner (`recorded_seed`, RFC-0015 RC-1).
 
 `extras=True` adds cases the site tests need and the deployed build must not carry (a target, a
-criteria copy naming the release with a pending disclosure and an override, an ineligible run, a
+criteria copy naming the release with two overrides, an ineligible run, a
 withdrawn run, an unexpected control, a second workload, the closed Llama 3.1 8B workload
 `l31-8b-c1024` run by SASH and by a second test prover); they edit the tree's copies of SASH's
 `system.yaml`, the closed workload and the data files, never the real ones. The second prover,
@@ -40,21 +40,14 @@ proving systems of its claim class, as `iproofs release freeze` requires (RFC-00
 has no row on that workload yet. The extras hold no second claim card of one system: the renderer
 draws one glyph per system page, so `iproofs site build` refuses a system with two card
 configurations (RFC-0016 SRC-1).
-
-Command (site.yml, until #146): `PYTHONPATH=harness/tests uv run python -m
-fixtures.placeholder_release --site OUT` builds the tree in a temporary directory, freezes it
-and runs `iproofs site build --out OUT` there. `--tree DIR` keeps the frozen tree instead.
 """
 
-import argparse
 import contextlib
 import hashlib
 import json
 import os
 import shutil
 import subprocess
-import sys
-import tempfile
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -721,7 +714,6 @@ def _release_yaml(release: dict[str, Any]) -> str:
 
 
 TARGET = "targets/example-lab/verify-under-60s.yaml"
-DISCLOSURE_URL = "https://example.org/placeholder/fixture-disclosure"
 
 
 def _extras_tree(root: Path) -> None:
@@ -808,9 +800,9 @@ def _extras_runs(root: Path, release: dict[str, Any], adapter: str, configs: lis
 
 
 def _criteria(root: Path, first: str, sash_first: str) -> None:
-    """The tree's criteria copy names the release, overrides FlashProve's Whole output checked
-    from the accepted C1 (OVR-4, its disclosure published) and holds SASH under a pending
-    disclosure (OVR-8). Test data only: the real criteria file is not changed."""
+    """The tree's criteria copy names the release and overrides Whole output checked from the
+    accepted controls (OVR-4): FlashProve's from C1, SASH's from C2. Test data only: the real
+    criteria file is not changed."""
     path = root / "web/_data/criteria.json"
     crit = json.loads(path.read_text())
     crit["release"] = RELEASE
@@ -819,10 +811,10 @@ def _criteria(root: Path, first: str, sash_first: str) -> None:
             cell = row["cells"]["whole_output"]
             cell |= {"stated": "partly", "state": "no",
                      "contradicted_by": [{"control": "C1", "run_id": first}]}  # fmt: skip
-            row["disclosures"] = [{"run_id": first, "state": "published", "date": "2026-12-10",
-                                   "url": DISCLOSURE_URL}]  # fmt: skip
         if row["id"] == "sash":
-            row["disclosures"] = [{"run_id": sash_first, "state": "pending"}]
+            cell = row["cells"]["whole_output"]
+            cell |= {"stated": "yes", "state": "no",
+                     "contradicted_by": [{"control": "C2", "run_id": sash_first}]}  # fmt: skip
     write_json(path, crit)
 
 
@@ -859,36 +851,3 @@ def build_site(root: Path, out: Path, *, extras: bool = False) -> Path:
         if code := cli.main(["site", "build", "--out", str(out)]):
             raise RuntimeError(f"iproofs site build exited {code}")
     return out
-
-
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog="python -m fixtures.placeholder_release")
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--site", type=Path, help="write the site built from the release here")
-    group.add_argument("--tree", type=Path, help="keep the frozen placeholder tree here")
-    parser.add_argument("--extras", action="store_true", help="test cases; never deployed")
-    args = parser.parse_args(argv)
-    if any(ROOT.glob("releases/*/index.json")):
-        print("a frozen release exists: build the site with `uv run iproofs site build`",
-              file=sys.stderr)  # fmt: skip
-        return 1
-    if args.tree is not None:
-        tree = args.tree.resolve()
-        tree.mkdir(parents=True, exist_ok=False)
-        build_placeholder(tree, extras=args.extras)
-        return freeze_tree(tree)
-    out = args.site.resolve()
-    from iproofs import cli  # noqa: PLC0415
-
-    with tempfile.TemporaryDirectory(prefix="iproofs-placeholder-") as tmp:
-        tree = Path(tmp) / "repo"
-        tree.mkdir()
-        build_placeholder(tree, extras=args.extras)
-        if code := freeze_tree(tree):
-            return code
-        with _cwd(tree):
-            return cli.main(["site", "build", "--out", str(out)])
-
-
-if __name__ == "__main__":
-    sys.exit(main())

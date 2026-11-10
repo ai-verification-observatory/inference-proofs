@@ -8,8 +8,6 @@
 The same models, the same reference hardware, the same timing rules,<br>
 and a claim card beside every number saying what the proof establishes.</p>
 
-**Status:** research phase.
-
 <a href="https://github.com/ai-verification-observatory/inference-proofs/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ai-verification-observatory/inference-proofs/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white"></a>
 <a href="releases/v0.1/release.yaml"><img alt="Benchmark release v0.1" src="https://img.shields.io/badge/release-v0.1-8A2BE2?style=for-the-badge"></a>
 <a href="https://www.inferenceproofs.ai"><img alt="Site" src="https://img.shields.io/badge/site-inferenceproofs.ai-0B0B0B?style=for-the-badge"></a>
@@ -242,7 +240,7 @@ Release v0.1 is frozen in [`releases/v0.1/`](releases/v0.1/): two systems on the
 | FlashProve | [`anthropics/FlashProve@9e2bdd8`](https://github.com/anthropics/FlashProve/tree/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c) (v0.16.0) | Llama 4 Maverick, 4-bit GGUF (`fp-maverick-w1024-b1`, `-b24`) | [`exact-match-cp-verify`](systems/flashprove/claim.yaml) |
 | Production serving (reference) | vLLM v0.32.0 | the same models at the publisher's release precision | not a proof |
 
-Native rows sit side by side, never head to head: the systems prove different statements on different models. Neither claim card has been reviewed by its system's maintainers yet, and the site says so on every row. The figures, with their scopes, sample sizes and ranges, are on **[inferenceproofs.ai](https://www.inferenceproofs.ai)** and in [`releases/v0.1/index.json`](releases/v0.1/index.json); this README quotes none, so it cannot drift from them.
+Native rows sit side by side, never head to head: the systems prove different statements on different models. The figures, with their scopes, sample sizes and ranges, are on **[inferenceproofs.ai](https://www.inferenceproofs.ai)** and in [`releases/v0.1/index.json`](releases/v0.1/index.json); this README quotes none, so it cannot drift from them.
 
 > [!NOTE]
 > One control outcome sits outside its expected set and is kept as recorded: a C6 bit flip on FlashProve run `2026-11-08-…-b1-prover-h200-hosted-3` landed in a proof part the adapter's `verify` does not read, and was accepted. That is a gap in the control design, not a finding against FlashProve; the [RFC-0008 amendment](rfcs/0008-negative-controls.md) now restricts C5, C6 and C8 to the parts a verifier declares it reads. Stored records are never rewritten; a rerun is a new record.
@@ -335,11 +333,11 @@ inference-proofs/
 
 ## Contributing
 
-Open an issue or a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)). Prover teams who want their system included: open an issue with your repository and the workloads you support, then follow the adapter guide, [systems/README.md](systems/README.md).
+Open an issue or a pull request ([CONTRIBUTING.md](CONTRIBUTING.md)). To add a system, follow the adapter guide, [systems/README.md](systems/README.md).
 
 ## Licence
 
-Code is licensed under [Apache-2.0](LICENSE). Specifications, data, results and reports are licensed under [CC BY 4.0](LICENSES/CC-BY-4.0.txt). The boundary is fixed by [RFC-0001](rfcs/0001-process-and-governance.md#governance-files) (INV-GOV-6):
+Code is licensed under [Apache-2.0](LICENSE). Specifications, data, results and reports are licensed under [CC BY 4.0](LICENSES/CC-BY-4.0.txt).
 
 The boundary:
 

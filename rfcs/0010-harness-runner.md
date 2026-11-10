@@ -1,12 +1,8 @@
 # RFC-0010: Harness runner and job lifecycle
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha
 - Requires: RFC-0004, RFC-0005, RFC-0008, RFC-0011, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -262,19 +258,16 @@ class Runner:
 - Sequential jobs leave the GPU idle during `verify` and controls, which run on CPU. Pipelining is possible later but would contaminate CPU measurements of the next job.
 - Crash recovery relies on pid liveness; a pid reused after reboot could make a stale staging dir look alive. The lock records boot id (`/proc/sys/kernel/random/boot_id`) as well as pid to rule that out.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-- New RFC; no harness exists yet. The draft SPEC's job description (Section 3 of the initial design) is superseded by this RFC.
-- v0.1-alpha ships the state machine with `InProcessRunner` and `DockerRunner` against `systems/fake`. v0.1-beta adds GPU sampling and the real adapters.
+- The SPEC's earlier job description (Section 3 of the initial design) is superseded by this RFC.
+- The state machine ships with `InProcessRunner` and `DockerRunner` against `systems/fake`; GPU sampling and the real adapters follow.
 - CLI changes follow the harness SemVer policy ([09-release-and-versioning](../docs/spec/09-release-and-versioning.md)); exit codes are part of the public API and change only with a major version (or a minor version while 0.x, with a CHANGELOG entry).
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): `iproofs run` gains `--load matched|high` and `--gpus LIST`; `iproofs fetch-model` gains `--serving RECORD`; `iproofs serving check-mirror RECORD` and `iproofs serving pin RECORD` are new (network, RFC-0014 SM-3). The manifest gains `workload.load_point`, `workload.batch_size_run`, `workload.batches_per_session_run`, `workload.prompt_count_run`, `workload.prompt_prefix_digest`, `engine {name, version, image, interface}` and `serving_model {id, version, digest, source {repo, revision}, publisher {repo, revision}}` (the join keys are `serving_model.digest` and `engine.image`; id and version are for display), and run.json `inputs` gains `gpu_count`. Configuration grouping in the release adds `load_point` (absent = `matched`, so stored runs group as before). The runner raises `config` before `info` when the profile's GPU count is missing or 0, when the bound GPU count differs from it, when a serve-role system runs on a non-serving profile or another system on a serving profile, and when a larger-count serving job follows a successful smaller-count run of the workload (RFC-0015 SRV-6).
+Amendment of 2026-11-09 (RFC-0015 SRV-6 production serving): `iproofs run` gains `--load matched|high` and `--gpus LIST`; `iproofs fetch-model` gains `--serving RECORD`; `iproofs serving check-mirror RECORD` and `iproofs serving pin RECORD` are new (network, RFC-0014 SM-3). The manifest gains `workload.load_point`, `workload.batch_size_run`, `workload.batches_per_session_run`, `workload.prompt_count_run`, `workload.prompt_prefix_digest`, `engine {name, version, image, interface}` and `serving_model {id, version, digest, source {repo, revision}, publisher {repo, revision}}` (the join keys are `serving_model.digest` and `engine.image`; id and version are for display), and run.json `inputs` gains `gpu_count`. Configuration grouping in the release adds `load_point` (absent = `matched`, so stored runs group as before). The runner raises `config` before `info` when the profile's GPU count is missing or 0, when the bound GPU count differs from it, when a serve-role system runs on a non-serving profile or another system on a serving profile, and when a larger-count serving job follows a successful smaller-count run of the workload (RFC-0015 SRV-6).
 
-Amendment of 2026-11-09 (Draft, RFC-0015 SRV-1 sizing): `iproofs serving size-session RUN_DIR` is new. It reads a stored matched serving run (run.json, manifest.json) and the workload record, prints the computed `batches_per_session_run` with its inputs as JSON, and refuses (`config`, exit 2) a failed run, a high-load run or one without a steady scope. CPU only, no network.
+Amendment of 2026-11-09 (RFC-0015 SRV-1 sizing): `iproofs serving size-session RUN_DIR` is new. It reads a stored matched serving run (run.json, manifest.json) and the workload record, prints the computed `batches_per_session_run` with its inputs as JSON, and refuses (`config`, exit 2) a failed run, a high-load run or one without a steady scope. CPU only, no network.
 
 ## Testing Strategy
 
@@ -293,11 +286,11 @@ Amendment of 2026-11-09 (Draft, RFC-0015 SRV-1 sizing): `iproofs serving size-se
 - `test_derived_from_stored_raw`: altering a raw value in a written `run.json` makes `iproofs derive --check` fail.
 - `test_repetitions_below_minimum_marked`: `--repetitions 1` sets `repetitions_below_minimum: true`.
 
-## Open Questions
+## Decisions
 
-- Resolved Q1: controls run once per configuration, on the first successful repetition ([RFC-0008](0008-negative-controls.md#where-controls-run)).
-- OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-01-31): Whether single-thread verify should cover every proof rather than the first. Default: first proof only.
-- OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2026-12-01): The size of the archive cap for io dirs kept with `--keep-io`. Default: no cap; the runner warns when free disk drops below the profile's 500 GB requirement.
+- Q1. Controls run once per configuration, on the first successful repetition ([RFC-0008](0008-negative-controls.md#where-controls-run)).
+- Q2. Single-thread verify covers the first proof only.
+- Q3. Io dirs kept with `--keep-io` have no size cap; the runner warns when free disk drops below the profile's 500 GB requirement.
 
 ## References
 

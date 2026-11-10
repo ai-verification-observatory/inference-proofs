@@ -1,12 +1,8 @@
 # RFC-0003: Workloads, prompt sets and divisions
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha (schema); v0.1-beta (model fetch and prompt materialisation)
 - Requires: RFC-0002, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -124,9 +120,9 @@ The model revision, file hashes and parameter counts are filled in the implement
 
 ### Closed workloads
 
-| ID | Model | Precision | prompt + output tokens | Batch | Batches per session | Prompts per job | Phase | Claim class | Status |
-|---|---|---|---|---|---|---|---|---|---|
-| `l31-8b-c1024` | Llama-3.1-8B, the files and `model.digest` of `sash-l31-8b-c1024` | W8A8 | 1,024 + 64 greedy continuation | 1 | 1 | 1 | both | `greedy-continuation/exact-match/committed-weights` | candidate (Q7) |
+| ID | Model | Precision | prompt + output tokens | Batch | Batches per session | Prompts per job | Phase | Claim class |
+|---|---|---|---|---|---|---|---|---|
+| `l31-8b-c1024` | Llama-3.1-8B, the files and `model.digest` of `sash-l31-8b-c1024` | W8A8 | 1,024 + 64 greedy continuation | 1 | 1 | 1 | both | `greedy-continuation/exact-match/committed-weights` |
 
 The owner decided on 2026-11-08 that v0.1 carries one shared workload on Llama 3.1 8B in the closed division, so that rows on one model compare directly. Its inputs are those of `sash-l31-8b-c1024`: the same model repository, revision, files and digest, tokenizer, corpus, precision and shape. Two workloads may pin the same files; the digest names the files, not the workload, and the fetch rule checks it the same way for both. A closed workload is a different workload from a native one with the same inputs: its rows are compared within it and never with the native workload's rows (INV-WL-5).
 
@@ -209,7 +205,7 @@ Every system declares, in `system.yaml` (RFC-0005) and its claim card `coverage.
 - Next-token prefill proof (FlashProve): the window's positions, `prompt_tokens` per request.
 - Segment grid (SASH): the positions in the grid, `prompt_tokens + output_tokens` per sequence, as the adapter declares from upstream documentation.
 
-RISK: SASH's segment grid does not map onto per-request proofs. If the adapter cannot declare tokens covered as a function of the shape from upstream documentation, the workload's rows carry `tokens_covered` with `null_reason: missing_input` and per-token metrics are not computed. Resolution plan: the SASH adapter issue confirms the grid geometry from the upstream documentation at the pin before the first beta run.
+RISK: SASH's segment grid does not map onto per-request proofs. If the adapter cannot declare tokens covered as a function of the shape from upstream documentation, the workload's rows carry `tokens_covered` with `null_reason: missing_input` and per-token metrics are not computed. The SASH adapter confirmed the grid geometry from the upstream documentation at the pin (Q4).
 
 ### Divisions
 
@@ -221,9 +217,9 @@ v0.1 has native workloads and one closed workload, `l31-8b-c1024` (§Closed work
 
 ### Choosing common workloads
 
-A candidate common workload is accepted, by RFC, when at least two systems run it through their adapters with no upstream change. Preference order: a small dense transformer of standard architecture with public weights that every prover can support; a mid-size open model in the 7B to 9B range that at least two provers support; a mixture-of-experts model once two provers support one. Each common workload fixes one claim class.
+A common workload's rows enter a release when at least two systems run it through their adapters with no upstream change. Preference order: a small dense transformer of standard architecture with public weights that every prover can support; a mid-size open model in the 7B to 9B range that at least two provers support; a mixture-of-experts model once two provers support one. Each common workload fixes one claim class.
 
-A candidate's file may land before it is accepted (`l31-8b-c1024`). Until a second system with its class runs it through an adapter, its rows enter no release and the site shows none (Q7, default). `iproofs release freeze` enforces this: a release whose kept runs of a closed workload include completed runs from fewer than two distinct proving systems whose cards have the workload's exact class, or a proving configuration on it whose card has another class, stops with a `config` error naming the workload (RFC-0009 §Freeze algorithm, step 4). Further common workloads are chosen for v0.2 by the same rule.
+A common workload's file may land before then (`l31-8b-c1024`). Until a second system with its class runs it through an adapter, its rows enter no release and the site shows none (Q7). `iproofs release freeze` enforces this: a release whose kept runs of a closed workload include completed runs from fewer than two distinct proving systems whose cards have the workload's exact class, or a proving configuration on it whose card has another class, stops with a `config` error naming the workload (RFC-0009 §Freeze algorithm, step 4). Further common workloads are chosen by the same rule.
 
 ### Failure modes
 
@@ -261,20 +257,17 @@ A candidate's file may land before it is accepted (`l31-8b-c1024`). Until a seco
 - Full-size Maverick weights are large to fetch and hash on every new machine.
 - The corpus choice is a judgement call; a different corpus could shift timings for data-dependent provers.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-1. v0.1-alpha: `workload/1` and `corpus/1` schemas with examples; loader with INV-WL-4; the generator against a toy tokenizer fixture.
-2. v0.1-beta: the four workload files with pinned revisions and hashes; `corpus.yaml` with chosen texts; `fetch-model` and `prompts build` on real models.
-3. The earlier draft's shape fields (prompt length, output length, batch size, context window) are kept and `batches_per_session` is added. No results exist yet, so nothing is relabelled.
+1. `workload/1` and `corpus/1` schemas with examples; loader with INV-WL-4; the generator against a toy tokenizer fixture.
+2. The four workload files with pinned revisions and hashes; `corpus.yaml` with chosen texts; `fetch-model` and `prompts build` on real models.
+3. The earlier shape fields (prompt length, output length, batch size, context window) are kept and `batches_per_session` is added. No results exist yet, so nothing is relabelled.
 4. The amendment of 2026-11-08 adds `precision.weight_bits` (§Weight bits), the input RFC-0004 D-SPAB-S needs (owner decision of 2026-11-08: prover time per bit of active weights and the overhead against plain serving are the two figures that compare provers across models). The field is optional, so `workload/1` stays at major 1 (RFC-0012); every file in `workloads/` gains it with its source, and no workload version changes (WB-4: the field was absent). Stored runs (`results/v0.1`) are not changed (APP-1): they carry no run.json `inputs`, and a release gets their D-SPAB-S from the workload record at the release commit (RFC-0004 Q3). Following review, the amendment adds `covers`, makes the loader compute a `file_size` width instead of checking a typed one, adds run.json `inputs` (an optional `run/1` property, RFC-0012) and the version rule of WB-4, and settles Q6 by RFC-0007 rule 1.
-5. #334: `l31-8b-c1024` lands as a candidate closed workload, the runner checks a closed workload's class at job resolution, and the release freeze refuses a closed workload's rows from fewer than two systems of its class. No system lists it in its `system.yaml` yet, so no job of it runs; SASH lists it with a new adapter image, and each other system that joins does so by its own pull request.
-6. The second amendment of 2026-11-08 resolves Q5 (owner decision of that date): the basis `computed` (WB-5) with the method `gguf-active-mean/1` (`iproofs.gguf`, a pure-Python GGUF header reader, no new dependency), the optional `method` property of `precision.weight_bits` (`workload/1` stays at major 1, RFC-0012), the recheck in `iproofs fetch-model` and its `--headers-only` option (RFC-0010), and the stored headers of the Maverick files for CI. The Maverick workloads change from 4.5 `stated` `part` to 4.83916475612899 `computed` `all` at version 1, since no run had recorded their weight bits (WB-4); the SASH workloads and `l31-8b-c1024` do not change.
+5. #334: `l31-8b-c1024` lands as a closed workload, the runner checks a closed workload's class at job resolution, and the release freeze refuses a closed workload's rows from fewer than two systems of its class. No system lists it in its `system.yaml` yet, so no job of it runs; SASH lists it with a new adapter image, and each other system that joins does so by its own pull request.
+6. The second amendment of 2026-11-08 settles Q5: the basis `computed` (WB-5) with the method `gguf-active-mean/1` (`iproofs.gguf`, a pure-Python GGUF header reader, no new dependency), the optional `method` property of `precision.weight_bits` (`workload/1` stays at major 1, RFC-0012), the recheck in `iproofs fetch-model` and its `--headers-only` option (RFC-0010), and the stored headers of the Maverick files for CI. The Maverick workloads change from 4.5 `stated` `part` to 4.83916475612899 `computed` `all` at version 1, since no run had recorded their weight bits (WB-4); the SASH workloads and `l31-8b-c1024` do not change.
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): none of this RFC's rules change and no workload version changes. The production-serving weights are pinned outside the workload file, in `workloads/serving/<id>.yaml` (`serving-model/1`), so the workload digests and the stored runs' inputs stay as they are.
+Amendment of 2026-11-09 (RFC-0015 SRV-6 production serving): none of this RFC's rules change and no workload version changes. The production-serving weights are pinned outside the workload file, in `workloads/serving/<id>.yaml` (`serving-model/1`), so the workload digests and the stored runs' inputs stay as they are.
 
 ## Testing Strategy
 
@@ -296,17 +289,17 @@ Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): non
 - `test_freeze.py::test_closed_workload_needs_two_systems` (hand cases of the count: two systems, one system twice, none, a card of another class, no card) and `::test_closed_workload_of_one_system_stops_freeze` (the site's test release without its second prover's runs does not freeze).
 - Schema examples: `valid/sash-l31-8b-c4096.yaml`, `valid/closed-with-class.yaml`, `valid/weight-bits-file-size.yaml`; `invalid/branch-revision.yaml` (`revision: main`), `invalid/sampled-decoding.yaml`, `invalid/closed-without-class.yaml`, `invalid/weight-bits-zero.yaml`, `invalid/weight-bits-over-64.yaml`, `invalid/weight-bits-unknown-basis.yaml`, `invalid/weight-bits-no-source.yaml`, `invalid/weight-bits-no-covers.yaml`, `invalid/weight-bits-file-size-without-files.yaml`, `invalid/weight-bits-file-size-typed.yaml`, `invalid/weight-bits-file-size-part.yaml`, `invalid/weight-bits-stated-with-files.yaml`, `invalid/context-too-small.yaml` (schema cannot express it; loader test `test_context_window_check`).
 
-## Open Questions
+## Decisions
 
-- Resolved Q1: the default holds. The corpus is eight Project Gutenberg plain-text eBooks, public domain in the United States, listed with URLs and hashes in [`workloads/prompts/corpus.yaml`](../workloads/prompts/corpus.yaml); selection and licence basis in [`workloads/prompts/README.md`](../workloads/prompts/README.md). Corpus digest `sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a`.
-- Resolved Q2 (owner decision, 2026-11-08): the mid-size model is Llama 3.1 8B, in the closed workload `l31-8b-c1024` (§Closed workloads). Of the systems the site lists, SASH alone runs it through an adapter at the pins read. The sources of four others name it: TOPLOC's paper and experiments (bfloat16), Verde's paper (FP32), and the Private ML SDK's vLLM service and end-to-end test at its pin (precision not stated); zkPyTorch's paper names "Llama-3 (8B parameters)" and has no public code ([`workloads/README.md`](../workloads/README.md#which-systems-sources-name-the-model)). None of them has a claim card, so none has the workload's class yet.
-- OPEN QUESTION Q3 (owner: AbdelStark, resolve by: RFC for v0.2): whether decode-heavy shapes (long outputs) get their own workload family. Default: no.
-- Resolved Q4: one SASH grid proves every prompt and continuation position of its sequence (the recorded 4,096 + 512 run is 9 blocks of 512 positions over 32 layers plus 2 head segments, 290 segments), so `tokens_covered` is `prompt_tokens + output_tokens` per sequence, exact, for both shapes. Upstream states no geometry for the 1,024 + 64 shape; the count does not depend on it. Sources, at the pinned commits: [`systems/sash/README.md`](../systems/sash/README.md#grid-geometry-and-proof-release).
-- Resolved Q5 (owner decision, 2026-11-08): the record keeps a width computed from the files wherever they hold the weights at the precision as proved, so that RFC-0004 D-SPAB-S compares provers on one convention and can be sorted. The basis is `computed` (WB-5, the `tensor_table` alternative this question named), with method `gguf-active-mean/1`: the mean storage bits per active weight of the pinned GGUF files, block scales included, routed experts weighted by experts used over expert count, checked against the model card's active count. The Maverick workloads record 4.83916475612899 bits, `covers: all` (§v0.1 values), in place of Unsloth's stated 4.5 (`covers: part`); no run had recorded weight bits (no run.json in `results/v0.1` holds `inputs`), so their version stays 1 (WB-4). The SASH workloads and `l31-8b-c1024` keep 8, `stated`, `covers: part`: their pinned files are BF16 and SASH quantizes them at load time, so the proved width is not in the files. Their D-SPAB-S rows stay out of sorting (RFC-0004 INV-DERIVE-7), for three reasons: SASH's statement covers the weight matmuls only and states no width for the embedding table or the RMSNorm weights; its 8 counts the int8 code without the per-channel scale, while WB-5 counts block scales, so sorting the two together would order a difference of convention; and no method computes the proved width from files that do not hold it. A width computed from SASH's quantizer by the harness would infer a property the system does not state (AGENTS.md rule 9).
-- Resolved Q6: adding `precision.weight_bits` changes each workload file's `file_digest` (WB-4); the manifest keeps recording `file_digest`. A change that alters inputs is a new workload version (§Workload file).
-- OPEN QUESTION Q7 (owner: AbdelStark, resolve by: v0.1 freeze): whether the two-system rule holds for `l31-8b-c1024`. Default: it holds; the file lands now, and its rows publish once a second system with its class runs it through an adapter with no upstream change. `iproofs release freeze` enforces it (§Choosing common workloads); a test release built for the site's layout tests holds a second, fixture-only prover with the class so that its closed table is one the freeze admits.
-- OPEN QUESTION Q8 (owner: AbdelStark, resolve by: v0.1 freeze): which claim class `l31-8b-c1024` fixes. Default: `greedy-continuation/exact-match/committed-weights`, SASH's card class.
-- OPEN QUESTION Q9 (owner: AbdelStark, resolve by: v0.1 freeze): the precision and shape of `l31-8b-c1024`. Default: those of `sash-l31-8b-c1024` (W8A8; 1,024 + 64, batch 1). Its `precision.weight_bits` follows the same workload: 8, from SASH's own quantizer (WB-1, `covers: part`), since SASH is the one system with an adapter for this model, until a second system that runs `l31-8b-c1024` states another width for its W8A8 weights; that correction is a new workload version (WB-4). Alternatives: 4,096 + 512, the shape upstream SASH records; bf16, the precision TOPLOC's experiments name; FP32, the precision Verde's paper names.
+- Q1. The corpus is eight Project Gutenberg plain-text eBooks, public domain in the United States, listed with URLs and hashes in [`workloads/prompts/corpus.yaml`](../workloads/prompts/corpus.yaml); selection and licence basis in [`workloads/prompts/README.md`](../workloads/prompts/README.md). Corpus digest `sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a`.
+- Q2. The mid-size model is Llama 3.1 8B, in the closed workload `l31-8b-c1024` (§Closed workloads). Of the systems the site lists, SASH alone runs it through an adapter at the pins read. The sources of four others name it: TOPLOC's paper and experiments (bfloat16), Verde's paper (FP32), and the Private ML SDK's vLLM service and end-to-end test at its pin (precision not stated); zkPyTorch's paper names "Llama-3 (8B parameters)" and has no public code ([`workloads/README.md`](../workloads/README.md#which-systems-sources-name-the-model)). None of them has a claim card, so none has the workload's class yet.
+- Q3. Decode-heavy shapes (long outputs) get no workload family of their own.
+- Q4. One SASH grid proves every prompt and continuation position of its sequence (the recorded 4,096 + 512 run is 9 blocks of 512 positions over 32 layers plus 2 head segments, 290 segments), so `tokens_covered` is `prompt_tokens + output_tokens` per sequence, exact, for both shapes. Upstream states no geometry for the 1,024 + 64 shape; the count does not depend on it. Sources, at the pinned commits: [`systems/sash/README.md`](../systems/sash/README.md#grid-geometry-and-proof-release).
+- Q5. The record keeps a width computed from the files wherever they hold the weights at the precision as proved, so that RFC-0004 D-SPAB-S compares provers on one convention and can be sorted. The basis is `computed` (WB-5), with method `gguf-active-mean/1`: the mean storage bits per active weight of the pinned GGUF files, block scales included, routed experts weighted by experts used over expert count, checked against the model card's active count. The Maverick workloads record 4.83916475612899 bits, `covers: all` (§v0.1 values), in place of Unsloth's stated 4.5 (`covers: part`); no run had recorded weight bits (no run.json in `results/v0.1` holds `inputs`), so their version stays 1 (WB-4). The SASH workloads and `l31-8b-c1024` keep 8, `stated`, `covers: part`: their pinned files are BF16 and SASH quantizes them at load time, so the proved width is not in the files. Their D-SPAB-S rows stay out of sorting (RFC-0004 INV-DERIVE-7), for three reasons: SASH's statement covers the weight matmuls only and states no width for the embedding table or the RMSNorm weights; its 8 counts the int8 code without the per-channel scale, while WB-5 counts block scales, so sorting the two together would order a difference of convention; and no method computes the proved width from files that do not hold it. A width computed from SASH's quantizer by the harness would infer a property the system does not state (AGENTS.md rule 9).
+- Q6. Adding `precision.weight_bits` changes each workload file's `file_digest` (WB-4); the manifest keeps recording `file_digest`. A change that alters inputs is a new workload version (§Workload file).
+- Q7. The two-system rule holds for `l31-8b-c1024`: its rows publish once a second system with its class runs it through an adapter with no upstream change. `iproofs release freeze` enforces it (§Choosing common workloads); a test release built for the site's layout tests holds a second, fixture-only prover with the class so that its closed table is one the freeze admits.
+- Q8. `l31-8b-c1024` fixes the claim class `greedy-continuation/exact-match/committed-weights`, SASH's card class.
+- Q9. `l31-8b-c1024` has the precision and shape of `sash-l31-8b-c1024` (W8A8; 1,024 + 64, batch 1). Its `precision.weight_bits` follows the same workload: 8, from SASH's own quantizer (WB-1, `covers: part`), since SASH is the one system with an adapter for this model, until a second system that runs `l31-8b-c1024` states another width for its W8A8 weights; that correction is a new workload version (WB-4).
 
 ## References
 

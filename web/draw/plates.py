@@ -30,11 +30,8 @@ from .words import (
 def glyph(rid):
     """One criteria row as the pages draw it: six states in slot order, each with its property,
     word, reason, quotes and the reason of the system's own statement outside the pin, which
-    has no state and is never part of one (RFC-0016 SRC-3).
-    A row under a pending disclosure (RFC-0016 OVR-8) is not drawn: `states` are all None, and
-    each cell keeps the stated state the system page prints beside the notice."""
+    has no state and is never part of one (RFC-0016 SRC-3)."""
     row = S.CRIT["rows"][rid]
-    drawn = row["drawn"]
     cells = []
     for i, p in enumerate(S.PROPS):
         c = row["cells"][p["id"]]
@@ -43,8 +40,7 @@ def glyph(rid):
                       "state": c["state"], "word": STATE_WORD[c["state"]],
                       "reason": c.get("reason") or "", "quotes": c["quotes"],
                       "outside": outside})  # fmt: skip
-    return {"states": [c["state"] if drawn else None for c in cells], "cells": cells,
-            "drawn": drawn}  # fmt: skip
+    return {"states": [c["state"] for c in cells], "cells": cells}
 
 
 def states_said(g, outside=False):
@@ -61,8 +57,6 @@ def states_said(g, outside=False):
 
 
 def aria(g, name, outside=False):
-    if not g["drawn"]:
-        return f"{name}: no state is drawn while a disclosure is pending."
     return f"{name}: {states_said(g, outside)}"
 
 

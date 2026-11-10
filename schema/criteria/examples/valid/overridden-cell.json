@@ -456,14 +456,6 @@
           "stated": "partly"
         }
       },
-      "disclosures": [
-        {
-          "date": "2026-12-10",
-          "run_id": "2026-11-25-flashprove-fp-maverick-w1024-b24-prover-h100-1",
-          "state": "published",
-          "url": "https://example.org/disclosure"
-        }
-      ],
       "family": "proved",
       "id": "flashprove",
       "name": "FlashProve",

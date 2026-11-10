@@ -1,7 +1,4 @@
 # FlashProve (RFC-0005). Values and their upstream sources: systems/flashprove/README.md.
-# RFC-0001 §System inclusion: no FlashProve team member has been reached yet, so `maintainers` is
-# empty and no consent is recorded. Rows carry the note "system maintainers not reached" and the
-# claim card stays unreviewed until a system maintainer is named; silence is never consent.
 # RFC-0014 B7: built by the images workflow from main at 4f1a295e06d52e0e3484f3c88005a1dcdcbd59fb
 # (adapter_dirty false) and pushed to the project registry.
 schema: "system/1"
@@ -15,7 +12,6 @@ upstream:
 image:
   repository: "ghcr.io/ai-verification-observatory/flashprove"
   digest: "sha256:7ca6c9ee8c6568b9b925a5c8a8d8eb2f3cd7e394b0f047cde3096d99145a91f8"
-maintainers: []
 workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
 profile: "prover-h100"
 deterministic_proofs: false

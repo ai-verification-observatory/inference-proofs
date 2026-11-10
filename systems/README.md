@@ -1,12 +1,12 @@
 # Writing an adapter
 
-This page is for a prover team, or a contributor with the team's consent, who wants a system measured. An adapter is a thin wrapper around the upstream tools, pinned at a full commit hash. It never patches upstream source and never passes an option the upstream documentation does not name (AGENTS.md rule 1, INV-ADAPTER-1). The normative rules are the RFCs linked from each section; this guide restates none of them differently. Where the two disagree, the RFC wins.
+This page is for anyone who wants a system measured. An adapter is a thin wrapper around the upstream tools, pinned at a full commit hash. It never patches upstream source and never passes an option the upstream documentation does not name (AGENTS.md rule 1, INV-ADAPTER-1). The normative rules are the RFCs linked from each section; this guide restates none of them differently. Where the two disagree, the RFC wins.
 
 `systems/fake` is the worked example: a complete adapter in one standard-library Python file that CI runs end to end ([Walkthrough](#walkthrough-systemsfake)).
 
 ## 1. Ask first
 
-Open an issue naming the upstream repository, the full commit hash and the workloads the system supports. The adapter, `system.yaml` and `claim.yaml` land by pull request. The claim card stays unreviewed (`reviewed_by: []`) until the system maintainers review it.
+Open an issue naming the upstream repository, the full commit hash and the workloads the system supports. The adapter, `system.yaml` and `claim.yaml` land by pull request.
 
 ## 2. Directory layout
 
@@ -64,7 +64,7 @@ Gate G7 checks pins in every Dockerfile ([RFC-0013 §G7](../rfcs/0013-validation
 Register controls from your upstream suite in `systems/<name>/controls.yaml` (schema `system-controls/1`, [RFC-0008 §System-specific controls](../rfcs/0008-negative-controls.md#system-specific-controls)). The harness runs them after the shared controls and records them with `source: system`:
 
 - `weakened_prover`: the harness runs `prove` in its own io dir with `control: true` and `control_flags` passed explicitly, then verifies every proof with the run's recorded commitment. With `requires_unbound_edge`, the control passes only if your `out.json` `binding_report` marks that edge unbound: a JSON object with `edges`, either `{"<edge>": "bound" | "unbound"}` or a list of `{edge, state}`. This shows the switch is honest and the claim card's binding table accurate.
-- `fixture_proof`: an upstream-supplied proof verified as is. Until RFC-0008 Q5 says how its bytes reach the harness, it is recorded as `not_applicable` with that reason.
+- `fixture_proof`: an upstream-supplied proof verified as is. It is recorded as `not_applicable` with that reason (RFC-0008 Q5).
 
 `harness/tests/fixtures/controls/fake-broken-controls.yaml` shows one control of each kind.
 

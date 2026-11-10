@@ -1,12 +1,8 @@
 # RFC-0011: External measurement and resource sampling
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-beta
 - Requires: RFC-0004, RFC-0005, RFC-0006, RFC-0010
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -14,7 +10,7 @@ This RFC specifies how the harness measures a job from outside the adapter conta
 
 ## Motivation
 
-The benchmark's numbers are only as good as the instruments behind them. PRD F9 asks for a harness that "measures externally": upstream figures come from scripts and records readers cannot always see (FlashProve's performance page says its measuring scripts are not in the repository, RFC-0007), so this project must not depend on code inside the container for its headline numbers. The draft SPEC listed the quantities (wall time, GPU memory peak at 10 Hz or faster, host memory from cgroup with file cache excluded, CPU time, energy, proof size) but not how to obtain each one correctly. Three details decide whether the numbers are right: cgroup files vanish when a container exits, page cache inflates `memory.peak`, and a proof's release time is invisible unless the adapter makes it observable. This RFC fixes all three.
+The benchmark's numbers are only as good as the instruments behind them. PRD F9 asks for a harness that "measures externally": upstream figures come from scripts and records readers cannot always see (FlashProve's performance page says its measuring scripts are not in the repository, RFC-0007), so this project must not depend on code inside the container for its headline numbers. The first SPEC listed the quantities (wall time, GPU memory peak at 10 Hz or faster, host memory from cgroup with file cache excluded, CPU time, energy, proof size) but not how to obtain each one correctly. Three details decide whether the numbers are right: cgroup files vanish when a container exits, page cache inflates `memory.peak`, and a proof's release time is invisible unless the adapter makes it observable. This RFC fixes all three.
 
 ## Goals
 
@@ -68,7 +64,7 @@ The container's own cgroup is removed by the runtime when the container exits, s
 - G-4. `<step>_host_memory_peak_kernel` = slice `memory.peak` after the call (bytes, includes page cache, exact for the slice, biased upward by at most `baseline_bytes`, which is recorded). `<step>_cpu_seconds` = (`usage_usec` after − `cpu_baseline_usec`) / 1e6.
 - G-5. `<step>_host_memory_peak_anon` = max over samples of `memory.stat` `anon` of the slice, sampled at 10 Hz by the sampler thread. It excludes file cache and is a sampled peak: a spike shorter than the sampling period can be missed.
 
-RISK: "host memory peak, file cache excluded" has no exact kernel counter in cgroup v2; the anon peak is sampled. Resolution: both numbers are published with their definitions (`kernel` exact including cache, `anon` sampled excluding cache), never one silently in place of the other. If a system's anon peak and kernel peak diverge by more than page cache explains in review, a follow-up RFC MAY add an eBPF-based peak.
+RISK: "host memory peak, file cache excluded" has no exact kernel counter in cgroup v2; the anon peak is sampled. Resolution: both numbers are published with their definitions (`kernel` exact including cache, `anon` sampled excluding cache), never one silently in place of the other. If a system's anon peak and kernel peak diverge by more than page cache explains in review, a later change MAY add an eBPF-based peak.
 
 ```python
 class CgroupReader:
@@ -226,15 +222,12 @@ On non-Linux hosts and in hosted CI (fake system only): the watcher uses polling
 - The anon peak is sampled and can miss short spikes (RISK above).
 - Release times under polling carry up to 10 ms error, recorded via `mechanism`.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-New RFC; no results exist. It replaces the measurement table of the draft SPEC §4 with mechanisms; the draft's "host memory peak, file cache excluded" becomes two labelled metrics. Fields introduced in `run/1` and `manifest/1` (RFC-0012): `events`, `sampler` summaries per step, `watcher.mechanism`, `selftest`, quantity `quality.degraded`. Adapters gain one obligation (atomic proof directories, RFC-0005) that the fake system implements first.
+This RFC replaces the measurement table of the first SPEC §4 with mechanisms; its "host memory peak, file cache excluded" becomes two labelled metrics. Fields introduced in `run/1` and `manifest/1` (RFC-0012): `events`, `sampler` summaries per step, `watcher.mechanism`, `selftest`, quantity `quality.degraded`. Adapters gain one obligation (atomic proof directories, RFC-0005) that the fake system implements first.
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): with several bound GPUs, the sampler reads them as one (`iproofs.measure.ManyGpus`): at each sample the memory used is the maximum over the GPUs and the utilisation the mean over them, so `<step>_gpu_memory_peak` is the maximum over GPUs and samples and `<step>_gpu_util_mean` and `_p95` are over samples of the per-sample mean; `<step>_gpu_energy` is the sum. Keeping each GPU's reading in `raw` is a later change. Visible unbound GPUs are read for RFC-0006 PC-GPU-IDLE only, when the machine record is taken; their readings feed no metric. A production-serving run requires `mechanism: inotify` from the release watcher (RFC-0015 SRV-1); a polled serving run fails `environment`.
+Amendment of 2026-11-09 (RFC-0015 SRV-6 production serving): with several bound GPUs, the sampler reads them as one (`iproofs.measure.ManyGpus`): at each sample the memory used is the maximum over the GPUs and the utilisation the mean over them, so `<step>_gpu_memory_peak` is the maximum over GPUs and samples and `<step>_gpu_util_mean` and `_p95` are over samples of the per-sample mean; `<step>_gpu_energy` is the sum. Keeping each GPU's reading in `raw` is a later change. Visible unbound GPUs are read for RFC-0006 PC-GPU-IDLE only, when the machine record is taken; their readings feed no metric. A production-serving run requires `mechanism: inotify` from the release watcher (RFC-0015 SRV-1); a polled serving run fails `environment`.
 
 ## Testing Strategy
 
@@ -261,10 +254,10 @@ GPU host (runbook, not hosted CI):
 - GH-OVERHEAD: 30-minute fake prove call; harness CPU at most 1 % of one CPU, p99 lateness at most 10 ms.
 - GH-NVML-PEAK: CUDA probe allocates 40 GiB on the bound GPU for 2 s; `memory_peak_mib` at least 40,960.
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-01-31): should verify calls on a separate verifier host use the same slice mechanism or a lighter reader? Default until resolved: same mechanism, same self-test on that host.
-- OPEN QUESTION Q2 (owner: AbdelStark, resolve by: 2027-01-31): does any v0.1 upstream write proofs incrementally at its pin? Default until resolved: each adapter declares `incremental_proofs` from the upstream documentation; the declaration is confirmed by the first GPU-host run and corrected by pull request.
+- Q1. Verify calls on a separate verifier host use the same slice mechanism, and the same self-test runs on that host.
+- Q2. Each adapter declares `incremental_proofs` from the upstream documentation; the first GPU-host run confirms the declaration, and a pull request corrects it if needed.
 
 ## References
 

@@ -1,6 +1,6 @@
 # 03. Data model
 
-Status: Draft 0.1. Normative detail lives in the RFCs named per object; where this section and an RFC disagree, the RFC takes precedence. Encoding, versioning, digests and identifiers are fixed by [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
+Normative detail lives in the RFCs named per object; where this section and an RFC disagree, the RFC takes precedence. Encoding, versioning, digests and identifiers are fixed by [RFC-0012](../../rfcs/0012-schemas-and-serialization.md).
 
 ## Purpose
 
@@ -10,7 +10,7 @@ This section lists every object the benchmark stores, its key, what it reference
 
 | Object | Schema | File | Key | References | Written by | Mutability | Owner RFC |
 |---|---|---|---|---|---|---|---|
-| Claim card | `claim/1` | `systems/<name>/claims/<configuration>.yaml` | (system, configuration, `card_version`) | upstream commit | system maintainers, by PR | PR reviewed by system maintainers; `card_version` increments on every merged change | [RFC-0002](../../rfcs/0002-claim-card.md) |
+| Claim card | `claim/1` | `systems/<name>/claims/<configuration>.yaml` | (system, configuration, `card_version`) | upstream commit | adapter author | PR; `card_version` increments on every merged change | [RFC-0002](../../rfcs/0002-claim-card.md) |
 | System manifest | `system/1` | `systems/<name>/system.yaml` | system | upstream commit, image digest, workloads, profiles, claim cards; declares `kind` (`prover`, `reference`, `test`), `incremental_proofs`, `proofs.{granularity, tokens_covered, steady_boundary, steady_approximate, verify_reads}`, `forbidden_flags` | adapter author | PR | [RFC-0005](../../rfcs/0005-adapter-contract.md) |
 | External figures | `external/1` | `systems/<name>/external.yaml` | (system, figure id) | upstream URL at a pinned commit | adapter author | PR | [RFC-0004](../../rfcs/0004-metrics-timing-grades.md) |
 | System controls | `system-controls/1` | `systems/<name>/controls.yaml` | (system, control id) | system manifest | adapter author | PR | [RFC-0008](../../rfcs/0008-negative-controls.md) |
@@ -65,11 +65,11 @@ Each invariant is checked by the named gate of [RFC-0013](../../rfcs/0013-valida
 | Object | States |
 |---|---|
 | Claim card | drafted -> frozen in a release by digest |
-| Workload | proposed -> accepted at version 1 -> new version on any change that alters a number; old versions stay |
+| Workload | version 1 -> new version on any change that alters a number; old versions stay |
 | Run | allocated (directory created) -> written (`completed` or `failed`) -> merged -> optionally superseded (by a later run's `replaces`) |
 | Release | `release.yaml` drafted -> frozen (`index.json` merged) |
 | Target | proposed by PR -> published; edits are new commits; a release evaluates the version present at its freeze |
 
 ## Schema versioning summary
 
-Every document carries `schema: "<name>/<major>"`. Additive optional fields keep the major; anything else bumps it and needs an RFC. Old majors stay in `schema/`, and readers support the current and previous major for at least one benchmark release. Full rules: [RFC-0012 §Schema versioning](../../rfcs/0012-schemas-and-serialization.md#schema-versioning) and [09-release-and-versioning.md §Schema majors](09-release-and-versioning.md#schema-majors).
+Every document carries `schema: "<name>/<major>"`. Additive optional fields keep the major; anything else bumps it. Old majors stay in `schema/`, and readers support the current and previous major for at least one benchmark release. Full rules: [RFC-0012 §Schema versioning](../../rfcs/0012-schemas-and-serialization.md#schema-versioning) and [09-release-and-versioning.md §Schema majors](09-release-and-versioning.md#schema-majors).

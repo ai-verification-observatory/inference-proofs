@@ -149,8 +149,7 @@ def board_row(cfg):
     figures, each a link to its own plate on the system page."""
     sid = cfg["system"]
     name, g, href = name_of(sid), glyph(sid), claims_href(cfg)
-    said = f'<p class="sr">{e(states_said(g))}</p>' if g["drawn"] else ""  # OVR-8: no state
-    cells = g["cells"] if g["drawn"] else None
+    said = f'<p class="sr">{e(states_said(g))}</p>'
     keys = e(json.dumps(row_keys(cfg), separators=(",", ":")))
     vals = "".join(
         f'<div class="vc" role="cell" data-col="{c}">{value_link(cfg, c, fig_href(cfg, c), name)}</div>'
@@ -160,7 +159,7 @@ def board_row(cfg):
 <div class="row" id="{e(sid)}" role="row" data-name="{e(name.lower())}" data-k="{keys}">
   <div class="r-main">
     <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
-      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=cells, hit=True)}<span class="tip"></span></a>
+      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=g["cells"], hit=True)}<span class="tip"></span></a>
       <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}">{e(name)}</a></h3>{said}<p class="wl">{pin_link(cfg)}</p></div>
       {model_lines(cfg)}
     </div>
@@ -255,7 +254,7 @@ def fig_href(cfg, col):
 
 
 # the overview's description, in its meta and share tags
-HOME_DESC = ("Six properties of one proof per system (draft criteria), and one row per system: "
+HOME_DESC = ("Six properties of one proof per system, and one row per system: "
              "overhead against production serving, then proving time, proof size and check time "
              "per token per Gbit of active weights, sortable by column.")  # fmt: skip
 

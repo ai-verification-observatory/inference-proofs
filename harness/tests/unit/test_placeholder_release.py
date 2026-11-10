@@ -1,4 +1,4 @@
-"""The placeholder frozen release the site is built from until v0.1 (fixtures/placeholder_release).
+"""The synthetic frozen release the site tests build from (fixtures/placeholder_release).
 
 Every number below is a placeholder fixture value, not a result: the expected digits are the
 ones the site's data snapshot printed before #320 (`web/_data/` at 39662bf), recomputed here by
@@ -6,9 +6,7 @@ hand from the fixture's raw values (module docstring of the fixture).
 """
 
 import json
-import os
 import subprocess
-import sys
 from pathlib import Path
 from typing import Any
 
@@ -239,7 +237,7 @@ def test_extras_cases(extras: Path) -> None:
     assert reasons["101"] == ["harness_dirty"]
     assert reasons["102"][0].startswith("superseded: fixture")
     config(doc, "flashprove", ph.SECOND_WORKLOAD)  # a second workload on the same model
-    # one card per system: a second card has no criteria row of its own until #318
+    # one card per system: the renderer draws one glyph per system page (RFC-0016 SRC-1)
     assert len([c for c in doc["claim_cards"] if c["system"] == "flashprove"]) == 1
     outside = {(c["system"], o["control_id"]) for c in doc["controls"]
                for o in c["outside_expected"]}  # fmt: skip
@@ -248,7 +246,8 @@ def test_extras_cases(extras: Path) -> None:
     criteria = json.loads((extras / "web/_data/criteria.json").read_text())
     assert criteria["release"] == "v0.1"
     rows = {r["id"]: r for r in criteria["rows"]}
-    assert rows["sash"]["disclosures"][0]["state"] == "pending"
+    sash = rows["sash"]["cells"]["whole_output"]
+    assert (sash["stated"], sash["state"]) == ("yes", "no")
     cell = rows["flashprove"]["cells"]["whole_output"]
     assert (cell["stated"], cell["state"]) == ("partly", "no")
     assert cell["contradicted_by"] == [{"control": "C1", "run_id": ph.run_id(
@@ -263,20 +262,6 @@ def test_repetitions_scale(tmp_path: Path) -> None:
         ph.build_placeholder(tmp_path / "none", repetitions=0)
 
 
-def test_refuses_when_a_release_is_frozen(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    """From #146 the site comes from `iproofs site build` at the root, not the placeholder."""
-    (tmp_path / "releases/v0.1").mkdir(parents=True)
-    (tmp_path / INDEX).write_text("{}\n")
-    monkeypatch.setattr(ph, "ROOT", tmp_path)
-    assert ph.main(["--site", str(tmp_path / "out")]) == 1
-    assert "iproofs site build" in capsys.readouterr().err
-
-
-# The site.yml build step, `PYTHONPATH=harness/tests uv run python <SITE_ARGS> web`, which
-# test_site_command_runs runs and test_site_workflow_runs_this_command holds site.yml to.
-SITE_ARGS = ("-m", "fixtures.placeholder_release", "--site")
 # What the build reads, so a change to any of it runs site.yml: the placeholder tree's copies
 # (`COPY`, the systems, web/), the release records, the harness and its fixtures, and the
 # pytest plugin `uv run pytest web` loads (pyproject addopts).
@@ -287,44 +272,16 @@ SITE_INPUTS = {"systems/**", "workloads/**", "releases/**", "results/**", "targe
 
 
 def test_site_workflow_runs_this_command() -> None:
-    """site.yml builds with the command test_site_command_runs runs, and runs on a change to
-    any input of the build, on pull requests and on main alike."""
+    """site.yml builds the frozen release with `iproofs site build`, and runs on a change to any
+    input of the build, on pull requests and on main alike."""
     doc = yaml.safe_load((ROOT / ".github/workflows/site.yml").read_text())
     on = doc.get("on", doc.get(True))  # YAML 1.1 reads the key `on` as true
     steps = doc["jobs"]["built"]["steps"]
-    build = next(
-        s for s in steps if "site build" in s.get("run", "") or "placeholder" in s.get("run", "")
-    )
-    if (ROOT / "releases/v0.1/index.json").exists():  # the frozen release is built as such
-        assert build["run"] == "uv run iproofs site build"
-    else:
-        assert build["run"] == f"PYTHONPATH=harness/tests uv run python {' '.join(SITE_ARGS)} web"
+    build = next(s for s in steps if "site build" in s.get("run", ""))
+    assert build["run"] == "uv run iproofs site build"
     assert on["pull_request"]["paths"] == on["push"]["paths"]
     paths = set(on["push"]["paths"])
-    # a top-level file by its name (MAINTAINERS.md), anything else by its top folder
+    # a top-level file by its name, anything else by its top folder
     copied = {c if "/" not in c and (ROOT / c).is_file() else f"{c.split('/')[0]}/**"
               for c in ph.COPY}  # fmt: skip
     assert copied | SITE_INPUTS <= paths, sorted(copied | SITE_INPUTS - paths)
-
-
-@pytest.mark.skipif(
-    "def render(" not in (ROOT / "web/build.py").read_text(),
-    reason="iproofs site build calls the web/build.py renderer from step B2 of #320",
-)
-@pytest.mark.skipif(
-    (ROOT / "releases/v0.1/index.json").exists(),
-    reason="a frozen release exists: site.yml runs `iproofs site build`",
-)
-def test_site_command_runs(tmp_path: Path) -> None:
-    """The exact site.yml command, in a subprocess: exits 0 and writes index.html."""
-    env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join(
-        p for p in (str(ROOT / "harness/tests"), env.get("PYTHONPATH")) if p
-    )
-    out = tmp_path / "site"
-    done = subprocess.run(
-        [sys.executable, *SITE_ARGS, str(out)],
-        cwd=ROOT, env=env, capture_output=True, text=True, check=False, timeout=600,
-    )  # fmt: skip
-    assert done.returncode == 0, done.stderr[-2000:]
-    assert (out / "index.html").is_file()

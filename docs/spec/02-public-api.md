@@ -1,6 +1,6 @@
 # 02. Public API
 
-Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Normative detail lives in the linked RFCs.
+Part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Normative detail lives in the linked RFCs.
 
 ## What is public
 

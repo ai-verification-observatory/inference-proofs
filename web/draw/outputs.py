@@ -8,9 +8,9 @@ import hashlib
 import re
 
 from . import state as S
-from .chrome import CARD_H, CARD_W, CRIT_PAGE, HEAD_SCRIPT, REF_PAGE, criteria_label, font_faces
+from .chrome import CARD_H, CARD_W, CRIT_PAGE, HEAD_SCRIPT, REF_PAGE, font_faces
 from .hexagon import key_mini, mark_svg, pie_svg
-from .inks import GROUND, MUTED, PAPER, RULE, UNSTATED, VIOLET, ratio
+from .inks import GROUND, MUTED, PAPER, UNSTATED, VIOLET, ratio
 from .overview import kind_words, nb_meta, nb_models
 from .pages import SIDE
 from .plates import first_config, glyph, name_of, upstream
@@ -139,7 +139,7 @@ def vercel_json():
             {
                 "source": "/(.*)",
                 "headers": [
-                    # noindex while the results are placeholders (README)
+                    # noindex: the site is not announced (README)
                     {"key": "X-Robots-Tag", "value": "noindex"},
                     {"key": "X-Content-Type-Options", "value": "nosniff"},
                     {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
@@ -215,18 +215,12 @@ def system_card(sid):
     """The system page's first screen: its name on the violet band, then its pie with each property beside its slice."""
     g = glyph(sid)
     cfg = first_config(sid)
-    # a row under a pending disclosure: the names only, no state drawn or said (RFC-0016 OVR-8)
     items = "".join(
         f'<li class="p{c["n"]} {SIDE[c["n"]]}"><p class="mono pn">{e(c["name"])}</p>'
-        + (f'<p class="disp pw"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p>'
-           if g["drawn"] else "")
-        + "</li>"
+        f'<p class="disp pw"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p></li>'
         for c in g["cells"]
-    )  # fmt: skip
-    undrawn = "" if g["drawn"] else f".sl.none{{fill:none;stroke:{RULE};stroke-width:1.5px}}\n"
-    css = (
-        undrawn
-        + f"""
+    )
+    css = f"""
 .band{{position:absolute;left:0;top:0;right:0;height:206px;background:{VIOLET};color:{GROUND};padding:0 56px;overflow:hidden}}
 .name{{position:absolute;left:52px;bottom:-9px;font-size:214px;line-height:.8;letter-spacing:-.012em;white-space:nowrap}}
 .meta{{position:absolute;right:56px;top:40px;text-align:right;font-size:18px;line-height:1.5}}
@@ -239,14 +233,11 @@ ol{{display:contents;list-style:none}}
 .l{{text-align:right}}
 .pn{{font-size:17px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:{VIOLET}}}
 .pw{{font-size:46px;line-height:1.05;margin-top:4px;font-stretch:80%;font-weight:800}}
-.draft{{position:absolute;right:56px;bottom:24px;font-size:16px;color:{MUTED}}}
 """
-    )
     body = (
         f'<div class="band"><h1 class="disp name">{e(name_of(sid))}</h1>'
         f'<p class="mono meta"><b>Inference proofs</b>{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}<br>@{e(upstream(cfg)["commit"][:8])}</p></div>'
         f'<div class="rose">{pie_svg(g["states"], 330)}<ol>{items}</ol></div>'
-        f'<p class="mono draft">{e(criteria_label()[1])}</p>'
     )
     return card_page(sid, body, css)
 

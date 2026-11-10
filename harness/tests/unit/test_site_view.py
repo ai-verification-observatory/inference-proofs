@@ -147,12 +147,11 @@ def test_orders(view: dict[str, Any]) -> None:
 
 
 def test_card_identity(view: dict[str, Any]) -> None:
-    """S1 item 2: the card the index names, its digest, link and the not-reviewed state."""
+    """S1 item 2: the card the index names, its digest and link."""
     card = configuration(view, "flashprove")["card"]
     assert card["path"] == "systems/flashprove/claim.yaml"
     assert card["digest"].startswith("sha256:")
     assert card["link"].endswith("/blob/main/systems/flashprove/claim.yaml")
-    assert card["reviewed"] is False
     assert card["upstream"]["commit"] == "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
     assert configuration(view, "ref-serve")["card"] is None
 
@@ -210,23 +209,6 @@ def test_release_record_listed(extras: dict[str, Any]) -> None:
     assert t["path"] == ph.TARGET
     assert t["author"]["name"]
     assert [r["position"] for r in t["results"]] == list(range(len(t["results"])))
-
-
-def test_pending_row_draws_no_state(extras: dict[str, Any], extras_tree: Path) -> None:
-    """OVR-8: a row under a pending disclosure is not drawn and lists no outcome; its cells
-    keep the states the criteria file sets (the stated states, since no cell of the row carries
-    `stated`), which the system page prints beside the notice."""
-    row = extras["criteria"]["rows"]["sash"]
-    assert (row["pending"], row["drawn"]) == (True, False)
-    raw = next(r for r in json.loads((extras_tree / inputs.CRITERIA).read_text())["rows"]
-               if r["id"] == "sash")  # fmt: skip
-    for prop, cell in row["cells"].items():
-        assert cell["state"] == raw["cells"][prop]["state"], prop
-        assert "stated" not in raw["cells"][prop]
-    assert extras["criteria"]["rows"]["flashprove"]["drawn"] is True
-    assert configuration(extras, "sash")["property_controls"] == {"withheld": True,
-                                                                  "properties": {},
-                                                                  "runs": []}  # fmt: skip
 
 
 def test_accepted_records_listed(view: dict[str, Any], extras: dict[str, Any]) -> None:
@@ -319,8 +301,6 @@ def test_override_cell_keeps_stated(extras: dict[str, Any]) -> None:
 
 def test_footer_facts(view: dict[str, Any]) -> None:
     assert view["release"]["licence"] == "CC BY 4.0"
-    assert view["criteria"]["rfc"] == {"file": "0016-glyph-properties-and-states.md",
-                                       "status": "Draft"}  # fmt: skip
     assert view["criteria"]["sha256"].startswith("sha256:")
 
 
@@ -402,7 +382,7 @@ def test_stale_output_is_config_error(tree: Path, tmp_path: Path, stale: str) ->
 
 
 def test_no_release_is_config_error(tmp_path: Path) -> None:
-    with pytest.raises(IProofsError, match="placeholder_release") as e:
+    with pytest.raises(IProofsError, match="no frozen release") as e:
         inputs.newest_release(tmp_path)
     assert e.value.kind is ErrorKind.CONFIG
 

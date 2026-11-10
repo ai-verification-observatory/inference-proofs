@@ -28,7 +28,7 @@ def test_reference_valid() -> None:
 
 
 def test_reference_placeholders_are_visible() -> None:
-    """The prices are set (#78, C7); the drivers stay placeholders until #77 and Q5 pin them."""
+    """The prices are set (C7); the drivers are unpinned (RFC-0006 Q3, Q5) and say so."""
     ref = load_reference("v0.1", ROOT, REGISTRY)
     assert (ref.cost.price_per_gpu_hour_usd.value or 0) > 0
     assert ref.costs is not None

@@ -1,6 +1,6 @@
 # Inference Proofs: specification
 
-Status: Draft 0.2, 2026-11-03. Entry point of the specification corpus. This page is an index and an executive summary; the detail lives in `docs/spec/` and the normative decisions in `rfcs/`. Where any document here and an RFC disagree, the RFC takes precedence (AGENTS.md, sources of truth). Requirement keywords (MUST, SHOULD, MAY) follow RFC 2119. Terms are defined once, in the [glossary](spec/10-glossary.md).
+Entry point of the specification corpus. This page is an index and an executive summary; the detail lives in `docs/spec/` and the normative decisions in `rfcs/`. Where any document here and an RFC disagree, the RFC takes precedence (AGENTS.md, sources of truth). Requirement keywords (MUST, SHOULD, MAY) follow RFC 2119. Terms are defined once, in the [glossary](spec/10-glossary.md).
 
 ## Executive summary
 
@@ -12,7 +12,7 @@ Five mechanisms carry the design:
 2. **One labelled-quantity type** ([RFC-0012](../rfcs/0012-schemas-and-serialization.md), [RFC-0004](../rfcs/0004-metrics-timing-grades.md)). Every stored number carries unit, timing scope, grade, evidence tier and source. Derived numbers are recomputed bit for bit by CI from raw ones.
 3. **External measurement of unchanged provers** ([RFC-0005](../rfcs/0005-adapter-contract.md), [RFC-0010](../rfcs/0010-harness-runner.md), [RFC-0011](../rfcs/0011-measurement-and-sampling.md)). Each system runs at a pinned commit inside a hardened, network-less container behind a five-subcommand adapter contract. The harness times calls and proof releases from outside and samples GPU and host resources.
 4. **Adversarial checks applied by the harness** ([RFC-0008](../rfcs/0008-negative-controls.md)). Every verifier faces the same tampering controls, each with an honest twin, so a verifier that accepts everything, or a broken control, is visible.
-5. **Evidence tiers** ([RFC-0007](../rfcs/0007-evidence-tiers-and-reproduction.md)). Every number carries a tier; during the research phase every tier is `reported`.
+5. **Evidence tiers** ([RFC-0007](../rfcs/0007-evidence-tiers-and-reproduction.md)). Every number carries a tier; every stored number is at tier `reported`.
 
 Benchmark release v0.1 covers two systems on their native workloads on one NVIDIA H200 141 GB reference profile ([RFC-0006 §H200 profiles](../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)), SASH zk-inference-prover and FlashProve, plus plain-serving and recompute reference rows ([RFC-0003](../rfcs/0003-workloads.md), [RFC-0015](../rfcs/0015-reference-rows.md)). It publishes no ranking and no aggregate score ([PRD §5](PRD.md#5-non-goals)).
 
@@ -34,28 +34,24 @@ Benchmark release v0.1 covers two systems on their native workloads on one NVIDI
 
 ## RFC index
 
-| RFC | Title | Target milestone | Decides |
-|---|---|---|---|
-| [0001](../rfcs/0001-process-and-governance.md) | RFC format | v0.1-alpha | roles, RFC numbering, governance files |
-| [0002](../rfcs/0002-claim-card.md) | Claim card | v0.1-alpha | what a proof establishes, per configuration |
-| [0003](../rfcs/0003-workloads.md) | Workloads, prompt sets and divisions | v0.1-alpha | workload schema, v0.1 workloads, prompt generation, seeds, divisions |
-| [0004](../rfcs/0004-metrics-timing-grades.md) | Metrics, timing scopes and grades | v0.1-alpha | recorded metrics, scopes, grades, derived formulas, statistics |
-| [0005](../rfcs/0005-adapter-contract.md) | Adapter contract | v0.1-alpha | container interface, `system.yaml`, proof release, verdict mapping |
-| [0006](../rfcs/0006-reference-hardware-and-cost.md) | Reference hardware and cost basis | v0.1-alpha | profiles, machine record, CPU binding, price basis |
-| [0007](../rfcs/0007-evidence-tiers-and-reproduction.md) | Evidence tiers | v0.1 | the `tier` label |
-| [0008](../rfcs/0008-negative-controls.md) | Negative controls | v0.1-alpha | shared and system controls, honest twins, outcomes, disclosure |
-| [0009](../rfcs/0009-results-and-publication.md) | Results format and publication | v0.1 | run directories, releases, site, targets |
-| [0010](../rfcs/0010-harness-runner.md) | Harness runner and job lifecycle | v0.1-alpha | CLI, job state machine, error taxonomy, retries, timeouts |
-| [0011](../rfcs/0011-measurement-and-sampling.md) | External measurement and resource sampling | v0.1-beta | clocks, proof release watcher, NVML and cgroup sampling |
-| [0012](../rfcs/0012-schemas-and-serialization.md) | Artifact schemas, labelled quantities and serialization | v0.1-alpha | schema catalogue, versioning, quantity type, digests, JSON writer |
-| [0013](../rfcs/0013-validation-and-ci.md) | Validation pipeline and CI gates | v0.1-alpha | every CI gate and its exact rule |
-| [0014](../rfcs/0014-provenance-and-integrity.md) | Provenance, pinning and artifact integrity | v0.1-beta | pins, image builds, model fetch, manifest, commitment handling |
-| [0015](../rfcs/0015-reference-rows.md) | Reference rows: plain serving and recompute | v0.1-beta | what the reference rows measure and when they are null |
-| [0016](../rfcs/0016-glyph-properties-and-states.md) | Glyph properties and states | v0.1 | the six glyph properties, the four states, the source of each state by row class, the negative control override, the criteria file |
-
-## Research phase
-
-The project has no users yet (owner decision, 2026-11-09). Rules that only protected a public release are out: governance and RFC status gates, the release review window, replies and sponsors, evidence tiers beyond `reported`, profile conformance as a refusal, several eligibility reasons, the proof archive requirement, gates LBL-4, CARD-*, RPL-1, TIER-3 and CRIT-*, the coverage floor, and serving-join bookkeeping. The full list is in [rfcs/README.md](../rfcs/README.md#out-for-the-research-phase); they come back from git history when a public release needs them.
+| RFC | Title | Decides |
+|---|---|---|
+| [0001](../rfcs/0001-rfc-format.md) | RFC format | the RFC template and numbering |
+| [0002](../rfcs/0002-claim-card.md) | Claim card | what a proof establishes, per configuration |
+| [0003](../rfcs/0003-workloads.md) | Workloads, prompt sets and divisions | workload schema, v0.1 workloads, prompt generation, seeds, divisions |
+| [0004](../rfcs/0004-metrics-timing-grades.md) | Metrics, timing scopes and grades | recorded metrics, scopes, grades, derived formulas, statistics |
+| [0005](../rfcs/0005-adapter-contract.md) | Adapter contract | container interface, `system.yaml`, proof release, verdict mapping |
+| [0006](../rfcs/0006-reference-hardware-and-cost.md) | Reference hardware and cost basis | profiles, machine record, CPU binding, price basis |
+| [0007](../rfcs/0007-evidence-tiers-and-reproduction.md) | Evidence tiers | the `tier` label |
+| [0008](../rfcs/0008-negative-controls.md) | Negative controls | shared and system controls, honest twins, outcomes, disclosure |
+| [0009](../rfcs/0009-results-and-publication.md) | Results format and publication | run directories, releases, site, targets |
+| [0010](../rfcs/0010-harness-runner.md) | Harness runner and job lifecycle | CLI, job state machine, error taxonomy, retries, timeouts |
+| [0011](../rfcs/0011-measurement-and-sampling.md) | External measurement and resource sampling | clocks, proof release watcher, NVML and cgroup sampling |
+| [0012](../rfcs/0012-schemas-and-serialization.md) | Artifact schemas, labelled quantities and serialization | schema catalogue, versioning, quantity type, digests, JSON writer |
+| [0013](../rfcs/0013-validation-and-ci.md) | Validation pipeline and CI gates | every CI gate and its exact rule |
+| [0014](../rfcs/0014-provenance-and-integrity.md) | Provenance, pinning and artifact integrity | pins, image builds, model fetch, manifest, commitment handling |
+| [0015](../rfcs/0015-reference-rows.md) | Reference rows: plain serving and recompute | what the reference rows measure and when they are null |
+| [0016](../rfcs/0016-glyph-properties-and-states.md) | Glyph properties and states | the six glyph properties, the four states, the source of each state by row class, the negative control override, the criteria file |
 
 ## Pinned upstreams for v0.1
 
@@ -66,7 +62,3 @@ The project has no users yet (owner decision, 2026-11-09). Rules that only prote
 | FlashProve | `anthropics/FlashProve` | `9e2bdd8ff5bf9c62f18263d7dac189b0400b260c` (v0.16.0) |
 
 Full hashes were resolved from the abbreviated pins in the PRD through the GitHub API on 2026-11-03.
-
-## Implementation
-
-The issue set that implements this corpus, by milestone, is tracked in [docs/roadmap/IMPLEMENTATION.md](roadmap/IMPLEMENTATION.md).

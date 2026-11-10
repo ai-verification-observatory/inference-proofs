@@ -1,7 +1,5 @@
 # Inference Proofs: product requirements
 
-Status: Draft 0.1 · Working name, open to change (see Open questions)
-
 ## 1. Problem
 
 Several open systems now produce cryptographic proofs that a language model produced a given output. Each publishes its own numbers, measured its own way, on its own model, for its own claim. Nobody can answer the questions a user of these systems actually has:
@@ -50,7 +48,7 @@ The model is Ethproofs, which made zkVM provers for Ethereum blocks comparable b
 2. **G2. Comparable by construction.** Fixed workloads, fixed reference hardware, fixed timing scopes, fixed cost basis. Where systems cannot run the same workload, the benchmark says so and compares only what is comparable.
 3. **G3. Reproducible.** Every row pins the prover commit, container digest, model hash, hardware and driver versions, and the exact command. A number is called measured only once someone other than the authors has reproduced it.
 4. **G4. Adversarial.** Every system faces the same negative controls; each row reports which ones it rejects.
-5. **G5. Neutral.** Multi-organisation maintainers, open methodology through RFCs, conflicts declared, teams review their own rows before publication, right of reply. No single score and no ranking.
+5. **G5. Neutral.** Open methodology in RFCs, neutral language. No single score and no ranking.
 6. **G6. Low cost to join.** A prover joins through a thin adapter. The harness never forks or patches a prover.
 
 ## 5. Non-goals
@@ -75,7 +73,7 @@ Plus two reference rows per workload, so every proof cost reads against somethin
 
 What v0.1 does not do: compare SASH and FlashProve on one model. Neither supports the other's model at these pins. v0.1 publishes both on their native workloads, side by side, with normalised metrics (cost per proved token at the reference price, overhead against plain serving, prover time per bit of active weights) and the claim cards that explain why the headline numbers differ.
 
-v0.1 also defines one closed workload, `l31-8b-c1024`: Llama-3.1-8B W8A8 at SASH's shorter shape, with one fixed claim class, where rows compare directly. Its rows publish once a second system with that class runs it through an adapter with no upstream change (RFC-0003 Q7, a default until the owner resolves it; the release freeze enforces it). Of the systems read, SASH alone runs it today; the sources of TOPLOC, Verde, the Private ML SDK and zkPyTorch name the model, and none of them has a claim card ([RFC-0003 §Closed workloads](../rfcs/0003-workloads.md#closed-workloads), [`workloads/README.md`](../workloads/README.md#closed-workloads)). More common workloads come in v0.2 (RFC-0003).
+v0.1 also defines one closed workload, `l31-8b-c1024`: Llama-3.1-8B W8A8 at SASH's shorter shape, with one fixed claim class, where rows compare directly. Its rows publish once a second system with that class runs it through an adapter with no upstream change (RFC-0003 Q7; the release freeze enforces it). Of the systems read, SASH alone runs it today; the sources of TOPLOC, Verde, the Private ML SDK and zkPyTorch name the model, and none of them has a claim card ([RFC-0003 §Closed workloads](../rfcs/0003-workloads.md#closed-workloads), [`workloads/README.md`](../workloads/README.md#closed-workloads)). More common workloads come in v0.2 (RFC-0003).
 
 ## 7. Requirements
 
@@ -83,14 +81,14 @@ v0.1 also defines one closed workload, `l31-8b-c1024`: Llama-3.1-8B W8A8 at SASH
 
 | ID | Requirement | RFC |
 |---|---|---|
-| F1 | A claim card schema, machine-checkable, filled per system and reviewed by its maintainers | 0002 |
+| F1 | A claim card schema, machine-checkable, filled per system from its own documentation | 0002 |
 | F2 | A workload registry: model by content hash, prompt sets by hash, shapes, decoding rule; native and common workloads | 0003 |
 | F3 | A metric set with fixed timing scopes (commit, prove, verify, whole wall, steady state) and a grade on every number | 0004 |
 | F4 | An adapter contract: one OCI container per system exposing `info`, `setup`, `commit`, `prove`, `verify` over JSON files | 0005 |
 | F5 | A reference hardware profile and a cost basis fixed per release | 0006 |
 | F6 | Evidence tiers (reported, peer-reviewed, reproduced) and a reproduction protocol; closed and open divisions | 0007 |
 | F7 | A negative-control suite: shared controls plus each system's own; rejection expected; results per row | 0008 |
-| F8 | A results format, a generated static site and a per-release report, with right of reply | 0009 |
+| F8 | A results format, a generated static site and a per-release report | 0009 |
 | F9 | A harness that runs a job end to end, measures externally, collects the adapter's internal timings and writes a result file valid against the schema | SPEC |
 | F10 | CI that validates every submission against the schemas and recomputes every derived number | SPEC |
 
@@ -99,14 +97,13 @@ v0.1 also defines one closed workload, `l31-8b-c1024`: Llama-3.1-8B W8A8 at SASH
 - **N1 Reproducibility.** Every run is reproducible on rented commodity hardware that no maintainer controls.
 - **N2 Transparency.** Raw outputs, logs and verifier transcripts are kept, except proofs above a size cap, which are kept by digest with one archived proof per configuration.
 - **N3 Honesty of numbers.** Ranges and sample sizes, never a single hand-picked run. Failed runs are recorded, not dropped.
-- **N4 Neutral funding.** Any sponsor of compute is disclosed on the site and in every report, separately from conflict notes, and buys no editorial control.
 - **N5 Licences.** Code Apache-2.0; specifications, data and reports CC BY 4.0. DCO sign-off on contributions.
 
 ## 8. Success metrics
 
-- v0.1: both systems reproduced end to end by someone other than their authors, on the reference hardware, with the maintainers of each system having reviewed their row and claim card.
+- v0.1: both systems reproduced end to end by someone other than their authors, on the reference hardware.
 - v0.2: at least one common workload run by both systems through adapters only, with no harness change.
-- Within a year: at least five systems across at least two proof families, at least two maintainers from outside the founding group, and at least one team submitting its own runs unprompted.
+- Within a year: at least five systems across at least two proof families, and at least one team submitting its own runs unprompted.
 - Adoption over attention: submissions and reproductions count, stars do not.
 
 ## 9. Targets set by relying parties
@@ -115,30 +112,26 @@ The benchmark does not decide what is good enough. It invites relying parties (p
 
 ## 10. Roadmap
 
-| Release | Content | Exit criteria |
-|---|---|---|
-| v0.1 | SASH and FlashProve on native workloads; plain-serving and recompute reference rows; claim cards; negative controls; harness; site | Both reproduced by a third party; both teams reviewed their rows |
-| v0.2 | A common workload family that both systems and new entrants can run (RFC-0003): a small dense transformer that every prover supports, and a mid-size open model; first external system by consent | Two systems on one workload through adapters only |
-| v0.3 | More systems and families (other zkML provers, TEE attestation baselines, sampled recompute) with their own claim cards; first targets from relying parties | First cross-family report reviewed by every listed team |
-| later | Decode-heavy and long-context workloads; batch and latency profiles; on-chain verification cost where relevant | |
+| Release | Content |
+|---|---|
+| v0.1 | SASH and FlashProve on native workloads; plain-serving and recompute reference rows; claim cards; negative controls; harness; site |
+| v0.2 | A common workload family that both systems and new entrants can run (RFC-0003): a small dense transformer that every prover supports, and a mid-size open model; a first external system |
+| v0.3 | More systems and families (other zkML provers, TEE attestation baselines, sampled recompute) with their own claim cards; first targets from relying parties |
+| later | Decode-heavy and long-context workloads; batch and latency profiles; on-chain verification cost where relevant |
 
 ## 11. Risks
 
 | Risk | Mitigation |
 |---|---|
 | Apples to oranges: headline numbers compared out of context | Claim card beside every number; divisions; normalised metrics only; no single score |
-| A team objects to its row | Teams review before publication; right of reply printed beside the row; methodology changes only through RFCs |
-| The benchmark looks captured by one organisation | Maintainers from several organisations; conflicts declared; sponsors disclosed; every run reproducible elsewhere |
+| The benchmark looks captured by one organisation | Open methodology, code and data; every run reproducible elsewhere |
 | Proving runs are expensive | Small and native workloads first; three repetitions, not thirty; results kept by digest |
 | Provers that do not accept contributions (FlashProve is a research artifact, "not accepting contributions") | Adapters live in this repository and pin upstream; no upstream change is ever required |
 | Upstream measuring scripts or run records are not public | The harness measures externally under its own timing rules; upstream figures are labelled reported until reproduced |
 | A negative control the verifier "passes" because the control is broken | Each control ships with a positive twin that must be accepted; controls are reviewed like code |
 
-## 12. Open questions
+## 12. Decisions
 
-1. Name. "Inference Proofs" is a working name; a permanent name and home are open.
-2. Which mid-size open model should the first common workload use, given what each prover supports today?
-3. How should a sampled or statistical guarantee sit beside a cryptographic one in the same table?
-4. Should runners sign their result files (for example from an attested runner) to make reproduction cheaper?
-5. Which reference price per GPU-hour, and how often is it updated?
-6. Which relying parties publish the first targets?
+1. Name: "Inference Proofs", at www.inferenceproofs.ai.
+2. Runners do not sign their result files (RFC-0014 Q1).
+3. The reference price per GPU-hour is the median on-demand list price of at least three named providers, read on one stated date and fixed for the life of a release (RFC-0006 C3, C4).

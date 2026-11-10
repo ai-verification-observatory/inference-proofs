@@ -1,6 +1,6 @@
 # 01. Architecture
 
-Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Normative detail lives in the RFCs linked from each section; where this document and an RFC disagree, the RFC takes precedence.
+Part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Normative detail lives in the RFCs linked from each section; where this document and an RFC disagree, the RFC takes precedence.
 
 ## System overview
 
@@ -34,7 +34,7 @@ The benchmark has four kinds of component: authored inputs (workloads, systems, 
                               iproofs site build -> web/ (committed)  reports/<release>.md
 ```
 
-The same in prose. Authored inputs live in git and change only by reviewed pull request. A runner invokes `iproofs run` on a host that meets a prover profile ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md)). The runner resolves the workload (fetching weights from their public source and checking every file hash), checks the adapter image by digest, records the machine, and drives the adapter container through its five subcommands while measuring from outside the container. Optionally it runs the negative-control suite against the honest proofs. It writes one run directory per job under `results/`. The runner opens a pull request with those directories; CI validates them and recomputes every derived number. A maintainer cuts a release by authoring `releases/<release>/release.yaml`; `iproofs release freeze` computes statistics and target evaluations into `index.json`; `iproofs site build` renders the static site in `web/` from the frozen release. Reports are written by people from the frozen data.
+The same in prose. Authored inputs live in git and change by pull request. A runner invokes `iproofs run` on a host that meets a prover profile ([RFC-0006](../../rfcs/0006-reference-hardware-and-cost.md)). The runner resolves the workload (fetching weights from their public source and checking every file hash), checks the adapter image by digest, records the machine, and drives the adapter container through its five subcommands while measuring from outside the container. Optionally it runs the negative-control suite against the honest proofs. It writes one run directory per job under `results/`. The runner opens a pull request with those directories; CI validates them and recomputes every derived number. A release is cut by authoring `releases/<release>/release.yaml`; `iproofs release freeze` computes statistics and target evaluations into `index.json`; `iproofs site build` renders the static site in `web/` from the frozen release. Reports are written by people from the frozen data.
 
 ## Components and responsibilities
 

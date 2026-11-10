@@ -1,6 +1,6 @@
 # 00. Overview
 
-Status: Draft 0.1, part of the specification corpus indexed by [docs/SPEC.md](../SPEC.md). Normative decisions live in the RFCs under [rfcs/](../../rfcs/README.md); where this section and an RFC disagree, the RFC takes precedence.
+Part of the specification corpus indexed by [docs/SPEC.md](../SPEC.md). Normative decisions live in the RFCs under [rfcs/](../../rfcs/README.md); where this section and an RFC disagree, the RFC takes precedence.
 
 ## Thesis
 
@@ -55,7 +55,7 @@ Cross-cutting support: labelled quantities and serialization ([RFC-0012](../../r
 
 ## v0.1 scope
 
-Two systems, unchanged at the pins above, on one reference prover profile (`prover-h200`: one NVIDIA H200 141 GB SXM; its hosted form `prover-h200-hosted` and the H100 profiles stay declared, [RFC-0006 §H200 profiles](../../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division, plus one closed workload on Llama 3.1 8B (`l31-8b-c1024`) whose rows publish once a second system with its claim class runs it (Q7, default) ([RFC-0003 §Closed workloads](../../rfcs/0003-workloads.md#closed-workloads)).
+Two systems, unchanged at the pins above, on one reference prover profile (`prover-h200`: one NVIDIA H200 141 GB SXM; its hosted form `prover-h200-hosted` and the H100 profiles stay declared, [RFC-0006 §H200 profiles](../../rfcs/0006-reference-hardware-and-cost.md#h200-profiles)) and one verifier profile (`verifier-cpu`: 8 CPUs, 32 GiB, no GPU), native division, plus one closed workload on Llama 3.1 8B (`l31-8b-c1024`) whose rows publish once a second system with its claim class runs it (RFC-0003 Q7) ([RFC-0003 §Closed workloads](../../rfcs/0003-workloads.md#closed-workloads)).
 
 Run matrix. Each cell is a configuration measured with at least 3 repetitions (RFC-0004); the first successful repetition of each configuration is followed by the shared and system-specific controls (RFC-0008).
 
@@ -70,14 +70,6 @@ Published per row: claim card; per-scope times and rates; GPU and host memory pe
 
 v0.1 does not compare SASH and FlashProve on one model. Neither supports the other's model at these pins.
 
-Milestones, all inside benchmark release v0.1:
-
-| Milestone | Content | Exit criterion |
-|---|---|---|
-| `v0.1-alpha` | schemas, serialization, labelled quantities, derivation and statistics, validation CLI, CI gates, fake system, runner against the fake system | in CI, `iproofs run --system fake` produces a schema-valid run directory, `iproofs derive --check` passes, controls classify, and `fake-broken` is flagged |
-| `v0.1-beta` | GPU measurement, model fetch and hash check, prompt generation, SASH and FlashProve adapters, reference rows, controls on real systems | at least one `reported` run per matrix cell on `prover-h200`, each with a valid run directory |
-| `v0.1` | site, report, freeze | the success criteria below |
-
 ## Success criteria
 
 v0.1 succeeds when every item holds; each is checkable from the repository:
@@ -86,9 +78,7 @@ v0.1 succeeds when every item holds; each is checkable from the repository:
 5. SC-5: every row has control outcomes for C1 to C8 and P1 to P2 (outcome `not_applicable` allowed with reason), and `fake-broken` is flagged in CI.
 6. SC-6: zero quantities in the release lack unit, grade, tier or source, or lack scope when time-based (CI gate 5).
 
-SC-2 (an effective tier `reproduced`), SC-3 (reviewed claim cards), SC-4 (the 14-day review window) and SC-7 (maintainers from two organisations) are out for the research phase ([rfcs/README.md](../../rfcs/README.md#out-for-the-research-phase)).
-
-Beyond v0.1 ([PRD §8](../PRD.md#8-success-metrics)): v0.2 needs one common workload run by two systems through adapters only; within a year, five systems across two proof families and two outside maintainers. Adoption is counted in submissions and reproductions, not stars.
+Beyond v0.1 ([PRD §8](../PRD.md#8-success-metrics)): v0.2 needs one common workload run by two systems through adapters only; within a year, five systems across two proof families. Adoption is counted in submissions and reproductions, not stars.
 
 ## Design reflection
 

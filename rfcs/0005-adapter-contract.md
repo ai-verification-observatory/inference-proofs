@@ -1,12 +1,8 @@
 # RFC-0005: Adapter contract
 
-- Status: Draft
 - Authors: AbdelStark
 - Created: 2026-11-03
-- Target milestone: v0.1-alpha (contract, fake systems); v0.1-beta (SASH and FlashProve adapters)
 - Requires: RFC-0003, RFC-0004, RFC-0012
-- Supersedes: none
-- Discussion: pull request that introduces it
 
 ## Summary
 
@@ -77,7 +73,7 @@ upstream:
 image:
   repository: "ghcr.io/<org>/iproofs-flashprove"        # where the built image is pushed
   digest: "sha256:<64 hex>"           # set by the build job, INV-ADAPTER-3
-maintainers:                           # system maintainers; handles only
+maintainers:                           # optional; handles only
   - handle: "<github handle>"
     organisation: "<organisation>"
 workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
@@ -302,20 +298,17 @@ The adapter MUST refuse, by exiting non-zero before starting any upstream proces
 - The atomic release protocol requires adapters to write proofs through a temporary directory even when upstream writes elsewhere, which can mean a copy of tens of GB on SASH-sized runs (RISK: proof storage volume, about 19.8 GB of proofs for SASH's 4,096-position run, grade external, tier reported, source `sg-ai-safety-hub/zk-inference-results` at `11decec3c0b62c707618aab5deb82750b355d202`). Adapters SHOULD use `rename` within `/io` rather than copy when upstream can be pointed at `/io`.
 - A contract with one GPU per container does not cover multi-GPU provers. A future contract major will.
 
-## Conflicts of Interest
-
-None declared.
 
 ## Migration / Rollout
 
-- This RFC replaces the draft adapter contract of the initial design commit. No adapter or result exists yet, so nothing is migrated.
-- `adapter/1` lands in v0.1-alpha with `systems/fake` and `systems/fake-broken`; SASH and FlashProve adapters land in v0.1-beta.
+- This RFC replaces the adapter contract of the initial design commit. No adapter or result existed then, so nothing was migrated.
+- `adapter/1` lands with `systems/fake` and `systems/fake-broken`; the SASH and FlashProve adapters follow.
 - A breaking change to job.json, out.json, the invocation or the release protocol creates `adapter/2` through a new RFC. The harness supports the current and previous contract major for one benchmark release ([09-release-and-versioning](../docs/spec/09-release-and-versioning.md)).
 - Additive optional fields in `adapter-out/1` (for example a new `phases` name) do not change the contract version.
 
 RISK: SASH proves a grid of segments; whether one proof directory per sequence (`segment_grid`) is the right unit, and where `prove.steady` starts, depends on how upstream releases segment proofs. Resolution: the SASH adapter issue confirms against upstream docs at the pin and declares `steady_boundary`; if segment release times are not observable, `not_observable` applies.
 
-Amendment of 2026-11-09 (owner decision, RFC-0015 SRV-6 production serving): `job.json` gains `load_point` (`matched` or `high`) and `gpus` (the bound GPU count) for serving jobs, and a serving job's `batch_size` and `batches` are the run's (`batch_size_run`, `batches_per_session_run`). `steady_boundary: first_proof` reads "the last release of the first batch" for b > 1 (RFC-0004 INV-SCOPE-5). Docker serving containers are specified later, with the docker serving profiles (RFC-0006 R6). A reference adapter that exits non-zero may declare why in `/io/failure.json` (`{kind, message, evidence}`): `config` for a refusal before the engine starts (an engine environment variable the image does not set, a GPU count other than the tensor-parallel size, RFC-0015 SRV-3) or `resource` for an engine KV cache below the matched load, or an engine that exits at start out of GPU memory, with the engine's own line as evidence (SRV-6). The runner records that kind, with the evidence after the stderr tail in `last_lines`; any other kind, a missing or unreadable file, or a proving system's file leaves the failure `adapter`.
+Amendment of 2026-11-09 (RFC-0015 SRV-6 production serving): `job.json` gains `load_point` (`matched` or `high`) and `gpus` (the bound GPU count) for serving jobs, and a serving job's `batch_size` and `batches` are the run's (`batch_size_run`, `batches_per_session_run`). `steady_boundary: first_proof` reads "the last release of the first batch" for b > 1 (RFC-0004 INV-SCOPE-5). Docker serving containers are specified later, with the docker serving profiles (RFC-0006 R6). A reference adapter that exits non-zero may declare why in `/io/failure.json` (`{kind, message, evidence}`): `config` for a refusal before the engine starts (an engine environment variable the image does not set, a GPU count other than the tensor-parallel size, RFC-0015 SRV-3) or `resource` for an engine KV cache below the matched load, or an engine that exits at start out of GPU memory, with the engine's own line as evidence (SRV-6). The runner records that kind, with the evidence after the stderr tail in `last_lines`; any other kind, a missing or unreadable file, or a proving system's file leaves the failure `adapter`.
 
 ## Testing Strategy
 
@@ -340,12 +333,12 @@ Per-adapter tests (INV-ADAPTER-9, CPU, CI):
 
 GPU tests (manual runbook on a GPU host, not CI): one `prove` and `verify` of each v0.1 workload at the smallest shape, comparing out.json against the CPU fixtures' structure.
 
-## Open Questions
+## Decisions
 
-- Resolved Q1: SASH writes each segment's files as soon as that segment is proved, but verifies the segments only after the loop, and the unit `boundary-grid` accepts is the sequence's whole grid. A job proves one sequence, so the benchmark's one proof is released once: the default stands, `granularity: segment_grid`, `incremental_proofs: false`, `steady_boundary: not_observable`, `prove.steady` null for SASH rows. Sources: [`systems/sash/README.md`](../systems/sash/README.md#grid-geometry-and-proof-release).
-- OPEN QUESTION Q2: merged into [RFC-0014](0014-provenance-and-integrity.md#open-questions) Q2 (image registry), which owns it.
-- OPEN QUESTION Q3 (owner: AbdelStark, resolve by: 2027-01-31): A standard phase name set for adapter-reported timings (for example `witness`, `commit`, `prove`, `aggregate`). Default: free names matching `^[a-z][a-z0-9_]{0,31}$`, documented per adapter README.
-- OPEN QUESTION Q4 (owner: AbdelStark, resolve by: 2027-01-31): which FlashProve verifier the `verify` subcommand calls, the C++ verifier or the Lean verifier. The PRD reports about 21 s per proof on one CPU thread for the C++ verifier and about 24 minutes for the Lean verifier (grade external, tier reported, source FlashProve at 9e2bdd8f), and the claim card states soundness for the Lean verifier. Default until resolved: `verify` calls the C++ verifier and the claim card configuration names it; the Lean verifier is a second configuration with its own card if the system maintainers ask for it.
+- Q1. SASH writes each segment's files as soon as that segment is proved, but verifies the segments only after the loop, and the unit `boundary-grid` accepts is the sequence's whole grid. A job proves one sequence, so the benchmark's one proof is released once: `granularity: segment_grid`, `incremental_proofs: false`, `steady_boundary: not_observable`, `prove.steady` null for SASH rows. Sources: [`systems/sash/README.md`](../systems/sash/README.md#grid-geometry-and-proof-release).
+
+- Q3. Adapter-reported timing phases have free names matching `^[a-z][a-z0-9_]{0,31}$`, documented per adapter README; there is no standard set.
+- Q4. FlashProve's `verify` subcommand calls the C++ verifier, and the claim card configuration names it; the Lean verifier would be a second configuration with its own card. The PRD reports about 21 s per proof on one CPU thread for the C++ verifier and about 24 minutes for the Lean verifier (grade external, tier reported, source FlashProve at 9e2bdd8f), and the claim card states soundness for the Lean verifier.
 
 ## References
 

@@ -18,7 +18,7 @@ Each item comes from `prover-h200` in [`reference/v0.1.yaml`](../../reference/v0
 | CPUs | at least 24 logical CPUs on the GPU's NUMA node, at least 32 in all, not used by other jobs | `cpu`; the prover cpuset lies on the GPU's node (§CPU and memory selection) |
 | Memory | at least 330 GiB available | `host_memory_gib_min`; FlashProve's `run.sh` does not start `commit` below 330 GB available (external, reported, FlashProve README §Machine needs) |
 | Disk | local NVMe with at least 500 GiB free for the work directory: results, `IPROOFS_CACHE` and docker's data root | `disk`; see the disk note below |
-| Driver | the installed driver, unchanged during the campaign, reporting CUDA 13.2 or later | R3 and Q3: the pin is read from this host (issue #77); FlashProve's image is CUDA 13.2 Update 2 |
+| Driver | the installed driver, unchanged during the campaign, reporting CUDA 13.2 or later | R3 and Q3: the pin is read from this host; FlashProve's image is CUDA 13.2 Update 2 |
 | Network | outbound HTTPS to github.com, ghcr.io, huggingface.co and the Python package index | clone, image pull, weights, `uv sync` |
 | Kernel calls | no sandbox between the job and the kernel | FlashProve's `cp_commit` and `cp_prove` stop at their start without `madvise(MADV_WIPEONFORK)` and without the CPU's SHA extensions (FlashProve README §Machine needs; gVisor refused the call, #68) |
 
@@ -69,7 +69,7 @@ sudo -E .venv/bin/iproofs machine-record --selftest --gpu "$GPU" --probe-image "
 
 The self-test (RFC-0011, GH-SELFTEST in [gpu-run.md](gpu-run.md#gpu-host-tests)) saves its result in `results/.selftest.json`, which every later run copies into its manifest. Until `prover-h200` pins a driver, every H200 host fails PC-DRIVER; the self-test itself still has to pass.
 
-The driver pin (issue #77, RFC-0006 Q3): the record's `gpu.driver_version` and `gpu.cuda_driver_api` are this host's values. A pull request writes the driver into `reference/v0.1.yaml` `profiles.prover-h200.driver` (and updates `PROFILE["driver"]` in `host-probe.py`, which a test holds equal to the reference file). Runs made before that pull request merges are development runs (step 6).
+The driver pin (RFC-0006 Q3): the record's `gpu.driver_version` and `gpu.cuda_driver_api` are this host's values. A pull request writes the driver into `reference/v0.1.yaml` `profiles.prover-h200.driver` (and updates `PROFILE["driver"]` in `host-probe.py`, which a test holds equal to the reference file). Runs made before that pull request merges are development runs (step 6).
 
 ## 4. Pull the pinned images
 
@@ -122,11 +122,11 @@ sudo -E .venv/bin/iproofs machine-record --selftest --gpu "$GPU" --probe-image "
         --gpu "$GPU" --provider "Lucid Computing" --repetitions 1 --allow-nonconforming --results "$DEV"
    ```
 
-   Before `cp_commit`, the adapter sums the weights ("5 to 6 minutes" upstream) and fits the scales on the GPU (127 s upstream); committing takes about 39 minutes upstream (all external, reported, one H100, FlashProve README). On an H100 container (`prover-h100-hosted`), three b1 jobs gave `prove.session` from 318.3 to 376.7 s (measured, tier reported, n = 3; draft #297, issue #143). `commit` needs 330 GB available; peak host memory while committing was 299.6 GB upstream (external, reported).
+   Before `cp_commit`, the adapter sums the weights ("5 to 6 minutes" upstream) and fits the scales on the GPU (127 s upstream); committing takes about 39 minutes upstream (all external, reported, one H100, FlashProve README). On an H100 container (`prover-h100-hosted`), three b1 jobs gave `prove.session` from 318.3 to 376.7 s (measured, tier reported, n = 3; pull request #297). `commit` needs 330 GB available; peak host memory while committing was 299.6 GB upstream (external, reported).
 
    RISK (RFC-0006 §H200 profiles): the adapter compares `KL.bin`, fitted in float32 on the GPU, with upstream's digest, and upstream writes that "its rounding can differ between GPU models, drivers and torch's CUDA libraries". If the job stops there on the H200, it is a failed run: keep its exit code and last lines, open an issue, and change neither the adapter nor the prover (AGENTS.md rules 1 and 5).
 
-3. **The campaign** (issues #142 SASH, #143 FlashProve, #144 reference rows), once the driver pin has merged: run the GPU-host tests and the campaign procedure of [gpu-run.md](gpu-run.md), with `--profile prover-h200 --gpu "$GPU" --provider "Lucid Computing"` and the default `--results results`. Rerun the self-test into `results/` first. For planning, on the H100 container one b24 job gave `commit` 1,996.6 s and `prove.session` 1,200.2 s (measured, tier reported, n = 1; draft #297, issue #143).
+3. **The campaign**, once the driver pin has merged: run the GPU-host tests and the campaign procedure of [gpu-run.md](gpu-run.md), with `--profile prover-h200 --gpu "$GPU" --provider "Lucid Computing"` and the default `--results results`. Rerun the self-test into `results/` first. For planning, on the H100 container one b24 job gave `commit` 1,996.6 s and `prove.session` 1,200.2 s (measured, tier reported, n = 1; pull request #297).
 
 Before each campaign, rerun the probe and copy its `requirements` block, with `cc_mode_off`, into the campaign log; the machine record holds no CC field (RFC-0006 Q4).
 

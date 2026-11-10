@@ -1,6 +1,6 @@
 # 05. Observability
 
-Status: Draft 0.1, part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Logging and redaction rules here are normative for the harness; the measurement itself (what is sampled and how) is in [RFC-0011](../../rfcs/0011-measurement-and-sampling.md).
+Part of the specification corpus indexed in [docs/SPEC.md](../SPEC.md). Logging and redaction rules here are normative for the harness; the measurement itself (what is sampled and how) is in [RFC-0011](../../rfcs/0011-measurement-and-sampling.md).
 
 ## Scope
 

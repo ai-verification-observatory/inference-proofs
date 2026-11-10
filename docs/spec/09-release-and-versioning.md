@@ -1,6 +1,6 @@
 # 09. Release and versioning
 
-Status: Draft 0.1. Normative sources: [RFC-0009](../../rfcs/0009-results-and-publication.md) for benchmark releases, [RFC-0012](../../rfcs/0012-schemas-and-serialization.md) for schema versions, [RFC-0005](../../rfcs/0005-adapter-contract.md) for the adapter contract.
+Normative sources: [RFC-0009](../../rfcs/0009-results-and-publication.md) for benchmark releases, [RFC-0012](../../rfcs/0012-schemas-and-serialization.md) for schema versions, [RFC-0005](../../rfcs/0005-adapter-contract.md) for the adapter contract.
 
 ## Four version lines
 
@@ -32,7 +32,7 @@ The version lives in `pyproject.toml` only. `iproofs --version` prints it and th
 
 ## Schema majors
 
-- Additive optional changes edit the current major in place; anything else creates `schema/<name>/<major+1>.schema.json` through an RFC ([RFC-0012 §Schema versioning](../../rfcs/0012-schemas-and-serialization.md#schema-versioning)).
+- Additive optional changes edit the current major in place; anything else creates `schema/<name>/<major+1>.schema.json` ([RFC-0012 §Schema versioning](../../rfcs/0012-schemas-and-serialization.md#schema-versioning)).
 - The harness writes only the current major of each schema.
 - The harness reads the current and previous major of each schema for at least one benchmark release after the new major lands. Reading support for an older major is removed only after a deprecation notice (below).
 - Stored documents are never rewritten to a new major.
@@ -40,7 +40,7 @@ The version lives in `pyproject.toml` only. `iproofs --version` prints it and th
 ## Adapter contract major
 
 - Every `job.json` carries `contract: "adapter/1"`. An adapter's `info` output declares the contract majors it supports.
-- A breaking change to the interface (subcommands, required fields, verdict vocabulary, `/io` layout) needs an RFC and a new major.
+- A breaking change to the interface (subcommands, required fields, verdict vocabulary, `/io` layout) needs a new major.
 - The harness supports the current and previous contract major for one benchmark release, so adapters have one release cycle to migrate. An adapter on a dropped major cannot be used in the next release.
 
 ## Benchmark releases
@@ -59,12 +59,12 @@ Benchmark release numbers do not follow harness numbers. `v0.1` may be frozen wi
 
 ## Deprecation policy
 
-A deprecation is announced in the CHANGELOG and in the release report of the benchmark release before removal, naming what is deprecated, the replacement and the release in which it is removed. Minimum window: one benchmark release. CLI options keep working during the window and print a warning to stderr naming the replacement.
+A deprecation is noted in the CHANGELOG, naming what is deprecated and the replacement. A deprecated CLI option keeps working until it is removed and prints a warning to stderr naming the replacement.
 
 ## CHANGELOG discipline
 
-- `CHANGELOG.md` at the repository root, Keep a Changelog 1.1 format, sections `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`, plus `Methodology` for changes that need an RFC (with the RFC number).
-- Every pull request that changes the public API, a schema or the methodology adds an entry under `Unreleased`. CI does not enforce this in v0.1; reviewers do.
+- `CHANGELOG.md` at the repository root, Keep a Changelog 1.1 format, sections `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`, plus `Methodology` for methodology changes (with the RFC number).
+- Every pull request that changes the public API, a schema or the methodology adds an entry under `Unreleased`.
 - Entries are plain statements of what changed; any number in an entry carries its labels (AGENTS.md rule 2).
 
 ## Release checklists
@@ -75,7 +75,7 @@ A deprecation is announced in the CHANGELOG and in the release report of the ben
 2. Version bumped in `pyproject.toml`; CHANGELOG `Unreleased` moved under the new version with the date.
 3. `uv build` produces a wheel and sdist; `uv run --isolated --with dist/*.whl iproofs --version` succeeds in a clean environment.
 4. Tag `harness-v<version>` on the release commit.
-5. Publishing to a package index is not part of v0.1; the wheel is attached to the tag's release notes. (OPEN QUESTION Q1 below.)
+5. The wheel is attached to the tag's release notes; the harness is not published to a package index (Q1 below).
 
 ### Benchmark release
 
@@ -94,6 +94,6 @@ A deprecation is announced in the CHANGELOG and in the release report of the ben
 - No contributor licence agreement.
 - Upstream provers keep their own licences; adapter images redistribute upstream code only as their licences permit (both v0.1 systems are Apache-2.0 per PRD §1).
 
-## Open Questions
+## Decisions
 
-- OPEN QUESTION Q1 (owner: AbdelStark, resolve by: 2027-03-31): whether to publish the harness to a public package index. Default: no; installation from a tagged checkout with `uv sync`, since the harness is a tool for runners of this repository rather than a library.
+- Q1. The harness is not published to a public package index. It installs from a tagged checkout with `uv sync`, since it is a tool for runners of this repository rather than a library.

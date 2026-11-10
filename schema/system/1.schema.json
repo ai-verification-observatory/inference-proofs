@@ -68,21 +68,6 @@
       }
     },
     {
-      "$comment": "a prover names its system maintainers (RFC-0001)",
-      "if": {
-        "properties": {
-          "kind": {
-            "const": "prover"
-          }
-        }
-      },
-      "then": {
-        "required": [
-          "maintainers"
-        ]
-      }
-    },
-    {
       "$comment": "a prover pins its adapter image by digest; test systems are rebuilt in CI",
       "if": {
         "properties": {

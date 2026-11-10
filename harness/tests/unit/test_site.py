@@ -1,12 +1,12 @@
 """RFC-0009 §Testing Strategy: the §Site rules on the pages `iproofs site build` writes (#320).
 
-Page tests run over two builds: the placeholder release with every test-only case (`extras`,
-never deployed) and the committed `web/` pages (the deployed build, `extras=False`), each with
-the view it was printed from. A check that needs a test-only case skips on `web/` and says so.
+Page tests run over two builds of the synthetic placeholder release: with every test-only case
+(`extras`) and without (`web`, the build as deployed, `extras=False`), each with the view it was
+printed from. A check that needs a test-only case skips on `web` and says so.
 
-Gaps RFC-0009 §Site still lists (S6 table headings on the overview and the Not benchmarked yet
-note, which wait for the owner's sign-off on the overview's look; links to records once #146
-publishes the release) are named in the docstring of the test they touch. Renamed tests
+Gaps RFC-0009 §Site lists (S6 table headings on the overview and the Not benchmarked yet note;
+records printed as index pointers, not links) are named in the docstring of the test they
+touch. Renamed tests
 (RFC-0009 §Testing Strategy): `test_display_rounding` is `test_sort_key_is_stored_value`,
 `test_no_aggregate_score_column` is `test_no_ranking`,
 `test_superseded_and_ineligible_struck_through` is `test_runs_left_out_listed`,
@@ -115,21 +115,12 @@ def extras(extras_build: SiteBuild) -> Build:
 
 @pytest.fixture(scope="module")
 def deployed(placeholder_build: SiteBuild) -> Build:
-    """The committed web/ pages, with the view of the build that wrote them (web/ tests hold
-    the committed files equal to a fresh build; the deployed build is the shared one)."""
-    view = site_view(placeholder_build.repo)
-    web = ROOT / "web"
-    return Build("web", {p.name: p.read_text("utf-8") for p in web.glob("*.html")}, view, web)
+    """The build without test-only cases (shared and read-only, fixtures/builds), with its view."""
+    out, view = placeholder_build.out, site_view(placeholder_build.repo)
+    return Build("web", {p.name: p.read_text("utf-8") for p in out.glob("*.html")}, view, out)
 
 
-# web/ is built from the frozen release once one exists; the deployed copy is then not the
-# placeholder build these tests pin (research, owner 2026-11-09)
-_DEPLOYED = (
-    [] if (Path(__file__).resolve().parents[3] / "releases/v0.1/index.json").exists() else ["web"]
-)
-
-
-@pytest.fixture(scope="module", params=["extras", *_DEPLOYED])
+@pytest.fixture(scope="module", params=["extras", "web"])
 def site(request: pytest.FixtureRequest) -> Build:
     build = request.getfixturevalue("extras" if request.param == "extras" else "deployed")
     assert isinstance(build, Build)
@@ -255,7 +246,7 @@ def test_every_number_has_labels(site: Build) -> None:
     """S2: each overview figure names its unit in view and its scope, grade, tier and record in
     its accessible description, and links its plate; each plate holds every label in view; each
     more-numbers row names its scope, grade and tier, or why it has no value. The record is the
-    index pointer as text until #146 publishes the index (RFC-0009 §Site gaps)."""
+    index pointer as text (RFC-0009 §Site gaps)."""
     seen = 0
     for _, title, inner in VAL.findall(site.pages["index.html"]):
         if 'class="fig"' not in inner:
@@ -334,14 +325,10 @@ def test_claim_card_before_numbers(site: Build) -> None:
             assert row.index(head) < row.index('class="vc"')
             assert "<svg" in head  # the glyph
             cells = criteria[cfg["system"]]["cells"]
-            if not criteria[cfg["system"]]["drawn"]:  # a pending row: no state, no text (OVR-8)
-                assert '<p class="sr">' not in head, rid
-                assert "data-word" not in head, rid
-            else:
-                said = plain(re.search(r'<p class="sr">(.*?)</p>', head)[1])  # type: ignore[index]
-                for p in props:
-                    state = cells[p["id"]]["state"]
-                    assert f"{p['name']}: {WORD[state]}" in said, (rid, p["id"])
+            said = plain(re.search(r'<p class="sr">(.*?)</p>', head)[1])  # type: ignore[index]
+            for p in props:
+                state = cells[p["id"]]["state"]
+                assert f"{p['name']}: {WORD[state]}" in said, (rid, p["id"])
             assert site.view["facts"]["rows"][cfg["system"]]["name"] in plain(head)
             assert f"/tree/{cfg['card']['body']['upstream']['commit']}" in head
             two = sum(row_config(site.view, r[0])["system"] == cfg["system"] for r in rows) > 1
@@ -364,8 +351,7 @@ def _validated_claims(site: Build, system: str) -> None:
     every run read), the card's
     identity with its file and digest, the card in full in a `details` element, both folds
     closed in the HTML as sent, then `quality_gap` and `residual` with the agreement rate
-    outside them; all before every figure. Under a pending disclosure the stated state in words,
-    not drawn, and no control (OVR-8)."""
+    outside them; all before every figure."""
     props = site.view["criteria"]["properties"]
     text = site.pages[f"{system}.html"]
     configs = system_configs(site, system)
@@ -385,8 +371,7 @@ def _validated_claims(site: Build, system: str) -> None:
         if field != "sources":
             assert f"<dt>{field}</dt>" in details, field
     assert card["digest"].removeprefix("sha256:")[:12] in plain(text[identity:folded])
-    assert ("card not reviewed by system maintainers" in plain(text[identity:folded])) == (
-        not card["reviewed"])  # fmt: skip
+    assert "not reviewed" not in plain(text[identity:folded])
     after = plain(text[gap:first_figure])
     assert "quality gap" in after
     assert "residual" in after
@@ -434,14 +419,10 @@ def _property_claims(
         assert block[5] is None, (system, p["id"])
     cell = cells[p["id"]]
     state = cell["state"]
-    if criteria[system]["drawn"]:
-        assert '<p class="rs"><i class="sw ' in body
-        assert WORD[state] in said, (system, p["id"])
-    else:  # OVR-8: the stated state in words, not drawn
-        assert '<i class="sw ' not in body
-        assert f"Stated: {WORD[state]}" in said, (system, p["id"])
+    assert '<p class="rs"><i class="sw ' in body
+    assert WORD[state] in said, (system, p["id"])
     _how_we_read(site, system, p, pc)
-    if pc is None or pc["withheld"] or not cell.get("stated"):
+    if pc is None or not cell.get("stated"):
         assert 'class="ex"' not in body, (system, p["id"])
         return
     line = re.search(r'<p class="ex">.*?</p>', body, re.S)
@@ -486,14 +467,14 @@ def _quotes_printed(
 def _how_we_read(site: Build, system: str, p: dict[str, Any], pc: dict[str, Any] | None) -> None:
     """RFC-0016 ST-2, ST-8, OVR-7 in the fold "How we read it": the deciding quote with its
     source, both quotes of a conflict, the sources read, and each mapped control in every run
-    read (no run read says why, never "not run"); none of it under a pending disclosure but the
-    sources and quotes (OVR-8). The entry takes focus (`tabindex="-1"`, words.js)."""
+    read (no run read says why, never "not run"). The entry takes focus (`tabindex="-1"`,
+    words.js)."""
     text = site.pages[f"{system}.html"]
     cell = site.view["criteria"]["rows"][system]["cells"][p["id"]]
     entry = re.search(
         rf'<div id="read-{p["id"]}" tabindex="-1"><dt>(.*?)</dt><dd>(.*?)</dd></div>', text, re.S
     )
-    controls = pc is not None and not pc["withheld"]
+    controls = pc is not None
     quoted = any(q.get("decides") for q in cell["quotes"])
     if not (quoted or cell["sources_read"] or cell["conflict"] or controls):
         assert entry is None, (system, p["id"])
@@ -975,19 +956,13 @@ def test_run_records_link(extras: Build) -> None:
 def test_unexpected_control_printed_in_full(site: Build) -> None:
     """RFC-0008 §Reporting: every control outcome outside its expected set is printed in full
     on its system page (control, run, outcome, expected set, side, source, each trial, the
-    record), and the release page links it; a row under a pending disclosure prints neither
-    (OVR-8, `test_pending_row_renders_no_outcome`)."""
+    record), and the release page links it."""
     release = site.pages["release.html"]
     seen = 0
     for cfg in provers(site.view):
-        drawn = site.view["criteria"]["rows"][cfg["system"]]["drawn"]
         text = site.pages[f"{cfg['system']}.html"]
         for u in cfg["unexpected"]:
             anchor = f"unexpected-{u['control']}-{u['run_id']}"
-            if not drawn:
-                assert anchor not in text
-                assert anchor not in release
-                continue
             start = text.index(f'id="{anchor}"')
             block = text[start : text.index("</dl>", text.index("<dt>record</dt>", start))]
             said = flat(block)
@@ -1014,41 +989,14 @@ def test_unexpected_control_printed_in_full(site: Build) -> None:
         assert not seen
         assert "No control outcome fell outside its expected set." in plain(release)
     else:
-        assert seen == 1  # FlashProve's C1; SASH's C2 is under a pending disclosure
-
-
-def test_pending_row_renders_no_outcome(site: Build) -> None:
-    """RFC-0016 OVR-8: while a disclosure of a row is pending, its system page prints its
-    stated states and quotes with the RFC-0008 notice, and no control outcome: no per-property
-    control list, no contradicting control, no unexpected outcome, no tally; the release page
-    prints the notice in place of its unexpected outcomes."""
-    pending = [rid for rid, row in site.view["criteria"]["rows"].items() if row.get("pending")]
-    if site.kind == "web":
-        assert not pending
-        pytest.skip("no criteria row of the deployed build is under a pending disclosure")
-    release = site.pages["release.html"]
-    for rid in pending:
-        text = site.pages[f"{rid}.html"]
-        claims = text[text.index('class="claims"') : text.index('id="figures"')]
-        assert 'class="ec"' not in claims
-        assert 'class="ex"' not in claims
-        assert 'class="eq"' in claims  # the quotes stay
-        assert "unexpected-" not in text
-        cfgs = [c for c in site.view["configurations"] if c["system"] == rid]
-        for c in cfgs:
-            for u in c["unexpected"]:
-                assert f"{u['control']} in run" not in plain(release)
-            for a in c["accepted"]:
-                assert a["control"] not in plain(text[text.index('id="h-tamper"') :])
-        unexpected = release[release.index('id="unexpected"') :]
-        assert "A disclosure is pending" in plain(unexpected)
+        assert seen == 2  # FlashProve's C1 and SASH's C2
 
 
 def test_table_semantics(site: Build) -> None:
     """S9: every cell of a table across systems has one column header and one row header through
     ARIA roles, a sorted column's header carries `aria-sort`, and every glyph state is a word in
-    the row header's cell, read after the system's name (a row under a pending disclosure has no
-    state and no text, RFC-0016 OVR-8); the more-numbers tables use `th` with `scope`."""
+    the row header's cell, read after the system's name; the more-numbers tables use `th` with
+    `scope`."""
     index = site.pages["index.html"]
     for sec in SECTION.findall(index):
         heads = HEAD.findall(sec)
@@ -1059,9 +1007,6 @@ def test_table_semantics(site: Build) -> None:
             assert row.count('role="rowheader"') == 1, rid
             assert row.count('role="cell"') == len(BOARD), rid
             head = HEADER.search(row)[1]  # type: ignore[index]
-            if not site.view["criteria"]["rows"][row_config(site.view, rid)["system"]]["drawn"]:
-                assert '<p class="sr">' not in head, rid
-                continue
             assert head.index('class="name"') < head.index('<p class="sr">'), rid
             assert re.search(r'<p class="sr">[^<]*: (Yes|Partly|No|Not stated)', head), rid
     for system in site.view["orders"]["benchmarked"]:
@@ -1115,47 +1060,6 @@ def test_reads_without_script(site: Build) -> None:
         assert site.view["facts"]["rows"][ref]["name"] in plain(index), ref
 
 
-def test_pending_row_draws_no_state(site: Build) -> None:
-    """RFC-0016 OVR-8: a row under a pending disclosure draws none of the four states and no
-    text on the overview, in search and on its preview card; its system page prints the RFC-0008
-    notice and the stated states, undrawn, and none of its control outcomes: no outcome count,
-    no accepted control, no system-specific control line."""
-    pending = [rid for rid, row in site.view["criteria"]["rows"].items() if row.get("pending")]
-    if site.kind == "web":
-        assert not pending
-        pytest.skip("no criteria row of the deployed build is under a pending disclosure")
-    assert pending
-    index = site.pages["index.html"]
-    search = json.loads((site.out / "search.json").read_text())["entries"]
-    for rid in pending:
-        starts = [m.start() for m in re.finditer(f'<div class="row" id="{rid}(--[^"]*)?"', index)]
-        assert starts, rid  # one row per configuration of the system
-        for start in starts:
-            row = index[start:]
-            row = row[: row.index('<div class="vals">')]
-            assert len(re.findall(r'class="sl s\d none"', row)) == 6
-            assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', row)
-            assert "data-word" not in row
-            assert '<p class="sr">' not in row
-            said = plain(row)
-            assert not [w for w in (*WORD.values(), "No state shown") if w in said], said
-        pie = next(e["pie"] for e in search if e["url"] == f"/{rid}")
-        assert pie.count(' none"') == 6
-        card = (site.out / f"og/{rid}.html").read_text()
-        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', card)
-        assert '<i class="sw ' not in card
-        page = site.pages[f"{rid}.html"]
-        text = plain(page)
-        assert "A disclosure is pending" in text
-        for gone in ("Tampering tests on this setup", "it accepted", "Control test",
-                     "No tampering test", "No state shown"):  # fmt: skip
-            assert gone not in text, gone
-        assert not re.search(r'class="sl s\d (yes|partly|no|unstated)"', page)
-        stated = re.findall(r'<p class="rs">(.*?)</p>', page)
-        assert len(stated) == 6
-        assert all(s.startswith("Stated: ") for s in stated), stated
-
-
 def test_tally_names_each_accepted_control(site: Build) -> None:
     """RFC-0008, AGENTS.md rule 10: an accepted outcome is never printed as a bare count. Each
     "it accepted N" names the controls it counts and whether each one's own expected set holds
@@ -1163,8 +1067,6 @@ def test_tally_names_each_accepted_control(site: Build) -> None:
     a tampered proof the checker took; the control line says it was expected."""
     seen = 0
     for system in site.view["orders"]["benchmarked"]:
-        if not site.view["criteria"]["rows"][system]["drawn"]:
-            continue  # OVR-8: no outcome printed (test_pending_row_draws_no_state)
         text = plain(site.pages[f"{system}.html"])
         for cfg in system_configs(site, system):
             for a in cfg["accepted"]:

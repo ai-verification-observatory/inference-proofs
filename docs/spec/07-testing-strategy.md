@@ -1,6 +1,6 @@
 # 07. Testing strategy
 
-Status: Draft 0.1. CI gates that run these tests are defined in [RFC-0013](../../rfcs/0013-validation-and-ci.md). Specific test cases per mechanism are listed in each RFC's Testing Strategy section; this section fixes where tests live, what each layer must prove and the rules every test follows.
+CI gates that run these tests are defined in [RFC-0013](../../rfcs/0013-validation-and-ci.md). Specific test cases per mechanism are listed in each RFC's Testing Strategy section; this section fixes where tests live, what each layer must prove and the rules every test follows.
 
 ## Principles
 
@@ -66,9 +66,9 @@ Each adapter directory `systems/<name>/tests/` holds stored upstream outputs cap
 
 ### Golden
 
-- `golden/site/`: every file `iproofs site build` writes (pages, `search.json`, `vercel.json`, preview-card sources), not the static assets it copies, for the placeholder release with its test-only cases (`harness/tests/fixtures/placeholder_release.py`, `extras=True`): two systems on two workloads, one of them with two claim cards, two reference rows whose runs all failed, a failed, a superseded, an ineligible and a withdrawn run, a pending disclosure, an override, an unexpected control, and one target. `test_site_golden.py` also builds it twice, and from a depth-1 clone and a copy with no `.git`, and compares the bytes (CLI-4). Assertions in [RFC-0009 §Testing Strategy](../../rfcs/0009-results-and-publication.md#testing-strategy). Golden files are regenerated only by `uv run pytest --update-golden` in a pull request that explains the diff.
+- `golden/site/`: every file `iproofs site build` writes (pages, `search.json`, `vercel.json`, preview-card sources), not the static assets it copies, for the placeholder release with its test-only cases (`harness/tests/fixtures/placeholder_release.py`, `extras=True`): two systems on two workloads, one of them with two claim cards, two reference rows whose runs all failed, a failed, a superseded, an ineligible and a withdrawn run, an override, an unexpected control, and one target. `test_site_golden.py` also builds it twice, and from a depth-1 clone and a copy with no `.git`, and compares the bytes (CLI-4). Assertions in [RFC-0009 §Testing Strategy](../../rfcs/0009-results-and-publication.md#testing-strategy). Golden files are regenerated only by `uv run pytest --update-golden` in a pull request that explains the diff.
 - `golden/index/`: `index.json` for the fixture release of `harness/tests/fixtures/release_tree.py`, byte for byte.
-- The site end to end, `integration/test_site_e2e.py`: the placeholder release's synthetic runs, `iproofs derive --check` on each, `iproofs release freeze` and `iproofs site build` through the CLI; every figure on the pages points at an `index.json` statistic and prints its value. `web/test_*.py` (`uv run pytest web -q`, run by the `site` workflow) hold the committed `web/` pages equal to a fresh placeholder build and check sort keys, preview cards and search against hand-computed cases.
+- The site end to end, `integration/test_site_e2e.py`: the placeholder release's synthetic runs, `iproofs derive --check` on each, `iproofs release freeze` and `iproofs site build` through the CLI; every figure on the pages points at an `index.json` statistic and prints its value. `web/test_*.py` (`uv run pytest web -q`, run by the `site` workflow) check sort keys, preview cards and search against hand-computed cases.
 
 ### Fake-system integration
 

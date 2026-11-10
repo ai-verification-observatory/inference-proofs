@@ -1,6 +1,6 @@
 # 08. Performance budget
 
-Status: Draft 0.1, part of the specification corpus indexed by [docs/SPEC.md](../SPEC.md). Normative decisions live in the RFCs under [rfcs/](../../rfcs/README.md); where this section and an RFC disagree, the RFC takes precedence.
+Part of the specification corpus indexed by [docs/SPEC.md](../SPEC.md). Normative decisions live in the RFCs under [rfcs/](../../rfcs/README.md); where this section and an RFC disagree, the RFC takes precedence.
 
 This section sets the performance budgets of the benchmark's own software: the harness's measurement overhead, the CPU-only tooling (validation, derivation, site, CI), and the method for budgeting GPU time for a run campaign. It does not set targets for the measured provers; the project publishes no targets for systems (RFC-0009 §Targets). Every number below is a **target** (a budget the software must meet), not a measurement, and carries no grade or tier because it describes no run.
 

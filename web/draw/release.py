@@ -9,7 +9,7 @@ from . import state as S
 from .chrome import RELEASE_PAGE, TARGETS_PAGE, footer, has_targets, header, page
 from .claims import run_ref
 from .plates import EXT, blob, keep, name_of, path_html, readable, source_html
-from .words import FAIL_KIND, PENDING_TAMPER, e, labels, shown, spread_line
+from .words import FAIL_KIND, e, labels, shown, spread_line
 
 TARGET_GRADE = "set in the target file"
 RESULT_WORD = {"meets": "meets", "does_not_meet": "does not meet",
@@ -132,16 +132,12 @@ def checked():
 
 def unexpected_list():
     """Every control outcome outside its expected set, each linked to where its system page
-    prints it in full; a row under a pending disclosure prints only the RFC-0008 notice."""
+    prints it in full."""
     rows = []
     for c in S.CONFIGS:
         if not c["unexpected"]:
             continue
         sid = c["system"]
-        row = S.CRIT["rows"].get(sid)
-        if row is not None and not row["drawn"]:
-            rows.append((name_of(sid), e(PENDING_TAMPER)))
-            continue
         for u in c["unexpected"]:
             href = f"{S.PAGE.get(sid, '/reference')}#unexpected-{u['control']}-{u['run_id']}"
             rows.append((name_of(sid), f'<a href="{e(href)}">{e(u["control"])} in run '

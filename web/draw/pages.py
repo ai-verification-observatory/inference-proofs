@@ -49,8 +49,6 @@ from .words import (
     OUTCOME_SHORT,
     OUTCOME_VERB,
     OUTCOME_WORDS,
-    PENDING,
-    PENDING_TAMPER,
     REF_LEAD,
     STATE_CLS,
     STATE_ORDER,
@@ -71,7 +69,7 @@ from .words import (
 SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 
 
-def rose_item(c, pre, drawn=True, ev="", src=""):
+def rose_item(c, pre, ev="", src=""):
     """One property beside its slice: its name (a link to what its states mean), its question for
     screen readers, the state, and our short reason (left out when it only repeats Not stated).
     On a system page, after the reason, a small link to the property's entry in "How we read it"
@@ -85,10 +83,7 @@ def rose_item(c, pre, drawn=True, ev="", src=""):
     said = [x for x in ("" if generic else e(words(c["reason"])), link) if x]
     only = ' class="rr rsrc"' if said == [link] else ' class="rr"'  # the link alone, no reason
     reason = f"<p{only}>{' '.join(said)}</p>" if said else ""
-    if not drawn:  # RFC-0016 OVR-8: the stated state in words, beside the notice, not drawn
-        state = f'<p class="rs">{e("Stated: " + c["word"])}</p>'
-    else:
-        state = f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p>'
+    state = f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p>'
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
         f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
@@ -103,8 +98,7 @@ def rose(g, hid, name, level=2, pre="", ev=None, src=None):
     by property id."""
     ev, src = ev or {}, src or {}
     items = "".join(
-        rose_item(c, pre, g["drawn"], ev.get(c["prop"], ""), src.get(c["prop"], ""))
-        for c in g["cells"]
+        rose_item(c, pre, ev.get(c["prop"], ""), src.get(c["prop"], "")) for c in g["cells"]
     )
     return (
         f'<div class="rose"><h{level} id="{e(hid)}" class="sr">What one proof establishes</h{level}>'
@@ -373,21 +367,18 @@ def unexpected_full(cfg):
     return out
 
 
-def config_tamper(cfg, drawn):
+def config_tamper(cfg):
     """One configuration's controls: each stored outcome count, every outcome outside its
-    expected set in full, then the system's own controls; under a pending disclosure only the
-    RFC-0008 notice (RFC-0016 OVR-8)."""
+    expected set in full, then the system's own controls."""
     where = (
         f'<dl class="tlab"><div><dt>configuration</dt><dd>{keep(config_where(cfg))}</dd></div></dl>'
     )
-    if not drawn:
-        return f'<p class="tamper">{with_rule(PENDING_TAMPER)}</p>{where}'
     return (f'<p class="tamper">{e(tamper_words(cfg))}</p>{where}{unexpected_full(cfg)}'
             f"{control_tests(cfg)}")  # fmt: skip
 
 
 def system_desc(sid):
-    return f"{name_of(sid)}: six properties of one proof (draft criteria) and the benchmark's own figures with their labels."
+    return f"{name_of(sid)}: six properties of one proof and the benchmark's own figures with their labels."
 
 
 def claims_section(sid, cfgs, g, facts):
@@ -431,7 +422,6 @@ def build_system(sid):
     ]
     shape = (f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p>'
              if one else "")  # fmt: skip
-    notice = "" if g["drawn"] else f'<p class="lead notice">{with_rule(PENDING)}</p>'
     body = f"""
 {header(sid)}
 <main id="main" class="sys">
@@ -439,14 +429,14 @@ def build_system(sid):
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(name)}</span></h1></div>
   </section>
   <div class="wrap">
-    {notice}{claims_section(sid, cfgs, g, facts)}
+    {claims_section(sid, cfgs, g, facts)}
     <section class="blk" id="figures" aria-labelledby="h-figs">
       <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2>{shape}</div>
       {"".join(config_figures(c, name, one) for c in cfgs)}
     </section>
     <section class="blk" id="tamper" aria-labelledby="h-tamper">
       <h2 id="h-tamper" class="sect">Tamper tests</h2>
-      {"".join(config_tamper(c, g["drawn"]) for c in cfgs)}
+      {"".join(config_tamper(c) for c in cfgs)}
     </section>
   </div>
 </main>
@@ -544,7 +534,7 @@ def build_criteria():
 {footer()}"""
     return page(
         "Criteria",
-        "What Yes, Partly, No and Not stated mean for each of the six properties of one proof (draft criteria).",
+        "What Yes, Partly, No and Not stated mean for each of the six properties of one proof.",
         body,
         "system criteria",
         CRIT_PAGE.strip("/"),
