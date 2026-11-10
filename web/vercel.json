@@ -20,7 +20,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'sha256-mkccg1Bdzxzb88nCf3H1COF45xcv9Y847Oe4O41BR1E='; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          "value": "default-src 'self'; script-src 'self' 'sha256-mkccg1Bdzxzb88nCf3H1COF45xcv9Y847Oe4O41BR1E=' https://cdn.vercel-insights.com; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self' https://*.vercel-insights.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
         },
         {
           "key": "X-Frame-Options",
