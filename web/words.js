@@ -20,8 +20,8 @@
     const cx = cv.getContext('2d');
     if (!cx) return;
     // one hue, dark to light: deep violets at the floor black text allows (#8a4dff 4.6:1, #9a52ff 5:1), the brand's
-    // violet (#c45cff) in the middle, then two lighter violets, no lighter than a soft lavender (#dcaaff)
-    const INKS = [[138, 77, 255], [154, 82, 255], [176, 88, 255], [196, 92, 255], [208, 126, 255], [220, 170, 255]];
+    // violet (#c45cff) in the middle, then one light violet (#d38aff) at the top
+    const INKS = [[138, 77, 255], [154, 82, 255], [176, 88, 255], [196, 92, 255], [204, 112, 255], [211, 138, 255]];
     const P = new Uint8Array(512);
     for (let i = 0, s = 7; i < 256; i++) P[i] = i;
     for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
