@@ -12,15 +12,25 @@ import re
 from . import state as S
 from .words import (
     BITS_BASIS,
+    GRADE_WORD,
     PER_BIT_LIMIT,
     PER_GBIT,
     SCOPE_LINES,
     SCOPE_SHORT,
     STATE_WORD,
+    TIER_WORD,
+    WARM,
+    boundary_words,
+    dates_html,
     e,
+    gpu_words,
     labels,
+    mean_words,
+    nobreak,
+    scope_words,
     shown,
     spread_line,
+    title_spread,
     why_words,
 )
 
@@ -89,6 +99,31 @@ def configs_of(sid):
     return [c for c in S.CONFIGS if c["system"] == sid]
 
 
+def setup_parts(cfg):
+    """A setup as a reader names it: model, prompt, batch and GPUs."""
+    sh = cfg["workload"]["shape"]
+    b = sh["batch_size"]
+    return [S.MODEL_NAME[cfg["workload"]["model"]["digest"]],
+            f"{sh['prompt_tokens']:,}-token prompt",
+            f"{b:,} request{'s' if b != 1 else ''} per batch", gpu_words(cfg)]  # fmt: skip
+
+
+def setup_diff(cfg):
+    """The words of a setup that differ from its system's other setups ("24 requests per
+    batch"); every word for a system with one setup; its workload id where no word differs."""
+    parts = setup_parts(cfg)
+    others = [setup_parts(c) for c in configs_of(cfg["system"]) if row_id(c) != row_id(cfg)]
+    if not others:
+        return parts
+    diff = [x for i, x in enumerate(parts) if any(o[i] != x for o in others)]
+    return diff or [cfg["workload"]["id"]]
+
+
+def config_of_run(rid):
+    """The rendered configuration a run belongs to, or None (a run of an earlier release)."""
+    return next((c for c in S.CONFIGS if rid in c["runs"]["records"]), None)
+
+
 # ------------------------------------------------------------------ words and labels
 
 
@@ -104,7 +139,7 @@ def fig(v):
         return f'<span class="na word">{e(rest)}</span>'
     return (
         f'<span class="fig"><span class="n">{e(n)}</span>'
-        + (f'<span class="u">{e(u)}</span>' if u else "")
+        + (f'<span class="u{" x" if u == "×" else ""}">{e(u)}</span>' if u else "")
         + (f'<span class="ux">{e(rest)}</span>' if rest else "")
         + "</span>"
     )
@@ -162,14 +197,14 @@ def bits_words(cfg):
     if not wb:
         return "weight bits not recorded"
     bits = f"{wb['bits']:.4g} bits" if wb.get("bits") is not None else "bits"
-    part = ", part of the weights" if wb.get("covers") == "part" else ""
+    part = ", for part of the active weights" if wb.get("covers") == "part" else ""
     return f"{bits} per active weight, {BITS_BASIS.get(wb.get('basis'), wb.get('basis'))}{part}"
 
 
 # how each order reads aloud
 SORT_WORDS = {
     "system": {"asc": "A to Z", "desc": "Z to A"},
-    "covers": {"asc": "fewer positions first", "desc": "more positions first"},
+    "covers": {"asc": "fewer tokens first", "desc": "more tokens first"},
     "proof_size": {"asc": "small to large", "desc": "large to small"},
     "check_time": {"asc": "short to long", "desc": "long to short"},
     "overhead": {
@@ -183,8 +218,8 @@ SORT_WORDS = {
 # More numbers on a system page, in this order: the stored statistic and its row label
 MORE = [
     ("rate_prove.session", "Proving rate"),
-    ("cost_per_1k_tokens_prove.session", "GPU cost per 1,000 positions"),
-    ("commit_seconds", "Commit once"),
+    ("cost_per_1k_tokens_prove.session", "GPU cost per 1M tokens"),
+    ("commit_seconds", "Preparing the model (once)"),
     ("verify_host_memory_peak_anon", "Checker memory"),
     ("prove_gpu_memory_peak", "GPU memory"),
 ]
@@ -200,7 +235,7 @@ REF_CELLS = {
 REF_OVERHEAD = {
     "serve": (
         "Baseline",
-        "Production serving is the baseline of the overhead ratio, whether or not it has run.",
+        "Production serving is the baseline of the overhead ratio.",
     ),
     "recompute": ("Does not apply", "A rerun is not the baseline."),
 }
@@ -215,10 +250,12 @@ PHRASES = {
     "or not copied yet": "or we have not recorded it yet",
     # the criteria page speaks of the configuration, not of the file's rows
     "the configuration the row reads": "the configuration run",
+    "the row is a reference": "for a reference (production serving)",
 }
 
-# RFC rule codes ("(RFC-0015 NM-1)") in text: a link to the RFC on the page, never the bare code
-RFC_RULE = re.compile(r"\s*\((RFC-(\d{4})(?:\s[A-Z]+-\d+)?)\)")
+# RFC rule codes ("(RFC-0015 NM-1)", "(RFC-0006 C5)", "(RFC-0016 Q10)") in text: a link to the
+# RFC on the page, never the bare code
+RFC_RULE = re.compile(r"\s*\((RFC-(\d{4})(?:\s[A-Z]+-?\d+)?)\)")
 
 
 def sentence_case(text):
@@ -272,21 +309,35 @@ def readable(text):
     # a count word stays with what it counts ("one H100"), a statistic with its number ("sd 0")
     text = re.sub(r"\b(one|two|three|four|five|six|seven|eight|nine|ten) (?=\w)", "\\1\u00a0", text)
     text = re.sub(r"\b(mean|sd) (?=[\d.])", "\\1\u00a0", text)
-    # a number stays with its unit, not with the "to" of a range
-    return re.sub(r"(\d) (?=(?!to )[A-Za-zµ%×])", "\\1\u00a0", text)
+    # a number stays with its unit, not with the "to" of a range; a product sign with its numbers
+    return nobreak(re.sub(r"(\d) (?=(?!to )[A-Za-zµ%×])", "\\1\u00a0", text))
 
 
-EXT = '<span aria-hidden="true">\u00a0↗</span>'  # an outside link's arrow: not read aloud, never alone on a line
+# an outside link's arrow: not read aloud, not underlined (an inline block), held to the word
+# before it (path_html ext, or a nowrap span)
+EXT = '<span class="xa" aria-hidden="true">\u00a0↗</span>'
+
+
+# where a link's words may break: after a "/", after a repository's name ("zk-inference-results: ")
+# and after a commit hash ("FlashProve@9e2bdd8f ")
+LINK_BREAK = re.compile(r"(?<=/)|(?<=: )|(?<=@[0-9a-f]{8} )")
 
 
 def path_html(text, ext=False):
-    """A source path that breaks only after a "/" or a " · ", never inside a part, and whose
-    separator ends a line rather than starts one. ext: end it with the outside link's arrow,
-    held to the last part so the arrow never wraps onto a line of its own."""
+    """A source path that breaks only after a "/" or "_", before a ".", or after a " · ", never
+    inside a word, and whose separator ends a line rather than starts one. ext: a link's words,
+    which break only after a "/", a repository's name or a commit hash, the last part whole
+    with its lines and the outside link's arrow ("figures.tsv L45 ↗"), so a file's name never
+    parts from its extension or its lines and the arrow never wraps onto a line of its own."""
+    if ext:
+        parts = [x for x in LINK_BREAK.split(text) if x]
+        head = "<wbr>".join(f'<span class="seg">{e(x)}</span>' for x in parts[:-1])
+        last = f'<span class="nw"><span class="seg">{e(parts[-1])}</span>{EXT}</span>'
+        return f"{head}<wbr>{last}" if head else last
     segs = re.split("\u00a0· | · ", text)
     out = []
     for i, sg in enumerate(segs):
-        subs = re.split(r"(?<=/)", sg)
+        subs = [s for s in re.split(r"(?<=[/_])|(?=\.[A-Za-z])", sg) if s]
         sep = "\u00a0·" if i < len(segs) - 1 else ""
         out.append(
             "<wbr>".join(
@@ -294,11 +345,7 @@ def path_html(text, ext=False):
                 for j, s in enumerate(subs)
             )
         )
-    html = " ".join(out)
-    if ext:
-        head, _, last = html.rpartition('<span class="seg">')
-        html = f'{head}<span class="nw"><span class="seg">{last}{EXT}</span>'
-    return html
+    return " ".join(out)
 
 
 def keep(text):
@@ -318,7 +365,7 @@ def keep(text):
 def link_or_text(text, href):
     """A source as a link when it has one; otherwise text, its rule codes as links."""
     if href:
-        return f'<a href="{e(href)}">{path_html(no_rule(text))}{EXT}</a>'
+        return f'<a href="{e(href)}">{path_html(no_rule(text), ext=True)}</a>'
     return with_rule(text)
 
 
@@ -334,7 +381,26 @@ def source_label(url):
 def record_html(path, words=None):
     """A record of the release (a run's `run.json` or `controls.json`) as a link to the file.
     words: the link's text, when not the path (a run id)."""
-    return f'<a href="{e(blob(path))}">{path_html(words or path)}{EXT}</a>'
+    return f'<a href="{e(blob(path))}">{path_html(words or path, ext=True)}</a>'
+
+
+RUN_ID = re.compile(r"(\d{4}-\d{2}-\d{2})-.*-(\d+)$")
+
+
+def run_ref(rid, record):
+    """A run by its date and ordinal ("2026-11-08 · 2"), its full id read aloud and in the
+    link's title, linked to its record once the release is published; an id of another shape
+    whole."""
+    m = RUN_ID.match(rid)
+    if not m:
+        return record_html(record, rid) if record else path_html(rid)
+    short = (
+        f'<span aria-hidden="true">{m[1]}\u00a0·\u00a0{m[2]}</span><span class="sr">{e(rid)}</span>'
+    )
+    if not record:
+        return f'<span class="nw" title="{e(rid)}">{short}</span>'
+    return (f'<a class="run" href="{e(blob(record))}" title="{e(rid)}">'
+            f'<span class="nw">{short}{EXT}</span></a>')  # fmt: skip
 
 
 def blob(path):
@@ -347,40 +413,43 @@ def blob(path):
 
 def cell_words(cfg, col):
     """(value html, lines, title, measured) for one overview figure of a configuration. The line
-    under it is its scope in one word where the rows of its column differ in it (steady, session,
-    session vs warm), else none; every label rides in its title, and the plate it links holds
-    them all in view (S2, S3)."""
+    under it is its scope in one word (steady, session, the checker's threads), each line a pair
+    (short words, full words read aloud); its title
+    holds the value, its scope, its runs and range, grade and evidence, and the plate it links
+    holds every label with its record (S2, S3)."""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
         if col == "overhead" and cfg["reference_role"] == "serve":  # the baseline's own note
-            return f'<span class="na">{e(word)}</span>', [REF_BASELINE], no_rule(line), False
+            return (f'<span class="na">{e(word)}</span>', [(REF_BASELINE, REF_BASELINE)],
+                    no_rule(line), False)  # fmt: skip
         return f'<span class="na">{e(word)}</span>', [], no_rule(line), False
     f = cfg["figures"][metric_of(cfg, col)]
     if f["value"] is None:
         return '<span class="na">No value</span>', [], no_rule(why_words(f, cfg)), False
     value = shown(f["value"], f["unit"])
-    said = [*(f"{k}: {v}" for k, v in labels(f, cfg))]
+    parts = [f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value]
     lines = []
     if col == "overhead" and f["metric"] in SCOPE_LINES:  # RFC-0009 S1: its scope in view
-        lines = [SCOPE_SHORT[f["metric"]]]
-        said[0] = f"scope: {SCOPE_LINES[f['metric']]}"  # both sides' scope (INV-DERIVE-11)
+        lines = [(SCOPE_SHORT[f["metric"]], SCOPE_LINES[f["metric"]])]
+        parts.append(SCOPE_LINES[f["metric"]])  # both sides' scope (INV-DERIVE-11)
         if pairs := pairs_words(f):
-            said.append(f"pairs: {pairs}")
+            parts.append(pairs)
         brief = (cfg.get("overhead_words") or {}).get("brief")
         if brief:
-            said.append(f"ran: {brief}")
-    if (
-        col == "per_bit"
-    ):  # steady, or session where the steady figure is null (RFC-0004 INV-SCOPE-1)
-        lines = [SCOPE_SHORT[f["scope"]]]
-    # the basis and its limit ride in the title (RFC-0004 INV-DERIVE-7)
-    value_said = f"{value} {PER_GBIT}" if col in PER_GBIT_COLS else value
-    title = " · ".join([value_said, *said, f"source: {f['source']}",
-                        *([f"spread: {spread_line(f)}"] if f.get("stats") else [])])  # fmt: skip
-    if col in PER_GBIT_COLS:
-        title += f" · weight bits: {bits_words(cfg)} · {PER_BIT_LIMIT}"
-    return fig(value), lines, title, True
+            parts.append(brief)
+    else:
+        if f["scope"] is not None:
+            parts.append(scope_words(f, cfg))
+            short = SCOPE_SHORT.get(f["scope"])
+            cpus = cfg["verifier"]["logical_cpus"]
+            if short and col in ("per_bit", "check_bit") and ("{cpus}" not in short or cpus):
+                # steady, session, the checker's threads
+                lines = [(short.format(cpus=cpus), scope_words(f, cfg))]
+        if spread := title_spread(f):
+            parts.append(spread)
+    parts += [GRADE_WORD[f["grade"]], f"evidence: {TIER_WORD[f['tier']]}"]
+    return fig(value), lines, " · ".join(parts), True
 
 
 def pairs_words(f):
@@ -396,8 +465,71 @@ def pairs_words(f):
     return out
 
 
+class Html(str):
+    """A plate row's value already in HTML (its runs linked), printed as it is."""
+
+
+# why a completed run joins no pair of an overhead (iproofs.site.view.JOIN_WHY), in words
+JOIN_WHY_WORDS = {
+    "first_proof_boundary": "{boundary}, so {they} no overhead",
+    "one_batch": "no steady window (one batch), so {they} no overhead",
+    "short_steady": "steady scope under 60 s, so {they} no overhead",
+    "sizing_capture": "a sizing capture, so {they} no overhead",
+    "other_prompts": "replayed the prompts of a run in no pair, so {they} none",
+    None: "in no pair",
+}
+
+
+def run_short(rid):
+    """A run by its date and ordinal, as a title reads it ("2026-11-09 · 1"); another id whole."""
+    return " · ".join(m.groups()) if (m := RUN_ID.match(rid)) else rid
+
+
+def left_words(cfg, runs, words=None):
+    """The runs of one side an overhead leaves out, grouped by why, in words for a title:
+    "2026-11-08 · 1, 2026-11-08 · 2: steady window from the first proof (runs before
+    2026-11-09), so they join no overhead". words: the phrases by why, where not an overhead's."""
+    by = {}
+    for x in runs:
+        by.setdefault(x["why"], []).append(x["run_id"])
+    out = []
+    for why, ids in by.items():
+        short = ", ".join(run_short(r) for r in ids)
+        they = "it joins" if len(ids) == 1 else "they join"
+        said = (words or JOIN_WHY_WORDS)[why].format(boundary=boundary_words(cfg), they=they)
+        out.append(f"{short}: {said}")
+    return "Left out: " + "; ".join(out)
+
+
+def pairs_html(cfg, f):
+    """An overhead's pairs on its plate: the runs joined on each side, read from its source
+    inputs, by date and ordinal linked to their records, then the range over the pairs; each
+    side's count holds in its title the runs of its configuration left out and why."""
+    joined = (cfg.get("overhead_runs") or {}).get(f["metric"])
+    pairs = f.get("pairs") or {}
+    if not joined or pairs.get("n_system") is None:
+        return Html(e(readable(pairs_words(f))))
+    sides = []
+    for side, n, noun in (("system", pairs["n_system"], "prover run"),
+                          ("serving", pairs["n_serving"], "serving run")):  # fmt: skip
+        runs = joined[side]
+        if len(runs) != n:
+            raise RuntimeError(f"{f['metric']}: {n} {side} runs counted, {len(runs)} in its inputs")
+        count = f"{n}\u00a0{noun}{'s' if n != 1 else ''}"
+        left = [x for x in joined["left"] if x["side"] == side]
+        if left:
+            count = f'<span class="nw" title="{e(left_words(cfg, left))}">{count}</span>'
+        refs = ", ".join(run_ref(r["run_id"], r["record"]) for r in runs)
+        sides.append(f"{count} ({refs})")
+    out = " × ".join(sides)
+    if pairs.get("min") is not None:
+        out += f", {e(shown(pairs['min'], 'ratio'))} to {e(shown(pairs['max'], 'ratio'))}"
+    return Html(out)
+
+
 def spread_kv(f):
-    """A plate's spread: n, range, mean and sd; an overhead's runs and range over its pairs."""
+    """A plate's spread: range, mean and sd (the setup's runs line names n); an overhead's runs
+    and range over its pairs."""
     if f.get("stats"):
         return [("spread", spread_line(f), None)]
     pairs = pairs_words(f)
@@ -406,10 +538,14 @@ def spread_kv(f):
 
 def value_link(cfg, col, href, who=""):
     """A figure on the overview row: a link to the figure's own plate, its scope in one word
-    under it where it has one; its labels ride in the title."""
+    under it where it has one, its full words read aloud; its labels ride in the title."""
     inner, lines, title, measured = cell_words(cfg, col)
     title = sentence_case(readable(title) if measured else title)
-    sub = "".join(f"<span>{keep(ln)}</span>" for ln in lines if ln)
+    sub = "".join(
+        f"<span>{keep(short)}</span>" if full == short else
+        f'<span aria-hidden="true">{keep(short)}</span><span class="sr">{e(full)}</span>'
+        for short, full in lines if short
+    )  # fmt: skip
     name = f'<span class="sr">, {e(who)}</span>' if who else ""
     return (
         f'<a class="val" href="{e(href)}" title="{e(title)}">'
@@ -423,10 +559,115 @@ def workload_link(cfg):
     return cfg["workload"]["id"], blob(cfg["workload"]["record"])
 
 
-def plate(cfg, col, pid=""):
-    """One figure's plate, every label in view (S2, S3); pid: an id prefix, so an overview
-    figure can link to its own plate."""
+def limit_words():
+    """RFC-0004 INV-DERIVE-7's limit, its prompt lengths those of the release's workloads (by
+    model), computed from their records, never typed."""
+    by_model = {}
+    for c in S.CONFIGS:
+        name = S.MODEL_NAME[c["workload"]["model"]["digest"]]
+        by_model.setdefault(name, set()).add(c["workload"]["shape"]["prompt_tokens"])
+    differ = {m: sorted(n) for m, n in by_model.items() if len(n) > 1}
+    if differ:
+        prompts = "; ".join(
+            f"the {m} workloads of this release have "
+            + ", ".join(f"{n:,}" for n in ns[:-1])
+            + f" and {ns[-1]:,} prompt tokens"
+            for m, ns in sorted(differ.items())
+        )
+    else:
+        lengths = sorted({n for ns in by_model.values() for n in ns})
+        prompts = (f"every workload of this release has a {lengths[0]:,}-token prompt"
+                   if len(lengths) == 1 else
+                   "each model's workloads in this release share one prompt length")  # fmt: skip
+    return PER_BIT_LIMIT.format(prompts=prompts)
+
+
+SHARED = ("workload", "grade", "evidence")  # labels a setup's figures may share (setup_shared)
+
+
+def figure_rows(cfg, f):
+    """A measured figure's own labels (S2, S3): its spread or pairs, and its scope when it is
+    timed; then grade and evidence, which a setup's figures usually share."""
+    kv = list(spread_kv(f))
+    for k, v in labels(f, cfg):
+        if k == "scope" and f["scope"] is None:
+            continue  # not a timed number: no scope row
+        kv.append((k, v, None))
+    return kv
+
+
+def setup_figures(cfg):
+    """Every figure a configuration's section prints: its plates' and its more-numbers rows'."""
+    return [cfg["figures"][metric_of(cfg, c)] for c in (*COLS, *PER_GBIT_COLS)] + [
+        cfg["figures"][m] for m, _ in MORE
+    ]
+
+
+def setup_shared(cfg):
+    """{label: value} the setup states once over its figures (S2): the workload (with its
+    division and profile), and the grade and evidence where every measured figure has the same;
+    `source` is the pointer's common prefix in the release index."""
+    shared = {"workload": None}
+    measured = [f for f in setup_figures(cfg) if f["value"] is not None]
+    for key in ("grade", "evidence"):
+        values = {dict(labels(f, cfg))[key] for f in measured}
+        if len(values) == 1:
+            shared[key] = values.pop()
+    shared["source"] = f"{S.V['release']['index']}#/configurations/{cfg['position']}/statistics/"
+    return shared
+
+
+def setup_dl(cfg, shared):
+    """The labels a setup's figures share, once, under its runs line."""
+    wid, href = workload_link(cfg)
+    rows = [("workload", f'<a href="{e(href)}">{path_html(wid, ext=True)}</a> · '
+                         f'<span title="division">{e(cfg["workload"]["division"])}</span> · '
+                         f'<span title="profile">{keep(cfg["profile"])}</span>')]  # fmt: skip
+    rows += [(k, e(shared[k])) for k in ("grade", "evidence") if k in shared]
+    rows.append(("source", source_html(shared["source"])))
+    return (
+        '<dl class="tlab setl">'
+        + "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
+        + "</dl>"
+    )
+
+
+def source_key(f, shared):
+    """A figure's record: the key under its setup's pointer prefix, or the whole pointer."""
+    prefix = (shared or {}).get("source")
+    if prefix and f["source"].startswith(prefix):
+        return f["source"][len(prefix) :]
+    return f["source"]
+
+
+def source_words(f, shared=None):
+    """A figure's record as a label reads it: its key, with the factor a reading unit applies
+    to the stored value where the key names another unit (a cost stored per 1k tokens, shown
+    per 1M: "cost_per_1k_tokens_prove.session × 1,000")."""
+    key = source_key(f, shared)
+    return f"{key}\u00a0×\u00a01,000" if f["unit"] == "USD/1k_token" else key
+
+
+def plate_label(col, tag="p"):
+    """A plate's label: its figure's name; a per-Gbit figure's in short ("Proving time") under
+    the basis its group head names once, the full name in its title and read aloud, so a plate
+    reached alone (a figure link, search) still carries its basis (RFC-0004 INV-DERIVE-7)."""
+    if col in PER_GBIT_COLS:
+        return (f'<{tag} class="lbl" title="{e(HEAD[col])}">{e(BOARD_HEAD[col])}'
+                f'<span class="sr"> {e(PER_GBIT)}</span></{tag}>')  # fmt: skip
+    return f'<{tag} class="lbl">{e(HEAD[col])}</{tag}>'
+
+
+def plate(cfg, col, pid="", shared=None):
+    """One figure's plate (S2, S3): its value and the labels it does not share with the rest of
+    its setup (shared: setup_shared, printed once above the plates); pid: an id prefix, so an
+    overview figure can link to its own plate. A figure with no value is one row, its name and
+    why (its rule linked): no value line, no record; the warm overhead keeps its scope
+    (RFC-0004 INV-DERIVE-11)."""
+    shared = shared or {}
     kv = []
+    said = ""  # what the number is: the mean of the runs, where it has a spread
+    pid_attr = f' id="{e(pid)}{col}"' if pid else ""
     if cfg["kind"] == "reference":
         word, line = (REF_OVERHEAD[cfg["reference_role"]] if col == "overhead"
                       else REF_CELLS[col])  # fmt: skip
@@ -435,38 +676,64 @@ def plate(cfg, col, pid=""):
     else:
         f = cfg["figures"][metric_of(cfg, col)]
         if f["value"] is None:
-            val = '<span class="na">No value</span>'
-            kv += [("workload", *workload_link(cfg)), ("why", why_words(f, cfg), None)]
-            if col == "overhead" and f["metric"] in SCOPE_LINES:  # INV-DERIVE-11, warm
-                kv.append(("scope", SCOPE_LINES[f["metric"]], None))
-        else:
-            val = fig(shown(f["value"], f["unit"]))
-            kv += spread_kv(f)
-            kv += [(k, v, None) for k, v in labels(f, cfg)]
+            rows = f"<div>{plate_label(col, 'dt')}<dd>{with_rule(readable(why_words(f, cfg)))}</dd></div>"
+            if f["metric"] == WARM:  # INV-DERIVE-11: the warm figure names its scope, valued or not
+                rows += f"<div><dt>scope</dt><dd>{e(readable(SCOPE_LINES[WARM]))}</dd></div>"
+            return f'<div class="plate nil"{pid_attr} data-col="{col}"><dl>{rows}</dl></div>'
+        val = fig(shown(f["value"], f["unit"]))
+        said = mean_words(f)
+        kv += [(k, pairs_html(cfg, f) if k == "pairs" else v, h)
+               for k, v, h in figure_rows(cfg, f) if k not in shared]  # fmt: skip
+        if "workload" not in shared:
             kv.append(("workload", *workload_link(cfg)))
-            words = cfg.get("overhead_words") if col == "overhead" else None
-            for key in ("conditions", "precision", "high"):  # RFC-0004 INV-DERIVE-9
-                if words and words.get(key):
-                    kv.append((key, words[key], None))
-        if col in PER_GBIT_COLS:  # RFC-0004 INV-DERIVE-7: the width, its note and the limit
-            wb = cfg["workload"]["precision"].get("weight_bits") or {}
-            kv.append(("weight bits", bits_words(cfg), wb.get("source")))
-            if wb.get("note"):
-                kv.append(("note", wb["note"], None))
-            kv.append(("limit", PER_BIT_LIMIT, None))
-        steady = cfg["figures"].get(METRIC["overhead"]) if col == "overhead" else None
-        if steady and steady["metric"] != f["metric"] and steady["value"] is None:
-            kv.append(("steady state", why_words(steady, cfg), None))  # why the session figure
-        if f["recorded"]:
-            kv.append(("source", f["source"], None))
+        kv.append(("source", source_words(f, shared), None))
     dl = "".join(
-        f"<div><dt>{e(k)}</dt><dd>{source_html(v) if k == 'source' else link_or_text(readable(v), href)}</dd></div>"
+        f"<div><dt>{e(k)}</dt><dd>{v if isinstance(v, Html) else path_html(v) if k == 'source' else dates_html(link_or_text(readable(v), href))}</dd></div>"
         for k, v, href in kv
     )
     return (
-        f'<div class="plate"{f' id="{e(pid)}{col}"' if pid else ""} data-col="{col}"><p class="lbl">{e(HEAD[col])}</p>'
-        f'<p class="pv">{val}</p><dl>{dl}</dl></div>'
+        f'<div class="plate"{pid_attr} data-col="{col}">{plate_label(col)}'
+        f'<p class="pv"{f' title="{e(said)}"' if said else ""}>{val}</p><dl>{dl}</dl></div>'
     )
+
+
+def flags_html(html):
+    """Engine flags (`--max-model-len 1025`) as code that never breaks inside."""
+    return re.sub(
+        r"--[a-z][a-z0-9-]*(?:[ \u00a0]\d+)?", lambda m: f'<code class="nw">{m[0]}</code>', html
+    )
+
+
+def overhead_notes(cfg):
+    """RFC-0004 INV-DERIVE-9, -11: what qualifies the headline overhead, from the release's
+    records, full width under the setup's plates: its conditions, the precision note, the
+    figure at high load, and, for a warm figure, why the steady one is null."""
+    if cfg["kind"] != "prover":
+        return ""
+    f = cfg["figures"][metric_of(cfg, "overhead")]
+    words = cfg.get("overhead_words") or {}
+    rows = [(label, dates_html(flags_html(with_rule(readable(words[key])))))
+            for key, label in (("conditions", "conditions"), ("precision", "precision"),
+                               ("high", "at high load")) if words.get(key)]  # fmt: skip
+    steady = cfg["figures"].get(METRIC["overhead"])
+    if steady and steady["metric"] != f["metric"] and steady["value"] is None:
+        rows.append(("steady state", with_rule(readable(why_words(steady, cfg)))))
+    if not rows:
+        return ""
+    items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
+    return f'<dl class="tlab notes" aria-label="{e(HEAD["overhead"])}: conditions">{items}</dl>'
+
+
+def per_gbit_basis(cfg):
+    """RFC-0004 INV-DERIVE-7, once under the three per-Gbit plates: the weight width they divide
+    by with its source, its note, and the limit."""
+    wb = cfg["workload"]["precision"].get("weight_bits") or {}
+    rows = [("weight bits", link_or_text(readable(bits_words(cfg)), wb.get("source")))]
+    if wb.get("note"):
+        rows.append(("note", flags_html(dates_html(with_rule(readable(wb["note"]))))))
+    rows.append(("limit", e(limit_words())))
+    items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
+    return f'<dl class="tlab notes basis" aria-label="{e(PER_GBIT)}">{items}</dl>'
 
 
 def source_html(pointer):

@@ -2,12 +2,13 @@
 facts, figures and tamper tests), the reference page, the criteria page and the 404 page.
 """
 
+import re
+
 from . import state as S
-from .chrome import CRIT_PAGE, footer, header, page
+from .chrome import CRIT_PAGE, footer, header, page, ref_label
 from .claims import (
     card_fact,
     card_full,
-    card_value,
     evidence_of,
     gap_block,
     how_we_read,
@@ -15,49 +16,67 @@ from .claims import (
     read_entries,
     run_ref,
 )
-from .hexagon import hex_svg, key_mini
-from .overview import model_line, plate_prefix, shape_words
+from .hexagon import hex_svg, key_mini, pie_svg, sized
+from .overview import kind_words, model_line, plate_prefix
 from .plates import (
     COLS,
     EXT,
     MORE,
+    PER_GBIT,
     PER_GBIT_COLS,
     aria,
+    blob,
     configs_of,
     fig,
+    figure_rows,
     glyph,
     has_figures,
     keep,
+    left_words,
+    metric_of,
     name_of,
+    overhead_notes,
     path_html,
+    per_gbit_basis,
     plate,
     readable,
-    record_html,
     row_id,
     runs_counts,
-    source_html,
+    setup_diff,
+    setup_dl,
+    setup_parts,
+    setup_shared,
     source_label,
+    source_words,
     upstream,
     with_rule,
     words,
 )
 from .words import (
     ACCEPTED_WHY,
+    CONTROL_WORDS,
     FAIL_KIND,
     FAIL_STEP,
     FAMILY_WORD,
+    NOT_READ_HEAD,
     OUTCOME_SHORT,
     OUTCOME_VERB,
     OUTCOME_WORDS,
-    REF_LEAD,
     STATE_CLS,
     STATE_ORDER,
     STATE_WORD,
     STATUS_WORD,
+    TAMPERS,
     amount,
+    count_word,
+    dates_html,
     e,
+    gpu_words,
     labels,
+    mean_words,
+    scope_words,
     shown,
+    sig4,
     spread_line,
     why_words,
 )
@@ -71,22 +90,22 @@ SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 
 def rose_item(c, pre, ev="", src=""):
     """One property beside its slice: its name (a link to what its states mean), its question for
-    screen readers, the state, and our short reason (left out when it only repeats Not stated).
-    On a system page, after the reason, a small link to the property's entry in "How we read it"
-    (`src`, its id), and, for an overridden cell, the one line that changes its state (`ev`,
-    draw/claims.py); nothing else."""
-    generic = (
-        c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
-    )
-    link = (f'<a class="psrc" href="#{e(src)}">source<span class="sr">: how we read '
-            f"{e(c['name'])}</span></a>" if src else "")  # fmt: skip
-    said = [x for x in ("" if generic else e(words(c["reason"])), link) if x]
-    only = ' class="rr rsrc"' if said == [link] else ' class="rr"'  # the link alone, no reason
-    reason = f"<p{only}>{' '.join(said)}</p>" if said else ""
-    state = f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{e(c["word"])}</p>'
+    screen readers, the state, and our short reason (on a cell recorded not_stated, drawn as No,
+    the reason is what says it is not stated).
+    On a system page the reason is the link to the property's entry in "How we read it" (`src`,
+    its id), or the state word where there is no reason; for an overridden cell, the one line
+    that changes its state follows (`ev`, draw/claims.py); nothing else. The state's square is
+    shown only where the rows sit away from the glyph (phones; the slice beside it has the ink).
+    The name is the property's one link: on a system page to its entry in "How we read it"
+    (`src`), elsewhere to what its states mean; the state and the reason are plain text."""
+    why = e(words(c["reason"]))
+    word = e(c["word"])
+    href = f"#{e(src)}" if src else f"{CRIT_PAGE}#{e(c['prop'])}"
+    reason = f'<p class="rr">{why}</p>' if why else ""
+    state = f'<p class="rs"><i class="sw {STATE_CLS[c["state"]]}"></i>{word}</p>'
     return (
         f'<li class="rp {SIDE[c["n"]]}" id="{pre}p-{e(c["prop"])}" data-n="{c["n"]}">'
-        f'<p class="rn"><a href="{CRIT_PAGE}#{e(c["prop"])}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
+        f'<p class="rn"><a href="{href}">{e(c["name"])}</a><span class="sr">. {e(c["question"])}</span></p>'
         f"{state}{reason}{ev}</li>"
     )
 
@@ -115,57 +134,118 @@ def facts_dl(items):
     )
 
 
-def more_table(cfg, caption):
-    """The other figures, each with every label a plate holds (S2, S3): the spread, scope, grade,
-    tier and the record in the release index; a missing one says why, and names its record when
-    the runs recorded the metric."""
-    more = ""
-    for metric, label in MORE:
-        f = cfg["figures"][metric]
-        if f["value"] is not None:
-            parts = [*([f"spread: {spread_line(f)}"] if f.get("stats") else []),
-                     *(f"{k}: {v}" for k, v in labels(f, cfg))]  # fmt: skip
-            lab = with_rule(readable(" · ".join(parts)))
-            n, _ = amount(f["value"], f["unit"])
-            # "GPU cost per 1,000 positions": the row names the basis, so the value drops its own
-            val = fig(f"{n} USD" if f["unit"] == "USD/1k_token" else shown(f["value"], f["unit"]))
-        else:
-            # only why it is missing: the value cell says "No value", and a missing number has no grade
-            lab = with_rule(why_words(f, cfg))
-            val = '<span class="na">No value</span>'
-        if f["recorded"]:
-            lab += f'\u00a0· <span class="src">source: {source_html(f["source"])}</span>'
-        more += f'<tr><th scope="row">{e(readable(label))}</th><td class="mv">{val}</td><td class="ml">{lab}</td></tr>'
+def price_text(cfg):
+    """The GPU-hour price a cost assumes (RFC-0006 C1, C7), from the release's reference file:
+    "at 5.345 USD per H200-hour (median list price, four providers, 2026-11-08)"; "" without."""
+    pr = cfg.get("price")
+    if not pr:
+        return ""
+    gpu = cfg["gpu"]["short"] or cfg["gpu"]["model"]
+    return (f"at {sig4(pr['usd_per_gpu_hour'])}\u00a0USD per {gpu}-hour (median list price, "
+            f"{count_word(pr['providers'])} providers, {pr['date']})")  # fmt: skip
+
+
+def price_words(cfg):
+    """`price_text`, linked to the reference file it comes from."""
+    said = price_text(cfg)
+    return (f'<a href="{e(blob(cfg["price"]["file"]))}">{dates_html(e(said))}{EXT}</a>'
+            if said else "")  # fmt: skip
+
+
+def label_cell(key, html):
+    """One label of a more-numbers row: its key, which the column's head names from 761 px and
+    the cell itself where the cells stack (phones), then its words; empty without words."""
+    cls = f"ml m-{key}"
     return (
-        f'<table class="mtab"><caption class="sr">{e(caption)}</caption>'
-        f'<thead><tr><th scope="col">Figure</th><th scope="col">Value</th><th scope="col">Labels</th></tr></thead><tbody>{more}</tbody></table>'
+        f'<td class="{cls}"><span class="mk">{key}: </span>{html}</td>'
+        if html
+        else f'<td class="{cls}"></td>'
     )
 
 
+def more_table(cfg, caption, shared=None):
+    """The other figures, each with the labels its setup's line does not state (S2, S3), one
+    column each, its head printed once: the spread; the scope when timed, with grade and tier
+    where they differ and, for a cost, the price it assumes; the record's key in the release
+    index. A missing one is one row: its name and why, as a plate with no value."""
+    shared = shared or {}
+    more = ""
+    for metric, label in MORE:
+        f = cfg["figures"][metric]
+        head = f'<th scope="row">{e(readable(label))}</th>'
+        if f["value"] is None:
+            more += (
+                f'<tr>{head}<td class="ml mw" colspan="4">{with_rule(why_words(f, cfg))}</td></tr>'
+            )
+            continue
+        cells = {k: v for k, v, _ in figure_rows(cfg, f) if k not in shared}
+        spread = with_rule(readable(cells.pop("spread", "")))
+        scope = [cells.pop("scope")] if "scope" in cells else []
+        scope = " · ".join(scope + [f"{k}: {v}" for k, v in cells.items()])
+        scope = dates_html(with_rule(readable(scope)))
+        if f["unit"] == "USD/1k_token" and (price := price_words(cfg)):
+            scope += ("\u00a0· " if scope else "") + price
+        n, u = amount(f["value"], f["unit"])
+        # "GPU cost per 1M tokens": the row names the basis, so the value keeps its currency
+        val = fig(f"{n} {u.split(' per ')[0]}" if f["unit"] == "USD/1k_token"
+                  else shown(f["value"], f["unit"]))  # fmt: skip
+        said = f' title="{e(mean_words(f))}"' if f.get("stats") else ""
+        src = f'<span class="src">{path_html(source_words(f, shared))}</span>'
+        more += (f'<tr>{head}<td class="mv"{said}>{val}</td>{label_cell("spread", spread)}'
+                 f'{label_cell("scope", scope)}{label_cell("source", src)}</tr>')  # fmt: skip
+    heads = "".join(f'<th scope="col">{h}</th>' for h in ("Figure", "Value", "Spread", "Scope",
+                                                          "Source"))  # fmt: skip
+    return (
+        f'<table class="mtab more"><caption class="sr">{e(caption)}</caption>'
+        f"<thead><tr>{heads}</tr></thead><tbody>{more}</tbody></table>"
+    )
+
+
+def control_name(cid):
+    """A control's id with its tamper in words (RFC-0008): "C6 (flipped bit)"."""
+    return f"{cid} ({CONTROL_WORDS[cid]})" if cid in CONTROL_WORDS else cid
+
+
 def accepted_words(cfg):
-    """Which control each stored `accepted` outcome is, and whether its own expected set holds
-    acceptance: a system's weakened-prover control expects it, a tampered proof does not
-    (RFC-0008). Listed from the records, never counted here."""
-    return ", and ".join(ACCEPTED_WHY[(a["source"], a["passed"] is True)].format(id=a["control"])
-                         for a in cfg["accepted"])  # fmt: skip
+    """Which control each stored `accepted` outcome is, by its id (the block under the tally
+    names it in words), and whether its own expected set holds acceptance: a system's
+    weakened-prover control expects it, a tampered proof does not (RFC-0008); one that tampered
+    only with a part the system declares verify does not read is named alone, its block saying
+    it tests nothing (RFC-0008, amendment of 2026-11-09). Listed from the records, never
+    counted."""
+    out = []
+    for a in cfg["accepted"]:
+        if a.get("not_read"):
+            out.append(a["control"])
+        else:
+            out.append(ACCEPTED_WHY[(a["source"], a["passed"] is True)].format(id=a["control"]))
+    return "; ".join(out)
 
 
 def tamper_words(cfg):
-    """Each stored outcome count of the configuration's controls (RFC-0008), zero counts left
-    out; no sum or difference of them (AGENTS.md rule 3). The accepted count names each
-    accepted control, so a control that expects acceptance never reads as a tampered proof
-    the checker took."""
+    """The runs the counts are over (each kept run that recorded its controls, by its date and
+    ordinal linked to its `controls.json`), then each stored outcome count of the
+    configuration's controls (RFC-0008), zero counts left out; no sum or difference of them
+    (AGENTS.md rule 3). The accepted count says which controls it counts, so a control that
+    expects acceptance never reads as a tampered proof the checker took, and one that tests
+    nothing says so."""
     counts = cfg["controls"]["counts"]
     said = []
     for k, w in OUTCOME_WORDS:
         if counts.get(k):
-            said.append(w.format(n=counts[k]) + (f" ({accepted_words(cfg)})" if k == "accepted"
-                                                 else ""))  # fmt: skip
-    return (
-        ("Tampering tests on this setup, by outcome: " + "; ".join(said) + ".")
-        if said
-        else "No tampering test ran on this setup."
-    )
+            # each count in the weight of a figure, its words in the reading voice
+            count = w.format(n="\x00").replace("\x00", f"<b>{counts[k]:,}</b>")
+            words = e(readable(count.replace("<b>", "\x01").replace("</b>", "\x02")))
+            words = words.replace("\x01", "<b>").replace("\x02", "</b>")
+            if k == "accepted" and not all(a.get("not_read") for a in cfg["accepted"]):
+                words += f" ({e(accepted_words(cfg))})"
+            said.append(words)
+    if not said:
+        return ""
+    runs = cfg["control_runs"]
+    refs = ", ".join(run_ref(r["run_id"], r["record"]) for r in runs)
+    word = "run" if len(runs) == 1 else "runs"
+    return f"In {len(runs)} {word} ({refs}): {'\u00a0· '.join(said)}"
 
 
 def control_tests(cfg):
@@ -198,7 +278,7 @@ def control_tests(cfg):
                 + "."
             )
         link = (
-            f' <a class="qs" href="{e(sc["source"])}">{e(source_label(sc["source"]))}{EXT}</a>'
+            f' <a class="qs" href="{e(sc["source"])}">{path_html(source_label(sc["source"]), ext=True)}</a>'
             if sc["source"]
             else ""
         )
@@ -206,12 +286,21 @@ def control_tests(cfg):
     return out
 
 
-def status_words(st):
-    """A status fact in one form for every system: the state, then its date and source if stored."""
-    out = STATUS_WORD[st["state"]]
+def status_words(st, cfg):
+    """A status fact in one form for every system: the system's own words about it, linked to
+    its README at the pin, the state word in the link's title; or, without them, the state
+    word; then its last push (where it was read in the title)."""
+    word = STATUS_WORD[st["state"]]
+    if st.get("quote"):
+        up = upstream(cfg)
+        href = f"https://github.com/{up['repo']}/blob/{up['commit']}/README.md"
+        out = f'<a href="{e(href)}" title="{e(word)}">“{e(st["quote"])}”{EXT}</a>'
+    else:
+        out = e(word)
     if st.get("last_push"):
-        src = f" ({st['source']}, retrieved {st['retrieved']})" if st.get("source") else ""
-        out += f" · last push {st['last_push']}{src}"
+        src = f"{st['source']}, retrieved {st['retrieved']}" if st.get("source") else ""
+        out += (f' · <span class="nw" title="{e(src)}">last push {e(st["last_push"])}</span>'
+                if src else f" · last push {e(st['last_push'])}")  # fmt: skip
     return out
 
 
@@ -228,7 +317,7 @@ def pinned(cfg):
         cited |= {s["repo"] for s in c["sources_read"] if "repo" in s}
     repos += [(r, pins[r]) for r in pins if r in cited and r != up["repo"]]
     return "".join(
-        f'<a href="https://github.com/{e(r)}/tree/{e(c)}">{path_html(r)}<span class="nw"> @{e(c[:8])}</span>{EXT}</a>'
+        f'<a href="https://github.com/{e(r)}/tree/{e(c)}">{path_html(r)}<span class="nw"> @{e(c[:8])}{EXT}</span></a>'
         for r, c in repos
     )
 
@@ -239,40 +328,59 @@ def config_where(cfg):
     )
 
 
+def setup_words(cfg):
+    """A setup as a reader names it: model, prompt, batch and GPUs; its ids ride in the
+    heading's title and in the workload line under it."""
+    return " · ".join(setup_parts(cfg))
+
+
+def setup_heading(cfg, hid):
+    """A setup's heading. On a page of several setups it prints only the words that set this
+    one apart ("24 requests per batch"), so it stays one line; the full line is read aloud and
+    rides in its title with the ids."""
+    full = setup_words(cfg)
+    title = f"{full} · {config_where(cfg)}"
+    if len(configs_of(cfg["system"])) == 1:
+        return f'<h3 id="{e(hid)}" class="sect sm setup" title="{e(title)}">{keep(readable(full))}</h3>'
+    short = " · ".join(setup_diff(cfg))
+    return (f'<h3 id="{e(hid)}" class="sect sm setup" title="{e(title)}">'
+            f'<span aria-hidden="true">{keep(readable(short))}</span>'
+            f'<span class="sr">{e(full)}</span></h3>')  # fmt: skip
+
+
 def left_out(cfg):
-    """S7: every run of the configuration its figures leave out, each by its id with its record:
-    a failed run with its failure kind, step, exit code and last line; a superseded run with its
-    reason and the run that replaces it; an ineligible run with its reasons. Named in words."""
+    """S7: every run of the configuration its figures leave out, each by its date and ordinal
+    linked to its record (its id in the link's title): a failed run with its failure kind, step
+    and exit code, its last line one press away; a superseded run with its reason and the run
+    that replaces it; an ineligible run with its reasons. Named in words."""
     runs = cfg["runs"]
     rows = []
     for f in runs["failed"]:
-        parts = [
-            FAIL_KIND[f["kind"]] + (f" {FAIL_STEP[f['step']]}" if f["step"] in FAIL_STEP else "")
-        ]
+        what = FAIL_KIND[f["kind"]] + (f" {FAIL_STEP[f['step']]}" if f["step"] in FAIL_STEP else "")
         if f["exit_code"] is not None:
-            parts.append(f"exit code {f['exit_code']}")
-        if f["last_line"]:
-            parts.append(f'last line: "{f["last_line"]}"')
-        rows.append(("failed", f["run_id"], f["record"], e("; ".join(parts))))
+            what += f" · exit\u00a0{f['exit_code']}"
+        last = (f'<details class="ll"><summary>last line</summary><p>“{e(f["last_line"])}”</p>'
+                "</details>" if f["last_line"] else "")  # fmt: skip
+        rows.append(f"{e(what)} · {run_ref(f['run_id'], f['record'])}{last}")
     for x in runs["left_out"]:
         if x["replaced_by"]:
             why = "; ".join(r.split(": ", 1)[1] if ": " in r else r for r in x["reasons"])
-            by = f"replaced by {run_ref(x['replaced_by'], x['replaced_by_record'])}"
-            rows.append(("superseded", x["run_id"], x["record"], f"{e(why)}; {by}"))
+            by = run_ref(x["replaced_by"], x["replaced_by_record"])
+            rows.append(
+                f"superseded: {e(why)}; replaced by {by} · {run_ref(x['run_id'], x['record'])}"
+            )
         else:
-            rows.append(("left out", x["run_id"], x["record"], e("; ".join(x["reason_words"]))))
+            rows.append(f"left out: {e('; '.join(x['reason_words']))} · "
+                        f"{run_ref(x['run_id'], x['record'])}")  # fmt: skip
     if not rows:
         return ""
-    items = "".join(f'<div><dt>{e(k)}</dt><dd><span class="rid">{run_ref(rid, rec)}</span>'
-                    f'<span class="rw">{why}</span></dd></div>' for k, rid, rec, why in rows)  # fmt: skip
-    return f'<dl class="tlab runs" aria-label="Runs left out of these figures">{items}</dl>'
+    items = "".join(f"<li>{r}</li>" for r in rows)
+    return f'<ul class="runs lo" aria-label="Runs left out of these figures">{items}</ul>'
 
 
 def runs_lead(cfg):
-    """What the figures are over (S7), and how many runs they leave out, by kind."""
+    """What the figures are over (S7): the completed runs, then those not counted, by kind."""
     runs = cfg["runs"]
-    n = len(runs["completed"])
-    said = [f"Runs of this setup: {n} completed"]
     out = []
     if runs["failed"]:
         out.append(f"{len(runs['failed'])} failed")
@@ -282,103 +390,145 @@ def runs_lead(cfg):
     other = len(runs["left_out"]) - sup
     if other:
         out.append(f"{other} left out")
-    if out:
-        said.append(f"not counted: {', '.join(out)}")
-    return "; ".join(said) + ". Each number below is over the completed runs."
+    said = f"Runs: {len(runs['completed'])} completed"
+    return said + (f", {', '.join(out)} (not counted)" if out else "")
 
 
-def config_figures(cfg, name, one):
-    """One configuration's figures: what they are over and the runs left out (S7), a plate per
-    overview column, the other figures in a table. one: the system has one configuration, so
-    the section heading already names the model and shape; otherwise a heading names the
-    configuration first."""
-    head = ""
-    if not one:
-        rid = row_id(cfg)
-        head = (f'<div class="sec-h"><h3 id="h-{e(rid)}" class="sect sm">{keep(config_where(cfg))}</h3>'
-                f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p></div>')  # fmt: skip
-    raw = "".join(plate(cfg, c, plate_prefix(cfg)) for c in COLS)
-    per_gbit = "".join(plate(cfg, c, plate_prefix(cfg)) for c in PER_GBIT_COLS)
+def config_figures(cfg, name, one, basis=True):
+    """One configuration's figures under a heading naming its setup: what they are over and the
+    runs left out (S7), the labels its figures share, a plate per overview column with what
+    qualifies the overhead under them, the per-Gbit basis under its three plates (basis: False
+    where the page prints it once for every setup), and the other figures in a table. On a page
+    of several setups each is a section of its own, its heading held at the top of the screen
+    while its figures scroll (words.css), so a figure link's landing names its setup."""
+    rid = row_id(cfg)
+    shared = setup_shared(cfg)
+    pre = plate_prefix(cfg)
+    raw = "".join(plate(cfg, c, pre, shared) for c in COLS)
+    per_gbit = "".join(plate(cfg, c, pre, shared) for c in PER_GBIT_COLS)
     body = (
-        f'{head}<p class="lead">{e(runs_lead(cfg))}</p>{left_out(cfg)}'
-        f'<div class="plates plates-sys">{raw}</div>'
-        f'<div class="plates plates-sys pgb">{per_gbit}</div>'
-        f"{more_table(cfg, f'More numbers for {name}, with spread, scope, grade, checked step and source')}"
+        f"{setup_heading(cfg, f'h-{rid}')}"
+        f'<p class="lead">{e(readable(runs_lead(cfg)))}</p>{left_out(cfg)}{setup_dl(cfg, shared)}'
+        f'<div class="plates plates-sys">{raw}</div>{overhead_notes(cfg)}'
+        f'<div class="plates plates-sys pgb"><p class="pgh">{e(PER_GBIT[:1].upper() + PER_GBIT[1:])}</p>'
+        f"{per_gbit}</div>{per_gbit_basis(cfg) if basis else ''}"
+        f"{more_table(cfg, f'More numbers for {name}, with spread, scope and source', shared)}"
     )
-    return body if one else f'<div class="cfgfigs" id="{e(row_id(cfg))}">{body}</div>'
+    return (body if one else
+            f'<section class="cfgfigs" id="{e(rid)}" aria-labelledby="h-{e(rid)}">{body}</section>')  # fmt: skip
 
 
-TRIAL_KEYS = (
-    "seed_index",
-    "outcome",
-    "verdict",
-    "raw_exit_code",
-    "raw_last_line",
-    "seconds",
-    "mutation",
-)  # the stored order of a trial's fields, as printed (schema controls/1)
-SHOWN = {"id", "outcome", "expected", "side", "source", "twin", "trials", "note"}
+def figures_body(cfgs, name):
+    """Every setup's figures. The per-Gbit basis (weight bits, note, limit) is grouped by what it
+    says: where every setup of a page of several shares it, it prints once, under the Figures
+    heading with the name of the basis, before the setups it qualifies; otherwise under each
+    setup's per-Gbit plates."""
+    one = len(cfgs) == 1
+    bases = {per_gbit_basis(c) for c in cfgs}
+    once = not one and len(bases) == 1
+    head = (f'<p class="lbl basis-h">{e(PER_GBIT[:1].upper() + PER_GBIT[1:])}</p>{bases.pop()}'
+            if once else "")  # fmt: skip
+    return head + "".join(config_figures(c, name, one, basis=not once) for c in cfgs)
 
 
 def trial_html(t):
-    """One stored trial in full: every field under its stored name, the mutation as its own
-    keys and values or "none" when it holds none (RFC-0008 §Reporting: "in full")."""
-    keys = [*(k for k in TRIAL_KEYS if k in t), *(k for k in t if k not in TRIAL_KEYS)]
-    rows = []
-    for k in keys:
-        v = t[k]
-        if k == "outcome":
-            v = OUTCOME_SHORT[v]
-        if k == "raw_last_line":
-            shown_ = f"“{e(v)}”"
-        elif isinstance(v, dict) and not v:
-            shown_ = "none"
-        else:
-            shown_ = card_value(v)
-        rows.append(f"<div><dt>{e(k)}</dt><dd>{shown_}</dd></div>")
-    return f'<dl class="cn">{"".join(rows)}</dl>'
+    """One stored trial on one line (RFC-0008 §Reporting, "in full"): its seed, the mutation as
+    stored, the outcome with the raw exit code and last line, and its time; the controls.json
+    linked beside holds every field."""
+    mut = t.get("mutation") or {}
+    if "bit_offset" in mut and "part" in mut:
+        how = f"bit {mut['bit_offset']:,} of {mut['part']} flipped"
+    else:
+        how = ", ".join(f"{k} {v}" for k, v in mut.items())
+    raw = []
+    if t.get("raw_exit_code") is not None:
+        raw.append(f"exit {t['raw_exit_code']}")
+    if t.get("raw_last_line") is not None:
+        raw.append(f"“{t['raw_last_line']}”")
+    parts = [f"seed {t['seed_index']}" if "seed_index" in t else "", how,
+             OUTCOME_SHORT[t["outcome"]] + (f" ({', '.join(raw)})" if raw else ""),
+             shown(t["seconds"], "s") if t.get("seconds") is not None else ""]  # fmt: skip
+    return f"<li>{e(readable(' · '.join(x for x in parts if x)))}</li>"
 
 
 def unexpected_full(cfg):
-    """RFC-0008 §Reporting: each outcome outside its control's expected set, printed in full
-    from its stored record (every field, each trial with its mutation and raw last line), with
-    the record it comes from."""
+    """RFC-0008 §Reporting: each outcome outside its control's expected set, from its stored
+    record: the control named in words, its run, outcome and expected set, the honest twin,
+    each trial on one line, and the record it comes from. An accepted record whose accepted
+    trials all tampered with a part the system declares verify does not read says it tests
+    nothing, with the same control's outcome in the configuration's other runs beside it."""
     out = ""
     for u in cfg["unexpected"]:
         rec = u["stored"] or {}
-        kv = [
-            ("control", e(u["control"])),
-            ("run", run_ref(u["run_id"], None)),
-            ("outcome", e(OUTCOME_SHORT[u["outcome"]])),
-            ("expected", e(", ".join(OUTCOME_SHORT[x] for x in rec.get("expected") or []))),
-            ("side", e(rec.get("side"))),
-            ("source", e(rec.get("source"))),
-        ]
+        name = control_name(u["control"])
+        expected = ", ".join(OUTCOME_SHORT[x] for x in rec.get("expected") or [])
+        title = ""
+        if u.get("not_read"):  # tests nothing: the expected set rides in the head's title
+            parts = ", ".join(f'<span class="nw">{e(x)}</span>' for x in u["not_read"])
+            lead = f"{e(name)}: {NOT_READ_HEAD.format(parts=parts)}"
+            title = f"expected outcomes: {expected}"
+        else:
+            lead = (f"{e(name)}: {e(OUTCOME_SHORT[u['outcome']])}, outside its expected "
+                    f"outcomes (expected: {e(expected)})")  # fmt: skip
+        rows = [("", lead, title)]
+        rows.append(("run", run_ref(u["run_id"], u["record"] or None), ""))
         tw = rec.get("twin")
-        kv.append(("honest twin", e(f"verdict {tw['verdict']}, exit code {tw['raw_exit_code']}")
-                   if tw else "none"))  # fmt: skip
-        kv += [(k, card_value(v)) for k, v in rec.items() if k not in SHOWN]
-        kv += [("trial", trial_html(t)) for t in rec.get("trials") or []]
-        kv.append(("note", e(rec["note"]) if rec.get("note") else "none"))
-        kv.append(("record", record_html(u["record"]) if u["record"] else "not in this release"))
-        rows = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in kv)
+        if tw:
+            rows.append(
+                ("honest proof", e(f"verdict {tw['verdict']}, exit {tw['raw_exit_code']}"), "")
+            )
+        trials = rec.get("trials") or []
+        if trials:
+            same = sum(1 for t in trials if t["outcome"] == u["outcome"])
+            label = ("trial" if len(trials) == 1 else
+                     f"{same} of {len(trials)} trials {OUTCOME_SHORT[u['outcome']]}")  # fmt: skip
+            items = "".join(trial_html(t) for t in trials)
+            rows.append((label, f'<ol class="trials">{items}</ol>', ""))
+        for o in u.get("others") or []:
+            # the outcome over the run's trials, and where its trials were kept (RFC-0008 READ-3)
+            tamper = TAMPERS.get(u["control"], "changes")
+            note = (f" ({tamper} kept off {', '.join(o['parts_not_read'])}, declared not read)"
+                    if o["parts_not_read"] else "")  # fmt: skip
+            count = f"{o['trials_same']} of {o['trials']} trials " if o.get("trials") else ""
+            rows.append(("other run", f"{e(readable(count + OUTCOME_SHORT[o['outcome']] + note))}"
+                                      f" · {run_ref(o['run_id'], o['record'])}", ""))  # fmt: skip
+        items = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" if k else
+                        f'<div class="ul"><dd{f' title="{e(t)}"' if t else ""}>{v}</dd></div>'
+                        for k, v, t in rows)  # fmt: skip
         out += (f'<dl class="tlab unexp" id="unexpected-{e(u["control"])}-{e(u["run_id"])}">'
-                f"{rows}</dl>")  # fmt: skip
+                f"{items}</dl>")  # fmt: skip
     return out
 
 
-def config_tamper(cfg):
-    """One configuration's controls: each stored outcome count, every outcome outside its
-    expected set in full, then the system's own controls."""
-    where = (
-        f'<dl class="tlab"><div><dt>configuration</dt><dd>{keep(config_where(cfg))}</dd></div></dl>'
-    )
-    return (f'<p class="tamper">{e(tamper_words(cfg))}</p>{where}{unexpected_full(cfg)}'
-            f"{control_tests(cfg)}")  # fmt: skip
+def config_tamper(cfg, many):
+    """One configuration's tamper tests: its setup (where a page holds several), each stored
+    outcome count, every outcome outside its expected set, then the system's own controls."""
+    head = setup_heading(cfg, f"t-{row_id(cfg)}") if many else ""
+    tally = tamper_words(cfg)
+    said = (f'<p class="tamper">{tally}</p>' if tally
+            else '<p class="tamper none">No tamper test ran on this setup.</p>')  # fmt: skip
+    return f"{head}{said}{unexpected_full(cfg)}{control_tests(cfg)}"
+
+
+# what a system page holds, by the plate that holds it, as its description names it
+DESC_FIGURES = (("overhead", "overhead against production serving"), ("per_bit", "proving time"),
+                ("proof_size", "proof size"), ("check_time", "check time"))  # fmt: skip
 
 
 def system_desc(sid):
-    return f"{name_of(sid)}: six properties of one proof and the benchmark's own figures with their labels."
+    """A system page's description (search results, link previews), from the view, no number:
+    the system, the models and GPUs it ran, and what the page holds, each figure only where a
+    setup has a value for it."""
+    cfgs = configs_of(sid)
+    models = " and ".join(
+        dict.fromkeys(S.MODEL_NAME[c["workload"]["model"]["digest"]] for c in cfgs)
+    )
+    gpus = " or ".join(dict.fromkeys(gpu_words(c) for c in cfgs))
+    held = ["what one proof establishes"]
+    held += [w for col, w in DESC_FIGURES
+             if any(c["figures"][metric_of(c, col)]["value"] is not None for c in cfgs)]  # fmt: skip
+    said = ", ".join(held[:-1]) + f" and {held[-1]}" if len(held) > 1 else held[0]
+    return f"{name_of(sid)} proving {models} on {gpus}: {said}."
 
 
 def claims_section(sid, cfgs, g, facts):
@@ -395,15 +545,41 @@ def claims_section(sid, cfgs, g, facts):
     entries = read_entries(sid, pc, order)
     src = {prop: f"read-{prop}" for prop in entries}
     name = name_of(sid)
-    return (
+    claims = (
         f'<section class="claims" id="claims-{e(cfg["configuration"])}" aria-labelledby="h-props">'
         f'<div class="over" id="properties">{rose(g, "h-props", name, ev=evidence_of(sid, pc, order), src=src)}'
-        f"{how_we_read(entries)}{facts_dl(facts)}</div>"
-        f"{card_full(cfg, sid)}{gap_block(cfgs)}</section>"
+        f"{how_we_read(entries)}</div></section>"
+    )
+    card = f'<section class="cardblk">{card_full(cfg, sid)}{gap_block(cfgs)}</section>'
+    return claims, card
+
+
+def side(name, facts, cfgs, card_id, read):
+    """The side column: the facts, then the page's sections, held in view beside the page on wide
+    screens (words.css), after the glyph and How we read it on narrow ones."""
+    links = [("properties", "Properties")]
+    if read:
+        links.append(("how-we-read", "How we read it"))
+    links += [(card_id, "Claim card in full"), ("figures", "Figures"), ("tamper", "Tamper tests")]
+    toc = "".join(f'<li><a href="#{e(i)}">{e(t)}</a></li>' for i, t in links)
+    return (
+        f'<aside class="side" aria-label="{e(name)}: facts and sections"><div class="side-in">'
+        f'{facts_dl(facts)}<nav class="toc" aria-label="On this page"><ul>{toc}</ul></nav>'
+        "</div></aside>"
     )
 
 
 def build_system(sid):
+    """A system page, drawn with its card's repository as the page's home (`S.HOME`): its source
+    links print path and lines, the facts' pinned row naming the repository once."""
+    S.HOME = upstream(configs_of(sid)[0])["repo"]
+    try:
+        return system_page(sid)
+    finally:
+        S.HOME = ""
+
+
+def system_page(sid):
     name = name_of(sid)
     cfgs = configs_of(sid)
     cfg = cfgs[0]
@@ -412,31 +588,35 @@ def build_system(sid):
     row = S.V["facts"]["rows"][sid]
     models = list(dict.fromkeys(model_line(c) for c in cfgs))
     facts = [
-        ("card", card_fact(cfg)),
         ("kind", keep(words(f"{FAMILY_WORD[S.CRIT['rows'][sid]['family']]}: {row['technique']}"))),
         ("model" if len(models) == 1 else "models", keep(" · ".join(models))),
         ("pinned", f'<span class="links">{pinned(cfg)}</span>'),
         ("licence", e(row["licence"]["name"])),
-        ("status", keep(status_words(row["status"]))),
-        ("adapter", f'<a href="{e(cfg["adapter_readme"])}">systems/{e(sid)}/README.md{EXT}</a>'),
+        ("status", status_words(row["status"], cfg)),
+        ("card", card_fact(cfg)),
+        (
+            "adapter",
+            f'<a href="{e(cfg["adapter_readme"])}">{path_html(f"systems/{sid}/README.md", ext=True)}</a>',
+        ),
     ]
-    shape = (f'<p class="sec-l">{e(readable(S.MODEL_NAME[cfg["workload"]["model"]["digest"]] + " · " + shape_words(cfg)))}</p>'
-             if one else "")  # fmt: skip
+    claims, card = claims_section(sid, cfgs, g, facts)
     body = f"""
 {header(sid)}
 <main id="main" class="sys">
   <section class="mast mast-sys" aria-labelledby="h-name">
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">{e(name)}</span></h1></div>
   </section>
-  <div class="wrap">
-    {claims_section(sid, cfgs, g, facts)}
+  <div class="wrap syswrap">
+    {claims}
+    {side(name, facts, cfgs, f"card-{cfg['configuration']}", "how-we-read" in claims)}
+    {card}
     <section class="blk" id="figures" aria-labelledby="h-figs">
-      <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2>{shape}</div>
-      {"".join(config_figures(c, name, one) for c in cfgs)}
+      <div class="sec-h"><h2 id="h-figs" class="sect">Figures</h2></div>
+      {figures_body(cfgs, name)}
     </section>
     <section class="blk" id="tamper" aria-labelledby="h-tamper">
       <h2 id="h-tamper" class="sect">Tamper tests</h2>
-      {"".join(config_tamper(c) for c in cfgs)}
+      {"".join(config_tamper(c, not one) for c in cfgs)}
     </section>
   </div>
 </main>
@@ -451,46 +631,182 @@ def build_system(sid):
     )
 
 
+# what production serving measured, each in a column of the reference page's table: the stored
+# statistic, the head, and the unit the head names (its cells print the number alone when they
+# all read in it)
+SERVING_COLS = (("gpu_seconds_per_token_prove.steady", "GPU time per token", None),
+                ("rate_prove.steady", "Tokens per second", "tokens/s"),
+                ("cost_per_1k_tokens_prove.steady", "GPU cost per 1M tokens", None))  # fmt: skip
+
+
+def engine_words(cfg):
+    sv = cfg.get("serving") or {}
+    return f"{sv['engine']} {sv['version']}" if sv.get("engine") else ""
+
+
+def serving_setup(cfg, shared=()):
+    """What a serving configuration ran, as the overhead's conditions record it, less what
+    every row of the table shares (`shared`, said once in its caption)."""
+    sv = cfg.get("serving") or {}
+    model = S.MODEL_NAME[cfg["workload"]["model"]["digest"]]
+    gpus = sv.get("gpus") or cfg["gpu"]["count"]
+    parts = [model, f"{sv.get('publisher')} {sv.get('precision')}" if sv.get("precision") else "",
+             engine_words(cfg), f"{count_word(gpus)} {cfg['gpu']['short'] or cfg['gpu']['model']}"]  # fmt: skip
+    if sv.get("batch"):
+        b = sv["batch"]
+        parts.append(f"{b:,} request{'s' if b != 1 else ''} per batch ({sv['load']} load)")
+    return " · ".join(x for x in parts if x and x not in shared)
+
+
+def serving_cols(cfgs):
+    """Per column, whether its cells print the number alone: every row's value reads in the
+    unit its head names."""
+    bare = {}
+    for metric, _, unit in SERVING_COLS:
+        units = {amount(c["figures"][metric]["value"], c["figures"][metric]["unit"])[1]
+                 for c in cfgs if c["figures"][metric]["value"] is not None}  # fmt: skip
+        bare[metric] = unit is not None and units == {unit}
+    return bare
+
+
+def serving_cell(cfg, metric, bare):
+    """One measured value of production serving: the value (the number alone where its head
+    names its unit, `bare`), every label and its record in its title (S2, S3)."""
+    f = cfg["figures"][metric]
+    if f["value"] is None:
+        return '<td><span class="na">No value</span></td>'
+    n, u = amount(f["value"], f["unit"])
+    val = fig(n if bare else f"{n} {u.removesuffix('/token').split(' per ')[0]}")
+    st = f.get("stats") or {}
+    # the row's head names its runs; the title the spread over them
+    said = [f"{n} {u}", scope_words(f, cfg), *([spread_line(f)] if st else []),
+            *(f"{k}: {v}" for k, v in labels(f, cfg)[1:]), f"source: {source_words(f)}"]  # fmt: skip
+    if f["unit"] == "USD/1k_token" and (price := price_text(cfg)):
+        said.append(price)
+    return f'<td title="{e(readable(" · ".join(said)))}">{val}</td>'
+
+
+# why a completed serving run is in no steady statistic, from its own records (iproofs.site.view
+# run_why), in words
+STEADY_WHY_WORDS = {
+    "one_batch": "no steady window (one batch)",
+    "short_steady": "steady window under 60 s",
+    "sizing_capture": "a sizing capture",
+    None: "in no statistic",
+}
+
+
+def serving_runs(cfg):
+    """The runs a row's figures share, in HTML: "3 runs", or, where its statistics leave a
+    completed run out, "4 of 5 runs", each left-out run and why in its title; None where its
+    figures read different runs."""
+    figs = [cfg["figures"][m] for m, _, _ in SERVING_COLS if cfg["figures"][m].get("stats")]
+    read = {tuple(f.get("runs") or ()) for f in figs}
+    ns = {f["stats"]["n"] for f in figs}
+    if len(ns) != 1 or len(read) != 1:
+        return None
+    n, done, got = ns.pop(), cfg["runs"]["completed"], set(read.pop())
+    left = [r for r in done if r not in got]
+    if not left:
+        return e(f"{n:,} run{'s' if n != 1 else ''}")
+    why = [{"run_id": r, "why": (cfg.get("run_why") or {}).get(r)} for r in left]
+    title = left_words(cfg, why, STEADY_WHY_WORDS)
+    return f'<span class="nw" title="{e(title)}">{n:,} of {len(done):,} runs</span>'
+
+
+def serving_table(gid, cfgs):
+    """Production serving's measurements: one row per configuration it ran, its setup and its run
+    count, then the steady GPU time per token, the rate and the cost per 1M tokens. What every
+    row shares (the scope, the engine) is said once, in the caption; a head that names its
+    unit holds it for its cells."""
+    rows_of = [c for c in cfgs if has_figures(c)]
+    if not rows_of:
+        return ""
+    scopes = {scope_words(c["figures"][m], c) for c in rows_of for m, _, _ in SERVING_COLS
+              if c["figures"][m]["value"] is not None}  # fmt: skip
+    engines = {engine_words(c) for c in rows_of}
+    shared = [
+        *(scopes if len(scopes) == 1 else []),
+        *(x for x in engines if len(engines) == 1 and x),
+    ]
+    bare = serving_cols(rows_of)
+    rows = ""
+    for c in rows_of:
+        runs = serving_runs(c)
+        head = keep(readable(serving_setup(c, shared))) + (f" · {runs}" if runs else "")
+        rows += (f'<tr><th scope="row">{head}</th>'
+                 + "".join(serving_cell(c, m, bare[m]) for m, _, _ in SERVING_COLS) + "</tr>")  # fmt: skip
+    heads = "".join(f'<th scope="col">{e(h)}</th>' for _, h, _ in SERVING_COLS)
+    # the caption heads a table of serving: a shared scope reads without its "serving, " lead
+    caption = "\u00a0· ".join(f'<span class="nw">{e(x.removeprefix("serving, "))}</span>'
+                              for x in ["Measured", *shared])  # fmt: skip
+    return (f'<table class="mtab stab" id="{e(gid)}-figures"><caption class="sect sm">{caption}</caption>'
+            f'<thead><tr><th scope="col">Setup</th>{heads}</tr></thead><tbody>{rows}</tbody></table>')  # fmt: skip
+
+
+def common_reason(g):
+    """The words every cell's reason shares, when all six states are one: "By definition:
+    nothing is checked"; "" when they share none."""
+    reasons = [c["reason"] for c in g["cells"]]
+    prefix = reasons[0]
+    for r in reasons[1:]:
+        while not r.startswith(prefix):
+            prefix = prefix[:-1]
+    return prefix.rstrip(" ,;.:")
+
+
+def reference_claims(gid, g, name):
+    """A reference's six states: where all six are one, the glyph once, small, a link to what
+    the states mean (its states read in its label), beside the reason the six share ("By
+    definition: nothing is checked."; RFC-0016 SRC-5, SRC-7); otherwise the glyph with each
+    property beside its slice."""
+    if len(set(g["states"])) == 1:
+        why = common_reason(g)
+        line = f'<p class="refline">{e(words(why))}.</p>' if why else ""
+        # its petals name themselves under a pointer or a tap, in the line's place, as a card's do
+        pie = sized(
+            lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == 120 else None, hit=True),
+            (120, 72),
+        )
+        return (f'<div class="refone"><a class="refpie" href="{CRIT_PAGE}" aria-label="{e(aria(g, name))}">'
+                f'{pie}</a><div class="reft">{line}<p class="tip" aria-hidden="true"></p></div></div>')  # fmt: skip
+    return f'<div class="over">{rose(g, f"h-{gid}-props", name, level=3, pre=f"{gid}-")}</div>'
+
+
 def build_reference():
-    """One page for the reference systems: each one's six properties, then its one set of figures."""
+    """One page for the references in the release: each one's name, its role, its six states,
+    then what it measured (production serving: one row per configuration it ran)."""
     secs = ""
     for gid in S.V["orders"]["reference"]:
         g = glyph(gid)
         name = name_of(gid)
         cfgs = [c for c in S.CONFIGS if c["system"] == gid]
-        models = list(dict.fromkeys(S.MODEL_NAME[c["workload"]["model"]["digest"]] for c in cfgs))
-        facts = [
-            ("kind", e(words(S.V["facts"]["rows"][gid]["kind_words"]))),
-            ("model" if len(models) == 1 else "models", e(" · ".join(models))),
-        ]
-        cfg = cfgs[0]
         counts = "".join(f'<p class="lead">{with_rule(readable(runs_counts(c)))}</p>'
                          for c in cfgs if not has_figures(c))  # fmt: skip
-        figs = (
-            f'<div class="reffigs" id="{e(gid)}-figures"><h3 class="sect sm">Figures<span class="of"> · {e(name)}</span></h3>'
-            f'{counts}<div class="plates plates-sys">{"".join(plate(cfg, c, f"{gid}-fig-") for c in COLS)}</div></div>'
-        )
         secs += f'''
     <section class="refsys" id="{e(gid)}" aria-labelledby="h-{e(gid)}">
       <h2 id="h-{e(gid)}" class="refh">{e(name)}</h2>
-      <div class="over">{rose(g, f"h-{gid}-props", name, level=3, pre=f"{gid}-")}{facts_dl(facts)}</div>
-      {figs}
+      <p class="reflead">{e(kind_words(gid))}</p>
+      {reference_claims(gid, g, name)}
+      {serving_table(gid, cfgs)}{counts}
     </section>'''
+    label = ref_label()
+    names = [name_of(gid) for gid in S.V["orders"]["reference"]]
     body = f"""
 {header("reference")}
 <main id="main" class="sys refpage">
   <section class="mast mast-sys" aria-labelledby="h-name">
-    <div class="mast-in"><h1 id="h-name" class="sysname refname"><span class="lt">References</span></h1></div>
+    <div class="mast-in"><h1 id="h-name" class="sysname refname"><span class="lt">{e(label)}</span></h1></div>
   </section>
   <div class="wrap">
-    <p class="reflead">{e(REF_LEAD)}</p>
     {secs}
   </div>
 </main>
 {footer()}"""
+    its = "its" if len(names) == 1 else "their"
     return page(
-        "References",
-        "The references: production serving and a rerun by a weights holder, their six properties and their figures.",
+        label,
+        f"{' and '.join(names)}: {its} six properties and what was measured.",
         body,
         "system reference",
         "reference",
@@ -499,6 +815,35 @@ def build_reference():
 
 
 # ------------------------------------------------------------------ the criteria and the 404
+
+
+# a property's Not stated rule that adds a case to the shared one (printed once, under the
+# title): "Not stated, including <case>, or not copied yet." prints as the case; any other
+# Not stated rule says what the shared rule and the property's note already say, and is left out
+NOT_STATED_CASE = re.compile(r"^Not stated, including (.+?)(?:, or not copied yet)?\.$")
+
+
+def not_stated_case(rule):
+    """The case a property's Not stated rule adds to the shared rule, as a sentence, or None."""
+    m = NOT_STATED_CASE.match(rule)
+    return f"{m[1][:1].upper()}{m[1][1:]}." if m else None
+
+
+def not_stated_rule():
+    """The Not stated rule every property shares: the criteria file's meaning of the state, with
+    the clause its property rules end with ("or not copied yet")."""
+    return S.CRIT["states"]["not_stated"]["meaning"]
+
+
+def rule_words(rule):
+    """A state's rule as the criteria page prints it: the column already says it is what the
+    documentation says, so the lead-in goes; the shared Not stated clause is printed once."""
+    text = words(rule).replace(", or we have not recorded it yet", "")
+    m = re.match(r"The documentation says (?:that )?(.)", text)
+    if m:
+        text = m[1].upper() + text[m.end() :]
+        text = text.replace(", or that ", ", or ").replace(", that ", ", ")
+    return readable(text)
 
 
 def build_criteria():
@@ -510,14 +855,17 @@ def build_criteria():
     )
     secs = ""
     for i, p in enumerate(S.PROPS):
+        rules = {s: rule_words(p["rules"][s]) for s in STATE_ORDER if s != "not_stated"}
+        if case := not_stated_case(p["rules"]["not_stated"]):
+            rules["not_stated"] = readable(words(case))
         states = "".join(
-            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</dt><dd>{e(words(p["rules"][s]))}</dd></div>'
-            for s in STATE_ORDER
+            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{"Not stated" if s == "not_stated" else e(STATE_WORD[s])}</dt><dd>{with_rule(r)}</dd></div>'
+            for s, r in rules.items()
         )
         note = f'<p class="cnote">{e(words(p["not_here"]))}</p>' if p.get("not_here") else ""
         secs += (
             f'<section class="crit" id="{e(p["id"])}" aria-labelledby="h-{e(p["id"])}">'
-            f'<div class="ch">{key_mini(i + 1)}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
+            f'<div class="ch">{sized(lambda s, n=i + 1: key_mini(n, s), (48, 32))}<h2 id="h-{e(p["id"])}" class="sect">{e(p["name"])}</h2>'
             f'<p class="cq">{e(p["question"])}</p></div><dl class="cs">{states}</dl>{note}</section>'
         )
     body = f"""
@@ -527,6 +875,7 @@ def build_criteria():
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Criteria</span></h1></div>
   </section>
   <div class="wrap">
+    <p class="cshared"><i class="sw no"></i><b>Not stated is No.</b> {e(words(not_stated_rule()))}</p>
     <ul class="cidx" aria-label="Properties">{idx}</ul>
     {secs}
   </div>
@@ -534,7 +883,7 @@ def build_criteria():
 {footer()}"""
     return page(
         "Criteria",
-        "What Yes, Partly, No and Not stated mean for each of the six properties of one proof.",
+        "What Yes, Partly and No mean for each of the six properties of one proof.",
         body,
         "system criteria",
         CRIT_PAGE.strip("/"),
@@ -543,12 +892,19 @@ def build_criteria():
 
 
 def build_404():
+    """Not found: the benchmarked systems, each with its glyph. The header, its logo and the
+    footer already link every other page."""
+    systems = "".join(
+        f'<li><a href="{e(S.PAGE[sid])}">{pie_svg(glyph(sid)["states"], 28)}<span>{e(name_of(sid))}</span></a></li>'
+        for sid in S.V["orders"]["benchmarked"]
+    )
     body = f"""
 {header(None)}
 <main id="main" class="sys">
   <section class="mast mast-sys" aria-labelledby="h-name">
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Not found</span></h1></div>
   </section>
+  <div class="wrap"><ul class="lost" aria-label="Systems">{systems}</ul></div>
 </main>
 {footer()}"""
     return page("Not found", "No page at this address.", body, "system notfound", "404", None)

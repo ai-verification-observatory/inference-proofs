@@ -9,11 +9,118 @@
   let reduce = false;
   try { reduce = matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (_) { /* no media queries */ }
 
-  // ------------------------------------------------------------ row pies: the slice under the pointer lifts,
-  // and its property's name and state show beside it (positioned: nothing moves). The others keep their ink.
-  // The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
-  $$('.row .pie').forEach((pie) => {
-    const tip = $('.tip', pie);
+  // ------------------------------------------------------------ the header band: a gradient of the brand's violet,
+  // its lighter tones as highlights, flowing with two large, soft value-noise fields, drawn small and scaled up (so it stays soft and cheap). Every ink keeps black
+  // text above 4.5:1. Still under reduced motion; paused when the band is out of view or the tab hidden.
+  $$('.mast').forEach((band) => {
+    const cv = document.createElement('canvas');
+    cv.className = 'juice';
+    cv.setAttribute('aria-hidden', 'true');
+    band.prepend(cv);
+    const cx = cv.getContext('2d');
+    if (!cx) return;
+    // one hue, dark to light: deep violets at the floor black text allows (#8a4dff 4.6:1, #9a52ff 5:1), the brand's
+    // violet (#c45cff) in the middle, then one light violet (#d38aff) at the top
+    const INKS = [[138, 77, 255], [154, 82, 255], [176, 88, 255], [196, 92, 255], [204, 112, 255], [211, 138, 255]];
+    const P = new Uint8Array(512);
+    for (let i = 0, s = 7; i < 256; i++) P[i] = i;
+    for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
+    for (let i = 0; i < 256; i++) P[i + 256] = P[i];
+    const h = (x, y, z) => P[P[P[x & 255] + (y & 255)] + (z & 255)] / 255;
+    const f = (t) => t * t * (3 - 2 * t);
+    const lerp = (a, b, t) => a + (b - a) * t;
+    const noise = (x, y, z) => {
+      const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+      const u = f(x - xi), v = f(y - yi), w = f(z - zi);
+      const a = lerp(lerp(h(xi, yi, zi), h(xi + 1, yi, zi), u), lerp(h(xi, yi + 1, zi), h(xi + 1, yi + 1, zi), u), v);
+      const b = lerp(lerp(h(xi, yi, zi + 1), h(xi + 1, yi, zi + 1), u), lerp(h(xi, yi + 1, zi + 1), h(xi + 1, yi + 1, zi + 1), u), v);
+      return lerp(a, b, w);
+    };
+    const ink = (t) => {
+      const k = Math.min(INKS.length - 1.001, Math.max(0, t * (INKS.length - 1)));
+      const i = Math.floor(k), r = k - i, A = INKS[i], B = INKS[i + 1];
+      return [lerp(A[0], B[0], r), lerp(A[1], B[1], r), lerp(A[2], B[2], r)];
+    };
+    const CELL = 24;
+    let img = null;
+    const size = () => {
+      const w = Math.max(8, Math.ceil(band.clientWidth / CELL)), hh = Math.max(4, Math.ceil(band.clientHeight / CELL));
+      if (cv.width !== w || cv.height !== hh) { cv.width = w; cv.height = hh; img = cx.createImageData(w, hh); }
+    };
+    const draw = (t) => {
+      size();
+      const { width: w, height: hh } = cv; const d = img.data;
+      for (let y = 0; y < hh; y++) {
+        for (let x = 0; x < w; x++) {
+          // a diagonal sweep across the whole band, bent by one very large, soft noise field (about one and a
+          // half swells across the width, stretched along it)
+          const u = x / w, v = y / hh;
+          // two large fields drifting against each other, over a diagonal sweep, so the colours flow; the whole
+          // run drifts slowly along the palette too
+          const sweep = 0.7 * u + 0.3 * v;
+          const fa = noise(u * 1.7 + t * 0.5, v * 0.55, t * 0.6);
+          const fb = noise(u * 1.1 - t * 0.35 + 7.3, v * 0.8 + 2.1, t * 0.45 + 4);
+          const drift = 0.12 * Math.sin(t * 0.8);
+          // spread toward both ends, so dark and light swells meet in the same frame
+          const n = Math.min(1, Math.max(0, 0.5 + 1.7 * (0.35 * sweep + 0.7 * fa + 0.45 * fb - 0.84 + drift)));
+          const [r, g, b] = ink(n); const o = (y * w + x) * 4;
+          d[o] = r; d[o + 1] = g; d[o + 2] = b; d[o + 3] = 255;
+        }
+      }
+      cx.putImageData(img, 0, 0);
+    };
+    // a random start, so each visit opens on its own frame
+    let seen = true, raf = 0, last = 0, t = Math.random() * 500;
+    const tick = (now) => {
+      raf = 0;
+      if (!seen || document.hidden) return;
+      if (now - last > 50) { t += Math.min(now - last, 100) * 0.00016; last = now; draw(t); }
+      raf = requestAnimationFrame(tick);
+    };
+    const go = () => { if (!raf && !reduce) { last = performance.now(); raf = requestAnimationFrame(tick); } };
+    draw(t);
+    if (reduce) { addEventListener('resize', () => draw(t)); return; }
+    try { new IntersectionObserver(([en]) => { seen = en.isIntersecting; if (seen) go(); }).observe(band); } catch (_) { /* always on */ }
+    document.addEventListener('visibilitychange', go);
+    go();
+  });
+
+  // ------------------------------------------------------------ a system page's section list: the section in view is
+  // marked (aria-current), the last one whose top has passed a line a third of the way down the screen
+  $$('.toc').forEach((toc) => {
+    const pairs = $$('a[href^="#"]', toc)
+      .map((a) => [a, document.getElementById(decodeURIComponent(a.hash.slice(1)))])
+      .filter(([, t]) => t);
+    if (!pairs.length) return;
+    let on = null;
+    let queued = false;
+    const mark = () => {
+      queued = false;
+      const line = innerHeight / 3;
+      let cur = pairs[0][0];
+      for (const [a, t] of pairs) if (t.getBoundingClientRect().top <= line) cur = a;
+      // at the foot of the page the last section is the one in view, however short
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) cur = pairs[pairs.length - 1][0];
+      if (cur === on) return;
+      if (on) on.removeAttribute('aria-current');
+      cur.setAttribute('aria-current', 'true');
+      on = cur;
+    };
+    const ask = () => { if (!queued) { queued = true; requestAnimationFrame(mark); } };
+    addEventListener('scroll', ask, { passive: true });
+    addEventListener('resize', ask);
+    document.addEventListener('toggle', ask, true);
+    mark();
+  });
+
+  // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
+  // glyph: the slice under the pointer lifts, and its property's name and state show in a card under a row's glyph
+  // (its pointer on the petal), on a not-benchmarked card or the reference page in place of the line beside the glyph;
+  // nothing moves. The others keep
+  // their ink. The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
+  $$('.row .pie, .nb .nbpie, .refone .refpie').forEach((pie) => {
+    const card = pie.closest('.nb, .refone');
+    const tip = $('.tip', card || pie);
     let hot = 0;
     const set = (n) => {
       if (n === hot) return;
@@ -25,23 +132,31 @@
       if (tip && sl && sl.dataset.word) {
         const b = document.createElement('b');
         b.textContent = sl.dataset.name;
+        // a not-benchmarked card or a reference: one line in its line's place ("Whole output checked: not stated")
+        if (card) { tip.replaceChildren(b, document.createTextNode(`: ${sl.dataset.word.toLowerCase()}`)); return; }
         const sw = document.createElement('i');
-        // the slice's state class (yes, partly, no, unstated) is the one besides sl, sN
+        // the slice's state class (yes, partly, no) is the one besides sl, sN
         sw.className = `sw ${[...sl.classList].find((c) => c !== 'sl' && !/^s\d$/.test(c)) || ''}`;
         const st = document.createElement('span');
         st.append(sw, document.createTextNode(sl.dataset.word));
         tip.replaceChildren(b, st);
+        // a row's card: its pointer on the petal's middle; over the glyph when under it would leave the screen
+        const hp = $$(`.hit path[data-n="${n}"]`, pie).map((x) => x.getBoundingClientRect()).find((r) => r.width);
+        const pr = pie.getBoundingClientRect();
+        if (hp) tip.style.setProperty('--cx', `${Math.round(hp.left + hp.width / 2 - pr.left)}px`);
+        tip.classList.toggle('up', pr.bottom + 12 + tip.offsetHeight > innerHeight && pr.top - 12 - tip.offsetHeight > 0);
       }
     };
     pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });
     pie.addEventListener('pointerleave', (ev) => { if (mouse(ev)) set(0); });
-    // touch: the first tap on a triangle names it; a second tap on the same one follows the link
+    // touch: the first tap on a triangle names it; a second tap on the same one follows the link (a glyph with
+    // no link lets it go)
     let kind = '';
     pie.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
     pie.addEventListener('click', (ev) => {
       if (kind === 'mouse') return;
       const n = +(ev.target.closest('.hit path')?.dataset.n || 0);
-      if (n && n !== hot) { ev.preventDefault(); set(n); }
+      if (n && n !== hot) { ev.preventDefault(); set(n); } else if (n && !pie.href) set(0);
     });
     document.addEventListener('pointerdown', (ev) => { if (!pie.contains(ev.target)) set(0); });
   });
@@ -54,10 +169,15 @@
     rose.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
     rose.addEventListener('click', (ev) => {
       if (kind === 'mouse' || ev.target.closest('a')) return;
-      const at = ev.target.closest('.rpie .hit path') || ev.target.closest('.rp');
+      const slice = ev.target.closest('.rpie .hit path');
+      const at = slice || ev.target.closest('.rp');
       const n = at ? at.dataset.n : '';
       if (!n) return;
-      if (rose.dataset.hot === n) cool(); else rose.dataset.hot = n;
+      if (rose.dataset.hot === n) { cool(); return; }
+      rose.dataset.hot = n;
+      // on a phone the rows sit under the glyph: a tapped triangle brings its row into view
+      const row = slice && $(`.rp[data-n="${n}"]`, rose);
+      if (row && getComputedStyle(rose).display === 'block') row.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
     });
     document.addEventListener('pointerdown', (ev) => { if (!rose.contains(ev.target)) cool(); });
   });
@@ -86,19 +206,24 @@
     if (a) reveal(a.getAttribute('href').slice(1), false);
   });
 
+  // ------------------------------------------------------------ print: every fold open on paper, as it was after
+  let folded = [];
+  addEventListener('beforeprint', () => { folded = $$('details:not([open])'); folded.forEach((d) => { d.open = true; }); });
+  addEventListener('afterprint', () => { folded.forEach((d) => { d.open = false; }); folded = []; });
+
   // ------------------------------------------------------------ search: a combobox over search.json (written by build.py)
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
   // only from its first letter on. Order: not-benchmarked systems after every other match; within
-  // each part, where the words matched, then the kind of entry, then how closely, then the name. It
-  // never orders by how good a system is.
+  // each part, a match in the name before one in the other words only, then the kind of entry, the
+  // page in view, how closely, then the name. It never orders by how good a system is. A result
+  // found by its other words shows the phrase that holds them (a figure leads to its plate).
   const sbox = $('.search');
   if (sbox) {
     const input = $('#q', sbox);
     const list = $('#q-list', sbox);
     const opener = $('.sopen', sbox);
     const top = sbox.closest('.top');
-    const CAP = 12;  // per part: other matches, then not-benchmarked ones; the rest is counted, not hidden
     let entries = null;
     let loading = null;
     let failed = false;
@@ -115,7 +240,9 @@
       .replace(/([a-z])(\d)/g, '$1 $2').replace(/[^a-z0-9.]+/g, ' ').trim();
     const load = () => {
       loading = loading || fetch(list.dataset.index).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.json(); }).then((d) => {
-        entries = d.entries.map((x) => ({ ...x, nw: norm(x.name).split(' '), tw: norm(x.terms).split(' '), n: norm(x.name) }));
+        const said = (p) => ({ ...p, w: norm(p.name).split(' ') });
+        entries = d.entries.map((x) => ({ ...x, nw: norm(x.name).split(' '), tw: norm(x.terms).split(' '), n: norm(x.name), cw: x.context ? norm(x.context).split(' ') : [],
+          mw: norm(x.meta).split(' '), why: [...(x.figures || []).map(said), ...(x.found || []).map((name) => said({ name }))] }));
       }).catch(() => { failed = true; });
       return loading;
     };
@@ -129,37 +256,57 @@
       const [s, l] = a.length < b.length ? [a, b] : [b, a];
       return s.slice(i) === l.slice(i + 1);
     };
-    // how one query word matches a list of words: 0 starts one, 1 sits inside one, 2 one typo away
-    const wordScore = (q, ws, typo) => {
+    // how one query word matches a list of words: 0 starts one, 1 sits inside one, 2 one typo away. A typo is
+    // tried from 4 letters in a name ("sahs" finds SASH) and from 5 in the other words, where a short word
+    // has too many neighbours ("time" is one letter from "tied")
+    const wordScore = (q, ws, typo, least = 5) => {
       let best = 9;
       for (const w of ws) {
         if (w.startsWith(q)) return 0;
         if (q.length >= 3 && w.includes(q)) best = Math.min(best, 1);
-        else if (typo && q.length >= 4 && w[0] === q[0] && [q.length - 1, q.length, q.length + 1].some((L) => near(q, w.slice(0, L)))) best = Math.min(best, 2);
+        else if (typo && q.length >= least && w[0] === q[0] && [q.length - 1, q.length, q.length + 1].some((L) => near(q, w.slice(0, L)))) best = Math.min(best, 2);
       }
       return best;
     };
+    const nameScore = (q, ws, typo) => wordScore(q, ws, typo, 4);
     const rank = (x, qs, whole, typo) => {
       if (x.n.startsWith(whole)) return [0, 0];
-      const inName = qs.map((q, k) => wordScore(q, x.nw, typo[k]));
+      const inName = qs.map((q, k) => nameScore(q, x.nw, typo[k]));
       if (inName.every((s) => s < 9)) return [1, inName.reduce((a, b) => a + b, 0)];
       if (whole.length < 2) return null;  // one letter: names only
-      const inAll = qs.map((q, k) => Math.min(wordScore(q, x.nw, typo[k]), wordScore(q, x.tw, typo[k])));
-      if (inAll.every((s) => s < 9)) return [2, inAll.reduce((a, b) => a + b, 0)];
+      const inAll = qs.map((q, k) => Math.min(nameScore(q, x.nw, typo[k]), wordScore(q, x.tw, typo[k])));
+      // a section's system and models count only beside a word of its own
+      const inCtx = qs.map((q, k) => Math.min(inAll[k], wordScore(q, x.cw, typo[k])));
+      if (inCtx.every((s) => s < 9) && inAll.some((s) => s < 9)) return [2, inCtx.reduce((a, b) => a + b, 0)];
       return null;
     };
+    // why a result found by its other words was found: the words its name does not hold, in its line of context,
+    // or else the figure or phrase holding the most of them (the first such); null when its line already says it
+    const reason = (x, qs, typo) => {
+      const rest = qs.filter((q, k) => nameScore(q, x.nw, typo[k]) === 9);
+      const held = (ws) => rest.filter((q) => wordScore(q, ws, typo[qs.indexOf(q)]) < 9).length;
+      if (!rest.length || held(x.mw) === rest.length) return null;
+      let best = null; let most = 0;
+      x.why.forEach((p) => { const n = held(p.w); if (n > most) { best = p; most = n; } });
+      return best;
+    };
+    // every match: not benchmarked last; a match in the name before one in the other words only; then by group
+    // (benchmarked first; a system's sections under its name, the page in view first, the systems A to Z), within a
+    // group where the words matched (a name that starts with the query first), then how closely, then the name
     const results = (q) => {
       const whole = norm(q);
-      if (!whole) { const all = entries.filter((x) => x.kind === 'system'); return { shown: all, total: all.length }; }
+      if (!whole) return entries.filter((x) => x.kind === 'system');
       const qs = whole.split(' ');
       // a word some entry has is matched as typed; only a word no entry has gets typo matching
-      const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
-      const ms = entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
-        .sort((a, b) => a.r[0] - b.r[0] || a.x.tier - b.x.tier || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
-        .map((m) => m.x);
-      const others = ms.filter((x) => x.kind !== 'unbenchmarked');
-      const nb = ms.filter((x) => x.kind === 'unbenchmarked');
-      return { shown: [...others.slice(0, CAP), ...nb.slice(0, CAP)], total: ms.length };
+      const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9 || wordScore(w, x.cw, false) < 9));
+      const here = (m) => m.x.url.split('#')[0] === location.pathname;
+      return entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
+        .sort((a, b) => (a.x.tier === 5) - (b.x.tier === 5) || (a.r[0] === 2) - (b.r[0] === 2)
+          || a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group) || a.r[0] - b.r[0] || a.r[1] - b.r[1] || a.x.name.localeCompare(b.x.name))
+        .map((m) => {
+          const why = m.r[0] === 2 ? reason(m.x, qs, typo) : null;
+          return why ? { ...m.x, meta: why.name, url: why.url || m.x.url } : m.x;
+        });
     };
     const note = (text) => {
       const li = document.createElement('li'); li.className = 'snone'; li.setAttribute('role', 'presentation'); li.textContent = text;
@@ -168,16 +315,33 @@
     const option = (x, i) => {
       const li = document.createElement('li');
       li.id = `q-o${i}`; li.className = `so k-${x.kind}`; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', 'false');
-      // name, then what kind of entry it is, then the line of context: the order a screen reader reads
-      // (the grid shows the badge at the right)
-      const pie = document.createElement('span'); pie.className = 'sp'; pie.innerHTML = x.pie;  // the build's own svg
+      // name, then the line of context: the order a screen reader reads; the group names the kind; a section has
+      // no glyph and no room kept for one
       const b = document.createElement('b'); b.className = 'sn'; b.textContent = x.name;
-      li.append(pie, b);
-      if (x.badge) { const t = document.createElement('span'); t.className = 'sbadge'; t.textContent = ` ${x.badge} `; li.append(t); }
+      if (x.pie) {
+        const pie = document.createElement('span'); pie.className = 'sp'; pie.innerHTML = x.pie;  // the build's own svg
+        li.append(pie, b);
+      } else { li.classList.add('np'); li.append(b); }
       if (x.meta) { const m = document.createElement('span'); m.className = 'sm'; m.textContent = x.meta; li.append(m); }
       li.addEventListener('pointerdown', hold);  // keep focus in the field
+      li.addEventListener('pointermove', () => { if (active !== i) mark(i); });  // hover and the arrows mark one row
       li.addEventListener('click', () => go(x));
       return li;
+    };
+    // one quiet heading per group, its options in a group the heading names
+    const grouped = (xs) => {
+      const out = [];
+      let ul = null;
+      xs.forEach((x, i) => {
+        if (!ul || ul.dataset.g !== x.group) {
+          const li = document.createElement('li'); li.setAttribute('role', 'presentation'); li.className = 'sg';
+          const h = document.createElement('span'); h.className = 'sgh'; h.id = `q-g${i}`; h.textContent = x.group;
+          ul = document.createElement('ul'); ul.setAttribute('role', 'group'); ul.setAttribute('aria-labelledby', h.id); ul.dataset.g = x.group;
+          li.append(h, ul); out.push(li);
+        }
+        ul.append(option(x, i));
+      });
+      return out;
     };
     const mark = (i) => {
       active = i;
@@ -194,49 +358,77 @@
       if (failed) { list.replaceChildren(note('Search could not load')); shown = []; open(true); return; }
       if (!entries) return;
       const typed = norm(input.value);
-      const r = results(input.value);
-      shown = r.shown;
-      list.replaceChildren(...shown.map(option));
+      shown = results(input.value);
+      list.replaceChildren(...grouped(shown));
       if (!shown.length) list.append(note('No match'));
-      else if (r.total > shown.length) list.append(note(`${r.total - shown.length} more: type more letters`));
       open(true);
       mark(typed && shown.length ? 0 : -1);
-      if (typed) say(!shown.length ? 'No match' : r.total > shown.length ? `${r.total} results, ${shown.length} shown` : `${shown.length} result${shown.length > 1 ? 's' : ''}`);
+      if (typed) say(!shown.length ? 'No match' : `${shown.length} result${shown.length > 1 ? 's' : ''}`);
     };
     const go = (x) => {
       open(false);
-      const here = location.pathname === x.url.split('#')[0];
+      const [path, frag] = x.url.split('#');
+      const here = location.pathname === path;
+      input.value = '';  // the next search starts afresh
       location.href = x.url;
-      if (here) { input.blur(); setPhone(false); }
+      if (here) {
+        setPhone(false);
+        // the page stays: focus moves to what the result names, not to the page's start
+        const at = frag ? document.getElementById(decodeURIComponent(frag)) : null;
+        if (at) { if (!at.hasAttribute('tabindex')) at.setAttribute('tabindex', '-1'); at.focus({ preventScroll: true }); } else input.blur();
+      }
     };
     const phone = () => opener && getComputedStyle(opener).display !== 'none';
+    const sheet = () => top.classList.contains('s-on');
     // while the sheet is open, what it covers is out of reach (Tab, screen readers): only the search stays live
-    const covered = () => [...document.body.children, ...top.children].filter((el) => el !== top && el !== sbox && !el.contains(sbox) && el.tagName !== 'SCRIPT');
+    const covered = () => [...document.body.children, ...top.children].filter((el) => el !== top && el !== sbox && !el.contains(sbox) && el.tagName !== 'SCRIPT' && el !== live);
+    // the field the sheet holds is on screen: focusing it never scrolls the page
     const setPhone = (on) => {
       covered().forEach((el) => { el.inert = on; });
       top.classList.toggle('s-on', on);
       if (opener) opener.setAttribute('aria-expanded', String(on));
-      if (on) input.focus();
+      if (on) input.focus({ preventScroll: true });
     };
-    // phones: the open field is a sheet; closing it returns focus to the button that opened it
-    const close = () => { open(false); setPhone(false); opener.focus(); };
-    input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(render); });
+    // the open field is a sheet on phones, and on wider screens when "/" opens it mid-page; closing it returns focus
+    // to the button that opened it, or to what had it before the shortcut, the page where it was
+    let back = null;
+    const close = () => {
+      open(false); setPhone(false);
+      const to = phone() ? opener : back;
+      back = null;
+      if (to && to !== document.body && to.isConnected) to.focus({ preventScroll: true }); else input.blur();
+    };
+    // the list opens on typing, the arrow down, a press on the field or the shortcut; a Tab onto the field
+    // only loads the index
+    let wanted = false;
+    const want = () => { wanted = true; };
+    input.addEventListener('pointerdown', want);
+    input.addEventListener('focus', () => { if (failed) { failed = false; loading = null; } load().then(() => { if (wanted) render(); wanted = false; }); });
     input.addEventListener('input', () => { load().then(render); });
-    // on a phone, hiding the keyboard blurs the field: the sheet and its list stay until closed
-    input.addEventListener('blur', () => { if (pressing) pressing = false; else if (!phone()) open(false); });
+    // on a phone, hiding the keyboard blurs the field: the sheet and its list stay until closed; elsewhere leaving
+    // the field closes its list, and the sheet it opened in
+    input.addEventListener('blur', () => {
+      if (pressing) pressing = false;
+      else if (!phone()) { open(false); if (sheet()) { setPhone(false); back = null; } }
+    });
     input.addEventListener('keydown', (ev) => {
       const n = shown.length;
-      if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); if (list.hidden) render(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
+      if (ev.key === 'ArrowDown' && list.hidden) { ev.preventDefault(); load().then(render); } else if (ev.key === 'ArrowDown' && n) { ev.preventDefault(); mark((active + 1) % n); } else if (ev.key === 'ArrowUp' && n) { ev.preventDefault(); if (list.hidden) render(); mark(active <= 0 ? n - 1 : active - 1); } else if (ev.key === 'Enter') {
         // the chosen option, or the first result of a typed search; never a pick nobody made
         const x = active >= 0 ? shown[active] : (norm(input.value) ? shown[0] : null);
         if (x) { ev.preventDefault(); go(x); }
       } else if (ev.key === 'Escape') {
-        if (!list.hidden && input.value) { input.value = ''; render(); } else if (phone()) close(); else open(false);
+        // an open list closes first; a closed one clears the field; on a phone the sheet closes last (the
+        // search field's own Escape, which clears it at once, is not let through); a sheet opened mid-page by "/"
+        // closes at once, the page where it was
+        ev.preventDefault();
+        if (sheet() && !phone()) close();
+        else if (!list.hidden) { open(false); say(''); } else if (input.value) { input.value = ''; say(''); } else if (phone()) close();
       }
     });
     if (opener) {
       opener.addEventListener('pointerdown', hold);  // the field keeps focus while it toggles
-      opener.addEventListener('click', () => setPhone(!top.classList.contains('s-on')));
+      opener.addEventListener('click', () => { want(); setPhone(!top.classList.contains('s-on')); input.select(); });
       const shut = $('.sclose', sbox);
       if (shut) {
         shut.addEventListener('pointerdown', hold);
@@ -252,12 +444,16 @@
         vv.addEventListener('resize', fit); fit();
       }
     }
-    // "/" or Ctrl/Cmd + K, from anywhere but a field
+    // "/" or Ctrl/Cmd + K, from anywhere but a field: the field in the header, or, with the header scrolled away, the
+    // sheet, so the page never jumps to its top
     addEventListener('keydown', (ev) => {
       const typing = ev.target.closest && ev.target.closest('input, textarea, select, [contenteditable]');
       if ((ev.key === '/' && !typing && !ev.metaKey && !ev.ctrlKey) || (ev.key.toLowerCase() === 'k' && (ev.metaKey || ev.ctrlKey))) {
         ev.preventDefault();
-        if (phone()) setPhone(true); else input.focus();
+        want();
+        if (phone()) setPhone(true);
+        else if (top.getBoundingClientRect().bottom < 0) { back = document.activeElement; setPhone(true); } else input.focus();
+        input.select();
       }
     });
   }

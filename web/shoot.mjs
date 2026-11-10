@@ -10,10 +10,13 @@ const BASE = process.env.BASE || 'http://127.0.0.1:4440/';
 // a row's glyph tip in the page: shown, its words, and any visible text of the row it covers
 const tipSeen = (row) => {
   const pie = document.querySelector(`${row} .pie`); const t = pie.querySelector('.tip'); const tr = t.getBoundingClientRect();
+  const cs = getComputedStyle(t); const hp = [...pie.querySelectorAll(`.hit path[data-n="${pie.dataset.hot}"]`)].map((x) => x.getBoundingClientRect()).find((r) => r.width);
+  const caret = getComputedStyle(t, '::before'); const cx = tr.left + parseFloat(caret.left);
+  const nm = document.querySelector(`${row} .name`);
   const hit = (b) => b.width && b.height && b.left < tr.right && tr.left < b.right && b.top < tr.bottom && tr.top < b.bottom;
   const clipped = (x) => { for (let e = x; e; e = e.parentElement) if (getComputedStyle(e).clipPath === 'inset(50%)') return true; return false; };
   const over = [...document.querySelectorAll(`${row} .sysc *, ${row} .vals *`)].filter((x) => !t.contains(x) && !x.closest('.pie') && getComputedStyle(x).visibility === 'visible' && x.childElementCount === 0 && x.textContent.trim() && !clipped(x) && hit(x.getBoundingClientRect())).map((x) => x.textContent.trim());
-  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, text: t.textContent, sw: !!t.querySelector('.sw'), over };
+  return { path: location.pathname, hot: pie.dataset.hot, shown: getComputedStyle(t).display !== 'none', pos: getComputedStyle(t).position, named: getComputedStyle(nm).visibility === 'visible' && nm.getBoundingClientRect().width > 0, card: cs.position === 'absolute' && cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && +cs.zIndex > 0 && cs.borderTopStyle === 'solid', aim: !!hp && Math.abs(cx - (hp.left + hp.width / 2)) <= 2, inView: tr.left >= 0 && tr.right <= innerWidth && tr.top >= 0 && tr.bottom <= innerHeight, text: t.textContent, sw: !!t.querySelector('.sw'), over };
 };
 const OUT = new URL('./shots/', import.meta.url).pathname;
 fs.mkdirSync(OUT, { recursive: true });
@@ -123,26 +126,61 @@ const sortBy = async (p, col, dir) => {
   await p.mouse.move(pie.x + pie.width * 0.8, pie.y + pie.height * 0.5); await p.waitForTimeout(400);
   // the name and state sit in the glyph's empty column, over no text of the row
   const tip = await p.evaluate(tipSeen, '#flashprove');
-  ok(tip.shown && tip.pos === 'absolute' && tip.text.length > 3 && !tip.over.length, 'row slice hover shows its name and state, over no text', tip);
+  ok(tip.shown && tip.named && tip.card && tip.aim && tip.inView && tip.text.length > 3, 'row slice hover names its property and state in a raised card pointing at the petal, on screen, the system\'s name still shown', tip);
   const h1 = await p.evaluate(() => [...document.querySelectorAll('.row')].map((r) => r.getBoundingClientRect().height));
   ok(JSON.stringify(h0) === JSON.stringify(h1), 'row heights unchanged on slice hover');
   ok(await p.evaluate(() => [...document.querySelectorAll('.row .pie .sl')].every((s) => getComputedStyle(s).opacity === '1' && getComputedStyle(s).filter === 'none')), 'other slices keep opacity 1, no filter');
-  // a Not stated slot is filled like the others, in its own grey, and lifts like them
-  const sb = await p.locator('#sash .pie .h1').boundingBox();
+  // a Not stated slot is an empty red slot (a dark red fill inside No's red outline) and lifts like the others
+  const sb = await p.locator('#sash .pie .w96 .h1').boundingBox();
   await p.mouse.move(sb.x + sb.width * 0.6, sb.y + sb.height * 0.4); await p.waitForTimeout(400);
   const emp = await p.evaluate(() => {
     const pie = document.querySelector('#sash .pie'); const s = pie.querySelector('.s1'); const cs = getComputedStyle(s);
-    const grey = getComputedStyle(document.documentElement).getPropertyValue('--unstated').trim();
-    const rgb = '#' + cs.fill.match(/\d+/g).map((v) => (+v).toString(16).padStart(2, '0')).join('');
-    return { hot: pie.dataset.hot, unstated: s.classList.contains('unstated'), fill: rgb, grey, moved: cs.transform !== 'none', loose: pie.querySelectorAll('svg > path:not(.sl)').length };
+    const root = getComputedStyle(document.documentElement);
+    const hex = (c) => '#' + c.match(/\d+/g).slice(0, 3).map((v) => (+v).toString(16).padStart(2, '0')).join('');
+    const rest = getComputedStyle(pie.querySelector('.w96 .sl.unstated:not(.s1)') || s);
+    return { hot: pie.dataset.hot, unstated: s.classList.contains('unstated'), fill: hex(cs.fill), ghost: root.getPropertyValue('--ghost').trim(), stroke: hex(rest.stroke), grey: root.getPropertyValue('--unstated').trim(), moved: cs.transform !== 'none', loose: pie.querySelectorAll('svg > path:not(.sl)').length };
   });
-  ok(emp.hot === '1' && emp.unstated && emp.fill === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is filled in its own grey and lifts like the others', emp);
+  ok(emp.hot === '1' && emp.unstated && emp.fill === emp.ghost && emp.stroke === emp.grey && emp.moved && emp.loose === 0, 'a Not stated slot is an empty red slot (dark fill, red outline) and lifts like the others', emp);
+  // one copy of each glyph per size shown, and only the copy for this width on screen
+  const copies = await p.evaluate(() => [...document.querySelectorAll('.row .pie, .nbpie, .q')].every((x) => [...x.querySelectorAll('svg')].filter((v) => v.getBoundingClientRect().width).length === 1));
+  ok(copies, 'each glyph shows one copy, the one drawn for its size');
   await p.mouse.move(0, 0);
   // the labels ride in each figure's title: sample size and range for the three with a spread, the
-  // overhead's pairs; under each figure at most its scope in a word
+  // overhead's pairs; under each figure at most its scope in a few words
   const spreads = await p.evaluate(() => [...document.querySelectorAll('.tbl .val')].filter((a) => a.querySelector('.fig'))
-    .map((a) => ({ t: /scope: /.test(a.title) && (/\d+\s+completed, \d+\s+failed\s·\s.+\sto\s/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: (a.querySelector('.sub')?.textContent || '').split(' ').length <= 3 })));
+    .map((a) => ({ t: /evidence: /.test(a.title) && (/\d+\s+completed, \d+\s+failed, .+(\sto\s|\sin\sall\s\d+\sruns)/.test(a.title) || /prover\sruns?\s×\s\d+\sserving/.test(a.title)), sub: [...a.querySelectorAll('.sub > span:not(.sr)')].map((x) => x.textContent).join(' ').split(' ').length <= 4 })));
   ok(spreads.length === 8 && spreads.every((x) => x.t && x.sub), 'each figure carries its labels in its title, at most a scope word under it', spreads);
+  // no states key under the legend: the slice inks and their tips name the states
+  ok(await p.evaluate(() => !document.querySelector('.mast .keyline, .mast .chip, .mast a')), 'the legend holds no states key and no link');
+  await ctx.close();
+}
+
+// not benchmarked yet: a named petal takes the model line's place in one sentence, and no card moves, at four cards a
+// row (1440) and where the longest name wraps (1340)
+for (const w of [1340, 1440]) {
+  const { ctx, p } = await pg(w, 900);
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  const nb = await p.evaluate(() => {
+    const cards = [...document.querySelectorAll('.nb')];
+    const h0 = cards.map((c) => c.getBoundingClientRect().height);
+    const moved = []; let named = 0; let said = '';
+    cards.forEach((c, i) => {
+      const pie = c.querySelector('.nbpie');
+      for (let n = 1; n <= 6; n++) {
+        const hit = [...pie.querySelectorAll(`.hit path[data-n="${n}"]`)].find((x) => x.getBoundingClientRect().width);
+        const r = hit.getBoundingClientRect();
+        hit.dispatchEvent(new PointerEvent('pointermove', { bubbles: true, pointerType: 'mouse', clientX: r.x + r.width / 2, clientY: r.y + r.height / 2 }));
+        const t = c.querySelector('.tip');
+        if (getComputedStyle(t).display !== 'none' && /^[A-Z][a-z].*: [a-z ]+$/.test(t.textContent)) named++;
+        if (c.id === 'nb-remainder' && n === 3) said = t.textContent;
+        const h = c.getBoundingClientRect().height;
+        if (Math.abs(h - h0[i]) > 0.5) moved.push(`${c.id}:${n}:${Math.round(h - h0[i])}`);
+        pie.dispatchEvent(new PointerEvent('pointerleave', { pointerType: 'mouse' }));
+      }
+    });
+    return { cards: cards.length, named, said, moved };
+  });
+  ok(nb.named === nb.cards * 6 && nb.said === 'Whole output checked: not stated' && !nb.moved.length, `home-${w}: a named petal reads "Property: state" in the model line's place, and no card moves`, nb);
   await ctx.close();
 }
 
@@ -214,7 +252,7 @@ const sortBy = async (p, col, dir) => {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
-  const opts = () => p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ name: o.querySelector('.sn').textContent, kind: o.className.replace(/.*k-/, ''), badge: (o.querySelector('.sbadge')?.textContent || '').trim() })));
+  const opts = () => p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ name: o.querySelector('.sn').textContent, kind: o.className.replace(/.*k-/, ''), group: document.getElementById(o.closest('[role=group]')?.getAttribute('aria-labelledby') || '')?.textContent || '', url: '' })));
   const type = async (q) => { await p.fill('#q', q); await p.waitForTimeout(250); };
   await p.keyboard.press('/'); await p.waitForTimeout(400);
   ok(await p.evaluate(() => document.activeElement.id === 'q' && !document.getElementById('q-list').hidden), '"/" focuses search and opens the list');
@@ -227,12 +265,13 @@ const sortBy = async (p, col, dir) => {
   await type('zk');
   const zk = await opts();
   const firstNb = zk.findIndex((o) => o.kind === 'unbenchmarked');
-  ok(firstNb > 0 && zk.slice(firstNb).every((o) => o.kind === 'unbenchmarked' && o.badge === 'Not benchmarked'), 'not-benchmarked systems come after the others, each marked', zk.map((o) => `${o.name}:${o.kind}`));
+  ok(firstNb > 0 && zk.slice(firstNb).every((o) => o.kind === 'unbenchmarked' && o.group === 'Not benchmarked'), 'not-benchmarked systems come after the others, under their group heading, no badge', zk.map((o) => `${o.name}:${o.group}`));
+  ok(await p.evaluate(() => !document.querySelector('.sbadge') && !/more: type more letters/.test(document.getElementById('q-list').textContent)), 'no badge and no instruction in the results, every match listed');
   await type('atestable');
   ok((await opts())[0]?.name === 'Attestable prover', 'one typo still finds the system');
   await p.keyboard.press('Enter'); await p.waitForTimeout(500);
-  const tgt = await p.evaluate(() => ({ url: location.pathname + location.hash, bar: getComputedStyle(document.querySelector('#nb-attestable'), '::before').content, label: getComputedStyle(document.querySelector('#nb-attestable .nbn'), '::after').content }));
-  ok(tgt.url === '/#nb-attestable' && tgt.bar !== 'none' && /Not benchmarked/.test(tgt.label), 'a not-benchmarked result leads to its card in the overview, marked and labelled', tgt);
+  const tgt = await p.evaluate(() => ({ url: location.pathname + location.hash, bar: getComputedStyle(document.querySelector('#nb-attestable'), '::before').content, label: getComputedStyle(document.querySelector('#nb-attestable .nbn'), '::after').content, field: document.getElementById('q').value }));
+  ok(tgt.url === '/#nb-attestable' && tgt.bar !== 'none' && tgt.label === 'none' && tgt.field === '', 'a not-benchmarked result leads to its card in the overview, marked by its edge only, the field cleared', tgt);
   await type('qqqqzz');
   ok(await p.evaluate(() => document.querySelector('#q-list .snone')?.textContent === 'No match'), 'no match says so');
   for (const [q, want] of [['atest', 'Attestable prover'], ['flsh', 'FlashProve'], ['flahsprove', 'FlashProve'], ['sahs', 'SASH'], ['llama4', 'FlashProve']]) {
@@ -240,21 +279,83 @@ const sortBy = async (p, col, dir) => {
     ok((await opts())[0]?.name === want, `"${q}" finds ${want} first`, (await opts()).map((o) => o.name).slice(0, 3));
   }
   await type('sash');
-  ok((await opts()).length === 1, 'an exact word brings no typo noise ("sash" finds SASH only)', (await opts()).map((o) => o.name));
+  const sash = await opts();
+  ok(sash[0]?.name === 'SASH' && !sash.some((o) => o.kind === 'unbenchmarked'), 'an exact word brings no typo noise ("sash" finds SASH first, and what ran its workload)', sash.map((o) => o.name));
+  for (const [q, want] of [['criteria', '/criteria'], ['release', '/release'], ['h200', '/flashprove'], ['vllm', '/reference#ref-serve']]) {
+    await type(q);
+    const first = await p.evaluate(() => document.querySelector('#q-list .so')?.querySelector('.sn')?.textContent);
+    ok(!!first, `"${q}" finds something (pages, hardware, engines are indexed)`, { q, first, want });
+  }
+  // a system page's sections are found by what they hold, under the system's name; an absence is never a match
+  await type('proof size');
+  const ps = await opts();
+  ok(ps[0]?.name === 'Figures' && ps[0]?.group === 'FlashProve' && !ps.some((o) => o.name === 'EZKL'), '"proof size" finds each system\'s Figures first, no system by "size not stated"', ps.map((o) => `${o.group}:${o.name}`));
+  await type('check time');
+  const ct = await opts();
+  ok(ct.length === 2 && ct.every((o) => o.name === 'Figures'), '"check time" finds the two Figures and nothing one typo away ("tied")', ct.map((o) => `${o.group}:${o.name}`));
+  await type('model');
+  const md = await opts();
+  ok(!md.some((o) => ['NanoZK', 'Tinfoil', 'Verde (with RepOps)', 'Private ML SDK'].includes(o.name)), '"model" finds no system by "Model not named"', md.map((o) => o.name));
+  await type('reference');
+  const rf = await opts();
+  ok(rf[0]?.name === 'Production serving' && !rf.some((o) => o.name === 'Reference'), '"reference" finds the one reference once, no page entry beside it', rf.map((o) => o.name));
+  await type('w8a8');
+  const wa = await opts();
+  ok(wa.length === 1 && wa[0].name === 'SASH', '"w8a8" finds the system that proves at that precision, and only it', wa.map((o) => o.name));
   await type('stark');
   ok(JSON.stringify((await opts()).map((o) => o.name)) === '["SASH","LuminAIR"]', '"stark" finds only the systems whose stated technique is one');
   await type('a');
   ok((await opts()).some((o) => o.name === 'Attestable prover'), 'one letter still lists the not-benchmarked names that start with it');
+  // a match in the name comes before one in the other words only; not-benchmarked systems stay last
+  for (const [q, want] of [['weights', ['Weights hidden']], ['model', ['Model bound']], ['zk', ['FlashProve', 'SASH']], ['sash tamper', ['Tamper tests']]]) {
+    await type(q);
+    const got = await opts();
+    ok(JSON.stringify(got.slice(0, want.length).map((o) => o.name)) === JSON.stringify(want) && (q !== 'sash tamper' || (got.length === 1 && got[0].group === 'SASH')), `"${q}" lists ${want.join(', ')} first`, got.map((o) => `${o.group}:${o.name}`).slice(0, 6));
+  }
+  // a result found by its other words shows the phrase that holds them, a figure its plate; a section has no glyph gutter
+  await type('proving time');
+  const pt = await p.evaluate(() => [...document.querySelectorAll('#q-list .so')].map((o) => ({ meta: o.querySelector('.sm')?.textContent, gutter: !!o.querySelector('.sp'), x: Math.round(o.querySelector('.sn').getBoundingClientRect().left - o.getBoundingClientRect().left) })));
+  ok(pt.length === 2 && pt.every((o) => /^Proving time per token/.test(o.meta) && !o.gutter && o.x <= 12), '"proving time" names the figure each Figures result was found by, no empty glyph gutter', pt);
+  await type('weights');
+  const ws = await opts();
+  const sashWhy = await p.evaluate(() => [...document.querySelectorAll('#q-list .so')].find((o) => o.querySelector('.sn').textContent === 'SASH')?.querySelector('.sm')?.textContent);
+  ok(/weights/i.test(sashWhy || ''), '"weights" shows the phrase SASH was found by', { sashWhy, ws: ws.map((o) => o.name) });
+  await type('proving time');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(/^\/flashprove#.*fig-per_bit$/.test(new URL(p.url()).pathname + new URL(p.url()).hash), 'Enter on a figure found by its name opens its plate', p.url());
+  await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.focus('#q'); await p.waitForTimeout(300);
   await type('weights hidden');
   await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/criteria#weights_hidden', 'Enter goes to the first result of a typed search', p.url());
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
   await p.focus('#q'); await p.waitForTimeout(300); await type('weights');
-  await p.keyboard.press('ArrowDown'); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
-  ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/reference#ref-recompute', 'the arrows choose another result', p.url());
+  const second = await p.evaluate(() => [...document.querySelectorAll('#q-list .so')].length);
+  await p.keyboard.press('ArrowDown'); await p.waitForTimeout(100);
+  const marked = await p.evaluate(() => document.querySelectorAll('#q-list .so.on').length === 1 && document.querySelectorAll('#q-list .so')[1]?.classList.contains('on'));
+  ok(second > 1 && marked, 'the arrows mark one other result', { second, marked });
+  // Escape closes an open list first, then clears the field
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  const esc = await p.evaluate(() => ({ hidden: document.getElementById('q-list').hidden, value: document.getElementById('q').value }));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(100);
+  const esc2 = await p.evaluate(() => document.getElementById('q').value);
+  ok(esc.hidden && esc.value === 'weights' && esc2 === '', 'Escape closes the list, then clears the field', { esc, esc2 });
   await p.goto(BASE, { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
   await p.focus('#q'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(400);
   ok(new URL(p.url()).pathname === '/', 'Enter in an empty field picks nothing', p.url());
+  // on a system page its own sections come first: "tamper" and Enter stay on /sash
+  await p.goto(BASE + 'sash', { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.focus('#q'); await p.waitForTimeout(300); await type('tamper');
+  await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  ok(new URL(p.url()).pathname + new URL(p.url()).hash === '/sash#tamper', '"tamper" from /sash opens its own tamper tests', p.url());
+  // "/" mid-page opens the field over the page where it is; Escape closes it, the page where it was
+  await p.goto(BASE + 'flashprove', { waitUntil: 'networkidle' }); await p.waitForTimeout(400);
+  await p.evaluate(() => scrollTo(0, 3300)); await p.waitForTimeout(200);
+  await p.keyboard.press('/'); await p.waitForTimeout(400);
+  const mid = await p.evaluate(() => ({ y: Math.round(scrollY), focus: document.activeElement.id, top: Math.round(document.querySelector('.sfield').getBoundingClientRect().top), list: !document.getElementById('q-list').hidden }));
+  await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+  const after = await p.evaluate(() => ({ y: Math.round(scrollY), on: document.querySelector('.top').classList.contains('s-on'), inert: !!document.querySelector('[inert]') }));
+  ok(mid.y === 3300 && mid.focus === 'q' && mid.top >= 0 && mid.top < 60 && mid.list && after.y === 3300 && !after.on && !after.inert, '"/" mid-page opens search on screen without scrolling; Escape leaves the page where it was', { mid, after });
   await ctx.close();
   // phones: a button opens the field over the first line
   const ph = await pg(390, 844, { touch: true });
@@ -320,8 +421,23 @@ for (const w of [390, 360, 320]) {
 // ---------------------------------------------------------------- system pages and the reference page: the pie with its properties around it
 // each property's text beside its own triangle, as on main before #320: the rose's height at 1440 px, measured on
 // origin/main at c81832d, is the composition the system page keeps (within 10 %)
-const ROSE_MAIN = { flashprove: 309, sash: 309, reference: 275 };
-for (const name of ['flashprove', 'sash', 'reference']) {
+const ROSE_MAIN = { flashprove: 309, sash: 309 };
+// the reference page: a reference whose six states are one shows its glyph once, small, beside one line, then what
+// production serving measured, one row per configuration it ran
+{
+  const { ctx, p } = await pg(1440, 900);
+  await p.goto(BASE + 'reference', { waitUntil: 'networkidle' });
+  const r = await p.evaluate(() => ({ glyphs: [...document.querySelectorAll('.refpie svg')].filter((s) => s.getBoundingClientRect().width).length, roses: document.querySelectorAll('.rose').length, rows: document.querySelectorAll('.stab tbody tr').length, plates: document.querySelectorAll('.plate').length }));
+  ok(r.glyphs === 1 && r.roses === 0 && r.rows >= 1 && r.plates === 0, 'reference: one small glyph, the measured table, no empty plates', r);
+  // its glyph, a link to the criteria, names a petal under the pointer in its line's place, as every glyph does: the
+  // petal lifts, nothing moves
+  const at = await p.evaluate(() => { const h = [...document.querySelectorAll('.refpie .hit path[data-n="2"]')].find((x) => x.getBoundingClientRect().width).getBoundingClientRect(); return [h.x + h.width * 0.7, h.y + h.height / 2, Math.round(document.querySelector('.refone').getBoundingClientRect().height)]; });
+  await p.mouse.move(at[0], at[1]); await p.waitForTimeout(400);
+  const hv = await p.evaluate(() => ({ tip: document.querySelector('.reft .tip').textContent, line: getComputedStyle(document.querySelector('.refline')).visibility, lift: getComputedStyle([...document.querySelectorAll('.refpie .s2')].find((x) => x.getBoundingClientRect().width)).transform, h: Math.round(document.querySelector('.refone').getBoundingClientRect().height) }));
+  ok(/^Model bound: [a-z ]+$/.test(hv.tip) && hv.line === 'hidden' && hv.lift !== 'none' && hv.h === at[2], 'reference: a hovered petal of the glyph lifts and names itself in the line\'s place, nothing moves', hv);
+  await ctx.close();
+}
+for (const name of ['flashprove', 'sash']) {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + name, { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   await full(p, OUT + `${tagOf(name)}-1440.png`);
@@ -348,7 +464,7 @@ for (const name of ['flashprove', 'sash', 'reference']) {
   ok(Math.abs(roseH - ROSE_MAIN[name]) <= ROSE_MAIN[name] * 0.1, `${tagOf(name)}: the rose keeps main's height, each text beside its triangle`, { now: roseH, main: ROSE_MAIN[name] });
   // quotes only in how we read it, none beside the glyph; the two folds, how we read it and the card in full,
   // closed as sent
-  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.howread')).length, details: [...document.querySelectorAll('details')].map((d) => `${d.className}:${d.open}`) }));
+  const fold = await p.evaluate(() => ({ stray: [...document.querySelectorAll('blockquote')].filter((q) => !q.closest('.howread')).length, details: [...document.querySelectorAll('details.howread, details.cardfull')].map((d) => `${d.className}:${d.open}`) }));
   const sys = name !== 'reference';
   ok(!fold.stray && fold.details.join() === (sys ? 'howread:false,cardfull:false' : ''), `${tagOf(name)}: quotes only in how we read it; ${sys ? 'how we read it and the card in full folded' : 'nothing folded'}`, fold);
   if (sys) {
@@ -428,7 +544,7 @@ for (const w of [1440, 390]) {
 {
   const { ctx, p } = await pg(1440, 900);
   await p.goto(BASE + 'sash', { waitUntil: 'networkidle' });
-  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s3\.1\s8B/.test(await p.locator('#figures .sec-l').innerText()), 'sash: no work-in-progress label; its figures name their model, Llama 3.1 8B');
+  ok(!/work in progress/i.test(await p.locator('body').innerText()) && /^Llama\s3\.1\s8B/.test(await p.locator('#figures h3.setup').first().innerText()), 'sash: no work-in-progress label; its figures name their model, Llama 3.1 8B');
   // an unknown address: the site's own 404 page, with the site's header, at any depth
   for (const u of ['nope', 'a/b/c']) {
     const res = await p.goto(BASE + u, { waitUntil: 'networkidle' });
@@ -505,38 +621,43 @@ for (const w of [1440, 390]) {
   ok(t.sopen >= 44 && t.repo >= 44 && t.nav.every((x) => x >= 32), 'header-390: search and GitHub 44 px to press, the pages 32 px', t);
   await ctx.close();
 }
-for (const [w, h] of [[375, 667], [320, 568]]) {
+for (const [w, h] of [[375, 667], [360, 640], [320, 568]]) {
   // the legend: a 2 x 3 key, so the first glyph shows on landing; the questions still read aloud
   const { ctx, p } = await pg(w, h, { touch: true });
   await p.goto(BASE, { waitUntil: 'networkidle' });
   // 375 x 667: the first glyph whole; 320 x 568: the first row starts on screen
   const l = await p.evaluate((w) => ({ pie: Math.round(document.querySelector(w >= 375 ? '.tbl .row .pie' : '.tbl .row').getBoundingClientRect()[w >= 375 ? 'bottom' : 'top']), cols: new Set([...document.querySelectorAll('.q')].map((q) => Math.round(q.getBoundingClientRect().left))).size, qq: [...document.querySelectorAll('.qq')].every((q) => q.textContent.length > 10 && getComputedStyle(q).clipPath === 'inset(50%)') }), w);
   ok(l.pie < h && l.cols === 2 && l.qq, `home-${w}x${h}: the legend in two columns, the first system on landing, the questions kept for screen readers`, l);
-  // the table on a phone: the heads a grid of sort buttons 32 px tall or more; each system's four figures
-  // on one line, under their heads (each cell's label read aloud), each with its labels in its title
+  // the table on a phone: one note over the heads, then the four figure heads, level, sort buttons 32 px
+  // tall or more (no System head: the rows stack); each system's four figures on one line, under their
+  // heads (each cell's label read aloud), each with its labels in its title
   const s = await p.evaluate(() => {
     const r = (x) => x.getBoundingClientRect();
     const t = document.querySelector('.board');
-    const b = [...t.querySelectorAll('.hc .sb')];
+    const b = [...t.querySelectorAll('.hc .sb')].filter((x) => r(x).height);
     const cells = [...t.querySelectorAll('.row .vc')];
+    const note = t.querySelector('.hn'); const heads = b.length === 4 && new Set(b.map((x) => Math.round(r(x).bottom))).size === 1 && !!note && r(note).height > 0 && r(note).bottom <= Math.min(...b.map((x) => r(x).top));
     const line = [...t.querySelectorAll('.row')].every((row) => new Set([...row.querySelectorAll('.vc')].map((c) => Math.round(r(c).top))).size === 1);
-    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /scope: /.test(c.querySelector('.val').title)), line, n: cells.length };
+    // each unit on its number's line: its box inside the number's, never wrapped under it
+    const units = [...t.querySelectorAll('.row .fig')].every((f) => { const n = r(f.querySelector('.n')); const u = f.querySelector('.u'); if (!u) return true; const b = r(u); return b.top >= n.top - 1 && b.bottom <= n.bottom + 1; });
+    return { h: Math.min(...b.map((x) => Math.round(r(x).height))), heads, labels: cells.every((c) => c.querySelector('.lbl').textContent.length > 4), subs: cells.every((c) => !c.querySelector('.fig') || /evidence: /.test(c.querySelector('.val').title)), line, units, n: cells.length };
   });
-  ok(s.h >= 32 && s.labels && s.subs && s.line && s.n === 8, `home-${w}: sort buttons 32 px tall or more; each system's figures on one line, each with its labels in its title`, s);
+  ok(s.h >= 32 && s.heads && s.labels && s.subs && s.line && s.units && s.n === 8, `home-${w}: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title`, s);
   await ctx.close();
 }
 {
-  // touch: the first tap on a triangle names it, the second follows the link; the sorted figure is marked in each row
+  // touch: the first tap on a triangle names it, the second follows the link; every figure in paper, sorted or not
+  // (no column reads as the primary one; the pressed head marks the order)
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + '#sort=check_bit-desc', { waitUntil: 'networkidle' }); await p.waitForTimeout(settle);
   const mk = await p.evaluate(() => [...document.querySelectorAll('.tbl .vc')].map((c) => `${c.dataset.col}:${getComputedStyle(c).color === 'rgb(241, 239, 233)' ? 'on' : 'off'}`));
-  ok(mk.length && mk.every((x) => x.endsWith(x.startsWith('check_bit') ? 'on' : 'off')), 'home-390: the sorted column is in paper in every row, the others muted', mk);
+  ok(mk.length && mk.every((x) => x.endsWith('on')), 'home-390: every figure in paper, whichever column sorts', mk);
   await p.locator('#flashprove .pie').scrollIntoViewIfNeeded();
   const bx = await p.locator('#flashprove .pie').boundingBox();
   const at = [bx.x + bx.width * 0.85, bx.y + bx.height * 0.5];
   await p.touchscreen.tap(...at); await p.waitForTimeout(300);
   const tip = await p.evaluate(tipSeen, '#flashprove');
-  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && !tip.over.length, 'touch: a first tap on a triangle names it, over no text, and stays on the page', tip);
+  ok(tip.path === '/' && tip.hot === '2' && tip.shown && /Model bound/.test(tip.text) && tip.sw && tip.named && tip.card && tip.aim && tip.inView, 'touch: a first tap on a triangle names it in a card pointing at it, on screen, the system\'s name still shown, and stays on the page', tip);
   await p.touchscreen.tap(...at); await p.waitForTimeout(800);
   ok(new URL(p.url()).pathname === '/flashprove', 'touch: a second tap on the same triangle follows the link', p.url());
   // the system page: the glyph once, wide, each triangle carrying its property's name and never a state
@@ -577,6 +698,111 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
   ok(lift.s2 !== 'none' && lift.rn === 'rgb(241, 239, 233)' && lift.path === '/flashprove', 'touch: a tap on a slice lifts it and marks its property', lift);
   await ctx.close();
 }
+// bound phrases on one line, folds open, phones and laptops: "sd < 0.1 %", a record key's factor, a pair count, a date,
+// a count and its unit word never part at a line's end
+for (const w of [320, 360, 390, 1100, 1280]) {
+  for (const name of ['flashprove', 'sash']) {
+    const { ctx, p } = await pg(w, 844);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    await p.evaluate(() => document.querySelectorAll('details').forEach((d) => { d.open = true; }));
+    const bound = await p.evaluate(() => {
+      const phrases = [/sd\s<\s0\.1\s%/g, /\.session\s×\s1,000/g, /\d+\s×\s\d+\spairs/g, /\b\d{4}-\d{2}-\d{2}\b/g, /\b\d+\s(?:runs?|bits|tokens|threads|trials)\b/g];
+      const out = []; let n = 0;
+      const tw = document.createTreeWalker(document.querySelector('main'), NodeFilter.SHOW_TEXT);
+      const lines = (r) => new Set([...r.getClientRects()].filter((x) => x.width > 0.5).map((x) => Math.round(x.top))).size;
+      for (let t = tw.nextNode(); t; t = tw.nextNode()) {
+        // read aloud only, or a failed run's last line as logged (a raw path breaks anywhere)
+        if (t.parentElement.closest('.sr, .ll p')) continue;
+        for (const re of phrases) {
+          for (const m of t.data.matchAll(re)) {
+            const r = document.createRange(); r.setStart(t, m.index); r.setEnd(t, m.index + m[0].length);
+            const k = lines(r);
+            if (!k) continue;
+            n++;
+            if (k > 1) out.push(t.data.slice(Math.max(0, m.index - 16), m.index + m[0].length + 4));
+          }
+        }
+      }
+      // a record key in parts: its last part holds its factor (".session × 1,000") on one line
+      document.querySelectorAll('.src').forEach((src) => {
+        const last = [...src.querySelectorAll('.seg')].pop();
+        if (!last || !/×\s1,000$/.test(last.textContent)) return;
+        const r = document.createRange(); r.selectNodeContents(last); n++;
+        if (lines(r) > 1) out.push(src.textContent);
+      });
+      return { n, out };
+    });
+    ok(bound.n > 0 && !bound.out.length, `${name}-${w}: bound phrases never part at a line's end`, bound);
+    await ctx.close();
+  }
+}
+// the claims block in the order focus takes (WCAG 2.4.3): the glyph, then how we read it under it, then the facts, beside
+// both on wide screens and under them below 1241 px
+for (const w of [1440, 1240, 390]) {
+  for (const name of ['flashprove', 'sash']) {
+    const { ctx, p } = await pg(w, 900);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const o = await p.evaluate(() => {
+      const b = (s) => document.querySelector(s).getBoundingClientRect();
+      const rose = b('.over > .rose'); const how = b('.over > .howread'); const facts = b('.over > .facts');
+      return { under: how.top >= rose.bottom - 1, facts: facts.top >= how.bottom - 1 || facts.left >= how.right - 1 };
+    });
+    ok(o.under && o.facts, `${name}-${w}: the glyph, how we read it, the facts, in focus order`, o);
+    await ctx.close();
+  }
+}
+// how we read it: one tamper-tests label per property, the run set named once (a link to the tamper tests), never a
+// run list repeated from line to line; the open fold's height at 320 px recorded
+for (const name of ['flashprove', 'sash']) {
+  const { ctx, p } = await pg(320, 844, { touch: true });
+  await p.goto(BASE + name, { waitUntil: 'networkidle' });
+  await p.tap('details.howread summary'); await p.waitForTimeout(200);
+  const hw = await p.evaluate(() => {
+    const entries = [...document.querySelectorAll('.hw > div')];
+    const labels = entries.map((d) => d.querySelectorAll('.ec').length);
+    const runs = entries.map((d) => [...d.querySelectorAll('.ec a.run')].map((a) => a.title));
+    const sets = [...document.querySelectorAll('.ec a.psrc')].map((a) => a.getAttribute('href'));
+    return { labels, repeated: runs.filter((r) => r.length !== new Set(r).size).length, sets: [...new Set(sets)], fold: Math.round(document.querySelector('.howread').getBoundingClientRect().height) };
+  });
+  log(`${name}-320 how we read it open: ${hw.fold} px`);
+  ok(hw.labels.every((n) => n <= 1) && !hw.repeated && hw.sets.every((h) => h === '#tamper'), `${name}-320: one tamper-tests label per property, no run listed twice, the run set linked to the tamper tests`, hw);
+  await ctx.close();
+}
+// from 1241 px the facts sit beside the glyph and how we read it: opening the fold moves neither
+for (const w of [1280, 1440]) {
+  for (const name of ['flashprove', 'sash']) {
+    const { ctx, p } = await pg(w, 900);
+    await p.goto(BASE + name, { waitUntil: 'networkidle' });
+    const at = () => p.evaluate(() => ['.over > .facts', '.over .rpie'].map((s) => Math.round(document.querySelector(s).getBoundingClientRect().top + scrollY)));
+    const shut = await at();
+    await p.click('.howread summary'); await p.waitForTimeout(200);
+    const open = await at();
+    ok(JSON.stringify(shut) === JSON.stringify(open), `${name}-${w}: opening how we read it leaves the facts and the glyph where they were`, { shut, open });
+    await ctx.close();
+  }
+}
+// a figure link from the overview to a page of several setups lands under that setup's heading, held at the top
+// in one line, never over the plate's label
+for (const w of [320, 390, 768, 1440]) {
+  const { ctx, p } = await pg(w, 844);
+  await p.goto(BASE, { waitUntil: 'networkidle' });
+  const hrefs = await p.evaluate(() => [...document.querySelectorAll('a.val')].map((a) => a.getAttribute('href')).filter((h) => /--/.test(h)));
+  const bad = [];
+  for (const href of hrefs) {
+    await p.goto(BASE + href.slice(1), { waitUntil: 'networkidle' }); await p.waitForTimeout(300);
+    const r = await p.evaluate(() => {
+      const t = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      const h = t.closest('.cfgfigs')?.querySelector('h3.setup');
+      if (!h) return { href: location.hash, none: true };
+      const hb = h.getBoundingClientRect(); const lb = t.querySelector('.lbl').getBoundingClientRect();
+      const lh = parseFloat(getComputedStyle(h).fontSize) * 1.6;
+      return { href: location.hash, top: Math.round(hb.top), one: h.querySelector('[aria-hidden]').getBoundingClientRect().height < lh, clear: lb.top >= hb.bottom };
+    });
+    if (r.none || r.top !== 0 || !r.one || !r.clear) bad.push(r);
+  }
+  ok(hrefs.length > 0 && !bad.length, `figure links-${w}: the landing names its setup in one line at the top, over no label`, { n: hrefs.length, bad });
+  await ctx.close();
+}
 {
   // inline links on every page: hit boxes 24 px tall or more, none overlapping another
   for (const w of [390, 320]) {
@@ -608,12 +834,12 @@ for (const [w, h] of [[375, 667], [320, 568]]) {
     ok(g <= 390, `${name}-844x390: the whole glyph on the first screen`, g);
     await ctx.close();
   }
-  // the 404 page on a phone: the search field shown, no keyboard on load
+  // the 404 page on a phone: the one-row header, the systems listed (the header and footer link the rest), search from the button
   const { ctx, p } = await pg(390, 844, { touch: true });
   await p.goto(BASE + 'nope', { waitUntil: 'networkidle' });
-  const f = await p.evaluate(() => ({ h: Math.round(document.querySelector('.sfield').getBoundingClientRect().height), vis: document.getElementById('q').getBoundingClientRect().width > 0, focus: document.activeElement.tagName }));
-  ok(f.vis && f.h >= 44 && f.focus === 'BODY', '404-390: the search field is shown, not focused', f);
-  await p.tap('#q'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
+  const f = await p.evaluate(() => ({ h: Math.round(document.querySelector('.top').getBoundingClientRect().height), links: document.querySelectorAll('.lost a').length, focus: document.activeElement.tagName }));
+  ok(f.h <= 60 && f.links === 2 && f.focus === 'BODY', '404-390: the header on one row, the systems listed, nothing focused', f);
+  await p.tap('.sopen'); await p.fill('#q', 'sash'); await p.waitForTimeout(300); await p.keyboard.press('Enter'); await p.waitForTimeout(600);
   ok(new URL(p.url()).pathname === '/sash', '404-390: search leads on from the 404 page', p.url());
   await ctx.close();
 }
@@ -643,11 +869,16 @@ for (const w of [390, 320]) {
     }
     const o = await overflow(p);
     ok(o.over <= 0 && !o.wide.length, `${name}-${w}: no horizontal overflow, both folds open`, o);
+    // the whole page in view, so a press can be tried anywhere on it: each target's hit height is what a press at its
+    // middle reaches (document.elementFromPoint), so a box the next line covers counts only where it is reached
+    const vp = p.viewportSize();
+    await p.setViewportSize({ width: vp.width, height: await p.evaluate(() => document.documentElement.scrollHeight) }); await p.waitForTimeout(200);
     const t = await p.evaluate(() => {
-      const sel = '.ev a, .rp .psrc, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a';
+      const sel = '.ev a, .rp .psrc, .howread a, .howread summary, .cardfull a, .cardfull summary, .gapblk a, .facts a, .runs a, .unexp a, .reply a, .relf a, .tlab a, .es a, .mtab a';
       const els = [...document.querySelectorAll(sel)].filter((a) => a.getClientRects().length && !a.closest('.sr, [hidden]'));
       const bx = els.map((a) => ({ a, rs: [...a.getClientRects()].filter((r) => r.width) }));
-      const small = bx.filter((x) => x.rs.some((r) => r.height < 24)).map((x) => x.a.textContent.trim().slice(0, 24));
+      const reach = (a, r) => { let n = 0; const x = r.left + Math.min(r.width / 2, 8); for (let y = r.top - 8; y < r.bottom + 8; y += 0.5) { const at = document.elementFromPoint(x, y); if (at && (at === a || a.contains(at))) n += 0.5; } return n; };
+      const small = bx.filter((x) => x.rs.some((r) => reach(x.a, r) < 24)).map((x) => `${x.a.textContent.trim().slice(0, 24)} ${Math.min(...x.rs.map((r) => reach(x.a, r)))}`);
       const hit = [];
       for (let i = 0; i < bx.length; i++) for (let j = i + 1; j < bx.length; j++) {
         if (bx[i].a.contains(bx[j].a) || bx[j].a.contains(bx[i].a)) continue;
@@ -655,7 +886,8 @@ for (const w of [390, 320]) {
       }
       return { n: els.length, small, hit };
     });
-    ok(t.n > 0 && !t.small.length && !t.hit.length, `${name}-${w}: the new blocks' links and buttons 24 px tall or more, none overlapping`, t);
+    ok(t.n > 0 && !t.small.length && !t.hit.length, `${name}-${w}: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping`, t);
+    await p.setViewportSize(vp);
     // a label wider than its column runs into its value without overflowing the page: each dt's
     // text ends before its dd starts, when the two sit on one line
     const lab = await p.evaluate(() => {

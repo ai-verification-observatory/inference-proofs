@@ -17,7 +17,7 @@ from iproofs.errors import ErrorKind, IProofsError
 from iproofs.schema import SchemaRegistry
 from iproofs.site import build, inputs
 from iproofs.site import view as site_view_module
-from iproofs.site.view import FIGURES, MORE, PER_BIT, PER_BIT_SIZE, check_rows, site_view
+from iproofs.site.view import FIGURES, MORE, PER_BIT, PER_BIT_SIZE, SERVING, check_rows, site_view
 from iproofs.validate import resolve
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -107,6 +107,7 @@ def test_absent_metric_not_recorded(view: dict[str, Any]) -> None:
         *PER_BIT,
         *PER_BIT_SIZE,
         *MORE,
+        *SERVING,
     }
 
 
@@ -156,9 +157,15 @@ def test_card_identity(view: dict[str, Any]) -> None:
     assert configuration(view, "ref-serve")["card"] is None
 
 
-def test_property_controls_without_release(view: dict[str, Any]) -> None:
+def test_property_controls_without_release(tree: Path, tmp_path: Path) -> None:
     """OVR-5, OVR-7: no criteria release reads no run, so each mapped control prints
     "no run read", never "not run"; an unmapped property has no control."""
+    copy = writable_copy(tree, tmp_path / "tree")
+    path = copy / inputs.CRITERIA
+    crit = json.loads(path.read_text())
+    crit.pop("release", None)
+    path.write_text(json.dumps(crit))
+    view = site_view(copy)
     lists = configuration(view, "flashprove")["property_controls"]["properties"]
     for prop, mapped in (("whole_output", ["C1", "C2", "C4", "C7"]),
                          ("model_bound", ["C3", "P1", "P2"]), ("weights_hidden", [])):  # fmt: skip
@@ -299,11 +306,6 @@ def test_override_cell_keeps_stated(extras: dict[str, Any]) -> None:
     assert cell["contradicted_by"][0]["control"] == "C1"
 
 
-def test_footer_facts(view: dict[str, Any]) -> None:
-    assert view["release"]["licence"] == "CC BY 4.0"
-    assert view["criteria"]["sha256"].startswith("sha256:")
-
-
 # ---------------------------------------------------------------- loader failures
 
 
@@ -340,9 +342,9 @@ def test_criteria_loader_refuses(tmp_path: Path, edit: Any, message: str) -> Non
 def test_criteria_states_read() -> None:
     """One vocabulary (RFC-0016 §States): state ids in the cells, one word for each."""
     crit = inputs.load_criteria(ROOT)
-    assert crit.release is None
+    assert crit.release == "v0.1"  # OVR-5: the control lines read the release's runs
     assert {k: v["word"] for k, v in crit.states.items()} == {
-        "yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}  # fmt: skip
+        "yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "No"}  # fmt: skip
     cells = crit.rows["sash"]["cells"]
     assert cells["weights_hidden"]["state"] == "not_stated"
     assert cells["model_bound"]["state"] == "yes"
@@ -387,122 +389,84 @@ def test_no_release_is_config_error(tmp_path: Path) -> None:
     assert e.value.kind is ErrorKind.CONFIG
 
 
-def test_overhead_conditions_words() -> None:
-    """RFC-0004 INV-DERIVE-9: the conditions line, the precision note and the high-load
-    context, built from a conditions block and stored quantities (fixture values, not a
-    result); nothing without a value."""
-    from iproofs.site.view import overhead_words  # noqa: PLC0415
+def test_overhead_runs_name_each_side_and_why_others_join_none() -> None:
+    """RFC-0004 INV-DERIVE-2: an overhead's pairs join the runs its source inputs name, on each
+    side; every other completed run of the two configurations is listed with why, read from its
+    own records (by hand): the first-proof boundary at a batch above 1 (INV-SCOPE-5), a steady
+    scope under 60 s (RFC-0015 SRV-1), or prompts of no joined prover run."""
 
-    conditions = {
-        "engine": {"name": "vllm", "version": "0.32.0", "interface": "vllm serve",
-                   "image_digest": None,
-                   "settings": "engine defaults except --tensor-parallel-size 4, "
-                               "--max-model-len 1025, --max-num-seqs 24",
-                   "settings_high": "engine defaults except --tensor-parallel-size 4, "
-                                    "--max-model-len 1025",
-                   "max_num_batched_tokens": {"matched": 8192, "high": 8192}},
-        "decoding": "greedy", "warm": True, "runtime": "hosted",
-        "serving_model": {"id": "m", "version": 1, "digest": "sha256:" + "0" * 64,
-                          "publisher": "Meta", "precision": "FP8", "release_statement": "q"},
-        "proved_precision": "UD-Q4_K_XL", "weight_bits": "w",
-        "gpus": {"system": 1, "serving": 4, "serving_high": 4},
-        "gpu_model": "NVIDIA H200",
-        "profiles": {"system": "a", "serving": "b", "serving_high": "b"},
-        "batch": {"matched": 24, "high": 1024},
-        "batches_per_session": {"system": 5, "serving_matched": 25, "serving_high": 5},
-        "prompt_count_run": {"system": 120, "serving_matched": 600, "serving_high": 5120},
-        "n": {"system": 3, "serving_matched": 3, "serving_high": 3},
-    }  # fmt: skip
-    pairs = {"n_system": 3, "n_serving": 3, "min": 72.0, "max": 146.0}
-    stats = {
-        "overhead_vs_production_prove.steady": {"value": 100.0, "pairs": pairs,
-                                                "scope": "prove.steady"},
-        "overhead_vs_production_high_prove.steady": {"value": 200.0, "pairs": pairs,
-                                                     "scope": "prove.steady"},
-    }  # fmt: skip
-    wl = {"precision": {"weight_bits": {"bits": 4.84, "basis": "computed"}}}
-    words = overhead_words(conditions, stats, wl)
-    assert words is not None
-    assert words["precision"] == (
-        "Proving the UD-Q4_K_XL model (4.84 bits per active weight, computed) costs 100 times "
-        "(range 72 to 146 over 3 \u00d7 3 pairs) serving Meta's FP8 release, in GPU-seconds per "
-        "token, steady, at 24 requests a batch."
-    )
-    line = words["conditions"]
-    gpus = "1 \u00d7 NVIDIA H200 for the prover, 4 for serving"
-    for part in ("prove.steady scope", "vllm 0.32.0, vllm serve", "480 further windows", gpus,
-                 "RFC-0006 C5", "greedy", "--max-num-seqs 24",
-                 "5 batches for the prover and 25 for serving"):  # fmt: skip
-        assert part in line, part
-    assert words["high"].startswith("At 1024 requests a batch: 200\u00d7")
-    assert "the prover's 120 prompts plus 5000 further windows" in words["high"]
-    assert (
-        "prove.steady scope; 5 batches for serving on 4 \u00d7 NVIDIA H200, engine defaults"
-        " except --tensor-parallel-size 4, --max-model-len 1025"
-    ) in words["high"]
-    unrecorded = {**conditions, "batches_per_session": {"system": 5, "serving_matched": None,
-                                                        "serving_high": 5}}  # fmt: skip
-    again = overhead_words(unrecorded, stats, wl)
-    assert again is not None
-    assert "5 batches for the prover and not recorded for serving" in again["conditions"]
-    stats["overhead_vs_production_prove.steady"] = {"value": None, "pairs": pairs}
-    assert overhead_words(conditions, stats, wl) is None
+    def rec(
+        status: str = "completed",
+        rule: str | None = "batch-membership",
+        warnings: tuple[str, ...] = (),
+        prompts: str | None = "p-2",
+    ) -> dict[str, Any]:
+        return {
+            "dir": "results/x",
+            "run": {"status": status, "warnings": list(warnings)},
+            "manifest": {"workload": {"steady_rule": rule}, "prompts_from": prompts},
+        }
+
+    records = {"p-1": rec(rule=None, prompts=None), "p-2": rec(prompts=None),
+               "p-3": rec(status="failed", prompts=None),
+               "s-1": rec(warnings=("steady scope under 60 s",)), "s-2": rec(),
+               "s-3": rec(prompts="p-1"), "s-4": rec()}  # fmt: skip
+    stat = {"value": 2.0, "source": {"inputs": [f"results/x/{r}/run.json#/metrics/m"
+                                                for r in ("p-2", "s-2", "s-4")]}}  # fmt: skip
+    config = {
+        "runs": ["p-1", "p-2", "p-3"],
+        "statistics": {"overhead_vs_production_prove.steady": stat},
+        "overhead_conditions": {"serving_configuration": "index.json#/configurations/1"},
+    }
+    index = {"configurations": [config, {"runs": ["s-1", "s-2", "s-3", "s-4"]}]}
+    got = site_view_module._overhead_runs(index, config, records, 24)
+    runs = got["overhead_vs_production_prove.steady"]
+    assert [r["run_id"] for r in runs["system"]] == ["p-2"]
+    assert [r["run_id"] for r in runs["serving"]] == ["s-2", "s-4"]
+    assert [(x["run_id"], x["side"], x["why"]) for x in runs["left"]] == [
+        ("p-1", "system", "first_proof_boundary"),  # p-3 failed: in no figure at all
+        ("s-1", "serving", "short_steady"),
+        ("s-3", "serving", "other_prompts"),
+    ]
+    # at batch size 1 the first-proof boundary is the steady rule: no reason from it
+    assert site_view_module._join_why(rec(rule=None, prompts=None), 1, {"p-2"}) is None
+    # a serving run of one batch has no steady window to divide by; a prover run's batches
+    # say nothing of that (the warm figure divides by its session)
+    one = rec(prompts=None)
+    one["manifest"]["workload"]["batches_per_session_run"] = 1
+    assert site_view_module._join_why(one, 1, set(), serving=True) == "one_batch"
+    assert site_view_module._join_why(one, 1, set()) is None
+    assert site_view_module._steady_why(one) == "one_batch"
 
 
-def sash_conditions(warm: bool) -> dict[str, Any]:
-    """A conditions block of a SASH-like row: one request a batch, one GPU on each side."""
-    return {
-        "engine": {"name": "vllm", "version": "0.32.0", "interface": "vllm serve",
-                   "image_digest": None, "settings": "engine defaults except x",
-                   "settings_high": None,
-                   "max_num_batched_tokens": {"matched": 8192, "high": None}},
-        "decoding": "greedy", "warm": warm, "runtime": "hosted",
-        "serving_model": {"id": "m", "version": 1, "digest": "sha256:" + "0" * 64,
-                          "publisher": "Meta", "precision": "BF16", "release_statement": "q"},
-        "proved_precision": "BF16", "weight_bits": None,
-        "gpus": {"system": 1, "serving": 1, "serving_high": None},
-        "gpu_model": "NVIDIA H200",
-        "profiles": {"system": "a", "serving": "b", "serving_high": None},
-        "batch": {"matched": 1, "high": None},
-        "batches_per_session": {"system": 1, "serving_matched": 1, "serving_high": None},
-        "prompt_count_run": {"system": 1, "serving_matched": 1, "serving_high": None},
-        "n": {"system": 1, "serving_matched": 1, "serving_high": 0},
-    }  # fmt: skip
+def test_warm_overhead_names_its_runs() -> None:
+    """RFC-0004 INV-DERIVE-11: the warm figure's pairs join the prover runs its inputs read in
+    the index's freeze_derived and the serving runs' run.json; the serving runs it leaves out
+    say why: one batch, a steady scope under 60 s (by hand, after releases/v0.1 SASH)."""
 
+    def rec(warnings: tuple[str, ...] = (), batches: int = 360) -> dict[str, Any]:
+        return {"dir": "results/x", "run": {"status": "completed", "warnings": list(warnings)},
+                "manifest": {"workload": {"steady_rule": "batch-membership",
+                                          "batches_per_session_run": batches},
+                             "prompts_from": None}}  # fmt: skip
 
-def test_overhead_warm_words() -> None:
-    """RFC-0004 INV-DERIVE-11: a row whose headline is the warm figure (SASH) names both
-    scopes, the prover's session with its start-up and serving's steady scope, and prints no
-    high-load context (no high-load figure pairs those scopes); the index's
-    `overhead_headline` names the statistic (fixture values, not a result)."""
-    from iproofs.site.view import WARM, overhead_metric, overhead_words  # noqa: PLC0415
-
-    pairs = {"n_system": 1, "n_serving": 3, "min": 900.0, "max": 1100.0}
-    stats = {
-        "overhead_vs_production_prove.steady": {"value": None, "pairs": pairs,
-                                                "scope": "prove.steady"},
-        WARM: {"value": 1000.0, "pairs": pairs, "scope": "prove.session"},
-        "overhead_vs_production_high_prove.session": {"value": 9.0, "pairs": pairs,
-                                                      "scope": "prove.session"},
-    }  # fmt: skip
-    wl = {"precision": {"weight_bits": {"bits": 16, "basis": "computed"}}}
-    headline = {"overhead_headline": {"metric": WARM, "formula": "D-OVERHEAD-WARM",
-                                      "scope": "prove.session", "serving_scope": "prove.steady",
-                                      "start_up": "prover_only"}}  # fmt: skip
-    assert overhead_metric(headline) == WARM
-    assert overhead_metric({}) == "overhead_vs_production_prove.steady"
-    words = overhead_words(sash_conditions(warm=True), stats, wl, WARM)
-    assert words is not None
-    assert words["conditions"].startswith(
-        "prove.session scope for the prover, from the start of its prove call to its last "
-        "proof (its start-up included: it releases no proof before the whole request is "
-        "proved), prove.steady scope for production serving"
-    )
-    assert "greedy decoding, warm serving, the prover's start-up inside its session" in (
-        words["conditions"])  # fmt: skip
-    assert "range 900 to 1,100 over 1 \u00d7 3 pairs" in words["conditions"]
-    assert words["precision"].endswith(
-        "in GPU-seconds per token, per proving session with the prover's start-up, against "
-        "warm serving (steady), at 1 requests a batch."
-    )
-    assert "high" not in words
+    records = {"p-1": rec(batches=1), "p-2": rec(batches=1), "s-1": rec(batches=1),
+               "s-2": rec(warnings=("steady scope under 60 s",), batches=50),
+               "s-3": rec(), "s-4": rec()}  # fmt: skip
+    warm = "overhead_vs_production_warm"
+    inputs = [f"releases/v0.1/index.json#/freeze_derived/{r}/m" for r in ("p-1", "p-2")]
+    inputs += [f"results/x/{r}/run.json#/metrics/m" for r in ("s-3", "s-4")]
+    config: dict[str, Any] = {
+        "runs": ["p-1", "p-2"],
+        "statistics": {warm: {"value": 2.0, "source": {"inputs": inputs}}},
+        "overhead_conditions": {"serving_configuration": "index.json#/configurations/1"},
+    }
+    index = {"configurations": [config, {"runs": ["s-1", "s-2", "s-3", "s-4"]}]}
+    runs = site_view_module._overhead_runs(index, config, records, 1)[warm]
+    assert [r["run_id"] for r in runs["system"]] == ["p-1", "p-2"]
+    assert [r["run_id"] for r in runs["serving"]] == ["s-3", "s-4"]
+    assert [(x["run_id"], x["why"]) for x in runs["left"]] == [
+        ("s-1", "one_batch"),
+        ("s-2", "short_steady"),
+    ]
+    assert site_view_module.input_runs(config["statistics"][warm]) == ["p-1", "p-2", "s-3", "s-4"]

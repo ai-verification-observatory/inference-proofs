@@ -9,17 +9,19 @@ import re
 
 from . import state as S
 from .chrome import footer, header, masthead, page
-from .hexagon import pie_svg
+from .hexagon import pie_svg, sized
 from .plates import (
     BOARD,
     BOARD_GROUPS,
     BOARD_HEAD,
+    HEAD,
     SORT_WORDS,
     aria,
     bits_words,
     configs_of,
     glyph,
     keep,
+    limit_words,
     metric_of,
     name_of,
     readable,
@@ -30,20 +32,19 @@ from .plates import (
     value_link,
     words,
 )
-from .words import FAMILY_WORD, STATUS_WORD, e, gpu_words
+from .words import FAMILY_WORD, PER_GBIT, STATUS_WORD, curly, e, gpu_words
 
 # ------------------------------------------------------------------ home rows
+
+# the sizes a row's glyph and a not-benchmarked glyph are shown at (words.css: above 1180 px,
+# 1100 to 1180 px, 1099 px and below; above 635 px, 635 px and below)
+ROW_PIE = (96, 64, 52)
+NB_PIE = (56, 52)
 
 
 def size_words(n):
     """A parameter count as the site prints it: 400000000000 is 400B, 8030261248 8.03B."""
     return f"{n / 1e9:.3g}B"
-
-
-def pin_link(cfg):
-    up = upstream(cfg)
-    href = f"https://github.com/{up['repo']}/tree/{up['commit']}"
-    return f'<a class="pin" href="{e(href)}" title="Pinned upstream commit {e(up["commit"])}">@{e(up["commit"][:8])}</a>'
 
 
 def kind_words(rid):
@@ -103,17 +104,25 @@ def sort_heads():
             + ">"
             f'<button type="button" class="sb" data-col="{col}" data-asc="{e(w["asc"])}" data-desc="{e(w["desc"])}">'
             f'{label}\u00a0<span class="g" aria-hidden="true">{"↑" if on else "↕"}</span>'
-            + (f'<span class="sr">, {e(said)}</span>' if said else "")
+            + (f'<span class="sr">, </span><span class="gw">{e(said)}</span>' if said else "")
             + "</button></div>"
         )
 
     group_of = {c: words for cols, words in BOARD_GROUPS for c in cols}
+    # RFC-0004 INV-DERIVE-7: the limit of the per-Gbit basis, once, on the line its heads share
+    limit = {PER_GBIT: f' title="{e(limit_words())}"'}
     groups = "".join(
-        f'<div class="hg hg-{e(cols[0])}" aria-hidden="true"><span>{e(words)}</span></div>'
+        f'<div class="hg hg-{e(cols[0])}" aria-hidden="true"{limit.get(words, "")}><span>{e(words)}</span></div>'
         for cols, words in BOARD_GROUPS
     )
+    # where the rows stack (phones and tablets) the first column is too narrow for its group line:
+    # both lines as one note across the four columns, above their heads
+    note = (
+        '<div class="hn" aria-hidden="true">'
+        f"{e(HEAD['overhead'])}; the other figures {e(PER_GBIT)}</div>"
+    )
     return (
-        f'<div class="heads" role="row">{head("system", "System", cls=" hsys")}{groups}'
+        f'<div class="heads" role="row">{head("system", "System", cls=" hsys")}{groups}{note}'
         + "".join(head(c, e(BOARD_HEAD[c]), group_of.get(c, "")) for c in BOARD)
         + "</div>"
     )
@@ -127,7 +136,7 @@ def model_lines(cfg):
     p = cfg["workload"]["model"]["parameters"]
     total, active = p["total"], p["active_per_token"]
     wb = cfg["workload"]["precision"].get("weight_bits") or {}
-    bits = f"{wb['bits']:.2g}-bit" if wb.get("bits") is not None else "bits not recorded"
+    bits = f"{wb['bits']:.4g}-bit" if wb.get("bits") is not None else "bits not recorded"
     short = [
         f"{size_words(active)} active",
         bits,
@@ -145,8 +154,8 @@ def model_lines(cfg):
 
 
 def board_row(cfg):
-    """One overview row: the row header (glyph, name, pin, and the model under them), then the
-    figures, each a link to its own plate on the system page."""
+    """One overview row: the row header (glyph, name, its pin in the name's title, and the model
+    under them; a hovered petal names itself in a card under the glyph), then the figures, each a link to its own plate on the system page."""
     sid = cfg["system"]
     name, g, href = name_of(sid), glyph(sid), claims_href(cfg)
     said = f'<p class="sr">{e(states_said(g))}</p>'
@@ -159,8 +168,8 @@ def board_row(cfg):
 <div class="row" id="{e(sid)}" role="row" data-name="{e(name.lower())}" data-k="{keys}">
   <div class="r-main">
     <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
-      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{pie_svg(g["states"], 120, cells=g["cells"], hit=True)}<span class="tip"></span></a>
-      <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}">{e(name)}</a></h3>{said}<p class="wl">{pin_link(cfg)}</p></div>
+      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{sized(lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == ROW_PIE[0] else None, hit=True), ROW_PIE)}<span class="tip pop"></span></a>
+      <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}" title="pinned at {e(upstream(cfg)["commit"][:8])}">{e(name)}</a></h3>{said}</div>
       {model_lines(cfg)}
     </div>
     <div class="vals">{vals}</div>
@@ -168,36 +177,90 @@ def board_row(cfg):
 </div>'''
 
 
+ID_NOTE = " (model id as given)"
+
+
+def family(text):
+    """A model's name for comparing families: lower case, notes in brackets and separators out
+    ("Gemma 3" and "gemma-3-1b-it" both start "gemma 3")."""
+    return re.sub(r"[\s_-]+", " ", re.sub(r"\([^)]*\)", "", text).lower()).strip()
+
+
+def nb_split(r):
+    """A system's models: (the names its sources give, the ids printed beside them, the ids left
+    out because a name already gives their family; their title holds them)."""
+    names = [g for g in r["models"] if not g.endswith(ID_NOTE)]
+    fams = [f for g in names for x in re.split(r",|;|\band\b", g) if (f := family(x))]
+    shown, left = [], []
+    for given in (g.removesuffix(ID_NOTE) for g in r["models"] if g.endswith(ID_NOTE)):
+        model = family(given.rsplit("/", 1)[-1])
+        (left if any(model.startswith(f) for f in fams) else shown).append(given)
+    return names, shown, left
+
+
 def nb_models(r):
-    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed."""
-    out = []
-    for given in r["models"]:
-        m = given.replace(" (model id as given)", "")
-        out.append(
-            "Model " + m
-            if m.startswith("not named")
-            else sentence_case(m)
-            if m.startswith("no ")
-            else m
-        )
-    return "; ".join(out)
+    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed,
+    quotes curly as on the cards; an id only where no name gives its family."""
+    names, shown, _ = nb_split(r)
+    out = ["Model " + m if m.startswith("not named")
+           else m[:1].upper() + m[1:] if m.startswith("no ") else m
+           for m in [*names, *shown]]  # fmt: skip
+    return curly("; ".join(out))
 
 
 def nb_meta(rid):
-    """Family and repository status (the heading says no adapter runs them yet)."""
+    """The repository status, only where it is not active (the group heading names the family)."""
     status = S.V["facts"]["rows"][rid]["status"]["state"]
-    return " · ".join([FAMILY_WORD[S.CRIT["rows"][rid]["family"]], STATUS_WORD[status]])
+    word = STATUS_WORD[status]
+    return "" if status == "active" else word[:1].upper() + word[1:]
+
+
+def own_link(rid):
+    """The system's own public source among those the criteria file names: its repository, else
+    the page (a paper) that presents it, else its own domain; None when it names none."""
+    found = S.CRIT["rows"][rid].get("own_sources") or []
+    for key, href in (("repo", "https://github.com/{}"), ("url", "{}"), ("domain", "https://{}/")):
+        for src in found:
+            if src.get(key):
+                return href.format(src[key])
+    return None
+
+
+def nb_card(rid):
+    """One system not benchmarked yet: its glyph, whose petals name themselves under a pointer or
+    a tap, in place of the lines under the name; its name, a link to its own source; its models
+    and, where it is not active, its repository status."""
+    r, g = S.V["facts"]["rows"][rid], glyph(rid)
+    href = own_link(rid)
+    name = (f'<a href="{e(href)}">{e(r["name"])}<span class="xa" aria-hidden="true">\u00a0↗</span></a>'
+            if href else e(r["name"]))  # fmt: skip
+    meta = nb_meta(rid)
+    left = nb_split(r)[2]
+    title = f' title="{e("; ".join(left))}"' if left else ""
+    lines = f'<p class="nbm"{title}>{keep(nb_models(r))}</p>' + (
+        f'<p class="nbm">{keep(meta)}</p>' if meta else ""
+    )
+    return (
+        f'<li class="nb" id="nb-{e(rid)}"><span class="nbpie" role="img" aria-label="{e(aria(g, r["name"]))}">'
+        f"{sized(lambda s: pie_svg(g['states'], s, cells=g['cells'] if s == NB_PIE[0] else None, hit=True), NB_PIE)}</span>"
+        f'<div class="nbt"><h4 class="nbn">{name}</h4><div class="nbms">{lines}</div>'
+        f'<p class="tip" aria-hidden="true"></p></div></li>'
+    )
 
 
 def nb_grid():
-    out = ""
+    """The systems not benchmarked yet, one group per family, the largest first (ties A to Z by
+    the family's word); each group's heading spans the grid, so the cards keep one grid."""
+    groups = {}
     for rid in S.V["orders"]["not_benchmarked"]:
-        r, g = S.V["facts"]["rows"][rid], glyph(rid)
-        out += (
-            f'<li class="nb" id="nb-{e(rid)}"><span class="nbpie" role="img" aria-label="{e(aria(g, r["name"]))}">{pie_svg(g["states"], 56)}</span>'
-            f'<div><h3 class="nbn">{e(r["name"])}</h3><p class="nbm">{keep(nb_models(r))}</p><p class="nbm">{keep(nb_meta(rid))}</p></div></li>'
-        )
-    return f'<ul class="nbgrid">{out}</ul>'
+        groups.setdefault(S.CRIT["rows"][rid]["family"], []).append(rid)
+    order = sorted(groups, key=lambda f: (-len(groups[f]), FAMILY_WORD[f]))
+    out = "".join(
+        f'<h3 class="nbh" id="nbh-{e(fam)}">{e(FAMILY_WORD[fam])}</h3>'
+        f'<ul class="nbl" role="list" aria-labelledby="nbh-{e(fam)}">{"".join(nb_card(r) for r in groups[fam])}</ul>'
+        for fam in order
+    )
+    return f'<div class="nbgrid">{out}</div>'
 
 
 def shape_words(cfg):
@@ -254,31 +317,29 @@ def fig_href(cfg, col):
 
 
 # the overview's description, in its meta and share tags
-HOME_DESC = ("Six properties of one proof per system, and one row per system: "
-             "overhead against production serving, then proving time, proof size and check time "
-             "per token per Gbit of active weights, sortable by column.")  # fmt: skip
+HOME_DESC = ("Provable LLM inference measured on the same hardware: overhead against production "
+             "serving, proving time, proof size and check time, and what one proof establishes.")  # fmt: skip
 
 
 def build_index():
     rows = board_configs()
     first = f"{BOARD_HEAD[DEFAULT_COL]}, {SORT_WORDS[DEFAULT_COL]['asc']}"
-    n = len(rows)
-    nb_count = len(S.V["orders"]["not_benchmarked"])
     body = f"""
 {header("home")}
 <main id="main">
 {masthead()}
 <div class="wrap">
   <section class="sec board" id="benchmarked" aria-labelledby="h-bench">
-    <div class="sec-h"><h2 id="h-bench" class="sect">Benchmarked<sup aria-hidden="true">{n}</sup><span class="sr">, {n} systems</span></h2></div>
-    <div class="tbl" role="table" aria-labelledby="h-bench" aria-describedby="sort-now" data-col="{DEFAULT_COL}" data-dir="asc">
+    <div class="sec-h"><h2 id="h-bench" class="sect">Benchmarked</h2></div>
+    <div class="tbl" role="table" aria-labelledby="h-bench" aria-describedby="sort-now per-gbit-limit" data-col="{DEFAULT_COL}" data-dir="asc">
       {sort_heads()}
       <div class="rows" role="rowgroup">{"".join(board_row(c) for c in rows)}</div>
     </div>
   </section>
   <p id="sort-now" hidden>{e(first)}</p>
+  <p id="per-gbit-limit" hidden>{e(PER_GBIT.capitalize())}: {e(limit_words())}</p>
   <section class="sec" id="not-yet" aria-labelledby="h-nb">
-    <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet<sup aria-hidden="true">{nb_count}</sup><span class="sr">, {nb_count} systems</span></h2></div>
+    <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet</h2></div>
     {nb_grid()}
   </section>
 </div>

@@ -114,6 +114,8 @@ def load_criteria(root: Path) -> Criteria:
             "tab": raw["tab"],
             "card": card,
             "cells": cells,
+            # where a public-source row's system presents itself (its repository, its paper)
+            "own_sources": [dict(s) for s in raw.get("own_sources") or []],
         }
     pins = {str(k): str(v) for k, v in (doc.get("pins") or {}).items()}
     return Criteria(CRITERIA, file_digest(path), doc.get("release"), order, states, properties,

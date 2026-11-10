@@ -1,6 +1,7 @@
 {
   "gpus": {
-    "NVIDIA H100 80GB HBM3": "H100"
+    "NVIDIA H100 80GB HBM3": "H100",
+    "NVIDIA H200": "H200"
   },
   "models": {
     "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7": {
@@ -12,7 +13,7 @@
     "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114": {
       "name": "Llama 4 Maverick",
       "precision_words": {
-        "UD-Q4_K_XL": "4-bit"
+        "UD-Q4_K_XL": "GGUF"
       }
     }
   },
@@ -79,7 +80,7 @@
     "jstprove": {
       "code": "restricted_licence",
       "models": [
-        "LeNet demo (README quickstart); no LLM"
+        "LeNet demo; no LLM named"
       ],
       "name": "JSTprove",
       "status": {
@@ -90,7 +91,7 @@
     "luminair": {
       "code": "open_licence",
       "models": [
-        "no LLM named in the README"
+        "no LLM named"
       ],
       "name": "LuminAIR",
       "status": {
@@ -101,7 +102,7 @@
     "nanozk": {
       "code": "no_public_code",
       "models": [
-        "not named in the abstract"
+        "not named"
       ],
       "name": "NanoZK",
       "status": {
@@ -121,7 +122,7 @@
     "private-ml-sdk": {
       "code": "open_licence",
       "models": [
-        "not named in the README"
+        "not named"
       ],
       "name": "Private ML SDK",
       "status": {
@@ -133,13 +134,13 @@
       "name": "Rerun by a weights holder"
     },
     "ref-serve": {
-      "kind_words": "Production serving: the baseline with no check, for cost comparison.",
+      "kind_words": "Production serving: the baseline for cost comparison.",
       "name": "Production serving"
     },
     "remainder": {
       "code": "open_licence",
       "models": [
-        "no LLM named in the README"
+        "no LLM named"
       ],
       "name": "Remainder (Community Edition)",
       "status": {
@@ -164,7 +165,7 @@
     "tinfoil": {
       "code": "open_licence",
       "models": [
-        "not named on the page read"
+        "not named"
       ],
       "name": "Tinfoil",
       "status": {
@@ -174,7 +175,7 @@
     "toploc": {
       "code": "open_licence",
       "models": [
-        "Llama 3.1-8B-Instruct (named in the abstract)"
+        "Llama 3.1-8B-Instruct"
       ],
       "name": "TOPLOC",
       "status": {
@@ -184,7 +185,7 @@
     "verde": {
       "code": "no_public_code",
       "models": [
-        "not named in the abstract"
+        "not named"
       ],
       "name": "Verde (with RepOps)",
       "status": {
@@ -226,7 +227,7 @@
     "zkml": {
       "code": "open_licence",
       "models": [
-        "a distilled GPT-2"
+        "A distilled GPT-2"
       ],
       "name": "ZKML",
       "status": {
@@ -248,7 +249,7 @@
     "zktorch": {
       "code": "open_licence",
       "models": [
-        "MLPerf Edge Inference v4.1 models, LLMs included; no LLM named in the README"
+        "MLPerf Edge Inference v4.1 models, LLMs among them, none named"
       ],
       "name": "ZKTorch",
       "status": {

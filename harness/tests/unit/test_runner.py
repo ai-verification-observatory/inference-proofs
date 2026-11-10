@@ -245,6 +245,21 @@ def test_closed_workload_same_class_runs(tmp_path: Path, monkeypatch: pytest.Mon
     assert doc["status"] == "completed"
 
 
+def test_run_json_names_the_card_its_manifest_records(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RFC-0016 OVR-5 reads a run's card from `run.json` `claim`: the runner writes there the
+    card its manifest records (the fake system has none, so a card is lent to it)."""
+    from iproofs import runner as runner_module  # noqa: PLC0415
+
+    monkeypatch.setattr(runner_module, "card_path", lambda *_: ROOT / "systems/sash/claim.yaml")
+    run_dir = runner().run(spec(tmp_path))
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    card = {"system": "fake", "configuration": "sound-defaults", "card_version": 1}
+    assert manifest["claim"] == card
+    assert read(run_dir)["claim"] == card
+
+
 def test_closed_workload_reference_has_no_card() -> None:
     """A reference system has no card (RFC-0015) and runs on a closed workload."""
     from iproofs.workloads import load_workload  # noqa: PLC0415

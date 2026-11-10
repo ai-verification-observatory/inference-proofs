@@ -1,4 +1,4 @@
-home-1440 header height 276 px
+home-1440 header height 234 px
 ok   home-1440 CLS on load is 0
 ok   header has no buttons or pressable elements
 ok   pointing at header properties changes nothing
@@ -8,11 +8,15 @@ ok   one table across models, FlashProve then SASH (overhead ascending); no work
 ok   one row per system on the overview, its glyph once {"systems":["/flashprove","/sash"],"pies":["/flashprove","/sash"]}
 ok   no reference row on the overview (the baseline is named in each overhead cell), no "same as above" []
 ok   sections in order: benchmarked, then 19 not benchmarked yet ["benchmarked","not-yet"]
-ok   row slice hover shows its name and state, over no text {"path":"/","hot":"2","shown":true,"pos":"absolute","text":"Model boundPartly","sw":true,"over":[]}
+ok   row slice hover names its property and state in a raised card pointing at the petal, on screen, the system's name still shown {"path":"/","hot":"2","shown":true,"pos":"absolute","named":true,"card":true,"aim":true,"inView":true,"text":"Model boundPartly","sw":true,"over":[]}
 ok   row heights unchanged on slice hover
 ok   other slices keep opacity 1, no filter
-ok   a Not stated slot is filled in its own grey and lifts like the others {"hot":"1","unstated":true,"fill":"#67635c","grey":"#67635c","moved":true,"loose":0}
+ok   a Not stated slot is a ghost slot in a grey outline and lifts like the others {"hot":"1","unstated":true,"fill":"#1f1e1e","ghost":"#1f1e1e","stroke":"#67635c","grey":"#67635c","moved":true,"loose":0}
+ok   each glyph shows one copy, the one drawn for its size
 ok   each figure carries its labels in its title, at most a scope word under it [{"t":true,"sub":true},{"t":true,"sub":true},{"t":true,"sub":true},{"t":true,"sub":true},{"t":true,"sub":true},{"t":true,"sub":true},{"t":true,"sub":true},{"t":true,"sub":true}]
+ok   the legend holds no states key and no link
+ok   home-1340: a named petal reads "Property: state" in the model line's place, and no card moves {"cards":19,"named":114,"said":"Whole output checked: not stated","moved":[]}
+ok   home-1440: a named petal reads "Property: state" in the model line's place, and no card moves {"cards":19,"named":114,"said":"Whole output checked: not stated","moved":[]}
 ok   default: overhead ascending, one sorted head, empty hash {"aria":["overhead:ascending"],"heads":1,"tables":1,"glyphs":"↕↑↕↕↕","hash":""}
 ok   sort system asc {"got":[["flashprove","sash"]],"hash":"#sort=system-asc","glyphs":"↑↕↕↕↕"}
 ok   sort system desc {"got":[["sash","flashprove"]],"hash":"#sort=system-desc","glyphs":"↓↕↕↕↕"}
@@ -42,58 +46,74 @@ ok   sort with missing values: overhead desc {"got":["sash","flashprove","zz-b",
 ok   unknown sort in the hash falls back and clears it
 ok   "/" focuses search and opens the list
 ok   an empty search lists the benchmarked systems ["FlashProve","SASH"]
-ok   the field is wide and centred between the pages and GitHub, its list as wide {"w":600,"gaps":[138,138],"list":0}
+ok   the field is wide and centred between the pages and GitHub, its list as wide {"w":600,"gaps":[142,142],"list":0}
 ok   "flash" finds FlashProve first
-ok   not-benchmarked systems come after the others, each marked ["FlashProve:system on","SASH:system","zkGPT:unbenchmarked","zkLLM:unbenchmarked","ZKML:unbenchmarked","zkPyTorch:unbenchmarked","ZKTorch:unbenchmarked","Attestable prover:unbenchmarked","DeepProve:unbenchmarked","EZKL:unbenchmarked","JOLT Atlas:unbenchmarked","JSTprove:unbenchmarked","LuminAIR:unbenchmarked","NanoZK:unbenchmarked"]
+ok   not-benchmarked systems come after the others, under their group heading, no badge ["FlashProve:Benchmarked","SASH:Benchmarked","zkGPT:Not benchmarked","zkLLM:Not benchmarked","ZKML:Not benchmarked","zkPyTorch:Not benchmarked","ZKTorch:Not benchmarked","Attestable prover:Not benchmarked","DeepProve:Not benchmarked","EZKL:Not benchmarked","JOLT Atlas:Not benchmarked","JSTprove:Not benchmarked","LuminAIR:Not benchmarked","NanoZK:Not benchmarked","Remainder (Community Edition):Not benchmarked","VerInf:Not benchmarked"]
+ok   no badge and no instruction in the results, every match listed
 ok   one typo still finds the system
-ok   a not-benchmarked result leads to its card in the overview, marked and labelled {"url":"/#nb-attestable","bar":"\"\"","label":"\"Not benchmarked\""}
+ok   a not-benchmarked result leads to its card in the overview, marked by its edge only, the field cleared {"url":"/#nb-attestable","bar":"\"\"","label":"none","field":""}
 ok   no match says so
 ok   "atest" finds Attestable prover first ["Attestable prover","Private ML SDK","Tinfoil"]
 ok   "flsh" finds FlashProve first ["FlashProve"]
 ok   "flahsprove" finds FlashProve first ["FlashProve"]
 ok   "sahs" finds SASH first ["SASH"]
-ok   "llama4" finds FlashProve first ["FlashProve","VerInf"]
-ok   an exact word brings no typo noise ("sash" finds SASH only) ["SASH"]
+ok   "llama4" finds FlashProve first ["FlashProve","Production serving","VerInf"]
+ok   an exact word brings no typo noise ("sash" finds SASH first, and what ran its workload) ["SASH","Production serving"]
+ok   "criteria" finds something (pages, hardware, engines are indexed) {"q":"criteria","first":"Criteria","want":"/criteria"}
+ok   "release" finds something (pages, hardware, engines are indexed) {"q":"release","first":"Release v0.1","want":"/release"}
+ok   "h200" finds something (pages, hardware, engines are indexed) {"q":"h200","first":"FlashProve","want":"/flashprove"}
+ok   "vllm" finds something (pages, hardware, engines are indexed) {"q":"vllm","first":"Production serving","want":"/reference#ref-serve"}
+ok   "proof size" finds each system's Figures first, no system by "size not stated" ["FlashProve:Figures","SASH:Figures"]
+ok   "check time" finds the two Figures and nothing one typo away ("tied") ["FlashProve:Figures","SASH:Figures"]
+ok   "model" finds no system by "Model not named" ["Model bound","Figures","Figures","ZKTorch"]
+ok   "reference" finds the one reference once, no page entry beside it ["Production serving","Release v0.1"]
+ok   "w8a8" finds the system that proves at that precision, and only it ["SASH"]
 ok   "stark" finds only the systems whose stated technique is one
 ok   one letter still lists the not-benchmarked names that start with it
-ok   Enter goes to the first result of a typed search http://127.0.0.1:4451/criteria#weights_hidden
-FAIL the arrows choose another result http://127.0.0.1:4451/criteria#model_bound
-ok   Enter in an empty field picks nothing http://127.0.0.1:4451/
+ok   "weights" lists Weights hidden first ["Properties:Weights hidden","Benchmarked:SASH","FlashProve:Figures","SASH:Figures","Properties:Model bound"]
+ok   "model" lists Model bound first ["Properties:Model bound","FlashProve:Figures","SASH:Figures","Not benchmarked:ZKTorch"]
+ok   "zk" lists FlashProve, SASH first ["Benchmarked:FlashProve","Benchmarked:SASH","Not benchmarked:zkGPT","Not benchmarked:zkLLM","Not benchmarked:ZKML","Not benchmarked:zkPyTorch"]
+ok   "sash tamper" lists Tamper tests first ["SASH:Tamper tests"]
+ok   "proving time" names the figure each Figures result was found by, no empty glyph gutter [{"meta":"Proving time per token, per Gbit of active weights","gutter":false,"x":12},{"meta":"Proving time per token, per Gbit of active weights","gutter":false,"x":12}]
+ok   "weights" shows the phrase SASH was found by {"sashWhy":"W8A8 (8-bit weights and activations)","ws":["Weights hidden","SASH","Figures","Figures","Model bound"]}
+ok   Enter on a figure found by its name opens its plate http://127.0.0.1:4440/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-per_bit
+ok   Enter goes to the first result of a typed search http://127.0.0.1:4440/criteria#weights_hidden
+ok   the arrows mark one other result {"second":5,"marked":true}
+ok   Escape closes the list, then clears the field {"esc":{"hidden":true,"value":"weights"},"esc2":""}
+ok   Enter in an empty field picks nothing http://127.0.0.1:4440/
+ok   "tamper" from /sash opens its own tamper tests http://127.0.0.1:4440/sash#tamper
+ok   "/" mid-page opens search on screen without scrolling; Escape leaves the page where it was {"mid":{"y":3300,"focus":"q","top":12,"list":true},"after":{"y":3300,"on":false,"inert":false}}
 ok   phone: a search button, the field hidden
 ok   phone: the button opens the field and its results, nothing overflows {"over":0,"wide":[],"clipped":[]}
 ok   Enter on Proof size sorts ascending {"aria":["size_bit:ascending"],"heads":1,"tables":1,"glyphs":"↕↕↕↑↕","hash":"#sort=size_bit-asc"}
 ok   Space on it again sorts descending {"aria":["size_bit:descending"],"heads":1,"tables":1,"glyphs":"↕↕↕↓↕","hash":"#sort=size_bit-desc"}
 ok   keyboard focus is visible on a head button solid
-ok   home-1100 no overflow, no clipped figure {"over":0,"wide":["SPAN.sr","SPAN.sr"],"clipped":[]}
+ok   home-1100 no overflow, no clipped figure {"over":0,"wide":["SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   flashprove-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   release-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-1100 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   home-1024 no overflow, no clipped figure {"over":0,"wide":["SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   flashprove-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   release-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-1024 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   home-900 no overflow, no clipped figure {"over":0,"wide":["SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   flashprove-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   release-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-900 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   home-768 no overflow, no clipped figure {"over":0,"wide":["SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   flashprove-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   sash-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   reference-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   criteria-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
 ok   release-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-768 no overflow, no clipped figure {"over":0,"wide":[],"clipped":[]}
-home-390 first system name bottom 482 px
-ok   home-390 first system name shows on landing 482
+home-390 first system name bottom 395 px
+ok   home-390 first system name shows on landing 395
 ok   home-390 no horizontal overflow {"over":0,"wide":["SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   home-390 CLS 0
 ok   home-390 the column heads stay as sort buttons
@@ -108,8 +128,6 @@ ok   criteria-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   criteria-390 CLS 0
 ok   release-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   release-390 CLS 0
-ok   sponsors-390 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-390 CLS 0
 ok   home-360 no horizontal overflow {"over":0,"wide":["SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   home-360 CLS 0
 ok   home-360 the column heads stay as sort buttons
@@ -124,8 +142,6 @@ ok   criteria-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   criteria-360 CLS 0
 ok   release-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   release-360 CLS 0
-ok   sponsors-360 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-360 CLS 0
 ok   home-320 no horizontal overflow {"over":0,"wide":["SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr","SPAN.sr"],"clipped":[]}
 ok   home-320 CLS 0
 ok   home-320 the column heads stay as sort buttons
@@ -140,13 +156,13 @@ ok   criteria-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   criteria-320 CLS 0
 ok   release-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
 ok   release-320 CLS 0
-ok   sponsors-320 no horizontal overflow {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-320 CLS 0
+ok   reference: one small glyph, the measured table, no empty plates {"glyphs":1,"roses":0,"rows":3,"plates":0}
+ok   reference: a hovered petal of the glyph lifts and names itself in the line's place, nothing moves {"tip":"Model bound: no","line":"hidden","lift":"matrix(1, 0, 0, 1, 6, 0)","h":120}
 ok   flashprove-1440 CLS 0
 ok   flashprove-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   flashprove: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   flashprove: the six properties' states fit the first screen 536
-ok   flashprove: the rose keeps main's height, each text beside its triangle {"now":311,"main":309}
+ok   flashprove: the six properties' states fit the first screen 452
+ok   flashprove: the rose keeps main's height, each text beside its triangle {"now":309,"main":309}
 ok   flashprove: quotes only in how we read it; how we read it and the card in full folded {"stray":0,"details":["howread:false","cardfull:false"]}
 ok   flashprove: each property's source names its own entry in how we read it {"links":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"],"entries":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"]}
 ok   flashprove: a source link opens how we read it and lands on its entry {"open":true,"focus":true,"top":16,"seen":true}
@@ -156,43 +172,36 @@ ok   flashprove: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   sash-1440 CLS 0
 ok   sash-1440 no overflow {"over":0,"wide":[],"clipped":[]}
 ok   sash: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   sash: the six properties' states fit the first screen 549
-ok   sash: the rose keeps main's height, each text beside its triangle {"now":311,"main":309}
+ok   sash: the six properties' states fit the first screen 452
+ok   sash: the rose keeps main's height, each text beside its triangle {"now":309,"main":309}
 ok   sash: quotes only in how we read it; how we read it and the card in full folded {"stray":0,"details":["howread:false","cardfull:false"]}
 ok   sash: each property's source names its own entry in how we read it {"links":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"],"entries":["#read-weights_hidden","#read-model_bound","#read-whole_output","#read-formally_verified","#read-security_level","#read-no_trusted_party"]}
 ok   sash: a source link opens how we read it and lands on its entry {"open":true,"focus":true,"top":16,"seen":true}
 ok   sash: an address naming an entry opens how we read it on it {"open":true,"focus":true,"top":16,"seen":true}
 ok   sash: a modified press on a source link changes nothing in the page {"open":false,"focus":false}
 ok   sash: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
-ok   reference-1440 CLS 0
-ok   reference-1440 no overflow {"over":0,"wide":[],"clipped":[]}
-ok   reference: small pie, slices 1-3 described on its right and 4-6 on its left, facts beside [{"pie":200,"n":6,"sides":true,"downward":true,"facts":true}]
-ok   reference: the six properties' states fit the first screen 649
-ok   reference: the rose keeps main's height, each text beside its triangle {"now":275,"main":275}
-ok   reference: quotes only in how we read it; nothing folded {"stray":0,"details":[]}
-ok   reference: pointing at a property lifts its slice matrix(1, 0, 0, 1, 6, 0)
 ok   the extras golden page prints an overridden cell's line beside the glyph
-ok   flashprove-1000: each property beside its own triangle {"pie":200,"off":[],"rose":311}
-ok   flashprove-1000: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":331,"line":17}
-ok   flashprove-1240: each property beside its own triangle {"pie":200,"off":[],"rose":311}
-ok   flashprove-1240: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":331,"line":17}
-ok   flashprove-1440: each property beside its own triangle {"pie":200,"off":[],"rose":311}
-ok   flashprove-1440: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":331,"line":17}
-ok   sash-1000: each property beside its own triangle {"pie":200,"off":[],"rose":311}
-ok   sash-1000: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":331,"line":17}
-ok   sash-1240: each property beside its own triangle {"pie":200,"off":[],"rose":311}
-ok   sash-1240: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":331,"line":17}
-ok   sash-1440: each property beside its own triangle {"pie":200,"off":[],"rose":311}
-ok   sash-1440: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":331,"line":17}
+ok   flashprove-1000: each property beside its own triangle {"pie":200,"off":[],"rose":309}
+ok   flashprove-1000: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":311,"line":16}
+ok   flashprove-1240: each property beside its own triangle {"pie":200,"off":[],"rose":309}
+ok   flashprove-1240: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":311,"line":16}
+ok   flashprove-1440: each property beside its own triangle {"pie":200,"off":[],"rose":309}
+ok   flashprove-1440: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":311,"line":16}
+ok   sash-1000: each property beside its own triangle {"pie":200,"off":[],"rose":309}
+ok   sash-1000: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":328,"line":16}
+ok   sash-1240: each property beside its own triangle {"pie":200,"off":[],"rose":309}
+ok   sash-1240: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":328,"line":16}
+ok   sash-1440: each property beside its own triangle {"pie":200,"off":[],"rose":309}
+ok   sash-1440: with an overridden cell's line (one line), each property still beside its triangle {"pie":200,"off":[],"rose":328,"line":16}
 ok   overview-1440: following a row header's link leaves the system's name in view {"href":"/sash#claims-sound-defaults","y":0,"name":true}
 ok   overview-390: following a row header's link leaves the system's name in view {"href":"/sash#claims-sound-defaults","y":0,"name":true}
 ok   sash: no work-in-progress label; its figures name their model, Llama 3.1 8B
 ok   /nope answers the styled 404 page 404
 ok   /a/b/c answers the styled 404 page 404
-ok   /system redirects to /flashprove http://127.0.0.1:4451/flashprove
-ok   /system.html redirects to /flashprove http://127.0.0.1:4451/flashprove
+ok   /system redirects to /flashprove http://127.0.0.1:4440/flashprove
+ok   /system.html redirects to /flashprove http://127.0.0.1:4440/flashprove
 ok   a malformed hash does not stop hash sorting
-ok   landscape phone: the table heading shows on landing 261
+ok   landscape phone: the table heading shows on landing 193
 ok   phone: the search field is set at 16 px or more, so focusing it does not zoom 16
 ok   phone: a tap on the sheet closes search and activates nothing under it {"path":"/","on":false}
 ok   phone: hiding the keyboard keeps the results
@@ -200,78 +209,100 @@ ok   phone: a 44 px close button closes search and returns focus to the search b
 ok   phone: the open sheet stays on screen, the page under it is locked and inert {"field":4,"lock":"hidden","main":true,"repo":true,"search":false}
 ok   phone: closing the sheet gives the page back
 ok   phone: the results end above the keyboard (390 x 500 visible) 488
-ok   phone: a tap on a result opens it http://127.0.0.1:4451/flashprove
+ok   phone: a tap on a result opens it http://127.0.0.1:4440/flashprove
 ok   header-320x640: the pages share the logo's line {"h":52,"dy":[1,1]}
 ok   header-390x844: the pages share the logo's line {"h":52,"dy":[1,1]}
 ok   header-600x900: the pages share the logo's line {"h":53,"dy":[1,1]}
 ok   header-768x1024: the pages share the logo's line {"h":57,"dy":[1,1]}
 ok   header-844x390: the pages share the logo's line {"h":45,"dy":[1,1]}
 ok   header-390: search and GitHub 44 px to press, the pages 32 px {"sopen":44,"repo":44,"nav":[32,32]}
-ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":501,"cols":2,"qq":true}
-ok   home-375: sort buttons 32 px tall or more; each system's figures on one line, each with its labels in its title {"h":36,"labels":true,"subs":true,"line":true,"n":8}
-ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":462,"cols":2,"qq":true}
-ok   home-320: sort buttons 32 px tall or more; each system's figures on one line, each with its labels in its title {"h":36,"labels":true,"subs":true,"line":true,"n":8}
-ok   home-390: the sorted column is in paper in every row, the others muted ["overhead:off","per_bit:off","size_bit:off","check_bit:on","overhead:off","per_bit:off","size_bit:off","check_bit:on"]
-ok   touch: a first tap on a triangle names it, over no text, and stays on the page {"path":"/","hot":"2","shown":true,"pos":"absolute","text":"Model boundPartly","sw":true,"over":[]}
-ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4451/flashprove#claims-exact-match-cp-verify
+ok   home-375x667: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":407,"cols":2,"qq":true}
+ok   home-375: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
+ok   home-360x640: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":356,"cols":2,"qq":true}
+ok   home-360: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
+ok   home-320x568: the legend in two columns, the first system on landing, the questions kept for screen readers {"pie":372,"cols":2,"qq":true}
+ok   home-320: one note over four level figure heads, sort buttons 32 px tall or more; each system's figures on one line, each unit beside its number, each with its labels in its title {"h":49,"heads":true,"labels":true,"subs":true,"line":true,"units":true,"n":8}
+ok   home-390: every figure in paper, whichever column sorts ["overhead:on","per_bit:on","size_bit:on","check_bit:on","overhead:on","per_bit:on","size_bit:on","check_bit:on"]
+ok   touch: a first tap on a triangle names it in a card pointing at it, on screen, the system's name still shown, and stays on the page {"path":"/","hot":"2","shown":true,"pos":"absolute","named":true,"card":true,"aim":true,"inView":true,"text":"Model boundPartly","sw":true,"over":["Llama 4 Maverick","17B active","·","4.839-bit","61.28","×","68.21"]}
+ok   touch: a second tap on the same triangle follows the link http://127.0.0.1:4440/flashprove#claims-exact-match-cp-verify
 ok   flashprove-390: one wide glyph with each name in its own triangle and no state word; six rows under it, states in one column; no key glyphs {"wide":340,"inside":true,"out":[],"names":["WEIGHTS HIDDEN","MODEL BOUND","WHOLE OUTPUT CHECKED","FORMALLY VERIFIED","SECURITY LEVEL","NO TRUSTED PARTY"],"stateless":true,"order":"123456","below":true,"col":1,"keys":0}
 ok   touch: a tap on a slice lifts it and marks its property {"s2":"matrix(1, 0, 0, 1, 6, 0)","rn":"rgb(241, 239, 233)","path":"/flashprove"}
+ok   flashprove-320: bound phrases never part at a line's end {"n":41,"out":[]}
+ok   sash-320: bound phrases never part at a line's end {"n":21,"out":[]}
+ok   flashprove-360: bound phrases never part at a line's end {"n":41,"out":[]}
+ok   sash-360: bound phrases never part at a line's end {"n":21,"out":[]}
+ok   flashprove-390: bound phrases never part at a line's end {"n":41,"out":[]}
+ok   sash-390: bound phrases never part at a line's end {"n":21,"out":[]}
+ok   flashprove-1100: bound phrases never part at a line's end {"n":41,"out":[]}
+ok   sash-1100: bound phrases never part at a line's end {"n":21,"out":[]}
+ok   flashprove-1280: bound phrases never part at a line's end {"n":41,"out":[]}
+ok   sash-1280: bound phrases never part at a line's end {"n":21,"out":[]}
+ok   flashprove-1440: the glyph, how we read it, the facts, in focus order {"under":true,"facts":true}
+ok   sash-1440: the glyph, how we read it, the facts, in focus order {"under":true,"facts":true}
+ok   flashprove-1240: the glyph, how we read it, the facts, in focus order {"under":true,"facts":true}
+ok   sash-1240: the glyph, how we read it, the facts, in focus order {"under":true,"facts":true}
+ok   flashprove-390: the glyph, how we read it, the facts, in focus order {"under":true,"facts":true}
+ok   sash-390: the glyph, how we read it, the facts, in focus order {"under":true,"facts":true}
+flashprove-320 how we read it open: 1683 px
+ok   flashprove-320: one tamper-tests label per property, no run listed twice, the run set linked to the tamper tests {"labels":[0,1,1,0,0,0],"repeated":0,"sets":["#tamper"],"fold":1683}
+sash-320 how we read it open: 2188 px
+ok   sash-320: one tamper-tests label per property, no run listed twice, the run set linked to the tamper tests {"labels":[0,1,1,0,0,0],"repeated":0,"sets":[],"fold":2188}
+ok   flashprove-1280: opening how we read it leaves the facts and the glyph where they were {"shut":[197,260],"open":[197,260]}
+ok   sash-1280: opening how we read it leaves the facts and the glyph where they were {"shut":[197,251],"open":[197,251]}
+ok   flashprove-1440: opening how we read it leaves the facts and the glyph where they were {"shut":[197,251],"open":[197,251]}
+ok   sash-1440: opening how we read it leaves the facts and the glyph where they were {"shut":[197,251],"open":[197,251]}
+ok   figure links-320: the landing names its setup in one line at the top, over no label {"n":4,"bad":[]}
+ok   figure links-390: the landing names its setup in one line at the top, over no label {"n":4,"bad":[]}
+ok   figure links-768: the landing names its setup in one line at the top, over no label {"n":4,"bad":[]}
+ok   figure links-1440: the landing names its setup in one line at the top, over no label {"n":4,"bad":[]}
 ok   home-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   flashprove-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   sash-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   reference-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   criteria-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
-FAIL release-390: every link and button 24 px tall or more, none overlapping {"small":["C6 in run 2026-11-08-fla"],"hit":[]}
-ok   sponsors-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
+ok   release-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-390: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   home-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   flashprove-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   sash-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   reference-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   criteria-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
-FAIL release-320: every link and button 24 px tall or more, none overlapping {"small":["C6 in run 2026-11-08-fla"],"hit":[]}
-ok   sponsors-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
+ok   release-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
 ok   nope-320: every link and button 24 px tall or more, none overlapping {"small":[],"hit":[]}
-ok   sash-844x390: the whole glyph on the first screen 348
-ok   flashprove-844x390: the whole glyph on the first screen 340
-ok   404-390: the search field is shown, not focused {"h":44,"vis":true,"focus":"BODY"}
-ok   404-390: search leads on from the 404 page http://127.0.0.1:4451/sash
-sash-390 Figures heading at 1801 px
-flashprove-390 Figures heading at 3110 px
-sash-1440 Figures heading at 1073 px
-flashprove-1440 Figures heading at 1617 px
+ok   sash-844x390: the whole glyph on the first screen 339
+ok   flashprove-844x390: the whole glyph on the first screen 339
+ok   404-390: the header on one row, the systems listed, nothing focused {"h":52,"links":2,"focus":"BODY"}
+ok   404-390: search leads on from the 404 page http://127.0.0.1:4440/sash
+sash-390 Figures heading at 1755 px
+flashprove-390 Figures heading at 3119 px
+sash-1440 Figures heading at 880 px
+flashprove-1440 Figures heading at 1591 px
 ok   flashprove-390: one press opens how we read it
 ok   flashprove-390: one press opens the card in full
 ok   flashprove-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   flashprove-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":69,"small":[],"hit":[]}
+ok   flashprove-390: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping {"n":72,"small":[],"hit":[]}
 ok   flashprove-390: no label runs into its value []
 ok   sash-390: one press opens how we read it
 ok   sash-390: one press opens the card in full
 ok   sash-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   sash-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":65,"small":[],"hit":[]}
+ok   sash-390: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping {"n":49,"small":[],"hit":[]}
 ok   sash-390: no label runs into its value []
 ok   release-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-FAIL release-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":["C6 in run 2026-11-08-fla"],"hit":[]}
+FAIL release-390: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping {"n":36,"small":["2026-11-08 · 12026-11-08 22.5"],"hit":[]}
 ok   release-390: no label runs into its value []
-ok   sponsors-390: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-390: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":1,"small":[],"hit":[]}
-ok   sponsors-390: no label runs into its value []
 ok   flashprove-320: one press opens how we read it
 ok   flashprove-320: one press opens the card in full
 ok   flashprove-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   flashprove-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":69,"small":[],"hit":[]}
+ok   flashprove-320: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping {"n":72,"small":[],"hit":[]}
 ok   flashprove-320: no label runs into its value []
 ok   sash-320: one press opens how we read it
 ok   sash-320: one press opens the card in full
 ok   sash-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   sash-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":65,"small":[],"hit":[]}
+ok   sash-320: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping {"n":49,"small":[],"hit":[]}
 ok   sash-320: no label runs into its value []
 ok   release-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-FAIL release-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":8,"small":["C6 in run 2026-11-08-fla"],"hit":[]}
+FAIL release-320: the new blocks' links and buttons reached over 24 px or more where pressed, none overlapping {"n":36,"small":["2026-11-08 · 12026-11-08 22.5","2026-11-08 · 12026-11-08 22"],"hit":[]}
 ok   release-320: no label runs into its value []
-ok   sponsors-320: no horizontal overflow, both folds open {"over":0,"wide":[],"clipped":[]}
-ok   sponsors-320: the new blocks' links and buttons 24 px tall or more, none overlapping {"n":1,"small":[],"hit":[]}
-ok   sponsors-320: no label runs into its value []
 ok   home: cut sentences absent
 ok   home: no placeholder marking on the page
 ok   home: no ranking words in the site's own controls
@@ -314,13 +345,6 @@ ok   release: no numbered property names
 ok   release: no "step N of M"
 ok   release: no duplicate ids []
 ok   release: no placeholder words, field names or bare rule codes in visible text
-ok   sponsors: cut sentences absent
-ok   sponsors: no placeholder marking on the page
-ok   sponsors: no ranking words in the site's own controls
-ok   sponsors: no numbered property names
-ok   sponsors: no "step N of M"
-ok   sponsors: no duplicate ids []
-ok   sponsors: no placeholder words, field names or bare rule codes in visible text
 ok   no dead local links []
 ok   axe 1440  []
 ok   axe 1440 flashprove []
@@ -328,7 +352,6 @@ ok   axe 1440 sash []
 ok   axe 1440 reference []
 ok   axe 1440 criteria []
 ok   axe 1440 release []
-ok   axe 1440 sponsors []
 ok   axe 1440 #sort=overhead-desc []
 ok   axe 1440 nope []
 ok   axe 1440  search []
@@ -338,9 +361,8 @@ ok   axe 390 sash []
 ok   axe 390 reference []
 ok   axe 390 criteria []
 ok   axe 390 release []
-ok   axe 390 sponsors []
 ok   axe 390 #sort=overhead-desc []
 ok   axe 390 nope []
 ok   axe 390  search []
 ok   no console or page errors []
-5 failed check(s)
+2 failed check(s)

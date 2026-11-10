@@ -929,8 +929,10 @@ def runs_read(root: Path, release: str | None, system: str, configuration: str) 
 
     The runs listed in `releases/<release>/release.yaml` and in every earlier release (by
     version number), in release order then listed order, whose `run.json` `claim` names
-    `system` and `configuration`; less every run a read release supersedes and every run a
-    read run `replaces`. No release reads no run.
+    `system` and `configuration`, or, where `run.json` holds a null `claim`, whose
+    `manifest.json` `claim` does (the record release eligibility checks against the release's
+    `claim_cards`, RFC-0014); less every run a read release supersedes and every run a read
+    run `replaces`. No release reads no run.
     """
     if release is None:
         return []
@@ -950,12 +952,11 @@ def runs_read(root: Path, release: str | None, system: str, configuration: str) 
     kept: list[tuple[str, str]] = []  # (run directory, run id)
     for doc in read:
         for run_dir in _items(doc.get("runs")):
-            path = root / str(run_dir) / "run.json"
-            try:
-                run = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, ValueError) as e:
-                raise IProofsError(ErrorKind.ENVIRONMENT, f"OVR-5: cannot read {path}: {e}") from e
-            claim = run.get("claim") or {}
+            run = _read_json(root / str(run_dir) / "run.json")
+            claim = run.get("claim")
+            if claim is None and (root / str(run_dir) / "manifest.json").is_file():
+                claim = _read_json(root / str(run_dir) / "manifest.json").get("claim")
+            claim = claim or {}
             if (claim.get("system"), claim.get("configuration")) != (system, configuration):
                 continue
             if replaces := run.get("replaces"):
@@ -963,6 +964,17 @@ def runs_read(root: Path, release: str | None, system: str, configuration: str) 
             if str(run_dir) not in (k for k, _ in kept):
                 kept.append((str(run_dir), str(run["run_id"])))
     return [run_dir for run_dir, run_id in kept if run_id not in dropped]
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    """A run document OVR-5 reads; one that cannot be read is an error, never a pass."""
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"OVR-5: cannot read {path}: {e}") from e
+    if not isinstance(doc, dict):
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"OVR-5: {path} is not an object")
+    return doc
 
 
 def _items(node: object) -> list[Any]:
