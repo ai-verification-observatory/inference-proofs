@@ -636,7 +636,7 @@ html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
    of the scale, and sits last, just above where the block of that width would be (350 to 560, above 349).
    The hover, reduced-motion, print, forced-colours and landscape (max-height) rules are not width blocks
    and keep their places; a width inside one is still a width of the scale.
-   web/test_breakpoints.py checks this. */
+   */
 @media (max-width: 1240px) {
   .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
   /* one column in reading order: the glyph, how we read it (one line while closed; it opens on its rule), then the

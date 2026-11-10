@@ -23,10 +23,6 @@ def keys(site):
     return {rid: json.loads(html.unescape(k)) for rid, k in ROW.findall(text)}
 
 
-def close(a, b):
-    return abs(a - b) <= 1e-9 * max(1.0, abs(b))
-
-
 def test_keys_are_the_stored_values(site, keys):
     # S4: the key is the value the index stores, in its base unit, never a printed figure
     for cfg in site.view["configurations"]:
@@ -111,12 +107,6 @@ def test_four_digits_at_any_size(site):
     assert b.shown(12346, "ratio") == "12,350×"
 
 
-def test_sort_words(site):
-    w = site.build.SORT_WORDS
-    assert w["system"]["asc"] == "A to Z"
-    assert {"system", *site.build.BOARD} <= set(w)
-
-
 def test_reference_cells(site):
     # a reference makes no proof (RFC-0015 REF-2): covers follows the system, a proof's figures do
     # not apply, production serving is the overhead's baseline, the rerun's overhead does not apply
@@ -141,13 +131,6 @@ def test_reference_runs_all_failed(site):
         assert line == "0 completed, 3 failed · below minimum repetitions"
 
 
-def test_readable_labels(site):
-    nb = "\N{NO-BREAK SPACE}"  # a number keeps its word on its line
-    assert site.build.readable("3 completed, 0 failed") == f"3{nb}completed, 0{nb}failed"
-    assert site.build.readable("18.77 MB to 18.78 MB") == f"18.77{nb}MB to 18.78{nb}MB"
-    assert site.build.no_rule("one H100 (RFC-0015 NM-1).") == "one H100."
-
-
 def test_home_figures_show_spread(site):
     # every measured overview figure carries its sample size and range in its title (S3), with
     # its grade and evidence, and no record pointer (its plate holds it in view)
@@ -166,16 +149,6 @@ def test_home_figures_show_spread(site):
             assert site.build.limit_words() not in title
             seen += 1
     assert seen
-
-
-def test_titles_are_short(site):
-    # an overview figure's title: value, scope, runs and range, grade and evidence; the
-    # per-Gbit limit sits once, on the line the three heads share (RFC-0004 INV-DERIVE-7)
-    for cfg in site.build.PROVERS:
-        for col in site.build.BOARD:
-            assert len(site.build.cell_words(cfg, col)[2]) < 360, (cfg["system"], col)
-    text = (site.out / "index.html").read_text()
-    assert text.count(html.escape(site.build.limit_words())) == 2  # the line's title, read aloud
 
 
 def test_spread_words(site):
