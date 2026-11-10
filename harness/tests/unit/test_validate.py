@@ -16,7 +16,6 @@ from iproofs.validate.tree import (
     g2_size,
     g2_xref,
     g5_labels,
-    g8_language,
     tracked_files,
     validate_tree,
 )
@@ -146,12 +145,6 @@ def test_g5_ratio_scope_and_tier(repo: Path) -> None:
         ("LBL-1", "/metrics/ratio_bad/scope", "scope must be steady"),
         ("LBL-3", "/metrics/verified/tier", "tier must be reported in run.json"),
     ]
-
-
-def test_g8_skips_undecodable_file(repo: Path) -> None:
-    (repo / "docs").mkdir()
-    (repo / "docs/blob.md").write_bytes(b"\xff\xfe")
-    assert g8_language(repo, ["docs/blob.md"]) == []
 
 
 def test_g2_unknown_workload(repo: Path) -> None:

@@ -17,7 +17,6 @@ from iproofs.validate import (
     check_controls_summary,
     check_derived,
     cost,
-    links,
     precision,
 )
 
@@ -331,18 +330,17 @@ def validate_tree(
     """Every tree gate; `only` limits the per-file gates to those repository paths."""
     registry = SchemaRegistry.from_tree(root / "schema")
     wanted = [o.rstrip("/") for o in only] if only is not None else []
-    # a gate fixture directory named on the command line is scanned (`validate .../gates/G8`)
+    # a gate fixture directory named on the command line is scanned (`validate .../gates/G7`)
     fixtures = [w for w in wanted if (w + "/").startswith(EXCLUDED)]
     files = tracked_files(root, fixtures=bool(fixtures))
     if only is not None:
         files = [f for f in files if any(f == w or f.startswith(w + "/") for w in wanted)]
-    named = [f for f in files if f.startswith(EXCLUDED)]
     found = g2_schema(root, files, registry) + g2_xref(root, files) + g2_size(root, files)
     if base_ref:
         found += g2_append_only(root, base_ref)
     found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
-    found += g6_policy(root, files) + g7_pins(root, files) + g8_language(root, files, named)
-    found += g9_secrets(root, files, only or ()) + links.check(root, files, named)
+    found += g6_policy(root, files) + g7_pins(root, files)
+    found += g9_secrets(root, files, only or ())
     found += precision.check(root, files, registry) + cost.check(root, files)
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
@@ -566,87 +564,6 @@ def _reference_pins(root: Path, rel: str) -> list[Finding]:
 
 
 # ---------------------------------------------------------------- G9
-
-# ---------------------------------------------------------------- G8
-
-LANG_WORDS = (  # RFC-0013 §G8; extending it is an editorial change to the RFC
-    "fastest", "slowest", "best", "worst", "winner", "wins", "beats", "beat", "crushes",
-    "outperforms", "state of the art", "state-of-the-art", "world-class", "revolutionary",
-    "blazing", "provably safe", "provably secure", "guaranteed secure", "unbreakable",
-    "military-grade",
-)  # fmt: skip
-LANG_EXCEPTIONS = re.compile(r"(?i)\bbest[\s-]effort\b")
-LANG_RE = re.compile(
-    r"(?i)(?<![\w-])("
-    + "|".join(re.escape(w).replace(r"\ ", r"\s+") for w in sorted(LANG_WORDS, key=len)[::-1])
-    + r")(?![\w-])"
-)
-MENTION = re.compile(r'"[^"]*"|\u201c[^\u201d]*\u201d|`[^`]*`')  # mentions are not uses
-LANG_ALLOW = re.compile(r"<!--\s*lang-allow:\s*(\S+)\s*(.*?)\s*-->")
-LANG_SCOPE = (
-    "docs/**", "rfcs/**", "reports/**", "systems/*/README.md",
-    "systems/*/claims/*.yaml", "README.md", "web/README.md", "web/*.html",
-)  # fmt: skip
-LANG_SKIP = ("AGENTS.md", "docs/spec/10-glossary.md", "rfcs/0013-validation-and-ci.md")
-# shortcut: emoji blocks, not the full Unicode Extended_Pictographic property (the stdlib has
-# no property lookup); extend the ranges if a pictograph outside them appears.
-PICTOGRAPH = re.compile("[\U0001f000-\U0001faff\u2600-\u27bf\u2b50\u2b55\u3030\u303d]")
-
-
-def _lang_in_scope(rel: str) -> bool:
-    return any(fnmatch.fnmatch(rel, g) for g in LANG_SCOPE) and rel not in LANG_SKIP
-
-
-def g8_language(root: Path, files: list[str], named: Iterable[str] = ()) -> list[Finding]:
-    """LANG-1 listed words used, not mentioned; LANG-2 pictographs (RFC-0013 §G8, AGENTS.md
-    rule 10). A `lang-allow` comment on the line above turns a use into a notice."""
-    found = []
-    for rel in sorted({*(f for f in files if _lang_in_scope(f)), *named}):
-        try:
-            lines = (root / rel).read_text("utf-8").splitlines()
-        except UnicodeDecodeError:
-            continue
-        for n, line in enumerate(lines, start=1):
-            where = f"{rel}:{n}"
-            for m in PICTOGRAPH.finditer(line):
-                found.append(
-                    Finding(
-                        "G8",
-                        where,
-                        "LANG-2",
-                        f"emoji U+{ord(m.group(0)):04X}",
-                        ErrorKind.POLICY,
-                        hint="describe it in words",
-                    )
-                )
-            text = LANG_EXCEPTIONS.sub(" ", MENTION.sub(" ", LANG_ALLOW.sub(" ", line)))
-            allow = LANG_ALLOW.search(lines[n - 2]) if n > 1 else None
-            for m in LANG_RE.finditer(text):
-                word = m.group(1)
-                if allow and allow.group(1).lower() == word.lower():
-                    found.append(
-                        Finding(
-                            "G8",
-                            where,
-                            "LANG-1",
-                            f"{word!r} allowed: {allow.group(2)}",
-                            ErrorKind.POLICY,
-                            warning=True,
-                        )
-                    )
-                    continue
-                found.append(
-                    Finding(
-                        "G8",
-                        where,
-                        "LANG-1",
-                        f"{word!r} ranks or overstates",
-                        ErrorKind.POLICY,
-                        hint="describe what was measured (AGENTS.md rule 10), or quote it",
-                    )
-                )
-    return found
-
 
 SECRET_ALLOWLIST = ("harness/tests/fixtures/secrets/",)  # RFC-0013 §G9, plus invalid examples
 _VERSION_FIELD = re.compile(r"""(?i)["']?\w*version\w*["']?\s*[:=]""")

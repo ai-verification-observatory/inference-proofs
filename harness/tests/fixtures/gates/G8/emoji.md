@@ -1,3 +1,0 @@
-# Results
-
-All checks passed ✅

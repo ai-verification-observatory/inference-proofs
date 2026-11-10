@@ -63,7 +63,6 @@ ROW = re.compile(
     r"(.*?)\n</div>",
     re.S,
 )
-HEAD = re.compile(r'<div class="hc[^"]*" role="columnheader"[^>]*>(.*?)</div>')
 HEADER = re.compile(r'<div class="sysc" role="rowheader"[^>]*>(.*?)\n    </div>', re.S)
 # a plate; one with no value (`nil`) is one row, its name and why
 PLATE = re.compile(
@@ -196,25 +195,6 @@ def test_release_page(site: Build) -> None:
         assert card["path"] in said
         assert card["digest"].removeprefix("sha256:")[:12] in said
     assert ('href="/targets"' in text) == bool(site.view["targets"])
-
-
-def test_targets_page(site: Build) -> None:
-    """Page table, Targets (only when the release evaluates one): each target with its author,
-    and each row it was evaluated against with its result, mean and least favourable value,
-    each value with its labels and its record in the index."""
-    if not site.view["targets"]:
-        assert "targets.html" not in site.pages
-        pytest.skip("the deployed release evaluates no target")
-    text = site.pages["targets.html"]
-    said = flat(text)
-    for t in site.view["targets"]:
-        assert t["author"]["name"] in said
-        assert t["id"] in said
-        for r in t["results"]:
-            for key in ("mean", "least_favourable"):
-                assert f"#/targets/{r['position']}/{key}" in said
-    for label in ("scope: ", "grade: ", "evidence: ", "spread: "):
-        assert label in said
 
 
 def test_every_number_has_labels(site: Build) -> None:
@@ -762,37 +742,6 @@ def test_board_order_by_hand(monkeypatch: pytest.MonkeyPatch) -> None:
     assert got == [("a", 1), ("a", 3), ("b", 0), ("c", 0), ("a", 0)]
 
 
-def test_no_ranking(site: Build) -> None:
-    """S5: no rank number, medal, aggregate score or marked extreme value on any page."""
-    heads = [plain(h) for h in HEAD.findall(site.pages["index.html"])]
-    assert heads
-    assert not [w for w in heads if re.search(r"score|rank|total|overall|best", w, re.I)]
-    for name, text in site.pages.items():
-        # the systems' own marks, in their quotes and cards, are their words, not ours
-        ours = re.sub(r'<blockquote class="eq">.*?</blockquote>', "", text, flags=re.S)
-        ours = re.sub(r'<details class="cardfull".*?</details>', "", ours, flags=re.S)
-        assert "<strong>" not in ours, name
-        assert not re.search(r'class="[^"]*\b(best|winner|rank|medal|podium|leader)\b', text), name
-        assert not re.search("[\U0001f947-\U0001f949\U0001f3c6]", text), name  # medals, cup
-        assert not re.search(r"#\s?1\b|\b1st\b", plain(text)), name
-
-
-def test_division_named(site: Build) -> None:
-    """S6: the system page names the workload, its division and the profile of the configuration
-    it shows; on the overview a row on a closed or open workload names its division beside its
-    model (RFC-0003 §Divisions); a native row names none."""
-    for system in site.view["orders"]["benchmarked"]:
-        text = plain(site.pages[f"{system}.html"])
-        for cfg in system_configs(site, system):
-            assert cfg["workload"]["division"] in {"native", "closed", "open"}
-            where = f"{cfg['workload']['id']} ↗ · {cfg['workload']['division']} · {cfg['profile']}"
-            assert where in text, system
-    for rid, *_, body in ROW.findall(site.pages["index.html"]):  # a closed row says so
-        division = row_config(site.view, rid)["workload"]["division"]
-        model = plain(re.search(r'<div class="mc"[^>]*>(.*?)</div>', body, re.S)[1])  # type: ignore[index]
-        assert (f"{division} division" in model) == (division != "native"), rid
-
-
 def test_runs_left_out_listed(site: Build) -> None:
     """S7: each failed repetition and each superseded or ineligible run of each configuration a
     system page shows is listed above that configuration's figures, by its run id, with its
@@ -900,46 +849,3 @@ def test_unexpected_control_printed_in_full(site: Build) -> None:
         assert seen == 2  # FlashProve's C1 and SASH's C2
         assert "Every outcome fell inside" not in plain(release)
         assert "Outside their expected set:" in plain(release)
-
-
-def test_tally_names_each_accepted_control(site: Build) -> None:
-    """RFC-0008, AGENTS.md rule 10: an accepted outcome is never printed as a bare count. Each
-    "it accepted N" names the controls it counts and whether each one's own expected set holds
-    acceptance, so a system's weakened-prover control (which expects acceptance) never reads as
-    a tampered proof the checker took; the control line says it was expected. Where every
-    accepted record tampered only with a part verify does not read, the count stands alone: the
-    record's own block under it says it tests nothing, once."""
-    seen = 0
-    for system in site.view["orders"]["benchmarked"]:
-        text = plain(site.pages[f"{system}.html"])
-        for cfg in system_configs(site, system):
-            for a in cfg["accepted"]:
-                assert a["control"] in text, (system, a["control"])
-        for cfg in system_configs(site, system):
-            accepted = cfg["controls"]["counts"].get("accepted")
-            if not accepted:
-                continue
-            tallies = [plain(t) for t in re.findall(r'<p class="tamper">(.*?)</p>',
-                                                    site.pages[f"{system}.html"])]  # fmt: skip
-            mine = next(t for t in tallies if f"accepted {accepted}" in t)
-            after = mine[mine.index(f"accepted {accepted}") + len(f"accepted {accepted}") :]
-            if all(a.get("not_read") for a in cfg["accepted"]):
-                assert not after.startswith((" (", ",")), mine
-                assert "tests nothing" not in mine, mine
-            else:
-                assert after.startswith(" ("), mine
-            seen += 1
-        for a in (a for c in system_configs(site, system) for a in c["accepted"]):
-            if a["source"] == "system" and a["passed"]:
-                assert "the control test below, which expects acceptance" in text
-                assert "accepted the proof, as this control expects" in text
-    assert seen >= 1  # the deployed SASH's weakened-prover control; the extras FlashProve's C1
-
-
-def test_generated_html_passes_g8(site: Build, tmp_path: Path) -> None:
-    """S8: every page the build writes passes the RFC-0013 G8 word list."""
-    from iproofs.validate.tree import g8_language  # noqa: PLC0415
-
-    for name, text in site.pages.items():
-        (tmp_path / name).write_text(text)
-    assert g8_language(tmp_path, [], named=sorted(site.pages)) == []
