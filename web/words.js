@@ -20,8 +20,8 @@
     const cx = cv.getContext('2d');
     if (!cx) return;
     // one hue, dark to light: deep violets at the floor black text allows (#8a4dff 4.6:1, #9a52ff 5:1), the brand's
-    // violet (#c45cff) in the middle, then lighter violet, lavender and a near-white lilac (17:1)
-    const INKS = [[138, 77, 255], [154, 82, 255], [176, 88, 255], [196, 92, 255], [214, 140, 255], [232, 196, 255], [244, 232, 255]];
+    // violet (#c45cff) in the middle, then two lighter violets, no lighter than a soft lavender (#dcaaff)
+    const INKS = [[138, 77, 255], [154, 82, 255], [176, 88, 255], [196, 92, 255], [208, 126, 255], [220, 170, 255]];
     const P = new Uint8Array(512);
     for (let i = 0, s = 7; i < 256; i++) P[i] = i;
     for (let i = 255, s = 1234567; i > 0; i--) { s = (s * 16807) % 2147483647; const j = s % (i + 1); [P[i], P[j]] = [P[j], P[i]]; }
@@ -69,7 +69,8 @@
       }
       cx.putImageData(img, 0, 0);
     };
-    let seen = true, raf = 0, last = 0, t = 0;
+    // a random start, so each visit opens on its own frame
+    let seen = true, raf = 0, last = 0, t = Math.random() * 500;
     const tick = (now) => {
       raf = 0;
       if (!seen || document.hidden) return;
@@ -77,8 +78,8 @@
       raf = requestAnimationFrame(tick);
     };
     const go = () => { if (!raf && !reduce) { last = performance.now(); raf = requestAnimationFrame(tick); } };
-    draw(0);
-    if (reduce) { addEventListener('resize', () => draw(0)); return; }
+    draw(t);
+    if (reduce) { addEventListener('resize', () => draw(t)); return; }
     try { new IntersectionObserver(([en]) => { seen = en.isIntersecting; if (seen) go(); }).observe(band); } catch (_) { /* always on */ }
     document.addEventListener('visibilitychange', go);
     go();
