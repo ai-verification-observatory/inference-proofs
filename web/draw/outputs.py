@@ -218,11 +218,11 @@ def vercel_json():
     csp = "; ".join(
         [
             "default-src 'self'",
-            f"script-src 'self' 'sha256-{base64.b64encode(script).decode()}'",
+            f"script-src 'self' 'sha256-{base64.b64encode(script).decode()}' https://cdn.vercel-insights.com",
             "style-src 'self'",
             "img-src 'self'",
             "font-src 'self'",
-            "connect-src 'self'",
+            "connect-src 'self' https://*.vercel-insights.com",
             "object-src 'none'",
             "base-uri 'none'",
             "form-action 'none'",
