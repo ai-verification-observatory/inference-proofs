@@ -49,8 +49,10 @@ def curly(text):
 # ------------------------------------------------------------------ words
 # The fixed words a stored value prints as (RFC-0009 S2: the generator may word a stored value;
 # it never changes it). Keyed by the stored ids, so an id with no words stops the build.
-STATE_WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "Not stated"}
-STATE_CLS = {"yes": "yes", "partly": "partly", "no": "no", "not_stated": "unstated"}
+# a cell recorded not_stated (the sources say nothing) is drawn and printed as No, its reason saying
+# it is not stated (RFC-0016 ST-2): a guarantee nobody states is one nobody can rely on
+STATE_WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "No"}
+STATE_CLS = {"yes": "yes", "partly": "partly", "no": "no", "not_stated": "no"}
 STATE_ORDER = ("yes", "partly", "no", "not_stated")  # the legend's order, display only
 FAMILY_WORD = {"proved": "Proved", "attested": "Attested", "re_executed": "Re-executed",
                "fingerprinted": "Fingerprinted", "unchecked": "Unchecked"}  # fmt: skip

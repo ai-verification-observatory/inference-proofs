@@ -19,7 +19,7 @@ from .chrome import (
     ref_label,
 )
 from .hexagon import key_mini, mark_svg, pie_svg
-from .inks import GHOST, GROUND, MUTED, PAPER, UNSTATED, VIOLET, ratio
+from .inks import GROUND, MUTED, PAPER, VIOLET, ratio
 from .overview import board_configs, fig_href, kind_words, nb_meta, nb_models
 from .pages import SIDE
 from .plates import COLS, HEAD, MORE, PER_GBIT_COLS, first_config, glyph, name_of, upstream
@@ -280,11 +280,10 @@ html,body{{width:{CARD_W}px;height:{CARD_H}px;overflow:hidden;background:{GROUND
 .mono{{font-family:"IBM Plex Mono",monospace}}
 .disp{{font-family:"Archivo",sans-serif;font-stretch:66%;font-weight:900}}
 .sl.yes{{fill:{S.INK["yes"]}}}.sl.partly{{fill:{S.INK["partly"]}}}.sl.no{{fill:{S.INK["no"]}}}
-.sl.unstated{{fill:{GHOST};stroke:{UNSTATED};stroke-width:2px;vector-effect:non-scaling-stroke;stroke-linejoin:round}}
 .pie-svg{{display:block;overflow:visible}}
 .kmini .on{{fill:{GROUND}}}.kmini .off{{fill:{GROUND};opacity:.2}}
 .sw{{display:inline-block;width:.62em;height:.62em;margin-right:.32em;vertical-align:.02em}}
-.sw.yes{{background:{S.INK["yes"]}}}.sw.partly{{background:{S.INK["partly"]}}}.sw.no{{background:{S.INK["no"]}}}.sw.unstated{{background:{GHOST};box-shadow:inset 0 0 0 2px {UNSTATED}}}
+.sw.yes{{background:{S.INK["yes"]}}}.sw.partly{{background:{S.INK["partly"]}}}.sw.no{{background:{S.INK["no"]}}}
 """
 
 

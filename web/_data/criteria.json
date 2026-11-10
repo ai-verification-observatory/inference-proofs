@@ -3551,8 +3551,8 @@
       "word": "No"
     },
     "not_stated": {
-      "meaning": "The sources read say nothing that meets the Yes, Partly or No rule, or they have not been read yet. Silence is never No.",
-      "word": "Not stated"
+      "meaning": "The sources read say nothing that meets the Yes, Partly or No rule, or they have not been read yet. A guarantee nobody states is one nobody can rely on: the glyph draws it as No, and its reason says it is not stated.",
+      "word": "No"
     },
     "partly": {
       "meaning": "The documentation says it holds with a limit it states, by the property's Partly rule, and no control of the benchmark contradicts it.",

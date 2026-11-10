@@ -39,7 +39,6 @@
   --yes: #6ffeb7;
   --partly: #e49921;
   --no: #e03c44;
-  --unstated: #e03c44;  /* Not stated: an empty slot in No's red (a guarantee nobody states is one nobody can rely on); its outline 4.59:1 on the ground */
   /* two text sizes for what is read rather than scanned: sentences and quotes (how we read it, the
      claim card, notes, criteria), and label-value lists and tables (plates, facts, runs); smaller
      on phones (max-width: 560px). Labels, the board and the rose keep their own sizes */
@@ -51,7 +50,6 @@
   --f-meta: 400 12px/1.5 var(--mono);
   --f-source: 400 11px/1.45 var(--mono);
   --raised: #171716;  /* a layer over the page: the glyph's petal card */
-  --ghost: #521619;  /* Not stated: the dark red fill inside that outline (1.39:1), apart from a stated No (3.29:1) */
   --disp: "Archivo", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --ease: cubic-bezier(.16, .84, .24, 1);
@@ -88,7 +86,6 @@ p { margin: 0; }
 /* state squares */
 .sw { display: inline-block; width: .72em; height: .72em; margin-right: .42em; vertical-align: baseline; }
 .sw.yes { background: var(--yes); } .sw.partly { background: var(--partly); } .sw.no { background: var(--no); }
-.sw.unstated { background: var(--ghost); box-shadow: inset 0 0 0 1.25px var(--unstated); }
 
 /* ---------------------------------------------------------------- top bar */
 .top { display: flex; align-items: center; gap: 32px; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; }
@@ -255,7 +252,6 @@ html:has(.top.s-on) { overflow: hidden; }
 .pie-svg { display: block; width: 100%; height: 100%; overflow: visible; }
 .sl { transition: transform .22s var(--ease), stroke .18s; }
 .sl.yes { fill: var(--yes); } .sl.partly { fill: var(--partly); } .sl.no { fill: var(--no); }
-.sl.unstated { fill: var(--ghost); stroke: var(--unstated); stroke-width: 1.25px; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
 /* each slice's lift direction, the bisector of its wedge (build.py checks these against the geometry) */
 .s1 { --dx: 0.5; --dy: -0.866; }
 .s2 { --dx: 1; --dy: 0; }
@@ -528,8 +524,6 @@ html:has(.top.s-on) { overflow: hidden; }
 .rpie .tx { display: none; }
 .rpie .t { pointer-events: none; transition: transform .22s var(--ease); }
 .rpie .t text { fill: var(--ground); stroke: none; font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
-/* a name on an empty (Not stated) slot in muted ink: 4.85:1 on its dark red fill */
-.rpie .t.unstated text { fill: var(--muted); }
 /* a property under the pointer lifts its slice; a slice under the pointer marks its property */
 @media (hover: hover) {
   .rose:has(.rp[data-n="1"]:hover) .s1, .rose:has(.rp[data-n="2"]:hover) .s2, .rose:has(.rp[data-n="3"]:hover) .s3,

@@ -13,8 +13,8 @@ from .words import STATE_CLS, e
 # Six triangles make a point-top hexagon, one per property, clockwise from twelve: segment i spans
 # the side from vertex 60*i to vertex 60*(i+1), so 1 to 3 sit on the right and 4 to 6 on the left,
 # on the pie's own 60-degree axes. The cuts between them widen toward the centre, so the ground
-# they leave draws an asterisk, the footnote mark. Every slot is always drawn: Not stated as a ghost
-# slot (a dark red fill inside No's red outline, --ghost and --unstated), so the hexagon is always
+# they leave draws an asterisk, the footnote mark. Every slot is always drawn, a not_stated cell in No's ink
+# (RFC-0016 ST-2), so the hexagon is always
 # whole. Drawn in device pixels (viewBox 0 0 size size): every gap and line is sized for the size it
 # is shown at (a page draws one copy per size it shows), and up to 128 px the centre and the flat
 # sides sit on the pixel grid.
@@ -48,11 +48,6 @@ def _seg(i, R, wr, wc, inset=0.0):
     m = pt(1, a0 + 30)  # outward normal of the side
     s0, s1 = _add(v0, m, -inset), _add(v1, m, -inset)
     return [_cross(*e0, s0, s1), _cross(*e1, s0, s1), _cross(*e0, *e1)]
-
-
-# an empty (Not stated) slot is drawn this far inside its cut, so the outline's 1.25 px stroke,
-# centred on the edge, stays inside the slot and the asterisk keeps its width
-GHOST_INSET = 0.625
 
 
 def _frame(size, snap=True):
@@ -124,9 +119,7 @@ def _names_svg(names, c, R, states=None):
                 )
                 + "</g>"
             )
-        # a name on a Not stated slot takes muted ink, as the ghost fill under it is near the ground
-        empty = " unstated" if states and states[i] == "not_stated" else ""
-        out.append(f'<g class="t s{i + 1}{empty}">{body}</g>')
+        out.append(f'<g class="t s{i + 1}">{body}</g>')
     return f'<g class="tx">{"".join(out)}</g>'
 
 
@@ -134,7 +127,7 @@ def hex_svg(
     size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg", names=None
 ):
     """The glyph: six filled triangles, always. states: six RFC-0016 state ids, inked by words.css
-    (.sl.yes ... .sl.unstated, a dark red slot in a red outline). key: n, the legend key (slot n in full ink, the other five faint). mono:
+    (.sl.yes, .sl.partly, .sl.no; a not_stated cell is .sl.no, RFC-0016 ST-2). key: n, the legend key (slot n in full ink, the other five faint). mono:
     every slot in currentColor (the logo). cells: each slot carries its property's name and state
     word (read by words.js). hit: a still copy of the six triangles on top takes the pointer, so a
     lifted slot never slips from under it. names: each slot's property name set in it (shown on
@@ -147,8 +140,7 @@ def hex_svg(
     )
     parts = []
     for i in range(6):
-        empty = bool(states) and not key and not mono and states[i] == "not_stated"
-        d = _d(_seg(i, R, wr, wc, GHOST_INSET if empty else 0.0), c)
+        d = _d(_seg(i, R, wr, wc, 0.0), c)
         if mono:
             parts.append(f'<path d="{d}"/>')
         elif key:

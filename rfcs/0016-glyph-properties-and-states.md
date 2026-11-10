@@ -45,7 +45,7 @@ Scenarios:
 
 ## Non-Goals
 
-- How the glyph is drawn: shapes, inks, contrast, slice geometry, motion. That is the site's (RFC-0009, amended by #319), within INV-GLYPH-1. This RFC fixes only the printed word of each state and that silence is never printed or drawn as No.
+- How the glyph is drawn: shapes, inks, contrast, slice geometry, motion. That is the site's (RFC-0009, amended by #319), within INV-GLYPH-1. This RFC fixes only the printed word of each state and how silence is shown (ST-2).
 - The family vocabulary (`proved`, `re_executed`, `attested`, `fingerprinted`, `unchecked`) and which tab a row sits in.
 - The site data generator and the split of the site build (#320, #321).
 - Claim cards for the 19 systems not benchmarked yet.
@@ -90,7 +90,7 @@ One vocabulary, used in the criteria file and on every page. The criteria file u
 State rules, for every property:
 
 - ST-1. A cell's stated state is `yes`, `partly` or `no` only when a deciding quote, copied verbatim from a source the row class allows ([Sources by row class](#sources-by-row-class)), meets that state's rule for the property. Reference rows follow SRC-5 instead. The cell's state is its stated state, except on an overridden card-row cell, where it is `no` (OVR-4).
-- ST-2. Silence is `not_stated`, never `no`. If the sources read say nothing that meets a rule, the cell is `not_stated` and lists what was read. A contradicting outcome does not change a `not_stated` cell (OVR-4, [Q5](#decisions)).
+- ST-2. Silence is recorded as `not_stated`, never `no`: if the sources read say nothing that meets a rule, the cell is `not_stated` and lists what was read. A contradicting outcome does not change a `not_stated` cell (OVR-4, [Q5](#decisions)). The site draws and prints a `not_stated` cell as No, its reason saying it is not stated: a guarantee nobody states is one nobody can rely on, so it must never look better than a stated No (owner decision, 2026-11-10; a grey or half-red slot read as gentler than No). The record keeps `not_stated`, so a state a system later states replaces it.
 - ST-3. A stated `no` requires a statement that the property does not hold. A reviewer's reading of a design, a product category ("runs in an enclave") or an absent feature is not such a statement. Every "or the design rules it out" clause of the prototype is removed (AGENTS.md rule 9). The only other source of `no` on a card row is a contradicting outcome recorded by the harness (OVR-4), which is a measurement of the configuration's verifier, not a reading of its design.
 - ST-4. On a reference row only, a method that proves nothing and checks nothing (plain serving) is `no` on every property, and a method that proves nothing but checks (recompute) is `no` on Formally verified and Security level (SRC-7). On a card or public-source row, a statement that the system proves nothing sets `no` only on a property whose own No rule the quote meets.
 - ST-5. Each stated limit is counted in one cell only. A limit counted in another cell is printed beside this one as an `aside` and does not change its state (for FlashProve, the clipped-gap policy is counted in Model bound and the one leaked bit in Weights hidden).

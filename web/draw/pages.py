@@ -90,17 +90,15 @@ SIDE = {1: "r", 2: "r", 3: "r", 4: "l", 5: "l", 6: "l"}
 
 def rose_item(c, pre, ev="", src=""):
     """One property beside its slice: its name (a link to what its states mean), its question for
-    screen readers, the state, and our short reason (left out when it only repeats Not stated).
+    screen readers, the state, and our short reason (on a cell recorded not_stated, drawn as No,
+    the reason is what says it is not stated).
     On a system page the reason is the link to the property's entry in "How we read it" (`src`,
     its id), or the state word where there is no reason; for an overridden cell, the one line
     that changes its state follows (`ev`, draw/claims.py); nothing else. The state's square is
     shown only where the rows sit away from the glyph (phones; the slice beside it has the ink).
     The name is the property's one link: on a system page to its entry in "How we read it"
     (`src`), elsewhere to what its states mean; the state and the reason are plain text."""
-    generic = (
-        c["state"] == "not_stated" and c["reason"].startswith("Not stated") and not c["quotes"]
-    )
-    why = "" if generic else e(words(c["reason"]))
+    why = e(words(c["reason"]))
     word = e(c["word"])
     href = f"#{e(src)}" if src else f"{CRIT_PAGE}#{e(c['prop'])}"
     reason = f'<p class="rr">{why}</p>' if why else ""
@@ -861,7 +859,7 @@ def build_criteria():
         if case := not_stated_case(p["rules"]["not_stated"]):
             rules["not_stated"] = readable(words(case))
         states = "".join(
-            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{e(STATE_WORD[s])}</dt><dd>{with_rule(r)}</dd></div>'
+            f'<div><dt><i class="sw {STATE_CLS[s]}"></i>{"Not stated" if s == "not_stated" else e(STATE_WORD[s])}</dt><dd>{with_rule(r)}</dd></div>'
             for s, r in rules.items()
         )
         note = f'<p class="cnote">{e(words(p["not_here"]))}</p>' if p.get("not_here") else ""
@@ -877,7 +875,7 @@ def build_criteria():
     <div class="mast-in"><h1 id="h-name" class="sysname"><span class="lt">Criteria</span></h1></div>
   </section>
   <div class="wrap">
-    <p class="cshared"><i class="sw unstated"></i><b>{e(STATE_WORD["not_stated"])}</b> {e(words(not_stated_rule()))}</p>
+    <p class="cshared"><i class="sw no"></i><b>Not stated is No.</b> {e(words(not_stated_rule()))}</p>
     <ul class="cidx" aria-label="Properties">{idx}</ul>
     {secs}
   </div>
@@ -885,7 +883,7 @@ def build_criteria():
 {footer()}"""
     return page(
         "Criteria",
-        "What Yes, Partly, No and Not stated mean for each of the six properties of one proof.",
+        "What Yes, Partly and No mean for each of the six properties of one proof.",
         body,
         "system criteria",
         CRIT_PAGE.strip("/"),

@@ -107,7 +107,7 @@
         // a not-benchmarked card or a reference: one line in its line's place ("Whole output checked: not stated")
         if (card) { tip.replaceChildren(b, document.createTextNode(`: ${sl.dataset.word.toLowerCase()}`)); return; }
         const sw = document.createElement('i');
-        // the slice's state class (yes, partly, no, unstated) is the one besides sl, sN
+        // the slice's state class (yes, partly, no) is the one besides sl, sN
         sw.className = `sw ${[...sl.classList].find((c) => c !== 'sl' && !/^s\d$/.test(c)) || ''}`;
         const st = document.createElement('span');
         st.append(sw, document.createTextNode(sl.dataset.word));
