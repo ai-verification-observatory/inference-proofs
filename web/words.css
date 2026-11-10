@@ -215,12 +215,16 @@ html:has(.top.s-on) { overflow: hidden; }
 .toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font: var(--f-label); text-transform: uppercase; letter-spacing: var(--track); }
 .toc a { color: var(--muted); text-decoration: none; display: inline-block; padding-block: 4px; }
 .toc a:hover, .toc a:focus-visible { color: var(--paper); }
+/* the section in view, marked as the header marks the page: paper, with a violet rule */
+.toc a[aria-current] { color: var(--paper); box-shadow: 0 2px 0 var(--violet); }
 @media (min-width: 1241px) {
   .syswrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 64px; align-items: start; }
   .syswrap > * { grid-column: 1; min-width: 0; }
   .syswrap > .side { grid-column: 2; grid-row: 1 / span 9; align-self: stretch; margin-top: 0; }
   .side-in { position: sticky; top: 0; padding-top: 32px; max-height: 100vh; overflow-y: auto; }
   .toc ul { display: block; border-top: 1px solid var(--line); padding-top: 10px; }
+  .toc a { padding-left: 12px; border-left: 2px solid transparent; transition: color .15s, border-color .15s; }
+  .toc a[aria-current] { box-shadow: none; border-left-color: var(--violet); }
 }
 
 /* ---------------------------------------------------------------- rows */

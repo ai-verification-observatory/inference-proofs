@@ -85,6 +85,34 @@
     go();
   });
 
+  // ------------------------------------------------------------ a system page's section list: the section in view is
+  // marked (aria-current), the last one whose top has passed a line a third of the way down the screen
+  $$('.toc').forEach((toc) => {
+    const pairs = $$('a[href^="#"]', toc)
+      .map((a) => [a, document.getElementById(decodeURIComponent(a.hash.slice(1)))])
+      .filter(([, t]) => t);
+    if (!pairs.length) return;
+    let on = null;
+    let queued = false;
+    const mark = () => {
+      queued = false;
+      const line = innerHeight / 3;
+      let cur = pairs[0][0];
+      for (const [a, t] of pairs) if (t.getBoundingClientRect().top <= line) cur = a;
+      // at the foot of the page the last section is the one in view, however short
+      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) cur = pairs[pairs.length - 1][0];
+      if (cur === on) return;
+      if (on) on.removeAttribute('aria-current');
+      cur.setAttribute('aria-current', 'true');
+      on = cur;
+    };
+    const ask = () => { if (!queued) { queued = true; requestAnimationFrame(mark); } };
+    addEventListener('scroll', ask, { passive: true });
+    addEventListener('resize', ask);
+    document.addEventListener('toggle', ask, true);
+    mark();
+  });
+
   // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
   // glyph: the slice under the pointer lifts, and its property's name and state show in a card under a row's glyph
   // (its pointer on the petal), on a not-benchmarked card or the reference page in place of the line beside the glyph;
