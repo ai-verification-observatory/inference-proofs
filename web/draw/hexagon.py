@@ -14,7 +14,7 @@ from .words import STATE_CLS, e
 # the side from vertex 60*i to vertex 60*(i+1), so 1 to 3 sit on the right and 4 to 6 on the left,
 # on the pie's own 60-degree axes. The cuts between them widen toward the centre, so the ground
 # they leave draws an asterisk, the footnote mark. Every slot is always drawn: Not stated as a ghost
-# slot (a near-ground fill inside a grey outline, --ghost and --unstated), so the hexagon is always
+# slot (a dark red fill inside No's red outline, --ghost and --unstated), so the hexagon is always
 # whole. Drawn in device pixels (viewBox 0 0 size size): every gap and line is sized for the size it
 # is shown at (a page draws one copy per size it shows), and up to 128 px the centre and the flat
 # sides sit on the pixel grid.
@@ -134,7 +134,7 @@ def hex_svg(
     size, states=None, key=None, mono=False, cells=None, hit=False, cls="pie-svg", names=None
 ):
     """The glyph: six filled triangles, always. states: six RFC-0016 state ids, inked by words.css
-    (.sl.yes ... .sl.unstated, a ghost slot in a grey outline). key: n, the legend key (slot n in full ink, the other five faint). mono:
+    (.sl.yes ... .sl.unstated, a dark red slot in a red outline). key: n, the legend key (slot n in full ink, the other five faint). mono:
     every slot in currentColor (the logo). cells: each slot carries its property's name and state
     word (read by words.js). hit: a still copy of the six triangles on top takes the pointer, so a
     lifted slot never slips from under it. names: each slot's property name set in it (shown on

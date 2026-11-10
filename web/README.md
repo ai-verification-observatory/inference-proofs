@@ -155,8 +155,8 @@ axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practic
 <!-- ladder -->
 | Word | Ink | Luminance | Contrast on the ground `#0b0b0c` | Step from the state below |
 |---|---|---|---|---|
-| Not stated | `#1f1e1e` inside a `#67635c` outline (no hue) | 0.013 | 1.18:1 (outline 3.29:1) |  |
-| No | `#e03c44` | 0.195 | 4.59:1 | 3.88:1 |
+| Not stated | `#521619` inside a `#e03c44` outline (dark red) | 0.024 | 1.39:1 (outline 4.59:1) |  |
+| No | `#e03c44` | 0.195 | 4.59:1 | 3.29:1 |
 | Partly | `#e49921` | 0.394 | 8.32:1 | 1.81:1 |
 | Yes | `#6ffeb7` | 0.777 | 15.49:1 | 1.86:1 |
 
@@ -169,7 +169,7 @@ axe passes on every page at 1440 and 390 px (WCAG 2.2 AA and axe's `best-practic
 | ground text on Yes (`#0b0b0c` on `#6ffeb7`) | 15.49:1 |
 | ground text on Partly (`#0b0b0c` on `#e49921`) | 8.32:1 |
 | ground text on No (`#0b0b0c` on `#e03c44`) | 4.59:1 |
-| muted name on a Not stated slot (`#9b978e` on `#1f1e1e`) | 5.71:1 |
+| muted name on a Not stated slot (`#9b978e` on `#521619`) | 4.85:1 |
 <!-- /ladder -->
 
 ## Files

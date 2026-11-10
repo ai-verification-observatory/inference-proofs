@@ -39,7 +39,7 @@
   --yes: #6ffeb7;
   --partly: #e49921;
   --no: #e03c44;
-  --unstated: #67635c;  /* Not stated: the outline of an empty slot (3.29:1 on the ground) */
+  --unstated: #e03c44;  /* Not stated: an empty slot in No's red (a guarantee nobody states is one nobody can rely on); its outline 4.59:1 on the ground */
   /* two text sizes for what is read rather than scanned: sentences and quotes (how we read it, the
      claim card, notes, criteria), and label-value lists and tables (plates, facts, runs); smaller
      on phones (max-width: 560px). Labels, the board and the rose keep their own sizes */
@@ -51,7 +51,7 @@
   --f-meta: 400 12px/1.5 var(--mono);
   --f-source: 400 11px/1.45 var(--mono);
   --raised: #171716;  /* a layer over the page: the glyph's petal card */
-  --ghost: #1f1e1e;  /* Not stated: the fill inside that outline, near the ground (1.18:1) */
+  --ghost: #521619;  /* Not stated: the dark red fill inside that outline (1.39:1), apart from a stated No (3.29:1) */
   --disp: "Archivo", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
   --ease: cubic-bezier(.16, .84, .24, 1);
@@ -528,7 +528,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .rpie .tx { display: none; }
 .rpie .t { pointer-events: none; transition: transform .22s var(--ease); }
 .rpie .t text { fill: var(--ground); stroke: none; font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
-/* a name on an empty (Not stated) slot in muted ink: 5.71:1 on the ghost fill */
+/* a name on an empty (Not stated) slot in muted ink: 4.85:1 on its dark red fill */
 .rpie .t.unstated text { fill: var(--muted); }
 /* a property under the pointer lifts its slice; a slice under the pointer marks its property */
 @media (hover: hover) {
