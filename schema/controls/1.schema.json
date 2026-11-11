@@ -116,6 +116,9 @@
           "items": {
             "additionalProperties": false,
             "properties": {
+              "detail": {
+                "$ref": "#/$defs/trialDetail"
+              },
               "mutation": {
                 "$comment": "open map: control-specific mutation details",
                 "type": "object"
@@ -221,6 +224,9 @@
     "trial": {
       "additionalProperties": false,
       "properties": {
+        "detail": {
+          "$ref": "#/$defs/trialDetail"
+        },
         "mutation": {
           "$comment": "open map: control-specific mutation details",
           "type": "object"
@@ -277,6 +283,59 @@
         "raw_last_line",
         "seconds"
       ],
+      "type": "object"
+    },
+    "trialDetail": {
+      "$comment": "RFC-0018 CH-1: a trial of a level suite. position: the C1 reply position; twin: the trial's own honest twin; verdicts: every verdict of a trial of several proofs (P1); decided_by: a C1 trial through mutate_reply whose verdict came from adapter code (RFC-0018 AD-6)",
+      "additionalProperties": false,
+      "properties": {
+        "decided_by": {
+          "$comment": "adapter: the verdict came from adapter code, not upstream's verifier (a reject with upstream exit 0); such a trial is void",
+          "enum": [
+            "adapter"
+          ]
+        },
+        "position": {
+          "enum": [
+            "first",
+            "last",
+            "interior"
+          ]
+        },
+        "twin": {
+          "additionalProperties": false,
+          "properties": {
+            "raw_exit_code": {
+              "type": "integer"
+            },
+            "verdict": {
+              "enum": [
+                "accept",
+                "reject",
+                "no_verdict",
+                "invalid_call"
+              ]
+            }
+          },
+          "required": [
+            "verdict",
+            "raw_exit_code"
+          ],
+          "type": "object"
+        },
+        "verdicts": {
+          "items": {
+            "enum": [
+              "accept",
+              "reject",
+              "no_verdict",
+              "invalid_call"
+            ]
+          },
+          "minItems": 2,
+          "type": "array"
+        }
+      },
       "type": "object"
     }
   },

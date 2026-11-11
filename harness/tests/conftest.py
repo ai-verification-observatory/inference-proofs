@@ -1,4 +1,5 @@
 import os
+from collections.abc import Iterator
 
 import pytest
 from hypothesis import settings
@@ -8,6 +9,15 @@ from fixtures.builds import extras_build, placeholder_build  # noqa: F401 (sessi
 # Deterministic property tests in CI (RFC-0013 §G1); select with HYPOTHESIS_PROFILE=ci.
 settings.register_profile("ci", max_examples=200, derandomize=True)
 settings.load_profile(os.environ.get("HYPOTHESIS_PROFILE", "default"))
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _cache_outside_home(tmp_path_factory: pytest.TempPathFactory) -> Iterator[None]:
+    """No test reads or writes the user's cache folder (IPROOFS_CACHE: the validate memo,
+    corpus texts, weights); a test that needs its own sets the variable again."""
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setenv("IPROOFS_CACHE", str(tmp_path_factory.mktemp("iproofs-cache")))
+        yield
 
 
 def shard_of(nodeids: list[str], shard: str) -> set[str]:

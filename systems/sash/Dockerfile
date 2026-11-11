@@ -12,11 +12,13 @@
 FROM docker.io/nvidia/cuda@sha256:020bc241a628776338f4d4053fed4c38f6f7f3d7eb5919fecb8de313bb8ba47c AS fetch
 ENV DEBIAN_FRONTEND=noninteractive
 # Ubuntu packages at exact versions (PIN-5), checked by apt against the archive's signed index;
-# NVIDIA's apt source is dropped, since the toolkit comes with the base image.
+# NVIDIA's apt source is dropped, since the toolkit comes with the base image. strace is not
+# upstream's: the runner traces each verify call's file opens (RFC-0018 CH-4).
 RUN rm -f /etc/apt/sources.list.d/cuda*.list \
  && apt-get update \
  && apt-get install -y --no-install-recommends \
     cmake=3.28.3-1build7 git=1:2.43.0-1ubuntu7.4 pkg-config=1.8.1-2build1 python3=3.12.3-0ubuntu2.1 \
+    strace=6.8-0ubuntu2 \
  && rm -rf /var/lib/apt/lists/*
 COPY sash/inputs.lock /fetch/inputs.lock
 ADD --keep-git-dir=true https://github.com/sg-ai-safety-hub/zk-inference-prover.git#eb95bfa887299d1637550228d42086c27cbb2b3b /src
@@ -45,11 +47,12 @@ RUN --network=none cargo build --release --locked --offline \
  && cp target/release/zk-prover /usr/local/bin/zk-prover-cuda \
  && rm -rf target
 COPY fake/write_inputs.py /opt/iproofs/write_inputs.py
-COPY sash/entrypoint /opt/sash/entrypoint
+COPY sash/entrypoint sash/weight_change.py /opt/sash/
 RUN --network=none useradd --uid 10001 --no-create-home adapter \
  && python3 /opt/iproofs/write_inputs.py /fetch/inputs.lock /opt/iproofs/inputs.json \
     rust="$(rustc --version)" cuda="$(nvcc --version | grep -o 'V[0-9.]*$')" \
-    gcc="$(gcc -dumpfullversion)" uv="$(uv --version)" cargo="$(cargo --version)"
+    gcc="$(gcc -dumpfullversion)" uv="$(uv --version)" cargo="$(cargo --version)" \
+    strace="$(strace -V | head -1)"
 ARG IPROOFS_ADAPTER_COMMIT=unknown
 ARG IPROOFS_ADAPTER_DIRTY=true
 ENV IPROOFS_ADAPTER_COMMIT=${IPROOFS_ADAPTER_COMMIT} IPROOFS_ADAPTER_DIRTY=${IPROOFS_ADAPTER_DIRTY}

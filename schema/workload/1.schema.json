@@ -411,7 +411,11 @@
           "type": "integer"
         },
         "generator": {
-          "const": "corpus-window/1"
+          "$comment": "corpus-window/1 takes a seed per job (RFC-0003); beacon-window/1 is corpus-window/1 seeded by the level's beacon round, and `count` is the requests of one session slot (RFC-0018 PR-1, PR-3)",
+          "enum": [
+            "corpus-window/1",
+            "beacon-window/1"
+          ]
         },
         "length_rule": {
           "additionalProperties": false,

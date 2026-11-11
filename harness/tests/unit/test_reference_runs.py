@@ -25,6 +25,7 @@ def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "systems/fake-broken",
         "workloads/fake-tiny-ci.yaml",
         "reference",
+        "levels",
         "harness/tests/fixtures/prompts",
         "uv.lock",
         "pyproject.toml",

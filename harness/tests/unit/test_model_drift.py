@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from iproofs.model import MODELS
+from iproofs.model import MODELS, TREES
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -56,7 +56,11 @@ def drift(schemas: dict[str, dict[str, Any]], table: dict[tuple[str, str], type[
                 problems.append(f"{cls.__name__}.{name} is required but has a default")
     documents = {sid for sid, s in schemas.items() if "properties" in s}
     modelled = {sid for (sid, pointer) in table if pointer == "#"}
-    problems += [f"document schema {sid} has no model" for sid in sorted(documents - modelled)]
+    # a document is read through a dataclass or as a tree (TREES), and the choice is written down
+    problems += [
+        f"document schema {sid} has no model" for sid in sorted(documents - modelled - TREES)
+    ]
+    problems += [f"{sid} has a model and is in TREES" for sid in sorted(modelled & TREES)]
     return problems
 
 

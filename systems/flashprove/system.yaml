@@ -12,7 +12,11 @@ upstream:
 image:
   repository: "ghcr.io/ai-verification-observatory/flashprove"
   digest: "sha256:7ca6c9ee8c6568b9b925a5c8a8d8eb2f3cd7e394b0f047cde3096d99145a91f8"
-workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
+# l1-maverick-p512-o512 (RFC-0018 Level 1): 512 + 512, batch 24, five batches a session. Batch 24
+# is the publisher's headline timed run: guide/performance.md L8-L12 and docs/figures.tsv L63
+# ("Proving speed in steady service, 24 requests a batch") at 9e2bdd8. The batch size itself is
+# in the workload's shape; README.md §Level 1 has the request, the range and the reply route.
+workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24", "l1-maverick-p512-o512"]
 profile: "prover-h100"
 deterministic_proofs: false
 incremental_proofs: true

@@ -1,0 +1,326 @@
+{
+  "$id": "https://inference-proofs.org/schema/fidelity-run/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter": {
+      "$comment": "what the image's info call said (RFC-0014 B6); null when not baked in",
+      "additionalProperties": false,
+      "properties": {
+        "adapter_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "adapter_dirty": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "adapter_commit",
+        "adapter_dirty"
+      ],
+      "type": "object"
+    },
+    "calls": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "call": {
+            "enum": [
+              "info",
+              "reference",
+              "other_model",
+              "file"
+            ]
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "phases": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "seconds": {
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "name",
+                "seconds"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "seconds": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "stderr_tail": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "enum": [
+              "info",
+              "prove"
+            ]
+          }
+        },
+        "required": [
+          "call",
+          "step",
+          "exit_code",
+          "seconds",
+          "stderr_tail",
+          "phases"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "engine": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "image": {
+          "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "repo": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "tool": {
+          "const": "llama.cpp"
+        }
+      },
+      "required": [
+        "tool",
+        "repo",
+        "commit",
+        "image"
+      ],
+      "type": "object"
+    },
+    "gpus": {
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "harness": {
+      "additionalProperties": false,
+      "properties": {
+        "git_commit": {
+          "type": "string"
+        },
+        "git_dirty": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "git_commit",
+        "git_dirty"
+      ],
+      "type": "object"
+    },
+    "kl_texts_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "level": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "id": {
+          "pattern": "^L[1-9][0-9]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "not_run": {
+      "$comment": "control id -> why the run did not run it",
+      "additionalProperties": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "other_model": {
+      "additionalProperties": false,
+      "properties": {
+        "files": {
+          "$comment": "path -> sha256, recorded at fetch",
+          "additionalProperties": {
+            "$ref": "../quantity/1.schema.json#/$defs/digest"
+          },
+          "type": "object"
+        },
+        "source": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "hub": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "repo": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "revision": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "hub",
+              "repo",
+              "revision"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "source",
+        "files"
+      ],
+      "type": "object"
+    },
+    "prompts_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "reference": {
+      "$comment": "FI-1: the serving record's files, checked against it, or a repository the level names with each file's sha256",
+      "anyOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "checked": {
+              "type": "string"
+            },
+            "serving": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "serving",
+            "checked"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "files": {
+              "$comment": "path -> sha256, recorded at fetch",
+              "additionalProperties": {
+                "$ref": "../quantity/1.schema.json#/$defs/digest"
+              },
+              "type": "object"
+            },
+            "source": {
+              "additionalProperties": false,
+              "properties": {
+                "hub": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "repo": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "revision": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "hub",
+                "repo",
+                "revision"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "source",
+            "files"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "rung": {
+      "pattern": "^[a-z0-9][a-z0-9.-]{1,63}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "fidelity-run/1"
+    },
+    "slots": {
+      "minimum": 1,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema",
+    "level",
+    "rung",
+    "release",
+    "engine",
+    "adapter",
+    "harness",
+    "prompts_digest",
+    "kl_texts_digest",
+    "gpus",
+    "slots",
+    "reference",
+    "other_model",
+    "not_run",
+    "calls"
+  ],
+  "title": "One `iproofs fidelity run` of a rung: what ran, on what, and each call's outcome (RFC-0018 FI-8)",
+  "type": "object"
+}

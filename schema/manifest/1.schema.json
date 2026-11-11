@@ -306,6 +306,14 @@
   "$id": "https://inference-proofs.org/schema/manifest/1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "dependentRequired": {
+    "level": [
+      "session"
+    ],
+    "session": [
+      "level"
+    ]
+  },
   "properties": {
     "claim": {
       "anyOf": [
@@ -537,6 +545,24 @@
       ],
       "type": "object"
     },
+    "level": {
+      "$comment": "RFC-0018: a level session names the level file by the sha256 of its bytes; absent on a run outside a level",
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "id": {
+          "pattern": "^L[1-9][0-9]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "digest"
+      ],
+      "type": "object"
+    },
     "machine": {
       "$ref": "#/$defs/machine"
     },
@@ -760,6 +786,60 @@
         }
       ]
     },
+    "session": {
+      "$comment": "RFC-0018 §Sessions: the slot (its N prompts), the rung, N, and the beacon round the prompts were drawn from (null for a workload that draws from a seed)",
+      "additionalProperties": false,
+      "properties": {
+        "beacon": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "round": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "seed": {
+                  "pattern": "^0x[0-9a-f]{16}$",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "round",
+                "seed"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "requests": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "rung": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "slot": {
+          "$comment": "null for the serving baseline's ladder run (RFC-0018 CO-4), which proves no slot",
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "slot",
+        "rung",
+        "requests",
+        "beacon"
+      ],
+      "type": "object"
+    },
     "system": {
       "additionalProperties": false,
       "properties": {
@@ -826,6 +906,18 @@
         },
         "name": {
           "$ref": "../quantity/1.schema.json#/$defs/systemId"
+        },
+        "optional_subcommands": {
+          "$comment": "RFC-0018 AD-2, AD-5, AD-6: the optional subcommands the adapter's info listed",
+          "items": {
+            "enum": [
+              "logprobs",
+              "perturb",
+              "mutate_reply"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
         },
         "system_manifest_digest": {
           "$ref": "../quantity/1.schema.json#/$defs/digest"
@@ -899,7 +991,8 @@
           "$comment": "RFC-0015 SRV-1: a production-serving run's load point",
           "enum": [
             "matched",
-            "high"
+            "high",
+            "ladder"
           ]
         },
         "model": {

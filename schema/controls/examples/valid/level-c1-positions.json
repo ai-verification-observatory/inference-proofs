@@ -1,0 +1,230 @@
+{
+  "control_seed": "0x0123456789abcdef",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 1,
+              "verdict": "reject"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 5
+          },
+          "outcome": "void",
+          "raw_exit_code": 1,
+          "raw_last_line": "honest twin not accepted: tag mismatch",
+          "seconds": null,
+          "seed_index": 0,
+          "verdict": null
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 137,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 137,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 137,
+            "token": 5
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "tag mismatch",
+          "seconds": 0.001,
+          "seed_index": 3,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "disclosure_pending": false,
+  "image": "iproofs-fake@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "perturbed_commitment": null,
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "controls/1",
+  "summary": {
+    "accepted": 0,
+    "error": 0,
+    "invalid_call": 0,
+    "no_verdict": 0,
+    "not_applicable": 0,
+    "passed": 1,
+    "prover_failed": 0,
+    "rejected": 1,
+    "run": 1,
+    "void": 0
+  },
+  "verifier_profile": "ci-cpu"
+}

@@ -213,7 +213,23 @@ def test_fmt_is_hidden(capsys: pytest.CaptureFixture[str]) -> None:
     assert " fmt" not in capsys.readouterr().out
 
 
-def test_repository_validates() -> None:
-    """The repository itself passes every tree gate (warnings do not fail a gate)."""
-    failing = [f for f in validate_tree(ROOT) if not f.warning]
-    assert [f.line() for f in failing] == []
+def test_memo_gives_the_same_findings_and_sees_a_changed_file(repo: Path, tmp_path: Path) -> None:
+    """A stored result is reused for the same bytes only: a file that changes is checked again,
+    and a store written under another salt (another checker or schema tree) is not read."""
+    store = tmp_path.parent / f"{tmp_path.name}-memo.json"
+    workload = repo / "workloads/fake-tiny-ci.yaml"
+    assert validate_tree(repo, memo_path=store) == validate_tree(repo) == []
+    stored = json.loads(store.read_text())
+    assert any(k.startswith("G2.yaml:") for k in stored["entries"])
+    workload.write_text(workload.read_text().replace('schema: "workload/1"', 'schema: "nope/1"'))
+    token = "hf_" + "a" * 34
+    (repo / "notes.txt").write_text(f"{token}\n")
+    git(repo, "add", "-A")
+    fresh = validate_tree(repo)
+    assert {("G2", "SCHEMA"), ("G9", "SEC-1")} <= {(f.gate, f.rule) for f in fresh}
+    assert validate_tree(repo, memo_path=store) == fresh
+    # every entry says "no problem" under a salt that is not this checker's: none is believed
+    entries = json.loads(store.read_text())["entries"]
+    poisoned: dict[str, object] = {k: True if k.startswith("G3:") else [] for k in entries}
+    store.write_text(json.dumps({"salt": "0" * 64, "entries": poisoned}))
+    assert validate_tree(repo, memo_path=store) == fresh

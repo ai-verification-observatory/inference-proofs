@@ -296,11 +296,11 @@ def load_document(path: Path, registry: SchemaRegistry) -> tuple[str, dict[str, 
     validation error, sorted by JSON Pointer."""
 ```
 
-`iproofs.model` holds one frozen dataclass per schema, `@dataclass(frozen=True, slots=True)`, with a `from_tree(tree) -> Self` constructor that runs only on validated trees. Nested objects become nested dataclasses; arrays become tuples; open maps become `Mapping[str, ...]` wrapped in `types.MappingProxyType`. No constructor accepts an unvalidated tree in production code; tests may build dataclasses directly.
+`iproofs.model` holds a frozen dataclass, `@dataclass(frozen=True, slots=True)`, for each document that code reads field by field: the authored inputs (workload, corpus, system, system controls, claim card, reference file, serving record, release, site facts) and what an adapter or a control preparation hands back (`adapter-out/1`, `perturbed-commitment/1`). Each has a `from_tree(tree) -> Self` constructor that runs only on validated trees. The documents the harness writes, or reads only as trees, have no dataclass, and their schema is their one definition: `run/1`, `manifest/1`, `controls/1`, `controls-part/1`, `controls-seed/1`, `release-index/1`, `adapter-job/1`, `target/1`, `external/1` and `criteria/1` (`iproofs.model.TREES`; until 2026-11-10 each had a dataclass that no code constructed). They are validated against their schema where they are written and where they are read. Nested objects become nested dataclasses; arrays become tuples; open maps become `Mapping[str, ...]` wrapped in `types.MappingProxyType`. No constructor accepts an unvalidated tree in production code; tests may build dataclasses directly.
 
 Validation uses `jsonschema.Draft202012Validator` with `format_checker=Draft202012Validator.FORMAT_CHECKER` and a `referencing.Registry` built from the local tree. Formats asserted: `date`, `date-time`, `uri`. `uri` is checked syntactically only.
 
-**Drift test.** `harness/tests/unit/test_model_drift.py` walks every schema, resolves `$ref`s, and for each object schema asserts that the set of property names equals the set of dataclass field names of the corresponding model class, and that required properties map to fields without defaults. A schema change without a model change, or the reverse, fails CI.
+**Drift test.** `harness/tests/unit/test_model_drift.py` resolves `$ref`s and, for each object schema that has a model class, asserts that the set of property names equals the set of dataclass field names, and that required properties map to fields without defaults. A schema change without a model change, or the reverse, fails CI. A document schema is in the model table or in `TREES`, never in neither or both.
 
 ### Floats and bit-exact recompute
 

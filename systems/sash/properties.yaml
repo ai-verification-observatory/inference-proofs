@@ -1,0 +1,36 @@
+# The statement petals of SASH's glyph (RFC-0018 §The glyph, GL-1), read from
+# sg-ai-safety-hub/zk-inference-prover at the pinned commit for the configuration the row runs
+# (claim.yaml, `boundary-grid --verify`). Every quote is upstream's own wording. Statements made
+# only in the companion results repository are not used (claim.yaml, INV-CLAIM-3). Read by the
+# integrator on 2026-11-11; not reviewed by SASH's maintainers.
+schema: "properties/1"
+system: "sash"
+configuration: "sound-defaults"
+upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "eb95bfa887299d1637550228d42086c27cbb2b3b"}
+read: "2026-11-11"
+petals:
+  unforgeable:
+    state: "amber"
+    reason: "A level is stated per segment proof and called conjectured; no level is stated for the whole grid, and no proof covers the verifier code."
+    quotes:
+      - text: "100 conjectured bits for each segment proof, by stwo's own conjectured-soundness accounting security_bits = pow_bits + log_blowup_factor * n_queries"
+        url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L7-L28"
+    sources_read: []
+  weights_hidden:
+    state: "not_stated"
+    reason: "The repository states no hiding property; its verifier does not hold the weights, which the No weight file check tests, but nothing says what a proof reveals about them."
+    quotes: []
+    sources_read:
+      - "README.md"
+      - "prover/README.md"
+      - "docs/statement.md"
+      - "prover/src/util.rs"
+  no_trusted_party:
+    state: "not_stated"
+    reason: "The repository states no security model or assumption. The fixed statement it says is \"produced at setup, trusted by the verifier\" is public parameters (shapes, security configuration, a preprocessed root), which every non-interactive proof shares, so it does not count against the petal; nothing states what soundness rests on."
+    quotes: []
+    sources_read:
+      - "README.md"
+      - "prover/README.md"
+      - "docs/statement.md"
+      - "prover/src/compose.rs"

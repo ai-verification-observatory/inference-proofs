@@ -7,12 +7,18 @@ import pytest
 from iproofs.derive import (
     COMPUTE,
     FORMULAS,
+    Group,
     QuantityTree,
     derive_repetition,
     freeze_values,
+    generation_seconds,
+    later_group_seconds,
     measured,
     recompute,
+    release_groups,
     scope_seconds,
+    session_per_reply,
+    steady_per_reply,
 )
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.quantity import NullReason, Scope, Unit
@@ -342,7 +348,16 @@ def test_freeze_values_fill_only_missing_keys() -> None:
                                                                    "whole_wall")]  # fmt: skip
     per_bit = ["proof_bytes_per_active_weight_bit_token",
                "verify_seconds_per_active_weight_bit_token"]  # fmt: skip
-    assert sorted(late) == sorted([*spab, *per_bit, "tokens_covered_per_proof"])
+    # RFC-0017: the per-request figures too; cost needs the stored D-COST-1K-S, absent here,
+    # and no GPU count is given, so there is no D-GSPR-S
+    cost = [f"cost_per_request_{s}" for s in ("prove.steady", "prove.session", "whole_wall")]
+    per_request = ["tokens_covered_per_request", "proof_bytes_per_request",
+                   "verify_seconds_per_request"]  # fmt: skip
+    assert sorted(late) == sorted([*spab, *per_bit, *cost, *per_request,
+                                   "tokens_covered_per_proof"])  # fmt: skip
+    assert [late[n]["value"] for n in per_request] == [1000, 2000000, 5]
+    for name in cost:
+        assert (late[name]["value"], late[name]["null_reason"]) == (None, "missing_input")
     for name in per_bit:  # their D-BPT and D-VSPT inputs are not in this stored run
         assert (late[name]["value"], late[name]["null_reason"]) == (None, "missing_input")
     assert late[SPAB]["source"]["inputs"][0] == f"{RUN}#/metrics/seconds_per_token_prove.steady"  # type: ignore[index]
@@ -441,3 +456,78 @@ def test_per_bit_proof_size_and_check_time_nulls() -> None:
         out = derive(metrics, **kw)
         for name in (BPAB, VSPAB):
             assert (out[name]["value"], out[name]["null_reason"]) == (None, reason), (name, kw)
+
+
+# ---------------------------------------------------------------- RFC-0018 CO-1 to CO-3
+
+GROUPS_FIXTURE = ROOT / "harness/tests/fixtures/derive/release-groups/releases.json"
+STEADY = {"steady": {"group_gap_s": 1.0, "min_later_groups": 3, "tolerance": 0.05}}
+
+
+def test_release_groups_v01_flashprove() -> None:
+    """CO-6: five groups of 24, later per-reply times 7.116, 7.136, 7.141, 7.119 s, m = 7.128
+    GPU-seconds per reply on one GPU (v0.1 published 5.746)."""
+    doc = json.loads(GROUPS_FIXTURE.read_text())
+    times = [p["release_mono_ns"] for p in doc["proofs"]]
+    groups = release_groups(times, 1.0)
+    assert [g.size for g in groups] == [24] * 5
+    per_reply = [round(x, 3) for x in later_group_seconds(groups)]
+    assert per_reply == [7.116, 7.136, 7.141, 7.119]
+    m, cause = steady_per_reply(groups, doc["gpu_count"], STEADY)
+    assert cause is None
+    assert m is not None
+    assert f"{m:.4g}" == "7.128"
+    session = session_per_reply(doc["events"]["commit.start"], times, 120, doc["gpu_count"])
+    assert math.isclose(session, (max(times) - doc["events"]["commit.start"]) / 1e9 / 120)
+
+
+def groups_at(*spec: tuple[float, int]) -> list[Group]:
+    """Groups released at the given seconds with the given sizes, 1 ms apart inside a group."""
+    times = [int(t * NS) + i * 1_000_000 for t, n in spec for i in range(n)]
+    return release_groups(times, 1.0)
+
+
+def test_three_groups_is_not_steady() -> None:
+    """Two later groups are fewer than `min_later_groups` (3): no steady state."""
+    groups = groups_at((0, 4), (10, 4), (20, 4))
+    assert len(groups) == 3
+    assert steady_per_reply(groups, 1, STEADY) == (None, "too few groups")
+
+
+def test_three_later_groups_of_uneven_size_is_not_steady() -> None:
+    """Later groups of 4, 2 and 4 replies, 10 s apart: 2.5, 5.0 and 2.5 s per reply; the 5.0
+    lies 100 % from the median 2.5, over the 5 % tolerance."""
+    groups = groups_at((0, 4), (10, 4), (20, 2), (30, 4))
+    assert steady_per_reply(groups, 1, STEADY) == (None, "uneven groups")
+
+
+def test_steady_hand_case() -> None:
+    """Groups of 2, 4, 4, 4 at 0, 10, 20, 30 s (last release of each 1 or 3 ms later) on two
+    GPUs: m = (t_4 - t_1) x 2 / 12 = (30.003 - 0.001) x 2 / 12 s."""
+    groups = groups_at((0, 2), (10, 4), (20, 4), (30, 4))
+    m, cause = steady_per_reply(groups, 2, STEADY)
+    assert cause is None
+    assert m is not None
+    assert math.isclose(m, (30.003 - 0.001) * 2 / 12, rel_tol=1e-12)
+
+
+def test_group_gap_is_inclusive() -> None:
+    """A release exactly `gap_s` after the previous one joins its group; just over starts one."""
+    assert [g.size for g in release_groups([0, NS], 1.0)] == [2]
+    assert [g.size for g in release_groups([0, NS + 1], 1.0)] == [1, 1]
+
+
+def test_generation_phase_adds_to_m() -> None:
+    """CO-3: groups of 2, 4, 4, 4 at 0, 10, 20, 30 s on two GPUs plus a 60 s generation phase:
+    m = (30.003 - 0.001) x 2 / 12 + 60 x 2 / 14."""
+    groups = groups_at((0, 2), (10, 4), (20, 4), (30, 4))
+    marks = [{"name": "generation.start", "mono_ns": 5 * NS},
+             {"name": "generation.end", "mono_ns": 65 * NS}]  # fmt: skip
+    seconds, missing = generation_seconds(marks)
+    assert (seconds, missing) == (60.0, None)
+    m, cause = steady_per_reply(groups, 2, STEADY, seconds)
+    assert cause is None
+    assert m is not None
+    assert math.isclose(m, (30.003 - 0.001) * 2 / 12 + 60 * 2 / 14, rel_tol=1e-12)
+    assert generation_seconds(None) == (None, None)
+    assert generation_seconds(marks[:1]) == (None, "missing generation mark")

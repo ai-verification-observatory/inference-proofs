@@ -1,0 +1,72 @@
+{
+  "adapter": {
+    "adapter_commit": null,
+    "adapter_dirty": null
+  },
+  "calls": [
+    {
+      "call": "info",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.04786895797587931,
+      "stderr_tail": [],
+      "step": "info"
+    },
+    {
+      "call": "reference",
+      "exit_code": 1,
+      "phases": [],
+      "seconds": 0.08043954102322459,
+      "stderr_tail": [
+        "ref-fidelity: convert_hf_to_gguf.py exited 1: out of memory"
+      ],
+      "step": "prove"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "local/in-process@sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "7c56da97c63bfe631ae330a6716cff1dec48c7b4",
+    "git_dirty": true
+  },
+  "kl_texts_digest": "sha256:57249db3893ee149a97a1033fdf60c1be645d56bbee8ceee68c2fab2f599c182",
+  "level": {
+    "digest": "sha256:f593b958e985ad33a5cdb4db67c3657ade4c34e7ce6d75c16f21e6373f7bb03c",
+    "id": "L1"
+  },
+  "not_run": {
+    "smaller-model": "not run: no --other-model-dir was given"
+  },
+  "other_model": {
+    "files": {},
+    "source": [
+      {
+        "hub": "huggingface",
+        "repo": "unsloth/Llama-4-Scout-17B-16E-Instruct",
+        "revision": null
+      }
+    ]
+  },
+  "prompts_digest": "sha256:c0035e1c6e0a2f0c1867defd224bdea6c190d6c65d81f28321ac1c920d2c2007",
+  "reference": {
+    "files": {
+      "config.json": "sha256:ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356"
+    },
+    "source": {
+      "hub": "huggingface",
+      "repo": "unsloth/Llama-4-Maverick-17B-128E-Instruct",
+      "revision": "86c5ecb6f2fbddf604c60120125fb202e09f2556"
+    }
+  },
+  "release": "v1.0",
+  "rung": "llama-4-maverick",
+  "schema": "fidelity-run/1",
+  "slots": 1
+}

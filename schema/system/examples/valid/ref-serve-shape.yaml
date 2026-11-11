@@ -20,6 +20,12 @@ workloads:
     precision_used: "BF16"
     precision_substitution: null
     engine_args: ["--tensor-parallel-size", "1", "--max-model-len", "4608"]
+  - id: "l1-l31-8b-p512-o512"
+    load_point: "ladder"  # RFC-0018 CO-4: the level's concurrency ladder in one prove call
+    gpus: 1
+    precision_used: "BF16"
+    precision_substitution: null
+    engine_args: ["--tensor-parallel-size", "1", "--max-model-len", "1024"]
 deterministic_proofs: false
 incremental_proofs: true
 forbidden_flags: []

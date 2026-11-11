@@ -1,5 +1,5 @@
-"""Page chrome: addresses, fonts, the inline script, header, search field, footer, legend and the
-page frame with its share tags (Open Graph, X, icons) naming the preview pictures by their hash.
+"""Page chrome: addresses, fonts, the inline script, header, search field, footer and the page
+frame with its share tags (Open Graph, X, icons) naming the preview pictures by their hash.
 
 `load_faces` reads fonts/faces.json and stops the build on a font file whose name does not carry
 its hash. `version` names words.css, words.js and search.json by the first 12 hex of their sha256.
@@ -10,27 +10,14 @@ import json
 import re
 
 from . import state as S
-from .hexagon import key_mini, mark_svg, sized
+from .hexagon import mark_svg
 from .inks import GROUND
-from .plates import first_config, glyph, name_of, upstream
-from .words import e
+from .words import PETAL_NAME, PETAL_WORD, e
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
-REF_PAGE = "/reference"  # one page for the reference systems
-CRIT_PAGE = "/criteria"  # the criteria behind the six states
-RELEASE_PAGE = "/release"  # the release record (RFC-0009 §Release record)
-TARGETS_PAGE = "/targets"  # relying parties' targets, only when the release evaluates one
-
-
-def ref_label():
-    """The reference page's name: one reference, or several, as the release holds them."""
-    return "Reference" if len(S.V["orders"]["reference"]) == 1 else "References"
-
-
-def has_targets():
-    return bool(S.V["targets"])
+CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
 
 
 def file_of(path):
@@ -104,7 +91,7 @@ def header(here):
 
     # The logo leads to the overview; the nav holds the other pages; systems are reached by search
     # (one link each would not scale) or from the overview.
-    nav = a(REF_PAGE, ref_label(), "reference") + a(CRIT_PAGE, "Criteria", "criteria")
+    nav = a(CHECKS_PAGE, "Checks", "checks")
     current = " aria-current=page" if here == "home" else ""
     return (
         '<a class="skip" href="#main">Skip to content</a>'
@@ -132,7 +119,7 @@ def search_box(here):
     return (
         '<div class="search" role="search">'
         f'<button type="button" class="sopen" aria-label="Search" aria-expanded="false">{SEARCH_MARK}</button>'
-        f'<label class="sr" for="q">Search systems, properties and pages</label>'
+        f'<label class="sr" for="q">Search systems, models, checks and pages</label>'
         f'<span class="sfield">{SEARCH_MARK}'
         '<input id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" '
         'enterkeyhint="go" spellcheck="false" placeholder="Search" '
@@ -145,16 +132,26 @@ def search_box(here):
     )
 
 
+def link(path):
+    """A file of the repository, linked at the branch the site is built from."""
+    return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
+
+
 def footer():
-    """Every page's footer, one line: the release (its page holds its files, the criteria file
-    and their digests) and the licence."""
-    rel = S.V["release"]
-    name = f"Release {rel['id']}"
-    licence = str(rel["licence"]).replace(" ", "\u00a0")
-    return (
-        f'<footer class="foot"><p><a class="nw" href="{RELEASE_PAGE}">{e(name)}</a>'
-        f"\u00a0· {e(licence)}</p></footer>"
-    )
+    """Every page's footer, one line: the level file and its digest, the release's board file
+    when there is one, and the licence."""
+    lv, rel = S.V["level"], S.V["release"]
+    state = f"frozen {lv['frozen']}" if lv["frozen"] else "draft"
+    parts = [f'<a class="nw" href="{e(link(lv["path"]))}">{e(lv["name"])} ({state})</a>'
+             f' <code class="nw">{e(lv["digest"][:19])}</code>']  # fmt: skip
+    if rel is not None:
+        board = rel["board"]
+        where = link(board) if board.startswith("releases/") else None
+        name = f"Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "")
+        parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
+                     else f'<span>{e(name)} ({e(board)})</span>')  # fmt: skip
+    parts.append(e(str(S.V["licence"]).replace(" ", "\u00a0")))
+    return f'<footer class="foot"><p>{"\u00a0\u00b7 ".join(parts)}</p></footer>'
 
 
 def full_title(title):
@@ -183,26 +180,6 @@ def page(title, desc, body, cls, path, card):
         f'<link rel="stylesheet" href="{version("words.css")}"></head><body class="{cls}">{new_tab(body)}'
         f'<p class="sr" aria-live="polite" id="live"></p><script src="{version("words.js")}" defer></script></body></html>'
     )
-
-
-# the sizes the legend's key glyphs are shown at (words.css: above 1099 px, to 760 px, to 560 px,
-# then on phones and phones held sideways)
-KEY_SIZES = (48, 40, 32, 22)
-
-
-def masthead():
-    """A plain legend: nothing in it can be pointed at or pressed."""
-    items = "".join(
-        f'<li class="q">{sized(lambda s, n=i + 1: key_mini(n, s), KEY_SIZES)}<span class="qw">{e(p["name"])}</span><span class="qq">{e(p["question"])}</span></li>'
-        for i, p in enumerate(S.PROPS)
-    )
-    return f"""
-<section class="mast" aria-labelledby="h-mast">
-  <div class="mast-in">
-    <h1 id="h-mast" class="kick">What one proof establishes</h1>
-    <ul class="map">{items}</ul>
-  </div>
-</section>"""
 
 
 # ------------------------------------------------------------------ preview cards
@@ -237,12 +214,14 @@ def cards_record():
 def card_alt(card):
     """The picture in words, from the same data the picture draws."""
     if card == "home":
-        return "Inference proofs: " + ", ".join(p["name"] for p in S.PROPS) + "."
-    cfg = first_config(card)
-    g = glyph(card)
-    states = "; ".join(f"{c['name']}: {c['word']}" for c in g["cells"])
-    model = S.MODEL_NAME[cfg["workload"]["model"]["digest"]]
-    return f"{name_of(card)} on {model} @{upstream(cfg)['commit'][:8]}. {states}."
+        return "Inference proofs."
+    row = S.PAGE[card]
+    states = "; ".join(f"{PETAL_NAME[p['id']]}: {PETAL_WORD[p['state']]}" for p in row["glyph"])
+    return f"{S.V['systems'][row['system']]['name']} on {rung_of(row)['model']}. {states}."
+
+
+def rung_of(row):
+    return next(r for r in S.V["rungs"] if r["id"] == row["rung"])
 
 
 def share_meta(title, desc, path, card):

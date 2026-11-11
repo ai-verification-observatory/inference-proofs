@@ -6,7 +6,7 @@
 
 ## Summary
 
-This RFC defines every automated check that stands between a pull request and the default branch, and the local command that runs the same checks. There are eleven gates, G1 to G10 and G12. Each gate has one rule, a fixed input set, a failure message format and a required-check status. All gates run on CPU in hosted CI; nothing in this RFC needs a GPU. GPU work is verified by the records it produces, which these gates then check.
+This RFC defines every automated check that stands between a pull request and the default branch, and the local command that runs the same checks. There are nine gates, G1 to G7, G9 and G10 (G8 and G12 were withdrawn on 2026-11-10). Each gate has one rule, a fixed input set, a failure message format and a required-check status. All gates run on CPU in hosted CI; nothing in this RFC needs a GPU. GPU work is verified by the records it produces, which these gates then check.
 
 ## Motivation
 
@@ -17,13 +17,12 @@ Concrete scenarios the gates must catch:
 - A contributor edits `run.json` to change a mean from `103.6` to `111.2` and leaves the raw samples alone. G4 fails.
 - An adapter change adds `--unsound-skip-lookup` to the SASH prove command for a measured job. G6 fails.
 - A results PR pastes a log containing a host's IP address. G9 fails.
-- A docs PR describes a system as "the fastest prover". G8 fails.
 - A system manifest pins upstream as `eb95bfa`. G7 fails.
 
 ## Goals
 
 - Every rule in AGENTS.md that can be checked mechanically is checked by a named gate.
-- `uv run iproofs validate` on a clean checkout runs G2 to G9 and G12 locally in under 60 s for a tree of 1,000 run directories (budget, not a measurement; see [docs/spec/08-performance-budget.md](../docs/spec/08-performance-budget.md)).
+- `uv run iproofs validate` on a clean checkout runs G2 to G9 locally in under 60 s for a tree of 1,000 run directories (budget, not a measurement; see [docs/spec/08-performance-budget.md](../docs/spec/08-performance-budget.md)).
 - Every failure message names the file, the location inside it (JSON Pointer or line), the gate, the rule and, where possible, the fix.
 - Gates are deterministic: the same tree gives the same verdict on every machine.
 
@@ -42,13 +41,15 @@ Concrete scenarios the gates must catch:
 pull request
   -> job lint-and-types      G1 (ruff, mypy strict)
   -> job tests               G1 (pytest unit + property)
-  -> job validate            G2 G3 G4 G5 G6 G7 G8 G9 G12   (iproofs validate --all)
+  -> job validate            G2 G3 G4 G5 G6 G7 G9   (iproofs validate --all)
   -> job fake-e2e            G10 (docker on the hosted runner, CPU only)
 ```
 
-A broken gate is fixed by a pull request to the gate. There is no G11 (DCO sign-off).
+A broken gate is fixed by a pull request to the gate. There is no G8, G11 (DCO sign-off) or G12.
 
-The command `iproofs validate [PATH ...]` runs the tree gates. With no path it validates the tree under the current directory; with `--all` it ignores git and checks every file; with `--changed-since <ref>` it limits G2 to G9 to files changed since `ref` plus every file that references them (run directories referencing a changed workload or system manifest). CI on pull requests uses `--changed-since origin/main`; CI on the default branch, nightly, uses `--all`.
+The command `iproofs validate [PATH ...]` runs the tree gates. With no path it validates the tree under the current directory; with `--all` it ignores git and checks every file; with `--changed-since <ref>` it limits G2 to G9 to files changed since `ref` plus every file that references them (run directories referencing a changed workload or system manifest). CI on a pull request runs `--all --changed-since origin/<base>` once (every file, plus the append-only check against the base); CI on the default branch runs `--all`.
+
+On a developer's machine the checks that read one file and nothing else (G2 schema validation of a document, G3, G9) reuse their stored result when the file's bytes, this package's source, the schema tree and the parser versions are all unchanged (`iproofs.validate.memo`). The store is in the user's cache folder, never in the repository, so CI has none and computes every check; `--no-cache` does the same locally. A release freeze never reads it.
 
 ### Failure message format
 
@@ -126,19 +127,7 @@ Rule: no measured run uses a weakening configuration.
 
 ### G8 Neutral-language lint
 
-Rule `LANG-1`: no word or phrase from the list below appears, case insensitive, on a word boundary, in files under `docs/`, `rfcs/`, `reports/`, the public site (`web/README.md` and the pages `iproofs site build` writes, `web/*.html`), `systems/*/README.md`, `systems/*/claims/*.yaml` and `README.md`.
-
-```
-fastest, slowest, best, worst, winner, wins, beats, beat, crushes, outperforms,
-state of the art, state-of-the-art, world-class, revolutionary, blazing,
-provably safe, provably secure, guaranteed secure, unbreakable, military-grade
-```
-
-Mentions are not uses: an occurrence inside double quotes (`"..."`, typographic quotes) or a backtick span on the same line is skipped, so a document can say that the project never names a "fastest" system. Allowlist: files that state the rule itself (`AGENTS.md`, `docs/spec/10-glossary.md`, `rfcs/0013-validation-and-ci.md`) are skipped. A single line elsewhere can be allowed by an HTML comment on the line above, `<!-- lang-allow: <word> <reason> -->`, which reviewers must approve; each use is printed as a notice in CI output.
-
-Rule `LANG-2`: no emoji code points (Unicode `Extended_Pictographic`) in the same file set.
-
-The word "best" has legitimate technical uses ("best effort"). The list is matched as whole phrases; `best effort` and `best-effort` are on an exception list in the gate source. Extending either list is an editorial change to this RFC.
+Withdrawn on 2026-11-10: the word list and the emoji rule (`LANG-1`, `LANG-2`) caught no wrong result. Neutral language stays a rule for authors and reviewers (AGENTS.md rule 10); no gate checks it.
 
 ### G9 Secrets and identifiers scan
 
@@ -186,11 +175,11 @@ Images for the fake systems are built in the job from `systems/fake*/Dockerfile`
 
 ### G12 Link and anchor check
 
-Rule `LNK-1`: every relative Markdown link in `README.md`, `AGENTS.md`, `docs/**`, `rfcs/**`, `reports/**` and `systems/*/README.md` resolves to an existing file, and every `#anchor` resolves to a heading in the target using GitHub's slug rules (lowercase, spaces to `-`, punctuation other than `-` and `_` removed). `LNK-2`: RFC references in text of the form `RFC-NNNN` name an RFC file that exists in `rfcs/`. External links are not fetched in CI (non-deterministic); a weekly scheduled job checks them and opens an issue on failure without blocking merges.
+Withdrawn on 2026-11-10 with its weekly external-link job (`LNK-1`, `LNK-2`): a broken link is not a wrong result. Reviewers check links.
 
 ### CI workflow structure
 
-- One workflow file `.github/workflows/ci.yml` with the jobs above, triggered on `pull_request` and `push` to `main`; plus `.github/workflows/nightly.yml` running `iproofs validate --all` and the external link check on a schedule.
+- One workflow file `.github/workflows/ci.yml` with the jobs above, triggered on `pull_request` and `push` to `main`. There is no scheduled run: the gates are deterministic, so the same tree gives the same verdict on any day.
 - Runner: hosted Ubuntu 24.04. Python from `uv python install` reading `.python-version` (3.12). Dependencies from `uv sync --frozen` so the lockfile is authoritative and a stale lock fails.
 - Caches: uv cache keyed by `uv.lock` digest; Docker layer cache for G10 keyed by the fake Dockerfiles.
 - Actions referenced by full commit hash, not tag (PIN rules apply to CI itself).
@@ -218,7 +207,7 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 |---|---|
 | A gate has a false positive that blocks a correct change | Fix the gate in its own pull request with a regression test; no bypass |
 | A gate silently passes everything (for example a glob matching nothing) | Each gate has a self-test with a known-bad fixture under `harness/tests/fixtures/gates/<gate>/`; the gate's test suite fails if the fixture passes |
-| Validation is slow on a large `results/` tree | `--changed-since` limits pull request scope; nightly `--all` keeps the full check |
+| Validation is slow on a large `results/` tree | the checks that read one file reuse their stored result for unchanged bytes on a developer's machine (`iproofs.validate.memo`); CI has no store and checks every file |
 
 ## Alternatives Considered
 
@@ -242,7 +231,7 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 
 ## Migration / Rollout
 
-1. G1, G2, G3 and G12 land first, as they need only schemas and the writer.
+1. G1, G2 and G3 land first, as they need only schemas and the writer.
 2. Land G4 and G5 with the derivation module; G10 with the fake systems; G7 and G9 with their pattern modules. Each runs in CI from the pull request that adds it.
 3. G6 becomes meaningful when SASH's `system.yaml` lists forbidden flags; it is required from the start and passes vacuously before then.
 4. Repository settings are recorded in `docs/runbooks/repository-settings.md`.
@@ -254,15 +243,13 @@ GPU jobs (`iproofs run` on `prover-h100`) run on a GPU host following the runboo
 - `test_g5_labels.py::test_ratio_without_scope_fails` (`LBL-1`), `::test_run_tier_not_reported_fails` (`LBL-3`).
 - `test_g6_policy.py::test_measured_run_with_unsound_flag_fails` (manifest argv contains `--unsound-skip-x`, `control: false`, expect `POL-1`), `::test_control_run_with_flag_passes`.
 - `test_g7_pins.py::test_short_hash_fails` (`eb95bfa`), `::test_tag_only_image_fails` (`python:3.12-slim`), `::test_tag_and_digest_passes`.
-- `test_g8_language.py::test_fastest_fails`, `::test_best_effort_passes`, `::test_allow_comment_passes_and_notices`, `::test_emoji_fails`.
 - `test_g9_secrets.py` one case per pattern `SEC-1` to `SEC-11` using fixtures under `harness/tests/fixtures/secrets/`, plus `::test_machine_record_example_passes` against the RFC-0006 example record, and `::test_redactor_and_scanner_share_patterns` asserting the redactor's pattern list is the scanner's.
-- `test_g12_links.py::test_missing_anchor_fails`, `::test_github_slug_rules` (headings with punctuation, duplicates get `-1`).
 - `test_g10_e2e.py` is the G10 job itself; its assertions are listed in §G10.
 - Each gate has a fixture under `harness/tests/fixtures/gates/<gate>/bad/` that the gate must flag, as a guard against a gate that passes everything.
 
 ## Decisions
 
-- Q1. G8 runs on repository files only, not on issue and pull request bodies.
+- Q1. Withdrawn with G8.
 - Q2. No GPU job runs on a schedule; runbook tests run before each campaign to catch measurement regressions.
 
 ## References

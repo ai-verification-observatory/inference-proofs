@@ -1,0 +1,52 @@
+{
+  "$id": "https://inference-proofs.org/schema/beacon/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "chain_hash": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "fetched": {
+      "format": "date",
+      "type": "string"
+    },
+    "randomness": {
+      "$comment": "sha256 of the signature bytes, checked at fetch and by `level check`",
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "relays": {
+      "items": {
+        "format": "uri",
+        "pattern": "^https://",
+        "type": "string"
+      },
+      "minItems": 2,
+      "type": "array",
+      "uniqueItems": true
+    },
+    "round": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "schema": {
+      "const": "beacon/1"
+    },
+    "signature": {
+      "pattern": "^([0-9a-f]{2})+$",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "chain_hash",
+    "round",
+    "randomness",
+    "signature",
+    "relays",
+    "fetched"
+  ],
+  "title": "Beacon round: levels/L<k>-beacon.json, written by `iproofs level beacon` (RFC-0018 PR-2)",
+  "type": "object"
+}

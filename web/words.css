@@ -1,10 +1,8 @@
 /* MADE OF WORDS. No data in this file. Colour meanings:
-   violet field = the benchmark's own frame (the six properties, page titles); never a value or a state.
-   green / amber / red = the three states, only in slices and state squares. Not stated = a ghost slot:
-   a near-ground fill inside a grey outline, so it reads as the absence of a state, never a fourth hue.
-   Everything else is paper, muted or rule on the ground. */
-/* Breakpoints (px): 1240 1180 1099 1000 960 920 760 635 560 400 360 349
-   Desktop first: the base rules are for wide screens; the narrower section holds one block per width. */
+   violet field = the benchmark's own frame (the band, page titles); never a value or a state.
+   green / amber / red = a petal's state, only in the glyph's triangles and the state squares (a check held is
+   green, failed red); a hollow petal or an undecided check is an outline in muted ink, never a fourth fill. Everything else is paper, muted or rule on the ground. */
+/* Breakpoints (px): 1100 760 560 400. Desktop first: the base rules are for wide screens. */
 /* fonts: written by build.py */
 @font-face{font-family:"Archivo";font-style:normal;font-weight:400 900;font-stretch:62% 125%;font-display:block;src:url(/fonts/archivo-latin-ext.a75c792f98.woff2) format("woff2");unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
 @font-face{font-family:"Archivo";font-style:normal;font-weight:400 900;font-stretch:62% 125%;font-display:block;src:url(/fonts/archivo-latin.4c98b9d490.woff2) format("woff2");unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
@@ -18,15 +16,6 @@
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:500;font-display:block;src:url(/fonts/plex-mono-500-arrows.001854c4e1.woff2) format("woff2");unicode-range:U+d7, U+2190-2193, U+2195, U+2197, U+2248}
 @font-face{font-family:"IBM Plex Mono";font-style:normal;font-weight:600;font-display:block;src:url(/fonts/plex-mono-600-arrows.b24a689f1a.woff2) format("woff2");unicode-range:U+d7, U+2190-2193, U+2195, U+2197, U+2248}
 /* /fonts */
-/* THE DESIGN LANGUAGE: one look per role, everywhere.
-   Colour: --paper for everything read (sentences, quotes, values); --muted only for what frames it
-   (labels, keys, column heads, meta lines under a name or a figure, and source links); --violet for
-   property names and the brand; the four state inks only for states.
-   Type: the display face for names, headings and figures; Plex Mono for the rest, in five roles:
-   --f-label (uppercase keys and heads), --read (sentences and quotes), --data (label-value lists and
-   tables), --f-meta (lines under a name or figure), --f-source (source links: muted, underlined).
-   Links: in text, paper and underlined; a source, muted and underlined; a name or a figure, no
-   underline until hovered. */
 :root {
   --ground: #0b0b0c;
   --paper: #f1efe9;
@@ -34,30 +23,20 @@
   --rule: #6f6a62;
   --line: #2a2927;
   --violet: #c45cff;
-  /* the state inks, tuned so the four states stay apart in luminance under protanopia, deuteranopia,
-     tritanopia and greyscale (ghost to No 3.88:1, No to Partly 1.81:1, Partly to Yes 1.86:1) */
-  --yes: #6ffeb7;
-  --partly: #e49921;
-  --no: #e03c44;
-  /* two text sizes for what is read rather than scanned: sentences and quotes (how we read it, the
-     claim card, notes, criteria), and label-value lists and tables (plates, facts, runs); smaller
-     on phones (max-width: 560px). Labels, the board and the rose keep their own sizes */
+  /* the three filled states (build.py checks their steps from the ground and their contrast) */
+  --red: #e03c44;
+  --amber: #e49921;
+  --green: #6ffeb7;
   --read: 14px;
   --read-lh: 1.6;
   --data: 13px;
   --data-lh: 1.5;
   --f-label: 500 12px/1.3 var(--mono);
   --f-meta: 400 12px/1.5 var(--mono);
-  --f-source: 400 11px/1.45 var(--mono);
-  --raised: #171716;  /* a layer over the page: the glyph's petal card */
   --disp: "Archivo", system-ui, sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, monospace;
-  --ease: cubic-bezier(.16, .84, .24, 1);
   --max: 1312px;
-  /* the side gutter: 3 % of the width, 16 px at least (533 px and below) or more beside a notch
-     (viewport-fit=cover) */
   --safe: max(16px, 3vw, env(safe-area-inset-left), env(safe-area-inset-right));
-  /* one tracking for uppercase labels, a wider one for the nav and the kicker */
   --track: .06em;
   --track-wide: .08em;
   --gut: max(var(--safe), calc((100vw - var(--max)) / 2));
@@ -67,12 +46,9 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--ground); color: var(--paper); font: 400 14px/1.45 var(--mono); overflow-x: hidden; }
 a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-/* an outside link's arrow: an inline block, so the link's underline stops before it */
-.xa { display: inline-block; text-decoration: none; }
-/* the first stop for a keyboard: to the content, past the header */
+a:hover { text-decoration-thickness: 2px; }
 .skip { position: absolute; left: -9999px; top: 8px; z-index: 30; padding: 8px 12px; background: var(--paper); color: var(--ground); font: 600 13px/1.4 var(--mono); text-decoration: none; }
 .skip:focus { left: var(--gut); }
-a:hover { text-decoration-thickness: 2px; }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-align: inherit; }
 code { font: inherit; font-weight: 600; }
 p { margin: 0; }
@@ -80,16 +56,27 @@ p { margin: 0; }
 :focus-visible { outline: 2px solid var(--paper); outline-offset: 3px; }
 .mast :focus-visible { outline-color: var(--ground); }
 .wrap { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; }
-/* the site's own links to the RFC that defines a rule, in place of its bare code */
-.rule { white-space: nowrap; }
+.nw { white-space: nowrap; }
 
-/* state squares */
-.sw { display: inline-block; width: .72em; height: .72em; margin-right: .42em; vertical-align: baseline; }
-.sw.yes { background: var(--yes); } .sw.partly { background: var(--partly); } .sw.no { background: var(--no); }
+/* ---------------------------------------------------------------- the glyph: five petals, green, amber, red or hollow (an outline) */
+.pie-svg { display: block; overflow: visible; }
+.sl.green { fill: var(--green); }
+.sl.amber { fill: var(--amber); }
+.sl.red { fill: var(--red); }
+.sl.hollow { fill: none; stroke: var(--muted); }
+.sl.key { fill: var(--violet); }
+.t text { fill: var(--ground); font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
+.t.hollow text { fill: var(--paper); }
+/* a state's square beside its word (tables), the same inks */
+.sw { display: inline-block; width: .72em; height: .72em; margin-right: .5em; vertical-align: baseline; }
+.sw.held, .sw.green { background: var(--green); } .sw.amber { background: var(--amber); }
+.sw.failed, .sw.red { background: var(--red); }
+.sw.undecided, .sw.hollow { box-shadow: inset 0 0 0 1.5px var(--muted); }
 
 /* ---------------------------------------------------------------- top bar */
-.top { display: flex; align-items: center; gap: 32px; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; }
-/* the logo: the site's mark, the six-slice pie in violet, and its name in the display face */
+.top { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 32px; align-items: center; padding: 18px var(--gut); font: 500 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; }
+.tl { display: flex; align-items: center; gap: 32px; }
+.brand { white-space: nowrap; }
 .brand .logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; text-transform: none; letter-spacing: 0; color: var(--paper); }
 .brand .logo .lm { display: block; flex: none; fill: var(--violet); }
 .brand .logo span { font: 850 23px/1 var(--disp); font-stretch: 66%; letter-spacing: -.004em; }
@@ -98,25 +85,16 @@ p { margin: 0; }
 .top nav a { text-decoration: none; color: var(--muted); }
 .top nav a[aria-current] { color: var(--paper); box-shadow: 0 2px 0 var(--violet); }
 .top nav a:hover { color: var(--paper); }
-.top .repo { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: var(--muted); transition: color .15s; }
+.top .repo { display: inline-flex; align-items: center; gap: 7px; text-decoration: none; color: var(--muted); justify-self: end; grid-column: 3; }
 .top .repo:hover { color: var(--paper); }
 .top .repo .gh { display: block; flex: none; }
-/* touch targets at least 24 px tall, without moving the text */
-.brand a, .top nav a { display: inline-block; padding-block: 6px; margin-block: -6px; }
-.top .repo { padding-block: 6px; margin-block: -6px; }
+.brand a, .top nav a, .top .repo { padding-block: 6px; margin-block: -6px; }
+.brand a, .top nav a { display: inline-block; }
 
 /* ---------------------------------------------------------------- search: a field in the top bar, its results under it */
-/* the bar in three: the name and pages, the field in the middle of the page, GitHub at the right */
-/* the field in the middle of the room between the pages and GitHub, as wide as that room allows */
-.top { position: relative; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; column-gap: 32px; }
-.tl { display: flex; align-items: center; gap: 32px; }
-.brand { white-space: nowrap; }
-.top .repo { justify-self: end; grid-column: 3; }
 .search { position: relative; justify-self: center; width: min(100%, 600px); text-transform: none; letter-spacing: 0; }
 html:not(.js) .search { display: none; }
-.sopen { display: none; }
-.sclose { display: none; }
-/* its edge in rule ink (3.67:1 on the ground, WCAG 1.4.11), muted under the pointer (6.76:1) */
+.sopen, .sclose { display: none; }
 .sfield { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 12px; box-shadow: inset 0 0 0 1px var(--rule); color: var(--muted); transition: box-shadow .15s, color .15s; }
 .sfield:hover { box-shadow: inset 0 0 0 1px var(--muted); }
 .sfield:focus-within { box-shadow: inset 0 0 0 2px var(--paper); color: var(--paper); }
@@ -125,8 +103,6 @@ html:not(.js) .search { display: none; }
 #q::placeholder { color: var(--muted); text-transform: uppercase; letter-spacing: var(--track-wide); }
 #q::-webkit-search-cancel-button { appearance: none; }
 .skey { font: 500 11px/1 var(--mono); color: var(--muted); padding: 2px 5px; box-shadow: inset 0 0 0 1px var(--rule); }
-/* the open search as a sheet over the page (phones, and "/" with the header scrolled away): what it covers is
-   out of reach, the page holds still where it was */
 .top.s-on:after { content: ""; position: fixed; inset: 0; z-index: 19; background: var(--ground); touch-action: none; }
 html:has(.top.s-on) { overflow: hidden; }
 .sfield:focus-within .skey { visibility: hidden; }
@@ -134,887 +110,229 @@ html:has(.top.s-on) { overflow: hidden; }
 .so { display: grid; grid-template-columns: 28px minmax(0, 1fr); grid-template-areas: "p n" "p m"; column-gap: 12px; align-items: center; padding: 8px 12px; cursor: pointer; }
 .sp { grid-area: p; }
 .so.np { grid-template-columns: minmax(0, 1fr); grid-template-areas: "n" "m"; }
-.sn { grid-area: n; }
+.sn { grid-area: n; display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
 .sm { grid-area: m; }
-/* the results by group, each under a quiet heading */
 .sg { list-style: none; }
 .sg + .sg { margin-top: 6px; }
 .sg > ul { list-style: none; margin: 0; padding: 0; }
 .sgh { display: block; padding: 8px 12px 4px; font: 500 11px/1.2 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
 .so.on, .so:hover { background: var(--line); }
-/* the option the arrows chose: a paper edge as well, so it reads at 3:1 and more */
 .so.on { box-shadow: inset 3px 0 0 var(--paper); }
-.sp .pie-svg, .sp .kmini { display: block; width: 28px; height: 28px; overflow: visible; }
+.sp .pie-svg { width: 28px; height: 28px; }
 .sp .lm { fill: var(--violet); }
-.sp .kmini .off { fill: var(--paper); opacity: .3; }
-.sp .kmini .on { fill: var(--paper); }
-.sn { display: block; min-width: 0; font: 750 17px/1.15 var(--disp); font-stretch: 84%; color: var(--paper); }
-/* the line of context, two lines at most at every width */
 .so .sm { display: -webkit-box; min-width: 0; font: 400 11px/1.45 var(--mono); color: var(--muted); overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .snone { padding: 10px 12px; font: 400 12px/1.4 var(--mono); color: var(--muted); }
-/* a not-benchmarked system reached from search: its card in the overview, marked */
-.nb { position: relative; scroll-margin-top: 16px; }
-.nb:target:before { content: ""; position: absolute; left: -10px; top: 0; bottom: 0; width: 3px; background: var(--violet); }
 
-/* ---------------------------------------------------------------- masthead: a plain legend, black on violet
-   Six small pies, one per property: its own wedge filled in ground ink, the others in line, its name and question beside it.
-   Nothing here reacts to the pointer. */
+/* ---------------------------------------------------------------- the band: black on violet */
 .mast { background: var(--violet); color: var(--ground); position: relative; isolation: isolate; overflow: hidden; }
 .juice { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); z-index: -1; display: block; filter: blur(18px); }
-.mast-in { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; padding: 20px 0; }
-.kick { font: 600 12px/1 var(--mono); letter-spacing: var(--track-wide); text-transform: uppercase; margin: 0; }
-.map { list-style: none; margin: 18px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 32px; }
-.q { display: grid; grid-template-columns: 48px minmax(0, 1fr); grid-template-rows: auto 1fr; column-gap: 14px; align-items: start; }
-.kmini { display: block; grid-row: span 2; width: 48px; height: 48px; overflow: visible; }
-/* a glyph drawn once per size it is shown at: the copy for the width in use (draw/hexagon.py sized) */
-.q .kmini.w40, .q .kmini.w32, .q .kmini.w22 { display: none; }
-.kmini .on { fill: var(--ground); }
-.kmini .off { fill: var(--ground); opacity: .35; }  /* 1.93:1 on violet; lit against off 3.07:1 */
-.qw { display: block; padding-top: 2px; font: 900 32px/1 var(--disp); font-stretch: 66%; letter-spacing: -.004em; white-space: nowrap; }
-.qq { display: block; font: 500 13px/17px var(--mono); margin-top: 5px; max-width: 46ch; text-wrap: balance; }
+.mast-in { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; padding: 28px 0 26px; }
+/* the frontier: one line, the largest model a system passed on */
+.front { font: 900 56px/.95 var(--disp); font-stretch: 66%; letter-spacing: -.008em; margin: 0; max-width: 24ch; text-wrap: balance; }
+.front a { text-decoration-thickness: 3px; text-underline-offset: 6px; }
+.fsub { font: 500 14px/1.4 var(--mono); margin-top: 12px; }
+.mast-sys .mast-in { padding: 14px 0 16px; }
+.sysname { font: 900 96px/.82 var(--disp); font-stretch: 64%; letter-spacing: -.012em; margin: 0; overflow-wrap: anywhere; }
+.bsub { font: 500 13px/1.45 var(--mono); margin-top: 12px; }
 
+/* ---------------------------------------------------------------- the ladder: one section per model, largest first */
+.rung { margin-top: 48px; scroll-margin-top: 16px; }
+.rh { padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+.rm { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; }
+.ri, .rb { font: var(--f-meta); color: var(--muted); margin-top: 6px; }
+.rb .k { color: var(--paper); margin-right: .6em; }
+.rb .fig .n { font-size: 15px; font-family: var(--mono); font-weight: 600; }
+.rb .fig .u { font-size: 12px; }
+.rb .sub { display: inline; margin-left: .6em; }
+.none { font: var(--f-meta); color: var(--muted); padding: 16px 0; }
+.nt { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; margin-top: 18px; }
+.lad { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.lad col.c1 { width: 64px; } .lad col.c2 { width: 74px; } .lad col.c3 { width: 22%; }
+.lad thead th { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); text-align: left; padding: 14px 18px 10px 0; vertical-align: bottom; }
+.lad td, .lad tbody th { text-align: left; vertical-align: top; padding: 16px 18px 18px 0; border-top: 1px solid var(--line); font-weight: 400; }
+.lad tbody tr:first-child > * { border-top: 0; }
+.pn { display: block; font: 900 44px/1 var(--disp); font-stretch: 66%; }
+.of { display: block; font: var(--f-meta); color: var(--muted); margin-top: 2px; }
+.glyph { display: block; width: 56px; height: 56px; }
+.glyph .w44 { display: none; }
+.sname { display: block; font: 850 32px/1 var(--disp); font-stretch: 72%; text-decoration: none; }
+.sname:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 5px; }
+.st { display: block; font: var(--f-meta); color: var(--muted); margin-top: 6px; }
+.lad .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.fig { display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: .3em; }
+.fig .n { font: 800 28px/1 var(--disp); font-stretch: 84%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.fig .u { font: 500 12px/1.2 var(--mono); }
+.fig .u.x { font: 800 18px/1 var(--disp); font-stretch: 84%; margin-left: -.15em; }
+.sub { display: block; font: var(--f-meta); color: var(--muted); margin-top: 4px; }
+.na { font: 600 16px/1.2 var(--mono); color: var(--muted); }
+/* the systems not run: name and reason, A to Z */
+.notrun { margin-top: 64px; }
+.sect { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; }
+.sect.sm { font-size: 26px; }
+.nrl { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); column-gap: 24px; border-top: 1px solid var(--rule); }
+.nrl li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); scroll-margin-top: 16px; }
+.nrl li:target { box-shadow: -10px 0 0 -7px var(--violet); }
+.nn { font: 800 20px/1.1 var(--disp); font-stretch: 80%; }
+.nr { font: var(--f-meta); color: var(--muted); text-align: right; }
 
-/* ---------------------------------------------------------------- sections of the overview */
-.sec { padding-top: 40px; }
-.sec + .sec { margin-top: 24px; }
-.sec-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; }
-.sec-l { font: 500 13px/1.4 var(--mono); color: var(--muted); }
-.lead { font: 400 var(--read)/var(--read-lh) var(--mono); color: var(--paper); margin: 12px 0 0; max-width: 110ch; }
-.tbl .row:first-child { border-top-color: var(--rule); }
-
-/* not benchmarked yet: every system at once, small, one group per family in one grid */
-.nbgrid { margin: 8px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(290px, 100%), 1fr)); column-gap: 24px; }
-.nbl { display: contents; list-style: none; }
-.nbh { grid-column: 1 / -1; margin: 26px 0 0; padding-bottom: 8px; border-bottom: 1px solid var(--rule); font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
-.nbh:first-child { margin-top: 6px; }
-.nb { display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 14px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--line); }
-.nbpie, .nbpie .pie-svg { display: block; width: 56px; height: 56px; }
-.nbpie { -webkit-tap-highlight-color: transparent; }
-.nbpie > .w52 { display: none; }
-.nbt { display: grid; min-width: 0; }
-.nbn { font: 800 22px/1.05 var(--disp); font-stretch: 78%; margin: 2px 0 4px; }
-.nbn a { text-decoration: none; }
-.nbn a:hover { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.nbn .xa { font: 500 .55em/1 var(--mono); color: var(--muted); vertical-align: .45em; }
-.nbm { color: var(--muted); }
-.nbm, .ms { text-wrap: pretty; }
-/* a named petal: its name and state in place of the lines under the name, over nothing, in the
-   model line's type; the lines keep room for two, so a name that wraps moves no card */
-.nbms, .nbt .tip { grid-area: 2 / 1; font: 400 12px/1.45 var(--mono); }
-.nbms { min-height: 2lh; }
-.nbt .tip { position: static; transform: none; width: auto; max-width: none; color: var(--paper); }
-.nbt .tip b { display: inline; text-transform: none; letter-spacing: 0; }
-.nb:has(.nbpie[data-hot]) .nbt .tip { display: block; }
-.nb:has(.nbpie[data-hot]) .nbms { visibility: hidden; }
-
-/* ---------------------------------------------------------------- a system page's side column
-   the facts and the page's sections; beside the page from 1241 px, held in view while it scrolls */
-.side { margin-top: 44px; }
-.side .facts { align-self: auto; }
-.toc { margin-top: 20px; }
-.toc ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font: var(--f-label); text-transform: uppercase; letter-spacing: var(--track); }
-.toc a { color: var(--muted); text-decoration: none; display: inline-block; padding-block: 4px; }
-.toc a:hover, .toc a:focus-visible { color: var(--paper); }
-/* the section in view, marked as the header marks the page: paper, with a violet rule */
-.toc a[aria-current] { color: var(--paper); box-shadow: 0 2px 0 var(--violet); }
-@media (min-width: 1241px) {
-  .syswrap { display: grid; grid-template-columns: minmax(0, 1fr) 320px; column-gap: 64px; align-items: start; }
-  .syswrap > * { grid-column: 1; min-width: 0; }
-  .syswrap > .side { grid-column: 2; grid-row: 1 / span 9; align-self: stretch; margin-top: 0; }
-  .side-in { position: sticky; top: 0; padding-top: 32px; max-height: 100vh; overflow-y: auto; }
-  .toc ul { display: block; border-top: 1px solid var(--line); padding-top: 10px; }
-  .toc a { padding-left: 12px; border-left: 2px solid transparent; transition: color .15s, border-color .15s; }
-  .toc a[aria-current] { box-shadow: none; border-left-color: var(--violet); }
-}
-
-/* ---------------------------------------------------------------- rows */
-/* the board: the system (its model under its name), then the four figures */
-.heads, .r-main { display: grid; grid-template-columns: 400px repeat(4, minmax(0, 1fr)); column-gap: 24px; }
-.sysc { display: grid; grid-template-columns: 96px minmax(0, 1fr); column-gap: 18px; align-items: start; min-width: 0; }
-.sysc .pie { grid-row: span 2; }
-.heads { font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); padding: 14px 0 0; align-items: end; }
-/* the heads' second line: each figure's head under the line its group shares (the overhead's
-   baseline; the per-Gbit basis of the other three, ruled across them) */
-.heads .hc { grid-row: 2; min-width: 0; }
-.hg { grid-row: 1; font: 400 12px/1.35 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; padding-bottom: 5px; border-bottom: 1px solid var(--line); align-self: end; }
-.hg-overhead { grid-column: 2; }
-.hg-per_bit { grid-column: 3 / span 3; }
-.hn { display: none; }
-/* sortable heads: real buttons, each with its glyph; the pressed one in paper with a rule under it */
-.hsys { padding-left: 114px; }
-/* the glyph follows the last word after a no-break space, so a head that wraps keeps it beside its word */
-.sb { display: inline-block; padding: 6px 0 9px; color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); box-shadow: inset 0 -2px 0 transparent; transition: color .15s, box-shadow .15s; }
-.sb .g { font: 500 13px/1 var(--mono); letter-spacing: 0; display: inline; }
-.sb .gw { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-.sb:hover { color: var(--paper); }
-.hc[aria-sort] .sb { color: var(--paper); box-shadow: inset 0 -2px 0 var(--paper); }
-.row { border-top: 1px solid var(--line); padding: 18px 0 26px; }
-.r-main { align-items: start; }
-.pie { position: relative; display: block; width: 136px; height: 136px; border-radius: 50%; -webkit-tap-highlight-color: transparent; }
-.row .pie { width: 96px; height: 96px; }
-.row .pie > .w64, .row .pie > .w52 { display: none; }
-.pie-svg { display: block; width: 100%; height: 100%; overflow: visible; }
-.sl { transition: transform .22s var(--ease), stroke .18s; }
-.sl.yes { fill: var(--yes); } .sl.partly { fill: var(--partly); } .sl.no { fill: var(--no); }
-/* each slice's lift direction, the bisector of its wedge (build.py checks these against the geometry) */
-.s1 { --dx: 0.5; --dy: -0.866; }
-.s2 { --dx: 1; --dy: 0; }
-.s3 { --dx: 0.5; --dy: 0.866; }
-.s4 { --dx: -0.5; --dy: 0.866; }
-.s5 { --dx: -1; --dy: 0; }
-.s6 { --dx: -0.5; --dy: -0.866; }
-/* a still copy of the wedges takes the pointer, so a lifted slice never slips out from under it */
-.hit path { fill: transparent; pointer-events: all; }
-.pie .sl, .rpie .sl, .nbpie .sl, .refpie .sl { pointer-events: none; }
-/* the slice under the pointer steps out with a paper edge; the others keep their ink */
-.pie[data-hot="1"] .s1, .pie[data-hot="2"] .s2, .pie[data-hot="3"] .s3, .pie[data-hot="4"] .s4, .pie[data-hot="5"] .s5, .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-.refpie[data-hot="1"] .s1, .refpie[data-hot="2"] .s2, .refpie[data-hot="3"] .s3, .refpie[data-hot="4"] .s4, .refpie[data-hot="5"] .s5, .refpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-.nbpie[data-hot="1"] .s1, .nbpie[data-hot="2"] .s2, .nbpie[data-hot="3"] .s3, .nbpie[data-hot="4"] .s4, .nbpie[data-hot="5"] .s5, .nbpie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke: var(--paper); stroke-width: 1.5; }
-/* a row glyph's hovered (or tapped) petal names itself in a card: a raised layer under the glyph (over
-   it near the bottom of the screen), its pointer on the petal; nothing in the row moves or hides */
-.tip { display: none; pointer-events: none; font: 500 12px/1.35 var(--mono); color: var(--paper); }
-.tip b { display: block; font-weight: 600; color: var(--violet); text-transform: uppercase; letter-spacing: var(--track); }
-.pop { position: absolute; left: -6px; top: calc(100% + 12px); z-index: 5; width: max-content; max-width: min(300px, calc(100vw - 2 * var(--safe))); padding: 9px 12px 10px; background: var(--raised); border: 1px solid var(--rule); box-shadow: 0 10px 28px rgb(0 0 0 / .5); }
-.pop::before { content: ""; position: absolute; top: -6px; left: calc(var(--cx, 30px) + 6px); width: 10px; height: 10px; background: var(--raised); border: solid var(--rule); border-width: 1px 0 0 1px; transform: translateX(-50%) rotate(45deg); }
-.pop.up { top: auto; bottom: calc(100% + 12px); }
-.pop.up::before { top: auto; bottom: -6px; border-width: 0 1px 1px 0; }
-.pop span { display: block; margin-top: 3px; }
-.pie[data-hot] .pop { display: block; }
-
-.who { padding-top: 10px; min-width: 0; }
-.name { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; padding-bottom: .04em; text-wrap: balance; }
-.name a { text-decoration: none; }
-.name a:after { content: "\00a0→" / ""; font-family: var(--mono); font-weight: 500; font-size: .5em; vertical-align: .55em; color: var(--muted); transition: color .15s; }
-.name a:hover:after, .name a:focus-visible:after { color: var(--paper); }
-@media (hover: hover) { .row:has(.pie:hover) .name a:after { color: var(--paper); } }
-.name a:hover { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 6px; }
-/* the model under the system's name: its name, its size and weight width, what the workload ran */
-.mc { grid-column: 2; min-width: 0; padding-top: 12px; }
-.mn { font: 800 22px/1.05 var(--disp); font-stretch: 80%; margin: 0; }
-.ms { font: var(--f-meta); color: var(--muted); margin: 4px 0 0; }
-.ms + .ms { margin-top: 2px; }
-.vals { display: contents; }
-.vc { min-width: 0; }
-.val { display: block; align-self: start; min-width: 0; padding-top: 14px; position: relative; text-decoration: none; }
-/* the column's name: read by screen readers everywhere, shown where the rows stack (below 920 px) */
-.val .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; font: 500 12px/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 8px; }
-.vm { display: block; padding-bottom: 4px; position: relative; }
-.vm:after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; background: var(--paper); transform: scaleX(0); transform-origin: left; transition: transform .28s var(--ease); }
-.val:focus-visible .vm:after { transform: scaleX(1); }
-/* where there is hover only: a touch screen keeps the last tapped element "hovered" after Back */
-@media (hover: hover) { .val:hover .vm:after { transform: scaleX(1); } }
-.fig { --nfs: 44px; display: inline-flex; align-items: baseline; flex-wrap: wrap; column-gap: .3em; }
-.fig .n { font: 800 var(--nfs)/1 var(--disp); font-stretch: 84%; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
-.fig .u { font: 500 14px/1.2 var(--mono); }
-/* a ratio's sign in the display face at 60 % of its numeral, so it reads as part of the number */
-.fig .u.x { font: 800 calc(var(--nfs) * .6)/1 var(--disp); font-stretch: 84%; margin-left: -.1em; }
-.fig .ux { flex-basis: 100%; font: 500 12px/1.5 var(--mono); margin-top: 4px; }
-.na.word { color: var(--paper); }
-.na { font: 600 22px/1.2 var(--disp); font-stretch: 84%; color: var(--muted); display: inline-block; padding-top: 14px; text-wrap: balance; }
-/* the one line under a figure: its scope in a word, where it has one (every label is in its title and on its plate) */
-.sub { display: block; font: var(--f-meta); color: var(--muted); margin-top: 6px; }
-.qs { display: inline-block; font: 400 12px/1.45 var(--mono); color: var(--muted); margin-top: 8px; }
-.plates { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; }
-.plate { min-width: 0; position: relative; }
-.plate .lbl { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 10px; }
-.plate .lbl .lid { text-transform: none; letter-spacing: 0; }
-/* the plate a figure link names: the violet edge a landed card takes */
-.plate:target:before { content: ""; position: absolute; left: -12px; top: 0; bottom: 0; width: 3px; background: var(--violet); }
-.plate dl { margin: 0; font: 400 var(--data)/var(--data-lh) var(--mono); }
-.plate dl div { padding: 5px 0; border-top: 1px solid var(--line); }
-.plate dt { color: var(--muted); }
-.plate dd { margin: 0; overflow-wrap: anywhere; }
-/* a source path breaks between its parts, not inside one */
-.plate dd .seg, .facts dd .seg { display: inline-block; max-width: 100%; }
-/* the underline marks each part, not the spaces between them */
-.plate dd a:has(.seg), .facts dd a:has(.seg) { text-decoration: none; }
-.plate dd a .seg, .facts dd a .seg { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.plate dd a:hover .seg, .facts dd a:hover .seg { text-decoration-thickness: 2px; }
-/* an id, a date or a model name that never breaks at its hyphen */
-.nw { white-space: nowrap; }
-/* a link's last part held to its arrow still wraps inside itself when it must */
-.nw > .seg { white-space: normal; }
-.tlab { margin: 14px 0 0; font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 80ch; }
-/* what qualifies a setup's figures, full width under their plates */
-.tlab.notes { max-width: 110ch; margin: 0 0 28px; }
-.notes code { font-weight: 500; }
-.tlab > div.ul { grid-template-columns: minmax(0, 1fr); }
-.tlab > div.ul dd { font-weight: 500; }
-.trials { list-style: none; margin: 0; padding: 0; }
-.trials li + li { margin-top: 4px; }
-/* the runs a setup's figures leave out: one line each, a failure's last line one press away */
-.runs.lo { list-style: none; margin: 10px 0 0; padding: 0; font: 400 var(--data)/1.6 var(--mono); max-width: 80ch; }
-.runs.lo li + li { margin-top: 6px; }
-/* a tamper-test line of the release page: what it is, then its run; on a narrow screen the run wraps under it, its
-   box clear of the line above */
-.runs .tl { display: flex; flex-wrap: wrap; column-gap: 2ch; row-gap: 12px; }
-.ll summary { width: max-content; min-height: 24px; padding-block: 3px; cursor: pointer; color: var(--muted); }
-.ll summary:hover { color: var(--paper); }
-.ll p { overflow-wrap: anywhere; margin: 4px 0 0; }
-.sect.sm.setup { margin-top: 40px; }
-.blk > .sect + .sect.sm.setup, .blk > .sec-h + .sect.sm.setup { margin-top: 24px; }
-/* a page of several setups: each setup's one-line heading stays at the top of the screen while its figures scroll,
-   so a figure link's landing names its setup; a ground and one rule, no shadow */
-.cfgfigs > .sect.sm.setup { position: sticky; top: 0; z-index: 2; background: var(--ground); padding: 8px 0 7px; border-bottom: 1px solid var(--line); }
-.cfgfigs .plates-sys .plate { scroll-margin-top: 52px; }
-/* the per-Gbit basis every setup of the page shares, once under the Figures heading */
-.basis-h { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin: 24px 0 8px; }
-.basis-h + .tlab.notes { margin-top: 0; }
-.tlab > div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 5px 0; border-top: 1px solid var(--line); }
-.tlab dt { color: var(--muted); }
-.tlab dd { margin: 0; overflow-wrap: anywhere; }
-.ctl { font: 400 14px/1.45 var(--mono); max-width: 80ch; margin-top: 16px; }
-.ctl .qs { margin-top: 0; }
+/* ---------------------------------------------------------------- a system page */
+.blk { margin-top: 44px; padding-top: 18px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+.blk > .sect.sm { margin-bottom: 14px; }
+.sub-h { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin: 22px 0 6px; }
+/* the glyph once, large, each check's name in its triangle; the checks table beside it */
+.checks { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 56px; align-items: center; padding-top: 36px; }
+.gbig .big { width: min(340px, 100%); height: auto; aspect-ratio: 1; }
+.rt { width: 100%; border-collapse: collapse; font: 400 var(--data)/var(--data-lh) var(--mono); }
+.rt thead th { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); text-align: left; padding: 0 16px 8px 0; }
+.rt td, .rt tbody th { text-align: left; vertical-align: top; padding: 9px 16px 9px 0; border-top: 1px solid var(--line); }
+.rt tbody th { font: 750 18px/1.2 var(--disp); font-stretch: 84%; }
+.rt tbody th a { text-decoration: none; }
+.rt tbody th a:hover { text-decoration: underline; }
+.rt .fig .n { font-size: 18px; }
+.rt .cst { white-space: nowrap; }
+.cw { display: block; }
+.ckt .rs { display: block; max-width: 70ch; }
+.qt { display: block; margin-top: 6px; max-width: 70ch; color: var(--muted); text-decoration-color: var(--rule); }
+.qt:hover { color: var(--paper); }
+.ckt .bs { color: var(--muted); max-width: 22ch; }
+.hl { margin-top: 18px; color: var(--muted); }
+.blk .clist { margin-top: 18px; }
+.ckt .cn { display: block; color: var(--muted); margin-top: 4px; max-width: 60ch; }
+.ev { display: block; color: var(--muted); overflow-wrap: anywhere; }
+.ev:hover { color: var(--paper); }
+.rid { overflow-wrap: anywhere; }
+.parts { margin: 14px 0 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); column-gap: 24px; }
+.parts > div { padding: 10px 0 12px; border-top: 1px solid var(--line); }
+.parts dt { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 6px; }
+.parts dd { margin: 0; }
+.fid tr.bar th, .fid tr.bar td { box-shadow: inset 0 1px 0 var(--rule), inset 0 -1px 0 var(--rule); }
+.fid tr.me th { color: var(--violet); }
+.pl { font: var(--f-meta); color: var(--muted); margin-bottom: 10px; }
+.said { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
+.said > div { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.said dt { color: var(--muted); }
+.said dd { margin: 0; max-width: 100ch; }
+.said dd p + p { margin-top: 6px; }
+.qsrc { display: inline-block; margin-top: 4px; font: 400 11px/1.45 var(--mono); color: var(--muted); }
+.qsrc:hover { color: var(--paper); }
+/* the checks page: the glyph beside the six checks */
+.cwrap { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 56px; padding-top: 36px; align-items: start; }
+.cwrap .gbig { position: sticky; top: 24px; }
+.chk { padding: 14px 0; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+.chk:first-child { border-top: 0; padding-top: 0; }
+.chk:target .cn2 { text-decoration: underline 2px; text-underline-offset: 5px; }
+.cn2 { font: 850 30px/1 var(--disp); font-stretch: 72%; margin: 0 0 8px; }
+.cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
+.cs > div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 4px 0; }
+.cs dt { color: var(--muted); }
+.cs dd { margin: 0; max-width: 80ch; text-wrap: pretty; }
+.rd { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; text-wrap: pretty; }
+.rd + .rd { margin-top: 10px; }
+.lost { list-style: none; margin: 32px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 32px; font: 750 22px/1 var(--disp); font-stretch: 84%; }
+.lost a { text-decoration: none; }
+.lost a:hover { text-decoration: underline; }
 
 /* ---------------------------------------------------------------- footer */
 .foot { width: min(var(--max), 100% - 2 * var(--safe)); margin: 56px auto 0; padding: 18px 0 40px; border-top: 1px solid var(--line); font: 400 12px/1.7 var(--mono); color: var(--muted); }
 .foot a:hover { color: var(--paper); }
 .foot code { color: var(--paper); font-weight: 500; }
 
-/* ---------------------------------------------------------------- system page */
-.mast-sys .mast-in { padding: 14px 0 0; }
-/* cut at the band's lower edge only: a name never loses letters at its end (text spacing, narrow screens) */
-.sysname { font: 900 96px/.8 var(--disp); font-stretch: 64%; letter-spacing: -.012em; margin: 0; overflow-x: visible; overflow-y: clip; overflow-wrap: anywhere; padding-bottom: .02em; transform: translateY(.06em); }
-.sysname .lt { display: block; }
-.sect { font: 850 44px/1 var(--disp); font-stretch: 72%; margin: 0; }
-.sect.sm { font-size: 22px; margin-top: 32px; }
-.blk { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
-/* the pie in the middle, each property beside its own slice (1 to 3 on the right, 4 to 6 on the left), facts beside */
-.over { padding-top: 32px; }
-/* how we read it follows the properties in reading order (RFC-0009 S1 item 1), and the eye follows the keyboard: it sits
-   under the pie in the first column, the facts beside both in the second, so focus goes pie, how we read it, facts */
-/* the facts start at the glyph's top and stay there when how we read it opens under the glyph */
-/* the first card's claims open under the system's name: a row header's link (#claims-<configuration>) shows the page
-   from its top */
-.wrap > .claims:first-child { scroll-margin-top: 100vh; }
-.rose { display: grid; grid-template-columns: minmax(0, 1fr) 200px minmax(0, 1fr); grid-template-rows: repeat(3, auto);
-  grid-template-areas: "p6 pie p1" "p5 pie p2" "p4 pie p3"; column-gap: 24px; row-gap: 18px; align-items: center; }
-.rpie { grid-area: pie; display: flex; justify-content: center; }
-.rpie .pie-svg { width: 200px; height: 200px; }
-.rprops { display: contents; list-style: none; }
-.rp { min-width: 0; }
-.rp[data-n="1"] { grid-area: p1; } .rp[data-n="2"] { grid-area: p2; } .rp[data-n="3"] { grid-area: p3; }
-.rp[data-n="4"] { grid-area: p4; } .rp[data-n="5"] { grid-area: p5; } .rp[data-n="6"] { grid-area: p6; }
-.rp.l { text-align: right; }
-.rp[data-n="1"], .rp[data-n="6"] { align-self: end; } .rp[data-n="3"], .rp[data-n="4"] { align-self: start; }
-.rn { font: 600 12px/1.2 var(--mono); letter-spacing: var(--track); text-transform: uppercase; color: var(--violet); }
-.rn a { color: inherit; text-decoration: none; }
-.rn a:hover, .rn a:focus-visible, .rp:hover .rn a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.rp:hover { cursor: pointer; }
-.rs { font: 750 22px/1.1 var(--disp); font-stretch: 84%; margin-top: 4px; }
-/* a state word that is the link (no reason line): 24 px clear of the name's link above it */
-.rs:has(> a) { margin-top: 6px; }
-.rp .rs .sw { display: none; }
-/* a property's link under keyboard focus lifts its slice, as pointing does */
-.rose:has(.rp[data-n="1"]:focus-within) .s1, .rose:has(.rp[data-n="2"]:focus-within) .s2, .rose:has(.rp[data-n="3"]:focus-within) .s3,
-.rose:has(.rp[data-n="4"]:focus-within) .s4, .rose:has(.rp[data-n="5"]:focus-within) .s5, .rose:has(.rp[data-n="6"]:focus-within) .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-.rp:focus-within .rn { color: var(--paper); }
-.rr { font: 400 13px/1.45 var(--mono); margin-top: 3px; text-wrap: pretty; max-width: 40ch; }
-.rp.l .rr { margin-left: auto; }
-/* after a property's reason, a quiet link to its entry in how we read it; under it, only for an overridden
-   cell, its stated state and what contradicts it */
-.ev .psrc { white-space: nowrap; }
-.qsrc, .rule, .ev .psrc { font: var(--f-source); color: var(--muted); }
-.rule, .ev .psrc { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.qsrc:hover, .rule:hover, .ev .psrc:hover { color: var(--paper); }
-.ev { font: 400 12px/1.45 var(--mono); margin-top: 3px; max-width: 40ch; text-wrap: pretty; }
-.rp.l .ev { margin-left: auto; }
-.eq { margin: 0; }
-.eq p { white-space: pre-line; }
-/* a quoted Markdown table row: its cells as the source draws them, ruled, no head the quote does not hold */
-.qrow { border-collapse: collapse; margin: 0 0 4px; }
-.qrow td, .qrow th { border: 1px solid var(--line); padding: 3px 8px; vertical-align: top; overflow-wrap: break-word; }
-.qrow th { color: var(--muted); }
-.qrow th { font-weight: 500; text-align: left; }
-.eqs:has(.qrow) { align-items: start; }
-.eqs:has(.qrow) > .ek { padding-top: 4px; }
-.es { display: flex; flex-wrap: wrap; column-gap: 12px; font-size: 11px; }
-.ev .ex { margin-top: 2px; }
-.ev .ex .ek { margin-right: 1ch; }
-/* how we read it: per property the deciding quote (or a conflict's quotes), the sources read, the controls,
-   one labelled line each; an entry a source link lands on clears the top of the screen */
-.hw > div { scroll-margin-top: 16px; }
-/* the entry the address names (a source link, with or without script): its name lit and underlined, no box; the
-   focus words.js moves there draws nothing of its own, so a click inside an entry marks nothing */
-.hw > div:focus { outline: none; }
-.hw > div:target > dt { color: var(--paper); text-decoration: underline 2px; text-underline-offset: 4px; }
-.er, .ec, .eqs { margin-top: 6px; display: grid; grid-template-columns: 14ch minmax(0, 1fr); align-items: baseline; }
-/* a read line starts with a link padded 4 px: its label sits on the link's first line */
-.er { align-items: start; }
-.er > .ek { padding-top: 4px; line-height: 16px; }
-.hw dd > :first-child { margin-top: 0; }
-.hw .eq p, .hw .qrow td { color: var(--paper); }
-.eb { min-width: 0; }
-/* a property's tamper tests: one line per outcome its controls share, under one label */
-.ec .cg { display: block; }
-.ec .cg + .cg { margin-top: 2px; }
-.ek { color: var(--muted); }
-.rd { display: block; }
-.qsrc { display: inline-block; padding-block: 4px; line-height: 16px; text-decoration: none; }
-.qsrc .seg { display: inline-block; max-width: 100%; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
-.qsrc:hover { color: var(--paper); }
-.qsrc:hover .seg { text-decoration-thickness: 2px; }
-.rec .seg, .er .seg { display: inline-block; max-width: 100%; }
-/* the card in full, folded; open, its quality gap and residual beside the agreement rate */
-.cardfull, .howread { margin-top: 44px; padding-top: 22px; border-top: 1px solid var(--line); }
-/* on wide screens the two folds are a pair, one band under the other */
-:where(.over:has(> .howread)) + .cardfull { margin-top: 12px; }
-.cardfull summary, .howread summary { display: flex; align-items: baseline; gap: 12px; min-height: 32px; cursor: pointer; list-style: none; }
-.cardfull summary::-webkit-details-marker, .howread summary::-webkit-details-marker { display: none; }
-.cardfull summary .sect.sm, .howread summary .sect.sm { margin: 0; }
-.cardfull summary:after, .howread summary:after { content: "+" / ""; font: 500 18px/1 var(--mono); color: var(--muted); }
-.cardfull[open] summary:after, .howread[open] summary:after { content: "\2212" / ""; }
-.cardfull summary:hover .sect, .howread summary:hover .sect { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 5px; }
-.cf { margin: 16px 0 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
-.cf > div { display: grid; grid-template-columns: 160px minmax(0, 1fr); gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
-.cf dt { color: var(--muted); }
-.cf dd { margin: 0; overflow-wrap: anywhere; max-width: 110ch; }
-.cn { margin: 0; }
-.cn > div { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 10px; }
-.cn dt { color: var(--muted); }
-.cn dd { margin: 0; }
-.cl { list-style: none; margin: 0; padding: 0; }
-.cl > li + li { margin-top: 6px; }
-/* items that share a lead: the lead once, each item indented under it */
-.gl { margin: 0 0 4px; }
-.cl + .gl { margin: 6px 0 0; }
-.cl.gi > li { padding-left: 2ch; }
-/* a list of same-shaped card items as one table, its heads once, ruled like the card */
-.ctab { border-collapse: collapse; margin: 2px 0 4px; }
-.ctab th, .ctab td { text-align: left; vertical-align: top; padding: 4px 16px 4px 0; border-top: 1px solid var(--line); }
-.ctab th { color: var(--muted); font-weight: 500; border-top: 0; padding-top: 0; }
-.ctab td:first-child { color: var(--muted); }
-/* a cell breaks between words, a flag only between its parts, never inside a word */
-.cf dd .ctab th, .cf dd .ctab td { overflow-wrap: normal; }
-/* the card's quality gap and residual with the agreement rate: a rule of their own, so they never read as the
-   folded card's body */
-.gapblk { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 56px; align-items: start; margin-top: 32px; padding-top: 22px; border-top: 1px solid var(--line); }
-.facts.gapone { margin-top: 32px; max-width: 880px; }
-.gapf dd { max-width: 100ch; font-size: var(--read); line-height: var(--read-lh); }
-.agree { display: grid; row-gap: 24px; }
-/* runs left out of the figures, and the release's runs: each id over its status */
-.runs .rid, .runs .rw { display: block; }
-.runs .rw { color: var(--muted); }
-/* the release's runs: an inline list of dates and ordinals, a status only where one is not completed */
-/* short tokens, not prose: the row runs the column's width */
-.runs.rl { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 20px; font: 400 var(--data)/1.6 var(--mono); max-width: none; }
-.runs.rl .rw { display: inline; color: var(--paper); }
-.rgh { font: 500 12px/1.4 var(--mono); margin-top: 26px; }
-.rgh:first-of-type { margin-top: 16px; }
-.rgh + .tlab { margin-top: 6px; }
-.relpage .blk > .sect.sm { margin-top: 0; }
-/* the reference page: an all-one glyph once, small, beside its line; production serving's measurements */
-.refone { display: flex; align-items: center; gap: 24px; margin-top: 24px; }
-.refpie, .refpie .pie-svg { display: block; flex: none; width: 120px; height: 120px; }
-.refpie > .w72 { display: none; }
-.refline { font: 750 22px/1.25 var(--disp); font-stretch: 84%; max-width: 40ch; text-wrap: pretty; }
-/* a named petal of the reference's glyph: its name and state in the line's place, in its type, over nothing */
-.refpie { -webkit-tap-highlight-color: transparent; }
-.reft { display: grid; }
-.reft > .refline, .reft > .tip { grid-area: 1 / 1; }
-.reft > .tip { position: static; transform: none; width: auto; max-width: 40ch; font: 750 22px/1.25 var(--disp); font-stretch: 84%; color: var(--paper); }
-.reft > .tip b { display: inline; font-weight: inherit; color: var(--violet); text-transform: none; letter-spacing: 0; }
-.refone:has(.refpie[data-hot]) .reft > .tip { display: block; }
-.refone:has(.refpie[data-hot]) .refline { visibility: hidden; }
-.refline a { text-decoration-color: var(--rule); }
-.stab { margin-top: 40px; }
-.stab caption { text-align: left; margin: 0 0 14px; }
-.stab th[scope="row"] { font-weight: 500; max-width: 46ch; }
-.stab td .sub { margin-top: 2px; }
-.unexp { margin-top: 18px; }
-.facts.relf { max-width: 880px; margin-top: 32px; }
-/* each property's own key glyph, its slot in its state's ink: shown only where the properties stack */
-/* each property's name in its own triangle: drawn by build.py, shown on phones only (760 px and below) */
-.rpie .tx { display: none; }
-.rpie .t { pointer-events: none; transition: transform .22s var(--ease); }
-.rpie .t text { fill: var(--ground); stroke: none; font: 800 10.5px/1 var(--disp); font-stretch: 64%; letter-spacing: .015em; }
-/* a property under the pointer lifts its slice; a slice under the pointer marks its property */
-@media (hover: hover) {
-  .rose:has(.rp[data-n="1"]:hover) .s1, .rose:has(.rp[data-n="2"]:hover) .s2, .rose:has(.rp[data-n="3"]:hover) .s3,
-  .rose:has(.rp[data-n="4"]:hover) .s4, .rose:has(.rp[data-n="5"]:hover) .s5, .rose:has(.rp[data-n="6"]:hover) .s6,
-  .rose:has(.h1:hover) .s1, .rose:has(.h2:hover) .s2, .rose:has(.h3:hover) .s3,
-  .rose:has(.h4:hover) .s4, .rose:has(.h5:hover) .s5, .rose:has(.h6:hover) .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-  .rose:has(.h1:hover) .rp[data-n="1"] .rn, .rose:has(.h2:hover) .rp[data-n="2"] .rn, .rose:has(.h3:hover) .rp[data-n="3"] .rn,
-  .rose:has(.h4:hover) .rp[data-n="4"] .rn, .rose:has(.h5:hover) .rp[data-n="5"] .rn, .rose:has(.h6:hover) .rp[data-n="6"] .rn,
-  .rp:hover .rn { color: var(--paper); }
-}
-/* on a touch screen, a tap does the same (words.js sets data-hot) */
-.rose[data-hot="1"] .s1, .rose[data-hot="2"] .s2, .rose[data-hot="3"] .s3,
-.rose[data-hot="4"] .s4, .rose[data-hot="5"] .s5, .rose[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 6px), calc(var(--dy) * 6px)); stroke: var(--paper); stroke-width: 2; }
-.rose[data-hot="1"] .rp[data-n="1"] .rn, .rose[data-hot="2"] .rp[data-n="2"] .rn, .rose[data-hot="3"] .rp[data-n="3"] .rn,
-.rose[data-hot="4"] .rp[data-n="4"] .rn, .rose[data-hot="5"] .rp[data-n="5"] .rn, .rose[data-hot="6"] .rp[data-n="6"] .rn { color: var(--paper); }
-.facts { margin: 0; font: 400 var(--data)/var(--data-lh) var(--mono); align-self: center; }
-.facts div { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); }
-.facts div:last-child { border-bottom: 1px solid var(--line); }
-.facts dt { color: var(--muted); }
-.facts dd { margin: 0; overflow-wrap: anywhere; }
-.facts .links { display: flex; flex-direction: column; gap: 8px; }
-/* each plate's label, figure and label list share rows with its neighbours', so their rules line up */
-.plates-sys { margin-top: 26px; row-gap: 0; }
-.plates-sys .plate { display: grid; grid-row: span 3; grid-template-rows: subgrid; row-gap: 0; align-content: start; padding-bottom: 24px; }
-.plates-sys .pv { margin-bottom: 12px; min-height: 48px; }
-/* the three per-Gbit plates under the basis they share, said once on a line ruled across them, as the overview's
-   head does; each plate's label in short */
-.pgh { grid-column: 1 / -1; width: calc(75% - 6px); font: 400 12px/1.35 var(--mono); color: var(--muted); padding-bottom: 5px; border-bottom: 1px solid var(--line); margin-bottom: 14px; }
-/* a figure with no value: its name, then why, quiet; no value line */
-.plates-sys .plate.nil { display: block; }
-.plate.nil dl > div:first-child { padding-top: 0; border-top: 0; }
-
-.mtab { width: 100%; border-collapse: collapse; margin-top: 32px; font: 400 var(--data)/var(--data-lh) var(--mono); }
-.mtab th, .mtab td { text-align: left; vertical-align: top; padding: 8px 16px 8px 0; border-top: 1px solid var(--line); }
-.mtab thead th { color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: var(--track); }
-.mtab tbody th { font-weight: 600; }
-.mtab .fig { --nfs: 22px; }
-.mtab .na { padding-top: 0; }
-.mtab .ml { color: var(--muted); }
-/* a record's key moves to the next line whole, breaking at its parts only when longer than a line */
-.mtab .src { display: inline-block; max-width: 100%; }
-/* a spread on one line where the columns have room */
-.mtab .m-spread { white-space: nowrap; }
-/* a more-numbers label's key: its column's head names it; shown where the cells stack (phones) */
-.mtab .mk { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-/* a value and its unit on one line, the column as narrow as its widest value */
-.mtab .mv { white-space: nowrap; width: 1%; }
-.mtab .mv .fig { flex-wrap: nowrap; }
-/* the tally in the reading voice of the claims and control lines, its counts in the weight of a figure, so the
-   setup's heading leads; no test at all a quiet line, as every absence */
-.tamper { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 80ch; margin-top: 12px; text-wrap: pretty; }
-.tamper b { font-weight: 600; }
-.tamper.none { font-size: var(--data); }
-/* reference page */
-.reflead { font: 500 22px/1.3 var(--disp); font-stretch: 90%; max-width: 60ch; margin-top: 26px; text-wrap: pretty; }
-.refsys { margin-top: 56px; padding-top: 22px; border-top: 1px solid var(--rule); scroll-margin-top: 12px; }
-.refh { font: 850 64px/1 var(--disp); font-stretch: 72%; margin: 0; }
-.reffigs { scroll-margin-top: 20px; }
-/* the reference a figures heading belongs to, where a figure link lands away from its name */
-.of { font: 500 13px/1 var(--mono); color: var(--muted); letter-spacing: .02em; }
-.plates-sys .plate { scroll-margin-top: 12px; }
-.refsys .over { padding-top: 20px; }
-/* criteria page: each property, then what each state means for it */
-section.crit { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); column-gap: 48px; margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
-.crit .ch { display: grid; grid-template-columns: 48px minmax(0, 1fr); column-gap: 16px; align-content: start; }
-.crit .kmini { grid-row: span 2; }
-.crit .kmini .off { fill: var(--paper); opacity: .3; }  /* 2.41:1 on the ground; lit against off 7.11:1 */
-.crit .kmini .on { fill: var(--paper); }
-.cq { font: 400 var(--read)/1.5 var(--mono); margin-top: 6px; text-wrap: balance; }
-.cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
-.cs div { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); }
-.cs div:first-child { border-top: 0; padding-top: 0; }
-.cs dt { font: 750 18px/1.2 var(--disp); font-stretch: 84%; }
-.cs dd { margin: 0; text-wrap: pretty; }
-.cnote { grid-column: 2; font: 400 var(--read)/var(--read-lh) var(--mono); margin-top: 8px; text-wrap: pretty; }
-.crit .kmini { width: 48px; height: 48px; }
-.crit .kmini.w32 { display: none; }
-.cs dt { white-space: nowrap; }
-.cidx { display: none; }
-/* the 404: the site's pages, the systems with their glyphs */
-.lost { list-style: none; margin: 32px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px 32px; font: 750 22px/1 var(--disp); font-stretch: 84%; }
-.lost a { display: inline-flex; align-items: center; gap: 10px; min-height: 36px; text-decoration: none; }
-.lost a:hover span { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
-.lost .pie-svg { width: 28px; height: 28px; flex: none; }
-/* the Not stated rule every property shares, once under the title */
-.cshared { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 80ch; margin-top: 32px; text-wrap: pretty; }
-.cshared b { font: 750 18px/1.2 var(--disp); font-stretch: 84%; margin-right: .5em; }
-
-/* ================================================================ motion (only with html.anim): calm, and all at once */
 @keyframes fade { from { opacity: 0; } }
-
 .anim main { animation: fade .2s ease backwards; }
-/* without script, the heads cannot sort: they do not look as if they could */
-html:not(.js) .sb { cursor: default; pointer-events: none; }
-html:not(.js) .hc:not([aria-sort]) .sb .g { visibility: hidden; }
-.anim body.sorted .row * { animation: none !important; }
-
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { animation: none !important; transition: none !important; }
 }
 
-/* ================================================================ narrower
-   The scale at the top of this file, one block per width, wide to narrow, each selector once in
-   it: a rule for narrower screens comes after the rules for wider ones, so at the same
-   specificity the narrower overrides the wider. One block also takes a min-width, one px above a width
-   of the scale, and sits last, just above where the block of that width would be (350 to 560, above 349).
-   The hover, reduced-motion, print, forced-colours and landscape (max-height) rules are not width blocks
-   and keep their places; a width inside one is still a width of the scale.
-   */
-@media (max-width: 1240px) {
-  .over { grid-template-columns: minmax(0, 1fr); row-gap: 32px; }
-  /* one column in reading order: the glyph, how we read it (one line while closed; it opens on its rule), then the
-     facts, whose first rule closes it */
-  .over > .facts { grid-column: auto; grid-row: auto; }
-  .over > .howread { grid-column: auto; grid-row: auto; margin-top: 0; }
-  .cardfull { margin-top: 44px; }
-  .rose { max-width: 980px; margin-inline: auto; }
-  .facts { columns: 2; column-gap: 32px; }
-  .facts div { break-inside: avoid; }
-  .facts div:last-child { border-bottom: 0; }
-  .facts.gapf, .facts.relf { columns: auto; }
-  .facts.gapf > div:last-child, .facts.relf > div:last-child { border-bottom: 1px solid var(--line); }
-  .gapblk { grid-template-columns: minmax(0, 1fr); row-gap: 28px; }
-  .agree { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); column-gap: 24px; }
+/* ================================================================ narrower */
+@media (max-width: 1100px) {
+  .checks, .cwrap { grid-template-columns: 260px minmax(0, 1fr); column-gap: 32px; }
+  .front { font-size: 46px; }
 }
-@media (max-width: 1180px) {
-  .heads, .r-main { grid-template-columns: 320px repeat(4, minmax(0, 1fr)); column-gap: 18px; }
-  .sysc { grid-template-columns: 64px minmax(0, 1fr); column-gap: 14px; }
-  .hsys { padding-left: 78px; }
-  .row .pie { width: 64px; height: 64px; }
-  .row .pie > .w96 { display: none; }
-  .row .pie > .w64 { display: block; }
-  .board .name { font-size: 34px; }
-  .fig { --nfs: 36px; }
-}
-/* the legend: smaller key glyphs and names */
-@media (max-width: 1099px) {
-  /* the board stacks: glyph, name and pin on one line, the model under them, then the four
-     figures on the next in columns that line up with the heads from row to row. The heads are a
-     grid of sort buttons (System on its own line, the group lines above the figures' heads); each
-     figure's label is the head above it (still read aloud in the cell); the figure the table is
-     sorted by in paper, the others muted */
-  .r-main { grid-template-columns: minmax(0, 1fr); }
-  .sysc { grid-template-columns: 52px minmax(0, 1fr); column-gap: 14px; align-items: center; }
-  .sysc .pie { grid-row: auto; }
-  .row .pie { width: 52px; height: 52px; }
-  .row .pie > .w64 { display: none; }
-  .row .pie > .w52 { display: block; }
-  .board .pie[data-hot="1"] .s1, .board .pie[data-hot="2"] .s2, .board .pie[data-hot="3"] .s3, .board .pie[data-hot="4"] .s4, .board .pie[data-hot="5"] .s5, .board .pie[data-hot="6"] .s6 { transform: translate(calc(var(--dx) * 3px), calc(var(--dy) * 3px)); stroke-width: 1.5; }
-  .who { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; padding-top: 0; }
-  .board .name { font-size: 32px; }
-  .row { padding: 14px 0 18px; }
-  .mc { grid-column: 1 / -1; padding-top: 8px; }
-  .mn { font-size: 18px; }
-  .vals { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 18px; margin-top: 2px; }
-  .val { padding-top: 8px; }
-  /* two rows: one note naming both groups across the four columns, then the four heads, level, over
-     the columns they sort. No System head: the rows stack, so there is no system column to sort */
-  .heads { grid-template-columns: repeat(4, minmax(0, 1fr)); padding-top: 12px; }
-  .heads .hc { grid-row: 2; align-self: stretch; display: flex; }
-  .heads .hc.hsys, .hg { display: none; }
-  .hn { display: block; grid-row: 1; grid-column: 1 / -1; font: 400 12px/1.4 var(--mono); color: var(--muted); text-transform: none; letter-spacing: 0; text-wrap: pretty; max-width: 60ch; }
-  .heads .sb { padding: 10px 0 11px; text-align: left; align-self: end; }
-  .q { grid-template-columns: 40px minmax(0, 1fr); column-gap: 12px; }
-  .q .kmini { width: 40px; height: 40px; }
-  .q .kmini.w48 { display: none; }
-  .q .kmini.w40 { display: block; }
-  .qw { font-size: 28px; }
-  .qq { font-size: 12px; line-height: 16px; }
-  .map { gap: 18px 24px; }
-}
-/* criteria: the states under the name */
-@media (max-width: 1000px) {
-  section.crit { grid-template-columns: minmax(0, 1fr); row-gap: 14px; }
-  .mtab .m-spread { white-space: normal; }
-  .cnote { grid-column: 1; max-width: 80ch; }
-  .cs { max-width: 80ch; }
-}
-/* "/" with the header scrolled away: the field at the top of the screen, as wide as in the header, its list under it */
-@media (min-width: 961px) {
+@media (min-width: 761px) {
   .top.s-on .search { position: fixed; top: 12px; left: 50%; width: min(600px, 100vw - 2 * var(--gut)); transform: translateX(-50%); z-index: 21; }
 }
-@media (max-width: 960px) {
-  /* the legend in two columns */
-  .map { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  /* below the width a centred field needs: one line, the logo, the pages, a search button and
-     GitHub; the button opens the field over the line */
+@media (max-width: 760px) {
+  /* one line: the logo, the page, a search button and GitHub; the button opens the field over the line */
   .tl { display: contents; }
-  .top { display: grid; grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }
-  .top .repo { grid-row: 1; grid-column: 4; margin-left: 0; display: inline-flex; align-items: center; height: 44px; padding-block: 0; margin-block: -15px; }
-  .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; flex-wrap: nowrap; gap: 20px; }
-  /* search: a button by GitHub; pressed, the field covers the line and its results drop below */
-  .search { grid-row: 1; grid-column: 3; position: static; margin-left: 0; }
-  /* 44 px to press, the same footprint on the line */
+  .top { grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }
+  .top .repo { grid-row: 1; grid-column: 4; height: 44px; padding-block: 0; margin-block: -15px; }
+  .top nav { grid-row: 1; grid-column: 2; margin-left: 8px; }
+  .search { grid-row: 1; grid-column: 3; position: static; }
   .sopen { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: -15px -6px; color: var(--muted); }
   .sopen:hover { color: var(--paper); }
   .sfield { display: none; }
   .top.s-on .sfield { display: flex; position: fixed; left: var(--gut); right: var(--gut); top: 4px; width: auto; height: 44px; padding-right: 0; background: var(--ground); z-index: 21; }
   .top.s-on nav, .top.s-on .sopen { visibility: hidden; }
   .skey { display: none; }
-  /* the open field is a sheet over the page: 16 px type (no zoom on focus), a close button, the list above the keyboard */
   #q { font-size: 16px; }
   .top.s-on .sclose { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 44px; height: 44px; color: var(--muted); font: 500 18px/1 var(--mono); }
-  .top.s-on .sclose:hover { color: var(--paper); }
   .slist { left: var(--gut); right: var(--gut); top: 56px; width: auto; max-height: calc(var(--vvh, 100dvh) - 68px); overscroll-behavior: contain; }
   .top.s-on .slist { position: fixed; }
-}
-@media (max-width: 920px) {
-  .plates, .plates-sys { grid-template-columns: 1fr 1fr; column-gap: 14px; }
-  .pgh { width: auto; }
-  .fig { --nfs: 34px; }
-  .facts { columns: 1; }
-}
-@media (max-width: 760px) {
-  /* the legend: two columns, a small pie beside each name, the question under both */
-  .mast-in { padding: 18px 0; }
-  .map { margin-top: 16px; gap: 16px 14px; }
-  .q { grid-template-columns: 32px minmax(0, 1fr); column-gap: 8px; }
-  .q .kmini { grid-row: auto; width: 32px; height: 32px; }
-  .q .kmini.w40 { display: none; }
-  .q .kmini.w32 { display: block; }
-  .qw { padding-top: 0; align-self: center; font-size: 20px; line-height: 1.05; white-space: normal; }
-  .qq { grid-column: 1 / -1; font-size: 12px; line-height: 15px; margin-top: 6px; }
-  body { font-size: 14px; }
-  .top { flex-wrap: wrap; gap: 16px 18px; padding: 14px var(--gut); }
-  .name { font-size: min(40px, 10vw); overflow-wrap: anywhere; }
-  .mtab .mv { text-align: right; }
-  .mtab .mv .fig { justify-content: flex-end; }
-  .sec { padding-top: 28px; }
-  .tlab > div { grid-template-columns: 1fr; gap: 2px; }
+  .front { font-size: 36px; }
   .sysname { font-size: min(72px, 18vw); }
-  .sect { font-size: 34px; }
-  .refh { font-size: 44px; }
-  /* the glyph once, large, each triangle carrying its property's name (never its state: the ink says
-     it); under it one ruled row per property, clockwise from twelve: the name a quiet label, the
-     state with its square in a fixed column, the reason a muted second line */
-  .over { padding-top: 24px; row-gap: 28px; }
-  .rose { display: block; }
-  .rpie { display: block; }
-  .rpie .tx { display: inline; }
-  .rpie .pie-svg { width: min(340px, 100%); height: auto; aspect-ratio: 1; margin: 0 auto; }
-  .rprops { display: block; margin: 18px 0 0; padding: 0; border-top: 1px solid var(--rule); }
-  .rp, .rp.l { display: grid; grid-template-columns: minmax(0, 1fr) 112px; column-gap: 12px; row-gap: 10px; align-items: baseline; padding: 10px 0; text-align: left; transition: background-color .18s, box-shadow .18s; }
-  .rp + .rp { border-top: 1px solid var(--line); }
-  .rp .rn { grid-column: 1; grid-row: 1; font: 500 12px/1.25 var(--mono); letter-spacing: var(--track); color: var(--paper); }
-  .rp .rs { grid-column: 2; grid-row: 1; margin: 0; font-size: 18px; line-height: 1.1; white-space: nowrap; }
-  .rp .rr, .rp.l .rr { grid-column: 1 / -1; max-width: none; margin: 0; font-size: 12px; line-height: 1.4; }
-  .rp .ev, .rp.l .ev { grid-column: 1 / -1; max-width: none; margin: 2px 0 0; font-size: 11px; }
-  /* the rows sit away from the glyph here: each state keeps its square */
-  .rp .rs .sw { display: inline-block; }
-  .cf > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
-  .cn > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
-  .cn > div + div { margin-top: 4px; }
-  .cn .cn { padding-left: 12px; border-left: 1px solid var(--line); margin-top: 2px; }
-  .cardfull { margin-top: 32px; }
-  /* a tapped triangle or row: the triangle lifts (with its name), the row takes a ground of its own */
-  .rose[data-hot="1"] .rp[data-n="1"], .rose[data-hot="2"] .rp[data-n="2"], .rose[data-hot="3"] .rp[data-n="3"],
-  .rose[data-hot="4"] .rp[data-n="4"], .rose[data-hot="5"] .rp[data-n="5"], .rose[data-hot="6"] .rp[data-n="6"] { background: var(--line); box-shadow: -8px 0 0 var(--line), 8px 0 0 var(--line); }
-  .reflead { font-size: 18px; }
-  .plates-sys .plate { padding-bottom: 16px; }
-  .cs div { grid-template-columns: 112px minmax(0, 1fr); }
-  /* criteria: a jump index of the six properties under the band */
-  .cidx { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; list-style: none; margin: 18px 0 0; padding: 0; font: 750 18px/1 var(--disp); font-stretch: 84%; }
-  .cidx a { display: flex; align-items: center; gap: 8px; min-height: 36px; text-decoration: none; color: var(--paper); }
-  .cidx .kmini { width: 22px; height: 22px; flex: none; grid-row: auto; }
-  .cidx .kmini .on { fill: var(--paper); }
-  .cidx .kmini .off { fill: var(--paper); opacity: .3; }
-  .cidx + section.crit { margin-top: 24px; }
-  .mtab thead { display: none; }
-  /* production serving on a phone: one head row, its three figure heads over three columns, then each setup over its
-     three figures in the same columns; the setup head is read aloud only */
-  .mtab.stab thead { display: block; }
-  .mtab.stab thead tr { border-top: 0; padding: 0 0 8px; align-items: end; }
-  .mtab.stab thead th { font-size: 11px; line-height: 1.3; }
-  .mtab.stab thead th:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .mtab.stab tr { grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 12px; row-gap: 8px; }
-  .mtab.stab th[scope="row"] { grid-column: 1 / -1; }
-  .refpie, .refpie .pie-svg { width: 72px; height: 72px; }
-  .refpie > .w120 { display: none; }
-  .refpie > .w72 { display: block; }
-  .refline, .reft > .tip { font-size: 18px; }
-  .mtab tr { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; border-top: 1px solid var(--line); padding: 8px 0; }
-  .mtab th { border: 0; padding: 0; text-wrap: balance; }
-  .mtab td { border: 0; padding: 0; }
-  .mtab .ml { grid-column: 1 / -1; margin-top: 4px; }
-  .mtab .ml + .ml { margin-top: 2px; }
-  .mtab .ml:empty { display: none; }
-  .mtab .mk { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
-  .ctl .qs { padding-block: 4px; margin-block: -4px; }
-  .facts .links { gap: 16px; }
-  .reffigs { margin-top: 32px; padding-top: 18px; border-top: 1px solid var(--line); }
-  .reffigs .sect.sm { margin-top: 0; }
-  .refsys { margin-top: 40px; }
+  .rm, .sect { font-size: 34px; }
+  /* a row stacks: position, glyph and name on one line, then the four figures in two columns with their labels */
+  .lad thead { display: none; }
+  .lad, .lad tbody { display: block; }
+  .lad colgroup { display: none; }
+  .lad tr { display: flex; flex-wrap: wrap; align-items: center; column-gap: 12px; padding: 14px 0 16px; border-top: 1px solid var(--line); }
+  .lad tbody tr:first-child { border-top: 0; }
+  .lad tr > * { padding: 0; border-top: 0; }
+  .lad .cp, .lad .cg { flex: none; width: auto; }
+  .lad .cp:empty { display: none; }
+  .lad .csys { flex: 1 0 55%; min-width: 0; }
+  .lad .cm, .lad .cc, .lad .ct, .lad .ck { flex: 1 1 calc(50% - 12px); min-width: 0; padding-top: 14px; align-self: start; }
+  .lad .lbl { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; display: block; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 4px; }
+  .pn { font-size: 34px; }
+  .glyph { width: 44px; height: 44px; }
+  .glyph .w56 { display: none; }
+  .glyph .w44 { display: block; }
+  .sname { font-size: 26px; }
+  .fig .n { font-size: 22px; }
+  .checks, .cwrap { grid-template-columns: minmax(0, 1fr); row-gap: 24px; padding-top: 24px; }
+  .gbig { justify-self: center; width: min(320px, 100%); }
+  .cwrap .gbig { position: static; }
+  .said > div, .cs > div { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  /* ruled tables scroll inside their own box rather than the page */
+  .blk { overflow-x: auto; }
 }
-/* not benchmarked yet: compact entries, two tracks down to 561 px; one track below, where the last entry's
-   rule closes the grid and the footer adds none. A 52 px glyph gives each petal about 24 px to tap */
-@media (max-width: 635px) {
-  .home .foot { border-top: 0; margin-top: 32px; }
-  .nbgrid { grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); column-gap: 18px; }
-  .nb { grid-template-columns: 52px minmax(0, 1fr); column-gap: 12px; padding: 10px 0; }
-  .nbpie, .nbpie .pie-svg { width: 52px; height: 52px; }
-  .nbpie > .w56 { display: none; }
-  .nbpie > .w52 { display: block; }
-  .nbn { font-size: 19px; margin: 0 0 2px; }
-  .nbms, .nbt .tip { font-size: 11px; line-height: 1.4; }
-}
-/* phones */
 @media (max-width: 560px) {
   :root { --read: 13px; --read-lh: 1.55; --data: 12px; --data-lh: 1.45; }
-  /* the system page's claims, compact so the figures come soon: the card's identity in one run of
-     text, the folds and the quality gap closer together */
-  .facts .cardid { display: block; }
-  .facts .cardid > span { display: inline; }
-  .facts .cardid > span + span:before { content: " · " / ""; color: var(--muted); }
-  .facts .cardid a { display: inline-block; padding-block: 4px; }
-  .cardfull { margin-top: 24px; padding-top: 14px; }
-  .howread { padding-top: 14px; }
-  .gapblk { margin-top: 20px; row-gap: 20px; }
-  /* the legend: a 2 x 3 key of glyph and name, so the first system shows on landing; the questions
-     are read aloud here and shown on the criteria page. Columns sized by their names, so each name
-     keeps one line where both fit (390 px up) and wraps below */
-  .mast-in { padding: 12px 0 14px; }
-  /* not benchmarked yet in one track, wide enough for a named petal's one line: no room kept for a second */
-  .nbgrid { grid-template-columns: minmax(0, 1fr); }
-  .nbms { min-height: 0; }
-  .map { grid-template-columns: repeat(2, auto); gap: 10px 12px; margin-top: 12px; }
-  .q { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto; column-gap: 10px; align-items: center; }
-  .q .kmini { grid-row: auto; width: 22px; height: 22px; margin-top: 0; }
-  .q .kmini.w32 { display: none; }
-  .q .kmini.w22 { display: block; }
-  .qw { font-size: 18px; line-height: 1; align-self: center; white-space: normal; }
-  .qq { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* the header on one line: the logo's glyph alone and GitHub's mark alone (both names still read
-     aloud), the pages taller to press with the text where it was */
   .top { column-gap: 12px; padding-block: 14px; }
-  .top nav { margin-left: 4px; gap: 16px; }
   .top nav a { padding-block: 10px; margin-block: -10px; }
   .brand .logo span, .top .repo span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .brand .logo { padding: 11px; margin: -11px; }
-  .top .repo { padding-inline: 5px; margin-inline: -5px; }
-  /* system page figures: each label close to its figure, one rule between plates */
-  .blk { margin-top: 32px; }
-  .plates-sys .pv { min-height: 0; margin-bottom: 10px; }
-  .plates-sys .na { padding-top: 0; }
-  .plates-sys .plate + .plate { border-top: 1px solid var(--rule); padding-top: 14px; }
-  /* a source path: one continuous underline (the parts keep their own, the link draws it between them) */
-  .plate dd a:has(.seg), .facts dd a:has(.seg) { text-decoration: underline; text-decoration-thickness: 1px; }
-  /* the reference page: its plates in pairs, labels over values */
-  .refpage .plates-sys { grid-template-columns: 1fr 1fr; column-gap: 14px; }
-  .refpage .plates-sys .plate + .plate { border-top: 0; padding-top: 0; }
-  .refpage .plates-sys .plate:nth-child(n+3) { border-top: 1px solid var(--rule); padding-top: 14px; }
-  .refpage .plate dl div { display: block; }
-  .refpage .plates-sys .na { font-size: 18px; }
-  /* criteria: square and word on one line, the definition under them at full width */
-  .cs div { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 0; }
-  .cs div:first-child { padding-top: 0; }
-  /* a search result: the line of context under the name */
-  .so { align-items: start; column-gap: 10px; padding-inline: 10px; }
-  .facts div { grid-template-columns: 1fr; gap: 2px; }
-  /* one plate per line, so a source path keeps its parts whole */
-  .plates, .plates-sys { grid-template-columns: 1fr; }
-  .pgb { margin-top: 0; border-top: 1px solid var(--rule); padding-top: 14px; }
-  .crit .ch { grid-template-columns: 32px minmax(0, 1fr); column-gap: 12px; }
-  .crit .kmini { width: 32px; height: 32px; }
-  .crit .kmini.w48 { display: none; }
-  .crit .kmini.w32 { display: block; }
-  /* the board: every figure of a system on one line, smaller, under its head; the labels in
-     short (scope, n and range) */
-  .heads, .vals { column-gap: 10px; }
-  .heads .sb { font-size: 11px; letter-spacing: .02em; line-height: 1.25; min-height: calc(2lh + 21px); }
-  .hn { font-size: 11px; }
-  .sysc { column-gap: 12px; }
-  .board .name { font-size: min(26px, 7vw); }
-  .row { padding: 12px 0 14px; }
-  .mc { padding-top: 6px; }
-  .mn { font-size: 16px; }
-  .ms { font-size: 11px; line-height: 1.4; margin-top: 2px; }
-  /* each row's figures on one line: a unit never wraps under its number */
-  .board .fig { --nfs: 21px; flex-wrap: nowrap; column-gap: .15em; }
-  .board .fig .u { font-size: 11px; }
-  .board .na { font-size: 15px; }
-  .board .sub { font: 400 11px/1.35 var(--mono); margin-top: 4px; }
+  .front { font-size: 30px; }
+  .mast-in { padding: 18px 0; }
+  .rung { margin-top: 32px; }
+  .rm, .sect { font-size: 28px; }
+  .rt { font-size: 12px; }
+  .rt tbody th { font-size: 16px; }
+  /* a petal or check: its name and state on one line, then the reason or cause, then the rest */
+  .ckt thead { display: none; }
+  .ckt, .ckt tbody { display: block; }
+  .ckt tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+  .ckt tbody tr:first-child { border-top: 0; }
+  .ckt tr > * { padding: 0; border: 0; }
+  .ckt tr > :nth-child(n+3) { grid-column: 1 / -1; margin-top: 4px; }
+  .ckt td:empty { display: none; }
+  .ckt .bs { max-width: none; }
+  /* the other tables keep their columns and scroll inside their section */
+  .rt:not(.ckt) td, .rt:not(.ckt) th { white-space: nowrap; }
 }
-/* narrow phones: a smaller logo and closer items, so the first line fits */
-@media (max-width: 400px) {
-  /* how we read it: each label over its line, so a quote keeps the width */
-  .er, .ec, .eqs { grid-template-columns: minmax(0, 1fr); }
-  /* the overhead's column a little wider: its ratio is the longest figure */
-  .heads, .vals { column-gap: 10px; grid-template-columns: minmax(0, 1.12fr) repeat(3, minmax(0, 1fr)); }
-  .heads .sb { letter-spacing: .03em; }
-}
-/* the narrowest phones: smaller figures, closer columns on the board */
-@media (max-width: 360px) {
-  .fig { --nfs: 28px; }
-  .fig .u { font-size: 12px; }
-  .heads, .vals { column-gap: 8px; }
-  .board .fig { --nfs: 19px; }
-}
-/* phones from 350 px: a label beside its value (below, the source parts no longer fit beside one) */
-@media (min-width: 350px) and (max-width: 560px) {
-  .plate dl div { display: grid; grid-template-columns: 84px minmax(0, 1fr); column-gap: 10px; }
-  .plate.nil dl > div:first-child { display: block; }
-  .facts div { grid-template-columns: 84px minmax(0, 1fr); gap: 10px; }
-}
-/* phones held sideways: the legend in three short columns, so the first table shows on landing */
-@media (max-height: 500px) and (orientation: landscape) {
-  .mast-in { padding: 12px 0; }
-  .map { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 20px; margin-top: 10px; }
-  .q { grid-template-columns: 22px minmax(0, 1fr); grid-template-rows: auto; column-gap: 8px; align-content: start; }
-  .q .kmini { width: 22px; height: 22px; grid-row: span 2; }
-  .q .kmini.w48, .q .kmini.w40, .q .kmini.w32 { display: none; }
-  .q .kmini.w22 { display: block; }
-  .qw { font-size: 18px; white-space: normal; }
-  .qq { grid-column: 2; font-size: 11px; line-height: 14px; margin-top: 2px; }
-}
-/* phones held sideways: the key as glyph and name only (questions still read aloud), and the band,
-   the whole glyph and the first property on the first screen */
-@media (max-height: 500px) and (orientation: landscape) and (max-width: 960px) {
-  .qq { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  .q { align-items: center; }
-  .top { padding-block: 10px; }
-  .sysname { font-size: 56px; }
-  .mast-sys .mast-in { padding-top: 8px; }
-  .over { padding-top: 16px; }
-  .rose { row-gap: 8px; }
-  .rpie .pie-svg { width: 160px; height: 160px; }
-  section.crit { margin-top: 24px; }
-  .sec { padding-top: 16px; }
-  .sect { font-size: 34px; }
-}
-/* phones held sideways, from 561 px: the wide rose, each property beside its slice (no names in the triangles) */
-@media (max-height: 500px) and (orientation: landscape) and (min-width: 561px) and (max-width: 760px) {
-  .rose { display: grid; grid-template-columns: minmax(0, 1fr) 160px minmax(0, 1fr); column-gap: 18px; row-gap: 8px; }
-  .rpie { display: flex; }
-  .rpie .tx { display: none; }
-  .rpie .pie-svg { width: 160px; height: 160px; margin: 0; }
-  .rprops { display: contents; }
-  .rp, .rp.l { display: block; padding: 0; }
-  .rp.l { text-align: right; }
-  .rp + .rp { border-top: 0; }
-  .rp .rn { font: 600 12px/1.2 var(--mono); letter-spacing: var(--track); color: var(--violet); }
-  .rp .rs { margin-top: 4px; font-size: 18px; }
-  .rp .rs:has(> a) { margin-top: 6px; }
-  .rp .rs .sw { display: none; }
-  .rp .rr, .rp.l .rr { max-width: 40ch; font-size: 12px; }
-  .rp.l .rr { margin-left: auto; }
-}
-/* touch: a property's name shows it is a link; inline links get thumb-sized hit areas (24 px and more),
-   the text where it was, at every width a touch screen has */
 @media (hover: none) {
-  .rn a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; display: inline-block; padding-block: 5px; margin-block: -5px; }
-  .rule, .ev .psrc { display: inline-block; font-size: 12px; padding: 6px 4px; margin: -6px -4px; }
-  .rr a.psrc, .rs a.psrc { padding-block: 5px; }
-  .refline a { padding-block: 2px; }
-  .facts .links a, .facts dd > a { display: inline-block; padding-block: 4px; margin-block: -4px; }
-  /* a padded link followed by more text: lines tall enough that the next one never covers its box */
-  .facts dd:has(> a), .facts .links > span:has(> a), .tlab dd:has(> a:not(.run)) { line-height: 26px; }
-  .foot a { display: inline-block; padding-block: 5px; margin-block: -5px; }
-  .plate dd a:has(.seg) { padding-block: 5px; }
-  .tlab dd a, .runs a, .unexp a, a.run, .mtab .ml a { display: inline-block; padding-block: 5px; margin-block: -5px; }
-  .nbn a { display: inline-block; padding-block: 3px; margin-block: -3px; }
-  .ll summary { padding-block: 4px; }
-  /* lines that hold several runs: each line 24 px or more, each run's box its line, so boxes on two lines never meet */
-  .ec .eb, .plate dd:has(a.run) { line-height: 24px; }
-  .tamper { line-height: max(1.3em, 26px); }
-  .ec a.run, .tamper a.run, .plate a.run { padding-block: 0; margin-block: 0; }
-  /* a control line's run set: its box its 24 px line */
-  .ec a.psrc { display: inline-block; }
-  /* a failed run's last line opens below its run's box, never under it */
-  .runs .ll { margin-top: 6px; }
+  .foot a, .ev, .qsrc { display: inline-block; padding-block: 5px; margin-block: -5px; }
 }
-/* print: dark ink on white, the states keep their inks, no search; words.js opens every fold first */
 @media print {
   :root { --ground: #fff; --paper: #111; --muted: #555; --rule: #999; --line: #ccc; }
   .search, .repo, .skey, .sopen, .skip { display: none; }
   .mast { background: none; }
   .sw, .sl { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
-/* forced colours (Windows high contrast): the state squares keep their inks so they still match the
-   slices, the Not stated ghost and its outline included */
 @media (forced-colors: active) {
-  .sw, .rpie .t text { forced-color-adjust: none; }
-  .kmini .off, .crit .kmini .off, .sp .kmini .off, .cidx .kmini .off { fill: Canvas; stroke: CanvasText; stroke-width: 1px; vector-effect: non-scaling-stroke; opacity: 1; }
-  .kmini .on, .crit .kmini .on, .sp .kmini .on, .cidx .kmini .on { fill: CanvasText; }
+  .sw, .sl, .t text { forced-color-adjust: none; }
   .sfield { border: 1px solid CanvasText; }
   .sfield:focus-within { outline: 2px solid Highlight; outline-offset: 1px; }
   .slist { border: 1px solid CanvasText; }
   .so.on { outline: 2px solid Highlight; outline-offset: -2px; }
-  .nb:target:before { background: Highlight; }
 }

@@ -29,7 +29,7 @@ def test_stat_failed() -> None:
     """TC-STAT-FAILED: RFC-0004 statistics fixture (not a result)."""
     out = statistic([rep(1, 100.0), rep(2, 110.0), rep(4, 90.0)], [FAILED], "0.1.0")
     assert out["stats"] == {"n": 3, "n_failed": 1, "mean": 100.0, "stdev": 10.0,
-                            "min": 90.0, "max": 110.0}  # fmt: skip
+                            "min": 90.0, "max": 110.0, "median": 100.0}  # fmt: skip
     assert out["value"] == 100.0
     assert out["unit"] == "token/s"
     assert out["scope"] == "prove.steady"
@@ -50,7 +50,7 @@ def test_stat_n0_all_failed() -> None:
     assert out["value"] is None
     assert out["null_reason"] == "step_failed"
     assert out["stats"] == {"n": 0, "n_failed": 3, "mean": None, "stdev": None,
-                            "min": None, "max": None}  # fmt: skip
+                            "min": None, "max": None, "median": None}  # fmt: skip
     check(out)
 
 
@@ -104,6 +104,15 @@ def test_tokens_covered_per_proof_constant_statistics() -> None:
               for i in (1, 2, 3)]  # fmt: skip
     out = statistic(inputs, [], "0.1.0")
     assert out["stats"] == {"n": 3, "n_failed": 0, "mean": 1000.0, "stdev": 0.0,
-                            "min": 1000.0, "max": 1000.0}  # fmt: skip
+                            "min": 1000.0, "max": 1000.0, "median": 1000.0}  # fmt: skip
     assert (out["value"], out["unit"], out["scope"]) == (1000.0, "token", None)
+    check(out)
+
+
+def test_stat_median_is_not_the_mean_when_one_run_is_far_off() -> None:
+    """RFC-0017 ST-1, hand-computed: 577, 16000, 16100, 16200 (the shape of a session rate with
+    one cold start) has mean 12219.25 and median (16000 + 16100) / 2 = 16050."""
+    out = statistic([rep(i, v) for i, v in enumerate([577.0, 16000.0, 16100.0, 16200.0], 1)],
+                    [], "0.1.0")  # fmt: skip
+    assert (out["value"], out["stats"]["median"]) == (12219.25, 16050.0)  # type: ignore[index]
     check(out)

@@ -12,7 +12,7 @@
   "stats": {
     "max": 11.0,
     "mean": 10.0,
-    "median": 10.0,
+    "mode": 10.0,
     "min": 9.0,
     "n": 3,
     "n_failed": 0,

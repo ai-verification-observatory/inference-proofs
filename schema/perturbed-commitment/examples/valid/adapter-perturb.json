@@ -1,0 +1,29 @@
+{
+  "change": "byte 0 of weights.bin raised by one",
+  "commitment": {
+    "commitment_id": "c0ffee",
+    "prover_files": [],
+    "verifier_files": []
+  },
+  "harness_version": "0.1.0",
+  "image": "ghcr.io/example/iproofs-fake@sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "model_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "perturbation": {
+    "digest_tool": null,
+    "digest_w": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "digest_w_prime": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "index": 0,
+    "new": 13,
+    "old": 12,
+    "tensor": "weights.bin",
+    "unit": "one byte"
+  },
+  "release": "v0.1",
+  "schema": "perturbed-commitment/1",
+  "source_model_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "system": "fake",
+  "workload": {
+    "id": "fake-tiny-ci",
+    "version": 1
+  }
+}

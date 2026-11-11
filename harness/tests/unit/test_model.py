@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from iproofs.errors import IProofsError
-from iproofs.model import Quantity, Statistic, _convert, load
+from iproofs.model import Quantity, _convert, load
 from iproofs.quantity import Grade, Scope, SourceKind, Unit
 from iproofs.schema import SchemaRegistry
 
@@ -17,16 +17,16 @@ EXAMPLES = ROOT / "schema/quantity/examples/valid"
 
 
 def test_from_tree_tuples_and_mappingproxy() -> None:
-    tree = json.loads((EXAMPLES / "statistic.three-repetitions.json").read_text())
-    stat = Statistic.from_tree(tree)
-    assert stat.unit is Unit.S
-    assert stat.scope is Scope.PROVE_SESSION
-    assert stat.grade is Grade.DERIVED
-    assert stat.source.kind is SourceKind.DERIVATION
-    assert isinstance(stat.source.inputs, tuple)
-    assert stat.stats.n == 3
+    tree = json.loads((EXAMPLES / "quantity.derived-per-weight-bit.json").read_text())
+    q = Quantity.from_tree(tree)
+    assert q.unit is Unit(tree["unit"])
+    assert q.scope is Scope(tree["scope"])
+    assert q.grade is Grade.DERIVED
+    assert q.source.kind is SourceKind.DERIVATION
+    assert isinstance(q.source.inputs, tuple)
+    assert list(q.source.inputs) == tree["source"]["inputs"]
     with pytest.raises(dataclasses.FrozenInstanceError):
-        stat.value = 1.0  # type: ignore[misc]
+        q.value = 1.0  # type: ignore[misc]
 
 
 def test_open_map_becomes_mappingproxy() -> None:
@@ -63,4 +63,7 @@ def test_from_tree_called_only_from_load() -> None:
         for line in path.read_text().splitlines():
             if re.search(r"\.from_tree\(", line) and "SchemaRegistry.from_tree" not in line:
                 calls.append(f"{path.name}: {line.strip()}")
-    assert calls == ["model.py: return model_for(schema_id).from_tree(tree)"]
+    assert sorted(calls) == [
+        "level.py: level = Level.from_tree(tree)",  # after load_document validated it
+        "model.py: return model_for(schema_id).from_tree(tree)",
+    ]

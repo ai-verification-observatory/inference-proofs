@@ -17,8 +17,8 @@
       "type": "string"
     },
     "metricId": {
-      "$comment": "RFC-0004 \u00a7Recorded metrics, the repetition-level derived ids and the release-level ids (D-OVERHEAD-S, D-OVERHEAD-HIGH-S, D-OVERHEAD-WARM, D-AGREE, D-PROVIDER-SPREAD; RFC-0015 RC-5 counts)",
-      "pattern": "^(info_seconds|setup_seconds|commit_seconds|prove_session_seconds|prove_steady_seconds|whole_wall_seconds|prove_call_seconds|proofs_count|requests_count|tokens_covered_total|tokens_covered_prompt|tokens_covered_output|tokens_covered_steady|proof_bytes|proof_bytes_total|verifier_download_bytes|prover_keep_bytes|verify_seconds|verify_seconds_total|verify_single_thread_seconds|verify_host_memory_peak_anon|verdicts_accept_count|commit_seconds_per_token_h1|commit_seconds_per_token_h1000|proof_bytes_per_token|verify_seconds_per_token|proof_bytes_per_active_weight_bit_token|verify_seconds_per_active_weight_bit_token|verify_single_thread_seconds_per_token|tokens_covered_per_proof|(commit|prove)_(gpu_memory_peak|gpu_util_mean|gpu_util_p95|gpu_energy|host_memory_peak_kernel|host_memory_peak_anon|cpu_seconds)|agreement_positions|disagreement_positions|agreement_rate|overhead_vs_production_warm|(rate|seconds_per_token|cost_per_1k_tokens|active_param_tokens_per_second|seconds_per_active_weight_bit_token|gpu_seconds_per_token|overhead_vs_production_high|overhead_vs_production|provider_spread)_(setup|commit|prove\\.steady|prove\\.session|whole_wall|verify|verify\\.single_thread|primitive))$",
+      "$comment": "RFC-0004 §Recorded metrics, the repetition-level derived ids and the release-level ids (D-OVERHEAD-S, D-OVERHEAD-HIGH-S, D-OVERHEAD-WARM, D-AGREE, D-PROVIDER-SPREAD; RFC-0015 RC-5 counts); RFC-0017 per-request ids (D-TPR, D-GSPR-S, D-COST-REQ-S, D-BPR, D-VSPR)",
+      "pattern": "^(info_seconds|setup_seconds|commit_seconds|prove_session_seconds|prove_steady_seconds|whole_wall_seconds|prove_call_seconds|proofs_count|requests_count|tokens_covered_total|tokens_covered_prompt|tokens_covered_output|tokens_covered_steady|proof_bytes|proof_bytes_total|verifier_download_bytes|prover_keep_bytes|verify_seconds|verify_seconds_total|verify_single_thread_seconds|verify_host_memory_peak_anon|verdicts_accept_count|commit_seconds_per_token_h1|commit_seconds_per_token_h1000|proof_bytes_per_token|verify_seconds_per_token|proof_bytes_per_active_weight_bit_token|verify_seconds_per_active_weight_bit_token|verify_single_thread_seconds_per_token|tokens_covered_per_proof|tokens_covered_per_request|proof_bytes_per_request|verify_seconds_per_request|(commit|prove)_(gpu_memory_peak|gpu_util_mean|gpu_util_p95|gpu_energy|host_memory_peak_kernel|host_memory_peak_anon|cpu_seconds)|agreement_positions|disagreement_positions|agreement_rate|overhead_vs_production_warm|(rate|seconds_per_token|cost_per_1k_tokens|active_param_tokens_per_second|seconds_per_active_weight_bit_token|gpu_seconds_per_token|gpu_seconds_per_request|cost_per_request|overhead_vs_production_high|overhead_vs_production|provider_spread)_(setup|commit|prove\\.steady|prove\\.session|whole_wall|verify|verify\\.single_thread|primitive))$",
       "type": "string"
     },
     "profileId": {
@@ -73,7 +73,11 @@
                   "USD/1k_token",
                   "param_token/s",
                   "s/bit_token",
-                  "gpu_s/token"
+                  "gpu_s/token",
+                  "gpu_s/request",
+                  "USD/request",
+                  "s/request",
+                  "request/gpu_s"
                 ]
               }
             }
@@ -358,7 +362,14 @@
             "s/bit_token",
             "gpu_s/token",
             "bit/weight",
-            "ratio"
+            "ratio",
+            "token/request",
+            "gpu_s/request",
+            "USD/request",
+            "B/request",
+            "s/request",
+            "request/gpu_s",
+            "nat/token"
           ]
         },
         "upstream_grade": {
@@ -517,6 +528,13 @@
             "null"
           ]
         },
+        "median": {
+          "$comment": "RFC-0017 ST-1: optional, so documents written before it stay valid",
+          "type": [
+            "number",
+            "null"
+          ]
+        },
         "min": {
           "type": [
             "number",
@@ -564,5 +582,5 @@
   "$id": "https://inference-proofs.org/schema/quantity/1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Shared $defs only; no document has schema quantity/1.",
-  "title": "Labelled quantity and shared definitions (RFC-0012 \u00a7Labelled quantity)"
+  "title": "Labelled quantity and shared definitions (RFC-0012 §Labelled quantity)"
 }

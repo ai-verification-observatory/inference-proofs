@@ -2,8 +2,109 @@
   "$id": "https://inference-proofs.org/schema/perturbed-commitment/1.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "RFC-0018 AD-5: W' from the adapter's perturb with the level's change; otherwise RFC-0008's perturb_model",
+      "else": {
+        "properties": {
+          "perturbation": {
+            "additionalProperties": false,
+            "properties": {
+              "after": {
+                "pattern": "^([0-9a-f]{2})+$",
+                "type": "string"
+              },
+              "before": {
+                "pattern": "^([0-9a-f]{2})+$",
+                "type": "string"
+              },
+              "dtype": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "file": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "tensor": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "after",
+              "before",
+              "dtype",
+              "file",
+              "tensor"
+            ],
+            "type": "object"
+          }
+        }
+      },
+      "if": {
+        "required": [
+          "change"
+        ]
+      },
+      "then": {
+        "properties": {
+          "perturbation": {
+            "$comment": "RFC-0018 AD-5: the record the adapter's perturb returns",
+            "additionalProperties": false,
+            "properties": {
+              "digest_tool": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "digest_w": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "digest_w_prime": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "index": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "new": {},
+              "old": {},
+              "tensor": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "unit": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "tensor",
+              "index",
+              "old",
+              "new",
+              "unit",
+              "digest_w",
+              "digest_w_prime",
+              "digest_tool"
+            ],
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
   "description": "The commitment of a workload's weights with one tensor element perturbed, made once per workload per release by `iproofs controls --prepare-perturbed` for controls C3 and P1 (RFC-0008). Stored as results/<release>/<system>/_controls/<workload>/perturbed.json; the perturbed weights never leave the runner's host.",
   "properties": {
+    "change": {
+      "$comment": "RFC-0018 CH-2: the level's model_change the adapter's perturb applied; absent for RFC-0008's perturb_model",
+      "minLength": 1,
+      "type": "string"
+    },
     "commitment": {
       "$ref": "../manifest/1.schema.json#/properties/commitment/anyOf/1"
     },
@@ -19,36 +120,6 @@
       "$ref": "../quantity/1.schema.json#/$defs/digest"
     },
     "perturbation": {
-      "additionalProperties": false,
-      "properties": {
-        "after": {
-          "pattern": "^([0-9a-f]{2})+$",
-          "type": "string"
-        },
-        "before": {
-          "pattern": "^([0-9a-f]{2})+$",
-          "type": "string"
-        },
-        "dtype": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "file": {
-          "minLength": 1,
-          "type": "string"
-        },
-        "tensor": {
-          "minLength": 1,
-          "type": "string"
-        }
-      },
-      "required": [
-        "after",
-        "before",
-        "dtype",
-        "file",
-        "tensor"
-      ],
       "type": "object"
     },
     "release": {

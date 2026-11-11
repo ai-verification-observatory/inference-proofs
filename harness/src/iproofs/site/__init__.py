@@ -1,7 +1,7 @@
-"""`iproofs site build`: the public site from the newest frozen release (RFC-0009 §Site).
+"""`iproofs site build`: the public site (RFC-0018 §Site).
 
-One generator (#320). `view.site_view` computes every value the pages print from the release
-index, `release.yaml`, the claim cards, the run records, the criteria file and
+One generator. `view.site_view` computes every value the pages print from the level file, the
+newest Level 1 release's board file (or a board file given for a preview), the claim cards and
 `web/_data/facts.json` (`inputs` reads them; no git call, no clock). `build` hands that view to
 the renderer in the tree's `web/build.py`, which draws the pages, search index, preview-card
 sources and `vercel.json`, and writes them with the canonical writers of `iproofs.serialize`.
@@ -46,14 +46,14 @@ def copy_assets(web: Path, out: Path) -> None:
                 shutil.copyfile(src, dst)
 
 
-def build(root: Path, out: Path) -> list[Path]:
-    """Write the site of the newest frozen release under `root` into `out`; returns the pages
-    written, sorted. Never removes `out` or a file in it: the renderer fails, before it writes
-    anything, on a page or card source it no longer writes, so a stale page stops the build
-    (a config error) instead of being deployed."""
+def build(root: Path, out: Path, board: Path | None = None) -> list[Path]:
+    """Write the site under `root` into `out` (from the board file `board`, else the newest
+    Level 1 release's); returns the pages written, sorted. Never removes `out` or a file in it:
+    the renderer fails, before it writes anything, on a page or card source it no longer writes,
+    so a stale page stops the build (a config error) instead of being deployed."""
     from iproofs.site.view import site_view  # noqa: PLC0415 (view reads the release tree)
 
-    view = site_view(root)
+    view = site_view(root, board)
     out.mkdir(parents=True, exist_ok=True)
     if out.resolve() != (root / "web").resolve():
         copy_assets(root / "web", out)

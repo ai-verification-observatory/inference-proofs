@@ -1,0 +1,111 @@
+"""The site against the board file it is built from: every printed figure is a value the board
+stores, every glyph draws the board's check states, and no v0.1 figure is printed (RFC-0018 SI-1,
+SI-3, SI-5, CH-7). Run from the repository root: uv run pytest web -q
+"""
+
+import html
+import re
+from pathlib import Path
+from typing import Any
+
+FIG = re.compile(
+    r'<span class="fig" title="([^"]*)"><span class="n">([^<]*)</span>'
+    r'<span class="u(?: x)?">([^<]*)</span></span>'
+)
+SLICE = re.compile(r'class="sl s(\d) (green|amber|red|hollow)"')
+CHECK_ROW = re.compile(
+    r'<tr class="ck (held|failed|undecided)"><th scope="row"><a href="/checks#([a-z_]+)"'
+)
+PETALS = ("unforgeable", "weights_hidden", "faithful_model", "any_model", "no_trusted_party")
+CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")
+
+
+def resolve(doc: Any, pointer: str) -> Any:
+    for raw in pointer.strip("/").split("/"):
+        part = raw.replace("~1", "/").replace("~0", "~")
+        doc = doc[int(part)] if isinstance(doc, list) else doc[part]
+    return doc
+
+
+def pages(out: Path) -> dict[str, str]:
+    return {p.name: p.read_text() for p in sorted(out.glob("*.html"))}
+
+
+def rows(board: dict[str, Any]) -> list[dict[str, Any]]:
+    return [row for rung in board["rungs"] for row in rung["rows"]]
+
+
+def test_every_printed_figure_is_a_board_value(board_site: Any) -> None:
+    """AGENTS.md rules 2 and 3: each figure names its record in the board, and prints that
+    stored value in its unit, through the renderer's own number words."""
+    number = board_site.build.number
+    seen = 0
+    for name, text in pages(board_site.out).items():
+        assert text.count('class="fig"') == len(FIG.findall(text)), name
+        for title, n, unit in FIG.findall(text):
+            record = re.search(r"record: [^#]+#(/[^;\"]+)", html.unescape(title))
+            assert record, (name, title)
+            stored = resolve(board_site.board, record[1])
+            if isinstance(stored, dict):  # a quantity: its own unit
+                assert (n, unit) == number(stored["value"], stored["unit"]), (name, record[1])
+            elif unit == "tokens":  # a mean matched prefix
+                assert n == board_site.build.sig(stored), (name, record[1])
+            else:  # a session's GPU-seconds per reply
+                assert (n, unit) == number(stored, "gpu_s/request"), (name, record[1])
+            seen += 1
+    assert seen > 40
+
+
+def test_glyphs_draw_the_board_states(board_site: Any) -> None:
+    """GL-5: every glyph of a row, on the overview and on its page, draws its five petals in
+    order with the board's states; the page's checks table prints the board's check states."""
+    text = pages(board_site.out)
+    index = text["index.html"]
+    for row in rows(board_site.board):
+        assert [p["id"] for p in row["glyph"]] == list(PETALS)
+        want = [p["state"] for p in row["glyph"]]
+        tr = re.search(rf'<tr class="row" id="row-{row["system"]}">(.*?)</tr>', index, re.S)
+        assert tr, row["system"]
+        drawn = SLICE.findall(tr[1])
+        assert drawn
+        assert len(drawn) % 5 == 0
+        for k in range(0, len(drawn), 5):
+            assert [int(n) for n, _ in drawn[k : k + 5]] == [1, 2, 3, 4, 5]
+            assert [s for _, s in drawn[k : k + 5]] == want, row["system"]
+        page = text[f"{row['system']}.html"]
+        assert [s for _, s in SLICE.findall(page)] == want, row["system"]
+        checks = [(c, s) for s, c in CHECK_ROW.findall(page)]
+        assert checks == [(c, row["checks"][c]["state"]) for c in CHECKS], row["system"]
+
+
+def test_order_and_positions_are_the_boards(board_site: Any) -> None:
+    """OR-5: rows print in the board's order, a position only where the board holds one."""
+    index = pages(board_site.out)["index.html"]
+    printed = re.findall(r'<tr class="row" id="row-([^"]+)"><td class="cp">(.*?)</td>', index)
+    want = [(r["system"], r["position"]) for r in rows(board_site.board)]
+    got = [(sid, int(m[1]) if (m := re.search(r'class="pn">(\d+)<', cell)) else None)
+           for sid, cell in printed]  # fmt: skip
+    assert got == want
+
+
+def test_no_v01_figure(board_site: Any, empty_site: Path) -> None:
+    """SI-5: the v0.1 release is a record only. With no Level 1 board the site prints no figure
+    at all, and neither build names v0.1 or one of its headline figures."""
+    for name, text in pages(empty_site).items():
+        assert 'class="fig"' not in text, name
+    for out in (empty_site, board_site.out):
+        for name, text in {**pages(out), "search.json": (out / "search.json").read_text()}.items():
+            assert "v0.1" not in text, name
+            for figure in ("5.746", "7.128", "61.28"):
+                assert figure not in text, (name, figure)
+
+
+def test_every_rung_not_run_without_a_board(empty_site: Path) -> None:
+    """With no board, each rung of the level file is drawn, and drawn as not run."""
+    from iproofs.serialize import load_yaml  # noqa: PLC0415
+
+    level = load_yaml(Path(__file__).resolve().parents[1] / "levels/L1.yaml")
+    index = (empty_site / "index.html").read_text()
+    sections = re.findall(r'<section class="rung" id="([^"]+)"(.*?)</section>', index, re.S)
+    assert [s for s, _ in sections] == [r["id"] for r in level["rungs"]]  # type: ignore[index]
+    assert all("Not run yet." in body and "<table" not in body for _, body in sections)

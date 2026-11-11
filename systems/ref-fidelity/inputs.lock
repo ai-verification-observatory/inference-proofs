@@ -1,0 +1,7 @@
+# RFC-0014 B2: every external input the fetch stage downloads, one per line:
+# <name>	<url>	sha256:<hex>
+# llama.cpp v0.9.0 (GitHub release of 2026-11-04, the newest non-prerelease on 2026-11-10; tag
+# object c4261a74 points at this commit). The digest is of `git archive --format=tar HEAD`,
+# which the fetch stage recomputes after checking `git rev-parse HEAD`. The converter's Python
+# packages come through convert-requirements.txt, which carries their hashes.
+llama.cpp	https://github.com/ggml-org/llama.cpp.git#cd959bae99ff4bed22bef2604f45241c09bbb8c8	sha256:ebc9626331ee0e0b1c4e4679bcaa5edc61f258c93a6c0a17d68dd091057c4e94

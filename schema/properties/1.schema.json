@@ -1,0 +1,150 @@
+{
+  "$defs": {
+    "petal": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "GL-1: a stated petal carries its deciding quotes; silence names the documents read",
+          "else": {
+            "properties": {
+              "quotes": {
+                "minItems": 1
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "const": "not_stated"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "sources_read": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "quotes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "format": "uri",
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "type": "string"
+        },
+        "sources_read": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "state": {
+          "enum": [
+            "green",
+            "amber",
+            "red",
+            "not_stated"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "reason",
+        "quotes",
+        "sources_read"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/properties/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "systems/<name>/properties.yaml: the statement petals of the glyph, read from the publisher's documents at the pin by a reviewer (RFC-0018 §The glyph, GL-1).",
+  "properties": {
+    "configuration": {
+      "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+    },
+    "petals": {
+      "additionalProperties": false,
+      "properties": {
+        "no_trusted_party": {
+          "$ref": "#/$defs/petal"
+        },
+        "unforgeable": {
+          "$ref": "#/$defs/petal"
+        },
+        "weights_hidden": {
+          "$ref": "#/$defs/petal"
+        }
+      },
+      "required": [
+        "unforgeable",
+        "weights_hidden",
+        "no_trusted_party"
+      ],
+      "type": "object"
+    },
+    "read": {
+      "format": "date",
+      "type": "string"
+    },
+    "schema": {
+      "const": "properties/1"
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "repo": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "system",
+    "configuration",
+    "upstream",
+    "read",
+    "petals"
+  ],
+  "title": "Glyph statements (RFC-0018 §The glyph)",
+  "type": "object"
+}

@@ -1,0 +1,39 @@
+# The statement petals of FlashProve's glyph (RFC-0018 §The glyph, GL-1), read from FlashProve's
+# documentation at the pinned commit for the configuration the row runs (the C++ verifier
+# `cp_verify` at exact match, claim.yaml). Every quote is upstream's own wording. Read by the
+# integrator on 2026-11-11; not reviewed by FlashProve's maintainers.
+schema: "properties/1"
+system: "flashprove"
+configuration: "exact-match-cp-verify"
+upstream: {repo: "anthropics/FlashProve", commit: "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"}
+read: "2026-11-11"
+petals:
+  unforgeable:
+    state: "amber"
+    reason: "A soundness level is proven for the protocol, in Lean, for the Lean verifier; the C++ verifier this row runs is tested, not proved."
+    quotes:
+      - text: "The Lean verifier accepts a proof of a false claim with probability at most about q/2^124 + 2^-101 after q hash queries (about 124 bits per query; not \"128 bits\")"
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L70"
+      - text: "Nothing is proved of the C++ verifier that the examples and most users run, of the CUDA prover, or of the committer, and no theorem says that they run the protocol the Lean verifier checks: that rests on tests."
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L272-L277"
+      - text: "The C++ programs' printed \"bits\" are their own accounting, not a theorem"
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L65-L73"
+    sources_read: []
+  weights_hidden:
+    state: "amber"
+    reason: "Zero knowledge is proved in Lean for the protocol; for the programs it is expected, not known, and a declared list of values stays visible."
+    quotes:
+      - text: "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol, at full size and at the exact-match policy, with fresh random masks. The honest prover in these theorems is a Lean definition, not the CUDA prover."
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3-L5"
+      - text: "we expect, rather than know, that the programs hide the weights at the default setting, in honest runs, if the provider keeps its duties"
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L9-L27"
+      - text: "At least eleven things are visible"
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L5-L21"
+    sources_read: []
+  no_trusted_party:
+    state: "green"
+    reason: "Soundness is stated in the random-oracle model for the hash, with no setup ceremony, hardware or third party. Public files fixed before the hash, which the documents also name, are shared by every non-interactive proof and do not count against it."
+    quotes:
+      - text: "The random-oracle model for the hash, with a second, fixed hash function, built on BLAKE2b's compression function, assumed independent of it"
+        url: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L57-L58"
+    sources_read: []

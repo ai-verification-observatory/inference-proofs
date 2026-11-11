@@ -96,7 +96,8 @@ def test_run_arguments_match_rfc() -> None:
             "--allow-nonconforming",
         ]
     )
-    assert (args.repetitions, str(args.results), args.control_suite) == (3, "results", True)
+    # --repetitions is None when absent: `run` applies 3, and refuses it under --level
+    assert (args.repetitions, str(args.results), args.control_suite) == (None, "results", True)
 
 
 def test_optional_extras_not_imported_on_help() -> None:

@@ -1,7 +1,7 @@
 {
   "$defs": {
     "commandLine": {
-      "$comment": "one line of /io/commands.jsonl (RFC-0005 \u00a7Command log)",
+      "$comment": "one line of /io/commands.jsonl (RFC-0005 §Command log)",
       "additionalProperties": false,
       "properties": {
         "argv": {
@@ -90,6 +90,9 @@
           "binding_report": false,
           "commitment_id": false,
           "log_files": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "perturbation": false,
           "policy": false,
           "proofs": false,
           "prover_files": false,
@@ -125,6 +128,10 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "perturbation": false,
           "policy": false,
           "profile": false,
           "proofs": false,
@@ -159,6 +166,10 @@
           "contract_versions": false,
           "image_inputs": false,
           "log_files": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "perturbation": false,
           "policy": false,
           "profile": false,
           "proofs": false,
@@ -193,6 +204,10 @@
           "contract_versions": false,
           "image_inputs": false,
           "log_files": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "perturbation": false,
           "policy": false,
           "profile": false,
           "prover_files": false,
@@ -227,6 +242,10 @@
           "contract_versions": false,
           "image_inputs": false,
           "log_files": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "perturbation": false,
           "profile": false,
           "proofs": false,
           "prover_files": false,
@@ -242,6 +261,126 @@
           "raw_exit_code",
           "raw_last_line",
           "seconds"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "logprobs"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adapter_commit": false,
+          "adapter_dirty": false,
+          "binding_report": false,
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "perturbation": false,
+          "policy": false,
+          "profile": false,
+          "proofs": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "logprobs_files"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "perturb"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adapter_commit": false,
+          "adapter_dirty": false,
+          "binding_report": false,
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "policy": false,
+          "profile": false,
+          "proofs": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "perturbation"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "mutate_reply"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adapter_commit": false,
+          "adapter_dirty": false,
+          "binding_report": false,
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "logprobs_files": false,
+          "optional_subcommands": false,
+          "perturbation": false,
+          "policy": false,
+          "profile": false,
+          "proofs": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "mutated"
         ]
       }
     }
@@ -312,6 +451,94 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "logprobs_files": {
+      "$comment": "logprobs (RFC-0018 AD-2): per text, in order, a file of float32 little-endian log-probabilities of each next token",
+      "items": {
+        "pattern": "^/io/logprobs/[^\\x00]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "mutated": {
+      "$comment": "mutate_reply (RFC-0018 AD-6): what the adapter changed; the mutated proof is in out_dir",
+      "additionalProperties": false,
+      "properties": {
+        "fields": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "parts": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "parts",
+        "fields"
+      ],
+      "type": "object"
+    },
+    "optional_subcommands": {
+      "$comment": "info (RFC-0018 AD-2): the optional subcommands this adapter implements; one not listed is unsupported and never called",
+      "items": {
+        "enum": [
+          "logprobs",
+          "perturb",
+          "mutate_reply"
+        ]
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "perturbation": {
+      "$comment": "RFC-0018 AD-5: the record the adapter's perturb returns",
+      "additionalProperties": false,
+      "properties": {
+        "digest_tool": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "digest_w": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "digest_w_prime": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "index": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "new": {},
+        "old": {},
+        "tensor": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "unit": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "tensor",
+        "index",
+        "old",
+        "new",
+        "unit",
+        "digest_w",
+        "digest_w_prime",
+        "digest_tool"
+      ],
+      "type": "object"
     },
     "phases": {
       "items": {
@@ -395,7 +622,10 @@
         "setup",
         "commit",
         "prove",
-        "verify"
+        "verify",
+        "logprobs",
+        "perturb",
+        "mutate_reply"
       ]
     },
     "system": {
@@ -439,6 +669,6 @@
     "phases",
     "warnings"
   ],
-  "title": "Adapter output file /io/out.json (RFC-0005 \u00a7Subcommands and file shapes)",
+  "title": "Adapter output file /io/out.json (RFC-0005 §Subcommands and file shapes)",
   "type": "object"
 }

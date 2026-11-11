@@ -30,7 +30,7 @@ from typing import Any
 
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.model import ServingModel, Workload, load
-from iproofs.provenance import file_digest, model_digest
+from iproofs.provenance import checked_tree_digest, file_digest, hex_digests
 from iproofs.schema import SchemaRegistry
 
 SERVING_DIR = "workloads/serving"
@@ -293,15 +293,16 @@ def check_files(record: ServingModel, directory: Path) -> None:
         raise IProofsError(
             ErrorKind.CONFIG, f"{record.id}: files missing {missing}, unexpected {extra} (SM-2)"
         )
+    hexes = hex_digests(have)  # every file read once; the model digest is over these
     for path, f in sorted(want.items()):
         got = have[path]
-        if got.stat().st_size != f.bytes or file_digest(got) != f"sha256:{f.sha256}":
+        if got.stat().st_size != f.bytes or hexes[path] != f.sha256:
             raise IProofsError(ErrorKind.CONFIG, f"{record.id}: {path} is not the record's (SM-2)")
         if f.storage == "git" and git_blob_id(got.read_bytes()) != f.publisher_blob:
             raise IProofsError(
                 ErrorKind.CONFIG, f"{record.id}: {path} is not the publisher's bytes (SM-2)"
             )
-    if model_digest(directory) != record.model.digest:
+    if checked_tree_digest(directory, hexes) != record.model.digest:
         raise IProofsError(ErrorKind.CONFIG, f"{record.id}: model digest differs (SM-2)")
 
 

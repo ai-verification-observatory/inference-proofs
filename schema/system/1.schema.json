@@ -328,7 +328,8 @@
     "reference_role": {
       "enum": [
         "serve",
-        "recompute"
+        "recompute",
+        "fidelity"
       ]
     },
     "schema": {
@@ -394,6 +395,16 @@
           },
           {
             "additionalProperties": false,
+            "if": {
+              "properties": {
+                "load_point": {
+                  "const": "ladder"
+                }
+              },
+              "required": [
+                "load_point"
+              ]
+            },
             "properties": {
               "batch_size": {
                 "$comment": "RFC-0015 SRV-1: the high-load batch (serve role, `high` only)",
@@ -427,10 +438,11 @@
                 "$ref": "../quantity/1.schema.json#/$defs/workloadId"
               },
               "load_point": {
-                "$comment": "RFC-0015 SRV-1: the production-serving load point (serve role only)",
+                "$comment": "RFC-0015 SRV-1: the production-serving load point (serve role only); RFC-0018 CO-4: `ladder`, the level's concurrency ladder in one prove call",
                 "enum": [
                   "matched",
-                  "high"
+                  "high",
+                  "ladder"
                 ]
               },
               "precision_substitution": {
@@ -469,6 +481,13 @@
               "precision_substitution",
               "engine_args"
             ],
+            "then": {
+              "$comment": "RFC-0018 CO-4: a ladder entry takes its batches from the level file",
+              "properties": {
+                "batch_size": false,
+                "batches_per_session_run": false
+              }
+            },
             "type": "object"
           }
         ]

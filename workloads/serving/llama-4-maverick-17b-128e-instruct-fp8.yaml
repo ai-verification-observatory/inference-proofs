@@ -16,7 +16,7 @@
 schema: "serving-model/1"
 id: "llama-4-maverick-17b-128e-instruct-fp8"
 version: 1
-workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
+workloads: ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24", "l1-maverick-p512-o512"]
 publisher:
   name: "Meta"
   release: {hub: "huggingface", repo: "meta-llama/Llama-4-Maverick-17B-128E-Instruct-FP8", revision: "94125d2bd83076b21eed33119525e29eaf3894f4", gated: true}

@@ -11,19 +11,11 @@ import pathlib
 # chrome.load_faces). Nothing is read when the module is imported.
 HERE = OG = pathlib.Path()
 V: dict = {}
-CRIT: dict = {}
-PROPS: list = []
-CONFIGS: list = []
-PROVERS: list = []
-PAGE: dict = {}
-MODEL_NAME: dict = {}
+ROWS: list = []  # every row of the board, rung by rung (largest model first), in board order
+PAGE: dict = {}  # page id -> its row
 INK: dict = {}
 FACES: list = []
-RFC_FILES: dict = {}
-REPO_URL = LINK_REF = RFC_REF = crit_sha = ""
-# the repository the system page being drawn pins (its card's upstream): its source links print
-# path and lines, the facts' pinned row naming it once; "" between system pages
-HOME = ""
+REPO_URL = LINK_REF = ""
 ladder: list = []
 pairs: list = []
 WRITE_TEXT = WRITE_JSON = None

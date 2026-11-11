@@ -3,6 +3,7 @@
 - Authors: 0xchqrles
 - Created: 2026-11-07
 - Requires: RFC-0002, RFC-0008, RFC-0009, RFC-0012, RFC-0013, RFC-0015
+- Superseded for Level 1 by RFC-0018 (2026-11-10): the glyph draws six checks the benchmark runs; this RFC's properties and states no longer drive the site, and `web/_data/criteria.json` is kept as the v0.1 record.
 
 ## Summary
 

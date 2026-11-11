@@ -5,6 +5,8 @@ INV-ARCH-5: every function here is pure: no clock, no file writes, no network.
 
 import statistics
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
+from itertools import pairwise
 from pathlib import Path
 
 from iproofs import __version__
@@ -259,6 +261,12 @@ COMPUTE: dict[str, Callable[[list[float], int], float]] = {
     "D-VSPT": _over,
     "D-VSPT-1T": _over,
     "D-TPP": _ratio,
+    # RFC-0017 §Per-request figures: a per-token figure times the tokens one request covers
+    "D-TPR": _ratio,
+    "D-GSPR-S": lambda x, gpus: x[0] * x[1] * x[2] / nonzero(x[3]),
+    "D-COST-REQ-S": lambda x, gpus: x[0] / 1000 * x[1] / nonzero(x[2]),
+    "D-BPR": _over,
+    "D-VSPR": _over,
 }
 
 
@@ -299,6 +307,9 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
             formula, harness_version, unit, scope, inputs, lambda x: compute(x, gpus)
         )
 
+    # RFC-0017 INV-REQ-1: every request of a workload covers the same number of tokens, so a
+    # per-request figure is the per-token one times tokens covered over requests
+    covered, requests = metric("tokens_covered_total"), metric("requests_count")
     for scope in RATE_SCOPES:
         sec = metric(_SECONDS[scope])
         tok = metric(
@@ -321,6 +332,21 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
                 scope,
                 [metric(f"seconds_per_token_{scope}"), gpu_count],
             )
+        if gpu_count is not None:  # as D-GSPT-S: no GPU count, no GPU-seconds
+            put(
+                f"gpu_seconds_per_request_{scope}",
+                "D-GSPR-S",
+                Unit.GPU_S_PER_REQUEST,
+                scope,
+                [metric(f"seconds_per_token_{scope}"), gpu_count, covered, requests],
+            )
+        put(
+            f"cost_per_request_{scope}",
+            "D-COST-REQ-S",
+            Unit.USD_PER_REQUEST,
+            scope,
+            [metric(f"cost_per_1k_tokens_{scope}"), covered, requests],
+        )
         put(
             f"active_param_tokens_per_second_{scope}",
             "D-APT-S",
@@ -367,6 +393,21 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
         [metric("verify_single_thread_seconds"), first_proof_tokens],
     )
     put("tokens_covered_per_proof", "D-TPP", Unit.TOKEN, None, [total, metric("proofs_count")])
+    put("tokens_covered_per_request", "D-TPR", Unit.TOKEN_PER_REQUEST, None, [total, requests])
+    put(
+        "proof_bytes_per_request",
+        "D-BPR",
+        Unit.B_PER_REQUEST,
+        None,
+        [metric("proof_bytes_total"), requests],
+    )
+    put(
+        "verify_seconds_per_request",
+        "D-VSPR",
+        Unit.S_PER_REQUEST,
+        Scope.VERIFY,
+        [metric("verify_seconds_total"), requests],
+    )
     # proof size and check time on the D-SPAB-S basis: per token covered, per bit of active
     # weights (D-BPT and D-VSPT divide by tokens covered, as D-SPT-S does)
     put(
@@ -394,7 +435,21 @@ def derive_repetition(  # noqa: PLR0913 (one keyword per formula input outside r
 PROVER_ONLY = frozenset({"D-TPP", "D-SPAB-S", "D-BPAB", "D-VSPAB"})
 
 # RFC-0004 Q3: formulas a release freeze evaluates for a run stored before they existed.
-FREEZE_FORMULAS = frozenset({"D-TPP", "D-SPAB-S", "D-GSPT-S", "D-BPAB", "D-VSPAB"})
+FREEZE_FORMULAS = frozenset(
+    {
+        "D-TPP",
+        "D-SPAB-S",
+        "D-GSPT-S",
+        "D-BPAB",
+        "D-VSPAB",
+        # RFC-0017: every run of v0.1 was stored before the per-request formulas
+        "D-TPR",
+        "D-GSPR-S",
+        "D-COST-REQ-S",
+        "D-BPR",
+        "D-VSPR",
+    }
+)
 
 
 def freeze_values(
@@ -459,8 +514,13 @@ FORMULAS = {
     "D-VSPT": "verify_seconds_total / tokens_covered_total",
     "D-VSPT-1T": "first-proof single-thread verify seconds / first-proof tokens",
     "D-TPP": "tokens_covered_total / proofs_count",
+    "D-TPR": "tokens_covered_total / requests_count",
+    "D-GSPR-S": "D-SPT-S * gpus * tokens_covered_total / requests_count (gpus: inputs.gpu_count)",
+    "D-COST-REQ-S": "D-COST-1K-S / 1000 * tokens_covered_total / requests_count",
+    "D-BPR": "proof_bytes_total / requests_count",
+    "D-VSPR": "verify_seconds_total / requests_count",
     "D-STAT": "over successful repetitions in repetition order: statistics.mean, "
-    "statistics.stdev (n - 1, null when n < 2), min, max",
+    "statistics.stdev (n - 1, null when n < 2), min, max, statistics.median",
     "D-OVERHEAD-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
     "gpu_seconds_per_token_<S>, matched load)",
     "D-OVERHEAD-HIGH-S": "mean(system gpu_seconds_per_token_<S>) / mean(production-serving "
@@ -471,6 +531,14 @@ FORMULAS = {
     "D-AGREE": "agreement_positions / (agreement_positions + disagreement_positions), "
     "summed over paired ref-recompute runs",
     "D-PROVIDER-SPREAD": "largest provider mean rate_<S> / smallest provider mean rate_<S>",
+    # RFC-0018 §Cost (Level 1 boards)
+    "D-L1-SESSION": "CO-1: mean over counted sessions of (r_N - commit.start) * gpus / N",
+    "D-L1-STEADY": "CO-3: mean over counted sessions of m = (t_G - t_1) * gpus / (n_2 + ... "
+    "+ n_G) + (generation.end - generation.start) * gpus / N when both marks exist",
+    "D-L1-BASELINE-RATE": "CO-4: r_c = timed replies / (timed span * gpus) at concurrency c",
+    "D-L1-BASELINE": "CO-4: 1 / r_c at full load, the lowest c with r_c >= (1 - plateau) * max r",
+    "D-L1-MULTIPLE": "CO-5: row GPU-seconds per reply / baseline GPU-seconds per reply",
+    "D-L1-USD": "GPU-seconds per reply * price per GPU-hour / 3600",
 }
 
 
@@ -513,6 +581,7 @@ def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> Q
             "stdev": None,
             "min": None,
             "max": None,
+            "median": None,
         }
         return out
     mean = statistics.mean(values)
@@ -523,6 +592,7 @@ def statistic(inputs: Sequence[Input], failed: Sequence[str], version: str) -> Q
         "stdev": statistics.stdev(values) if n >= 2 else None,
         "min": min(values),
         "max": max(values),
+        "median": statistics.median(values),  # RFC-0017 ST-1
     }
     valued = [(ref, q) for ref, q in inputs if q is not None and q["value"] is not None]
     out = derived("D-STAT", version, unit, scope, valued, lambda _: mean)
@@ -647,9 +717,14 @@ def recompute(
     if formula == "D-STAT":
         stats = q.get("stats")
         if isinstance(stats, Mapping) and stats["n"] == 0:
-            return statistic([], [ref for ref, _ in inputs], version)
-        n_failed = int(stats["n_failed"]) if isinstance(stats, Mapping) else 0
-        return statistic(inputs, [f"failed:{i}" for i in range(n_failed)], version)
+            fresh = statistic([], [ref for ref, _ in inputs], version)
+        else:
+            n_failed = int(stats["n_failed"]) if isinstance(stats, Mapping) else 0
+            fresh = statistic(inputs, [f"failed:{i}" for i in range(n_failed)], version)
+        fresh_stats = fresh.get("stats")
+        if isinstance(stats, Mapping) and "median" not in stats and isinstance(fresh_stats, dict):
+            fresh_stats.pop("median", None)  # a statistic stored before RFC-0017 ST-1
+        return fresh
     if formula not in COMPUTE:
         raise UnknownFormula(formula)
     compute = COMPUTE[formula]
@@ -723,6 +798,102 @@ def _reference_for(figures: Mapping[tuple[str, str, str], Input], workload: str)
 
 def _nulled(out: QuantityTree, reason: NullReason) -> QuantityTree:
     return {**out, "value": None, "null_reason": str(reason)}
+
+
+# ---------------------------------------------------------------- Level 1 cost (RFC-0018)
+
+TOO_FEW_GROUPS = "too few groups"
+UNEVEN_GROUPS = "uneven groups"
+MISSING_MARK = "missing generation mark"
+
+
+@dataclass(frozen=True, slots=True)
+class Group:
+    """CO-2: proofs released within the group gap of the previous release. `time_ns` is t_g,
+    the group's last release; `first_ns` its first."""
+
+    size: int
+    first_ns: int
+    time_ns: int
+
+
+def release_groups(times_ns: Sequence[int], gap_s: float) -> list[Group]:
+    """CO-2: the release times, sorted, cut wherever a release comes more than `gap_s` seconds
+    after the previous one."""
+    ordered = sorted(times_ns)
+    if not ordered:
+        return []
+    groups: list[list[int]] = [[ordered[0]]]
+    for before, t in pairwise(ordered):
+        if (t - before) / 1e9 <= gap_s:
+            groups[-1].append(t)
+        else:
+            groups.append([t])
+    return [Group(len(g), g[0], g[-1]) for g in groups]
+
+
+def _constant(level: object, section: str, name: str) -> float:
+    """A constant of the level file: `level.<section>.<name>`, from the level model or a tree
+    read from `levels/<id>.yaml`; a section passed alone also works."""
+    if isinstance(level, Mapping):
+        node = level.get(section, level)
+    else:
+        node = getattr(level, section, level)
+    value = node.get(name) if isinstance(node, Mapping) else getattr(node, name, None)
+    if not isinstance(value, int | float):
+        raise IProofsError(ErrorKind.CONFIG, f"level has no {section}.{name}")
+    return float(value)
+
+
+def later_group_seconds(groups: Sequence[Group]) -> list[float]:
+    """CO-3: each later group's seconds per reply, (t_g - t_{g-1}) / n_g, for g = 2..G."""
+    return [(g.time_ns - prev.time_ns) / 1e9 / g.size for prev, g in pairwise(groups)]
+
+
+def generation_seconds(marks: object) -> tuple[float | None, str | None]:
+    """CO-3, AD-4: (seconds between the `generation.start` and `generation.end` marks, None);
+    (None, None) when the run has neither mark (no phase of its own); (None, MISSING_MARK)
+    when it has only one."""
+    found = {str(m.get("name")): m.get("mono_ns") for m in marks if isinstance(m, Mapping)} \
+        if isinstance(marks, list) else {}  # fmt: skip
+    start, end = found.get("generation.start"), found.get("generation.end")
+    if start is None and end is None:
+        return None, None
+    if not isinstance(start, int) or not isinstance(end, int):
+        return None, MISSING_MARK
+    return (end - start) / 1e9, None
+
+
+def steady_per_reply(
+    groups: Sequence[Group], gpus: int, level: object, generation_s: float | None = None
+) -> tuple[float | None, str | None]:
+    """CO-3: (m, None) with m = (t_G - t_1) x gpus / (n_2 + ... + n_G) in GPU-seconds per
+    further reply, plus generation_s x gpus / N when the adapter generated the replies in a
+    phase of its own (N, the session's replies, is n_1 + ... + n_G); or (None, cause) when the
+    session has no steady state: `too few groups` below `steady.min_later_groups` later groups,
+    `uneven groups` when a later group's seconds per reply lies more than `steady.tolerance`
+    from their median."""
+    min_later = _constant(level, "steady", "min_later_groups")
+    tolerance = _constant(level, "steady", "tolerance")
+    if len(groups) - 1 < min_later:
+        return None, TOO_FEW_GROUPS
+    per_reply = later_group_seconds(groups)
+    median = statistics.median(per_reply)
+    if any(abs(x - median) > tolerance * median for x in per_reply):
+        return None, UNEVEN_GROUPS
+    later = sum(g.size for g in groups[1:])
+    m = (groups[-1].time_ns - groups[0].time_ns) / 1e9 * gpus / later
+    if generation_s is not None:
+        m += generation_s * gpus / sum(g.size for g in groups)
+    return m, None
+
+
+def session_per_reply(commit_start_ns: int, times_ns: Sequence[int], n: int, gpus: int) -> float:
+    """CO-1: GPU-seconds from the start of `commit` to the release of the last of the session's
+    N proofs, over N. Generation is inside it wherever it happens."""
+    if n < 1 or not times_ns:
+        raise IProofsError(ErrorKind.INTERNAL, "CO-1 over a session with no released proof")
+    return (max(times_ns) - commit_start_ns) / 1e9 * gpus / n
 
 
 def overhead_formula(scope: Scope, *, high: bool = False, warm: bool = False) -> str:

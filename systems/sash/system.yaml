@@ -12,14 +12,18 @@ upstream:
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
   digest: "sha256:bf548d5666b10d653babb23612d670dfa7c86f7b75f3784da0451d53ec90f577"
-workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
+# l1-l31-8b-p512-o512 (RFC-0018 Level 1): 512 + 512, five requests a session, one grid of two
+# blocks per request; README.md §Level 1 has the geometry and the open items.
+workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
 profile: "prover-h100"
 deterministic_proofs: true
-incremental_proofs: false
+# a job proves its requests one after another and releases each grid as it completes: 5 proofs
+# a job at Level 1, one at v0.1 (where one release leaves the steady scope unobservable anyway)
+incremental_proofs: true
 proofs:
   granularity: "segment_grid"
   tokens_covered: "prompt_plus_output"
-  steady_boundary: "not_observable"
+  steady_boundary: "first_proof"
   steady_approximate: false
   # RFC-0008 §Parts the verifier reads: boundary-grid reads plan.txt and every segment's three
   # files (README.md §Values for system.yaml)

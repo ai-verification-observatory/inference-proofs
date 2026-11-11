@@ -1,0 +1,438 @@
+#!/usr/bin/env python3
+"""ref-fidelity: the fidelity reference of RFC-0018 (FI-1, FI-2, FI-7) in llama.cpp.
+
+Usage: entrypoint <info|prove> /io/job.json /io/out.json
+
+`iproofs fidelity run` writes /io/job.json and calls `prove` once per model source: `reference`
+(the publisher's 16-bit files at /models: the reference and every control built from it),
+`other_model` (the smaller model of the same publisher at /models), and `file` (a row's
+committed GGUF file at /models, KL only). Each call:
+
+1. converts the 16-bit release to GGUF with llama.cpp's `convert_hf_to_gguf.py` (`--outtype`
+   the level's dtype) into /io/work, the only large writable place;
+2. for each control (and for the reference itself) builds the model file (`rerun`: the
+   reference GGUF again; `quantize`: `llama-quantize` from the 16-bit GGUF; `drop_blocks`:
+   drop_blocks.py, then read back with llama.cpp's own `gguf` package; `other_model`: its own
+   conversion; `file`: the row's file), starts `llama-server` on it and asks `/completion` for
+   each prompt (token ids in, `return_tokens`, greedy, 512 tokens),
+   writing /io/fidelity/replies/<id>.jsonl, one reply per line in prompt order; an end token
+   chosen greedily stays in the reply and generation goes on from prompt + reply so far, the
+   number of such continuations recorded per reply in status.json;
+3. runs `llama-perplexity` over the KL texts: `--kl-divergence-base` on the reference, then
+   `--kl-divergence` on each control, logs in /io/fidelity/kl/<id>.log;
+4. deletes each built file once its replies and KL are written.
+
+A control that fails is recorded as failed with its cause and the call goes on (RFC-0018
+§Failure modes). /io/fidelity/status.json gathers every call's outcome; /io/commands.jsonl
+logs every command. `commit` and `verify` do not exist for a reference job.
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests or a
+hosted job run this file as a process; IPROOFS_LLAMA_BIN and IPROOFS_LLAMA_SRC name the
+llama.cpp binaries and source tree outside the image.
+"""
+
+import concurrent.futures
+import json
+import os
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
+
+CONVERT_DEPS = os.environ.get("IPROOFS_CONVERT_DEPS", "/opt/convert-deps")
+sys.path.append(CONVERT_DEPS)  # PyYAML comes with the converter's pinned packages
+import yaml  # noqa: E402
+
+LLAMA_CPP_COMMIT = "cd959bae99ff4bed22bef2604f45241c09bbb8c8"  # llama.cpp v0.9.0
+BIN = Path(os.environ.get("IPROOFS_LLAMA_BIN", "/opt/llama.cpp/build/bin"))
+SRC = Path(os.environ.get("IPROOFS_LLAMA_SRC", "/opt/llama.cpp/src"))
+HERE = Path(__file__).resolve().parent
+SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.yaml"))
+INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+START_TIMEOUT_S = float(os.environ.get("IPROOFS_ENGINE_START_S", "7200"))
+REQUEST_TIMEOUT_S = float(os.environ.get("IPROOFS_REQUEST_S", "3600"))
+# Every layer on the GPUs (llama.cpp's -ngl takes a count; above the block count means all).
+ALL_LAYERS = "999"
+CTX_MARGIN = 64  # tokens per slot beyond prompt plus reply, so no slot reaches its end
+
+
+def host(container_path: str) -> Path:
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"ref-fidelity: path {container_path!r} outside /io and /models")
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}  # fmt: skip
+
+
+class ToolFailed(Exception):
+    """A command exited non-zero; the message names it and its last lines."""
+
+
+def run_tool(argv: list[str], log: Path, env: dict[str, str] | None = None) -> str:
+    """Run one command, its output to `log`, logged in /io/commands.jsonl; returns the output.
+    Exit non-zero: ToolFailed with the last lines (AGENTS.md rule 5)."""
+    started = time.monotonic_ns()
+    log.parent.mkdir(parents=True, exist_ok=True)
+    with log.open("w") as f:
+        proc = subprocess.run(argv, stdout=f, stderr=subprocess.STDOUT, check=False,
+                              env={**os.environ, **(env or {})})  # fmt: skip
+    record = {"argv": argv, "cwd": "/io", "started_mono_ns": started,
+              "exit_code": proc.returncode}  # fmt: skip
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(record, sort_keys=True) + "\n")
+    text = log.read_text(errors="replace")
+    if proc.returncode != 0:
+        tail = " | ".join(text.splitlines()[-5:])
+        raise ToolFailed(f"{Path(argv[0]).name} exited {proc.returncode}: {tail}")
+    return text
+
+
+def free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def completion_body(prompt: list[int], n_predict: int) -> dict[str, object]:
+    """One greedy request (tools/server/README.md at the pin): a token-id prompt gets no BOS
+    added; `samplers` ["temperature"] at temperature 0 selects llama.cpp's greedy sampler
+    (common/sampling.cpp L403 to L406); `cache_prompt` false evaluates every prompt from an
+    empty cache. `ignore_eos` stays false: llama.cpp's would set the end-of-generation tokens'
+    logit bias to -inf (tools/server/server-schema.cpp L442 to L452), while the request of
+    RFC-0018 keeps a greedily chosen end token in the reply and goes on (`greedy_reply`)."""
+    return {"prompt": prompt, "n_predict": n_predict, "ignore_eos": False, "temperature": 0.0,
+            "samplers": ["temperature"], "n_probs": 0, "cache_prompt": False,
+            "return_tokens": True, "stream": False}  # fmt: skip
+
+
+def greedy_reply(server: "LlamaServer", prompt: list[int], n: int) -> tuple[list[int], int]:
+    """The request's reply of `n` tokens and the number of continuations it took. The server
+    stops at an end-of-generation token and returns it as the last of `tokens` with `stop_type`
+    "eos" (tools/server/server-context.cpp L2142 to L2145 and L2254 to L2256); the reply keeps
+    it, and prompt + reply so far is sent as a new prompt for the remaining count, until `n`
+    tokens. Any other stop short of `n` fails the reply."""
+    reply: list[int] = []
+    continuations = 0
+    while len(reply) < n:
+        tokens, stop = server.complete(prompt + reply, n - len(reply))
+        if not tokens:
+            raise ToolFailed(f"llama-server returned no token after {len(reply)} ({stop})")
+        reply += tokens
+        if len(reply) < n:
+            if stop != "eos":
+                raise ToolFailed(f"llama-server stopped ({stop}) at {len(reply)} of {n} tokens")
+            continuations += 1
+    return reply[:n], continuations  # n_predict may run past n on a partial character
+
+
+class LlamaServer:
+    """`llama-server` on one model file, bound to the container's loopback."""
+
+    def __init__(self, model: Path, slots: int, ctx_per_slot: int, log: Path) -> None:
+        self.port = free_port()
+        self.argv = [str(BIN / "llama-server"), "-m", str(model), "--host", "127.0.0.1",
+                     "--port", str(self.port), "-c", str(ctx_per_slot * slots), "-np",
+                     str(slots), "-ngl", ALL_LAYERS, "--cache-ram", "0", "--no-webui"]  # fmt: skip
+        log.parent.mkdir(parents=True, exist_ok=True)
+        self.log_path = log
+        self.log = log.open("w")
+        self.started = time.monotonic_ns()
+        self.proc = subprocess.Popen(self.argv, stdout=self.log, stderr=subprocess.STDOUT)
+        try:
+            self.wait_ready()
+        except BaseException:
+            self.stop()
+            raise
+
+    def wait_ready(self) -> None:
+        deadline = time.monotonic() + START_TIMEOUT_S
+        while time.monotonic() < deadline:
+            if self.proc.poll() is not None:
+                tail = " | ".join(self.log_path.read_text(errors="replace").splitlines()[-5:])
+                raise ToolFailed(f"llama-server exited {self.proc.returncode} at start: {tail}")
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/health", timeout=5):
+                    return
+            except (urllib.error.URLError, OSError):
+                time.sleep(2)
+        raise ToolFailed(f"llama-server not ready after {START_TIMEOUT_S} s")
+
+    def post(self, path: str, body: dict[str, object]) -> dict[str, object]:
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}{path}", data=json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"},
+        )  # fmt: skip
+        try:
+            with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_S) as response:
+                doc: dict[str, object] = json.loads(response.read())
+        except (urllib.error.URLError, OSError) as e:
+            raise ToolFailed(f"llama-server {path} failed: {e}") from e
+        return doc
+
+    def complete(self, prompt: list[int], n: int) -> tuple[list[int], str]:
+        """One /completion request: its token ids and its `stop_type`."""
+        doc = self.post("/completion", completion_body(prompt, n))
+        tokens = doc.get("tokens") or []
+        assert isinstance(tokens, list)
+        return [int(t) for t in tokens], str(doc.get("stop_type"))
+
+    def detokenize(self, tokens: list[int]) -> str:
+        return str(self.post("/detokenize", {"tokens": tokens}).get("content", ""))
+
+    def stop(self) -> None:
+        record = {"argv": self.argv, "cwd": "/io", "started_mono_ns": self.started,
+                  "exit_code": self.proc.poll()}  # fmt: skip
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            try:
+                self.proc.wait(timeout=60)
+            except subprocess.TimeoutExpired:
+                self.proc.kill()
+            record["exit_code"] = 0
+        self.log.close()
+        with host("/io/commands.jsonl").open("a") as f:
+            f.write(json.dumps(record, sort_keys=True) + "\n")
+
+
+make_server = LlamaServer  # the tests replace this with a replay
+
+
+def convert(model_dir: Path, out: Path, dtype: str) -> None:
+    """FI-1: the 16-bit release as GGUF, by llama.cpp's own converter at the pin, offline."""
+    work = host("/io/work")
+    run_tool(["python3", str(SRC / "convert_hf_to_gguf.py"), str(model_dir), "--outtype", dtype,
+              "--outfile", str(out)], host(f"/io/fidelity/logs/convert-{out.stem}.log"),
+             env={"PYTHONPATH": CONVERT_DEPS, "HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1",
+                  "HF_HOME": str(work / ".cache"), "HOME": str(work)})  # fmt: skip
+
+
+def drop_blocks(reference: Path, out: Path, every: int) -> dict[str, object]:
+    """FI-2 `drop_blocks`, then read back by llama.cpp's own `gguf` package: the block count it
+    reads must be the one drop_blocks wrote."""
+    log = host(f"/io/fidelity/logs/build-{out.stem}.log")
+    text = run_tool(["python3", str(HERE / "drop_blocks.py"), str(reference), str(out),
+                     "--every", str(every)], log)  # fmt: skip
+    summary: dict[str, object] = json.loads(text.strip().splitlines()[-1])
+    check = ("import gguf, sys; r = gguf.GGUFReader(sys.argv[1]); "
+             "print(r.get_field(sys.argv[2]).contents())")  # fmt: skip
+    key = f"{summary['architecture']}.block_count"
+    read = run_tool(["python3", "-c", check, str(out), key],
+                    host(f"/io/fidelity/logs/check-{out.stem}.log"),
+                    env={"PYTHONPATH": f"{SRC / 'gguf-py'}:{CONVERT_DEPS}"})  # fmt: skip
+    if read.strip().splitlines()[-1] != str(summary["new_block_count"]):
+        raise ToolFailed(f"gguf reads {key} {read.strip()!r}, drop_blocks wrote "
+                         f"{summary['new_block_count']}")  # fmt: skip
+    return summary
+
+
+def model_file(model_dir: Path) -> Path:
+    """A row's committed GGUF: the first file of a split set loads the rest."""
+    found = sorted(model_dir.rglob("*.gguf"))
+    if not found:
+        raise ToolFailed(f"no .gguf file under {model_dir}")
+    return found[0]
+
+
+def read_jsonl(path: Path) -> list[list[int]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def write_replies(path: Path, replies: list[list[int]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text("".join(json.dumps(r, separators=(",", ":")) + "\n" for r in replies))
+    os.replace(tmp, path)
+
+
+def generate(model: Path, ident: str, job: dict,
+             kl_texts: list[list[int]] | None = None) -> tuple[str, list[int]]:
+    """Replies of `model` to every prompt, written to /io/fidelity/replies/<ident>.jsonl, and
+    each reply's continuation count; with `kl_texts`, also /io/work/kl.txt, the KL texts as the
+    model's tokenizer writes them."""
+    prompts = read_jsonl(host(job["prompts_file"]))
+    n, slots = job["output_tokens"], max(1, int(job.get("slots", 1)))
+    ctx = max(len(p) for p in prompts) + n + CTX_MARGIN
+    server = make_server(model, slots, ctx, host(f"/io/fidelity/logs/server-{ident}.log"))
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=slots) as pool:
+            done = list(pool.map(lambda p: greedy_reply(server, p, n), prompts))
+        if kl_texts is not None:
+            text = "\n\n".join(server.detokenize(t) for t in kl_texts)
+            host("/io/work/kl.txt").write_text(text)
+    finally:
+        server.stop()
+    write_replies(host(f"/io/fidelity/replies/{ident}.jsonl"), [r for r, _ in done])
+    return f"fidelity/replies/{ident}.jsonl", [c for _, c in done]
+
+
+def perplexity(argv: list[str], ident: str) -> str:
+    log = host(f"/io/fidelity/kl/{ident}.log")
+    run_tool([str(BIN / "llama-perplexity"), *argv, "-ngl", ALL_LAYERS], log)
+    return f"fidelity/kl/{ident}.log"
+
+
+def kl_base(reference: Path, job: dict) -> str:
+    kl = job["kl"]
+    return perplexity(["-m", str(reference), "-f", str(host("/io/work/kl.txt")), "-c",
+                       str(kl["tokens"]), "--chunks", str(kl["texts"]),
+                       "--kl-divergence-base", str(host("/io/work/kl-base.kld"))],
+                      "reference")  # fmt: skip
+
+
+def kl_of(model: Path, ident: str, job: dict) -> str:
+    return perplexity(["-m", str(model), "-c", str(job["kl"]["tokens"]),
+                       "--kl-divergence-base", str(host("/io/work/kl-base.kld")),
+                       "--kl-divergence"], ident)  # fmt: skip
+
+
+def build(control: dict, reference: Path | None, job: dict) -> tuple[Path, bool, dict]:
+    """The control's model file, whether it is a file this call made (deleted after use), and
+    what the build recorded."""
+    work = host("/io/work")
+    recipe, out = control["recipe"], work / f"{control['id']}.gguf"
+    if recipe in ("rerun", "quantize", "drop_blocks") and reference is None:
+        raise ToolFailed(f"{recipe} needs the reference GGUF of this call")
+    if recipe == "rerun":
+        assert reference is not None
+        return reference, False, {}
+    if recipe == "quantize":
+        run_tool([str(BIN / "llama-quantize"), str(reference), str(out), control["type"]],
+                 host(f"/io/fidelity/logs/build-{control['id']}.log"))  # fmt: skip
+        return out, True, {"type": control["type"]}
+    if recipe == "drop_blocks":
+        assert reference is not None
+        return out, True, drop_blocks(reference, out, int(control["every"]))
+    if recipe == "other_model":
+        convert(host(job["model_dir"]), out, job["dtype"])
+        return out, True, {}
+    if recipe == "file":
+        return model_file(host(job["model_dir"])), False, {}
+    raise ToolFailed(f"recipe {recipe!r} is not one this image builds")
+
+
+def status_file() -> Path:
+    return host("/io/fidelity/status.json")
+
+
+def save_status(update: dict) -> None:
+    """Merge this call's outcomes into /io/fidelity/status.json (calls add, never remove)."""
+    path = status_file()
+    doc = json.loads(path.read_text()) if path.is_file() else {"controls": {}}
+    doc["controls"].update(update.pop("controls", {}))
+    doc.update(update)
+    tmp = path.with_name("status.json.tmp")
+    tmp.write_text(json.dumps(doc, sort_keys=True, indent=2) + "\n")
+    os.replace(tmp, path)
+
+
+def phase(name: str) -> str:
+    return "".join(c if c.isalnum() else "_" for c in name.lower())[:32].strip("_") or "phase"
+
+
+def run_control(control: dict, reference: Path | None, job: dict, phases: list) -> dict:
+    """Build, generate and KL for one control; failures become its record."""
+    started = time.monotonic()
+    record: dict[str, object] = {"call": job["call"], "status": "failed", "cause": None,
+                                 "replies": None, "kl_log": None, "build": {}}  # fmt: skip
+    built: Path | None = None
+    try:
+        model, made, info = build(control, reference, job)
+        built = model if made else None
+        record["build"] = info
+        if job.get("replies", True):
+            record["replies"], record["continuations"] = generate(model, control["id"], job)
+        if host("/io/work/kl-base.kld").is_file():
+            try:
+                record["kl_log"] = kl_of(model, control["id"], job)
+            except ToolFailed as e:  # KL never gates (FI-7): the replies still count
+                record["kl_cause"] = str(e)
+        else:
+            record["kl_cause"] = "no KL base: the reference's llama-perplexity run failed"
+        record["status"] = "ok"
+    except ToolFailed as e:
+        record["cause"] = str(e)
+    finally:
+        if built is not None:
+            built.unlink(missing_ok=True)
+    phases.append({"name": phase(control["id"]), "seconds": time.monotonic() - started})
+    return record
+
+
+def prove(job: dict) -> dict:
+    for sub in ("work", "fidelity/replies", "fidelity/kl", "fidelity/logs"):
+        host(f"/io/{sub}").mkdir(parents=True, exist_ok=True)
+    phases: list[dict] = []
+    reference: Path | None = None
+    update: dict = {"controls": {}}
+    call = job["call"]
+    if call == "reference":
+        reference = host("/io/work/reference.gguf")
+        started = time.monotonic()
+        try:
+            convert(host(job["model_dir"]), reference, job["dtype"])
+        except ToolFailed as e:
+            save_status({"reference": {"status": "failed", "cause": str(e)}})
+            raise SystemExit(f"ref-fidelity: {e}") from e
+        phases.append({"name": "convert", "seconds": time.monotonic() - started})
+        started = time.monotonic()
+        kl_texts = read_jsonl(host(job["kl_texts_file"]))
+        try:
+            replies, continuations = generate(reference, "reference", job, kl_texts)
+        except ToolFailed as e:
+            save_status({"reference": {"status": "failed", "cause": str(e)}})
+            raise SystemExit(f"ref-fidelity: {e}") from e
+        phases.append({"name": "reference", "seconds": time.monotonic() - started})
+        update["reference"] = {"status": "ok", "cause": None, "replies": replies,
+                               "continuations": continuations}  # fmt: skip
+        try:
+            update["kl_base"] = {"status": "ok", "cause": None, "log": kl_base(reference, job)}
+        except ToolFailed as e:
+            update["kl_base"] = {"status": "failed", "cause": str(e), "log": None}
+    for control in job["controls"]:
+        update["controls"][control["id"]] = run_control(control, reference, job, phases)
+        save_status({"controls": dict(update["controls"]),
+                     **{k: v for k, v in update.items() if k != "controls"}})  # fmt: skip
+    if reference is not None:
+        reference.unlink(missing_ok=True)  # hundreds of GB for Maverick; KL keeps kl-base.kld
+    save_status(update)
+    return {**base("prove"), "proofs": [], "phases": phases}
+
+
+def system() -> dict:
+    path = SYSTEM_YAML if SYSTEM_YAML.is_file() else HERE / "system.yaml"
+    return dict(yaml.safe_load(path.read_text()))
+
+
+def info(job: dict) -> dict:
+    doc = system()
+    out = {**base("info"), "system": doc["name"], "upstream_commit": LLAMA_CPP_COMMIT,
+           "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
+           "workloads": sorted({w["id"] for w in doc["workloads"]}), "profile": "fidelity",
+           "contract_versions": ["adapter/1"]}  # fmt: skip
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"ref-fidelity: job.json is for {job.get('subcommand')!r}, not {sub!r}")
+    handlers = {"info": info, "prove": prove}
+    if sub not in handlers:
+        raise SystemExit(f"ref-fidelity: no {sub!r} step for a reference job")
+    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

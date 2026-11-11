@@ -1,0 +1,696 @@
+{
+  "$defs": {
+    "control": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "recipe": {
+                "const": "rerun"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "every": false,
+              "model": false,
+              "source": false,
+              "type": false
+            },
+            "required": []
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "recipe": {
+                "const": "quantize"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "every": false,
+              "model": false,
+              "source": false
+            },
+            "required": [
+              "type"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "recipe": {
+                "const": "drop_blocks"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "model": false,
+              "source": false,
+              "type": false
+            },
+            "required": [
+              "every"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "recipe": {
+                "const": "other_model"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "every": false,
+              "type": false
+            },
+            "required": [
+              "model",
+              "source"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "every": {
+          "minimum": 2,
+          "type": "integer"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_-]{1,47}$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "honest",
+            "damaged"
+          ]
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "recipe": {
+          "enum": [
+            "rerun",
+            "quantize",
+            "drop_blocks",
+            "other_model"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/hubSource"
+        },
+        "type": {
+          "$comment": "a llama-quantize type name (RFC-0018 FI-2)",
+          "pattern": "^[A-Z][A-Z0-9_]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "recipe"
+      ],
+      "type": "object"
+    },
+    "hubSource": {
+      "additionalProperties": false,
+      "properties": {
+        "hub": {
+          "const": "huggingface"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        },
+        "revision": {
+          "$comment": "null while the level is a draft; `iproofs level check --frozen` refuses null",
+          "anyOf": [
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/commit"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "hub",
+        "repo",
+        "revision"
+      ],
+      "type": "object"
+    },
+    "rung": {
+      "additionalProperties": false,
+      "properties": {
+        "cap_usd": {
+          "$comment": "RFC-0018 SE-4: this rung's cap per session, in place of sessions.cap_usd",
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "controls": {
+          "items": {
+            "$ref": "#/$defs/control"
+          },
+          "minItems": 2,
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,63}$",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "parameters_active": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "parameters_total": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "publisher": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "reference": {
+          "$comment": "RFC-0018 FI-1: the 16-bit reference, from a pinned source or from the serving record's own files",
+          "oneOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "dtype": {
+                  "enum": [
+                    "bf16",
+                    "f16"
+                  ]
+                },
+                "source": {
+                  "$ref": "#/$defs/hubSource"
+                }
+              },
+              "required": [
+                "dtype",
+                "source"
+              ],
+              "type": "object"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "dtype": {
+                  "enum": [
+                    "bf16",
+                    "f16"
+                  ]
+                },
+                "serving_files": {
+                  "const": true
+                }
+              },
+              "required": [
+                "dtype",
+                "serving_files"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "requests_per_session": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "serving": {
+          "$comment": "a serving-model/1 record id: workloads/serving/<id>.yaml",
+          "pattern": "^[a-z0-9][a-z0-9.-]{0,95}$",
+          "type": "string"
+        },
+        "workloads": {
+          "$comment": "system id -> workload id: the systems run on this rung",
+          "additionalProperties": {
+            "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+          },
+          "propertyNames": {
+            "$ref": "../quantity/1.schema.json#/$defs/systemId"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "controls",
+        "id",
+        "model",
+        "parameters_active",
+        "parameters_total",
+        "publisher",
+        "reference",
+        "requests_per_session",
+        "serving",
+        "workloads"
+      ],
+      "type": "object"
+    },
+    "system": {
+      "additionalProperties": false,
+      "properties": {
+        "limits": {
+          "$comment": "RFC-0018 CH-5: a check the system's own design makes impossible, with the publisher's sentence",
+          "additionalProperties": {
+            "additionalProperties": false,
+            "properties": {
+              "source": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "words": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "source",
+              "words"
+            ],
+            "type": "object"
+          },
+          "propertyNames": {
+            "enum": [
+              "run",
+              "model",
+              "prompt",
+              "reply",
+              "no_weight_file",
+              "fidelity"
+            ]
+          },
+          "type": "object"
+        },
+        "model_change": {
+          "$comment": "RFC-0018 CH-2: the one weight change the MODEL check commits as W'",
+          "minLength": 1,
+          "type": "string"
+        },
+        "security": {
+          "$comment": "RFC-0018 OR-2: the publisher's own words at the pin",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "stated": {
+              "type": "boolean"
+            },
+            "words": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "stated",
+            "words",
+            "source"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "model_change",
+        "security"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/level/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "baseline": {
+      "$comment": "RFC-0018 CO-4",
+      "additionalProperties": false,
+      "properties": {
+        "ladder": {
+          "items": {
+            "minimum": 1,
+            "type": "integer"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "plateau": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "prompts": {
+          "$comment": "RFC-0018 PR-3: distinct ladder prompts drawn after the KL texts; at least (warmup_batches + timed_batches) x the largest concurrency",
+          "minimum": 1,
+          "type": "integer"
+        },
+        "timed_batches": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "warmup_batches": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ladder",
+        "plateau",
+        "prompts",
+        "timed_batches",
+        "warmup_batches"
+      ],
+      "type": "object"
+    },
+    "fidelity": {
+      "$comment": "RFC-0018 FI-1 to FI-6",
+      "additionalProperties": false,
+      "properties": {
+        "alpha": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "engine": {
+          "additionalProperties": false,
+          "properties": {
+            "commit": {
+              "$comment": "null while the level is a draft; `iproofs level check --frozen` refuses null",
+              "anyOf": [
+                {
+                  "$ref": "../quantity/1.schema.json#/$defs/commit"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "repo": {
+              "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+              "type": "string"
+            },
+            "tool": {
+              "const": "llama.cpp"
+            }
+          },
+          "required": [
+            "commit",
+            "repo",
+            "tool"
+          ],
+          "type": "object"
+        },
+        "exact_up_to": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "resamples": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "score": {
+          "const": "matched_prefix"
+        },
+        "test": {
+          "const": "paired-sign-flip"
+        }
+      },
+      "required": [
+        "alpha",
+        "engine",
+        "exact_up_to",
+        "resamples",
+        "score",
+        "test"
+      ],
+      "type": "object"
+    },
+    "frozen": {
+      "$comment": "the date the level was frozen; null while it is a draft",
+      "anyOf": [
+        {
+          "format": "date",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "id": {
+      "pattern": "^L[1-9][0-9]*$",
+      "type": "string"
+    },
+    "kl": {
+      "$comment": "RFC-0018 FI-7, PR-3",
+      "additionalProperties": false,
+      "properties": {
+        "texts": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tokens": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "texts",
+        "tokens"
+      ],
+      "type": "object"
+    },
+    "name": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "order": {
+      "$comment": "RFC-0018 OR-3",
+      "additionalProperties": false,
+      "properties": {
+        "margin": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "margin"
+      ],
+      "type": "object"
+    },
+    "price": {
+      "$comment": "a key of `costs` in the named reference file (RFC-0006 C7)",
+      "additionalProperties": false,
+      "properties": {
+        "cost": {
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "type": "string"
+        },
+        "reference": {
+          "pattern": "^reference/[A-Za-z0-9._-]+\\.yaml$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "cost",
+        "reference"
+      ],
+      "type": "object"
+    },
+    "prompts": {
+      "$comment": "RFC-0018 PR-1 to PR-3",
+      "additionalProperties": false,
+      "properties": {
+        "beacon": {
+          "additionalProperties": false,
+          "properties": {
+            "chain_hash": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "name": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "relays": {
+              "items": {
+                "format": "uri",
+                "pattern": "^https://",
+                "type": "string"
+              },
+              "minItems": 2,
+              "type": "array",
+              "uniqueItems": true
+            },
+            "round": {
+              "$comment": "RFC-0018 PR-2; null while the level is a draft",
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "chain_hash",
+            "name",
+            "relays",
+            "round"
+          ],
+          "type": "object"
+        },
+        "corpus_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "generator": {
+          "const": "beacon-window/1"
+        }
+      },
+      "required": [
+        "beacon",
+        "corpus_digest",
+        "generator"
+      ],
+      "type": "object"
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "decoding": {
+          "const": "greedy"
+        },
+        "every_reply_token_checked": {
+          "const": true
+        },
+        "ignore_eos": {
+          "const": true
+        },
+        "output_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "decoding",
+        "every_reply_token_checked",
+        "ignore_eos",
+        "output_tokens",
+        "prompt_tokens"
+      ],
+      "type": "object"
+    },
+    "rungs": {
+      "items": {
+        "$ref": "#/$defs/rung"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "schema": {
+      "const": "level/1"
+    },
+    "sessions": {
+      "$comment": "RFC-0018 SE-1 to SE-4",
+      "additionalProperties": false,
+      "properties": {
+        "attempts_per_slot": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "cap_usd": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "slots": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "attempts_per_slot",
+        "cap_usd",
+        "slots"
+      ],
+      "type": "object"
+    },
+    "steady": {
+      "$comment": "RFC-0018 CO-2, CO-3",
+      "additionalProperties": false,
+      "properties": {
+        "group_gap_s": {
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "min_later_groups": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "tolerance": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        }
+      },
+      "required": [
+        "group_gap_s",
+        "min_later_groups",
+        "tolerance"
+      ],
+      "type": "object"
+    },
+    "systems": {
+      "additionalProperties": {
+        "$ref": "#/$defs/system"
+      },
+      "propertyNames": {
+        "$ref": "../quantity/1.schema.json#/$defs/systemId"
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "baseline",
+    "fidelity",
+    "frozen",
+    "id",
+    "kl",
+    "name",
+    "order",
+    "price",
+    "prompts",
+    "request",
+    "rungs",
+    "schema",
+    "sessions",
+    "steady",
+    "systems"
+  ],
+  "title": "Level: levels/L<k>.yaml (RFC-0018 §The level file)",
+  "type": "object"
+}

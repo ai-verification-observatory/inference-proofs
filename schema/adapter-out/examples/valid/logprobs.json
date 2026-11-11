@@ -1,0 +1,11 @@
+{
+  "contract": "adapter/1",
+  "logprobs_files": [
+    "/io/logprobs/0.f32",
+    "/io/logprobs/1.f32"
+  ],
+  "phases": [],
+  "schema": "adapter-out/1",
+  "subcommand": "logprobs",
+  "warnings": []
+}

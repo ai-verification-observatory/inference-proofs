@@ -36,5 +36,5 @@ def test_reference_workloads_are_objects(registry: SchemaRegistry) -> None:
     want = ("--tensor-parallel-size", "1", "--max-model-len", "4608", "--max-num-seqs", "1")
     assert ref.workloads[0].engine_args == want
     assert (ref.workloads[0].load_point, ref.workloads[0].gpus) == ("matched", 1)
-    assert ref.workload_ids() == ("sash-l31-8b-c4096", "sash-l31-8b-c4096")
+    assert ref.workload_ids() == ("sash-l31-8b-c4096", "sash-l31-8b-c4096", "l1-l31-8b-p512-o512")
     assert system("fake", registry).workload_ids() == ("fake-tiny-ci",)

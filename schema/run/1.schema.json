@@ -282,6 +282,31 @@
       ],
       "type": "object"
     },
+    "marks": {
+      "$comment": "RFC-0018 AD-4: the generation marks the adapter renamed into /io/marks during prove, timed like proof releases; absent when it wrote none",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "mono_ns": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "name": {
+            "enum": [
+              "generation.start",
+              "generation.end"
+            ]
+          }
+        },
+        "required": [
+          "name",
+          "mono_ns"
+        ],
+        "type": "object"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
     "metrics": {
       "additionalProperties": {
         "$ref": "#/$defs/reportedValue"

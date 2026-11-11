@@ -7,6 +7,7 @@ import importlib.machinery
 import importlib.util
 import json
 import os
+import types
 from pathlib import Path
 from types import ModuleType
 from typing import Any, ClassVar
@@ -492,3 +493,152 @@ def test_sizing_borderline_and_kv_dtype() -> None:
     doc["model"]["shape"]["kv_dtype"] = "fp8"
     assert m.kv_bytes_per_token(doc["model"]["shape"]) == 65_536
     assert m.size(doc, 1, 1088, 1).first_count is None
+
+
+# ---------------------------------------------------------------- the Level 1 ladder (CO-4)
+
+
+class LadderReplay(Replay):
+    """The fake server for a ladder job: records each batch's size and cache salt, and fails
+    every request of the concurrencies in `fail_at`."""
+
+    batches: ClassVar[list[tuple[int, str | None]]] = []
+    fail_at: ClassVar[set[int]] = set()
+
+    def generate(self, prompts: list[list[int]], max_tokens: int,
+                 salt: str | None = None) -> list[list[int]]:  # fmt: skip
+        LadderReplay.batches.append((len(prompts), salt))
+        if len(prompts) in LadderReplay.fail_at:
+            raise self.failure("HTTP Error 500")
+        return [[p[0] % 7] * max_tokens for p in prompts]
+
+    failure: ClassVar[type[Exception]] = RuntimeError
+
+
+def ladder_job(adapter: ModuleType, count: int, ladder: list[int],
+               workload: str = "l1-l31-8b-p512-o512", gpus: int = 1) -> dict[str, Any]:  # fmt: skip
+    """A ladder job as the runner writes it: the rung's `count` ladder prompts (batch_size
+    count, batches 1), the level's ladder, one warm-up and three timed batches."""
+    io = Path(adapter.host("/io"))
+    (io / "prompts.jsonl").write_text("".join(json.dumps([i] * 4) + "\n" for i in range(count)))
+    adapter.os.environ["CUDA_VISIBLE_DEVICES"] = ",".join(map(str, range(gpus)))
+    doc = job(io, workload, count, 1, 3, load_point="ladder", gpus=gpus)
+    doc["shape"] |= {"prompt_tokens": 512, "context_window": 515}
+    return doc | {"ladder": ladder, "warmup_batches": 1, "timed_batches": 3}
+
+
+def test_ladder_plan() -> None:
+    """CO-4: 16 ladder prompts at c = 1, 4, 8, one warm-up and three timed batches each. Batch s
+    of a rung serves prompts (s x c + j) mod 16: c = 1 serves 0 (warm-up), then 1, 2, 3; c = 4
+    serves 0-3, then 4-7, 8-11, 12-15, no prompt twice; c = 8 wraps after two batches. Every
+    batch holds c distinct prompts."""
+    plan = load_adapter_module().ladder_plan(16, [1, 4, 8], 1, 3)
+    assert [r["concurrency"] for r in plan] == [1, 4, 8]
+    one = plan[0]["batches"]
+    assert [(b["warmup"], b["batch"], b["indices"]) for b in one] == [
+        (True, 0, [0]), (False, 0, [1]), (False, 1, [2]), (False, 2, [3])]  # fmt: skip
+    four = [b["indices"] for b in plan[1]["batches"]]
+    assert four == [list(range(k * 4, k * 4 + 4)) for k in range(4)]
+    eight = [b["indices"] for b in plan[2]["batches"]]
+    assert eight == [list(range(8)), list(range(8, 16)), list(range(8)), list(range(8, 16))]
+    for rung in plan:
+        for b in rung["batches"]:
+            assert len(set(b["indices"])) == rung["concurrency"]
+
+
+def load_adapter_module() -> ModuleType:
+    loader = importlib.machinery.SourceFileLoader("ref_serve_plan", str(SYSTEM / "entrypoint"))
+    spec = importlib.util.spec_from_loader("ref_serve_plan", loader)
+    assert spec is not None
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
+def test_ladder_served_and_released(adapter: ModuleType) -> None:
+    """One prove call serves the ladder in order, each batch whole with its own cache salt,
+    under the ladder entry's engine options (no --max-num-seqs); every output is released with
+    its concurrency, batch and warm-up flag, and its id names them."""
+    adapter.make_serve_engine = LadderReplay
+    LadderReplay.batches, LadderReplay.fail_at, Replay.started = [], set(), []
+    out = run(adapter, "prove", ladder_job(adapter, 8, [1, 2, 4]))
+    sizes = [n for n, _ in LadderReplay.batches]
+    assert sizes == [1] * 4 + [2] * 4 + [4] * 4  # one warm-up and three timed batches each
+    salts = [s for _, s in LadderReplay.batches]
+    assert len(set(salts)) == len(salts)
+    assert Replay.started[-1][-4:] == ["--tensor-parallel-size", "1", "--max-model-len", "1024"]
+    ids = [p["proof_id"] for p in out["proofs"]]
+    assert ids[:4] == ["c1-w0-r0", "c1-b0-r0", "c1-b1-r0", "c1-b2-r0"]
+    assert ids[-4:] == ["c4-b2-r0", "c4-b2-r1", "c4-b2-r2", "c4-b2-r3"]
+    io = Path(adapter.host("/io"))
+    assert json.loads((io / "proofs/c2-b1-r1/outputs.json").read_text()) == {
+        "request_index": 5, "concurrency": 2, "batch": 1, "warmup": False,
+        "token_ids": [5, 5, 5]}  # fmt: skip
+    assert json.loads((io / "proofs/c4-w0-r3/outputs.json").read_text())["warmup"] is True
+    assert out["warnings"] == []
+
+
+def test_ladder_records_read_by_the_harness(adapter: ModuleType) -> None:
+    """The adapter's output ids and prompt indices are what iproofs.baseline reads: its
+    released outputs, given release times, give one rate per concurrency and no failed rung."""
+    from iproofs.baseline import FullLoad, full_load  # noqa: PLC0415
+
+    adapter.make_serve_engine = LadderReplay
+    LadderReplay.batches, LadderReplay.fail_at = [], set()
+    out = run(adapter, "prove", ladder_job(adapter, 4, [1, 2]))
+    proofs = [p | {"release_mono_ns": 10**9 * (i + 1)} for i, p in enumerate(out["proofs"])]
+    run_dir = Path(adapter.host("/io")).parent / "run"
+    run_dir.mkdir()
+    (run_dir / "run.json").write_text(json.dumps(
+        {"run_id": "r", "status": "completed", "proofs": proofs}))  # fmt: skip
+    (run_dir / "manifest.json").write_text(json.dumps(
+        {"workload": {"id": "l1-l31-8b-p512-o512", "load_point": "ladder"},
+         "machine": {"gpu": {"bound_indices": [0]}}}))  # fmt: skip
+    rung = types.SimpleNamespace(id="llama-3.1-8b", workloads={"sash": "l1-l31-8b-p512-o512"})
+    baseline = types.SimpleNamespace(ladder=(1, 2), plateau=0.05, warmup_batches=1,
+                                     timed_batches=3, prompts=4)  # fmt: skip
+    got = full_load(run_dir, types.SimpleNamespace(rungs=(rung,), baseline=baseline))
+    assert isinstance(got, FullLoad)
+    assert got.failed == ()
+    # c = 1: 3 timed replies released 1 s apart after the warm-up, 3 replies over 3 s;
+    # c = 2: 6 timed replies, the last 6 s after the warm-up's last release
+    assert [q["value"] for _, q in got.ladder] == [pytest.approx(1.0), pytest.approx(1.0)]
+
+
+def test_ladder_rung_failure_recorded(adapter: ModuleType) -> None:
+    """A rung whose request fails is recorded failed and the next rung runs; with every rung
+    failed the job fails."""
+    adapter.make_serve_engine = LadderReplay
+    LadderReplay.failure = adapter.RequestFailed
+    LadderReplay.batches, LadderReplay.fail_at = [], {2}
+    try:
+        out = run(adapter, "prove", ladder_job(adapter, 4, [1, 2, 4]))
+        assert "ladder c=2 failed: HTTP Error 500" in out["warnings"]
+        assert {p["proof_id"].split("-")[0] for p in out["proofs"]} == {"c1", "c4"}
+        LadderReplay.fail_at = {1, 2, 4}
+        for p in Path(adapter.host("/io/proofs")).iterdir():
+            for part in p.iterdir():
+                part.unlink()
+            p.rmdir()
+        with pytest.raises(SystemExit, match="every ladder rung failed"):
+            run(adapter, "prove", ladder_job(adapter, 4, [1, 2, 4]))
+    finally:
+        LadderReplay.fail_at, LadderReplay.failure = set(), RuntimeError
+
+
+def test_ladder_job_refused(adapter: ModuleType) -> None:
+    """A ladder job without its ladder, warm-up or timed batches, with a concurrency above its
+    prompts (a batch holds c distinct prompts), or above the engine's default max_num_seqs
+    (1,024) is `config` before the engine starts."""
+    adapter.make_serve_engine = LadderReplay
+    Replay.started = []
+    cases = ((3, {"ladder": []}, "names its concurrencies"),
+             (3, {"warmup_batches": 0}, "warms each rung up"),
+             (3, {"timed_batches": 0}, "times each rung"),
+             (3, {"ladder": [1, 4]}, "above the 3 ladder prompts"),
+             (2048, {"ladder": [1, 2048]}, "above the engine's max_num_seqs 1024"))  # fmt: skip
+    for count, change, words in cases:
+        failure = refused(adapter, ladder_job(adapter, count, [1, 2]) | change)
+        assert failure["kind"] == "config"
+        assert words in failure["message"]
+    assert Replay.started == []

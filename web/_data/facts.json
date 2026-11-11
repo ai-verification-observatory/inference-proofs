@@ -24,6 +24,7 @@
         "Gemma 4 31B"
       ],
       "name": "Attestable prover",
+      "reason": "no public verifier",
       "status": {
         "state": "no_repository"
       }
@@ -36,6 +37,7 @@
         "meta-llama/Llama-2-7b-hf (model id as given)"
       ],
       "name": "DeepProve",
+      "reason": "licence",
       "status": {
         "state": "active"
       },
@@ -47,6 +49,7 @@
         "nanoGPT example (size not stated)"
       ],
       "name": "EZKL",
+      "reason": "licence",
       "status": {
         "state": "active"
       },
@@ -59,6 +62,7 @@
       },
       "name": "FlashProve",
       "overview_workload": "fp-maverick-w1024-b24",
+      "reason": "not yet run",
       "status": {
         "quote": "A research artifact: not maintained, not accepting contributions.",
         "state": "unmaintained"
@@ -72,6 +76,7 @@
         "Qwen/Qwen2-0.5B (model id as given)"
       ],
       "name": "JOLT Atlas",
+      "reason": "licence",
       "status": {
         "state": "active"
       },
@@ -83,6 +88,7 @@
         "LeNet demo; no LLM named"
       ],
       "name": "JSTprove",
+      "reason": "licence",
       "status": {
         "state": "active"
       },
@@ -94,6 +100,7 @@
         "no LLM named"
       ],
       "name": "LuminAIR",
+      "reason": "no configuration at the request",
       "status": {
         "state": "active"
       },
@@ -105,6 +112,7 @@
         "not named"
       ],
       "name": "NanoZK",
+      "reason": "no public verifier",
       "status": {
         "state": "no_repository"
       }
@@ -115,6 +123,7 @@
         "LLaMA (branch \"llama\"), size not stated"
       ],
       "name": "opML",
+      "reason": "another kind of check",
       "status": {
         "state": "unmaintained"
       }
@@ -125,6 +134,7 @@
         "not named"
       ],
       "name": "Private ML SDK",
+      "reason": "another kind of check",
       "status": {
         "state": "archived"
       }
@@ -143,6 +153,7 @@
         "no LLM named"
       ],
       "name": "Remainder (Community Edition)",
+      "reason": "no configuration at the request",
       "status": {
         "state": "active"
       },
@@ -154,6 +165,7 @@
         "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/LICENSE"
       },
       "name": "SASH",
+      "reason": "not yet run",
       "status": {
         "last_push": "2026-10-19",
         "retrieved": "2026-11-05",
@@ -168,6 +180,7 @@
         "not named"
       ],
       "name": "Tinfoil",
+      "reason": "another kind of check",
       "status": {
         "state": "active"
       }
@@ -178,6 +191,7 @@
         "Llama 3.1-8B-Instruct"
       ],
       "name": "TOPLOC",
+      "reason": "another kind of check",
       "status": {
         "state": "active"
       }
@@ -188,6 +202,7 @@
         "not named"
       ],
       "name": "Verde (with RepOps)",
+      "reason": "another kind of check",
       "status": {
         "state": "no_repository"
       }
@@ -199,19 +214,21 @@
         "Llama-2-7B"
       ],
       "name": "VerInf",
+      "reason": "not yet run",
       "status": {
         "state": "active"
       },
       "technique": "hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside"
     },
     "zkgpt": {
-      "code": "no_public_code",
+      "code": "open_licence",
       "models": [
         "GPT-2"
       ],
       "name": "zkGPT",
+      "reason": "no configuration at the request",
       "status": {
-        "state": "no_repository"
+        "state": "active"
       }
     },
     "zkllm": {
@@ -220,6 +237,7 @@
         "Llama-2-7B and Llama-2-13B"
       ],
       "name": "zkLLM",
+      "reason": "no configuration at the request",
       "status": {
         "state": "archived"
       }
@@ -230,6 +248,7 @@
         "A distilled GPT-2"
       ],
       "name": "ZKML",
+      "reason": "no configuration at the request",
       "status": {
         "state": "unmaintained"
       },
@@ -242,6 +261,7 @@
         "VGG-16"
       ],
       "name": "zkPyTorch",
+      "reason": "no public verifier",
       "status": {
         "state": "no_repository"
       }
@@ -252,6 +272,7 @@
         "MLPerf Edge Inference v4.1 models, LLMs among them, none named"
       ],
       "name": "ZKTorch",
+      "reason": "no configuration at the request",
       "status": {
         "state": "active"
       },

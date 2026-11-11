@@ -4,11 +4,12 @@ Schemas resolve only from the local `schema/` tree; nothing is fetched over the 
 """
 
 import datetime
+import hashlib
 import json
 import re
 import urllib.parse
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import referencing
 import referencing.exceptions
@@ -73,8 +74,15 @@ def _no_retrieve(uri: str) -> referencing.Resource[Any]:
 
 
 class SchemaRegistry:
+    # from_tree by the bytes of the schema files read: checking 22 schemas against the
+    # metaschema takes about half a second, and one command asks for the registry many times.
+    _trees: ClassVar[dict[bytes, "SchemaRegistry"]] = {}
+
     def __init__(self, schemas: dict[str, dict[str, Any]]) -> None:
         self._schemas = schemas
+        self._validators: dict[str, Validator] = {}
+        # what a validation result depends on besides the document (iproofs.validate.memo)
+        self.digest = hashlib.sha256(json.dumps(schemas, sort_keys=True).encode()).hexdigest()
         resources = [
             (schema_id_url(sid), referencing.Resource.from_contents(s, DRAFT202012))
             for sid, s in schemas.items()
@@ -86,19 +94,27 @@ class SchemaRegistry:
     @classmethod
     def from_tree(cls, root: Path) -> "SchemaRegistry":
         """Load every `schema/<name>/<major>.schema.json` under `root`."""
+        files = [(path, path.read_bytes()) for path in sorted(root.glob("*/*.schema.json"))]
+        seen = hashlib.sha256()
+        for path, data in files:
+            seen.update(f"{path.parent.name}/{path.name}\0{len(data)}\0".encode() + data)
+        key = seen.digest()
+        if key in cls._trees:
+            return cls._trees[key]
         schemas: dict[str, dict[str, Any]] = {}
-        for path in sorted(root.glob("*/*.schema.json")):
+        for path, data in files:
             sid = f"{path.parent.name}/{path.name.removesuffix('.schema.json')}"
             if not SCHEMA_FIELD_RE.fullmatch(sid):
                 raise IProofsError(ErrorKind.INTERNAL, f"{path}: bad schema file name")
-            contents = json.loads(path.read_text("utf-8"))
+            contents = json.loads(data.decode("utf-8"))
             if contents.get("$id") != schema_id_url(sid):
                 raise IProofsError(
                     ErrorKind.INTERNAL, f"{path}: $id must be {schema_id_url(sid)!r}"
                 )
             Draft202012Validator.check_schema(contents)
             schemas[sid] = contents
-        return cls(schemas)
+        cls._trees[key] = cls(schemas)
+        return cls._trees[key]
 
     def ids(self) -> list[str]:
         return sorted(self._schemas)
@@ -107,9 +123,11 @@ class SchemaRegistry:
         """Validator for a `schema` field value such as `run/1`."""
         if schema_id not in self._schemas:
             raise IProofsError(ErrorKind.CONFIG, f'unknown schema "{schema_id}"')
-        return Draft202012Validator(
-            self._schemas[schema_id], registry=self._registry, format_checker=FORMATS
-        )
+        if schema_id not in self._validators:
+            self._validators[schema_id] = Draft202012Validator(
+                self._schemas[schema_id], registry=self._registry, format_checker=FORMATS
+            )
+        return self._validators[schema_id]
 
     def is_defs_only(self, schema_id: str) -> bool:
         """A shared-definitions schema such as quantity/1 describes no document."""

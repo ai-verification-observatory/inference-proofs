@@ -333,7 +333,7 @@ def test_serving_tree_refusals(tmp_path: Path) -> None:
     doc["workloads"].append({**copy.deepcopy(doc["workloads"][0]), "id": "gone-workload"})
     path.write_text(yaml.safe_dump(doc))
     record = tree / f"workloads/serving/{LLAMA}.yaml"
-    record.write_text(record.read_text().replace(', "l31-8b-c1024"]', "]"))
+    record.write_text(record.read_text().replace(', "l31-8b-c1024"', ""))
     (tree / "workloads/broken.yaml").write_text("schema: workload/1\n")
     (tree / "systems/broken").mkdir()
     (tree / "systems/broken/system.yaml").write_text("schema: system/1\n")

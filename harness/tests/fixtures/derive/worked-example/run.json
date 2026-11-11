@@ -210,6 +210,57 @@
       "unit": "USD/1k_token",
       "value": 0.025
     },
+    "cost_per_request_prove.session": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.session",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/cost_per_1k_tokens_prove.session",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/tokens_covered_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-REQ-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "USD/request",
+      "value": 0.0125
+    },
+    "cost_per_request_prove.steady": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "prove.steady",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/cost_per_1k_tokens_prove.steady",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/tokens_covered_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-REQ-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "USD/request",
+      "value": 0.01
+    },
+    "cost_per_request_whole_wall": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "whole_wall",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/cost_per_1k_tokens_whole_wall",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/tokens_covered_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-COST-REQ-S@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "USD/request",
+      "value": 0.025
+    },
     "proof_bytes_per_active_weight_bit_token": {
       "grade": "derived",
       "null_reason": null,
@@ -226,6 +277,22 @@
       "tier": "reported",
       "unit": "B/bit_token",
       "value": 3.125e-08
+    },
+    "proof_bytes_per_request": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/proof_bytes_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-BPR@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "B/request",
+      "value": 2000000.0
     },
     "proof_bytes_per_token": {
       "grade": "derived",
@@ -478,6 +545,22 @@
       "unit": "token",
       "value": 1000.0
     },
+    "tokens_covered_per_request": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/tokens_covered_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-TPR@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "token/request",
+      "value": 1000.0
+    },
     "tokens_covered_steady": {
       "grade": "measured",
       "null_reason": null,
@@ -518,6 +601,22 @@
       "tier": "reported",
       "unit": "s/bit_token",
       "value": 7.812500000000001e-14
+    },
+    "verify_seconds_per_request": {
+      "grade": "derived",
+      "null_reason": null,
+      "scope": "verify",
+      "source": {
+        "inputs": [
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/verify_seconds_total",
+          "harness/tests/fixtures/derive/worked-example/run.json#/metrics/requests_count"
+        ],
+        "kind": "derivation",
+        "ref": "derive:D-VSPR@0.1.0"
+      },
+      "tier": "reported",
+      "unit": "s/request",
+      "value": 5.0
     },
     "verify_seconds_per_token": {
       "grade": "derived",

@@ -24,9 +24,9 @@ A claim card copies what the system's documentation states at the pinned commit,
 
 - Every adapter ships a CPU-only test against stored fixtures; every schema ships valid and invalid examples; every derived metric ships a test against a hand-computed case ([docs/spec/07-testing-strategy.md](docs/spec/07-testing-strategy.md)).
 - Run the checks locally before you push: `make ci` runs the same commands as `.github/workflows/ci.yml`. The gate list is [RFC-0013](rfcs/0013-validation-and-ci.md).
-- `uv run iproofs validate` runs the tree gates (schemas, cross-references, append-only results, file sizes, canonical JSON, derived recompute, labels, policy, pins, language, secrets, links) and prints one line per failure; `--format json` gives the same list for tools, and `--changed-since origin/main` adds the append-only check against a base branch.
+- `uv run iproofs validate` runs the tree gates (schemas, cross-references, append-only results, file sizes, canonical JSON, derived recompute, labels, policy, pins, secrets) and prints one line per failure; `--format json` gives the same list for tools, and `--changed-since origin/main` adds the append-only check against a base branch.
 - A test that fails intermittently is a bug: open an issue with the log, then fix the test or quarantine it within 7 days with `@pytest.mark.quarantine(issue=<n>)` ([docs/spec/07-testing-strategy.md §Flaky-test policy](docs/spec/07-testing-strategy.md#flaky-test-policy)). Nothing retries a failing test.
-- Gate G8 checks neutral language (AGENTS.md rule 10, [RFC-0013 §G8](rfcs/0013-validation-and-ci.md#g8-neutral-language-lint)) in `docs/`, `rfcs/`, `reports/`, the site, system READMEs and claim cards: no ranking or overstating word from the RFC list (`LANG-1`) and no emoji (`LANG-2`). Quote a word to mention it; a `<!-- lang-allow: <word> <reason> -->` on the line above allows one use and prints a notice.
+- Neutral language (AGENTS.md rule 10) is a rule for authors and reviewers; no gate checks it.
 - GPU work runs on a GPU host, never in hosted CI.
 
 ## Licences

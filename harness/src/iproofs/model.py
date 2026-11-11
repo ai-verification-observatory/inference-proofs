@@ -1,4 +1,5 @@
-"""Frozen dataclasses for every document: parse, validate, construct (RFC-0012 §Python loading).
+"""Frozen dataclasses for the documents code reads field by field: parse, validate, construct
+(RFC-0012 §Python loading). The documents in `TREES` have none.
 
 Construction is generic: field types drive the conversion. Nested objects become nested
 dataclasses, arrays become tuples, open maps become read-only mappings, enums become their
@@ -13,7 +14,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal, Self, Union, get_args, get_origin, get_type_hints
 
-from iproofs.errors import ErrorKind, Failure, IProofsError
+from iproofs.errors import ErrorKind, IProofsError
 from iproofs.quantity import Grade, NullReason, Scope, ScopeMapping, SourceKind, Tier, Unit
 from iproofs.schema import SchemaRegistry, load_document
 
@@ -120,119 +121,10 @@ class Quantity(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Stats(Document):
-    n: int
-    n_failed: int
-    mean: float | None
-    stdev: float | None
-    min: float | None
-    max: float | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Statistic(Quantity):
-    stats: Stats
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WorkloadRef(Document):
-    id: str
-    version: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ClaimRef(Document):
     system: str
     configuration: str
     card_version: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Replaces(Document):
-    run_id: str
-    reason: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class RawSteps(Document):
-    info: Mapping[str, Quantity] | None = None
-    setup: Mapping[str, Quantity] | None = None
-    commit: Mapping[str, Quantity] | None = None
-    prove: Mapping[str, Quantity] | None = None
-    verify: Mapping[str, Quantity] | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Event(Document):
-    event: str
-    mono_ns: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Agreement(Document):
-    agree: int
-    disagree: int
-    first_disagreement: int | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ProofResult(Document):
-    proof_id: str
-    release_mono_ns: int | None
-    tokens_covered: int
-    verdict: str | None
-    request_index: int | None = None
-    claimed_output: tuple[int, ...] | None = None
-    agreement: Agreement | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class RunInputs(Document):
-    """The workload record's asserted inputs, copied at run time (RFC-0003 WB-4)."""
-
-    active_parameters_per_token: Quantity
-    weight_bits: Quantity
-    gpu_count: Quantity | None = None  # RFC-0004 INV-DERIVE-8; absent in runs stored before
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Run(Document):
-    schema: str
-    run_id: str
-    release: str
-    system: str
-    workload: WorkloadRef
-    profile: str
-    repetition: int
-    control: bool
-    system_kind: str
-    claim: ClaimRef | None
-    status: str
-    failure: Failure | None
-    replaces: Replaces | None
-    raw: RawSteps
-    adapter_phases: Mapping[str, Quantity]
-    metrics: Mapping[str, Quantity | Statistic]
-    events: tuple[Event, ...]
-    proofs: tuple[ProofResult, ...]
-    warnings: tuple[str, ...]
-    inputs: RunInputs | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class HarnessRecord(Document):
-    version: str
-    git_commit: str
-    git_dirty: bool
-    lock_digest: str
-    nonconforming: bool
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class RunnerRecord(Document):
-    handle: str
-    organisation: str
-    affiliated_systems: tuple[str, ...]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -242,133 +134,10 @@ class Upstream(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ImageRef(Document):
-    ref: str
-    digest_kind: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class ImageInput(Document):
     name: str
     url: str
     digest: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class SystemRecord(Document):
-    name: str
-    system_manifest_digest: str
-    claim_digest: str | None
-    upstream: Upstream | None
-    adapter_commit: str
-    adapter_dirty: bool
-    image: ImageRef
-    image_inputs: tuple[ImageInput, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ModelRecord(Document):
-    source: str
-    revision: str
-    digest: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class WorkloadRecord(Document):
-    id: str
-    version: int
-    file_digest: str
-    model: ModelRecord
-    corpus_digest: str
-    prompt_seed: str
-    prompt_set_digest: str
-    load_point: str | None = None  # RFC-0015 SRV-1 (serving runs)
-    batch_size_run: int | None = None
-    batches_per_session_run: int | None = None
-    prompt_count_run: int | None = None
-    prompt_prefix_digest: str | None = None  # RFC-0015 SRV-8
-    sizing_capture: bool | None = None  # RFC-0015 SRV-1: joins no overhead
-    steady_rule: str | None = None  # RFC-0004 INV-SCOPE-5 (absent: first-proof boundary)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ProfileRecord(Document):
-    prover: str
-    verifier: str
-    verifier_host: str
-    reference_file: str
-    reference_digest: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class SelfTestCheck(Document):
-    name: str
-    passed: bool
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class SelfTest(Document):
-    passed: bool
-    checks: tuple[SelfTestCheck, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Command(Document):
-    step: str
-    argv: tuple[str, ...]
-    cpuset: str
-    mems: str
-    gpus: str | None
-    network: str
-    started_at: str
-    exit_code: int | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class FileRecord(Document):
-    name: str
-    digest: str
-    bytes: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Commitment(Document):
-    commitment_id: str
-    verifier_files: tuple[FileRecord, ...]
-    prover_files: tuple[FileRecord, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ProofRecord(Document):
-    proof_id: str
-    digest: str
-    parts: tuple[FileRecord, ...]
-    archive: str | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Manifest(Document):
-    schema: str
-    run_id: str
-    release: str
-    control: bool
-    harness: HarnessRecord
-    runner: RunnerRecord
-    claim: ClaimRef | None
-    provider: str
-    system: SystemRecord
-    workload: WorkloadRecord
-    profile: ProfileRecord
-    machine: Mapping[str, object]  # RFC-0006 record; schema $defs/machine fixes its fields
-    self_test: SelfTest
-    commands: tuple[Command, ...]
-    commitment: Commitment | None
-    proofs: tuple[ProofRecord, ...]
-    warnings: tuple[str, ...]
-    machine_verifier: Mapping[str, object] | None = None  # verifier_host: separate
-    prompts_from: str | None = None  # RFC-0015 RC-1
-    engine: Mapping[str, object] | None = None  # RFC-0015 SRV-6: name, version, image, interface
-    serving_model: Mapping[str, object] | None = None  # RFC-0015 SRV-6: the serving record
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -396,108 +165,6 @@ class Release(Document):
     runs: tuple[str, ...]
     superseded_runs: tuple[SupersededRun, ...]
     claim_cards: tuple[ReleaseCard, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Ineligible(Document):
-    run_id: str
-    reasons: tuple[str, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class IndexConfiguration(Document):
-    system: str
-    workload: WorkloadRef
-    profile: str
-    configuration: str | None
-    runs: tuple[str, ...]
-    ineligible: tuple[Ineligible, ...]
-    insufficient_repetitions: bool
-    statistics: Mapping[str, Quantity | Statistic]
-    load_point: str | None = None  # RFC-0015 SRV-1 (absent: matched)
-    overhead_conditions: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-9
-    overhead_headline: Mapping[str, object] | None = None  # RFC-0004 INV-DERIVE-10
-    steady_boundary: str | None = None  # RFC-0004 INV-SCOPE-5 label of earlier runs (APP-1)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class OutcomeCounts(Document):
-    rejected: int
-    accepted: int
-    no_verdict: int
-    invalid_call: int
-    void: int
-    not_applicable: int
-    error: int
-    prover_failed: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class OutsideExpected(Document):
-    control_id: str
-    run_id: str
-    outcome: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ControlSummary(Document):
-    system: str
-    workload: WorkloadRef
-    profile: str
-    counts: OutcomeCounts
-    outside_expected: tuple[OutsideExpected, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class TargetResult(Document):
-    target: str
-    system: str
-    workload: WorkloadRef
-    profile: str
-    result: str
-    reason: str | None
-    mean: Quantity | Statistic | None
-    least_favourable: Quantity | Statistic | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReferenceRecord(Document):
-    file: str
-    digest: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ReleaseIndex(Document):
-    schema: str
-    release: str
-    configurations: tuple[IndexConfiguration, ...]
-    controls: tuple[ControlSummary, ...]
-    targets: tuple[TargetResult, ...]
-    claim_cards: tuple[ReleaseCard, ...]
-    reference: ReferenceRecord
-    inputs_digest: str
-    freeze_derived: Mapping[str, Mapping[str, Quantity | Statistic]] | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Author(Document):
-    name: str
-    affiliation: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Target(Document):
-    schema: str
-    id: str
-    author: Author
-    date: str
-    metric: str
-    comparator: str
-    threshold: Quantity
-    claim_class: str
-    rationale: str
-    applies_to: Mapping[str, object] | None = None
-    profile: str | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -742,33 +409,6 @@ Verdict = Literal["accept", "reject", "no_verdict", "invalid_call"]
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class AdapterJob(Document):
-    """/io/job.json (RFC-0005); fields beyond the common ones depend on `subcommand`."""
-
-    schema: str
-    contract: str
-    subcommand: str
-    run_id: str
-    workload: WorkloadRef
-    shape: Shape
-    control: bool
-    model_dir: str | None = None
-    commitment_id: str | None = None
-    prover_files: tuple[str, ...] | None = None
-    prompts_file: str | None = None
-    batch_size: int | None = None
-    batches: int | None = None
-    control_flags: tuple[str, ...] | None = None
-    verifier_files: tuple[str, ...] | None = None
-    request: tuple[int, ...] | None = None
-    claimed_output: tuple[int, ...] | None = None
-    proof_dir: str | None = None
-    claims_file: str | None = None
-    load_point: str | None = None  # RFC-0015 SRV-1 (production serving)
-    gpus: int | None = None  # RFC-0015 SRV-6
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class Phase(Document):
     name: str
     seconds: float
@@ -787,16 +427,6 @@ class ProofEntry(Document):
     parts: tuple[str, ...]
     claimed_output: tuple[int, ...]
     tokens_covered: int | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CommandLine(Document):
-    """One line of /io/commands.jsonl (RFC-0005 §Command log)."""
-
-    argv: tuple[str, ...]
-    cwd: str
-    started_mono_ns: int
-    exit_code: int | None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -829,11 +459,16 @@ class AdapterOut(Document):
     seconds: float | None = None
     adapter_commit: str | None = None  # info, RFC-0014 B6
     adapter_dirty: bool | None = None
+    optional_subcommands: tuple[str, ...] | None = None  # info, RFC-0018 AD-2
+    logprobs_files: tuple[str, ...] | None = None  # logprobs, RFC-0018 AD-2
+    perturbation: Mapping[str, object] | None = None  # perturb, RFC-0018 AD-5
+    mutated: Mapping[str, object] | None = None  # mutate_reply, RFC-0018 AD-6
 
 
 # RFC-0005 §system.yaml default wall limits per step, in seconds (targets, not measurements).
 DEFAULT_TIMEOUTS_S = {"info": 60.0, "setup": 3600.0, "commit": 14400.0, "prove": 43200.0,
-                      "verify": 3600.0}  # fmt: skip
+                      "verify": 3600.0, "logprobs": 43200.0, "perturb": 14400.0,
+                      "mutate_reply": 3600.0}  # fmt: skip
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1092,132 +727,6 @@ class ReferenceFile(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Twin(Document):
-    verdict: str
-    raw_exit_code: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Trial(Document):
-    seed_index: int
-    mutation: Mapping[str, object]
-    verdict: str | None
-    outcome: str
-    raw_exit_code: int | None
-    raw_last_line: str
-    seconds: float | None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ControlResult(Document):
-    id: str
-    side: str
-    source: str
-    expected: tuple[str, ...]
-    twin: Twin | None
-    trials: tuple[Trial, ...]
-    outcome: str
-    passed: bool | None
-    note: str | None
-    parts_not_read: tuple[PartNotRead, ...] | None = None  # C5, C6, C8 (RFC-0008 READ-4)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PerturbedCommitment(Document):
-    commitment_id: str
-    model_digest: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ControlSummaryCounts(Document):
-    run: int
-    passed: int
-    rejected: int
-    accepted: int
-    no_verdict: int
-    invalid_call: int
-    void: int
-    not_applicable: int
-    error: int
-    prover_failed: int
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class Controls(Document):
-    schema: str
-    run_id: str
-    control_seed: str
-    image: str
-    verifier_profile: str
-    perturbed_commitment: PerturbedCommitment | None
-    controls: tuple[ControlResult, ...]
-    summary: ControlSummaryCounts
-    disclosure_pending: bool
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ControlsSeed(Document):
-    """`controls-seed/1`, the one seed of a run's split suite (RFC-0008 SPLIT-1)."""
-
-    schema: str
-    run_id: str
-    run_manifest_digest: str
-    control_seed: str
-    drawn_at: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class PartHost(Document):
-    """The host one part of a split suite ran on (RFC-0008 SPLIT-4)."""
-
-    machine: Mapping[str, object]  # RFC-0006 record; schema manifest $defs/machine
-    nonconforming: tuple[str, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ControlsPart(Document):
-    """`controls-part/1`, one part of a suite split across hosts (RFC-0008 §Split suites)."""
-
-    schema: str
-    run_id: str
-    run_manifest_digest: str
-    control_seed: str
-    seed_record_digest: str
-    suite: tuple[str, ...]
-    only: tuple[str, ...]
-    image: str
-    verifier_profile: str
-    profile: str
-    verifier_cpus: int
-    perturbed_commitment: PerturbedCommitment | None
-    harness_version: str
-    harness_commit: str
-    harness_dirty: bool
-    host: PartHost
-    controls: tuple[ControlResult, ...]
-
-
-# Schema location -> model class. The drift test walks this table and requires every
-# document schema in the tree to appear here.
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class ExternalFigure(Document):
-    id: str  # the upstream's own name for the figure
-    metric: str
-    workload: str | None
-    quantity: Quantity  # grade external, tier reported (RFC-0004 §Mapping from upstream scopes)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class External(Document):
-    """`external/1`: upstream figures of one system, never mixed with measured inputs."""
-
-    schema: str
-    system: str
-    upstream: Upstream
-    figures: tuple[ExternalFigure, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class PerturbedCommitmentRecord(Document):
     """`perturbed-commitment/1`, the C3 and P1 commitment of one workload (RFC-0008)."""
 
@@ -1231,6 +740,7 @@ class PerturbedCommitmentRecord(Document):
     commitment: Mapping[str, object]
     image: str
     harness_version: str
+    change: str | None = None  # RFC-0018 CH-2: the level's change, applied by the adapter
 
 
 # ---------------------------------------------------------------- site-facts/1 (RFC-0009 §Site)
@@ -1272,6 +782,7 @@ class RowFacts(Document):
     licence: LicenceFacts | None = None
     status: StatusFacts | None = None
     overview_workload: str | None = None
+    reason: str | None = None  # RFC-0018 SI-4: why a system has no row on the board
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -1286,53 +797,6 @@ class SiteFacts(Document):
 
 
 # ---------------------------------------------------------------- criteria/1 (RFC-0016)
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CriteriaState(Document):
-    word: str
-    meaning: str
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CriteriaProperty(Document):
-    id: str
-    name: str
-    question: str
-    not_here: str
-    rules: Mapping[str, str]
-    card_fields: tuple[str, ...]
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CriteriaRow(Document):
-    """One row; its cells stay as validated trees (the site reads them)."""
-
-    id: str
-    name: str
-    family: str
-    tab: str
-    source_class: str
-    cells: Mapping[str, Mapping[str, object]]
-    card: Mapping[str, str] | None = None
-    workloads: tuple[str, ...] | None = None
-    own_sources: tuple[Mapping[str, str], ...] | None = None
-
-
-@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
-class CriteriaFile(Document):
-    """`criteria/1`, the glyph's properties, states and rows (`web/_data/criteria.json`)."""
-
-    schema: str
-    rfc: str
-    date: str
-    note: str
-    order: tuple[str, ...]
-    states: Mapping[str, CriteriaState]
-    properties: tuple[CriteriaProperty, ...]
-    pins: Mapping[str, str]
-    rows: tuple[CriteriaRow, ...]
-    release: str | None = None
 
 
 # ---------------------------------------------------------------- serving-model/1 (RFC-0015 SRV-6)
@@ -1417,58 +881,38 @@ class ServingModel(Document):
     model: ServingFiles
 
 
+# Documents with no dataclass: the harness writes them, or reads them, as validated trees, so
+# their schema is their one definition (RFC-0012 §Python loading).
+TREES = frozenset(
+    {
+        "adapter-job/1",
+        "beacon/1",
+        "fidelity-run/1",
+        "properties/1",
+        "board/1",
+        "controls/1",
+        "controls-part/1",
+        "controls-seed/1",
+        "criteria/1",
+        "external/1",
+        "fidelity/1",
+        "level/1",
+        "manifest/1",
+        "release-index/1",
+        "run/1",
+        "target/1",
+        "verify-trace/1",
+    }
+)
+
 MODELS: dict[tuple[str, str], type[Any]] = {
     ("quantity/1", "#/$defs/quantityCore"): Quantity,
-    ("quantity/1", "#/$defs/statistic"): Statistic,
     ("quantity/1", "#/$defs/source"): Source,
-    ("quantity/1", "#/$defs/stats"): Stats,
     ("quantity/1", "#/$defs/quantityCore/properties/quality"): Quality,
     ("quantity/1", "#/$defs/quantityCore/properties/pairs"): Pairs,
-    ("run/1", "#"): Run,
-    ("run/1", "#/properties/workload"): WorkloadRef,
-    ("run/1", "#/properties/inputs"): RunInputs,
-    ("run/1", "#/properties/claim/anyOf/1"): ClaimRef,
-    ("run/1", "#/properties/replaces/anyOf/1"): Replaces,
-    ("run/1", "#/properties/raw"): RawSteps,
-    ("run/1", "#/properties/events/items"): Event,
-    ("run/1", "#/properties/proofs/items"): ProofResult,
-    ("run/1", "#/properties/proofs/items/properties/agreement"): Agreement,
-    ("run/1", "#/$defs/failure"): Failure,
-    ("manifest/1", "#"): Manifest,
-    ("manifest/1", "#/properties/harness"): HarnessRecord,
-    ("manifest/1", "#/properties/runner"): RunnerRecord,
-    ("manifest/1", "#/properties/claim/anyOf/1"): ClaimRef,
-    ("manifest/1", "#/properties/system"): SystemRecord,
-    ("manifest/1", "#/properties/system/properties/upstream/anyOf/1"): Upstream,
-    ("manifest/1", "#/properties/system/properties/image"): ImageRef,
-    ("manifest/1", "#/properties/system/properties/image_inputs/items"): ImageInput,
-    ("manifest/1", "#/properties/workload"): WorkloadRecord,
-    ("manifest/1", "#/properties/workload/properties/model"): ModelRecord,
-    ("manifest/1", "#/properties/profile"): ProfileRecord,
-    ("manifest/1", "#/properties/self_test"): SelfTest,
-    ("manifest/1", "#/properties/self_test/properties/checks/items"): SelfTestCheck,
-    ("manifest/1", "#/properties/commands/items"): Command,
-    ("manifest/1", "#/$defs/file"): FileRecord,
-    ("manifest/1", "#/properties/commitment/anyOf/1"): Commitment,
-    ("manifest/1", "#/properties/proofs/items"): ProofRecord,
     ("release/1", "#"): Release,
     ("release/1", "#/$defs/card"): ReleaseCard,
     ("release/1", "#/properties/superseded_runs/items"): SupersededRun,
-    ("release-index/1", "#"): ReleaseIndex,
-    ("release-index/1", "#/$defs/card"): ReleaseCard,
-    ("release-index/1", "#/properties/configurations/items"): IndexConfiguration,
-    ("release-index/1", "#/properties/configurations/items/properties/workload"): WorkloadRef,
-    (
-        "release-index/1",
-        "#/properties/configurations/items/properties/ineligible/items",
-    ): Ineligible,
-    ("release-index/1", "#/properties/controls/items"): ControlSummary,
-    ("release-index/1", "#/properties/controls/items/properties/counts"): OutcomeCounts,
-    ("release-index/1", "#/properties/controls/items/properties/outside_expected/items"): (
-        OutsideExpected
-    ),
-    ("release-index/1", "#/properties/targets/items"): TargetResult,
-    ("release-index/1", "#/properties/reference"): ReferenceRecord,
     ("claim/1", "#"): ClaimCard,
     ("claim/1", "#/properties/upstream"): Upstream,
     ("claim/1", "#/properties/security"): Security,
@@ -1498,15 +942,11 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("corpus/1", "#"): Corpus,
     ("corpus/1", "#/properties/normalisation"): Normalisation,
     ("corpus/1", "#/properties/texts/items"): CorpusText,
-    ("adapter-job/1", "#"): AdapterJob,
-    ("adapter-job/1", "#/properties/workload"): WorkloadRef,
-    ("adapter-job/1", "#/properties/shape"): Shape,
     ("adapter-out/1", "#"): AdapterOut,
     ("adapter-out/1", "#/properties/phases/items"): Phase,
     ("adapter-out/1", "#/properties/image_inputs/items"): ImageInput,
     ("adapter-out/1", "#/properties/sizes"): Sizes,
     ("adapter-out/1", "#/$defs/proof"): ProofEntry,
-    ("adapter-out/1", "#/$defs/commandLine"): CommandLine,
     ("system/1", "#"): System,
     ("system/1", "#/properties/upstream"): UpstreamSpec,
     ("system/1", "#/properties/image"): ImageSpec,
@@ -1516,7 +956,7 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     (
         "system/1",
         "#/properties/workloads/items/anyOf/1/properties/precision_substitution/anyOf/1",
-    ): (PrecisionSubstitution),
+    ): PrecisionSubstitution,
     ("system/1", "#/properties/proofs"): ProofsSpec,
     ("system/1", "#/properties/timeouts_s"): Timeouts,
     ("system-controls/1", "#"): SystemControls,
@@ -1535,20 +975,6 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("reference/1", "#/$defs/verifier/properties/emulation"): Emulation,
     ("reference/1", "#/$defs/cost"): Cost,
     ("reference/1", "#/$defs/cost/properties/readings/items"): PriceReading,
-    ("controls/1", "#"): Controls,
-    ("controls/1", "#/$defs/control"): ControlResult,
-    ("controls/1", "#/$defs/trial"): Trial,
-    ("controls/1", "#/$defs/control/properties/twin/anyOf/1"): Twin,
-    ("controls/1", "#/properties/perturbed_commitment/anyOf/1"): PerturbedCommitment,
-    ("controls/1", "#/properties/summary"): ControlSummaryCounts,
-    ("controls-part/1", "#"): ControlsPart,
-    ("controls-part/1", "#/properties/host"): PartHost,
-    ("controls-seed/1", "#"): ControlsSeed,
-    ("target/1", "#"): Target,
-    ("target/1", "#/properties/author"): Author,
-    ("external/1", "#"): External,
-    ("external/1", "#/properties/upstream"): Upstream,
-    ("external/1", "#/$defs/figure"): ExternalFigure,
     ("perturbed-commitment/1", "#"): PerturbedCommitmentRecord,
     ("site-facts/1", "#"): SiteFacts,
     ("site-facts/1", "#/properties/site"): SiteInfo,
@@ -1569,9 +995,6 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("serving-model/1", "#/properties/model/properties/files/items"): ServingFile,
     ("serving-model/1", "#/properties/model/properties/licence"): Licence,
     ("serving-model/1", "#/properties/model/properties/shape"): ServingShape,
-    ("criteria/1", "#"): CriteriaFile,
-    ("criteria/1", "#/$defs/property"): CriteriaProperty,
-    ("criteria/1", "#/$defs/row"): CriteriaRow,
 }
 
 

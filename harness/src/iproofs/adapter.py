@@ -4,6 +4,7 @@ Everything an adapter writes is untrusted input (docs/spec/06-security.md). Mess
 container-side paths (`/io/...`) only, so no host path reaches a record.
 """
 
+import json
 import os
 import pwd
 import re
@@ -73,6 +74,7 @@ def read_out(dirs: IoDirs, registry: SchemaRegistry, step: str) -> AdapterOut:
         *(out.prover_files or ()),
         *(out.log_files or ()),
         *((out.binding_report,) if out.binding_report else ()),
+        *(out.logprobs_files or ()),
     ):
         dirs.host(container_path, step)
     return out
@@ -128,14 +130,46 @@ def check_proofs(dirs: IoDirs, out: AdapterOut, system: System) -> list[str]:
     return warnings
 
 
+def check_requests(out: AdapterOut, output_tokens: int) -> None:
+    """RFC-0017 INV-REQ-2: the proofs of one request claim exactly the workload's output
+    tokens, so the request shape printed beside a per-request figure is what `verify` is given
+    (the harness passes each proof's `claimed_output` from its own record)."""
+    claimed: dict[int, int] = {}
+    for proof in out.proofs or ():
+        claimed[proof.request_index] = claimed.get(proof.request_index, 0) + len(
+            proof.claimed_output
+        )
+    wrong = {i: n for i, n in sorted(claimed.items()) if n != output_tokens}
+    if wrong:
+        raise _adapter_error(
+            f"INV-REQ-2: output tokens claimed per request {wrong}, the workload's shape has "
+            f"{output_tokens}",
+            "prove",
+        )
+
+
 # ---------------------------------------------------------------- container invocation
 
 IMAGE_RE = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
 LOCAL_IMAGE_PREFIX = "local/"  # repository of an image built here and never pushed
 ADAPTER_UID = "10001"
 VERIFY_MEMORY = "32g"
-GPU_STEPS = frozenset({"info", "setup", "commit", "prove"})
+GPU_STEPS = frozenset({"info", "setup", "commit", "prove", "logprobs"})
 STDERR_TAIL = 50
+# RFC-0018 AD-2: subcommands an adapter may implement; `info` lists those it does
+# (`optional_subcommands`), and one it does not list is unsupported and never called.
+OPTIONAL_SUBCOMMANDS = ("logprobs", "perturb", "mutate_reply")
+# RFC-0018 CH-4: the trace around a level run's verify process, written to TRACE_FILE in the
+# call's trace directory (mounted at /trace in a container).
+STRACE_ARGS = ("-f", "--seccomp-bpf", "-e", "trace=open,openat,openat2", "-o")
+TRACE_FILE = "strace.txt"
+TRACE_MOUNT = "/trace"
+# Under docker the image's own shell runs strace when the image has it, else the entrypoint
+# alone; the trace file then does not exist, and the record says no tool ran.
+TRACE_SH = (
+    "if command -v strace >/dev/null 2>&1; then "
+    f'exec strace {" ".join(STRACE_ARGS)} {TRACE_MOUNT}/{TRACE_FILE} "$@"; fi; exec "$@"'
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,6 +200,7 @@ class ContainerRunner(Protocol):
         timeout_s: float,
         ro_mounts: Sequence[tuple[Path, str]] = (),
         log_sinks: Sequence[Capture] = (),
+        trace_dir: Path | None = None,
     ) -> StepResult: ...
 
 
@@ -189,8 +224,13 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
     tmpfs: str = "1g",
     ro_mounts: Sequence[tuple[Path, str]] = (),
     cgroup_parent: str | None = None,
+    trace_dir: Path | None = None,
+    entrypoint: Sequence[str] = (),
 ) -> list[str]:
-    """`docker create` arguments for one adapter call (RFC-0005 §Container invocation)."""
+    """`docker create` arguments for one adapter call (RFC-0005 §Container invocation). With
+    `trace_dir` (a level run's verify, RFC-0018 CH-4) the container runs the image's
+    `entrypoint` through its shell, under strace when the image has it, writing the trace to
+    `trace_dir` mounted at /trace."""
     argv = [
         "docker",
         "create",
@@ -220,6 +260,12 @@ def docker_create_argv(  # noqa: PLR0913 (mirrors ContainerRunner.run)
         argv += ["-v", f"{host.resolve()}:{target}:ro"]
     if subcommand == "verify":
         argv += ["--memory", VERIFY_MEMORY]  # never a GPU, never the weights
+        if trace_dir is not None:
+            if not entrypoint:
+                raise IProofsError(ErrorKind.CONFIG, f"{image}: no ENTRYPOINT to trace")
+            argv += ["-v", f"{trace_dir.resolve()}:{TRACE_MOUNT}:rw", "--entrypoint", "/bin/sh"]
+            command = ["-c", TRACE_SH, "sh", *entrypoint, subcommand]
+            return [*argv, docker_ref(image), *command, "/io/job.json", "/io/out.json"]
     else:
         if models_dir is not None:
             argv += ["-v", f"{models_dir.resolve()}:/models:ro"]
@@ -255,6 +301,13 @@ def give_io_to_adapter(io_dir: Path) -> None:
             path.chmod(0o1777)
 
 
+def _docker_output(argv: list[str]) -> str:
+    try:
+        return subprocess.run(argv, capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError) as e:
+        raise IProofsError(ErrorKind.ENVIRONMENT, f"{' '.join(argv[:3])} failed: {e}") from e
+
+
 def _tail(text: str) -> tuple[str, ...]:
     return tuple(text.splitlines()[-STDERR_TAIL:])
 
@@ -263,9 +316,33 @@ class DockerRunner:
     """Runs adapter calls with the docker CLI; the only place a container is started.
     Timing goes through `iproofs.measure.timed_call` (RFC-0011 T-1, INV-ARCH-4)."""
 
-    def __init__(self, registry: SchemaRegistry, clock: Callable[[], int] = time.monotonic_ns):
+    MODE = "docker"  # a verify-trace record's `mode` (RFC-0018 CH-4)
+
+    def __init__(
+        self,
+        registry: SchemaRegistry,
+        clock: Callable[[], int] = time.monotonic_ns,
+        inspect: Callable[[list[str]], str] | None = None,
+    ):
         self.registry = registry
         self.clock = clock
+        self.inspect = inspect or _docker_output
+        self._entrypoints: dict[str, tuple[str, ...]] = {}
+
+    def entrypoint(self, image: str) -> tuple[str, ...]:
+        """The image's ENTRYPOINT as docker records it (`docker image inspect`), once per
+        image: a traced verify runs it under the image's shell (RFC-0018 CH-4)."""
+        if image not in self._entrypoints:
+            argv = ["docker", "image", "inspect", "--format", "{{json .Config.Entrypoint}}",
+                    docker_ref(image)]  # fmt: skip
+            try:
+                found = json.loads(self.inspect(argv))
+            except ValueError as e:
+                raise IProofsError(ErrorKind.ENVIRONMENT, f"{image}: unreadable ENTRYPOINT") from e
+            if not isinstance(found, list) or not all(isinstance(a, str) for a in found):
+                raise IProofsError(ErrorKind.CONFIG, f"{image}: no exec-form ENTRYPOINT")
+            self._entrypoints[image] = tuple(found)
+        return self._entrypoints[image]
 
     def run(  # noqa: PLR0913 (RFC-0010 §Internal API signature)
         self,
@@ -281,7 +358,12 @@ class DockerRunner:
         timeout_s: float,
         ro_mounts: Sequence[tuple[Path, str]] = (),
         log_sinks: Sequence[Capture] = (),
+        trace_dir: Path | None = None,
     ) -> StepResult:
+        traced = trace_dir is not None and subcommand == "verify"
+        if traced:
+            assert trace_dir is not None
+            give_io_to_adapter(trace_dir)  # strace runs as the adapter uid in the container
         argv = docker_create_argv(
             image,
             subcommand,
@@ -292,6 +374,8 @@ class DockerRunner:
             mems=mems,
             memory=memory,
             ro_mounts=ro_mounts,
+            trace_dir=trace_dir if traced else None,
+            entrypoint=self.entrypoint(image) if traced else (),
         )
         give_io_to_adapter(io_dir)
         try:
@@ -341,10 +425,18 @@ class InProcessRunner:
         timeout_s: float,
         ro_mounts: Sequence[tuple[Path, str]] = (),
         log_sinks: Sequence[Capture] = (),
+        trace_dir: Path | None = None,
     ) -> StepResult:
         """`ro_mounts` cannot be enforced without a container; the harness has already placed
-        the recorded copies at those paths."""
+        the recorded copies at those paths. With `trace_dir` a verify runs under strace when
+        strace is on the call's PATH (the image's, hosted), writing `trace_dir`/strace.txt."""
         argv, env = self._command(subcommand, io_dir, models_dir, gpu, cpuset, ro_mounts)
+        recorded = self._recorded(argv)
+        tool = shutil.which("strace", path=env.get("PATH")) if trace_dir is not None else None
+        if tool is not None and trace_dir is not None and subcommand == "verify":
+            trace = [*STRACE_ARGS, str(trace_dir / TRACE_FILE)]
+            argv = [tool, *trace, *argv]
+            recorded = (recorded[0], "strace", *trace, *recorded[1:])
         err = Capture()
         start = self.clock()
         proc = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -362,9 +454,7 @@ class InProcessRunner:
                 t.join()
         end = self.clock()
         out = read_out(IoDirs(io_dir), self.registry, subcommand) if proc.returncode == 0 else None
-        return StepResult(
-            subcommand, start, end, proc.returncode, out, _tail(err.text()), self._recorded(argv)
-        )
+        return StepResult(subcommand, start, end, proc.returncode, out, _tail(err.text()), recorded)
 
     def _command(
         self,

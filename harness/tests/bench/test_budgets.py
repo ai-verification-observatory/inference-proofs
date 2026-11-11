@@ -5,7 +5,6 @@ summary named by IPROOFS_BENCH_SUMMARY. A time between the target and twice the 
 passes; the summary line says so and a maintainer opens a `type:perf` issue.
 """
 
-import json
 import os
 import shutil
 import subprocess
@@ -15,7 +14,6 @@ from pathlib import Path
 
 import pytest
 
-from fixtures.placeholder_release import build_placeholder
 from fixtures.release_tree import build as build_release
 from fixtures.synthetic_tree import generate
 from iproofs.cli import main as cli_main
@@ -96,17 +94,12 @@ def test_budget_freeze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_budget_site(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """B-SITE: `iproofs site build` over the frozen placeholder release the deployed site is
-    built from, scaled to 1,000 run directories (500 repetitions of each prover configuration;
-    the reference rows keep their three). The criteria copy names the release, so the runs
-    RFC-0016 OVR-5 reads and the per-property control lists (OVR-7) are timed too."""
-    build_placeholder(tmp_path, repetitions=500)
-    assert len(list(tmp_path.glob("results/v0.1/*/*/run.json"))) >= 1000
-    criteria = tmp_path / "web/_data/criteria.json"
-    criteria.write_text(json.dumps({**json.loads(criteria.read_text()), "release": "v0.1"}))
-    monkeypatch.chdir(tmp_path)
-    assert cli_main(["release", "freeze", "v0.1"]) == 0
+    """B-SITE: `iproofs site build` from the example board file (RFC-0018 §Site): the site reads
+    the level file, one board file, the claim cards and the facts file, never the run records."""
+    root = Path(__file__).resolve().parents[3]
+    monkeypatch.chdir(root)
     start = time.monotonic()
-    assert cli_main(["site", "build", "--out", str(tmp_path / "out")]) == 0
-    report("B-SITE", "iproofs site build over 1,000 run directories",
+    board = "harness/tests/fixtures/board/v1.0-example.json"
+    assert cli_main(["site", "build", "--board", board, "--out", str(tmp_path / "out")]) == 0
+    report("B-SITE", "iproofs site build from one board file",
            time.monotonic() - start, 60.0)  # fmt: skip

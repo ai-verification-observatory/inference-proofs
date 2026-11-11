@@ -1,355 +1,240 @@
-"""The overview page (index.html): one sortable table across models, one row per benchmarked
-system on its overview workload (S5, S6), default-sorted by overhead against production serving;
-then the systems not benchmarked yet; and the helpers the other pages share with it (model
-sizes, shapes, pins).
+"""The overview (`index.html`): the ladder (RFC-0018 SI-1). The frontier headline, then one section
+per model, largest first: its head (model, publisher, total parameters, the request, the serving
+baseline) and its rows in the board's order (OR-5), then the systems not run (SI-4). Rows sort
+only by the order rule: no column head re-sorts them. Also the figure cells the system pages use.
 """
 
-import json
-import re
-
 from . import state as S
-from .chrome import footer, header, masthead, page
-from .hexagon import pie_svg, sized
-from .plates import (
-    BOARD,
-    BOARD_GROUPS,
-    BOARD_HEAD,
-    HEAD,
-    SORT_WORDS,
-    aria,
-    bits_words,
-    configs_of,
-    glyph,
-    keep,
-    limit_words,
-    metric_of,
-    name_of,
-    readable,
-    row_id,
-    sentence_case,
-    states_said,
-    upstream,
-    value_link,
-    words,
+from .chrome import footer, header, page, rung_of
+from .hexagon import glyph_svg, sized
+from .words import (
+    CHECK_NAME,
+    NULL_WORD,
+    PETAL_NAME,
+    PETAL_WORD,
+    STATE_WORD,
+    architecture,
+    e,
+    labels,
+    number,
+    sub_words,
 )
-from .words import FAMILY_WORD, PER_GBIT, STATUS_WORD, curly, e, gpu_words
 
-# ------------------------------------------------------------------ home rows
-
-# the sizes a row's glyph and a not-benchmarked glyph are shown at (words.css: above 1180 px,
-# 1100 to 1180 px, 1099 px and below; above 635 px, 635 px and below)
-ROW_PIE = (96, 64, 52)
-NB_PIE = (56, 52)
-
-
-def size_words(n):
-    """A parameter count as the site prints it: 400000000000 is 400B, 8030261248 8.03B."""
-    return f"{n / 1e9:.3g}B"
+# RFC-0018 SI-2, under the first rung; and what the checks do not test (the checks page)
+UNDER = ("Ranked by cost among systems that passed our checks. The glyph shows how far each is "
+         "from a perfect prover; it does not move the order.")  # fmt: skip
+NOT_TESTED = ("These checks run each system's own prover and verifier. None attempts a forged "
+              "proof: soundness and weight secrecy are not tested.")  # fmt: skip
+ROW_GLYPH = (56, 44)  # the row glyph's sizes: wide screens, then phones
 
 
-def kind_words(rid):
-    """A reference's role, as its facts word it, without the name it repeats."""
-    kt = words(S.V["facts"]["rows"][rid]["kind_words"])
-    name = name_of(rid)
-    return sentence_case(kt[len(name) + 2 :]) if kt.startswith(name + ": ") else kt
+def states(row):
+    """The five petals' states, in the glyph's order (GL-5)."""
+    return [p["state"] for p in row["glyph"]]
 
 
-def row_keys(cfg):
-    """{col: the stored value in its base unit, or None}: the sort keys of one row (S4)."""
-    return {col: cfg["figures"][metric_of(cfg, col)]["sort_key"] for col in BOARD}
+def states_words(row):
+    """The petals in words, for screen readers (the glyph is drawn, not read)."""
+    return ", ".join(f"{PETAL_NAME[p['id']]} {PETAL_WORD[p['state']]}" for p in row["glyph"])
 
 
-def board_configs():
-    """S6: the overview's rows, one per benchmarked system: its configuration on the workload
-    `facts.json` names for it (`overview_workload`), or its only configuration. A system with
-    more than one and none named, or a named workload it did not run, stops the build."""
-    out = []
-    for sid in S.V["orders"]["benchmarked"]:
-        cfgs = [c for c in S.PROVERS if c["system"] == sid]
-        named = S.V["facts"]["rows"][sid].get("overview_workload")
-        if named is not None:
-            cfgs = [c for c in cfgs if c["workload"]["id"] == named]
-        if len(cfgs) != 1:
-            raise RuntimeError(f"{sid}: {len(cfgs)} configurations for its overview row; name one "
-                               "workload as `overview_workload` in web/_data/facts.json")  # fmt: skip
-        out.append(cfgs[0])
-    return board_order(out)
+def name_of(row):
+    return S.V["systems"][row["system"]]["name"]
 
 
-def board_order(cfgs):
-    """S5: the default order, overhead against production serving ascending (the stored value);
-    a row with no overhead last; ties by system name, then profile, then index position."""
-
-    def key(c):
-        k = row_keys(c)["overhead"]
-        return (k is None, k or 0.0, name_of(c["system"]).lower(), c["profile"], c["position"])
-
-    return sorted(cfgs, key=key)
+def href(row):
+    return f"/{row['page']}"
 
 
-DEFAULT_COL = "overhead"
-
-
-def sort_heads():
-    """The column heads: System and each figure a button with its sort glyph, under the line
-    its group shares (BOARD_GROUPS: the overhead's baseline, the three figures' per-Gbit basis),
-    which a screen reader hears in the button."""
-
-    def head(col, label, said="", cls=""):
-        on = col == DEFAULT_COL
-        w = SORT_WORDS[col]
+def fig_html(f, n=None, sub=None):
+    """One stored figure: the number in a reading unit, its labels in its title, and under it its
+    scope in a word and its sample size (AGENTS.md rule 2). `sub` replaces the line under it."""
+    if f is None:
+        return '<span class="na">not recorded</span>'
+    if f["value"] is None:
+        why = NULL_WORD[f["null_reason"]]
         return (
-            f'<div class="hc{cls}" role="columnheader" data-col="{col}"'
-            + (' aria-sort="ascending"' if on else "")
-            + ">"
-            f'<button type="button" class="sb" data-col="{col}" data-asc="{e(w["asc"])}" data-desc="{e(w["desc"])}">'
-            f'{label}\u00a0<span class="g" aria-hidden="true">{"↑" if on else "↕"}</span>'
-            + (f'<span class="sr">, </span><span class="gw">{e(said)}</span>' if said else "")
-            + "</button></div>"
+            f'<span class="na" title="{e(labels(f))}">none</span><span class="sub">{e(why)}</span>'
         )
+    num, unit = number(f["value"], f["unit"])
+    x = " x" if f["unit"] == "ratio" else ""
+    line = sub if sub is not None else sub_words(f, n)
+    return (f'<span class="fig" title="{e(labels(f))}"><span class="n">{e(num)}</span>'
+            f'<span class="u{x}">{e(unit)}</span></span>'
+            + (f'<span class="sub">{e(line)}</span>' if line else ""))  # fmt: skip
 
-    group_of = {c: words for cols, words in BOARD_GROUPS for c in cols}
-    # RFC-0004 INV-DERIVE-7: the limit of the per-Gbit basis, once, on the line its heads share
-    limit = {PER_GBIT: f' title="{e(limit_words())}"'}
-    groups = "".join(
-        f'<div class="hg hg-{e(cols[0])}" aria-hidden="true"{limit.get(words, "")}><span>{e(words)}</span></div>'
-        for cols, words in BOARD_GROUPS
+
+def counted(row):
+    """The counted sessions a row's figures are over."""
+    return len(row["sessions"]) or None
+
+
+def multiple_html(row):
+    """CO-5: the multiple; with no steady state, the session cost over serving, labelled as cold
+    sessions."""
+    figs = row["figures"]
+    m = figs["multiple"]
+    if m is not None and m["value"] is not None:
+        return fig_html(m, counted(row))
+    cold = figs["session_multiple"]
+    if cold is not None and cold["value"] is not None:
+        n = rung_of(row)["requests_per_session"]
+        count = cold["n"] if cold["n"] is not None else counted(row)
+        return fig_html(cold, sub=f"cold sessions of {n:,} replies · n\u00a0=\u00a0{count}")
+    return fig_html(m)
+
+
+def kl_html(row):
+    fid = row["fidelity"] or {}
+    kl = fid.get("kl")
+    if kl is not None and kl["value"] is not None:
+        return fig_html(kl)
+    note = fid.get("kl_note") or "not measured"
+    return f'<span class="na" title="{e(note)}">not measured</span>'
+
+
+def position_html(row, rung):
+    if row["position"] is None:
+        return ""
+    return (f'<span class="pn">{row["position"]}</span>'
+            f'<span class="of">of {rung["systems_run"]}</span>')  # fmt: skip
+
+
+def standing(row):
+    """Passed (a system on a model, SI-6), passed and unranked with why, or not passed with the
+    checks not held (SI-1)."""
+    if row["passed"] and not row["ranked"]:
+        return f"passed, unranked: {row['unranked_reason']}"
+    if row["passed"]:
+        return "passed"
+    missing = [f"{CHECK_NAME[c['id']]} {STATE_WORD[c['state']]}" for c in row["checks"]
+               if c["state"] != "held"]  # fmt: skip
+    return "not passed: " + ", ".join(missing) if missing else "not passed"
+
+
+HEADS = ("", "", "System", "Multiple of serving", "Cost per reply", "Check time per reply",
+         "KL to the 16-bit model")  # fmt: skip
+
+
+def row_cost(row):
+    """The cost per reply at the multiple's own scope: steady when the row has a steady
+    multiple, else its cold sessions, so one row never mixes two scopes."""
+    figs = row["figures"]
+    steady = figs["multiple"].get("value") is not None
+    return figs["steady_usd_per_reply" if steady else "session_usd_per_reply"]
+
+
+def row_html(row, rung):
+    glyph = sized(lambda s: glyph_svg(s, states(row)), ROW_GLYPH)
+    cells = (
+        ("cm", multiple_html(row)),
+        ("cc", fig_html(row_cost(row), counted(row))),
+        ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row))),
+        ("ck", kl_html(row)),
     )
-    # where the rows stack (phones and tablets) the first column is too narrow for its group line:
-    # both lines as one note across the four columns, above their heads
-    note = (
-        '<div class="hn" aria-hidden="true">'
-        f"{e(HEAD['overhead'])}; the other figures {e(PER_GBIT)}</div>"
-    )
+    figs = "".join(f'<td class="{c}"><span class="lbl">{e(h)}</span>{html}</td>'
+                   for (c, html), h in zip(cells, HEADS[3:], strict=True))  # fmt: skip
     return (
-        f'<div class="heads" role="row">{head("system", "System", cls=" hsys")}{groups}{note}'
-        + "".join(head(c, e(BOARD_HEAD[c]), group_of.get(c, "")) for c in BOARD)
-        + "</div>"
+        f'<tr class="row" id="row-{e(row["page"])}">'
+        f'<td class="cp">{position_html(row, rung)}</td>'
+        f'<td class="cg"><a class="glyph" href="{e(href(row))}" tabindex="-1" aria-hidden="true">'
+        f"{glyph}</a></td>"
+        f'<th class="csys" scope="row"><a class="sname" href="{e(href(row))}">{e(name_of(row))}</a>'
+        f'<span class="st">{e(standing(row))}</span>'
+        f'<span class="sr">{e(states_words(row))}</span></th>{figs}</tr>'
     )
 
 
-def model_lines(cfg):
-    """The row's model under the system's name, only what a comparison needs: its name, then its
-    active parameters, the weight width the per-Gbit figures divide by and the batch size (and a
-    closed or open workload's division). The rest (total parameters, the width's basis, prompt
-    and output lengths, GPUs) is in the cell's title and on the system page."""
-    p = cfg["workload"]["model"]["parameters"]
-    total, active = p["total"], p["active_per_token"]
-    wb = cfg["workload"]["precision"].get("weight_bits") or {}
-    bits = f"{wb['bits']:.4g}-bit" if wb.get("bits") is not None else "bits not recorded"
-    short = [
-        f"{size_words(active)} active",
-        bits,
-        f"batch\u00a0{cfg['workload']['shape']['batch_size']:,}",
-    ]
-    if cfg["workload"]["division"] != "native":
-        short.append(f"{cfg['workload']['division']} division")
-    size = (f"{size_words(total)}, dense" if total == active
-            else f"{size_words(total)} total, {size_words(active)} active")  # fmt: skip
-    title = " · ".join([size, bits_words(cfg), shape_words(cfg)])
-    return (
-        f'<div class="mc" title="{e(title)}"><p class="mn">{e(S.MODEL_NAME[cfg["workload"]["model"]["digest"]])}</p>'
-        f'<p class="ms">{facts_line(readable(" · ".join(short)))}</p></div>'
+def request_words():
+    r = S.V["request"]
+    return (f"{r['prompt_tokens']:,} prompt tokens, {r['output_tokens']:,} reply tokens, "
+            f"{r['decoding']}, every reply token checked")  # fmt: skip
+
+
+def engine_words():
+    eng = S.V["engine"] or {}
+    name = {"vllm": "vLLM"}.get(str(eng.get("name")), eng.get("name") or "engine not recorded")
+    return f"{name} {eng['version']}" if eng.get("version") else name
+
+
+def baseline_html(rung):
+    """The serving baseline in one line (CO-4): engine, GPUs, concurrency at full load and its
+    GPU-seconds per reply."""
+    b = rung["baseline"]
+    if b is None:
+        return '<p class="rb"><span class="k">Serving</span> not run yet</p>'
+    if b["gpu_seconds_per_reply"] is None or b["gpu_seconds_per_reply"]["value"] is None:
+        why = b["cause"] or "no full load recorded"
+        return f'<p class="rb"><span class="k">Serving</span> {e(why)}</p>'
+    gpus = f"{b['gpus']} × H200" if b["gpus"] else "GPUs not recorded"
+    return (f'<p class="rb"><span class="k">Serving</span> {e(engine_words())}, {e(gpus)}, '
+            f"full load at {b['concurrency']:,} concurrent requests: "
+            f'{fig_html(b["gpu_seconds_per_reply"])}</p>')  # fmt: skip
+
+
+def rung_html(rung, first):
+    head = (
+        f'<header class="rh"><h2 class="rm" id="h-{e(rung["id"])}">{e(rung["model"])}</h2>'
+        f'<p class="ri">{e(rung["publisher"])} · '
+        f"{e(architecture(rung['parameters_total'], rung.get('parameters_active')))} · "
+        f"{e(request_words())}</p>"
+        f"{baseline_html(rung)}</header>"
     )
+    if not rung["rows"]:
+        body = '<p class="none">Not run yet.</p>'
+    else:
+        ths = "".join(f'<th scope="col">{e(h)}</th>' for h in HEADS)
+        rows = "".join(row_html(r, rung) for r in rung["rows"])
+        cols = '<colgroup><col class="c1"><col class="c2"><col class="c3"><col><col><col><col></colgroup>'
+        body = (
+            f'<table class="lad">{cols}<thead><tr>{ths}</tr></thead><tbody>{rows}</tbody></table>'
+        )
+    after = f'<p class="nt">{e(UNDER)}</p>' if first else ""
+    return (f'<section class="rung" id="{e(rung["id"])}" aria-labelledby="h-{e(rung["id"])}">'
+            f"{head}{body}{after}</section>")  # fmt: skip
 
 
-def board_row(cfg):
-    """One overview row: the row header (glyph, name, its pin in the name's title, and the model
-    under them; a hovered petal names itself in a card under the glyph), then the figures, each a link to its own plate on the system page."""
-    sid = cfg["system"]
-    name, g, href = name_of(sid), glyph(sid), claims_href(cfg)
-    said = f'<p class="sr">{e(states_said(g))}</p>'
-    keys = e(json.dumps(row_keys(cfg), separators=(",", ":")))
-    vals = "".join(
-        f'<div class="vc" role="cell" data-col="{c}">{value_link(cfg, c, fig_href(cfg, c), name)}</div>'
-        for c in BOARD
+def frontier_html():
+    """OR-6: the largest model with a passed row, the row at position 1 (or every passed row when
+    none is ranked), its multiple and the count of systems run on that model."""
+    f = S.V["frontier"]
+    if f is None:
+        said = "No system has passed yet." if S.V["release"] else "No system has run yet."
+        return f'<h1 class="front">{e(said)}</h1>'
+    names = " and ".join(f'<a href="{e(href(row))}">{e(name_of(row))}</a>' for row in f["rows"])
+    first = f["rows"][0]
+    count = f["systems_run"]
+    where = (f"{first['position']} of {count} systems run on this model"
+             if first["position"] is not None else
+             f"{count} system{'s' if count != 1 else ''} run on this model")  # fmt: skip
+    m = first["figures"]["multiple"]
+    said = [where]
+    if len(f["rows"]) == 1 and m is not None and m["value"] is not None:
+        num, unit = number(m["value"], m["unit"])
+        said.insert(0, f"{num}{unit} serving")
+    return (f'<h1 class="front">{names} passed on {e(f["model"])}</h1>'
+            f'<p class="fsub">{e(" · ".join(said))}</p>')  # fmt: skip
+
+
+def not_run_html():
+    items = "".join(
+        f'<li id="nr-{e(r["id"])}"><span class="nn">{e(r["name"])}</span>'
+        f'<span class="nr">{e(r["reason"])}</span></li>'
+        for r in S.V["not_run"]
     )
-    return f'''
-<div class="row" id="{e(sid)}" role="row" data-name="{e(name.lower())}" data-k="{keys}">
-  <div class="r-main">
-    <div class="sysc" role="rowheader" aria-labelledby="{e(sid)}-name">
-      <a class="pie" href="{e(href)}" tabindex="-1" aria-hidden="true">{sized(lambda s: pie_svg(g["states"], s, cells=g["cells"] if s == ROW_PIE[0] else None, hit=True), ROW_PIE)}<span class="tip pop"></span></a>
-      <div class="who"><h3 class="name" id="{e(sid)}-name"><a href="{e(href)}" title="pinned at {e(upstream(cfg)["commit"][:8])}">{e(name)}</a></h3>{said}</div>
-      {model_lines(cfg)}
-    </div>
-    <div class="vals">{vals}</div>
-  </div>
-</div>'''
-
-
-ID_NOTE = " (model id as given)"
-
-
-def family(text):
-    """A model's name for comparing families: lower case, notes in brackets and separators out
-    ("Gemma 3" and "gemma-3-1b-it" both start "gemma 3")."""
-    return re.sub(r"[\s_-]+", " ", re.sub(r"\([^)]*\)", "", text).lower()).strip()
-
-
-def nb_split(r):
-    """A system's models: (the names its sources give, the ids printed beside them, the ids left
-    out because a name already gives their family; their title holds them)."""
-    names = [g for g in r["models"] if not g.endswith(ID_NOTE)]
-    fams = [f for g in names for x in re.split(r",|;|\band\b", g) if (f := family(x))]
-    shown, left = [], []
-    for given in (g.removesuffix(ID_NOTE) for g in r["models"] if g.endswith(ID_NOTE)):
-        model = family(given.rsplit("/", 1)[-1])
-        (left if any(model.startswith(f) for f in fams) else shown).append(given)
-    return names, shown, left
-
-
-def nb_models(r):
-    """A system's models as its sources name them, whole (never cut mid-phrase), notes trimmed,
-    quotes curly as on the cards; an id only where no name gives its family."""
-    names, shown, _ = nb_split(r)
-    out = ["Model " + m if m.startswith("not named")
-           else m[:1].upper() + m[1:] if m.startswith("no ") else m
-           for m in [*names, *shown]]  # fmt: skip
-    return curly("; ".join(out))
-
-
-def nb_meta(rid):
-    """The repository status, only where it is not active (the group heading names the family)."""
-    status = S.V["facts"]["rows"][rid]["status"]["state"]
-    word = STATUS_WORD[status]
-    return "" if status == "active" else word[:1].upper() + word[1:]
-
-
-def own_link(rid):
-    """The system's own public source among those the criteria file names: its repository, else
-    the page (a paper) that presents it, else its own domain; None when it names none."""
-    found = S.CRIT["rows"][rid].get("own_sources") or []
-    for key, href in (("repo", "https://github.com/{}"), ("url", "{}"), ("domain", "https://{}/")):
-        for src in found:
-            if src.get(key):
-                return href.format(src[key])
-    return None
-
-
-def nb_card(rid):
-    """One system not benchmarked yet: its glyph, whose petals name themselves under a pointer or
-    a tap, in place of the lines under the name; its name, a link to its own source; its models
-    and, where it is not active, its repository status."""
-    r, g = S.V["facts"]["rows"][rid], glyph(rid)
-    href = own_link(rid)
-    name = (f'<a href="{e(href)}">{e(r["name"])}<span class="xa" aria-hidden="true">\u00a0↗</span></a>'
-            if href else e(r["name"]))  # fmt: skip
-    meta = nb_meta(rid)
-    left = nb_split(r)[2]
-    title = f' title="{e("; ".join(left))}"' if left else ""
-    lines = f'<p class="nbm"{title}>{keep(nb_models(r))}</p>' + (
-        f'<p class="nbm">{keep(meta)}</p>' if meta else ""
-    )
-    return (
-        f'<li class="nb" id="nb-{e(rid)}"><span class="nbpie" role="img" aria-label="{e(aria(g, r["name"]))}">'
-        f"{sized(lambda s: pie_svg(g['states'], s, cells=g['cells'] if s == NB_PIE[0] else None, hit=True), NB_PIE)}</span>"
-        f'<div class="nbt"><h4 class="nbn">{name}</h4><div class="nbms">{lines}</div>'
-        f'<p class="tip" aria-hidden="true"></p></div></li>'
-    )
-
-
-def nb_grid():
-    """The systems not benchmarked yet, one group per family, the largest first (ties A to Z by
-    the family's word); each group's heading spans the grid, so the cards keep one grid."""
-    groups = {}
-    for rid in S.V["orders"]["not_benchmarked"]:
-        groups.setdefault(S.CRIT["rows"][rid]["family"], []).append(rid)
-    order = sorted(groups, key=lambda f: (-len(groups[f]), FAMILY_WORD[f]))
-    out = "".join(
-        f'<h3 class="nbh" id="nbh-{e(fam)}">{e(FAMILY_WORD[fam])}</h3>'
-        f'<ul class="nbl" role="list" aria-labelledby="nbh-{e(fam)}">{"".join(nb_card(r) for r in groups[fam])}</ul>'
-        for fam in order
-    )
-    return f'<div class="nbgrid">{out}</div>'
-
-
-def shape_words(cfg):
-    """What the configuration ran, from its workload record and reference profile, without the
-    model name the section already prints."""
-    sh = cfg["workload"]["shape"]
-    out = sh["output_tokens"]
-    tail = "the next token" if out == 1 else f"{out:,} output tokens"
-    batch = sh["batch_size"]
-    gpus = cfg["gpu"]["count"]
-    return " · ".join([
-        f"{sh['prompt_tokens']:,}-token prompt, {tail}",
-        f"{batch:,} request{'s' if batch != 1 else ''} per batch",
-        f"{gpu_words(cfg)} GPU{'s' if gpus != 1 else ''}",
-    ])  # fmt: skip
-
-
-def model_line(cfg):
-    """The model fact of a system page: name, size and the precision proved."""
-    m = cfg["workload"]["model"]
-    p = m["parameters"]
-    size = (f"{size_words(p['total'])} parameters (dense)" if p["total"] == p["active_per_token"]
-            else f"{size_words(p['total'])} total, {size_words(p['active_per_token'])} active per token")  # fmt: skip
-    prec = cfg["workload"]["precision"]["proved"]
-    said = S.V["facts"]["models"][m["digest"]]["precision_words"].get(prec)
-    return f"{S.MODEL_NAME[m['digest']]}, {size}, {prec}" + (f" ({said})" if said else "")
-
-
-def facts_line(text):
-    """A line of facts: each one a span, so phones can list them (words.css); the separator stays
-    in the text, so the facts never run together when read aloud."""
-    return '<span class="sep">\u00a0· </span>'.join(
-        f"<span>{e(x)}</span>" for x in re.split(r"[ \u00a0]· ", text)
-    )
-
-
-def plate_prefix(cfg):
-    """The id prefix of a configuration's plates on its system page: `fig-` when the system has
-    one configuration (RFC-0009 S1), else the row's id first, so each plate id is the page's
-    only one and each overview figure links its own configuration's plate."""
-    if len(configs_of(cfg["system"])) == 1:
-        return "fig-"
-    return f"{row_id(cfg)}-fig-"
-
-
-def claims_href(cfg):
-    """A row header's link: the validated claims of the row's card on its system page (S1)."""
-    return f"{S.PAGE[cfg['system']]}#claims-{cfg['configuration']}"
-
-
-def fig_href(cfg, col):
-    """An overview figure's plate on the system page."""
-    return f"{S.PAGE[cfg['system']]}#{plate_prefix(cfg)}{col}"
-
-
-# the overview's description, in its meta and share tags
-HOME_DESC = ("Provable LLM inference measured on the same hardware: overhead against production "
-             "serving, proving time, proof size and check time, and what one proof establishes.")  # fmt: skip
+    return (f'<section class="notrun" aria-labelledby="h-notrun"><h2 class="sect" id="h-notrun">'
+            f'Not run</h2><ul class="nrl">{items}</ul></section>')  # fmt: skip
 
 
 def build_index():
-    rows = board_configs()
-    first = f"{BOARD_HEAD[DEFAULT_COL]}, {SORT_WORDS[DEFAULT_COL]['asc']}"
+    rungs = "".join(rung_html(r, i == 0) for i, r in enumerate(S.V["rungs"]))
     body = f"""
 {header("home")}
-<main id="main">
-{masthead()}
-<div class="wrap">
-  <section class="sec board" id="benchmarked" aria-labelledby="h-bench">
-    <div class="sec-h"><h2 id="h-bench" class="sect">Benchmarked</h2></div>
-    <div class="tbl" role="table" aria-labelledby="h-bench" aria-describedby="sort-now per-gbit-limit" data-col="{DEFAULT_COL}" data-dir="asc">
-      {sort_heads()}
-      <div class="rows" role="rowgroup">{"".join(board_row(c) for c in rows)}</div>
-    </div>
-  </section>
-  <p id="sort-now" hidden>{e(first)}</p>
-  <p id="per-gbit-limit" hidden>{e(PER_GBIT.capitalize())}: {e(limit_words())}</p>
-  <section class="sec" id="not-yet" aria-labelledby="h-nb">
-    <div class="sec-h"><h2 id="h-nb" class="sect">Not benchmarked yet</h2></div>
-    {nb_grid()}
-  </section>
-</div>
+<main id="main" class="home">
+  <section class="mast"><div class="mast-in">{frontier_html()}</div></section>
+  <div class="wrap">{rungs}{not_run_html()}</div>
 </main>
 {footer()}"""
-    return page(
-        "Inference proofs",
-        HOME_DESC,
-        body,
-        "home",
-        "",
-        "home",
-    )
+    models = ", ".join(r["model"] for r in S.V["rungs"])
+    desc = f"{S.V['level']['name']}: provers on {models}, six checks each, cost against serving."
+    return page("Inference proofs", desc, body, "home", "", "home")

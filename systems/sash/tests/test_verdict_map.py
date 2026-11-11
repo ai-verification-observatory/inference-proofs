@@ -9,8 +9,6 @@ from types import ModuleType
 import pytest
 from sash_fixtures import load
 
-TOK = [11, 12, 13]
-
 
 @pytest.fixture
 def adapter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
@@ -26,23 +24,17 @@ def grid(*, run: int = 290, accepted: int = 290, chain: bool = True, ids: bool =
 
 
 def test_all_segments_accepted_and_grid_passed_is_accept(adapter: ModuleType) -> None:
-    assert adapter.verdict_of(0, grid(), "grid: done\n", TOK, TOK) == ("accept", "grid: done")
+    assert adapter.verdict_of(0, grid(), "grid: done\n") == ("accept", "grid: done")
 
 
 def test_one_segment_rejected_is_reject(adapter: ModuleType) -> None:
-    verdict, line = adapter.verdict_of(1, grid(accepted=289), "B4L9: rejected\n", TOK, TOK)
+    verdict, line = adapter.verdict_of(1, grid(accepted=289), "B4L9: rejected\n")
     assert (verdict, line) == ("reject", "B4L9: rejected")
 
 
 @pytest.mark.parametrize("doc", [grid(chain=False), grid(ids=False)])
 def test_grid_failure_is_reject(adapter: ModuleType, doc: str) -> None:
-    assert adapter.verdict_of(1, doc, "", TOK, TOK)[0] == "reject"
-
-
-def test_claimed_output_other_than_the_proved_ids_is_reject(adapter: ModuleType) -> None:
-    verdict, line = adapter.verdict_of(0, grid(), "", TOK, [11, 12, 14])
-    assert verdict == "reject"
-    assert "claimed_output" in line
+    assert adapter.verdict_of(1, doc, "")[0] == "reject"
 
 
 @pytest.mark.parametrize(
@@ -59,14 +51,10 @@ def test_claimed_output_other_than_the_proved_ids_is_reject(adapter: ModuleType)
 def test_any_other_outcome_is_no_verdict_with_the_raw_line(
     adapter: ModuleType, code: int, stdout: str, stderr: str
 ) -> None:
-    verdict, line = adapter.verdict_of(code, stdout, stderr, TOK, TOK)
+    verdict, line = adapter.verdict_of(code, stdout, stderr)
     assert verdict == "no_verdict"
     assert line == stderr.strip()
 
 
-def test_unreadable_statement_after_a_passed_grid_is_no_verdict(adapter: ModuleType) -> None:
-    assert adapter.verdict_of(0, grid(), "ok\n", None, TOK) == ("no_verdict", "ok")
-
-
 def test_raw_line_is_capped(adapter: ModuleType) -> None:
-    assert len(adapter.verdict_of(101, "", "x" * 5000, None, TOK)[1]) == 4096
+    assert len(adapter.verdict_of(101, "", "x" * 5000)[1]) == 4096

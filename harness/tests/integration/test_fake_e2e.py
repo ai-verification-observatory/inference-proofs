@@ -30,6 +30,7 @@ COPY = [
     "systems/fake-broken",
     "workloads/fake-tiny-ci.yaml",
     "reference",
+    "levels",
     "uv.lock",
     "pyproject.toml",
     "harness/tests/fixtures/prompts",

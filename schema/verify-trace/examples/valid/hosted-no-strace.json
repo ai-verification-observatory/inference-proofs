@@ -1,0 +1,15 @@
+{
+  "failed_opens": 0,
+  "gpu_devices_opened": [],
+  "gpu_visible": false,
+  "mode": "hosted",
+  "model_files_opened": [],
+  "model_files_present": false,
+  "model_files_removed": true,
+  "opened": [],
+  "proof_id": "req-0",
+  "run_id": "2026-11-10-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "verify-trace/1",
+  "tool": null,
+  "trace": null
+}
