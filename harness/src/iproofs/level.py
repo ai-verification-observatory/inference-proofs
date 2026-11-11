@@ -358,6 +358,8 @@ def freeze_time(root: Path, level_id: str = "L1") -> dt.datetime | None:
         return out.stdout.strip()
 
     try:
+        if git("rev-parse", "--is-shallow-repository") == "true":
+            return None  # a shallow clone (CI) lacks the history that dates the freeze
         dirty = git("status", "--porcelain", "--", rel)
         stamp = git("log", "-1", "--format=%ct", "--", rel)
     except (OSError, subprocess.CalledProcessError):
