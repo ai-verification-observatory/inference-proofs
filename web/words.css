@@ -127,6 +127,22 @@ html:has(.top.s-on) { overflow: hidden; }
 .mast { background: var(--violet); color: var(--ground); position: relative; isolation: isolate; overflow: hidden; }
 .juice { position: absolute; inset: -40px; width: calc(100% + 80px); height: calc(100% + 80px); z-index: -1; display: block; filter: blur(18px); }
 .mast-in { width: min(var(--max), 100% - 2 * var(--safe)); margin: 0 auto; padding: 28px 0 26px; }
+/* the band: the ladder at a glance, each model biggest first, a bar filled where a system passed */
+.band-h { font: 900 40px/1 var(--disp); font-stretch: 66%; letter-spacing: -.006em; margin: 0 0 16px; }
+.bl { list-style: none; margin: 0; padding: 0; }
+.bl-r a { display: grid; grid-template-columns: minmax(0, 1.6fr) 7ch 12rem minmax(0, 1fr) max-content; align-items: center;
+  gap: 16px; padding: 7px 0; color: inherit; text-decoration: none; border-top: 1px solid color-mix(in srgb, var(--ground) 22%, transparent); }
+.bl-r:last-child a { border-bottom: 1px solid color-mix(in srgb, var(--ground) 22%, transparent); }
+.bl-r a:hover .bl-m { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.bl-m { font: 800 22px/1.1 var(--disp); font-stretch: 72%; }
+.bl-p, .bl-s, .bl-c { font: 500 14px/1.3 var(--mono); }
+.bl-p { text-align: right; }
+.bl-c { text-align: right; font-weight: 700; white-space: nowrap; }
+.bl-bar { height: 14px; border: 2px solid var(--ground); }
+.s2 .bl-bar { background: var(--ground); }
+.s1 .bl-bar { background: repeating-linear-gradient(-45deg, var(--ground) 0 2px, transparent 2px 7px); }
+.s0 .bl-bar { height: 0; border-width: 2px 0 0; }
+.s0 .bl-s { opacity: .72; }
 /* the frontier: one line, the largest model a system passed on */
 .front { font: 900 56px/.95 var(--disp); font-stretch: 66%; letter-spacing: -.008em; margin: 0; max-width: 24ch; text-wrap: balance; }
 .front a { text-decoration-thickness: 3px; text-underline-offset: 6px; }
@@ -252,6 +268,10 @@ html:has(.top.s-on) { overflow: hidden; }
   .top.s-on .search { position: fixed; top: 12px; left: 50%; width: min(600px, 100vw - 2 * var(--gut)); transform: translateX(-50%); z-index: 21; }
 }
 @media (max-width: 760px) {
+  .band-h { font-size: 30px; }
+  .bl-r a { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "m p" "bar bar" "s c"; gap: 6px 12px; padding: 10px 0; }
+  .bl-m { grid-area: m; font-size: 19px; } .bl-p { grid-area: p; } .bl-bar { grid-area: bar; }
+  .bl-s { grid-area: s; } .bl-c { grid-area: c; }
   /* one line: the logo, the page, a search button and GitHub; the button opens the field over the line */
   .tl { display: contents; }
   .top { grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }

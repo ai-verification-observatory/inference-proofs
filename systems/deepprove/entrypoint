@@ -1,0 +1,429 @@
+#!/usr/bin/env python3
+"""DeepProve adapter (RFC-0005), standard library only.
+
+Usage: entrypoint <info|setup|commit|prove|verify|mutate_reply> /io/job.json /io/out.json
+
+Every upstream step is a program DeepProve ships at the pin, called with the flags its own
+`--help` lists (README.md maps each argument to its source line):
+
+- `commit` records the digests of the model files the prover loads. DeepProve has no step that
+  makes a verifier key from the weights alone: the one-shot worker draws a fresh key inside each
+  proving call and writes it into the proof file (README.md §Weights binding).
+- `prove` runs `deep-prove-worker --tensor-store temporary one-shot` once per request: upstream
+  tokenizes the prompt text, generates the greedy reply, proves one forward pass over prompt and
+  reply, and writes one proof file. The adapter checks that upstream's tokens equal the request,
+  reads the reply from the proof's IO, and releases one directory per request.
+- `verify` refuses: `deep-prove-cli verify` reads the verifier key only from the proof file, and
+  AGENTS.md rule 6 forbids a key sent with the proof (README.md §Weights binding).
+- `mutate_reply` (RFC-0018 AD-6) changes one reply token in a proof where the verifier reads it
+  (the IO input) and in the field the verifier pairs with it (the IO output one row before).
+
+IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run this
+file in process. IPROOFS_DEEPPROVE_EXEC names a program every upstream process is run through
+(tests only: a stub that stands in for the binaries); the logged argv is unchanged.
+"""
+
+import hashlib
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import time
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+UPSTREAM_COMMIT = "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662"  # INV-ADAPTER-2
+WORKLOADS = ["l1-gpt2-p512-o512"]
+PROFILE = "prover-cpu-hosted"  # README.md §Machine
+INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
+STUB = os.environ.get("IPROOFS_DEEPPROVE_EXEC")
+OPTIONAL = ["mutate_reply"]  # RFC-0018 AD-6
+WORKER = "/usr/local/bin/deep-prove-worker"
+STATE = "/io/state"
+PROOF = "proof.bin"  # deep-prove-cli verify picks the bincode reader by the `.bin` extension
+EOS = 50256  # GPT-2's eos_token_id, which upstream reads from config.json (gpt2/mod.rs L182)
+# the files the one-shot worker reads for a safetensors GPT-2 (--model, --tokenizer, --config),
+# and vocab.json, which the adapter reads to turn the request's ids into the prompt text
+MODEL_FILES = ("model.safetensors", "config.json", "tokenizer.json", "vocab.json")
+FIELD = 33  # one BN254 scalar as bincode bytes: length 32, then 32 bytes little-endian
+REFUSE_VERIFY = (
+    "deepprove: verify refused (AGENTS.md rule 6, INV-ADAPTER-5). deep-prove-cli verify takes "
+    "the verifier key (LLMVerifierContext, with the model commitments) only from inside the "
+    "proof file (deep-prove/src/bin/cli/main.rs L221-L235 at 9d1a53e), and the one-shot worker "
+    "makes a new key in each proving call from a random seed (deep-prove/src/bin/worker/"
+    "immediate.rs L159-L162; zkml/src/poly_commit/context.rs L166; zkml/src/lib.rs L278-L288). "
+    "No documented step makes that key from the pinned weights alone, so the commitment the "
+    "verifier would check cannot come from the harness record. README.md §Weights binding."
+)
+
+
+def host(container_path: str) -> Path:
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"deepprove: path {container_path!r} outside /io and /models")
+
+
+def mapped(arg: str) -> str:
+    """A container path argument as the host path when IPROOFS_IO or IPROOFS_MODELS map it."""
+    for prefix in ("/io", "/models"):
+        if arg == prefix or arg.startswith(prefix + "/"):
+            return str(host(arg))
+    return arg
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}  # fmt: skip
+
+
+def run(argv: list[str], *, cwd: str, env: dict[str, str] | None = None) -> None:
+    """One upstream process, logged to /io/commands.jsonl (RFC-0005 §Command log)."""
+    started = time.monotonic_ns()
+    real = [STUB, *argv] if STUB else argv
+    p = subprocess.run([*map(mapped, real)], cwd=mapped(cwd),
+                       env={**os.environ, **{k: mapped(v) for k, v in (env or {}).items()}},
+                       capture_output=True, text=True,
+                       check=False)  # fmt: skip
+    line = {"argv": argv, "cwd": cwd, "started_mono_ns": started, "exit_code": p.returncode}
+    with host("/io/commands.jsonl").open("a") as f:
+        f.write(json.dumps(line, sort_keys=True) + "\n")
+    if p.returncode != 0:
+        tail = "\n".join((p.stderr + p.stdout).splitlines()[-50:])
+        raise SystemExit(f"deepprove: {Path(argv[0]).name} exited {p.returncode}\n{tail}")
+
+
+def write_json(path: str, doc: object) -> None:
+    host(path).parent.mkdir(parents=True, exist_ok=True)
+    host(path).write_text(json.dumps(doc, sort_keys=True, indent=1) + "\n")
+
+
+def file_digest(path: str) -> str:
+    h = hashlib.sha256()
+    with host(path).open("rb") as f:
+        for block in iter(lambda: f.read(1 << 24), b""):
+            h.update(block)
+    return "sha256:" + h.hexdigest()
+
+
+def commitment_of(files: list[str]) -> str:
+    """sha256 over the verifier files' own digests, so the harness's record names both."""
+    lines = "".join(f"{Path(f).name}\t{file_digest(f)}\n" for f in sorted(files))
+    return "sha256:" + hashlib.sha256(lines.encode()).hexdigest()
+
+
+# ------------------------------------------------------------------ prompt text
+
+
+def byte_decoder() -> dict[str, int]:
+    """GPT-2's byte-level alphabet (bytes_to_unicode in OpenAI's encoder.py, which the ByteLevel
+    decoder of tokenizer.json implements): the 188 printable bytes stand for themselves, the
+    other 68 for U+0100 onwards in byte order."""
+    bs = [*range(0x21, 0x7F), *range(0xA1, 0xAD), *range(0xAE, 0x100)]
+    cs = list(bs)
+    extra = 0
+    for b in range(256):
+        if b not in bs:
+            bs.append(b)
+            cs.append(256 + extra)
+            extra += 1
+    return {chr(c): b for b, c in zip(bs, cs, strict=True)}
+
+
+def prompt_text(ids: list[int], vocab_file: str) -> str:
+    """The text whose bytes are the request's tokens joined. The one-shot worker takes text and
+    tokenizes it itself (immediate.rs L280-L282); prove checks afterwards that upstream's tokens
+    are the request's ids. A request whose bytes are not UTF-8 (a window that cuts a character)
+    or hold a NUL cannot be passed as a command-line string, and is refused."""
+    inverse = {v: k for k, v in json.loads(host(vocab_file).read_text()).items()}
+    decoder, raw = byte_decoder(), bytearray()
+    for i in ids:
+        token = inverse.get(i)
+        if token is None:
+            raise SystemExit(f"deepprove: token {i} is not in vocab.json")
+        try:
+            raw += bytes(decoder[c] for c in token)
+        except KeyError as e:
+            msg = f"deepprove: token {i} ({token!r}) is outside the byte alphabet"
+            raise SystemExit(msg) from e
+    try:
+        text = raw.decode("utf-8")
+    except UnicodeDecodeError as e:
+        msg = (f"deepprove: the prompt's bytes are not UTF-8 at byte {e.start}; the worker "
+               "takes a text prompt, so these ids cannot be passed")  # fmt: skip
+        raise SystemExit(msg) from e
+    if "\x00" in text:
+        raise SystemExit("deepprove: the prompt holds a NUL byte, which no argument can carry")
+    return text
+
+
+def worker_argv(text: str, new_tokens: int) -> list[str]:
+    """deep-prove-worker one-shot for a safetensors model (worker/main.rs L203-L205, L277-L332):
+    `--prompt=` so a prompt that begins with `-` stays a value."""
+    return [WORKER, "--tensor-store", "temporary", "one-shot",
+            "--model", "/models/model.safetensors", "--model-format", "safetensors",
+            "--tokenizer", "/models/tokenizer.json", "--config", "/models/config.json",
+            "--max-new-tokens", str(new_tokens), f"--prompt={text}"]  # fmt: skip
+
+
+# ------------------------------------------------------------------ proof file
+
+
+class Reader:
+    """bincode 2 with `config::standard()` (little endian, variable-length integers), the
+    encoding the worker writes and the CLI reads (immediate.rs L199; cli/main.rs L222-L224)."""
+
+    def __init__(self, buf: bytes | bytearray, pos: int = 0) -> None:
+        self.buf, self.pos = buf, pos
+
+    def take(self, n: int) -> bytes:
+        if self.pos + n > len(self.buf):
+            raise SystemExit(f"deepprove: the proof file ends at byte {len(self.buf)}, inside a "
+                             f"field at {self.pos}")  # fmt: skip
+        out = bytes(self.buf[self.pos : self.pos + n])
+        self.pos += n
+        return out
+
+    def varint(self) -> int:
+        tag = self.take(1)[0]
+        if tag < 251:
+            return tag
+        width = {251: 2, 252: 4, 253: 8, 254: 16}.get(tag)
+        if width is None:
+            raise SystemExit(f"deepprove: byte {self.pos - 1} is not a varint tag ({tag})")
+        return int.from_bytes(self.take(width), "little")
+
+    def string(self) -> str:
+        return self.take(self.varint()).decode("utf-8")
+
+    def field(self) -> int:
+        """SerializableField: serde bytes of arkworks' compressed form (zkml/src/lib.rs L58;
+        dp-crypto serialization, lib.rs L12-L20 at 22e8e93): 32 bytes, little endian."""
+        if (n := self.varint()) != 32:
+            raise SystemExit(f"deepprove: a field element of {n} bytes at {self.pos}, not 32")
+        return int.from_bytes(self.take(32), "little")
+
+    def shape(self) -> list[int]:
+        return [self.varint() for _ in range(self.varint())]  # Shape(Vec<usize>), shape.rs L51
+
+
+@dataclass
+class Head:
+    """LlmOneShotOutput's leading fields (deep-prove/src/middleware/llm.rs L13-L21): the model
+    name, the prompt text, the prompt tokens the CLI passes the verifier as `user_input`
+    (cli/main.rs L235), and the response text, for logging only (L11)."""
+
+    model_name: str
+    prompt: str
+    tokens: list[int]
+    response: str | None
+    end: int  # first byte of `proof`
+
+
+def read_head(buf: bytes | bytearray) -> Head:
+    r = Reader(buf)
+    name, prompt = r.string(), r.string()
+    tokens = [r.varint() for _ in range(r.varint())]
+    tag = r.take(1)[0]
+    if tag not in (0, 1):
+        raise SystemExit(f"deepprove: llm_response is not an Option (tag {tag})")
+    response = r.string() if tag == 1 else None
+    return Head(name, prompt, tokens, response, r.pos)
+
+
+@dataclass
+class Io:
+    """IO<F>'s one input and one output tensor (zkml/src/iop/verifier.rs L68-L75; Tensor's
+    `data`, `shape`, `unpadded_shape`, tensor/mod.rs L108-L116), with the byte offset of each
+    tensor's first element."""
+
+    input: list[int]
+    input_at: int
+    output: list[int]
+    output_at: int
+    length: int  # the sequence's unpadded length: prompt plus reply
+
+
+def read_io(buf: bytes | bytearray, prompt: list[int], start: int) -> Io:
+    """IO sits after the opaque Proof inside LLMProof (zkml/src/model/llm.rs L107-L117), so it
+    is found by its content: the input tensor's data begin with the prompt's elements, once.
+    Before them, the input vector's length (1) and the data's length; after the data, the two
+    shapes, then the output vector (1) and its tensor."""
+    pattern = b"".join(b"\x20" + t.to_bytes(32, "little") for t in prompt)
+    data = bytes(buf)
+    at = data.find(pattern, start)
+    if at < 0 or data.find(pattern, at + 1) >= 0:
+        raise SystemExit("deepprove: the prompt's elements do not occur exactly once in the "
+                         "proof; the IO layout is not the one README.md reads")  # fmt: skip
+    if at < 4 or buf[at - 4] != 1 or buf[at - 3] != 251:
+        raise SystemExit("deepprove: the prompt's elements are not preceded by one input "
+                         "tensor of 256 to 65,535 elements")  # fmt: skip
+    r = Reader(buf, at)
+    n = int.from_bytes(buf[at - 2 : at], "little")
+    inp = [r.field() for _ in range(n)]
+    r.shape()
+    unpadded = r.shape()
+    if r.varint() != 1:
+        raise SystemExit("deepprove: IO.output does not hold one tensor")
+    m = r.varint()
+    output_at = r.pos
+    out = [r.field() for _ in range(m)]
+    length = unpadded[0] if len(unpadded) == 1 else n
+    if not len(prompt) <= length <= n or m < length:
+        raise SystemExit(f"deepprove: IO lengths {n}, {length}, {m} do not hold the prompt")
+    return Io(inp, at, out, output_at, length)
+
+
+# ------------------------------------------------------------------ subcommands
+
+
+def info(job: dict[str, Any]) -> dict[str, Any]:
+    out = {**base("info"), "system": "deepprove", "upstream_commit": UPSTREAM_COMMIT,
+           "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
+           "workloads": WORKLOADS, "profile": PROFILE, "contract_versions": ["adapter/1"],
+           "optional_subcommands": OPTIONAL}  # fmt: skip
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
+
+
+def setup(job: dict[str, Any]) -> dict[str, Any]:
+    return {**base("setup"), "ready": True, "log_files": []}
+
+
+def commit(job: dict[str, Any]) -> dict[str, Any]:
+    """The digests of the files the prover will load, and nothing a verifier checks: DeepProve
+    makes its verifier key inside each proving call (README.md §Weights binding)."""
+    t0 = time.monotonic()
+    model = job["model_dir"].rstrip("/")
+    missing = [f for f in MODEL_FILES if not host(f"{model}/{f}").is_file()]
+    if missing:
+        raise SystemExit(f"deepprove: the model directory has no {missing}")
+    record = {"upstream_commit": UPSTREAM_COMMIT,
+              "model_files": {f: file_digest(f"{model}/{f}") for f in MODEL_FILES},
+              "verifier_key": None,
+              "why": "no documented upstream step makes the verifier key from the weights "
+                     "alone; README.md §Weights binding"}  # fmt: skip
+    record_file = STATE + "/commit.json"
+    write_json(record_file, record)
+    return {**base("commit"), "commitment_id": commitment_of([record_file]),
+            "verifier_files": [record_file], "prover_files": [],
+            "sizes": {"verifier_bytes": host(record_file).stat().st_size, "prover_bytes": 0},
+            "phases": [{"name": "digest", "seconds": time.monotonic() - t0}],
+            "warnings": ["no verifier key: verify refuses until one comes from a step of its "
+                         "own (README.md §Weights binding)"]}  # fmt: skip
+
+
+def prove(job: dict[str, Any]) -> dict[str, Any]:
+    shape = job["shape"]
+    p, r = shape["prompt_tokens"], shape["output_tokens"]
+    if job["batch_size"] != 1:
+        raise SystemExit("deepprove: the one-shot worker proves one prompt a call "
+                         "(immediate.rs L140-L207); batch_size must be 1")  # fmt: skip
+    count = job["batch_size"] * job["batches"]
+    prompts = host(job["prompts_file"]).read_text().splitlines()
+    if len(prompts) < count:
+        raise SystemExit(f"deepprove: {len(prompts)} prompts for {count} requests")
+    host("/io/proofs").mkdir(parents=True, exist_ok=True)
+    host(STATE + "/tmp").mkdir(parents=True, exist_ok=True)
+    proofs, warnings, seconds = [], [], 0.0
+    for i in range(count):
+        ids = [int(t) for t in json.loads(prompts[i])]
+        if len(ids) != p:
+            raise SystemExit(f"deepprove: prompt {i} has {len(ids)} tokens, not {p}")
+        text = prompt_text(ids, "/models/vocab.json")
+        proof_id = f"req-{i}"
+        tmp = f"/io/proofs/.tmp-{proof_id}"
+        host(tmp).mkdir()
+        t = time.monotonic()
+        # the worker writes llm-proof-<random>.bin into its working directory (L193-L198);
+        # TMPDIR places the temporary tensor store (tenstore genstore.rs L77-L83) on /io
+        run(worker_argv(text, r), cwd=tmp, env={"TMPDIR": STATE + "/tmp"})
+        seconds += time.monotonic() - t
+        written = sorted(host(tmp).iterdir())
+        if len(written) != 1 or not re.fullmatch(r"llm-proof-.+\.bin", written[0].name):
+            raise SystemExit(f"deepprove: request {i}: the worker wrote "
+                             f"{[w.name for w in written]}, not one llm-proof-*.bin")  # fmt: skip
+        os.rename(written[0], host(tmp) / PROOF)
+        buf = (host(tmp) / PROOF).read_bytes()
+        head = read_head(buf)
+        if head.tokens != ids:
+            pairs = enumerate(zip(head.tokens, ids, strict=False))
+            at = next((k for k, (a, b) in pairs if a != b), min(len(head.tokens), len(ids)))
+            raise SystemExit(f"deepprove: request {i}: upstream tokenized the prompt text to "
+                             f"{len(head.tokens)} ids, which differ from the request's from "
+                             f"position {at}; the proof is of another prompt")  # fmt: skip
+        io = read_io(buf, ids, head.end)
+        reply = io.input[p : io.length]
+        os.rename(host(tmp), host(f"/io/proofs/{proof_id}"))  # atomic release (RFC-0005)
+        proofs.append({"proof_id": proof_id, "request_index": i, "parts": [PROOF],
+                       "claimed_output": reply})  # fmt: skip
+        if len(reply) < r:
+            warnings.append(f"{proof_id}: the reply stops after {len(reply)} of {r} tokens: "
+                            f"the worker stops at the end token {EOS} (zkml/src/model/llm.rs "
+                            "L476-L481) and has no option to go on")  # fmt: skip
+    return {**base("prove"), "proofs": proofs, "warnings": warnings,
+            "phases": [{"name": "prove", "seconds": seconds}]}  # fmt: skip
+
+
+def verify(job: dict[str, Any]) -> dict[str, Any]:
+    files = {Path(f).name: f for f in job["verifier_files"]}
+    if set(files) != {"commit.json"}:
+        raise SystemExit(f"deepprove: verifier files {sorted(files)} are not commit's")
+    if commitment_of(list(files.values())) != job["commitment_id"]:
+        raise SystemExit("deepprove: the verifier files do not match commitment_id")
+    raise SystemExit(REFUSE_VERIFY)
+
+
+def mutate_reply(job: dict[str, Any]) -> dict[str, Any]:
+    """RFC-0018 AD-6 on a CPU: the proof with reply token `position` changed where the verifier
+    reads it, IO input element P + position, and in the element the verifier pairs with it, IO
+    output element P + position - 1, the argmax of the row before (zkml/src/model/llm.rs
+    L866-L875). Every other byte is unchanged; the response text, for logging only, is kept.
+    Decides nothing."""
+    src = host(job["proof_dir"]) / PROOF
+    buf = bytearray(src.read_bytes())
+    head = read_head(buf)
+    io = read_io(buf, head.tokens, head.end)
+    p, t, token = len(head.tokens), int(job["position"]), int(job["token"])
+    if not 0 <= t < io.length - p:
+        raise SystemExit(f"deepprove: position {t} is outside the reply's {io.length - p} tokens")
+    i = p + t
+    old = io.input[i]
+    if io.output[i - 1] != old:
+        raise SystemExit(f"deepprove: output[{i - 1}] is {io.output[i - 1]}, not reply "
+                         f"position {t}'s id {old}")  # fmt: skip
+    value = token.to_bytes(32, "little")
+    for offset in (io.input_at + FIELD * i, io.output_at + FIELD * (i - 1)):
+        buf[offset + 1 : offset + FIELD] = value
+    out = host(job["out_dir"])
+    out.mkdir(parents=True, exist_ok=True)
+    for f in sorted(src.parent.iterdir()):
+        if f.is_file() and f.name != PROOF:
+            shutil.copyfile(f, out / f.name)
+    (out / PROOF).write_bytes(bytes(buf))
+    fields = [f"{PROOF} io.input[0][{i}]", f"{PROOF} io.output[0][{i - 1}]"]
+    return {**base("mutate_reply"), "mutated": {"parts": [PROOF], "fields": fields}}
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"deepprove: job.json is for {job.get('subcommand')!r}, not {sub!r}")
+    if job.get("control_flags"):  # forbidden_flags is empty: no upstream flag weakens anything
+        raise SystemExit(f"deepprove: no control flag exists; refusing {job['control_flags']}")
+    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify,
+                "mutate_reply": mutate_reply}  # fmt: skip
+    if sub not in handlers:
+        raise SystemExit(f"deepprove: no subcommand {sub!r}")
+    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

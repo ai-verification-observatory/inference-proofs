@@ -187,7 +187,7 @@
           "type": "string"
         },
         "reference": {
-          "$comment": "RFC-0018 FI-1: the 16-bit reference, from a pinned source or from the serving record's own files",
+          "$comment": "RFC-0018 FI-1: the reference at the publisher's own precision (16 bits, or 32 for a release stored in F32), from a pinned source or from the serving record's own files",
           "oneOf": [
             {
               "additionalProperties": false,
@@ -195,7 +195,8 @@
                 "dtype": {
                   "enum": [
                     "bf16",
-                    "f16"
+                    "f16",
+                    "f32"
                   ]
                 },
                 "source": {
@@ -214,7 +215,8 @@
                 "dtype": {
                   "enum": [
                     "bf16",
-                    "f16"
+                    "f16",
+                    "f32"
                   ]
                 },
                 "serving_files": {

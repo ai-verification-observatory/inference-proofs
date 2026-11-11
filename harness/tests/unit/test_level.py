@@ -48,7 +48,7 @@ def test_l1_file_validates_and_checks() -> None:
     registry = SchemaRegistry.from_tree(ROOT / "schema")
     assert load_document(ROOT / "levels/L1.yaml", registry)[0] == "level/1"
     level = load_level(ROOT)
-    assert [r.id for r in level.rungs] == ["llama-4-maverick", "llama-3.1-8b"]
+    assert [r.id for r in level.rungs] == ["llama-4-maverick", "llama-3.1-8b", "gpt-2"]
     assert level.rung("llama-3.1-8b").workloads == {"sash": "l1-l31-8b-p512-o512"}
     assert check_level(ROOT, level) == []
 

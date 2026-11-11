@@ -453,6 +453,12 @@ def shape_of(config: Mapping[str, Any]) -> dict[str, object]:
     layers, heads, KV heads, head size and the KV-cache dtype (`kv_cache_scheme` when the
     release quantizes the cache, else the model dtype)."""
     text = config.get("text_config") or config
+    if "n_head" in text:  # GPT-2's own key names; no grouped KV heads; no torch_dtype in its
+        # config.json, so the transformers default, float32, which its F32 safetensors hold
+        heads = int(text["n_head"])
+        return {"layers": int(text["n_layer"]), "attention_heads": heads, "kv_heads": heads,
+                "head_dim": int(text["n_embd"]) // heads,
+                "kv_dtype": KV_DTYPES[str(text.get("torch_dtype") or "float32")]}  # fmt: skip
     heads = int(text["num_attention_heads"])
     head_dim = text.get("head_dim") or int(text["hidden_size"]) // heads
     scheme = (config.get("quantization_config") or {}).get("kv_cache_scheme")

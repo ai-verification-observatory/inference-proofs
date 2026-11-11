@@ -155,6 +155,7 @@ def _rung(
         "model": level_rung["model"],
         "publisher": level_rung["publisher"],
         "parameters_total": level_rung["parameters_total"],
+        "parameters_active": level_rung.get("parameters_active"),
         "requests_per_session": level_rung["requests_per_session"],
         "systems_run": 0,
         "baseline": None,
@@ -163,7 +164,13 @@ def _rung(
     }
     if raw is None:
         return rung
-    for key in ("model", "publisher", "parameters_total", "requests_per_session"):
+    for key in (
+        "model",
+        "publisher",
+        "parameters_total",
+        "parameters_active",
+        "requests_per_session",
+    ):
         rung[key] = raw[key]
     rung["systems_run"] = raw["systems_run"]
     rung["baseline"] = _baseline(raw["baseline"], f"{at}/baseline", board)

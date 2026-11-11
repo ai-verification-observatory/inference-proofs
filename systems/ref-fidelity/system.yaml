@@ -30,6 +30,10 @@ workloads:
   precision_used: BF16
   precision_substitution: null
   engine_args: []
+- id: l1-gpt2-p512-o512
+  precision_used: FP32
+  precision_substitution: null
+  engine_args: []
 deterministic_proofs: true
 incremental_proofs: false
 forbidden_flags: []

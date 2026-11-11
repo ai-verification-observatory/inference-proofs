@@ -216,8 +216,10 @@ def shown(v, unit):
 
 
 def params(n):
-    """Total parameters in billions ("400B", "8.03B")."""
-    return f"{sig(n / 1e9, 3)}B"
+    """A parameter count in billions, or millions below one billion ("400B", "8.03B", "137M")."""
+    text = sig(n / 1e9, 3) if n >= 1e9 else sig(n / 1e6, 3)
+    text = text.rstrip("0").rstrip(".") if "." in text else text  # "17.0" reads "17"
+    return f"{text}B" if n >= 1e9 else f"{text}M"
 
 
 def architecture(total, active):

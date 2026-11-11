@@ -4,10 +4,10 @@
       "found": [],
       "group": "Models",
       "kind": "model",
-      "meta": "Meta · Dense, 400B",
+      "meta": "Meta · MoE, 400B total, 17B active",
       "name": "Llama 4 Maverick 17B-128E Instruct",
       "pie": "",
-      "terms": "llama 4 maverick 17b-128e instruct meta · dense, 400b llama-4-maverick",
+      "terms": "llama 4 maverick 17b-128e instruct meta · moe, 400b total, 17b active llama-4-maverick",
       "tier": 1,
       "url": "/#llama-4-maverick"
     },
@@ -21,6 +21,17 @@
       "terms": "llama 3.1 8b instruct meta · dense, 8.03b llama-3.1-8b",
       "tier": 1,
       "url": "/#llama-3.1-8b"
+    },
+    {
+      "found": [],
+      "group": "Models",
+      "kind": "model",
+      "meta": "OpenAI · Dense, 137M",
+      "name": "GPT-2",
+      "pie": "",
+      "terms": "gpt-2 openai · dense, 137m gpt-2",
+      "tier": 1,
+      "url": "/#gpt-2"
     },
     {
       "found": [],

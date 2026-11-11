@@ -145,7 +145,7 @@ def test_board_from_stored_records(tree: Tree) -> None:
     valid(board)
     rungs = board["rungs"]
     assert isinstance(rungs, list)
-    assert [r["id"] for r in rungs] == ["llama-4-maverick", RUNG]
+    assert [r["id"] for r in rungs] == ["llama-4-maverick", RUNG, "gpt-2"]
     assert rungs[0]["rows"] == []
     assert rungs[0]["systems_run"] == 0
     (r,) = rungs[1]["rows"]

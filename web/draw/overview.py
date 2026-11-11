@@ -17,6 +17,7 @@ from .words import (
     e,
     labels,
     number,
+    params,
     sub_words,
 )
 
@@ -194,26 +195,45 @@ def rung_html(rung, first):
             f"{head}{body}{after}</section>")  # fmt: skip
 
 
+def _best_multiple(rung):
+    """The lowest multiple of serving among the rung's passed rows, formatted, or None."""
+    found = []
+    for row in rung["rows"]:
+        m = row["figures"]["multiple"] if row["passed"] else None
+        if m is not None and m["value"] is not None:
+            found.append(m)
+    if not found:
+        return None
+    best = min(found, key=lambda m: m["value"])
+    num, unit = number(best["value"], best["unit"])
+    return f"{num}{unit} serving"
+
+
 def frontier_html():
-    """OR-6: the largest model with a passed row, the row at position 1 (or every passed row when
-    none is ranked), its multiple and the count of systems run on that model."""
-    f = S.V["frontier"]
-    if f is None:
-        said = "No system has passed yet." if S.V["release"] else "No system has run yet."
-        return f'<h1 class="front">{e(said)}</h1>'
-    names = " and ".join(f'<a href="{e(href(row))}">{e(name_of(row))}</a>' for row in f["rows"])
-    first = f["rows"][0]
-    count = f["systems_run"]
-    where = (f"{first['position']} of {count} systems run on this model"
-             if first["position"] is not None else
-             f"{count} system{'s' if count != 1 else ''} run on this model")  # fmt: skip
-    m = first["figures"]["multiple"]
-    said = [where]
-    if len(f["rows"]) == 1 and m is not None and m["value"] is not None:
-        num, unit = number(m["value"], m["unit"])
-        said.insert(0, f"{num}{unit} serving")
-    return (f'<h1 class="front">{names} passed on {e(f["model"])}</h1>'
-            f'<p class="fsub">{e(" · ".join(said))}</p>')  # fmt: skip
+    """The band: the ladder at a glance, naming no system (the rows name them). Each model,
+    biggest first, with whether a system passed on it and the lowest multiple of serving among
+    those that did (OR-6); a model no system has run is an open seat."""
+    items = []
+    for rung in S.V["rungs"]:
+        passed = sum(1 for row in rung["rows"] if row["passed"])
+        if passed:
+            state, said = "s2", f"{passed} system{'s' if passed != 1 else ''} passed"
+        elif rung["rows"]:
+            state, said = "s1", f"{len(rung['rows'])} run, none passed"
+        else:
+            state, said = "s0", "no system yet" if S.V["release"] else "not run yet"
+        cost = _best_multiple(rung)
+        items.append(
+            f'<li class="bl-r {state}"><a href="#{e(rung["id"])}">'
+            f'<span class="bl-m">{e(rung["model"])}</span>'
+            f'<span class="bl-p">{e(params(rung["parameters_total"]))}</span>'
+            f'<span class="bl-bar" aria-hidden="true"></span>'
+            f'<span class="bl-s">{e(said)}</span>'
+            f'<span class="bl-c">{e(cost or "")}</span></a></li>'
+        )
+    return (f'<h1 class="band-h">Proved inference, by model size</h1>'
+            f'<ol class="bl">{"".join(items)}</ol>'
+            f'<p class="fsub">{e(request_words())}</p>')  # fmt: skip
 
 
 def not_run_html():

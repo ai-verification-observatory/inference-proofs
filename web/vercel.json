@@ -82,6 +82,11 @@
     {
       "destination": "/",
       "permanent": false,
+      "source": "/deepprove"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
       "source": "/flashprove"
     },
     {

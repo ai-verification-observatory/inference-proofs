@@ -216,7 +216,7 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 ### Levels
 
 - LV-1. A level does not change once frozen: a change of rule is a new level file (`L2`), and releases under a level add runs, never rules.
-- LV-2. A new rung: a model released by the organisation that trained it, open weights, served by at least two unrelated hosting providers. The level, never an entrant, adds rungs.
+- LV-2. A new rung: open weights released by the organisation that trained the model, chosen by the level, never by an entrant, and only when the request fits its context (GPT-2's is exactly 1,024 tokens). Level 1's rungs, largest first: Llama 4 Maverick, Llama 3.1 8B, GPT-2.
 - LV-3. The Level 2 draft, published with Level 1 so labs can prepare: a soundness floor of 100 bits that a third party recomputes from the parameters as run; a KL bound to the proved computation joining the fidelity gate; a reply chosen after serving.
 
 ### Failure modes
