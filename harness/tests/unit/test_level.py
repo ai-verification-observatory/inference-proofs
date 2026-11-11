@@ -53,16 +53,31 @@ def test_l1_file_validates_and_checks() -> None:
     assert check_level(ROOT, level) == []
 
 
-def test_check_frozen_refuses_the_draft() -> None:
-    problems = check_level(ROOT, load_level(ROOT), frozen=True)
+def test_check_frozen_refuses_a_draft() -> None:
+    """A draft (frozen null, a control's revision null) fails the frozen check; the committed
+    Level 1, frozen with every value pinned, passes it."""
+    level = load_level(ROOT)
+    assert check_level(ROOT, level, frozen=True) == []
+    rung = level.rungs[1]
+    source = rung.controls[-1].source
+    assert source is not None
+    control = dataclasses.replace(
+        rung.controls[-1], source=dataclasses.replace(source, revision=None)
+    )
+    draft = dataclasses.replace(
+        level,
+        frozen=None,
+        rungs=(level.rungs[0], dataclasses.replace(rung, controls=(*rung.controls[:-1], control))),
+    )
+    problems = check_level(ROOT, draft, frozen=True)
     assert "frozen is null: the level is a draft" in problems
-    assert sum("smaller-model revision is null" in p for p in problems) == 2
+    assert sum("smaller-model revision is null" in p for p in problems) == 1
 
 
-def test_cli_check_frozen_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cli_check_frozen(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(ROOT)
     assert main(["level", "check"]) == 0
-    assert main(["level", "check", "--frozen"]) != 0
+    assert main(["level", "check", "--frozen"]) == 0
 
 
 def test_first_round_after_a_time() -> None:

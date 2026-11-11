@@ -323,10 +323,10 @@
       "found": [],
       "group": "Not run",
       "kind": "notrun",
-      "meta": "not yet run",
+      "meta": "another kind of check",
       "name": "VerInf",
       "pie": "",
-      "terms": "verinf not yet run",
+      "terms": "verinf another kind of check",
       "tier": 5,
       "url": "/#nr-verinf"
     },

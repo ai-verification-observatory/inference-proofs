@@ -214,7 +214,7 @@
         "Llama-2-7B"
       ],
       "name": "VerInf",
-      "reason": "not yet run",
+      "reason": "another kind of check",
       "status": {
         "state": "active"
       },

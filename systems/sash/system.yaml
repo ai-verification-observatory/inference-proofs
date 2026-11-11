@@ -1,6 +1,6 @@
 # SASH zk-inference-prover (RFC-0005). Values and their upstream sources: systems/sash/README.md.
-# RFC-0014 B7: built by the images workflow from main at aa3fbb2cd5f9f53fadf7966f02784492aaca5392
-# (adapter_dirty false) and pushed to the project registry.
+# RFC-0014 B7: built by the images workflow from the efficiency branch at
+# aa5f31f97e76eccb77c7a52fcc54cbe9b8109dcb (adapter_dirty false) and pushed to the project registry.
 schema: "system/1"
 name: "sash"
 kind: "prover"
@@ -11,7 +11,7 @@ upstream:
   commit: "eb95bfa887299d1637550228d42086c27cbb2b3b"
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
-  digest: "sha256:bf548d5666b10d653babb23612d670dfa7c86f7b75f3784da0451d53ec90f577"
+  digest: "sha256:132db94d3a9fac330fb8e8d97188084a3eac7a4fb7f06b7518ef2582abb8e2a0"
 # l1-l31-8b-p512-o512 (RFC-0018 Level 1): 512 + 512, five requests a session, one grid of two
 # blocks per request; README.md §Level 1 has the geometry and the open items.
 workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
