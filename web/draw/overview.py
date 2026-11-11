@@ -210,18 +210,19 @@ def _best_multiple(rung):
 
 
 def frontier_html():
-    """The band: the ladder at a glance, naming no system (the rows name them). Each model,
-    biggest first, with whether a system passed on it and the lowest multiple of serving among
-    those that did (OR-6); a model no system has run is an open seat."""
+    """The band: the ladder at a glance, naming no system (the rows name them). Each model with a
+    run, biggest first, with whether a system passed on it and the lowest multiple of serving
+    among those that did (OR-6); the models no system has run yet (the open seats) in one line
+    under it."""
+    run = [r for r in S.V["rungs"] if r["rows"]]
+    empty = [r["model"] for r in S.V["rungs"] if not r["rows"]]
     items = []
-    for rung in S.V["rungs"]:
+    for rung in run:
         passed = sum(1 for row in rung["rows"] if row["passed"])
         if passed:
             state, said = "s2", f"{passed} system{'s' if passed != 1 else ''} passed"
-        elif rung["rows"]:
-            state, said = "s1", f"{len(rung['rows'])} run, none passed"
         else:
-            state, said = "s0", "no system yet" if S.V["release"] else "not run yet"
+            state, said = "s1", f"{len(rung['rows'])} run, none passed"
         cost = _best_multiple(rung)
         items.append(
             f'<li class="bl-r {state}"><a href="#{e(rung["id"])}">'
@@ -231,9 +232,14 @@ def frontier_html():
             f'<span class="bl-s">{e(said)}</span>'
             f'<span class="bl-c">{e(cost or "")}</span></a></li>'
         )
-    return (f'<h1 class="band-h">Proved inference, by model size</h1>'
-            f'<ol class="bl">{"".join(items)}</ol>'
-            f'<p class="fsub">{e(request_words())}</p>')  # fmt: skip
+    head = "Proved inference, by model size" if run else "No system has run yet."
+    sub = []
+    if empty and run:
+        sub.append("No system yet on " + ", ".join(empty))
+    sub.append(request_words())
+    ladder = f'<ol class="bl">{"".join(items)}</ol>' if items else ""
+    return (f'<h1 class="band-h">{e(head)}</h1>{ladder}'
+            f'<p class="fsub">{e(" · ".join(sub))}</p>')  # fmt: skip
 
 
 def not_run_html():
