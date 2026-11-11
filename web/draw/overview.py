@@ -235,15 +235,17 @@ def frontier_html():
         f'<span class="bl-p">{e(params(rung["parameters_total"]))}</span>'
         f'<span class="bl-bar" aria-hidden="true"></span>'
         f'<span class="bl-s">{e(said)}</span>'
-        f'<span class="bl-c">{e(_best_multiple(rung) or "")}</span></a></li>'
+        f'<span class="bl-c">{e(_best_multiple(rung) or "")}</span>{{more}}</a></li>'
     )
     more_models, more_systems = len(rungs) - 1, len(systems - shown)
-    caption = [f"+{more_models} model{'s' if more_models != 1 else ''}"] if more_models else []
+    more = [f"+{more_models} model{'s' if more_models != 1 else ''}"] if more_models else []
     if more_systems:
-        caption.append(f"+{more_systems} system{'s' if more_systems != 1 else ''}")
-    caption.append(request_words())
+        more.append(f"+{more_systems} system{'s' if more_systems != 1 else ''}")
+    line = line.replace(
+        "{more}", f'<span class="bl-more">{e(" · ".join(more))}</span>' if more else ""
+    )
     return (f'<h1 class="band-h">Proved inference, by model size</h1><ol class="bl">{line}</ol>'
-            f'<p class="fsub">{e(" · ".join(caption))}</p>')  # fmt: skip
+            f'<p class="fsub">{e(request_words())}</p>')  # fmt: skip
 
 
 def not_run_html():
