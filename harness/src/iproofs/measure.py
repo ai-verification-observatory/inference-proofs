@@ -9,6 +9,8 @@ import hashlib
 import itertools
 import math
 import os
+import posixpath
+import re
 import select
 import stat
 import struct
@@ -16,7 +18,7 @@ import subprocess
 import sys
 import threading
 import time
-from collections.abc import Callable, Iterable, Mapping, Sequence
+from collections.abc import Callable, Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Literal, Protocol
@@ -51,7 +53,9 @@ __all__ = [
     "drain",
     "job_hash",
     "nvml_available",
+    "parse_strace",
     "pin_harness_cpu",
+    "reduce_strace",
     "select_readers",
     "span_seconds",
     "st_cgroup",
@@ -850,7 +854,8 @@ class ReleaseWatcher:
     """Timestamps each proof directory as it appears under /io/proofs (RFC-0011 W-1 to W-5).
 
     Adapters rename `.tmp-<id>` to `<id>`; on Linux the rename is read from inotify in a
-    thread, elsewhere `os.scandir` polls every `poll_interval_s`.
+    thread, elsewhere `os.scandir` polls every `poll_interval_s`. With `names`, it times files
+    of those names instead, each renamed into place (RFC-0018 AD-4 generation marks).
     """
 
     def __init__(
@@ -861,8 +866,10 @@ class ReleaseWatcher:
         incremental_proofs: bool = True,
         force_poll: bool = False,
         clock: Callable[[], int] = time.monotonic_ns,
+        names: Collection[str] | None = None,
     ) -> None:
         self.dir = proofs_dir
+        self.names = None if names is None else frozenset(names)
         self.interval = poll_interval_s
         self.incremental = incremental_proofs
         self.clock = clock
@@ -934,6 +941,8 @@ class ReleaseWatcher:
     def _release(self, name: str, batch: int, atomic: bool) -> None:
         if name.startswith(".tmp-") or name in self._releases:
             return
+        if self.names is not None and name not in self.names:
+            return
         self._releases[name] = (self.clock(), batch)
         self._sizes[name] = _part_sizes(self.dir / name)
         if not atomic:
@@ -942,7 +951,9 @@ class ReleaseWatcher:
     def _scan(self, batch: int) -> None:
         with os.scandir(self.dir) as entries:
             for entry in entries:
-                if entry.is_dir(follow_symlinks=False):
+                if entry.is_dir(follow_symlinks=False) or (
+                    self.names is not None and entry.is_file(follow_symlinks=False)
+                ):
                     self._release(entry.name, batch, atomic=True)
 
     def _run_poll(self) -> None:
@@ -983,7 +994,7 @@ class ReleaseWatcher:
                     name = name_bytes.rstrip(b"\0").decode(errors="replace")
                     if mask & IN_MOVED_TO:
                         self._release(name, batch, atomic=True)
-                    elif mask & IN_CREATE and mask & IN_ISDIR:
+                    elif mask & IN_CREATE and (mask & IN_ISDIR or self.names is not None):
                         self._release(name, batch, atomic=False)  # created without a .tmp- stage
                 batch += 1
         finally:
@@ -993,7 +1004,7 @@ class ReleaseWatcher:
 def _part_sizes(proof: Path) -> dict[str, int]:
     try:
         return {p.name: p.stat().st_size for p in proof.iterdir() if p.is_file()}
-    except FileNotFoundError:
+    except (FileNotFoundError, NotADirectoryError):  # a mark is a file
         return {}
 
 
@@ -1058,3 +1069,125 @@ def files_bytes(paths: Sequence[str], io_root: Path) -> int:
         _regular_inside(host, io_root, container_path)
         total += host.stat().st_size
     return total
+
+
+# ---------------------------------------------------------------- file-open trace (RFC-0018 CH-4)
+
+# `strace -f -o FILE` lines: an optional pid (`1234  ` in a file, `[pid 1234] ` on a terminal),
+# then a call, a call left `<unfinished ...>` by another thread, or its `<... X resumed>` end.
+_STRACE_PID = re.compile(r"^(?:\[pid\s+(\d+)\]\s*|(\d+)\s+)?(.*)$")
+_STRACE_CALL = re.compile(r"^(open|openat|openat2)\((.*)$")
+_STRACE_RESUMED = re.compile(r"^<\.\.\. (open|openat|openat2) resumed>(.*)$")
+_STRACE_STRING = re.compile(r'"((?:[^"\\]|\\.)*)"')
+_STRACE_ESCAPES = {"n": 10, "t": 9, "r": 13, "v": 11, "f": 12, "a": 7, "b": 8, "\\": 92, '"': 34}
+_GPU_NODE = re.compile(r"^/dev/nvidia\d+$")
+
+
+@dataclass(frozen=True, slots=True)
+class TracedOpen:
+    """One open call of a trace: the path as the process gave it, and whether it succeeded."""
+
+    path: str
+    ok: bool
+
+
+def _strace_unescape(text: str) -> str:
+    """A path as strace quotes it (C escapes, octal or `\\x` hex bytes), decoded as UTF-8."""
+    out = bytearray()
+    i = 0
+    while i < len(text):
+        if text[i] != "\\" or i + 1 == len(text):
+            out += text[i].encode("utf-8", "surrogateescape")
+            i += 1
+            continue
+        nxt = text[i + 1]
+        octal = re.match(r"[0-7]{1,3}", text[i + 1 :])
+        if nxt == "x" and re.fullmatch(r"[0-9a-fA-F]{2}", text[i + 2 : i + 4]):
+            out.append(int(text[i + 2 : i + 4], 16))
+            i += 4
+        elif octal:
+            out.append(int(octal[0], 8) & 0xFF)
+            i += 1 + len(octal[0])
+        else:
+            out.append(_STRACE_ESCAPES.get(nxt, ord(nxt) if nxt.isascii() else 63))
+            i += 2
+    return out.decode("utf-8", "replace")
+
+
+def _strace_result_ok(tail: str) -> bool:
+    """`... ) = 3` succeeded; `= -1 ENOENT (...)` or `= ?` did not."""
+    at = tail.rfind(" = ")
+    if at < 0:
+        return False
+    value = tail[at + 3 :].split(maxsplit=1)[:1]
+    return bool(value) and value[0].isdigit()
+
+
+def parse_strace(text: str) -> list[TracedOpen]:
+    """Every open, openat and openat2 call of an `strace -f` output, in output order. A call
+    another thread interrupted (`<unfinished ...>`) is completed by its `<... resumed>` line of
+    the same pid; signals, exits and other lines are skipped."""
+    pending: dict[tuple[str, str], str] = {}
+    found = []
+    for line in text.splitlines():
+        head = _STRACE_PID.match(line)
+        assert head is not None  # the pattern matches any line
+        pid, rest = head[1] or head[2] or "", head[3]
+        if resumed := _STRACE_RESUMED.match(rest):
+            path = pending.pop((pid, resumed[1]), None)
+            if path is not None:
+                found.append(TracedOpen(path, _strace_result_ok(resumed[2])))
+            continue
+        call = _STRACE_CALL.match(rest)
+        if call is None:
+            continue
+        quoted = _STRACE_STRING.search(call[2])  # the path is the call's first string
+        if quoted is None:
+            continue
+        path, tail = _strace_unescape(quoted[1]), call[2][quoted.end() :]
+        if tail.rstrip().endswith("<unfinished ...>"):
+            pending[(pid, call[1])] = path
+        else:
+            found.append(TracedOpen(path, _strace_result_ok(tail)))
+    return found
+
+
+@dataclass(frozen=True, slots=True)
+class TraceReduction:
+    """What a verify-trace record keeps of a trace: the paths opened (unique, first-open order),
+    how many other paths were tried and not opened, every attempt at a model file with its
+    result, and the GPU device nodes opened."""
+
+    opened: tuple[str, ...]
+    failed: int
+    model_files: tuple[TracedOpen, ...]
+    gpu_devices: tuple[str, ...]
+
+
+def is_model_path(
+    path: str,
+    files: Collection[str],
+    dirs: Collection[str],
+    realpath: Callable[[str], str] = lambda p: p,
+) -> bool:
+    """RFC-0018 CH-4: a path is a model file when it, or its realpath, is one of the workload's
+    model files or lies under the model directory. A relative path is matched as given."""
+    for candidate in {posixpath.normpath(path), realpath(path)}:
+        if candidate in files or any(candidate.startswith(d.rstrip("/") + "/") for d in dirs):
+            return True
+    return False
+
+
+def reduce_strace(
+    text: str,
+    files: Collection[str],
+    dirs: Collection[str],
+    realpath: Callable[[str], str] = lambda p: p,
+) -> TraceReduction:
+    """The verify-trace reduction of one `strace -f` output (RFC-0018 CH-4)."""
+    calls = parse_strace(text)
+    opened = list(dict.fromkeys(c.path for c in calls if c.ok))
+    tried = {c.path for c in calls if not c.ok} - set(opened)
+    model = [c for c in calls if is_model_path(c.path, files, dirs, realpath)]
+    gpus = list(dict.fromkeys(p for p in opened if _GPU_NODE.match(posixpath.normpath(p))))
+    return TraceReduction(tuple(opened), len(tried), tuple(dict.fromkeys(model)), tuple(gpus))

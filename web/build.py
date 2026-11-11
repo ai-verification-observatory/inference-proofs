@@ -1,52 +1,35 @@
-"""MADE OF WORDS: the renderer of the public site (RFC-0009 §Site).
+"""MADE OF WORDS: the renderer of the public site (RFC-0018 §Site).
 
 `iproofs site build` computes every value the pages print into a view
-(`iproofs.site.view.site_view`, from the newest frozen release, the claim cards, the criteria
-file and `_data/facts.json`) and calls `render(view, out, write_json=..., write_text=...)`. The
-renderer opens no data file and types no number: every value, label, pin and hash comes from the
-view. It holds the drawing and the fixed words the pages print for stored values (scope, grade,
-tier, null reasons, units, states, families), as RFC-0009 S2 allows. Standard library only.
+(`iproofs.site.view.site_view`, from the level file, the newest Level 1 release's board file or
+one given for a preview, the claim cards and `_data/facts.json`) and calls
+`render(view, out, write_json=..., write_text=...)`. The renderer opens no data file and types no
+number: every value, label, pin and hash comes from the view. It holds the drawing and the fixed
+words the pages print for stored ids (checks, states, causes, scopes, grades, tiers, null
+reasons, units). Standard library only.
 
-`render` writes into `out`: the pages (index, one per system, reference, criteria, release,
-targets when the release evaluates one, 404),
-search.json, the preview-card sources and icon in og/, the @font-face block in words.css,
+`render` writes into `out`: the pages (the overview, one per row of the board, the checks page,
+404), search.json, the preview-card sources and icon in og/, the @font-face block in words.css,
 vercel.json (headers with the inline script's hash, redirects, cache rules) and the contrast
 table in README.md when `out` holds one. The static assets (words.css, words.js, fonts/,
-og/*.png, og/cards.json) are in `out` before it runs. It computes pie geometry, the contrast of
-each ink and the content hashes that version words.css, words.js and the pictures.
+og/*.png, og/cards.json) are in `out` before it runs.
 
 This module is the entry point: it reads the view into the build's state (`setup`), checks that
 `out` holds no page or card source the build no longer writes (`check_stale`) and writes the
 files (`render`). The drawing is in the package draw/ beside it, in this order of imports:
 state (what `setup` reads), words (fixed words, numbers as shown), inks (contrast checks), hexagon
-(the glyph's geometry), plates (criteria rows, text helpers, one configuration's figures), claims
-(a card's validated claims, the card in full, its quality gap and the agreement rate), chrome
-(header, footer, page frame, fonts, share tags), overview (index.html), pages (system, reference,
-criteria and 404 pages), release (the release and targets pages) and outputs (search.json, vercel.json, og/ sources, the fonts block, the
-README table). Every name of those modules reads as `build.<name>` too.
+(the glyph's geometry), chrome (header, footer, page frame, fonts, share tags), overview (the
+ladder), pages (system pages, checks, 404) and outputs (search.json, vercel.json, og/ sources,
+the fonts block, the README table). Every name of those modules reads as `build.<name>` too.
 """
 
 import importlib
 import importlib.util
-import json
 import pathlib
-import re
 import sys
 import types
 
-PARTS = (
-    "state",
-    "words",
-    "inks",
-    "hexagon",
-    "plates",
-    "claims",
-    "chrome",
-    "overview",
-    "pages",
-    "release",
-    "outputs",
-)
+PARTS = ("state", "words", "inks", "hexagon", "chrome", "overview", "pages", "outputs")
 
 
 def _load_draw():
@@ -100,30 +83,12 @@ def setup(view, out):
     S.HERE = pathlib.Path(out)
     S.OG = S.HERE / "og"
     S.V = view
-    S.CRIT = view["criteria"]
-    S.PROPS = [p for pid in S.CRIT["order"] for p in S.CRIT["properties"] if p["id"] == pid]
-    S.CONFIGS = view["configurations"]
-    S.PROVERS = [c for c in S.CONFIGS if c["kind"] == "prover"]
-    S.PAGE = {sid: f"/{sid}" for sid in view["orders"]["benchmarked"]}
     S.REPO_URL, S.LINK_REF = view["repository"], view["link_ref"]
-    S.RFC_REF = view["release"]["rfc_commit"]  # the methodology the release was frozen under
-    S.RFC_FILES = {f[:4]: f for f in view["rfcs"] if re.match(r"\d{4}-", f)}
-    S.crit_sha = S.CRIT["sha256"].removeprefix("sha256:")
-    S.MODEL_NAME = {d: view["facts"]["models"][d]["name"]
-                    for d in {c["workload"]["model"]["digest"] for c in S.CONFIGS}}  # fmt: skip
-    assert len(set(S.MODEL_NAME.values())) == len(S.MODEL_NAME), "two models share a name"
-    text = json.dumps(S.CRIT, ensure_ascii=False) + json.dumps(view["facts"], ensure_ascii=False)
-    for k in draw.plates.PHRASES:
-        assert k in text, f"PHRASES: {k!r} no longer in the criteria or facts file"
-    # one state vocabulary (RFC-0016 §States): the words the pages print are the file's
-    words = {k: v["word"] for k, v in S.CRIT["states"].items()}
-    assert words == draw.words.STATE_WORD, f"state words {words} differ from the pages'"
-    for rid, row in S.CRIT["rows"].items():
-        assert row["family"] in draw.words.FAMILY_WORD, (
-            f"{rid}: no words for family {row['family']!r}"
-        )
+    S.ROWS = [row for rung in view["rungs"] for row in rung["rows"]]
+    S.PAGE = {row["page"]: row for row in S.ROWS}
+    assert len(S.PAGE) == len(S.ROWS), "two rows share a page"
+    assert set(S.PAGE).isdisjoint({"index", "checks", "404"}), "a row's page is a site page"
     draw.inks.check_inks()
-    draw.hexagon.check_lifts()
     draw.chrome.load_faces()
 
 
@@ -133,10 +98,8 @@ def check_stale():
     RuntimeError, which `iproofs site build` reports as a config error (not an assert, which
     `python -O` drops)."""
     c = draw.chrome
-    pages = {c.file_of("/"), *(c.file_of(p) for p in S.PAGE.values()), c.file_of(c.REF_PAGE),
-             c.file_of(c.CRIT_PAGE), c.file_of(c.RELEASE_PAGE), S.HERE / "404.html"}  # fmt: skip
-    if c.has_targets():
-        pages.add(c.file_of(c.TARGETS_PAGE))
+    pages = {c.file_of("/"), *(c.file_of(f"/{p}") for p in S.PAGE), c.file_of(c.CHECKS_PAGE),
+             S.HERE / "404.html"}  # fmt: skip
     stale = sorted(q.name for q in set(S.HERE.glob("*.html")) - pages)
     if stale:
         raise RuntimeError(f"pages the build no longer writes: {stale}")
@@ -157,13 +120,9 @@ def render(view, out, *, write_json, write_text):
     write_json(S.HERE / "search.json", {"entries": draw.outputs.search_entries()})
     file_of = draw.chrome.file_of
     pages = {file_of("/"): draw.overview.build_index()}
-    for sid, path in S.PAGE.items():
-        pages[file_of(path)] = draw.pages.build_system(sid)
-    pages[file_of(draw.chrome.REF_PAGE)] = draw.pages.build_reference()
-    pages[file_of(draw.chrome.CRIT_PAGE)] = draw.pages.build_criteria()
-    pages[file_of(draw.chrome.RELEASE_PAGE)] = draw.release.build_release()
-    if draw.chrome.has_targets():
-        pages[file_of(draw.chrome.TARGETS_PAGE)] = draw.release.build_targets()
+    for pid in S.PAGE:
+        pages[file_of(f"/{pid}")] = draw.pages.build_system(pid)
+    pages[file_of(draw.chrome.CHECKS_PAGE)] = draw.pages.build_checks()
     pages[S.HERE / "404.html"] = draw.pages.build_404()
     if set(pages) != expected:
         raise RuntimeError(f"check_stale lists {sorted(q.name for q in expected)}, the build "

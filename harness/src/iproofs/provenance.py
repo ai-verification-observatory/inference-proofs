@@ -8,8 +8,10 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 from collections.abc import Callable, Iterable, Mapping, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,6 +21,7 @@ from iproofs.model import HostedRuntime, ProverProfile
 
 DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 _CHUNK = 1 << 20
+HASH_THREADS = 8  # a limit: more readers than this gain little on one NVMe device
 
 
 def check_digest(value: str) -> str:
@@ -41,12 +44,42 @@ def file_digest(path: Path) -> str:
     return "sha256:" + _hex(path)
 
 
-def _listing_digest(entries: Mapping[str, Path]) -> str:
+def hex_digests(entries: Mapping[str, Path]) -> dict[str, str]:
+    """The sha256 hex of each file, each read once, several at a time: hashlib releases the
+    interpreter lock while it hashes, so the files of a model or a proof are read and hashed on
+    as many CPUs as the process may use, up to `HASH_THREADS`. The result is the one a loop
+    gives; no caller reads a clock around a single file."""
+    threads = min(HASH_THREADS, len(entries), _usable_cpus())
+    if threads <= 1:
+        return {name: _hex(path) for name, path in entries.items()}
+    with ThreadPoolExecutor(max_workers=threads) as pool:
+        return dict(zip(entries, pool.map(_hex, entries.values()), strict=True))
+
+
+def _usable_cpus() -> int:
+    if sys.platform.startswith("linux"):
+        return len(os.sched_getaffinity(0))  # a container's share, not the host's count
+    return os.cpu_count() or 1
+
+
+def listing_digest(hexes: Mapping[str, str]) -> str:
     """sha256 over `<name>\\t<hex>\\n` lines sorted by the UTF-8 bytes of the name."""
     h = hashlib.sha256()
-    for name in sorted(entries, key=lambda n: n.encode("utf-8")):
-        h.update(f"{name}\t{_hex(entries[name])}\n".encode())
+    for name in sorted(hexes, key=lambda n: n.encode("utf-8")):
+        h.update(f"{name}\t{hexes[name]}\n".encode())
     return "sha256:" + h.hexdigest()
+
+
+def _listing_digest(entries: Mapping[str, Path]) -> str:
+    return listing_digest(hex_digests(entries))
+
+
+def checked_tree_digest(root: Path, hexes: Mapping[str, str]) -> str:
+    """`tree_digest(root)` without a second read of the files `hexes` already covers (their
+    names relative to `root`); any other file under `root` is hashed here."""
+    files = _files(root)
+    rest = hex_digests({name: path for name, path in files.items() if name not in hexes})
+    return listing_digest({name: hexes[name] if name in hexes else rest[name] for name in files})
 
 
 def _files(root: Path) -> dict[str, Path]:

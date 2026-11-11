@@ -45,7 +45,7 @@ Cross-cutting support: labelled quantities and serialization ([RFC-0012](../../r
 
 ## Non-goals
 
-- Ranking systems or naming any system superior. No aggregate score, no default sort by speed.
+- Ranking across rungs or naming any system superior. Inside a rung, only RFC-0018's order rule ranks; no aggregate score.
 - Certifying security. The benchmark copies declared claims and reports test outcomes; it does not audit soundness proofs or code.
 - Building or maintaining provers or shared proving libraries.
 - Training, fine-tuning or compute-accounting claims.
@@ -124,7 +124,7 @@ Each prover's own benchmark answers "how fast is my system under my rules". Gene
 
 - Common workloads: neither v0.1 system runs the other's model without patching, and patching is forbidden. They come by RFC in v0.2.
 - Security certification: it requires auditing proofs and code, which no neutral benchmark of this size can do credibly.
-- Rankings and single scores: they collapse different claims into one axis, which is the error the project exists to prevent.
+- Rankings across rungs and single scores: they collapse different models or claims into one axis. Inside a rung, RFC-0018 ranks passed systems by one cost figure under a fixed request.
 - Attested runners: attestation shows where code ran, not that a number holds on another machine; deferred to v0.3.
 
 ### The contributor in six months

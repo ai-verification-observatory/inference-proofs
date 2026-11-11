@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+from iproofs import provenance
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.provenance import (
     check_digest,
@@ -92,3 +93,20 @@ def test_check_digest_rejects_malformed(bad: str) -> None:
 def test_check_digest_accepts_well_formed() -> None:
     good = "sha256:" + "0" * 64
     assert check_digest(good) == good
+
+
+def test_hashing_several_files_at_once_gives_the_digests_of_a_loop(tmp_path: Path) -> None:
+    """The model and proof digests are the same whether files are hashed one after another or
+    several at a time, and a digest taken from hashes already in hand is the tree's digest."""
+    files = {f"part-{i:02d}.bin": bytes([i]) * (3_000_000 + i) for i in range(12)}
+    root = write(tmp_path, files | {"sub/config.json": b"{}"})
+    paths = {name: root / name for name in [*files, "sub/config.json"]}
+    one_by_one = {
+        name: hashlib.sha256(path.read_bytes()).hexdigest() for name, path in paths.items()
+    }
+    assert provenance.hex_digests(paths) == one_by_one
+    assert provenance.listing_digest(one_by_one) == model_digest(root)
+    partly = {name: one_by_one[name] for name in files}  # the nested file is hashed by the call
+    assert provenance.checked_tree_digest(root, partly) == model_digest(root)
+    wrong = partly | {"part-00.bin": "0" * 64}
+    assert provenance.checked_tree_digest(root, wrong) != model_digest(root)

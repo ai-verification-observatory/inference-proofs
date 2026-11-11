@@ -95,6 +95,9 @@ def serve_entry_problems(entry: ReferenceWorkload, wl: Workload) -> list[str]:
             problems.append(f"{entry.id}: batches_per_session_run {run} is below the "
                             f"workload's {wl.shape.batches_per_session} (SRV-1: that count, or "
                             "more)")  # fmt: skip
+    elif entry.load_point == "ladder":  # RFC-0018 CO-4: batches come from the level file
+        if entry.batch_size is not None or entry.batches_per_session_run is not None:
+            problems.append(f"{entry.id}: a ladder entry takes its batches from the level file")
     elif entry.batch_size is None:
         problems.append(f"{entry.id}: a high-load entry names its batch_size")
     elif entry.batches_per_session_run is not None:
@@ -162,7 +165,8 @@ def _systems(root: Path, files: list[str], registry: SchemaRegistry) -> list[Fin
         if not re.fullmatch(r"systems/[^/]+/system\.yaml", rel):
             continue
         doc = load(root / rel, registry)
-        if not isinstance(doc, System) or doc.kind != "reference" or doc.reference_role == "serve":
+        if (not isinstance(doc, System) or doc.kind != "reference"
+                or doc.reference_role in ("serve", "fidelity")):  # fmt: skip
             continue  # production serving substitutes nothing (SRV-6): see _serving
         for i, entry in enumerate(doc.workloads):
             assert isinstance(entry, ReferenceWorkload)  # the schema gives references objects

@@ -27,6 +27,13 @@ every claimed position from the engine's prompt log-probabilities (RC-3, RFC-001
 releases `/io/proofs/req-<i>/outputs.json` with those argmax tokens (RC-4); the harness compares
 them with the claims.
 
+Under a level (RFC-0018 CO-4), an entry with `load_point: ladder` serves the level's
+concurrency ladder in one `prove` call (`prove_ladder`): for each concurrency c of the job's
+`ladder`, `warmup_batches` warm-up batches and then `timed_batches` timed batches of c
+distinct prompts from the rung's ladder prompts (the prompts file), each sent
+whole as one completions request, with every output released as above and its id naming its
+concurrency, batch and whether it is a warm-up (`ladder_plan`, `proof_id`).
+
 IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run this
 file in process; IPROOFS_SYSTEM_YAML points at system.yaml outside the image.
 """
@@ -71,6 +78,15 @@ OOM_LINES = (
     re.compile(r"larger than the available KV cache memory"),
 )
 START_TIMEOUT_S = float(os.environ.get("IPROOFS_ENGINE_START_S", "3600"))
+# The pinned engine's default max_num_seqs for `vllm serve` on a GPU of 70 GiB to 160 GiB other
+# than an A100, the H200 among them (vllm/engine/arg_utils.py `get_batch_defaults` at v0.32.0,
+# OPENAI_API_SERVER: 1024). A ladder entry leaves --max-num-seqs at this default, so the
+# ladder's largest concurrency must not exceed it.
+ENGINE_DEFAULT_MAX_NUM_SEQS = 1024
+
+
+class RequestFailed(RuntimeError):
+    """A completions request that did not return (HTTP error, timeout, closed connection)."""
 
 
 class Refused(SystemExit):
@@ -256,9 +272,19 @@ class ServeEngine:
                 return int(m.group(1).replace(",", "")), ln.strip()
         return None
 
-    def generate(self, prompts: list[list[int]], max_tokens: int) -> list[list[int]]:
+    def alive(self) -> bool:
+        return self.proc.poll() is None
+
+    def generate(self, prompts: list[list[int]], max_tokens: int,
+                 salt: str | None = None) -> list[list[int]]:  # fmt: skip
+        """One completions request for the whole batch. `salt` is the request's `cache_salt`
+        (completion/protocol.py at v0.32.0): the engine's prefix cache stays on, and a batch
+        never reuses the cache blocks of another batch's identical prompts (the ladder serves
+        the same prompts at every concurrency)."""
         body = {"model": self.model, "prompt": prompts, "max_tokens": max_tokens,
                 "temperature": 0.0, "ignore_eos": True, "return_token_ids": True}  # fmt: skip
+        if salt is not None:
+            body["cache_salt"] = salt
         request = urllib.request.Request(
             f"http://127.0.0.1:{self.port}/v1/completions", data=json.dumps(body).encode(),
             headers={"Content-Type": "application/json"},
@@ -267,7 +293,7 @@ class ServeEngine:
             with urllib.request.urlopen(request, timeout=START_TIMEOUT_S) as response:
                 doc = json.loads(response.read())
         except (urllib.error.URLError, OSError) as e:
-            raise SystemExit(f"ref-serve: completions request failed: {e}") from e
+            raise RequestFailed(str(e)) from e
         choices = sorted(doc["choices"], key=lambda c: c["index"])
         return [list(c.get("token_ids") or []) for c in choices]
 
@@ -419,6 +445,8 @@ def prove_serving(job: dict) -> dict:
     prompts = [json.loads(line) for line in host(job["prompts_file"]).read_text().splitlines()]
     if len(prompts) < size * batches:
         raise SystemExit(f"ref-serve: {len(prompts)} prompts for {batches} batches of {size}")
+    if load_point == "ladder":
+        ladder, warmup, timed = ladder_job(job, given, size * batches)
     started = time.monotonic_ns()
     # the model directory as this process sees it: /models in a container, the cache directory
     # the hosted runner names in IPROOFS_MODELS (RFC-0006 §Hosted execution)
@@ -431,6 +459,9 @@ def prove_serving(job: dict) -> dict:
                   "engine_observed": observed(engine)}  # fmt: skip
         with host("/io/commands.jsonl").open("a") as f:
             f.write(json.dumps(record, sort_keys=True) + "\n")
+        if load_point == "ladder":
+            plan = ladder_plan(size * batches, ladder, warmup, timed)
+            return prove_ladder(job, engine, prompts[: size * batches], plan, kv)
         need = size * (job["shape"]["prompt_tokens"] + job["shape"]["output_tokens"])
         warnings = []
         if kv is not None and kv[0] < need:
@@ -470,7 +501,10 @@ def serve(job: dict, engine: object, prompts: list[list[int]], proofs_dir: Path)
     for b in range(batches):
         batch = prompts[b * size : (b + 1) * size]
         want = job["shape"]["output_tokens"]
-        outputs = engine.generate(batch, want)  # type: ignore[attr-defined]
+        try:
+            outputs = engine.generate(batch, want)  # type: ignore[attr-defined]
+        except RequestFailed as e:
+            raise SystemExit(f"ref-serve: completions request failed: {e}") from e
         if len(outputs) != len(batch):
             raise SystemExit(f"ref-serve: batch {b}: {len(outputs)} outputs for {len(batch)}")
         short = [i for i, t in enumerate(outputs) if len(t) != want]
@@ -482,6 +516,122 @@ def serve(job: dict, engine: object, prompts: list[list[int]], proofs_dir: Path)
             release(proofs_dir, f"req-{i}", {"request_index": i, "batch": b, "token_ids": tokens})
             proofs.append({"proof_id": f"req-{i}", "request_index": i,
                            "parts": ["outputs.json"], "claimed_output": tokens})  # fmt: skip
+    return proofs
+
+
+def ladder_job(job: dict, given: dict[str, str], count: int) -> tuple[list[int], int, int]:
+    """RFC-0018 CO-4: the ladder, warm-up and timed batch counts the runner copies from the
+    level file. A ladder entry leaves --max-num-seqs at the engine's default, which must hold the
+    largest c, and a batch of c distinct prompts needs c <= the `count` ladder prompts."""
+    ladder, warmup = job.get("ladder"), job.get("warmup_batches")
+    timed = job.get("timed_batches")
+    if (not isinstance(ladder, list) or not ladder
+            or any(not isinstance(c, int) or c < 1 for c in ladder)):  # fmt: skip
+        raise Refused("config", f"a ladder job names its concurrencies (job.json ladder: {ladder!r}"
+                      ", RFC-0018 CO-4)")  # fmt: skip
+    if len(set(ladder)) != len(ladder):
+        raise Refused("config", f"ladder {ladder} repeats a concurrency")
+    if not isinstance(warmup, int) or warmup < 1:
+        raise Refused("config", f"a ladder job warms each rung up (job.json warmup_batches: "
+                      f"{warmup!r}, RFC-0018 CO-4)")  # fmt: skip
+    if not isinstance(timed, int) or timed < 1:
+        raise Refused("config", f"a ladder job times each rung (job.json timed_batches: "
+                      f"{timed!r}, RFC-0018 CO-4)")  # fmt: skip
+    if max(ladder) > count:
+        raise Refused("config", f"ladder concurrency {max(ladder)} above the {count} ladder "
+                      "prompts: a batch holds c distinct prompts (RFC-0018 CO-4)")  # fmt: skip
+    seqs = int(given.get("--max-num-seqs", ENGINE_DEFAULT_MAX_NUM_SEQS))
+    if max(ladder) > seqs:
+        raise Refused("config", f"ladder concurrency {max(ladder)} above the engine's max_num_seqs"
+                      f" {seqs} (RFC-0018 CO-4)")  # fmt: skip
+    return ladder, warmup, timed
+
+
+def proof_id(concurrency: int, batch: int, warmup: bool, position: int) -> str:
+    """A ladder output's id: `c<c>-w<k>-r<j>` for warm-up batch k, `c<c>-b<k>-r<j>` for timed
+    batch k, j the request's position in its batch (iproofs.baseline reads it back)."""
+    return f"c{concurrency}-{'w' if warmup else 'b'}{batch}-r{position}"
+
+
+def ladder_plan(count: int, ladder: list[int], warmup: int, timed: int) -> list[dict]:
+    """RFC-0018 CO-4: per concurrency c, in ladder order, `warmup` warm-up batches and then
+    `timed` timed batches of c requests. Batch s of a rung (warm-ups first, s = 0, 1, ...)
+    serves ladder prompts (s x c + j) mod count for j < c: the c prompts of a batch are
+    distinct (c <= count), and a rung reuses a prompt only once it has served all `count`
+    (never on the Level 1 ladder: (1 + 3) x 256 = 1,024 prompts). Batches of another rung serve
+    the same prompts again under their own cache salt."""
+    if not ladder or max(ladder) > count:
+        raise SystemExit(f"ref-serve: ladder {ladder} needs at most {count} prompts per batch")
+    plan = []
+    for c in ladder:
+        batches = [
+            {"warmup": s < warmup, "batch": s if s < warmup else s - warmup,
+             "indices": [(s * c + j) % count for j in range(c)]}
+            for s in range(warmup + timed)
+        ]  # fmt: skip
+        plan.append({"concurrency": c, "batches": batches})
+    return plan
+
+
+def prove_ladder(job: dict, engine: object, prompts: list[list[int]], plan: list[dict],
+                 kv: tuple[int, str] | None) -> dict:  # fmt: skip
+    """RFC-0018 CO-4 and RFC-0015 SRV-2, REF-1: every batch of the plan sent whole, greedy,
+    `max_tokens` the request's reply tokens, `ignore_eos`; every output released with its
+    concurrency, batch and warm-up flag. A rung whose request fails or returns another count of
+    tokens is recorded failed (a warning naming it and the cause) and the next rung runs; once
+    the engine has exited every later rung is recorded failed. With no rung served the job
+    fails (`adapter`)."""
+    want = job["shape"]["output_tokens"]
+    per_request = job["shape"]["prompt_tokens"] + want
+    proofs_dir = host("/io/proofs")
+    proofs_dir.mkdir(parents=True, exist_ok=True)
+    proofs, warnings, failed = [], [], []
+    for rung in plan:
+        c = rung["concurrency"]
+        if kv is not None and kv[0] < c * per_request:
+            warnings.append(f"ladder c={c}: KV cache of {kv[0]} tokens holds {kv[0] // per_request}"
+                            f" of {c} requests at once; the engine queues the rest")  # fmt: skip
+        alive = getattr(engine, "alive", None)
+        if callable(alive) and not alive():
+            failed.append(f"ladder c={c} failed: the engine had exited")
+            continue
+        try:
+            for batch in rung["batches"]:
+                proofs += ladder_batch(job, engine, prompts, c, batch, want, proofs_dir)
+        except (RequestFailed, LadderBatchFailed) as e:
+            failed.append(f"ladder c={c} failed: {e}")
+    for line in failed:
+        print(f"ref-serve: {line}", file=sys.stderr)
+    if len(failed) == len(plan):
+        raise SystemExit(f"ref-serve: every ladder rung failed: {failed}")
+    return {**base("prove"), "proofs": proofs, "warnings": warnings + failed}
+
+
+class LadderBatchFailed(RuntimeError):
+    """A ladder batch whose outputs are not one of `want` tokens per request (SRV-2)."""
+
+
+def ladder_batch(job: dict, engine: object, prompts: list[list[int]], c: int, batch: dict,
+                 want: int, proofs_dir: Path) -> list:  # fmt: skip
+    """One batch of a ladder rung: one completions request, then one release per request."""
+    kind = "w" if batch["warmup"] else "b"
+    salt = f"{job['run_id']}-c{c}-{kind}{batch['batch']}"
+    sent = [prompts[i] for i in batch["indices"]]
+    outputs = engine.generate(sent, want, salt=salt)  # type: ignore[attr-defined]
+    where = f"{'warm-up' if batch['warmup'] else 'timed'} batch {batch['batch']}"
+    if len(outputs) != len(sent):
+        raise LadderBatchFailed(f"{where}: {len(outputs)} outputs for {len(sent)} requests")
+    short = [j for j, t in enumerate(outputs) if len(t) != want]
+    if short:
+        counts = [len(outputs[j]) for j in short]
+        raise LadderBatchFailed(f"{where}: requests {short} returned {counts} tokens, not {want}")
+    proofs = []
+    for j, (i, tokens) in enumerate(zip(batch["indices"], outputs, strict=True)):
+        pid = proof_id(c, batch["batch"], batch["warmup"], j)
+        release(proofs_dir, pid, {"request_index": i, "concurrency": c, "batch": batch["batch"],
+                                  "warmup": batch["warmup"], "token_ids": tokens})  # fmt: skip
+        proofs.append({"proof_id": pid, "request_index": i, "parts": ["outputs.json"],
+                       "claimed_output": tokens})  # fmt: skip
     return proofs
 
 

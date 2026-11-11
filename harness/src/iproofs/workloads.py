@@ -12,7 +12,7 @@ import stat
 import unicodedata
 import urllib.error
 import urllib.request
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -23,7 +23,14 @@ from iproofs.derive import QuantityTree
 from iproofs.errors import ErrorKind, IProofsError
 from iproofs.gguf import ActiveWeights
 from iproofs.model import Corpus, ModelFile, Workload, load
-from iproofs.provenance import corpus_digest, file_digest, model_digest, prompt_set_digest
+from iproofs.provenance import (
+    checked_tree_digest,
+    corpus_digest,
+    file_digest,
+    hex_digests,
+    model_digest,
+    prompt_set_digest,
+)
 from iproofs.quantity import Grade, NullReason, SourceKind, Tier, Unit
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_jsonl
@@ -289,15 +296,31 @@ def corpus_window_v1(
     Only `random.Random(seed).random()` is called: CPython guarantees that sequence
     across versions, not `randrange`, `choice` or `shuffle` (INV-WL-2).
     """
+    return corpus_window_runs(texts, tokenizer, [(count, L)], seed)
+
+
+def corpus_window_runs(
+    texts: list[str],
+    tokenizer: Tokenizer,
+    runs: Sequence[tuple[int, int]],
+    seed: int,
+) -> list[list[int]]:
+    """`corpus-window/1` drawn as one stream in runs of (count, L): one generator, one
+    `random()` per window, each run's windows `L` tokens long. One run is `corpus_window_v1`;
+    RFC-0018 PR-3 draws a rung's prompts, then its KL windows, from one stream."""
     ids = list(tokenizer.encode("\n".join(texts), add_special_tokens=False).ids)
     n = len(ids)
-    if n < L:
-        raise IProofsError(ErrorKind.CONFIG, f"corpus shorter than prompt length: {n} tokens < {L}")
+    for _, L in runs:
+        if n < L:
+            raise IProofsError(
+                ErrorKind.CONFIG, f"corpus shorter than prompt length: {n} tokens < {L}"
+            )
     rng = random.Random(seed)
     prompts = []
-    for _ in range(count):
-        offset = math.floor(rng.random() * (n - L + 1))
-        prompts.append(ids[offset : offset + L])
+    for count, L in runs:
+        for _ in range(count):
+            offset = math.floor(rng.random() * (n - L + 1))
+            prompts.append(ids[offset : offset + L])
     return prompts
 
 
@@ -366,19 +389,48 @@ def model_dir(root: Path, wl: Workload) -> Path:
     return path
 
 
+CORPUS_WINDOW = "corpus-window/1"
+BEACON_WINDOW = "beacon-window/1"
+
+
+def generator_seed(wl: Workload, seed: int | Mapping[str, object]) -> int:
+    """The integer seed of the workload's generator: `corpus-window/1` takes a seed;
+    `beacon-window/1` takes the level's beacon record (`beacon/1`), whose randomness gives the
+    seed (RFC-0018 PR-1). A mismatch is a `config` error, so a beacon workload never runs on a
+    drawn seed."""
+    if wl.prompts.generator == BEACON_WINDOW:
+        if not isinstance(seed, Mapping) or not isinstance(seed.get("randomness"), str):
+            raise IProofsError(
+                ErrorKind.CONFIG, f"{wl.id}: {BEACON_WINDOW} takes the level's beacon record"
+            )
+        from iproofs.level import beacon_seed  # noqa: PLC0415 (iproofs.level imports this module)
+
+        return beacon_seed(str(seed["randomness"]))
+    if isinstance(seed, Mapping):
+        raise IProofsError(ErrorKind.CONFIG, f"{wl.id}: {wl.prompts.generator} takes a seed")
+    return seed
+
+
 def materialise_prompts(
     root: Path,
     wl: Workload,
     models: Path,
-    seed: int,
+    seed: int | Mapping[str, object],
     *,
     count: int | None = None,
     own_tokenizer: bool = False,
+    slot: int | None = None,
 ) -> list[list[int]]:
     """The job's prompt set: corpus-window/1 over the workload's corpus with its tokenizer.
-    `count` draws more prompts from the same seeded generator, so the first `prompts.count` are
-    the workload's set (RFC-0015 SRV-8); `own_tokenizer` reads the workload's tokenizer file
-    alone, for a job whose model directory holds other files (production serving)."""
+    `seed` is the job's seed, or for `beacon-window/1` the level's beacon record
+    (`generator_seed`). `count` draws more prompts from the same seeded generator, so the first
+    `prompts.count` are the workload's set (RFC-0015 SRV-8); `slot` k (RFC-0018 slots, from 1)
+    gives prompts [(k-1)·count, k·count) of the stream instead; `own_tokenizer` reads the
+    workload's tokenizer file alone, for a job whose model directory holds other files
+    (production serving)."""
+    seed = generator_seed(wl, seed)
+    if slot is not None and (slot < 1 or count is not None):
+        raise IProofsError(ErrorKind.CONFIG, f"slot {slot}: slots start at 1 and take no count")
     texts = local_corpus(root, wl.prompts.corpus_digest) or pinned_corpus(
         root, wl.prompts.corpus_digest
     )
@@ -390,9 +442,10 @@ def materialise_prompts(
     if wl.model.tokenizer_source is not None or own_tokenizer:  # not in the weights directory
         path = tokenizer_file(root, wl, default_cache())
     tokenizer = tokenizer_for(path)
-    return corpus_window_v1(
-        texts, tokenizer, count or wl.prompts.count, wl.prompts.length_rule.prompt_tokens, seed
-    )
+    n, length = wl.prompts.count, wl.prompts.length_rule.prompt_tokens
+    if slot is not None:
+        return corpus_window_v1(texts, tokenizer, slot * n, length, seed)[(slot - 1) * n :]
+    return corpus_window_v1(texts, tokenizer, count or n, length, seed)
 
 
 # ---------------------------------------------------------------- model fetch (RFC-0014)
@@ -433,10 +486,11 @@ def _check_files(wl: Workload, directory: Path) -> None:
         raise IProofsError(
             ErrorKind.INTEGRITY, f"{wl.id}: model files missing {missing}, unexpected {extra}"
         )
+    hexes = hex_digests(have)  # every file read once; the model digest is over these
     for name, digest in want.items():
-        if file_digest(have[name]).removeprefix("sha256:") != digest.removeprefix("sha256:"):
+        if hexes[name] != digest.removeprefix("sha256:"):
             raise IProofsError(ErrorKind.INTEGRITY, f"{wl.id}: {name} does not match its digest")
-    if model_digest(directory) != wl.model.digest:
+    if checked_tree_digest(directory, hexes) != wl.model.digest:
         raise IProofsError(ErrorKind.INTEGRITY, f"{wl.id}: model digest does not match")
 
 

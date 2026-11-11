@@ -50,7 +50,7 @@ def test_info_and_setup(step: Step, monkeypatch: pytest.MonkeyPatch) -> None:
     out = step("info")
     assert (out["system"], out["upstream_commit"]) == ("sash", COMMIT)
     assert out["profile"] == "prover-h100"
-    assert out["workloads"] == ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
+    assert out["workloads"] == ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
     assert (out["adapter_commit"], out["adapter_dirty"]) == ("a" * 40, False)
     names = [i["name"] for i in out["image_inputs"]]
     assert names == ["zk-inference-prover", "rust-nightly-2025-07-14"]

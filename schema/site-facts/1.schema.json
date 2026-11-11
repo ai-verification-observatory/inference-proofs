@@ -71,6 +71,16 @@
           "pattern": "^[a-z0-9][a-z0-9-]*$",
           "type": "string"
         },
+        "reason": {
+          "description": "RFC-0018 SI-4: the one fixed reason a system has no row on the board",
+          "enum": [
+            "licence",
+            "no public verifier",
+            "no configuration at the request",
+            "another kind of check",
+            "not yet run"
+          ]
+        },
         "status": {
           "additionalProperties": false,
           "dependentRequired": {

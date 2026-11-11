@@ -10,7 +10,7 @@
 schema: "serving-model/1"
 id: "llama-3.1-8b-instruct-bf16"
 version: 1
-workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l31-8b-c1024"]
+workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l31-8b-c1024", "l1-l31-8b-p512-o512"]
 publisher:
   name: "Meta"
   release: {hub: "huggingface", repo: "meta-llama/Llama-3.1-8B-Instruct", revision: "0e9e39f249a16976918f6564b8830bc894c89659", gated: true}

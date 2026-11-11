@@ -3,6 +3,7 @@
 - Authors: AbdelStark
 - Created: 2026-11-03
 - Requires: RFC-0003, RFC-0012
+- Amended by RFC-0018 (2026-11-10): for Level 1 runs the steady scope is the release-group rule (RFC-0018 CO-2, CO-3), which replaces INV-SCOPE-5. v0.1's batch-membership rule overcounts FlashProve's steady requests (119 counted, 96 produced), so its published 5.746 GPU-s per request reads 7.060 to 7.195 under the new rule; v0.1 records stay as stored.
 
 ## Summary
 
@@ -253,7 +254,7 @@ Hand-computed tests compare with `math.isclose(rel_tol=1e-12)`, because a decima
 ### Statistics
 
 - At least three repetitions per configuration (a configuration is system, workload id and version, profile, image digest). A configuration with fewer than three successful repetitions is published with its n and the label "below minimum repetitions"; it is never hidden.
-- Reported per metric: n (successful repetitions), n_failed, mean, sample standard deviation (n − 1 denominator; null when n < 2), min, max.
+- Reported per metric: n (successful repetitions), n_failed, mean, sample standard deviation (n − 1 denominator; null when n < 2), min, max, and the median ([RFC-0017](0017-requests-tasks-and-tested-states.md) ST-1; absent from statistics stored before 2026-11-10).
 - No confidence intervals at n = 3: an interval from three samples under an unchecked normality assumption would overstate precision.
 - Failed repetitions are counted and shown with their failure record (RFC-0010) and excluded from mean, stdev, min and max.
 - The first proof of a session is excluded from `prove.steady` and included in `prove.session` (§Timing scopes).
@@ -313,6 +314,8 @@ The amendment of 2026-11-09 adds INV-DERIVE-11 (the overhead in the conditions i
 The amendment of 2026-11-09 adds INV-SCOPE-5 (steady scope by batch membership). At batch size 1 nothing changes. At batch size b > 1 the steady start moves from r_1 to the first batch's last release and the steady tokens drop the first batch, so a run released batch by batch no longer counts the other b − 1 requests of the first batch, whose work finished before r_1. `iproofs.derive.scope_seconds` and `tokens_metrics` take the batch size, each release's `request_index` and the release times (TC-STEADY-BATCH): a later-batch request released before the start leaves the steady tokens, so a system that overlaps batches does not count work done before the window. Every manifest records `workload.steady_rule`; a release labels a configuration with an earlier run at b > 1 (`steady_boundary`), and such a run joins no overhead. Stored runs keep their values (APP-1).
 
 The amendment of 2026-11-09 adds D-BPAB (`proof_bytes_per_active_weight_bit_token`, new unit `B/bit_token`) and D-VSPAB (`verify_seconds_per_active_weight_bit_token`, `s/bit_token` at `verify`) on the owner decision of that date: proof size and check time on the D-SPAB-S basis, so the overview's three cost columns share one normalisation (per token covered, per bit of active weights). D-BPT and D-VSPT divide by tokens covered, so D-BPAB equals mean proof bytes / tokens covered per proof / (active parameters × weight bits), and D-VSPAB likewise with check seconds. Both join `COMPUTE`, `FORMULAS`, `derive_repetition`, `PROVER_ONLY` and FREEZE_FORMULAS (Q3): stored v0.1 runs hold `proof_bytes_per_token`, `verify_seconds_per_token` and run.json `inputs`, so the freeze evaluates both into `freeze_derived` and no run.json changes (APP-1). The unit enum and the metric-id pattern of `schema/quantity/1.schema.json` gain them. The INV-DERIVE-7 limit (attention left out of the normaliser) applies to both.
+
+The amendment of 2026-11-10 is [RFC-0017](0017-requests-tasks-and-tested-states.md): it adds the per-request figures D-TPR, D-GSPR-S, D-COST-REQ-S, D-BPR and D-VSPR (new units `token/request`, `gpu_s/request`, `USD/request`, `B/request`, `s/request`), puts them in `FREEZE_FORMULAS` (Q3), and adds `stats.median` to every statistic (its ST-1). It changes no existing metric, formula, null rule or stored value: a statistic's `value` stays its mean.
 
 ## Testing Strategy
 

@@ -3,6 +3,7 @@
 - Authors: AbdelStark
 - Created: 2026-11-03
 - Requires: RFC-0003, RFC-0004, RFC-0005, RFC-0006, RFC-0011
+- Amended by RFC-0018 (2026-11-10): for Level 1 the serving baseline is a concurrency ladder at full load (RFC-0018 CO-4), not a batch matched to the prover's.
 
 ## Summary
 

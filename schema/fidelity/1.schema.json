@@ -1,0 +1,478 @@
+{
+  "$defs": {
+    "cause": {
+      "$comment": "RFC-0018 §The six checks: the causes of an undecided check",
+      "enum": [
+        "system limit",
+        "not run",
+        "not resolved",
+        "not reproduced"
+      ]
+    },
+    "control": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "a control that ran has scores and a mean; one that failed has its cause and neither (RFC-0018 failure modes)",
+          "else": {
+            "properties": {
+              "cause": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "mean_prefix": {
+                "type": "null"
+              },
+              "scores": {
+                "maxItems": 0
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "status": {
+                "const": "ok"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "type": "null"
+              },
+              "mean_prefix": {
+                "type": "number"
+              },
+              "scores": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "cause": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "honest",
+            "damaged"
+          ]
+        },
+        "kl": {
+          "$comment": "FI-7: mean KL divergence per token against the reference, measured by llama.cpp; never gating",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/quantity"
+            }
+          ]
+        },
+        "mean_prefix": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "recipe": {
+          "enum": [
+            "rerun",
+            "quantize",
+            "drop_blocks",
+            "other_model"
+          ]
+        },
+        "scores": {
+          "$ref": "#/$defs/scores"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "recipe",
+        "status",
+        "cause",
+        "scores",
+        "mean_prefix",
+        "kl"
+      ],
+      "type": "object"
+    },
+    "p": {
+      "exclusiveMinimum": 0,
+      "maximum": 1,
+      "type": "number"
+    },
+    "row": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "FI-6: held and failed carry no cause; undecided names one",
+          "else": {
+            "properties": {
+              "cause": {
+                "$ref": "#/$defs/cause"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "enum": [
+                  "held",
+                  "failed"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "type": "null"
+              },
+              "p_above_bar": {
+                "$ref": "#/$defs/p"
+              },
+              "p_below_bar": {
+                "$ref": "#/$defs/p"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "cause": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/cause"
+            }
+          ]
+        },
+        "kl": {
+          "$comment": "FI-7: on the file the system commits when llama.cpp loads it, else null with kl_note saying why",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/quantity"
+            }
+          ]
+        },
+        "kl_note": {
+          "type": "string"
+        },
+        "mean_prefix": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "p_above_bar": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/p"
+            }
+          ]
+        },
+        "p_below_bar": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/p"
+            }
+          ]
+        },
+        "scores": {
+          "$ref": "#/$defs/scores"
+        },
+        "state": {
+          "enum": [
+            "held",
+            "failed",
+            "undecided"
+          ]
+        },
+        "tests": {
+          "$comment": "the two tests of FI-6: the row over the bar, then the bar over the row",
+          "items": {
+            "$ref": "#/$defs/test"
+          },
+          "maxItems": 2,
+          "type": "array"
+        }
+      },
+      "required": [
+        "scores",
+        "mean_prefix",
+        "p_above_bar",
+        "p_below_bar",
+        "state",
+        "cause",
+        "kl",
+        "kl_note",
+        "tests"
+      ],
+      "type": "object"
+    },
+    "scores": {
+      "$comment": "FI-3: matched prefix per prompt, in prompt order",
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "test": {
+      "$comment": "FI-4: one paired one-sided sign-flip test of a over b",
+      "additionalProperties": false,
+      "properties": {
+        "a": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "b": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "method": {
+          "enum": [
+            "exact",
+            "monte-carlo"
+          ]
+        },
+        "n": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "p": {
+          "$ref": "#/$defs/p"
+        },
+        "seed": {
+          "pattern": "^0x[0-9a-f]{16}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "a",
+        "b",
+        "n",
+        "p",
+        "method",
+        "seed"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/fidelity/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "bar": {
+      "$comment": "FI-5: the damaged control with the highest mean that every honest control beats; null when none qualifies",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "control": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "mean_prefix": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "control",
+            "mean_prefix"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "bar_tests": {
+      "$comment": "FI-5: every honest control against every damaged control that ran",
+      "items": {
+        "$ref": "#/$defs/test"
+      },
+      "type": "array"
+    },
+    "controls": {
+      "$comment": "FI-2, in the level file's order",
+      "items": {
+        "$ref": "#/$defs/control"
+      },
+      "type": "array"
+    },
+    "engine": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "image": {
+          "$comment": "the ref-fidelity image the replies were generated in",
+          "pattern": "^[^@\\s]+@sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        },
+        "tool": {
+          "const": "llama.cpp"
+        }
+      },
+      "required": [
+        "tool",
+        "repo",
+        "commit",
+        "image"
+      ],
+      "type": "object"
+    },
+    "level": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "id": {
+          "pattern": "^L[1-9][0-9]*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "n": {
+      "$comment": "the rung's 3 N prompts",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "prompts_digest": {
+      "$comment": "sha256 of the prompts.jsonl the replies answer (3 N prompts, prompt order)",
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "reference": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "replies": {
+          "$comment": "FI-1: results/<release>/fidelity/<rung>/reference.jsonl",
+          "pattern": "^results/v[0-9]+\\.[0-9]+/fidelity/[^/]+/reference\\.jsonl$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "replies",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "rows": {
+      "additionalProperties": {
+        "$ref": "#/$defs/row"
+      },
+      "propertyNames": {
+        "$ref": "../quantity/1.schema.json#/$defs/systemId"
+      },
+      "type": "object"
+    },
+    "rung": {
+      "pattern": "^[a-z0-9][a-z0-9.-]{1,63}$",
+      "type": "string"
+    },
+    "schema": {
+      "const": "fidelity/1"
+    },
+    "test": {
+      "additionalProperties": false,
+      "properties": {
+        "alpha": {
+          "exclusiveMaximum": 1,
+          "exclusiveMinimum": 0,
+          "type": "number"
+        },
+        "exact_up_to": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "resamples": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "score": {
+          "const": "matched_prefix"
+        },
+        "seed_rule": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "test": {
+          "const": "paired-sign-flip"
+        }
+      },
+      "required": [
+        "score",
+        "test",
+        "alpha",
+        "exact_up_to",
+        "resamples",
+        "seed_rule"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "level",
+    "rung",
+    "n",
+    "prompts_digest",
+    "engine",
+    "reference",
+    "test",
+    "controls",
+    "bar_tests",
+    "bar",
+    "rows"
+  ],
+  "title": "The fidelity gate of one rung: controls, bar and rows (RFC-0018 FI-1 to FI-8)",
+  "type": "object"
+}

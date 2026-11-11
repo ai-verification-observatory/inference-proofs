@@ -15,15 +15,20 @@
         "properties": {
           "batch_size": false,
           "batches": false,
+          "change": false,
           "claimed_output": false,
           "claims_file": false,
           "commitment_id": false,
           "control_flags": false,
           "model_dir": false,
+          "out_dir": false,
+          "position": false,
           "prompts_file": false,
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "texts_file": false,
+          "token": false,
           "verifier_files": false
         },
         "required": []
@@ -41,15 +46,20 @@
         "properties": {
           "batch_size": false,
           "batches": false,
+          "change": false,
           "claimed_output": false,
           "claims_file": false,
           "commitment_id": false,
           "control_flags": false,
           "model_dir": false,
+          "out_dir": false,
+          "position": false,
           "prompts_file": false,
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "texts_file": false,
+          "token": false,
           "verifier_files": false
         },
         "required": []
@@ -67,14 +77,19 @@
         "properties": {
           "batch_size": false,
           "batches": false,
+          "change": false,
           "claimed_output": false,
           "claims_file": false,
           "commitment_id": false,
           "control_flags": false,
+          "out_dir": false,
+          "position": false,
           "prompts_file": false,
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "texts_file": false,
+          "token": false,
           "verifier_files": false
         },
         "required": [
@@ -92,9 +107,14 @@
       },
       "then": {
         "properties": {
+          "change": false,
           "claimed_output": false,
+          "out_dir": false,
+          "position": false,
           "proof_dir": false,
           "request": false,
+          "texts_file": false,
+          "token": false,
           "verifier_files": false
         },
         "required": [
@@ -119,11 +139,16 @@
         "properties": {
           "batch_size": false,
           "batches": false,
+          "change": false,
           "claims_file": false,
           "control_flags": false,
           "model_dir": false,
+          "out_dir": false,
+          "position": false,
           "prompts_file": false,
-          "prover_files": false
+          "prover_files": false,
+          "texts_file": false,
+          "token": false
         },
         "required": [
           "commitment_id",
@@ -131,6 +156,65 @@
           "request",
           "claimed_output",
           "proof_dir"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "logprobs"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "change": false,
+          "claimed_output": false,
+          "claims_file": false,
+          "control_flags": false,
+          "out_dir": false,
+          "position": false,
+          "prompts_file": false,
+          "proof_dir": false,
+          "request": false,
+          "token": false,
+          "verifier_files": false
+        },
+        "required": [
+          "commitment_id",
+          "prover_files",
+          "model_dir",
+          "texts_file"
+        ]
+      }
+    },
+    {
+      "$comment": "RFC-0018 CO-4: a ladder prove job names its ladder and batch counts, and only a ladder job does",
+      "else": {
+        "properties": {
+          "ladder": false,
+          "timed_batches": false,
+          "warmup_batches": false
+        }
+      },
+      "if": {
+        "properties": {
+          "load_point": {
+            "const": "ladder"
+          }
+        },
+        "required": [
+          "load_point"
+        ]
+      },
+      "then": {
+        "required": [
+          "ladder",
+          "warmup_batches",
+          "timed_batches"
         ]
       }
     },
@@ -148,6 +232,80 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "perturb"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "claimed_output": false,
+          "claims_file": false,
+          "commitment_id": false,
+          "control_flags": false,
+          "gpus": false,
+          "ladder": false,
+          "load_point": false,
+          "position": false,
+          "prompts_file": false,
+          "proof_dir": false,
+          "prover_files": false,
+          "request": false,
+          "texts_file": false,
+          "timed_batches": false,
+          "token": false,
+          "verifier_files": false,
+          "warmup_batches": false
+        },
+        "required": [
+          "change",
+          "model_dir",
+          "out_dir"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "mutate_reply"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "change": false,
+          "claimed_output": false,
+          "claims_file": false,
+          "commitment_id": false,
+          "control_flags": false,
+          "gpus": false,
+          "ladder": false,
+          "load_point": false,
+          "model_dir": false,
+          "prompts_file": false,
+          "prover_files": false,
+          "request": false,
+          "texts_file": false,
+          "timed_batches": false,
+          "verifier_files": false,
+          "warmup_batches": false
+        },
+        "required": [
+          "proof_dir",
+          "position",
+          "token",
+          "out_dir"
+        ]
+      }
     }
   ],
   "properties": {
@@ -158,6 +316,11 @@
     "batches": {
       "minimum": 1,
       "type": "integer"
+    },
+    "change": {
+      "$comment": "perturb (RFC-0018 AD-5): the level's model_change for this system",
+      "minLength": 1,
+      "type": "string"
     },
     "claimed_output": {
       "items": {
@@ -179,7 +342,73 @@
       "const": "adapter/1"
     },
     "control": {
-      "type": "boolean"
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "$comment": "RFC-0018: a level's MODEL control job (C3 commit, P1 prove) with W' mounted at /models",
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "enum": [
+                "P1",
+                "C3"
+              ]
+            },
+            "perturbation": {
+              "$comment": "RFC-0018 AD-5: the record the adapter's perturb returns",
+              "additionalProperties": false,
+              "properties": {
+                "digest_tool": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "digest_w": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "digest_w_prime": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "index": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "new": {},
+                "old": {},
+                "tensor": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "unit": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "tensor",
+                "index",
+                "old",
+                "new",
+                "unit",
+                "digest_w",
+                "digest_w_prime",
+                "digest_tool"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "id",
+            "perturbation"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "control_flags": {
       "items": {
@@ -194,15 +423,36 @@
       "minimum": 1,
       "type": "integer"
     },
+    "ladder": {
+      "$comment": "RFC-0018 CO-4: a ladder prove job's concurrencies, the level's baseline.ladder in its order",
+      "items": {
+        "minimum": 1,
+        "type": "integer"
+      },
+      "minItems": 1,
+      "type": "array",
+      "uniqueItems": true
+    },
     "load_point": {
-      "$comment": "RFC-0015 SRV-1: a production-serving prove job's load point",
+      "$comment": "RFC-0015 SRV-1: a production-serving prove job's load point; RFC-0018 CO-4: `ladder`",
       "enum": [
         "matched",
-        "high"
+        "high",
+        "ladder"
       ]
     },
     "model_dir": {
       "const": "/models"
+    },
+    "out_dir": {
+      "$comment": "perturb and mutate_reply: where the adapter writes W' or the mutated proof",
+      "pattern": "^/io/[^\\x00]+$",
+      "type": "string"
+    },
+    "position": {
+      "$comment": "mutate_reply (RFC-0018 AD-6): 0-based reply position",
+      "minimum": 0,
+      "type": "integer"
     },
     "prompts_file": {
       "pattern": "^/io/[^\\x00]+$",
@@ -271,8 +521,26 @@
         "setup",
         "commit",
         "prove",
-        "verify"
+        "verify",
+        "logprobs",
+        "perturb",
+        "mutate_reply"
       ]
+    },
+    "texts_file": {
+      "$comment": "logprobs (RFC-0018 AD-2): one JSON array of token ids per text",
+      "pattern": "^/io/[^\\x00]+$",
+      "type": "string"
+    },
+    "timed_batches": {
+      "$comment": "RFC-0018 CO-4: timed batches per concurrency of a ladder prove job (baseline.timed_batches)",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "token": {
+      "$comment": "mutate_reply: the new token id",
+      "minimum": 0,
+      "type": "integer"
     },
     "verifier_files": {
       "items": {
@@ -280,6 +548,11 @@
         "type": "string"
       },
       "type": "array"
+    },
+    "warmup_batches": {
+      "$comment": "RFC-0018 CO-4: warm-up batches per concurrency of a ladder prove job (baseline.warmup_batches)",
+      "minimum": 1,
+      "type": "integer"
     },
     "workload": {
       "additionalProperties": false,

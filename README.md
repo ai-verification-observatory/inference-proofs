@@ -67,7 +67,7 @@ Several open systems can now prove that a language model produced a given output
 The first three can be removed. The fourth cannot: two systems that prove different statements are not faster or slower than each other, they are doing different work. So this project removes the differences it can and **labels the one it cannot**. It is in the spirit of [Ethproofs](https://ethproofs.org/) for zkVM provers, with one addition that inference needs: the claim card.
 
 > [!IMPORTANT]
-> This project **measures** provers. It does not build them, rank them or certify them. There is no aggregate score and no leaderboard ([PRD §5](docs/PRD.md#5-non-goals)).
+> This project **runs** provers and ranks them inside one model's rung by one measured figure, the cost of a proved reply as a multiple of serving it, among the systems that pass six checks we run ourselves ([RFC-0018](rfcs/0018-level-1-ladder.md)). It does not build or certify them, and it ranks nothing across models.
 
 ## What gets measured
 
@@ -163,16 +163,30 @@ security:
 zero_knowledge: {claimed: "not stated", hidden: "not stated", not_hidden: "not stated", status: "not_stated"}
 ```
 
-The site reads every card as six properties, each in one of four states, with the quotes behind each cell ([RFC-0016](rfcs/0016-glyph-properties-and-states.md)):
+A system enters the ranking by passing six checks we run ourselves ([RFC-0018](rfcs/0018-level-1-ladder.md#the-six-checks)):
 
-| Property | The question it answers |
+| Check | Held when |
 |---|---|
-| **Weights hidden** | does the proof keep the model weights from the verifier? |
-| **Model bound** | is the output tied to one committed set of weights? |
-| **Whole output checked** | is every generated token covered, or a sample, or a part? |
-| **Formally verified** | is the verifier checked by a machine proof? |
-| **Security level** | is a soundness level stated, and is it proven or conjectured? |
-| **No trusted party** | does acceptance rest on a trusted setup, signer or hardware? |
+| **Run** | three cold sessions, built from the public pin, unpatched, each returned an accepted proof for every request |
+| **Model** | a proof made after changing one committed weight was never accepted, and an honest proof was refused against another commitment |
+| **Prompt** | a proof was refused for a prompt with one token changed |
+| **Reply** | proofs cover all 512 reply tokens, and a changed token at the first, the last and an interior position was refused |
+| **No weight file** | every verdict came from a verify call with no GPU and no model file, under a file-open trace |
+| **Fidelity** | the committed copy's replies follow the publisher's model for longer than a named damaged copy's |
+
+None of the checks attempts a forged proof: soundness and weight secrecy are not tested.
+
+The glyph then shows how far a system that ran is from a perfect prover ([RFC-0018](rfcs/0018-level-1-ladder.md#the-glyph)). Five petals, each green (holds in full), amber (in part), red (not at all, or not stated) or hollow (not yet measured):
+
+| Petal | Green means |
+|---|---|
+| **Unforgeable** | a proven soundness level of at least 128 bits for the verifier code run |
+| **Weights hidden** | zero knowledge proven for the program run, no leak beyond public sizes |
+| **Faithful model** | replies not distinguishable from the publisher's own model |
+| **Any model** | passed on every model of the level |
+| **Only the verifier trusted** | soundness rests on cryptographic assumptions alone; no setup ceremony, hardware key or third party |
+
+Unforgeable, Weights hidden and Only the verifier trusted are read from the publisher's statements at the pin (`systems/<name>/properties.yaml`); a failed check turns them red. The glyph never moves a position: the order is cost among the systems that passed.
 
 ## Timing scopes
 
@@ -328,7 +342,7 @@ inference-proofs/
 | record failed runs with their exit code and last lines | drop or round away a result |
 | apply the same controls to every verifier | let a system choose its own tests |
 | copy what systems state, and write `not stated` | infer a security property |
-| place results side by side | rank, score, certify or crown |
+| rank passed systems inside one rung by the order rule | rank across rungs, score, certify or crown |
 
 
 ## Contributing
@@ -346,5 +360,5 @@ The boundary:
 - A file that fits neither list is code.
 
 <div align="center">
-<sub>Measured, not ranked. Labelled, not rounded. Proved, bound, sampled or attested, and said which.</sub>
+<sub>Run by us, ranked inside a rung. Labelled, not rounded. Proved, bound, sampled or attested, and said which.</sub>
 </div>

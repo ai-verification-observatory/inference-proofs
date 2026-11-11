@@ -10,9 +10,9 @@ Settings that live on the hosting platform rather than in files. They are applie
 
 ## Actions
 
-- Workflow permissions: read repository contents only. The nightly link check may open one issue (`issues: write`).
+- Workflow permissions: read repository contents only.
 - Pull requests from forks get no secrets. No workflow uses a secret today.
-- Every action is referenced by a full commit hash; `harness/tests/unit/test_ci_config.py` checks it.
+- Every action is referenced by a full commit hash.
 
 ## Security
 

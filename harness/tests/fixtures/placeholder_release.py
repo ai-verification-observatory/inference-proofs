@@ -95,7 +95,7 @@ RUN_DATE = "2026-11-25"
 RFC_COMMIT = "39662bf6dd02b1ee8586c78f9a3b7f77b0d06ec1"
 SYSTEMS = ("flashprove", "sash", "ref-serve", "ref-recompute")
 SYSTEM_FILES = ("system.yaml", "claim.yaml", "controls.yaml", "external.yaml", "README.md")
-COPY = ("schema", "reference", "rfcs", "LICENSES", f"workloads/{WORKLOAD}.yaml",
+COPY = ("schema", "reference", "rfcs", "LICENSES", "levels", f"workloads/{WORKLOAD}.yaml",
         f"workloads/{SASH_WORKLOAD}.yaml")  # fmt: skip
 WEB_SKIP = ("shots", ".tools", "node_modules", "__pycache__", ".vercel", ".env*", ".DS_Store")
 CONTROL_SEED = "0x0123456789abcdef"
@@ -222,6 +222,15 @@ def _copy(root: Path, extras: bool) -> None:
         dst.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(src, dst) if src.is_dir() else shutil.copy(src, dst)
     _copy_web(root / "web")
+    # The placeholder is a v0.1 release. SASH's system.yaml now also declares the Level 1 job,
+    # which releases a proof per request (RFC-0018); its v0.1 jobs released one proof, with the
+    # steady boundary unobservable, as the fixture's values assume.
+    _edit_yaml(root / "systems/sash/system.yaml", _sash_v01)
+
+
+def _sash_v01(doc: dict[str, Any]) -> None:
+    doc["incremental_proofs"] = False
+    doc["proofs"]["steady_boundary"] = "not_observable"
 
 
 def _copy_web(dst: Path) -> None:

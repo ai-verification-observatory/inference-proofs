@@ -1,9 +1,9 @@
-"""The fixed words the pages print for stored values, and the numbers as they are shown.
+"""The fixed words the pages print for stored ids, and the numbers as they are shown.
 
-Scope, grade, tier, null reasons, failure kinds, outcomes, states and families are worded through
-the tables here, keyed by the stored ids (RFC-0009 S2), so an id with no words stops the build.
-`sig4`, `amount` and `shown` print a stored value at four significant digits in a reading unit
-(S4); they never change the stored value. Nothing here reads the view.
+Check ids, states, causes, scopes, grades, tiers, null reasons and units are worded through the
+tables here, keyed by the stored ids, so an id with no words stops the build. `number` prints a
+stored value at four significant digits in a reading unit; it never changes the stored value.
+The check definitions are RFC-0018's table in short. Nothing here reads the view.
 """
 
 import html
@@ -15,83 +15,114 @@ def e(s):
     return html.escape(str(s), quote=True)
 
 
-def slug(s):
-    return re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
-
-
-# words a count never leaves at a line's end ("3 runs", "124 bits"), and a product sign held to
-# both its numbers ("1 × 3 pairs", "× 1,000"): the one no-break pass of every label builder
-UNIT_WORD = re.compile(
-    r"(\d) (?=(?:runs?|bits|tokens?|threads?|trials?|requests?|batches|pairs)\b)"
-)
-TIMES = re.compile(r"(?<=[\d\w])[ \u00a0]×[ \u00a0](?=\d)")
-
-
-def nobreak(text):
-    """Plain text whose bound phrases never part at a line's end: a count and its unit word, a
-    product sign and its numbers. Dates are held in HTML (`dates_html`)."""
-    return TIMES.sub("\u00a0×\u00a0", UNIT_WORD.sub("\\1\u00a0", text))
-
-
-def dates_html(html):
-    """Every date (2026-11-08) in an HTML fragment's text, never in a tag, held whole: a span
-    that never breaks at its hyphens."""
-    return re.sub(r"(<[^>]+>)|\b(\d{4}-\d{2}-\d{2})\b",
-                  lambda m: m[1] or f'<span class="nw">{m[2]}</span>', html)  # fmt: skip
-
-
 def curly(text):
     """Straight double quotes curly: opening at the start or after a space or bracket, closing
-    elsewhere (`LLaMA (branch "llama")` reads `LLaMA (branch “llama”)`)."""
+    elsewhere."""
     return re.sub(r'(?:^|(?<=[\s(\[{]))"', "“", text).replace('"', "”")
 
 
-# ------------------------------------------------------------------ words
-# The fixed words a stored value prints as (RFC-0009 S2: the generator may word a stored value;
-# it never changes it). Keyed by the stored ids, so an id with no words stops the build.
-# a cell recorded not_stated (the sources say nothing) is drawn and printed as No, its reason saying
-# it is not stated (RFC-0016 ST-2): a guarantee nobody states is one nobody can rely on
-STATE_WORD = {"yes": "Yes", "partly": "Partly", "no": "No", "not_stated": "No"}
-STATE_CLS = {"yes": "yes", "partly": "partly", "no": "no", "not_stated": "no"}
-STATE_ORDER = ("yes", "partly", "no", "not_stated")  # the legend's order, display only
-FAMILY_WORD = {"proved": "Proved", "attested": "Attested", "re_executed": "Re-executed",
-               "fingerprinted": "Fingerprinted", "unchecked": "Unchecked"}  # fmt: skip
-STATUS_WORD = {"active": "active", "unmaintained": "unmaintained", "archived": "archived",
-               "no_repository": "no repository"}  # fmt: skip
+def quoted(text):
+    """A publisher's words as the card stores them: escaped, quotes curly, `code` set as code."""
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", e(curly(str(text))).replace("&quot;", '"'))
+
+
+# ------------------------------------------------------------------ the six checks (RFC-0018)
+CHECK_NAME = {"run": "Run", "model": "Model", "prompt": "Prompt", "reply": "Reply",
+              "no_weight_file": "No weight file", "fidelity": "Fidelity"}  # fmt: skip
+CHECK_HELD = {
+    "run": "Three session slots each hold a complete session, built from the public pin, "
+    "unpatched, with no weakening flag.",
+    "model": "A proof made after one weight was changed is not accepted, and an honest proof "
+    "checked against the changed weights' commitment is refused, in 3 of 3 trials each.",
+    "prompt": "A proof checked with one prompt token changed is refused, in 3 of 3 trials.",
+    "reply": "Every accepted proof covers all 512 reply tokens, and a changed reply token is "
+    "refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
+    "no_weight_file": "Every counted verdict came from a check run with no GPU visible, on a "
+    "filesystem holding no model file, under a file-open trace that names no model file.",
+    "fidelity": "The system's replies score above the model's bar: the damaged copy of the model "
+    "that every honest copy scores above, scored by the leading tokens each reply shares with the "
+    "publisher's 16-bit model.",
+}
+CHECK_FAILED = {
+    "run": "A slot has five incomplete runs, or a counted session used a weakening flag.",
+    "model": "Any trial is accepted.",
+    "prompt": "Any trial is accepted.",
+    "reply": "A proof covers fewer reply tokens, or any trial is accepted.",
+    "no_weight_file": "The trace names a model file, or a check needed one.",
+    "fidelity": "The bar scores above the system's replies.",
+}
+CHECK_EVIDENCE = {
+    "run": "every session's run record",
+    "model": "the controls record",
+    "prompt": "the controls record",
+    "reply": "the run records and the controls record",
+    "no_weight_file": "the file-open trace of every check",
+    "fidelity": "the model's fidelity record",
+}
+STATE_WORD = {"held": "held", "failed": "failed", "undecided": "undecided"}
+
+# ------------------------------------------------------------------ the five petals (RFC-0018 §The glyph)
+PETAL_NAME = {"unforgeable": "Unforgeable", "weights_hidden": "Weights hidden",
+              "faithful_model": "Faithful model", "any_model": "Any model",
+              "no_trusted_party": "Only the verifier trusted"}  # fmt: skip
+PETAL_WORD = {"green": "green", "amber": "amber", "red": "red", "hollow": "not decided"}
+BASIS_WORD = {"statement": "the publisher's documents", "test": "our checks",
+              "run": "our runs"}  # fmt: skip
+# what each colour means for each petal, RFC-0018's table in short: (green, amber, red)
+PETAL_RULE = {
+    "unforgeable": (
+        "A soundness level of 128 bits or more, proven for the verifier code the system runs.",
+        "A level that is conjectured, below 128 bits, stated per part only, or proven for the "
+        "protocol but not for the code run.",
+        "No level stated, or our Model, Prompt or Reply check failed.",
+    ),
+    "weights_hidden": (
+        "Zero knowledge proven for the program run, with no leak beyond public sizes.",
+        "Hidden with leaks the publisher lists, or proven for the protocol but not for the "
+        "program run.",
+        "The checker receives the weights, hiding is off or not stated, or our No weight file "
+        "check failed.",
+    ),
+    "faithful_model": (
+        "The replies are not shown below a second run of the publisher's 16-bit model.",
+        "The replies score above the model's bar, and the second run of the 16-bit model scores above them.",
+        "Our Fidelity check failed.",
+    ),
+    "any_model": (
+        "The system passed on every model of the level.",
+        "It passed on more than one model, not all.",
+        "It passed on one model or none.",
+    ),
+    "no_trusted_party": (
+        "Soundness rests on cryptographic assumptions alone (for example a random oracle): no "
+        "setup ceremony, hardware maker's key or third party. Public files fixed before the hash "
+        "do not count: every non-interactive proof has them.",
+        "One honest party among several, or a setup the publisher says anyone can reproduce.",
+        "A trusted setup, hardware attestation or a trusted key, or not stated.",
+    ),
+}
+CAUSE_WORD = {
+    "system limit": "the system cannot do what the test needs; the publisher's sentence is quoted",
+    "not run": "the test has not been run",
+    "not resolved": "the test ran and decided nothing",
+    "not reproduced": "failed in our adapter, not yet reproduced outside it",
+}
+
+# ------------------------------------------------------------------ labels of a stored figure
+SCOPE_SHORT = {None: "", "prove.steady": "steady", "prove.session": "session",
+               "whole_wall": "session", "verify": "check", "commit": "commit",
+               "setup": "setup", "verify.single_thread": "check, one thread"}  # fmt: skip
 SCOPE_WORD = {
-    None: "none (not a timed number)",
+    None: "not a timed number",
     "setup": "setting up",
-    "commit": "preparing the model",
-    "prove.steady": "proving, steady state",
-    "prove.session": "proving session, start-up included",
-    "whole_wall": "the whole run, wall clock",
-    "verify": "checking ({cpus} CPU threads)",
-    "verify.single_thread": "checking (one CPU thread)",
+    "commit": "committing to the model",
+    "prove.steady": "steady state, after the first release group",
+    "prove.session": "the whole session, start-up included",
+    "whole_wall": "the whole session, from commit to the last proof",
+    "verify": "checking",
+    "verify.single_thread": "checking on one CPU thread",
     "primitive": "one primitive",
 }
-# RFC-0004 INV-DERIVE-11: the warm overhead names both scopes wherever it appears
-WARM = "overhead_vs_production_warm"
-WARM_LINE = ("proving session (start-up included; it proves one request at a time) vs warm "
-             "serving (steady)")  # fmt: skip
-STEADY_LINE = "steady state on both sides, start-up excluded"
-# the scope line of an overhead, by its stored statistic
-SCOPE_LINES = {"overhead_vs_production_prove.steady": STEADY_LINE, WARM: WARM_LINE}
-# the overview's scopes in short, the one line under a figure, each the scope's name ("steady",
-# "session"); the full words ride in its title and are read aloud
-SCOPE_SHORT = {"prove.steady": "steady", "prove.session": "session",
-               "verify": "{cpus} threads", "overhead_vs_production_prove.steady": "steady",
-               WARM: "session vs warm"}  # fmt: skip
-# RFC-0004 D-SPAB-S, D-BPAB, D-VSPAB: the one basis of the overview's three cost columns; a
-# value per bit prints per Gbit (x 1e9), in seconds or bytes with their own prefix
-PER_GBIT = "per token, per Gbit of active weights"
-PER_GBIT_BASE = {"s/bit_token": "s", "B/bit_token": "B"}
-# RFC-0004 INV-DERIVE-7: printed beside a figure per active weight bit wherever it is shown
-PER_BIT_LIMIT = ("Attention cost grows with prompt length and is not in this normaliser, so two "
-                 "workloads of one model with different prompt lengths differ for that reason too "
-                 "({prompts}). Weight bits are as the workload records them, with their basis and "
-                 "source.")  # fmt: skip
-BITS_BASIS = {"stated": "stated by the system", "file_size": "from the file size",
-              "computed": "computed from the files"}  # fmt: skip
 GRADE_WORD = {
     "measured": "recorded by our harness",
     "derived": "calculated from recorded numbers",
@@ -105,131 +136,37 @@ TIER_WORD = {
     "reproduced": "rerun by an unaffiliated runner",
 }
 NULL_WORD = {
-    "not_externally_observable": "The harness cannot observe this number from outside the system.",
-    "fewer_than_two_proofs": "Fewer than two proofs in a run, so there is no per-proof figure.",
-    "not_applicable": "Does not apply to this setup.",
-    "step_failed": "The step that records this number failed in these runs.",
-    "not_measurable_on_profile": "Not measurable on {gpu} (RFC-0015 NM-1).",
-    "missing_input": "A number this one is calculated from is missing.",
+    "not_externally_observable": "not observable from outside the system",
+    "fewer_than_two_proofs": "fewer than two proofs",
+    "not_applicable": "does not apply",
+    "step_failed": "the step that records it failed",
+    "not_measurable_on_profile": "not measurable on this GPU",
+    "missing_input": "a number it is calculated from is missing",
 }
-# A missing overhead names its baseline: overhead divides by production serving's GPU-seconds (D-OVERHEAD-S).
-NM1_OVERHEAD = "Production serving could not run this model on the serving GPUs, so there is no baseline to divide by (RFC-0015 NM-1)."
-NO_SERVING_OVERHEAD = "No production-serving run on this profile's GPU model is in the release, so there is no baseline to divide by (RFC-0015 SRV-6)."
-# serving ran on this GPU model, but not this workload
-NO_SERVING_WORKLOAD = ("No production-serving run of this workload ({batch}) is in the release, so "
-                       "there is no baseline to divide by (RFC-0015 SRV-6).")  # fmt: skip
-NOT_RECORDED = "Not recorded in these runs."
-FAIL_KIND = {
-    "config": "a configuration error",
-    "environment": "a fault on the runner's machine",
-    "integrity": "an integrity check failed",
-    "fetch": "a download failed",
-    "adapter": "the adapter failed",
-    "timeout": "the run ran out of time",
-    "resource": "the machine ran out of resources",
-    "policy": "a policy check stopped it",
-    "internal": "an error in our harness",
-}
-FAIL_STEP = {
-    "setup": "while setting up",
-    "commit": "while preparing the model",
-    "prove": "while proving",
-    "verify": "while checking",
-    "upload": "while uploading its proofs",
-    "fetch": "while fetching",
-}
-# RFC-0008 outcomes, each count as stored; zero counts are left out, and no total is printed
-OUTCOME_WORDS = (
-    ("rejected", "rejected {n}"),
-    ("invalid_call", "refused as malformed {n}"),
-    ("accepted", "accepted {n}"),
-    ("no_verdict", "no verdict {n}"),
-    ("prover_failed", "the prover would not build it {n}"),
-    ("error", "error {n}"),
-    ("void", "void {n}"),
-    ("not_applicable", "did not apply {n}"),
-)
-# RFC-0008: each control's tamper in a few words, beside its id
-CONTROL_WORDS = {
-    "C1": "changed output token", "C2": "changed prompt token", "C3": "perturbed weights",
-    "C4": "proof replayed for another request", "C5": "truncated part", "C6": "flipped bit",
-    "C7": "proofs of two requests swapped", "C8": "dropped part",
-    "P1": "proved with other weights", "P2": "proved at another precision",
-}  # fmt: skip
-# a control's stored note as a reader reads it: an operator's remedy ("; run iproofs controls
-# --prepare-perturbed ...", written by runners before 2026-11-09) is not a result, and the same
-# reason reads in the same words whatever control recorded it; the record keeps the note
-REMEDY = re.compile(r";\s*run\s+iproofs\b.*$")
-NOTE_WORDS = {"no perturbed commitment": "no perturbed commitment for this workload"}
-
-
-def note_words(note):
-    said = REMEDY.sub("", str(note)).strip()
-    return NOTE_WORDS.get(said, said)
-
-
-OUTCOME_VERB = {"accepted": "accepted", "rejected": "rejected", "invalid_call": "refused",
-                "no_verdict": "gave no verdict on", "error": "failed on"}  # fmt: skip
-# one control's outcome in a run, as a property's list on the system page prints it (RFC-0016 OVR-7)
-OUTCOME_SHORT = {
-    "rejected": "rejected", "accepted": "accepted", "invalid_call": "refused as malformed",
-    "no_verdict": "no verdict", "prover_failed": "the prover would not build it",
-    "error": "error", "void": "void", "not_applicable": "did not apply", "not_run": "not run",
-}  # fmt: skip
-# a listed run's status on the release page
-RUN_STATUS = {"completed": "completed", "failed": "failed"}
-# an accepted control record, by whether its own expected set holds the outcome (`passed`)
-ACCEPTED_WHY = {
-    ("system", True): "{id}, the control test below, which expects acceptance",
-    ("shared", True): "{id}, whose expected outcomes include acceptance",
-    ("system", False): "{id}, outside its expected outcomes",
-    ("shared", False): "{id}, outside its expected outcomes",
-}
-# an accepted trial that tampered with a part the system declares its verify step does not read
-# (RFC-0008, amendment of 2026-11-09: a gap in the control design, not a finding)
-# a control's trials in a word, where its other runs kept them off the parts verify does not read
-TAMPERS = {"C5": "truncations", "C6": "flips", "C8": "drops"}
-NOT_READ_HEAD = "accepted only on {parts}, which <code>verify</code> does not read; tests nothing"
-COUNT_WORD = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven",
-              8: "eight", 9: "nine", 10: "ten"}  # fmt: skip
-
-
-def count_word(n):
-    return COUNT_WORD.get(n, f"{n:,}")
 
 
 # ------------------------------------------------------------------ numbers (display only)
-# A stored value prints at four significant digits in a unit chosen for reading (S4); the sort key
-# and the record keep the stored value in its base unit.
 def sig(v, d=4):
-    """v at d significant digits, thousands separated; four unless a range needs more to tell
-    its ends apart (`range_words`)."""
+    """v at d significant digits, thousands separated."""
     if v == 0:
         return "0"
     places = d - 1 - math.floor(math.log10(abs(v)))
     if places >= 0:
         return f"{v:,.{places}f}"
-    return f"{round(v, places):,.0f}"  # 122880 prints 122,900: four digits, then zeros
+    return f"{round(v, places):,.0f}"
 
 
-def sig4(v):
-    return sig(v, 4)
-
-
-# the SI prefixes a reading unit may take, largest first
 SI = ((1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "k"), (1.0, ""), (1e-3, "m"), (1e-6, "µ"),
       (1e-9, "n"))  # fmt: skip
-IEC = ((1024.0**2, "Ti"), (1024.0, "Gi"), (1.0, "Mi"), (1 / 1024, "Ki"))  # from MiB
 
 
-def prefixed(v, base, steps=SI, lo=1e-9, hi=1e12, d=4):
-    """(number, unit) with the prefix that puts the number between 1 and 1000 where one can:
-    68.21 µs, not 0.06821 ms. The value is rounded to its d digits first, so 999.96 µs prints
-    1.000 ms, not 1,000 µs."""
+def prefixed(v, base, lo=1e-9, hi=1e12, d=4):
+    """(number, unit) with the prefix that puts the number between 1 and 1000 where one can. The
+    value is rounded to its d digits first, so 999.96 ms prints 1.000 s."""
     r = float(f"{v:.{d}g}")
     if r == 0:
         return "0", base
-    steps = [(f, p) for f, p in steps if lo <= f <= hi]
+    steps = [(f, p) for f, p in SI if lo <= f <= hi]
     f, p = next(((f, p) for f, p in steps if abs(r) >= f), steps[-1])
     return sig(r / f, d), p + base
 
@@ -242,175 +179,69 @@ def seconds(v, d=4):
     return (sig(v / 60, d), "min") if abs(r) < 6e4 else (sig(v / 3600, d), "h")
 
 
-# the stored units that take a prefix: (base unit, prefixes, smallest factor)
-PREFIXED = {"B": ("B", SI, 1.0), "J": ("J", SI, 1e-9)}
-MIB = 1024.0**2  # a MiB in bytes: memory prints in the SI family, as proof sizes do
-# the glossary's term (docs/spec/10-glossary.md, Tokens covered)
-UNIT_WORDS = {"token": "tokens", "token/s": "tokens/s"}
-PCT = "\u202f%"  # a percent sign never leaves its number
+def usd(v, d=4):
+    """An amount in USD, below 1 USD in cents."""
+    if abs(v) >= 1 or v == 0:
+        return sig(v, d), "USD"
+    return sig(v * 100, d), "¢"
 
 
-def per_unit(v, unit, d=4):
-    """A rate below 1 a second per minute, below 1 a minute per hour; a cost per 1M tokens, in
-    USD, below 1 USD in cents."""
-    if unit == "token/s":
-        factor, per = next(((k, p) for k, p in ((1, "s"), (60, "min"), (3600, "h"))
-                            if abs(v * k) >= 1), (3600, "h"))  # fmt: skip
-        return sig(v * factor, d), f"tokens/{per}"
-    usd = v * 1000
-    if abs(usd) >= 1 or usd == 0:
-        return sig(usd, d), "USD per 1M tokens"
-    return sig(usd * 100, d), "\u00a2 per 1M tokens"
-
-
-def amount(v, unit, d=4):
-    """(number, unit words) for a stored value in its stored unit, in the unit that reads it with
-    no leading zeros (S4), at d significant digits (four but in a range whose ends need more)."""
-    if unit in PER_GBIT_BASE:  # per bit, printed per Gbit; the basis is in the column's head
-        return amount(v * 1e9, PER_GBIT_BASE[unit], d)
-    if unit in ("token/s", "USD/1k_token"):
-        return per_unit(v, unit, d)
-    if unit == "s":
-        return seconds(v, d)
-    if unit == "MiB":
-        v, unit = v * MIB, "B"
-    if unit in PREFIXED:
-        base, steps, lo = PREFIXED[unit]
-        return prefixed(v, base, steps, lo, d=d)
-    base, slash, per = unit.partition("/")
-    if slash and base in ("s", "B", "gpu_s"):  # s/token, B/token: the numerator takes the prefix
-        n, u = amount(v, "s" if base == "gpu_s" else base, d)  # GPU-seconds: summed over GPUs
-        return n, f"{u}/{per}"
-    return sig(v, d), UNIT_WORDS.get(unit, unit)
-
-
-def shown(v, unit, d=4):
-    n, u = amount(v, unit, d)
-    return f"{n}×" if unit == "ratio" else f"{n} {u}"
-
-
-SAME = "the same in all {n} runs"  # a spread with no width (stdev 0): no value, the plate has it
-
-
-def range_words(lo, hi, unit, n):
-    """A range with its unit once: "67.61 to 68.91 µs"; two units only where the prefix
-    changes inside it ("999.9 µs to 1.001 ms"); a ratio keeps its sign on both ends. Ends that
-    differ are never printed alike: where four digits cannot tell them apart, each end takes
-    as many as it needs ("222.85 to 222.89 B"), so no measured spread is rounded away; equal
-    ends read "the same in all <n> runs"."""
-    if lo == hi:
-        return SAME.format(n=n)
-    d = 4
-    while d < 15 and amount(lo, unit, d) == amount(hi, unit, d):
-        d += 1
+# a stored unit -> how its value reads: (number, unit words). Per request reads per reply: the
+# request is the level's one request, and its reply is what each proof covers (RFC-0018)
+def number(v, unit):  # noqa: PLR0911 (one return per stored unit)
     if unit == "ratio":
-        return f"{shown(lo, unit, d)} to {shown(hi, unit, d)}"
-    (a, u), (b, w) = amount(lo, unit, d), amount(hi, unit, d)
-    return f"{a} to {b} {u}" if u == w else f"{a} {u} to {b} {w}"
+        return sig(v), "×"
+    if unit == "gpu_s/request":
+        n, u = seconds(v)
+        return n, f"GPU-{u}/reply"
+    if unit == "s/request":
+        n, u = seconds(v)
+        return n, f"{u}/reply"
+    if unit == "USD/request":
+        n, u = usd(v)
+        return n, f"{u}/reply"
+    if unit == "B/request":
+        n, u = prefixed(v, "B", lo=1.0)
+        return n, f"{u}/reply"
+    if unit == "USD/gpu_hour":
+        return sig(v), "USD per GPU-hour"
+    if unit == "nat/token":
+        return sig(v), "nats/token"
+    raise KeyError(f"no words for the unit {unit!r}")
 
 
-def title_spread(f):
-    """The spread in an overview cell's title: the sample size and the range (S3)."""
-    st = f.get("stats")
-    if not st:
-        return ""
-    return (f"{st['n']} completed, {st['n_failed']} failed, "
-            f"{range_words(st['min'], st['max'], f['unit'], st['n'])}")  # fmt: skip
+def shown(v, unit):
+    n, u = number(v, unit)
+    return f"{n}{u}" if unit == "ratio" else f"{n}\u00a0{u}"
 
 
-def sd_words(f):
-    """The standard deviation as a share of the mean ("sd 0.877 %"), unit-free, so plates side
-    by side read alike, the range beside it carrying the unit; "sd < 0.1 %" below that, its
-    sign held to both sides; in the mean's unit only where the mean is 0; "" when none is
-    stored. The record keeps the stored value."""
-    st, unit = f["stats"], f["unit"]
-    sd, mean = st.get("stdev"), st["mean"]
-    if sd is None:
-        return ""
-    if sd == 0:
-        return "sd 0"
-    if not mean:
-        return f"sd {shown(sd, unit)}"
-    share = abs(sd / mean) * 100
-    if share < 0.1:
-        return f"sd\u00a0<\u00a00.1{PCT}"
-    return f"sd {f'{share:#.3g}'.rstrip('.')}{PCT}"  # three digits, a trailing zero kept
+def params(n):
+    """A parameter count in billions, or millions below one billion ("400B", "8.03B", "137M")."""
+    text = sig(n / 1e9, 3) if n >= 1e9 else sig(n / 1e6, 3)
+    text = text.rstrip("0").rstrip(".") if "." in text else text  # "17.0" reads "17"
+    return f"{text}B" if n >= 1e9 else f"{text}M"
 
 
-def spread_line(f, count=False):
-    """The spread as a system page prints it (S3), under the value it qualifies (the mean, so
-    never printed again): the range with its unit once, then the sd ("28.83 to 29.88 tokens/s ·
-    sd 1.06 %"); a constant (stdev 0) as "the same in all 4 runs", its value being the one
-    above. count: the sample size first, where no runs line above names it."""
-    st = f["stats"]
-    parts = [f"{st['n']} completed, {st['n_failed']} failed"] if count else []
-    parts.append(range_words(st["min"], st["max"], f["unit"], st["n"]))
-    if st["min"] != st["max"] and (sd := sd_words(f)):
-        parts.append(sd)
-    return " · ".join(parts)
+def architecture(total, active):
+    """ "MoE, 400B total, 17B active" or "Dense, 8.03B": a mixture of experts reads fewer
+    parameters per token than it holds."""
+    if active and active < total:
+        return f"MoE, {params(total)} total, {params(active)} active"
+    return f"Dense, {params(total)}"
 
 
-def mean_words(f):
-    """What a figure with a spread is: "mean of 4 runs" (a plate's number, in its title)."""
-    st = f.get("stats")
-    return f"mean of {st['n']} run{'s' if st['n'] != 1 else ''}" if st else ""
+def labels(f):
+    """A figure's labels in words, for its title: scope, grade, evidence, sample size, record."""
+    parts = [f"scope: {SCOPE_WORD[f['scope']]}", f"grade: {GRADE_WORD[f['grade']]}",
+             f"evidence: {TIER_WORD[f['tier']]}"]  # fmt: skip
+    if f["n"] is not None:
+        parts.append(f"n = {f['n']}")
+    parts.append(f"record: {f['source']}")
+    return "; ".join(parts)
 
 
-def gpu_words(cfg):
-    g = cfg["gpu"]
-    return f"{count_word(g['count'])} {g['short'] or g['model']}"
-
-
-# RFC-0004 INV-SCOPE-5: the stored label of runs that keep the older steady boundary, as a phrase
-BOUNDARY = re.compile(r"^first-proof boundary \(before (\S+)\)$")
-
-
-def boundary_words(cfg):
-    """The steady boundary a configuration's earlier runs keep, worded from its stored label
-    (RFC-0009 S2): "first-proof boundary (before 2026-11-09)" reads "steady window from the
-    first proof (runs before 2026-11-09)"; another label as stored; "" without one."""
-    label = cfg.get("steady_boundary") or ""
-    m = BOUNDARY.match(label)
-    return f"steady window from the first proof (runs before {m[1]})" if m else label
-
-
-# production serving proves nothing (AGENTS.md rule 10): its timed scopes, in its own words
-SERVING_SCOPE_WORD = {"prove.steady": "serving, steady state",
-                      "prove.session": "serving session, start-up included"}  # fmt: skip
-
-
-def scope_words(f, cfg):
-    """A figure's scope in words, a serving reference's in its own; a steady figure of a
-    configuration whose runs cut their steady window at another boundary names it (RFC-0004
-    INV-SCOPE-5)."""
-    if cfg.get("reference_role") == "serve" and f["scope"] in SERVING_SCOPE_WORD:
-        return SERVING_SCOPE_WORD[f["scope"]]
-    words = SCOPE_WORD[f["scope"]].format(cpus=cfg["verifier"]["logical_cpus"])
-    if f["scope"] == "prove.steady" and cfg.get("steady_boundary"):
-        words += f", {boundary_words(cfg)}"
-    return words
-
-
-def why_words(f, cfg):
-    """Why a figure has no value, from its stored null reason (or its absence from the runs)."""
-    if not f["recorded"]:
-        return NOT_RECORDED
-    if f["null_reason"] == "not_measurable_on_profile" and f["metric"].startswith("overhead_"):
-        return NM1_OVERHEAD
-    if f["null_reason"] in ("not_applicable", "missing_input") and f["metric"].startswith(
-        "overhead_"
-    ):
-        if cfg.get("serving_on_gpu"):  # serving ran on this GPU model, not on this workload
-            b = cfg["workload"]["shape"]["batch_size"]
-            return NO_SERVING_WORKLOAD.format(
-                batch=f"{b:,}\u00a0request{'s' if b != 1 else ''} per batch"
-            )
-        return NO_SERVING_OVERHEAD
-    return NULL_WORD[f["null_reason"]].format(gpu=gpu_words(cfg))
-
-
-def labels(f, cfg):
-    # an overhead names both sides' scope (INV-DERIVE-11), in the words its cell uses
-    scope = SCOPE_LINES.get(f.get("metric")) or scope_words(f, cfg)
-    return [("scope", scope), ("grade", GRADE_WORD[f["grade"]]),
-            ("evidence", TIER_WORD[f["tier"]])]  # fmt: skip
+def sub_words(f, n=None):
+    """The one line under a figure: its scope in a word and its sample size."""
+    count = f["n"] if f["n"] is not None else n
+    parts = [SCOPE_SHORT[f["scope"]], f"n\u00a0=\u00a0{count}" if count is not None else ""]
+    return " · ".join(p for p in parts if p)

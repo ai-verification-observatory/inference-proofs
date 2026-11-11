@@ -203,6 +203,9 @@ def freeze(
             for n in ("run", "manifest", "controls")
             if (p := root / listed / f"{n}.json").is_file()
         ]
+    level = _require_level(root, release_id, runs)
+    if level is not None:
+        read.append(level)
     for card in release.claim_cards:
         if not (root / card.path).is_file() or file_digest(root / card.path) != card.digest:
             raise _fail(f"claim card {card.path} does not match its listed digest")
@@ -245,6 +248,46 @@ def freeze(
     if late.values:  # RFC-0004 Q3
         index["freeze_derived"] = dict(late.values)
     return index
+
+
+def release_level(release_id: str) -> str | None:
+    """RFC-0018 §Terms: a release `v<k>.<n>` with k >= 1 is published under level `L<k>`;
+    v0.x releases predate levels."""
+    major = release_id.removeprefix("v").split(".")[0]
+    return f"L{int(major)}" if major.isdigit() and int(major) >= 1 else None
+
+
+def level_mismatches(runs: Mapping[str, RunView], digest: str) -> list[str]:
+    """RFC-0018 §The level file: the runs whose manifest names another level digest, or none."""
+    out = []
+    for run_id, run in sorted(runs.items()):
+        named = run.get("manifest", "level", "digest")
+        if named != digest:
+            out.append(f"{run_id} names level digest {named!r}, not {digest}")
+    return out
+
+
+def _require_level(root: Path, release_id: str, runs: Mapping[str, RunView]) -> Path | None:
+    """A Level release freezes only runs that name its frozen level file by digest; returns
+    the level file read, None for a release before levels."""
+    level_id = release_level(release_id)
+    if level_id is None:
+        return None
+    path = root / "levels" / f"{level_id}.yaml"
+    if not path.is_file():
+        raise _fail(f"release {release_id} needs levels/{level_id}.yaml (RFC-0018)")
+    import yaml  # noqa: PLC0415
+
+    doc = yaml.safe_load(path.read_text())
+    if not isinstance(doc, dict) or not doc.get("frozen"):
+        raise _fail(f"levels/{level_id}.yaml is a draft (frozen: null); counted runs name a "
+                    "frozen level (RFC-0018 §The level file)")  # fmt: skip
+    from iproofs.level import level_digest  # noqa: PLC0415
+
+    wrong = level_mismatches(runs, level_digest(path))
+    if wrong:
+        raise _fail(f"{wrong[0]} (RFC-0018 §The level file)")
+    return path
 
 
 def _excluded(

@@ -127,6 +127,42 @@ workloads:
   - '4'
   - --max-model-len
   - '1025'
+# RFC-0018 CO-4: the Level 1 baseline. One prove call serves the level's concurrency ladder
+# (levels/L1.yaml baseline: ladder, warmup_batches, timed_batches, copied into job.json by the
+# runner) on the rung's ladder prompts (baseline.prompts, iproofs.level.baseline_prompts).
+# --max-num-seqs stays at the engine's default, 1,024 for `vllm serve` on an H200
+# (vllm/engine/arg_utils.py get_batch_defaults at v0.32.0), above the ladder's largest
+# concurrency (256); the adapter refuses a ladder above it.
+- id: l1-maverick-p512-o512
+  load_point: ladder
+  gpus: 4
+  precision_used: FP8
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '4'
+  - --max-model-len
+  - '1024'
+- id: l1-l31-8b-p512-o512
+  load_point: ladder
+  gpus: 1
+  precision_used: BF16
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '1'
+  - --max-model-len
+  - '1024'
+- id: l1-gpt2-p512-o512
+  load_point: ladder
+  gpus: 1
+  precision_used: FP32
+  precision_substitution: null
+  engine_args:
+  - --tensor-parallel-size
+  - '1'
+  - --max-model-len
+  - '1024'
 deterministic_proofs: false
 incremental_proofs: true
 forbidden_flags: []

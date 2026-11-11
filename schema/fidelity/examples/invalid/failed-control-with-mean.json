@@ -1,0 +1,392 @@
+{
+  "bar": {
+    "control": "q3_k_s",
+    "mean_prefix": 30.133333333333333
+  },
+  "bar_tests": [
+    {
+      "a": "reference-2",
+      "b": "q3_k_s",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "q3_k_s",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "q3_k_s",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "reference-2",
+      "b": "q2_k",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "q2_k",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "q2_k",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "reference-2",
+      "b": "drop-every-4th-block",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "drop-every-4th-block",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "drop-every-4th-block",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    }
+  ],
+  "controls": [
+    {
+      "cause": null,
+      "id": "reference-2",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/reference-2.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.000512
+      },
+      "mean_prefix": 497.93333333333334,
+      "recipe": "rerun",
+      "scores": [
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        301,
+        512
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q8_0",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q8_0.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.001402
+      },
+      "mean_prefix": 481.1333333333333,
+      "recipe": "quantize",
+      "scores": [
+        512,
+        488,
+        512,
+        512,
+        377,
+        512,
+        512,
+        430,
+        512,
+        512,
+        512,
+        290,
+        512,
+        512,
+        512
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q4_k_m",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q4_k_m.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.030871
+      },
+      "mean_prefix": 296.26666666666665,
+      "recipe": "quantize",
+      "scores": [
+        120,
+        512,
+        95,
+        512,
+        61,
+        512,
+        240,
+        512,
+        33,
+        512,
+        512,
+        87,
+        150,
+        512,
+        74
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q3_k_s",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q3_k_s.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.091644
+      },
+      "mean_prefix": 30.133333333333333,
+      "recipe": "quantize",
+      "scores": [
+        40,
+        12,
+        25,
+        70,
+        9,
+        31,
+        18,
+        55,
+        7,
+        22,
+        64,
+        13,
+        29,
+        16,
+        41
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q2_k",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q2_k.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.33812
+      },
+      "mean_prefix": 1.9333333333333333,
+      "recipe": "quantize",
+      "scores": [
+        3,
+        0,
+        5,
+        1,
+        0,
+        2,
+        7,
+        0,
+        1,
+        4,
+        0,
+        3,
+        2,
+        1,
+        0
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "drop-every-4th-block",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/drop-every-4th-block.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 4.102877
+      },
+      "mean_prefix": 0.0,
+      "recipe": "drop_blocks",
+      "scores": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": "llama-server exited 1 at start",
+      "id": "smaller-model",
+      "kind": "damaged",
+      "kl": null,
+      "mean_prefix": 12.5,
+      "recipe": "other_model",
+      "scores": [],
+      "status": "failed"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "local/ref-fidelity@sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "level": {
+    "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "id": "L1"
+  },
+  "n": 15,
+  "prompts_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "reference": {
+    "digest": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "rows": {
+    "sash": {
+      "cause": null,
+      "kl": null,
+      "kl_note": "not measured: SASH commits safetensors weights it quantizes at load, not a file llama.cpp loads",
+      "mean_prefix": 476.93333333333334,
+      "p_above_bar": 3.0517578125e-05,
+      "p_below_bar": 1.0,
+      "scores": [
+        512,
+        512,
+        430,
+        512,
+        512,
+        388,
+        512,
+        512,
+        512,
+        205,
+        512,
+        512,
+        512,
+        512,
+        499
+      ],
+      "state": "held",
+      "tests": [
+        {
+          "a": "sash",
+          "b": "q3_k_s",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "q3_k_s",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        }
+      ]
+    }
+  },
+  "rung": "llama-3.1-8b",
+  "schema": "fidelity/1",
+  "test": {
+    "alpha": 0.05,
+    "exact_up_to": 20,
+    "resamples": 200000,
+    "score": "matched_prefix",
+    "seed_rule": "first 8 bytes, big-endian, of sha256(randomness || 0x00 || utf8(a) || 0x00 || utf8(b)), randomness the beacon round's 32 bytes, a beats b being tested",
+    "test": "paired-sign-flip"
+  }
+}

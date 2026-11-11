@@ -1,0 +1,18 @@
+# RFC-0018 CO-4: a ladder entry takes its batches from the level file, never a batch size.
+schema: "system/1"
+name: "ref-serve"
+kind: "reference"
+contract: "adapter/1"
+reference_role: "serve"
+engine: {name: "vllm", version: "0.0.0", image: "docker.io/vllm/vllm-openai@sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}
+workloads:
+  - id: "l1-l31-8b-p512-o512"
+    load_point: "ladder"
+    gpus: 1
+    batch_size: 256
+    precision_used: "BF16"
+    precision_substitution: null
+    engine_args: ["--tensor-parallel-size", "1", "--max-model-len", "1024"]
+deterministic_proofs: false
+incremental_proofs: true
+forbidden_flags: []

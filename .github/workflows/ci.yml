@@ -36,17 +36,17 @@ jobs:
           echo "lint-and-types: $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 20 min, twice B-CI-TOTAL, 10 min; no gate-specific target)" >> "$GITHUB_STEP_SUMMARY"
 
   test-shard:
-    # The suite runs in SHARDS parts (docs/spec/07 §Sharding); every test runs in exactly one.
+    # The suite runs in three parts (docs/spec/07 §Sharding); every test runs in exactly one.
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
         python: ["3.12", "3.13"]
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3]
     env:
       HYPOTHESIS_PROFILE: ci
-      IPROOFS_SHARD: ${{ matrix.shard }}/6
+      IPROOFS_SHARD: ${{ matrix.shard }}/3
     steps:
       - run: echo "JOB_START=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -60,7 +60,7 @@ jobs:
       - name: wall time to the job summary
         if: always()
         run: |
-          echo "test-shard (Python ${{ matrix.python }}, ${{ matrix.shard }}/6): $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 6 min, twice B-CI-UNIT, 3 min)" >> "$GITHUB_STEP_SUMMARY"
+          echo "test-shard (Python ${{ matrix.python }}, ${{ matrix.shard }}/3): $(( $(date +%s) - JOB_START )) s wall time on ubuntu-24.04, one run (hard limit 6 min, twice B-CI-UNIT, 3 min)" >> "$GITHUB_STEP_SUMMARY"
 
   validate:
     # Gates G2 to G5 (RFC-0013); APP-1 needs the base branch, so history is fetched in full.
@@ -77,12 +77,12 @@ jobs:
           cache-dependency-glob: uv.lock
       - run: uv python install
       - run: uv sync --frozen
-      - run: uv run iproofs validate --all
-      - name: append-only check against the base branch (APP-1)
-        if: github.event_name == 'pull_request'
+      - name: tree gates; on a pull request, with the append-only check against the base (APP-1)
         run: |
           if [ -n "${{ github.base_ref }}" ]; then
             uv run iproofs validate --all --changed-since "origin/${{ github.base_ref }}"
+          else
+            uv run iproofs validate --all
           fi
       - name: tooling budgets on the synthetic tree (default branch, docs/spec/08)
         if: github.event_name == 'push'

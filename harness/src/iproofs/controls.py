@@ -13,7 +13,7 @@ import random
 import re
 import shutil
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from types import MappingProxyType
 from typing import Any
@@ -213,15 +213,51 @@ def c1(target: HonestProof, commit: str, proof_dir: Path, vocab_size: int) -> Ve
     )
 
 
-def c2(target: HonestProof, commit: str, proof_dir: Path, vocab_size: int, seed: str) -> VerifyCall:
-    """Change one prompt token at a seeded position."""
+C1_POSITIONS = ("first", "last", "interior")  # RFC-0018 REPLY, CH-3
+
+
+def c1_at(
+    target: HonestProof,
+    commit: str,
+    proof_dir: Path,
+    vocab_size: int,
+    seed: str,
+    position: str,
+    k: int,
+) -> VerifyCall:
+    """RFC-0018 REPLY: change the claimed token at the first, the last or a seeded interior
+    reply position, (t + 1) mod vocab_size. The interior position of trial k is
+    `seeded_index(seed, "C1-interior", k, R - 2) + 1` for a reply of R tokens (510 for 512,
+    CH-3), so it is never the first or the last."""
+    out = list(target.claimed_output)
+    if position == "first":
+        i = 0
+    elif position == "last":
+        i = len(out) - 1
+    elif len(out) < 3:
+        raise NotApplicable(f"a reply of {len(out)} token(s) has no interior position")
+    else:
+        i = seeded_index(seed, "C1-interior", k, len(out) - 2) + 1
+    out[i] = (out[i] + 1) % vocab_size
+    _changed(list(target.claimed_output), out, "C1")
+    return VerifyCall(
+        "C1", k, commit, target.request, tuple(out), proof_dir, _names(proof_dir),
+        {"index": i, "token": out[i]},
+    )  # fmt: skip
+
+
+def c2(
+    target: HonestProof, commit: str, proof_dir: Path, vocab_size: int, seed: str, k: int = 0
+) -> VerifyCall:
+    """Change one prompt token at a seeded position; trial k of a level suite draws with
+    generator k (RFC-0018 CH-1), trial 0 is RFC-0008's."""
     req = list(target.request)
-    p = seeded_index(seed, "C2", 0, len(req))
+    p = seeded_index(seed, "C2", k, len(req))
     req[p] = (req[p] + 1) % vocab_size
     _changed(list(target.request), req, "C2")
     return VerifyCall(
         "C2",
-        0,
+        k,
         commit,
         tuple(req),
         target.claimed_output,
@@ -231,10 +267,16 @@ def c2(target: HonestProof, commit: str, proof_dir: Path, vocab_size: int, seed:
     )
 
 
-def c3(target: HonestProof, commit: str, perturbed: str | None, proof_dir: Path) -> VerifyCall:
+def c3(
+    target: HonestProof,
+    commit: str,
+    perturbed: str | None,
+    proof_dir: Path,
+    why: str = "no perturbed commitment for this workload",
+) -> VerifyCall:
     """Verify against the commitment of perturbed weights, from its harness commit record."""
     if perturbed is None:
-        raise NotApplicable("no perturbed commitment for this workload")
+        raise NotApplicable(why)
     _changed(commit, perturbed, "C3")
     return VerifyCall(
         "C3",
@@ -491,6 +533,161 @@ def control_record(
     return record
 
 
+# ---------------------------------------------------------------- level suites (RFC-0018 CH-1)
+
+LEVEL_VERIFIER_CONTROLS = ("C1", "C2", "C3")  # MODEL, PROMPT and REPLY; P1 runs in the runner
+LEVEL_TRIALS = 3  # counted trials per control, and per C1 position
+LEVEL_MAX_SEEDS = 10  # seeds tried per control (per C1 position) before it stays short
+UNCOUNTED = {"void", "error"}  # a trial that decided nothing
+# RFC-0018 AD-6: (target, its proof dir, position, new token, trial) -> (the mutated proof's
+# directory, what the adapter changed: {parts, fields})
+Mutator = Callable[["HonestProof", Path, int, int, int], tuple[Path, Mapping[str, object]]]
+
+
+@dataclass(frozen=True, slots=True)
+class Series:
+    """One run of counted trials of a level control: C1 has one per position, every other
+    control one. `build(k)` makes the verify calls of trial k (raising NotApplicable when the
+    precondition fails, or IProofsError when a control prove fails); `detail` goes on every
+    trial's record."""
+
+    detail: Mapping[str, object]
+    build: Callable[[int], list[VerifyCall]]
+    adapter_reject_void: bool = False  # RFC-0018 AD-6: a reject upstream did not make is void
+
+
+def _worst(results: Sequence[VerifyResult], expected: Collection[str]) -> VerifyResult:
+    """The result a trial of several verify calls (P1's proofs) records: an accepted one, else
+    the first outside the expected set, else the first."""
+    accepted = [r for r in results if r.verdict == "accept"]
+    missed = [r for r in results if OUTCOME_OF_VERDICT[r.verdict] not in expected]
+    return (accepted or missed or list(results))[0]
+
+
+def _level_trial(  # noqa: PLR0911 (one return per way a trial ends)
+    k: int,
+    series: Series,
+    twins: Callable[[], list[VerifyCall]],
+    verify: Verifier,
+    expected: Collection[str],
+    side: str,
+) -> tuple[dict[str, object], dict[str, object] | None]:
+    """(trial record, first twin) of trial k. Raises NotApplicable from `build`."""
+    detail: dict[str, object] = dict(series.detail)
+    trial: dict[str, object] = {"seed_index": k, "mutation": {}, "verdict": None,
+                                "outcome": "error", "raw_exit_code": None, "raw_last_line": "",
+                                "seconds": None, "detail": detail}  # fmt: skip
+    try:
+        calls = series.build(k)
+    except IProofsError as e:  # a control prove that fails, or a harness failure
+        failed = "prover_failed" if side == "prover" else "error"
+        message = e.message if failed == "error" else f"{e.kind}: {e.message}"
+        trial |= {"outcome": failed, "raw_exit_code": e.exit_code, "raw_last_line": message[:4096]}
+        return trial, None
+    if calls:
+        trial["mutation"] = dict(calls[0].mutation)
+    try:
+        twin_results = [verify(c) for c in twins()]
+    except IProofsError as e:
+        trial["raw_last_line"] = f"twin: {e.kind}: {e.message}"[:4096]
+        return trial, None
+    twin = {"verdict": twin_results[0].verdict, "raw_exit_code": twin_results[0].raw_exit_code}
+    detail["twin"] = twin
+    if any(r.verdict != "accept" for r in twin_results):  # INV-CTRL-2: rerun with seed k + 1
+        bad = next(r for r in twin_results if r.verdict != "accept")
+        line = f"honest twin not accepted: {bad.raw_last_line}"[:4096]
+        trial |= {"outcome": "void", "raw_exit_code": bad.raw_exit_code, "raw_last_line": line}
+        return trial, twin
+    try:
+        results = [verify(c) for c in calls]
+    except IProofsError as e:
+        trial |= {"raw_exit_code": e.exit_code, "raw_last_line": e.message[:4096]}
+        return trial, twin
+    if not results:  # a control prove that released no proof
+        trial |= {"outcome": "prover_failed" if side == "prover" else "error",
+                  "raw_last_line": "no proof to verify"}  # fmt: skip
+        return trial, twin
+    if len(results) > 1:
+        detail["verdicts"] = [r.verdict for r in results]
+    chosen = _worst(results, expected)
+    if series.adapter_reject_void and chosen.verdict == "reject" and chosen.raw_exit_code == 0:
+        detail["decided_by"] = "adapter"  # upstream's verifier exited 0: adapter code refused
+        trial |= {"verdict": chosen.verdict, "outcome": "void",
+                  "raw_exit_code": chosen.raw_exit_code,
+                  "raw_last_line": chosen.raw_last_line[:4096]}  # fmt: skip
+        return trial, twin
+    trial |= {"verdict": chosen.verdict, "outcome": OUTCOME_OF_VERDICT[chosen.verdict],
+              "raw_exit_code": chosen.raw_exit_code, "raw_last_line": chosen.raw_last_line[:4096],
+              "seconds": sum(r.seconds for r in results)}  # fmt: skip
+    return trial, twin
+
+
+def level_control_record(  # noqa: PLR0913 (keyword-only inputs of one control)
+    control_id: str,
+    series: Sequence[Series],
+    twins: Callable[[], list[VerifyCall]],
+    verify: Verifier,
+    *,
+    side: str = "verifier",
+    source: str = "shared",
+    expected: Sequence[str] | None = None,
+    trials: int = LEVEL_TRIALS,
+    max_seeds: int = LEVEL_MAX_SEEDS,
+) -> dict[str, object]:
+    """One control of a level suite (RFC-0018 CH-1): for each series (each C1 position is its
+    own), at most `max_seeds` seeds; trials k = 0, 1, ...
+    each after its own honest twins, until `trials` counted trials or `max_seeds` seeds. A
+    trial whose twin is not accepted is `void` and the next seed runs; an `error` trial counts
+    neither way. Every trial is recorded, void ones included.
+
+    The record's outcome: the first counted trial outside the expected set; else, when a
+    series is short, `error`, `void` or `not_applicable` (in that order) with a note; else
+    the first counted trial's. `passed` follows RFC-0008 §Outcomes."""
+    expected = list(EXPECTED[control_id] if expected is None else expected)
+    record: dict[str, object] = {
+        "id": control_id, "side": side, "source": source, "expected": expected, "twin": None,
+        "trials": [], "outcome": "not_applicable", "passed": None, "note": None,
+    }  # fmt: skip
+    done: list[dict[str, object]] = []
+    short: list[tuple[str, str]] = []  # (outcome, note) of each series below `trials`
+    for s in series:
+        counted, last = 0, "void"
+        where = f"{s.detail['position']}: " if "position" in s.detail else ""
+        for k in range(max_seeds):
+            try:
+                trial, twin = _level_trial(k, s, twins, verify, expected, side)
+            except NotApplicable as e:
+                short.append(("not_applicable", f"{where}{e}"))
+                break
+            if record["twin"] is None and twin is not None:
+                record["twin"] = twin
+            done.append(trial)
+            last = str(trial["outcome"])
+            if last == "error":
+                short.append(("error", f"{where}trial {k}: {trial['raw_last_line']}"[:4096]))
+                break
+            counted += last not in UNCOUNTED
+            if counted == trials:
+                break
+        else:
+            short.append(("void", f"{where}{counted} of {trials} trials counted in {max_seeds} "
+                                  f"seeds; the rest void"))  # fmt: skip
+    record["trials"] = done
+    misses = [str(t["outcome"]) for t in done
+              if t["outcome"] not in UNCOUNTED and t["outcome"] not in expected]  # fmt: skip
+    if misses:
+        outcome: str = misses[0]
+    elif short:
+        rank = ("error", "void", "not_applicable")
+        outcome = min((o for o, _ in short), key=rank.index)
+    else:
+        firsts = [t for t in done if t["outcome"] not in UNCOUNTED]
+        outcome = str(firsts[0]["outcome"]) if firsts else "not_applicable"
+    record["note"] = "; ".join(note for _, note in short) or None
+    record.update(outcome=outcome, passed=None if outcome in NEUTRAL else not misses)
+    return record
+
+
 def summary(records: Sequence[Mapping[str, object]]) -> dict[str, int]:
     """Counts per outcome plus run and passed; recomputed by `derive --check` (INV-CTRL-5)."""
     counts = {"run": len(records), "passed": sum(1 for r in records if r["passed"] is True)}
@@ -541,6 +738,9 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
     check: Callable[[str], None] = lambda proof_id: None,
     only: Collection[str] | None = None,
     reads: PartsRead = EVERY_PART,
+    level: bool = False,
+    no_perturbed: str = "no perturbed commitment for this workload",
+    mutate: Mutator | None = None,
 ) -> list[dict[str, object]]:
     """C1 to C8 over a run's honest proofs, each after its honest twins (RFC-0008). `check`
     rechecks a proof's digest immediately before each control mutates it (RFC-0014). `only`
@@ -550,7 +750,13 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
     among those, and a declaration that does not fit the target proof is refused before any
     call (RFC-0008 §Parts the verifier reads).
 
-    `vocab_size` and `batch_size` come from the workload record (RFC-0003).
+    `vocab_size` and `batch_size` come from the workload record (RFC-0003). With `level`, C1,
+    C2 and C3 run as RFC-0018 CH-1 says: C1 at the first, the last and a seeded interior reply
+    position, and each series of 3 counted trials, every trial after its own twin
+    (`level_control_record`); the other controls are RFC-0008's. With `mutate` (an adapter
+    that lists `mutate_reply`, RFC-0018 AD-6), each C1 trial verifies the proof the adapter
+    mutated at that position, with the honest claimed reply; a reject upstream's verifier did
+    not make (its exit code 0) is void. `no_perturbed` is C3's note when there is no W'.
     """
     vocab_size, batch_size = workload.model.vocab_size, workload.shape.batch_size
     wanted = [cid for cid in SHARED_VERIFIER_CONTROLS if only is None or cid in only]
@@ -591,7 +797,7 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
     builders: dict[str, tuple[Callable[[], list[VerifyCall]], Callable[[], list[VerifyCall]]]] = {
         "C1": (lambda: [c1(target, commit, t_dir, vocab_size)], twin(target)),
         "C2": (lambda: [c2(target, commit, t_dir, vocab_size, seed)], twin(target)),
-        "C3": (lambda: [c3(target, commit, perturbed, t_dir)], twin(target)),
+        "C3": (lambda: [c3(target, commit, perturbed, t_dir, no_perturbed)], twin(target)),
         "C4": (lambda: [c4(target, other, commit, t_dir)], other_twin),
         "C5": (lambda: [c5(target, commit, t_dir, work / "C5", reads)], twin(target)),
         "C6": (
@@ -613,8 +819,50 @@ def run_shared_controls(  # noqa: PLR0913 (keyword-only inputs of one suite)
 
         return run
 
+    def level_series(cid: str) -> list[Series]:
+        def at(position: str) -> Callable[[int], list[VerifyCall]]:
+            return lambda k: [c1_at(target, commit, t_dir, vocab_size, seed, position, k)]
+
+        def mutated_at(position: str) -> Callable[[int], list[VerifyCall]]:
+            def build(k: int) -> list[VerifyCall]:
+                assert mutate is not None
+                planned = c1_at(target, commit, t_dir, vocab_size, seed, position, k)
+                where = planned.mutation
+                i, token = int(str(where["index"])), int(str(where["token"]))
+                proof, changed = mutate(target, t_dir, i, token, k)
+                what = {"index": i, "token": token, "mutated": dict(changed)}
+                return [VerifyCall("C1", k, commit, target.request, target.claimed_output,
+                                   proof, _names(proof), what)]  # fmt: skip
+
+            return build
+
+        def plain(k: int) -> list[VerifyCall]:
+            return [replace(call, trial=k) for call in builders[cid][0]()]
+
+        if cid == "C1" and mutate is not None:
+            return [Series({"position": p}, mutated_at(p), adapter_reject_void=True)
+                    for p in C1_POSITIONS]  # fmt: skip
+        if cid == "C1":
+            return [Series({"position": p}, at(p)) for p in C1_POSITIONS]
+        if cid == "C2":
+            return [Series({}, lambda k: [c2(target, commit, t_dir, vocab_size, seed, k)])]
+        return [Series({}, plain)]
+
+    def checked_series(s: Series) -> Series:
+        def build(k: int) -> list[VerifyCall]:
+            for p in filter(None, (target, other)):
+                check(p.proof_id)
+            return s.build(k)
+
+        return Series(s.detail, build, s.adapter_reject_void)
+
     records = [
-        control_record(cid, checked(builders[cid][0]), builders[cid][1], verify) for cid in wanted
+        level_control_record(
+            cid, [checked_series(s) for s in level_series(cid)], builders[cid][1], verify
+        )
+        if level and cid in LEVEL_VERIFIER_CONTROLS
+        else control_record(cid, checked(builders[cid][0]), builders[cid][1], verify)
+        for cid in wanted
     ]
     for record in records:
         if record["id"] in PART_CONTROLS and reads.not_read:

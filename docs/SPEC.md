@@ -51,7 +51,9 @@ Benchmark release v0.1 covers two systems on their native workloads on one NVIDI
 | [0013](../rfcs/0013-validation-and-ci.md) | Validation pipeline and CI gates | every CI gate and its exact rule |
 | [0014](../rfcs/0014-provenance-and-integrity.md) | Provenance, pinning and artifact integrity | pins, image builds, model fetch, manifest, commitment handling |
 | [0015](../rfcs/0015-reference-rows.md) | Reference rows: plain serving and recompute | what the reference rows measure and when they are null |
-| [0016](../rfcs/0016-glyph-properties-and-states.md) | Glyph properties and states | the six glyph properties, the four states, the source of each state by row class, the negative control override, the criteria file |
+| [0016](../rfcs/0016-glyph-properties-and-states.md) | Glyph properties and states (no longer drives the site from Level 1, RFC-0018) | the six glyph properties, the four states, the source of each state by row class, the negative control override, the criteria file |
+| [0018](../rfcs/0018-level-1-ladder.md) | Level 1: the ladder, six checks, cost and fidelity | the level file, rungs, the common request, beacon prompts, sessions, the release-group steady rule, the serving ladder, the six checks, fidelity and KL, the order rule, the board file, the site. Wins over earlier RFCs for a Level 1 release |
+| [0017](../rfcs/0017-requests-tasks-and-tested-states.md) | Requests, tasks and tested states | the request as the unit a reader compares, the per-request figures, the task rule, the median; then what the next runs add: control coverage, a baseline at the proved precision, one row per verifier |
 
 ## Pinned upstreams for v0.1
 

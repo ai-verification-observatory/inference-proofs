@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 Handler = Callable[[argparse.Namespace], int]
 
 # Commands that check stored files report config, integrity and policy findings with exit 1.
-CHECK_COMMANDS = {"validate", "derive", "release freeze"}
+CHECK_COMMANDS = {"validate", "derive", "release freeze", "release board", "level check"}
 
 
 def harness_commit() -> str:
@@ -76,6 +76,11 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--all", action="store_true", help="every file, not only changed ones")
     p.add_argument("--changed-since", metavar="REF")
     p.add_argument("--format", choices=["text", "json"], default="text")
+    p.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="check every file, reusing no stored result for unchanged bytes",
+    )
 
     p = command("derive", "compute derived metrics of a run directory (RFC-0004)")
     p.set_defaults(handler=derive)
@@ -86,9 +91,17 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument("--system", required=True)
     p.add_argument("--workload", required=True)
     p.add_argument("--profile", required=True)
-    p.add_argument("--repetitions", type=int, default=3)
+    p.add_argument("--repetitions", type=int, default=None, help="default 3; none with --level")
     p.add_argument("--results", type=Path, default=Path("results"))
     p.add_argument("--control-suite", action="store_true")
+    p.add_argument(
+        "--level",
+        metavar="ID",
+        help="a session of this level (levels/ID.yaml, RFC-0018): one run, the slot's prompts",
+    )
+    p.add_argument(
+        "--session", type=int, metavar="K", help="with --level: the session slot, 1 to 3"
+    )
     p.add_argument("--provider", metavar="NAME")
     p.add_argument("--prompts-from", type=Path, metavar="RUN_DIR")
     p.add_argument("--allow-nonconforming", action="store_true", help=argparse.SUPPRESS)  # no-op
@@ -111,9 +124,10 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.add_argument(
         "--load",
-        choices=["matched", "high"],
+        choices=["matched", "high", "ladder"],
         default="matched",
-        help="the load point of a production-serving job (RFC-0015 SRV-1)",
+        help="the load point of a production-serving job (RFC-0015 SRV-1); `ladder`, with "
+        "--level and no --session, serves the level's concurrency ladder (RFC-0018 CO-4)",
     )
     p.add_argument(
         "--sizing-batches",
@@ -159,6 +173,12 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.add_argument("--system", help="with --prepare-perturbed")
     p.add_argument("--profile", help="with --prepare-perturbed")
+    p.add_argument(
+        "--level",
+        metavar="ID",
+        help="with --prepare-perturbed: W' from the adapter's perturb with the level's model "
+        "change, in the level's release (RFC-0018 CH-2, AD-5)",
+    )
     p.add_argument("--results", type=Path, default=Path("results"))
     p.add_argument("--image", metavar="IMAGE_ID", help="a locally built image by ID")
     p.add_argument("--in-process", action="store_true", help="test systems only")
@@ -292,7 +312,14 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p = command("build", "generate the static site", site_sub, "site build")
     p.add_argument("--out", type=Path, default=None,
                    help="output folder (default: the repository's web/)")  # fmt: skip
+    p.add_argument("--board", type=Path, default=None,
+                   help="board file to render (default: the newest Level 1 release's)")  # fmt: skip
     p.set_defaults(handler=site_build)
+
+    from iproofs.commands import registrars  # noqa: PLC0415 (Level 1 groups, RFC-0018)
+
+    for register in registrars():
+        register(sub, command)
 
     return parser
 
@@ -324,11 +351,13 @@ def derive(args: argparse.Namespace) -> int:
 def validate(args: argparse.Namespace) -> int:
     """`iproofs validate`: the tree gates; one line per failure, exit 1 on any."""
     from iproofs.validate import repo_root  # noqa: PLC0415
+    from iproofs.validate.memo import store_path  # noqa: PLC0415
     from iproofs.validate.tree import validate_tree  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
     only = None if args.all or not args.paths else [_repo_path(root, p) for p in args.paths]
-    findings = validate_tree(root, only=only, base_ref=args.changed_since)
+    memo = None if args.no_cache else store_path(root)
+    findings = validate_tree(root, only=only, base_ref=args.changed_since, memo_path=memo)
     failures = [f for f in findings if not f.warning]
     for f in findings:
         if f.warning:  # stdout stays the RFC-0013 failure list; warnings never fail
@@ -377,12 +406,27 @@ def fmt(args: argparse.Namespace) -> int:
 
 def run(args: argparse.Namespace) -> int:
     """`iproofs run`: N repetitions; exit 4 when any job was recorded as failed."""
-    from iproofs.runner import JobSpec, Runner, recorded_claims, recorded_seed  # noqa: PLC0415
+    from iproofs.runner import (  # noqa: PLC0415
+        JobSpec,
+        Runner,
+        level_run,
+        recorded_claims,
+        recorded_seed,
+    )
     from iproofs.serialize import load_yaml  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
     from iproofs.workloads import load_workload  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
+    ladder = args.load == "ladder"
+    if ladder and (args.level is None or args.session is not None):
+        raise IProofsError(ErrorKind.CONFIG, "--load ladder serves a level's baseline: give "
+                           "--level and no --session (RFC-0018 CO-4)")  # fmt: skip
+    if not ladder and (args.level is None) != (args.session is None):
+        raise IProofsError(ErrorKind.CONFIG, "--level and --session go together (RFC-0018)")
+    if args.level is not None and args.repetitions is not None:
+        message = "--repetitions does not apply under --level: one run is one session"
+        raise IProofsError(ErrorKind.CONFIG, f"{message}; run each slot with --session K")
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
@@ -403,6 +447,11 @@ def run(args: argparse.Namespace) -> int:
     if recompute and not args.prompts_from:  # RFC-0015 RC-1, before any step
         raise IProofsError(ErrorKind.CONFIG, f"{args.system} needs --prompts-from a system run")
     claims = recorded_claims(args.prompts_from) if args.prompts_from and recompute else None
+    level = (
+        level_run(root, registry, args.level, args.system, wl.id, args.session)
+        if args.level is not None
+        else None
+    )
     runner = Runner(
         containers,
         root=root,
@@ -420,13 +469,14 @@ def run(args: argparse.Namespace) -> int:
             args.gpu,
             args.hosted,
             _prover_cpus(root, args.profile, registry) if args.gpu is not None or args.gpus else 24,
-            _verifier_cpus(root, _release(root), registry),
+            _verifier_cpus(root, _release(root, args.level), registry),
             args.gpus,
         ),
         hosted=args.hosted,
         load=args.load,
         source_prompt_digest=_prompt_digest(args.prompts_from) if args.prompts_from else None,
         sizing_batches=args.sizing_batches,
+        level=level,
     )
     spec = JobSpec(
         args.system,
@@ -436,11 +486,12 @@ def run(args: argparse.Namespace) -> int:
         1,
         args.control_suite,
         str(args.results),
-        _release(root),
+        _release(root, args.level),
     )
     for recovered in runner.recover(Path(args.results)):
         print(f"recovered as failed: {recovered}", file=sys.stderr)
-    dirs = runner.run_many(spec, args.repetitions)
+    repetitions = 1 if level is not None else args.repetitions or 3
+    dirs = runner.run_many(spec, repetitions)
     for d in dirs:
         print(d)
     statuses = [json.loads((d / "run.json").read_text())["status"] for d in dirs]
@@ -707,28 +758,37 @@ def _prepare_perturbed(args: argparse.Namespace) -> int:
         raise IProofsError(
             ErrorKind.CONFIG, "--prepare-perturbed takes --system and --profile, not a RUN_DIR"
         )
-    if (
-        args.only
-        or args.seed
-        or args.merge
-        or args.draw_seed
-        or args.hosted
-        or args.gpu is not None
-    ):
+    if args.only or args.seed or args.merge or args.draw_seed:
         raise IProofsError(
-            ErrorKind.CONFIG,
-            "--prepare-perturbed takes no --only, --seed, --merge, --draw-seed, --hosted or --gpu",
+            ErrorKind.CONFIG, "--prepare-perturbed takes no --only, --seed, --merge or --draw-seed"
         )
     root = repo_root(Path.cwd())
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
-    containers, image, registry = _containers(system_file, args.in_process, args.image)
+    containers, image, registry = _containers(
+        system_file, args.in_process, args.image, hosted=args.hosted
+    )
     wl = load_workload(args.prepare_perturbed, root=root, registry=registry)
-    runner = Runner(containers, root=root, registry=registry, image=image)
+    release = _release(root, args.level)
+    env = None
+    if args.gpu is not None:
+        env = _environment(args.gpu, args.hosted, _prover_cpus(root, args.profile, registry),
+                           _verifier_cpus(root, release, registry), None)  # fmt: skip
+    runner = Runner(containers, root=root, registry=registry, image=image, hosted=args.hosted,
+                    progress=None if args.quiet else sys.stderr, env=env)  # fmt: skip
     spec = JobSpec(args.system, wl.id, wl.version, args.profile, 1, False, str(args.results),
-                   _release(root))  # fmt: skip
-    print(prepare_perturbed(runner, spec, default_cache()))
+                   release)  # fmt: skip
+    change = None
+    if args.level is not None:
+        from iproofs.level import load_level  # noqa: PLC0415
+
+        found = load_level(root, args.level, registry=registry).systems.get(args.system)
+        if found is None:
+            raise IProofsError(ErrorKind.CONFIG, f"{args.level} names no model change for "
+                               f"{args.system} (RFC-0018 CH-2)")  # fmt: skip
+        change = found.model_change
+    print(prepare_perturbed(runner, spec, default_cache(), change))
     return 0
 
 
@@ -799,9 +859,10 @@ GATES_G2_G7 = {"G2", "G3", "G4", "G5", "G6", "G7"}
 
 
 def site_build(args: argparse.Namespace) -> int:
-    """`iproofs site build [--out DIR]`: the public site of the newest frozen release
-    (RFC-0009 §Site), into the repository's `web/` unless `--out` names another folder; prints
-    the number of pages written."""
+    """`iproofs site build [--out DIR] [--board PATH]`: the public site (RFC-0018 §Site) from the
+    newest Level 1 release's board file, or the one `--board` names (a preview), into the
+    repository's `web/` unless `--out` names another folder; prints the number of pages
+    written."""
     from iproofs.site import build  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
 
@@ -810,7 +871,10 @@ def site_build(args: argparse.Namespace) -> int:
         out = root / "web"
     else:
         out = args.out if args.out.is_absolute() else Path.cwd() / args.out
-    pages = build(root, out)
+    board = args.board
+    if board is not None and not board.is_absolute():
+        board = Path.cwd() / board
+    pages = build(root, out, board)
     print(f"{len(pages)} pages in {out}")
     return 0
 
@@ -1089,10 +1153,24 @@ def machine_record_command(args: argparse.Namespace) -> int:
     return 0
 
 
-def _release(root: Path) -> str:
-    """The release in force: the newest `reference/vX.Y.yaml`."""
+def _release(root: Path, level: str | None = None) -> str:
+    """The release a run belongs to. Under a level, the level's price reference (RFC-0018:
+    `reference/v1.0.yaml` for L1). Otherwise the newest `reference/vX.Y.yaml` that no level file
+    names, so a run without `--level` stays in the release it was made for."""
+    from iproofs.serialize import load_yaml  # noqa: PLC0415
+
+    owned: dict[str, str] = {}
+    for path in sorted((root / "levels").glob("L*.yaml")):
+        price = load_yaml(path).get("price")
+        ref = price.get("reference") if isinstance(price, dict) else None
+        if isinstance(ref, str):
+            owned[path.stem] = Path(ref).stem
+    if level is not None:
+        if level not in owned:
+            raise IProofsError(ErrorKind.CONFIG, f"level {level!r} names no price reference")
+        return owned[level]
     versions = sorted(
-        (p.stem for p in (root / "reference").glob("v*.yaml")),
+        (p.stem for p in (root / "reference").glob("v*.yaml") if p.stem not in owned.values()),
         key=lambda v: tuple(int(x) for x in v[1:].split(".")),
     )
     if not versions:

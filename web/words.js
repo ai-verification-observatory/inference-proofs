@@ -1,5 +1,5 @@
 // MADE OF WORDS: behaviour only. No value, label or quote is typed here: everything printed
-// comes from the page, which iproofs site build wrote (sort keys included, in data-k).
+// comes from the page, which iproofs site build wrote.
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -85,136 +85,10 @@
     go();
   });
 
-  // ------------------------------------------------------------ a system page's section list: the section in view is
-  // marked (aria-current), the last one whose top has passed a line a third of the way down the screen
-  $$('.toc').forEach((toc) => {
-    const pairs = $$('a[href^="#"]', toc)
-      .map((a) => [a, document.getElementById(decodeURIComponent(a.hash.slice(1)))])
-      .filter(([, t]) => t);
-    if (!pairs.length) return;
-    let on = null;
-    let queued = false;
-    const mark = () => {
-      queued = false;
-      const line = innerHeight / 3;
-      let cur = pairs[0][0];
-      for (const [a, t] of pairs) if (t.getBoundingClientRect().top <= line) cur = a;
-      // at the foot of the page the last section is the one in view, however short
-      if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) cur = pairs[pairs.length - 1][0];
-      if (cur === on) return;
-      if (on) on.removeAttribute('aria-current');
-      cur.setAttribute('aria-current', 'true');
-      on = cur;
-    };
-    const ask = () => { if (!queued) { queued = true; requestAnimationFrame(mark); } };
-    addEventListener('scroll', ask, { passive: true });
-    addEventListener('resize', ask);
-    document.addEventListener('toggle', ask, true);
-    mark();
-  });
-
-  // ------------------------------------------------------------ row pies, the not-benchmarked glyphs and a reference's
-  // glyph: the slice under the pointer lifts, and its property's name and state show in a card under a row's glyph
-  // (its pointer on the petal), on a not-benchmarked card or the reference page in place of the line beside the glyph;
-  // nothing moves. The others keep
-  // their ink. The pointer is read on the still .hit copy of the wedges, so a lifted slice never slips out from under it.
-  $$('.row .pie, .nb .nbpie, .refone .refpie').forEach((pie) => {
-    const card = pie.closest('.nb, .refone');
-    const tip = $('.tip', card || pie);
-    let hot = 0;
-    const set = (n) => {
-      if (n === hot) return;
-      hot = n;
-      if (!n) { delete pie.dataset.hot; return; }
-      pie.dataset.hot = n;
-      const sl = $(`.sl.s${n}`, pie);
-      // a slice with no words gets no tip
-      if (tip && sl && sl.dataset.word) {
-        const b = document.createElement('b');
-        b.textContent = sl.dataset.name;
-        // a not-benchmarked card or a reference: one line in its line's place ("Whole output checked: not stated")
-        if (card) { tip.replaceChildren(b, document.createTextNode(`: ${sl.dataset.word.toLowerCase()}`)); return; }
-        const sw = document.createElement('i');
-        // the slice's state class (yes, partly, no) is the one besides sl, sN
-        sw.className = `sw ${[...sl.classList].find((c) => c !== 'sl' && !/^s\d$/.test(c)) || ''}`;
-        const st = document.createElement('span');
-        st.append(sw, document.createTextNode(sl.dataset.word));
-        tip.replaceChildren(b, st);
-        // a row's card: its pointer on the petal's middle; over the glyph when under it would leave the screen
-        const hp = $$(`.hit path[data-n="${n}"]`, pie).map((x) => x.getBoundingClientRect()).find((r) => r.width);
-        const pr = pie.getBoundingClientRect();
-        if (hp) tip.style.setProperty('--cx', `${Math.round(hp.left + hp.width / 2 - pr.left)}px`);
-        tip.classList.toggle('up', pr.bottom + 12 + tip.offsetHeight > innerHeight && pr.top - 12 - tip.offsetHeight > 0);
-      }
-    };
-    pie.addEventListener('pointermove', (ev) => { if (mouse(ev)) set(+(ev.target.closest('.hit path')?.dataset.n || 0)); });
-    pie.addEventListener('pointerleave', (ev) => { if (mouse(ev)) set(0); });
-    // touch: the first tap on a triangle names it; a second tap on the same one follows the link (a glyph with
-    // no link lets it go)
-    let kind = '';
-    pie.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
-    pie.addEventListener('click', (ev) => {
-      if (kind === 'mouse') return;
-      const n = +(ev.target.closest('.hit path')?.dataset.n || 0);
-      if (n && n !== hot) { ev.preventDefault(); set(n); } else if (n && !pie.href) set(0);
-    });
-    document.addEventListener('pointerdown', (ev) => { if (!pie.contains(ev.target)) set(0); });
-  });
-
-  // ------------------------------------------------------------ system pages: on a touch screen, a tap on a slice or
-  // on a property (not its link) lifts the slice and marks the property, as pointing does with a mouse
-  $$('.rose').forEach((rose) => {
-    let kind = '';
-    const cool = () => { rose.removeAttribute('data-hot'); };
-    rose.addEventListener('pointerdown', (ev) => { kind = ev.pointerType; });
-    rose.addEventListener('click', (ev) => {
-      if (kind === 'mouse' || ev.target.closest('a')) return;
-      const slice = ev.target.closest('.rpie .hit path');
-      const at = slice || ev.target.closest('.rp');
-      const n = at ? at.dataset.n : '';
-      if (!n) return;
-      if (rose.dataset.hot === n) { cool(); return; }
-      rose.dataset.hot = n;
-      // on a phone the rows sit under the glyph: a tapped triangle brings its row into view
-      const row = slice && $(`.rp[data-n="${n}"]`, rose);
-      if (row && getComputedStyle(rose).display === 'block') row.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-    });
-    document.addEventListener('pointerdown', (ev) => { if (!rose.contains(ev.target)) cool(); });
-  });
-
-  // ------------------------------------------------------------ system pages: a link or an address naming an entry of a
-  // folded section (a property's "source", How we read it) opens the fold and moves focus to the entry. Without script
-  // the entry keeps its id and the fold opens with one press.
-  const reveal = (id, scroll) => {
-    let at = null;
-    try { at = id ? document.getElementById(decodeURIComponent(id)) : null; } catch (_) { /* a malformed escape */ }
-    const fold = at && at.closest('details');
-    if (!fold) return;
-    fold.open = true;
-    if (scroll) at.scrollIntoView({ block: 'start' });
-    if (at.tabIndex < 0 && !at.hasAttribute('tabindex')) at.setAttribute('tabindex', '-1');
-    at.focus({ preventScroll: true });
-  };
-  const fromHash = () => reveal(location.hash.slice(1), true);
-  fromHash();
-  addEventListener('hashchange', fromHash);
-  // a press opens the fold before the browser follows the link, so it lands on the entry (also when the address
-  // already names it, and no hashchange follows); a press that opens a new tab or window leaves this page as it is
-  document.addEventListener('click', (ev) => {
-    if (ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
-    const a = ev.target.closest && ev.target.closest('a[href^="#"]');
-    if (a) reveal(a.getAttribute('href').slice(1), false);
-  });
-
-  // ------------------------------------------------------------ print: every fold open on paper, as it was after
-  let folded = [];
-  addEventListener('beforeprint', () => { folded = $$('details:not([open])'); folded.forEach((d) => { d.open = true; }); });
-  addEventListener('afterprint', () => { folded.forEach((d) => { d.open = false; }); folded = []; });
-
   // ------------------------------------------------------------ search: a combobox over search.json (written by build.py)
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
-  // only from its first letter on. Order: not-benchmarked systems after every other match; within
+  // only from its first letter on. Order: systems not run after every other match; within
   // each part, a match in the name before one in the other words only, then the kind of entry, the
   // page in view, how closely, then the name. It never orders by how good a system is. A result
   // found by its other words shows the phrase that holds them (a figure leads to its plate).
@@ -290,8 +164,8 @@
       x.why.forEach((p) => { const n = held(p.w); if (n > most) { best = p; most = n; } });
       return best;
     };
-    // every match: not benchmarked last; a match in the name before one in the other words only; then by group
-    // (benchmarked first; a system's sections under its name, the page in view first, the systems A to Z), within a
+    // every match: not run last; a match in the name before one in the other words only; then by group
+    // (systems first; a system's sections under its name, the page in view first, the systems A to Z), within a
     // group where the words matched (a name that starts with the query first), then how closely, then the name
     const results = (q) => {
       const whole = norm(q);
@@ -458,90 +332,4 @@
     });
   }
 
-  // ------------------------------------------------------------ sorting the benchmarked table by its column heads
-  // Keys come from data-k (computed by build.py from the raw numbers). Rows with no number go last in both
-  // directions; ties fall back to the name, A to Z. The default is the order the page was sent in, which the
-  // table names (data-col, data-dir). The order lives in the hash.
-  const tbls = $$('.tbl');
-  if (!tbls.length) return;
-  const DEFAULT = `${tbls[0].dataset.col}-${tbls[0].dataset.dir}`;
-  const state = { col: tbls[0].dataset.col, dir: tbls[0].dataset.dir };
-  const keys = new Map();
-  const btn = (col) => $(`.tbl .sb[data-col="${col}"]`);
-  const words = () => { const b = btn(state.col); return b ? `${b.firstChild.textContent.trim()}, ${b.dataset[state.dir]}` : ''; };
-
-  const sortRows = (animate) => tbls.forEach((tbl) => {
-    const box = $('.rows', tbl);
-    const rows = $$(':scope > .row', box);
-    rows.forEach((r) => { if (!keys.has(r)) keys.set(r, JSON.parse(r.dataset.k)); });
-    const s = state.dir === 'desc' ? -1 : 1;
-    const byName = (a, b) => a.dataset.name.localeCompare(b.dataset.name);
-    const sorted = [...rows].sort((a, b) => {
-      if (state.col === 'system') return s * byName(a, b);
-      const x = keys.get(a)[state.col];
-      const y = keys.get(b)[state.col];
-      if (x == null && y == null) return byName(a, b);
-      if (x == null) return 1;
-      if (y == null) return -1;
-      return s * (x - y) || byName(a, b);
-    });
-    const moved = sorted.some((r, i) => r !== rows[i]);
-    const first = animate && moved && !reduce ? new Map(rows.map((r) => [r, r.getBoundingClientRect().top])) : null;
-    if (moved && animate) document.body.classList.add('sorted'); // re-inserted rows must not replay their entrance
-    if (moved) sorted.forEach((r) => box.appendChild(r));
-    if (first) {
-      sorted.forEach((r) => {
-        const d = first.get(r) - r.getBoundingClientRect().top;
-        if (d) r.animate([{ transform: `translateY(${d}px)` }, { transform: 'none' }], { duration: 200, easing: 'cubic-bezier(.2,.7,.3,1)' });
-      });
-    }
-  });
-
-  const paintHeads = () => {
-    tbls.forEach((tbl) => { tbl.dataset.col = state.col; tbl.dataset.dir = state.dir; });
-    $$('.tbl .hc[data-col]').forEach((h) => {
-      const on = h.dataset.col === state.col;
-      if (on) h.setAttribute('aria-sort', state.dir === 'asc' ? 'ascending' : 'descending'); else h.removeAttribute('aria-sort');
-      $('.g', h).textContent = on ? (state.dir === 'asc' ? '↑' : '↓') : '↕';
-    });
-    const now = $('#sort-now');
-    if (now) now.textContent = words();
-  };
-
-  const writeHash = () => {
-    const v = `${state.col}-${state.dir}`;
-    const url = location.pathname + location.search + (v !== DEFAULT ? `#sort=${v}` : '');
-    try { history.replaceState(null, '', url); } catch (_) { /* file: URLs */ }
-  };
-
-  const valid = (v) => { const i = v.lastIndexOf('-'); return i > 0 && !!btn(v.slice(0, i)) && ['asc', 'desc'].includes(v.slice(i + 1)); };
-  const setSort = (v, { animate = true, announce = false, hash = true } = {}) => {
-    if (!valid(v)) v = DEFAULT;
-    const i = v.lastIndexOf('-');
-    state.col = v.slice(0, i); state.dir = v.slice(i + 1);
-    paintHeads();
-    sortRows(animate);
-    if (hash) writeHash();
-    if (announce) say(`Sorted: ${words()}.`);
-  };
-
-  $$('.tbl .sb').forEach((b) => b.addEventListener('click', () => {
-    const col = b.dataset.col;
-    const dir = col === state.col && state.dir === 'asc' ? 'desc' : 'asc';
-    setSort(`${col}-${dir}`, { announce: true });
-  }));
-
-  // the hash: #sort=proof_size-asc; no hash at all is the default order (Back to a page without one)
-  const readHash = (animate) => {
-    let h = location.hash.slice(1);
-    try { h = decodeURIComponent(h); } catch (_) { /* a malformed escape: read the hash as it is */ }
-    if (h === '') { setSort(DEFAULT, { animate, hash: false }); return; }
-    if (!/^sort=/.test(h)) return;
-    const want = h.slice(5);
-    setSort(want, { animate, hash: false });
-    if (`${state.col}-${state.dir}` !== want) writeHash(); // an unknown order in the link: name the one shown
-  };
-  readHash(false);
-  addEventListener('hashchange', () => readHash(true));
-  addEventListener('popstate', () => readHash(true));
 })();

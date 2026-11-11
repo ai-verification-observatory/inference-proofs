@@ -1,0 +1,10 @@
+# RFC-0014 B2: every external input the fetch stage downloads, one per line:
+# <name>	<url>	sha256:<hex>
+# The upstream source at the pin: the digest is of `git archive --format=tar HEAD`, which the
+# fetch stage recomputes after checking `git rev-parse HEAD` (INV-ADAPTER-2); recomputed with git
+# 2.43.0 in the base image on 2026-11-11. The Rust toolchain is upstream's rust-toolchain.toml
+# channel, nightly-2026-01-27, as the standalone tarball with the checksum static.rust-lang.org
+# publishes beside it (read 2026-11-11). Cargo crates come through upstream's Cargo.lock
+# (checksums for registry crates, full commit hashes for git crates).
+deep-prove	https://github.com/Lagrange-Labs/deep-prove.git#9d1a53e2ef49ffa2c902b8689cd3c58057a4e662	sha256:529ca268a995c1ec7601b670d2d5e15e3033d12afd64d7ca5c198b32ff60199b
+rust-nightly-2026-01-27	https://static.rust-lang.org/dist/2026-01-27/rust-nightly-x86_64-unknown-linux-gnu.tar.xz	sha256:12d13a398249b6e26a5364d66299b1628b817ca93ddf3ad53e2b8d0803c0e3e5

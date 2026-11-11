@@ -17,15 +17,24 @@ is https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b
 - `prove`: one session of `cp_prove -isk ISK -spool S -batch B -in-step K -most-batches N -memory
   lean,tensor-rooms=8` with HOME and TMPDIR below the work directory, every request laid into
   `in/` before the start: what U/driver/measure_rate.py does (lines 567-571 and 685; K is 6, or B
-  if B is smaller). A request is T token ids, then r = T - 1 and e = T, then a 32-byte nonce, under
-  the name sha256("p258-spool-req-1" || bytes) (U/docs/service.md "A request file"). cp_prove
-  releases a batch's responses into `out/` together; a response is complete once `<id>.proof`
-  exists (U/docs/service.md "A response"). Each is hard-linked into /io/proofs/.tmp-req-<i>/ and
+  if B is smaller). A request is T token ids, then r and e, then a 32-byte nonce, under the name
+  sha256("p258-spool-req-1" || bytes) (U/docs/service.md "A request file"). cp_prove releases a
+  batch's responses into `out/` together; a response is complete once `<id>.proof` exists
+  (U/docs/service.md "A response"). Each is hard-linked into /io/proofs/.tmp-req-<i>/ and
   released by rename as soon as it is seen.
-- `verify`: `cp_verify CONFIG IVK REQUEST TOKEN PROOF -id ID -next-token -j N`, as
-  U/driver/measure_rate.py line 698. The request and token files are written here from the job
-  (the client's side, U/docs/verifying.md), never taken from the proof directory. The verdict map
-  is RFC-0005 §Verdict normalisation over U/verifier/docs/output.md "Exit codes".
+  With one output token (the v0.1 workloads) the prompt fills the window, r = T - 1 and e = T, and
+  the proof states the next token. With a longer reply (Level 1, RFC-0018 AD-1, AD-3) prove first
+  has the committed integer model write each reply, greedily, with the package that upstream ships
+  for it (U/integrations/vllm/integer_model/README.md "Python API" and "A request from the model's
+  own reply"), after that package's float64 check on the GPU (its OPERATING.md "Check that float64
+  products are exact on your GPU"); the request is then prompt, reply and filler 0 up to T, with
+  r = P - 1 and e = P + R - 1 (U/docs/verifying.md lines 115-128).
+- `verify`: `cp_verify CONFIG IVK REQUEST TOKEN PROOF -id ID [-next-token] -j N`, as
+  U/driver/measure_rate.py line 698 and U/docs/verifying.md line 176; `-next-token` only when the
+  request asks only about y (U/verifier/docs/output.md line 314). The request and token files are
+  written here from the job (the client's side, U/docs/verifying.md), never taken from the proof
+  directory. The verdict map is RFC-0005 §Verdict normalisation over U/verifier/docs/output.md
+  "Exit codes".
 
 The programs need an x86-64 CPU with the SHA extensions and, for cp_commit and cp_prove, a
 sandbox that lets madvise(MADV_WIPEONFORK) through (U/prover/docs/build.md "What you need").
@@ -40,6 +49,7 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tarfile
@@ -49,12 +59,51 @@ from collections.abc import Callable
 from pathlib import Path
 
 UPSTREAM_COMMIT = "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"  # INV-ADAPTER-2
-WORKLOADS = ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24"]
+WORKLOADS = ["fp-maverick-w1024-b1", "fp-maverick-w1024-b24", "l1-maverick-p512-o512"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
 SRC = Path(os.environ.get("IPROOFS_FLASHPROVE_SRC", "/src"))
 BIN = SRC / "prover/build/hc"  # where upstream's default build puts the three programs
 MODEL = "/models/UD-Q4_K_XL"  # the workload's five GGUF files, read only
 STEM, PARTS_OF = "Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL", 5  # U/examples/maverick/run.sh L76-81
+SHARDS = [f"{STEM}-0000{i}-of-0000{PARTS_OF}.gguf" for i in range(1, PARTS_OF + 1)]
+# The integer model package (U/integrations/vllm/integer_model), installed in its own Python 3.13
+# environment as its README.md "Install and quick start" installs it (vLLM 0.29.0, torch 2.13.0)
+IM_PYTHON = os.environ.get("IPROOFS_FLASHPROVE_IM_PYTHON", "/opt/im-venv/bin/python")
+IM_SRC = "integrations/vllm/integer_model"
+# U/integrations/vllm/integer_model/README.md lines 61-67 and 124-135: load the model folder, then
+# per prompt one prefill call and one call per further reply token, each the greedy choice. No end
+# token stops the loop (RFC-0018 ignore_eos). One process, so the GPU and the 238 GB of pinned host
+# memory (OPERATING.md "Full size") are free again before cp_prove starts.
+GENERATE_PY = """import json, sys
+import integer_model
+folder, prompts_file, count, length, out, options = sys.argv[1:7]
+model = integer_model.load_from_folder(folder, "cuda", json.loads(options))
+prompts = [json.loads(line) for line in open(prompts_file).read().splitlines()][: int(count)]
+with open(out, "x") as f:
+    for prompt in prompts:
+        sequence = model.new_sequence()
+        reply = [int(model.extend(sequence, prompt)[-1])]
+        while len(reply) < int(length):
+            reply.append(int(model.extend(sequence, [reply[-1]])[0]))
+        model.free(sequence)
+        f.write(json.dumps({"prompt_token_ids": prompt, "reply_token_ids": reply}) + "\\n")
+        f.flush()
+"""
+# A pytest summary line that is not all passed: OPERATING.md "Check that float64 products are exact
+# on your GPU": "Every test should pass, and none be skipped."
+NOT_ALL_PASSED = re.compile(r"failed|skipped|error|xfailed|xpassed|deselected|no tests ran")
+# RFC-0018 CH-2: the control jobs in which W' may stand where the published files are required
+W_PRIME_CONTROLS = ("P1", "C3")
+OPTIONAL = ["perturb"]  # RFC-0018 AD-5
+WARNINGS: list[str] = []  # what this call accepted that a measured job would refuse
+# GGUF (U/docs/model.md 11.1, 11.2): the value types of its metadata, and Q4_K's type number and
+# block size in ggml's numbering (gguf-py 0.19.0, constants.py GGMLQuantizationType)
+GGUF_SCALARS = {0: "<B", 1: "<b", 2: "<H", 3: "<h", 4: "<I", 5: "<i", 6: "<f", 7: "<?",
+                10: "<Q", 11: "<q", 12: "<d"}  # fmt: skip
+Q4_K, Q4_K_BYTES = 12, 144
+# the level's change (levels/L1.yaml systems.flashprove.model_change): the first of these that
+# is stored as Q4_K, in the first block whose scale step moves some element
+ATTENTION = [f"blk.0.attn_{n}.weight" for n in ("q", "k", "v", "output")]
 FIT = "/io/fit"  # setup's fit (U/examples/maverick/run.sh, stage fit)
 WEIGHTS = FIT + "/weights"  # the five GGUF files with the fit's wsums.txt and fold.txt beside
 FIT_CONFIG = FIT + "/config"  # the fit's policy.txt, KL.bin and layout.txt
@@ -100,15 +149,17 @@ def workdir(path: Path) -> Path:
 
 
 def run(argv: list[str], job: dict, cwd: Path, out: Path, err: Path | None = None,
-        poll: Callable[[], None] | None = None, cwd_src: bool = False) -> int:  # fmt: skip
-    """Starts one upstream process, after the RFC-0005 rule 4 check, and logs it."""
+        poll: Callable[[], None] | None = None, at: Path | None = None,
+        env: dict[str, str] | None = None) -> int:  # fmt: skip
+    """Starts one upstream process, after the RFC-0005 rule 4 check, and logs it. HOME and TMPDIR
+    are below `cwd`; the process runs in `at` when given, else in `cwd`."""
     weakening = [a for a in argv if any(a.startswith(f) for f in FORBIDDEN_FLAGS)]
-    if weakening and not job["control"]:
+    if weakening and not job.get("control"):
         raise SystemExit(f"flashprove: refusing {weakening} outside a control job")
-    env = dict(os.environ, HOME=str(cwd / "home"), TMPDIR=str(cwd / "tmp"))
+    env = dict(os.environ, **(env or {}), HOME=str(cwd / "home"), TMPDIR=str(cwd / "tmp"))
     started = time.monotonic_ns()
     with out.open("wb") as o, open(err or os.devnull, "wb") as e:
-        proc = subprocess.Popen(argv, cwd=SRC if cwd_src else cwd, env=env, stdout=o,
+        proc = subprocess.Popen(argv, cwd=at or cwd, env=env, stdout=o,
                                 stderr=e if err else subprocess.STDOUT)  # fmt: skip
         while proc.poll() is None:
             if poll is None:
@@ -118,7 +169,12 @@ def run(argv: list[str], job: dict, cwd: Path, out: Path, err: Path | None = Non
                 time.sleep(POLL_S)
     if poll is not None:
         poll()
-    line = {"argv": argv, "cwd": str(cwd), "started_mono_ns": started, "exit_code": proc.returncode}
+    line = {
+        "argv": argv,
+        "cwd": str(at or cwd),
+        "started_mono_ns": started,
+        "exit_code": proc.returncode,
+    }
     with host("/io/commands.jsonl").open("a") as f:
         f.write(json.dumps(line, sort_keys=True) + "\n")
     return proc.returncode
@@ -137,7 +193,7 @@ def info(job: dict) -> dict:
     out = {**base("info"), "system": "flashprove", "upstream_commit": UPSTREAM_COMMIT,
            "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
            "workloads": WORKLOADS, "profile": "prover-h100",
-           "contract_versions": ["adapter/1"]}  # fmt: skip
+           "contract_versions": ["adapter/1"], "optional_subcommands": OPTIONAL}  # fmt: skip
     if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
         out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
         out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
@@ -166,9 +222,32 @@ def expected() -> dict[str, str]:
     return dict(ln.split()[::-1] for ln in text.splitlines() if ln.strip())
 
 
-def published(path: Path, name: str) -> None:
-    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != expected()[name]:
-        raise SystemExit(f"flashprove: {path} is missing or is not the published {name}")
+def control_id(job: dict) -> str | None:
+    """The id of a Level 1 control job (`control: {"id": ..., "perturbation": ...}`), else None."""
+    control = job.get("control")
+    return str(control.get("id")) if isinstance(control, dict) else None
+
+
+def published(path: Path, name: str, job: dict) -> None:
+    """The file must have upstream's published digest; in a P1 or C3 control job, whose model
+    is W' (RFC-0018 CH-2), another digest is accepted and recorded in the warnings."""
+    if not path.is_file():
+        raise SystemExit(f"flashprove: {path} is missing")
+    if hashlib.sha256(path.read_bytes()).hexdigest() == expected()[name]:
+        return
+    if control_id(job) not in W_PRIME_CONTROLS:
+        raise SystemExit(f"flashprove: {path} is not the published {name}")
+    WARNINGS.append(f"{name} is not the published one: accepted in control job "
+                    f"{control_id(job)}, whose model is W' (RFC-0018 CH-2)")  # fmt: skip
+
+
+def mark(name: str) -> None:
+    """RFC-0018 AD-4: an empty /io/marks/<name>, written under a temporary name and renamed, so
+    the harness times it as it times a proof release."""
+    marks = host("/io/marks")
+    marks.mkdir(parents=True, exist_ok=True)
+    (marks / f".tmp-{name}").write_bytes(b"")
+    os.rename(marks / f".tmp-{name}", marks / name)
 
 
 def setup(job: dict) -> dict:
@@ -181,7 +260,7 @@ def setup(job: dict) -> dict:
     fit, model = workdir(host(FIT)), host(MODEL)
     weights, config = private(host(WEIGHTS)), private(host(FIT_CONFIG))
     private(fit / "model")
-    names = [f"{STEM}-0000{i}-of-0000{PARTS_OF}.gguf" for i in range(1, PARTS_OF + 1)]
+    names = SHARDS
     cal = [str(CALIBRATION / n) for n in ("wikitext-2-raw-v1-train.parquet",
                                           "llama2-tokenizer.json", "llama4-tokenizer.json")]
     calibration_set = fit / "calibration_set.npy"
@@ -193,9 +272,9 @@ def setup(job: dict) -> dict:
     ]  # fmt: skip
     for argv in steps:
         log = fit / f"{Path(argv[2] if argv[0] == PYTHON else argv[0]).stem}.log"
-        if run(argv, job, fit, log, cwd_src=True) != 0:
+        if run(argv, job, fit, log, at=SRC) != 0:
             raise SystemExit(f"flashprove: {argv[0]} exited non-zero, last line {last_line(log)!r}")
-    published(fit / "model/wsums.txt", "model/wsums.txt")
+    published(fit / "model/wsums.txt", "model/wsums.txt", job)
     (fit / "model/fold.txt").write_text("eres 10\nqkrows asis\n")
     shutil.copyfile(SRC / "prover/examples/target_full_f2/layout.txt", config / "layout.txt")
     for name in names:  # cp_commit refuses a link, and a second hard link, to a weight file
@@ -212,9 +291,9 @@ def setup(job: dict) -> dict:
     ]  # fmt: skip
     for argv in later:
         log = fit / f"{Path(argv[2]).stem}.log"
-        if run(argv, job, fit, log, cwd_src=True) != 0:
+        if run(argv, job, fit, log, at=SRC) != 0:
             raise SystemExit(f"flashprove: {argv[2]} exited non-zero, last line {last_line(log)!r}")
-    published(config / "KL.bin", "config/KL.bin")
+    published(config / "KL.bin", "config/KL.bin", job)
     return {**base("setup"), "ready": True,
             "log_files": [f"{FIT}/{p.name}" for p in sorted(fit.glob("*.log"))]}  # fmt: skip
 
@@ -223,8 +302,8 @@ def commit(job: dict) -> dict:
     weights, fit = host(WEIGHTS), host(FIT_CONFIG)
     # The fit must be upstream's published one: run.sh's stages fit and compare check these two
     # digests against examples/maverick/expected.txt before and after cp_commit.
-    published(weights / "wsums.txt", "model/wsums.txt")
-    published(fit / "KL.bin", "config/KL.bin")
+    published(weights / "wsums.txt", "model/wsums.txt", job)
+    published(fit / "KL.bin", "config/KL.bin", job)
     state = host("/io/state")
     work = workdir(state / "commit")
     config = private(work / "config")
@@ -250,15 +329,108 @@ def commit(job: dict) -> dict:
                       "prover_bytes": (state / "isk.tar").stat().st_size}}  # fmt: skip
 
 
-def prove(job: dict) -> dict:
+def window_of(policy: Path) -> int:
+    """T = 2^lt, from the line `lt` of the parameter file (U/docs/verifying.md lines 115-117;
+    U/integrations/vllm/integer_model/README.md line 153; target_full_f2 has `lt 10`)."""
+    lts = re.findall(r"^lt (\d+)$", policy.read_text(errors="replace"), re.M)
+    if len(lts) != 1:
+        raise SystemExit(f"flashprove: {policy} has {len(lts)} lines `lt`, not 1")
+    return 1 << int(lts[0])
+
+
+def request_words(prompt: list[int], reply: list[int], t: int) -> list[int]:
+    """A request for a whole reply (U/docs/verifying.md lines 115-128; the words of
+    U/verifier/docs/output.md lines 364-368): the window of T tokens, prompt, reply, then filler 0
+    up to T (both sides pad with 0), then r = P - 1 and e = P + R - 1, so every reply token is
+    checked (RFC-0018 AD-1). A reply that ends one past the window (e = T) is not written here."""
+    p, r = len(prompt), len(reply)
+    if p < 1 or r < 1 or p + r > t:
+        raise SystemExit(f"flashprove: {p} prompt and {r} reply tokens do not fit a window of {t}")
+    return [*prompt, *reply, *[0] * (t - p - r), p - 1, p + r - 1]
+
+
+def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
+             phases: list[dict]) -> list[list[int]]:  # fmt: skip
+    """RFC-0018 AD-3: each reply is the committed integer model's own greedy reply, from the
+    package upstream ships for it, on the files the commitment was made from: the fit's policy.txt
+    and KL.bin, the weights with wsums.txt and fold.txt beside them, every tensor checked against
+    wsums.txt ("verify_sums") and the five small files against their digests, KL.bin's and
+    wsums.txt's being the published ones (OPERATING.md "The files of a model", "Verify what was
+    loaded"; integer_model/model.py load_from_folder)."""
+    t = window_of(host(FIT_CONFIG) / "policy.txt")
+    for prompt in prompts:
+        request_words(prompt, [0] * length, t)  # refuses a request that does not fit
+    mark("generation.start")  # RFC-0018 AD-4, CO-3: the GPU's time for the replies starts here
+    started = time.monotonic()
+    log = work / "float64.log"
+    argv = [IM_PYTHON, "-B", "-m", "pytest", "-p", "no:cacheprovider", "-rs",
+            "tests/test_arithmetic_edges.py"]  # fmt: skip
+    code = run(argv, job, work, log, at=SRC / IM_SRC, env={"INTEGER_MODEL_TEST_DEVICE": "cuda"})
+    summary = last_line(log)
+    if code != 0 or "passed" not in summary or NOT_ALL_PASSED.search(summary):
+        raise SystemExit(f"flashprove: the float64 check exited {code}, last line {summary!r}: "
+                         "not every test passed: this GPU does not serve the integer model")
+    phases.append({"name": "float64_check", "seconds": time.monotonic() - started})
+    started = time.monotonic()
+    weights, config = host(WEIGHTS), host(FIT_CONFIG)
+    model = private(work / "integer-model")
+    for name in ("policy.txt", "KL.bin"):
+        shutil.copyfile(config / name, model / name)
+    spec = {"weights": "blocks", "weight_settings": {
+        "blocks": "gguf", "setup_folder": str(weights),
+        "shards": [str(weights / n) for n in SHARDS], "verify_sums": True}}  # fmt: skip
+    if control_id(job) == "P1":  # W' is proved against W's commitment and W's wsums.txt
+        spec["weight_settings"]["verify_sums"] = False  # type: ignore[index]
+        WARNINGS.append("integer model: verify_sums off in control job P1, whose weights are W'")
+    (model / "integer_model.json").write_text(json.dumps(spec, indent=2) + "\n")
+    published = expected()
+    sha = {n: hashlib.sha256((model / n).read_bytes()).hexdigest()
+           for n in ("integer_model.json", "policy.txt")}  # fmt: skip
+    sha |= {
+        "KL.bin": published["config/KL.bin"],
+        "wsums.txt": published["model/wsums.txt"],
+        "fold.txt": hashlib.sha256((weights / "fold.txt").read_bytes()).hexdigest(),
+    }
+    listed = work / "prompts.jsonl"
+    listed.write_text("".join(json.dumps(p) + "\n" for p in prompts))
+    replies = work / "replies.jsonl"
+    log = work / "generate.log"
+    argv = [IM_PYTHON, "-B", "-c", GENERATE_PY, str(model), str(listed), str(len(prompts)),
+            str(length), str(replies), json.dumps({"sha256": sha}, sort_keys=True)]  # fmt: skip
+    if run(argv, job, work, log) != 0:
+        raise SystemExit(f"flashprove: the integer model exited non-zero, last line "
+                         f"{last_line(log)!r}")  # fmt: skip
+    rows = [json.loads(ln) for ln in replies.read_text().splitlines()]
+    if [r["prompt_token_ids"] for r in rows] != prompts or any(
+        len(r["reply_token_ids"]) != length for r in rows
+    ):
+        raise SystemExit(f"flashprove: {replies} is not one reply of {length} per prompt")
+    phases.append({"name": "generate", "seconds": time.monotonic() - started})
+    mark("generation.end")
+    return [[int(x) for x in r["reply_token_ids"]] for r in rows]
+
+
+def prove(job: dict) -> dict:  # noqa: PLR0915
     size, batches = job["batch_size"], job["batches"]
     prompts = [json.loads(ln) for ln in host(job["prompts_file"]).read_text().splitlines()]
     prompts = prompts[: size * batches]
-    tokens = job["shape"]["prompt_tokens"]
+    tokens, length = job["shape"]["prompt_tokens"], job["shape"]["output_tokens"]
     if len(prompts) < size * batches or any(len(p) != tokens for p in prompts):
         raise SystemExit(f"flashprove: need {size * batches} prompts of {tokens} token ids")
     [isk_tar] = job["prover_files"]
     work = workdir(host("/io/state/prove"))
+    phases: list[dict] = []
+    if control_id(job) == "P1":
+        # cp_prove loads the weights from the directory cp_commit recorded, not from /models
+        # (U/weight_sums/README.md L178-180): W' goes there, W's wsums.txt and fold.txt stay
+        for name in SHARDS:
+            clone(host(MODEL) / name, host(WEIGHTS) / name)
+        WARNINGS.append("control job P1: the weight files cp_prove reads are W' from /models, "
+                        "committed as W")  # fmt: skip
+    # one output token: the next token after a full window, which cp_prove states (v0.1); a
+    # longer reply: the integer model's own, then the whole of it checked (Level 1)
+    replies = generate(job, prompts, length, work, phases) if length > 1 else None
+    t = window_of(host(FIT_CONFIG) / "policy.txt") if replies else tokens
     with tarfile.open(host(isk_tar)) as tar:
         # "tar", not "data": the data filter gives directories the default mode, and cp_prove
         # refuses a key directory that is not 0700 as cp_commit made it (refusal cp-isk)
@@ -267,7 +439,8 @@ def prove(job: dict) -> dict:
     private(private(spool / "in") / ".tmp")
     pending: dict[str, int] = {}
     for i, prompt in enumerate(prompts):  # laid in order: cp_prove takes the oldest first
-        data = pack([*prompt, tokens - 1, tokens]) + os.urandom(32)
+        words = request_words(prompt, replies[i], t) if replies else [*prompt, t - 1, t]
+        data = pack(words) + os.urandom(32)
         rid = hashlib.sha256(b"p258-spool-req-1" + data).hexdigest()
         (spool / "in/.tmp" / rid).write_bytes(data)
         os.link(spool / "in/.tmp" / rid, spool / "in" / f"{rid}.req")
@@ -288,8 +461,10 @@ def prove(job: dict) -> dict:
                 for part, src in zip(PARTS, (".y", ".proof"), strict=True):
                     os.link(out.with_suffix(src), tmp / part)
                 os.rename(tmp, proofs_dir / f"req-{i}")
+                # the reply the integer model wrote, or the next token cp_prove states in .y
+                claimed = replies[i] if replies else [int.from_bytes(y, "little")]
                 proofs.append({"proof_id": f"req-{i}", "request_index": i, "parts": PARTS,
-                               "claimed_output": [int.from_bytes(y, "little")]})  # fmt: skip
+                               "claimed_output": claimed})  # fmt: skip
             elif out.with_suffix(".failed").exists():
                 failed.append(i)
             else:
@@ -300,12 +475,18 @@ def prove(job: dict) -> dict:
             "-batch", str(size), "-in-step", str(min(6, size)), "-most-batches", str(batches),
             "-memory", MEMORY, *job.get("control_flags", [])]  # fmt: skip
     log = work / "cp_prove.log"
+    started = time.monotonic()
     code = run(argv, job, work, log, poll=sweep)
+    phases.append({"name": "cp_prove", "seconds": time.monotonic() - started})
     if code != 0 or failed or pending:
         unanswered = sorted(pending.values())
         raise SystemExit(f"flashprove: cp_prove exited {code}, last line {last_line(log)!r}; "
                          f"failed {sorted(failed)}, unanswered {unanswered}")  # fmt: skip
-    return {**base("prove"), "proofs": sorted(proofs, key=lambda p: p["request_index"])}
+    return {
+        **base("prove"),
+        "proofs": sorted(proofs, key=lambda p: p["request_index"]),
+        "phases": phases,
+    }
 
 
 def verdict(code: int, last: str) -> tuple[str, str | None]:
@@ -320,21 +501,25 @@ def verdict(code: int, last: str) -> tuple[str, str | None]:
 
 
 def verify(job: dict) -> dict:
-    if len(job["claimed_output"]) != 1:  # a proof states the next token only
-        raise SystemExit(f"flashprove: {len(job['claimed_output'])} claimed tokens, not 1")
+    claimed, request = job["claimed_output"], job["request"]
+    if not claimed:
+        raise SystemExit("flashprove: no claimed token")
     work = workdir(Path(tempfile.mkdtemp(prefix="flashprove-verify-")) / "work")
     config, leaf = private(work / "config"), private(work / "ivk/leaf")
     for path in map(host, job["verifier_files"]):
         into = leaf.parent if path.name == "key.bin" else leaf
         into = config if path.name in CONFIG_FILES else into
         shutil.copyfile(path, into / path.name)
-    request = job["request"]
-    (work / "request.req").write_bytes(pack([*request, len(request) - 1, len(request)]))
-    (work / "token.y").write_bytes(pack(job["claimed_output"]))
+    if len(claimed) == 1:  # the next token after a full window, in the token file (v0.1)
+        words, y, ask = [*request, len(request) - 1, len(request)], claimed, ["-next-token"]
+    else:  # the whole reply in the window, every token checked; y unused, so 0 (Level 1)
+        words, y, ask = request_words(request, claimed, window_of(config / "policy.txt")), [0], []
+    (work / "request.req").write_bytes(pack(words))
+    (work / "token.y").write_bytes(pack(y))
     cpus = cpu_count()
     argv = [str(BIN / "cp_verify"), str(config), str(work / "ivk"), str(work / "request.req"),
             str(work / "token.y"), str(host(job["proof_dir"]) / PARTS[1]),
-            "-id", job["commitment_id"], "-next-token", "-j", str(min(256, cpus or 1))]  # fmt: skip
+            "-id", job["commitment_id"], *ask, "-j", str(min(256, cpus or 1))]  # fmt: skip
     started = time.monotonic()
     code = run(argv, job, work, work / "stdout", work / "stderr")
     seconds = time.monotonic() - started
@@ -346,15 +531,126 @@ def verify(job: dict) -> dict:
     return out | ({"policy": policy} if policy else {})
 
 
+def gguf_tensors(path: Path) -> tuple[int, dict[str, tuple[int, int]]]:
+    """(data start, {name: (type, offset from data start)}) of a GGUF file of version 3: header,
+    metadata, tensor table, then the data at the next multiple of `general.alignment` (32 if
+    absent) (U/docs/model.md 11.1)."""
+    with path.open("rb") as f:
+
+        def read(fmt: str) -> int | float | bool:
+            return struct.unpack(fmt, f.read(struct.calcsize(fmt)))[0]  # type: ignore[no-any-return]
+
+        def string() -> str:
+            return f.read(int(read("<Q"))).decode()
+
+        def value(kind: int) -> object:
+            if kind == 8:
+                return string()
+            if kind == 9:
+                inner, count = int(read("<I")), int(read("<Q"))
+                return [value(inner) for _ in range(count)]
+            return read(GGUF_SCALARS[kind])
+
+        if f.read(4) != b"GGUF" or read("<I") != 3:
+            raise SystemExit(f"flashprove: {path} is not a GGUF file of version 3")
+        n_tensors, n_meta = int(read("<Q")), int(read("<Q"))
+        meta = {string(): value(int(read("<I"))) for _ in range(n_meta)}
+        tensors = {}
+        for _ in range(n_tensors):
+            name = string()
+            for _ in range(int(read("<I"))):
+                read("<Q")
+            tensors[name] = (int(read("<I")), int(read("<Q")))
+        align = int(meta.get("general.alignment", 32))  # type: ignore[call-overload]
+        return -(-f.tell() // align) * align, tensors
+
+
+def q4k_step(block: bytes) -> int | None:
+    """The first sub-block j < 4 of a Q4_K block whose 6-bit scale sc = b[j] mod 64 can rise by
+    one and whose step moves an element: h not 0 and some 4-bit code c of the sub-block not 0
+    (v = RN32(RN32(RN32(h sc) c) - RN32(h_min mn)), U/docs/model.md L377-L393). None if none."""
+    if block[0:2] == b"\x00\x00" or block[0:2] == b"\x00\x80":
+        return None
+    for j in range(4):
+        codes = block[16 + 32 * (j // 2) : 48 + 32 * (j // 2)]
+        nibbles = [b >> 4 if j % 2 else b & 15 for b in codes]
+        if block[4 + j] & 63 < 63 and any(nibbles):
+            return j
+    return None
+
+
+def perturb(job: dict) -> dict:
+    """RFC-0018 AD-5 on a CPU: W' is the workload's five GGUF files with one Q4_K block scale of
+    a dense attention tensor of block 0 raised by one step, written to out_dir; the change is
+    shown by upstream's own digest tool, bin/weight_sums, whose wsums.txt for W' must differ
+    from the published one for W (the commitment ID cannot show it: cp_commit draws a fresh
+    seed, U/examples/accepted-proof/README.md L75)."""
+    if "Q4_K" not in job["change"]:
+        raise SystemExit(f"flashprove: perturb makes a Q4_K scale step, not {job['change']!r}")
+    src = host(job["model_dir"]) / Path(MODEL).name
+    out = host(job["out_dir"]) / Path(MODEL).name
+    out.mkdir(parents=True, exist_ok=True)
+    found = None
+    for name in SHARDS:
+        start, tensors = gguf_tensors(src / name)
+        for tensor in ATTENTION:
+            if tensor in tensors and tensors[tensor][0] == Q4_K and found is None:
+                found = (name, tensor, start + tensors[tensor][1])
+    if found is None:
+        raise SystemExit(f"flashprove: none of {ATTENTION} is stored as Q4_K")
+    shard, tensor, at = found
+    with (src / shard).open("rb") as f:
+        for k in range(1 << 20):
+            f.seek(at + k * Q4_K_BYTES)
+            block = f.read(Q4_K_BYTES)
+            j = q4k_step(block) if len(block) == Q4_K_BYTES else None
+            if j is not None:
+                break
+        else:
+            raise SystemExit(f"flashprove: no Q4_K block of {tensor} has a scale step that moves")
+    offset, old = at + k * Q4_K_BYTES + 4 + j, block[4 + j]
+    new = (old & 0xC0) | ((old & 63) + 1)
+    for name in SHARDS:
+        clone(src / name, out / name)
+    with (out / shard).open("r+b") as f:
+        f.seek(offset)
+        f.write(bytes([new]))
+    work = workdir(host("/io/perturb-work"))
+    wsums = work / "wsums.txt"
+    argv = [str(SRC / "bin/weight_sums"), "--eres", "10", "--threads", str(min(64, cpu_count())),
+            "--out", str(wsums), *(str(out / n) for n in SHARDS)]  # fmt: skip
+    log = work / "weight_sums.log"
+    if run(argv, job, work, log, at=SRC) != 0:
+        raise SystemExit(f"flashprove: weight_sums exited non-zero, last line {last_line(log)!r}")
+    digest_w, digest_w_prime = (
+        expected()["model/wsums.txt"],
+        hashlib.sha256(wsums.read_bytes()).hexdigest(),
+    )
+    if digest_w_prime == digest_w:
+        raise SystemExit("flashprove: the scale step left every committed integer as it was")
+    return {**base("perturb"), "perturbation": {
+        "tensor": tensor, "index": k * 256 + 32 * j,
+        "old": bytes([old]).hex(), "new": bytes([new]).hex(),
+        "unit": f"one step of the 6-bit scale sc of sub-block {j} of Q4_K block {k} (elements "
+                f"{k * 256 + 32 * j} to {k * 256 + 32 * j + 31}), byte {offset} of {shard}",
+        "digest_w": f"sha256:{digest_w}", "digest_w_prime": f"sha256:{digest_w_prime}",
+        "digest_tool": "bin/weight_sums: wsums.txt, the SHA-256 of every committed tensor's "
+                       "integers; W's is the published one (examples/maverick/expected.txt)"}}
+
+
 def main() -> int:
     sub, job_path, out_path = sys.argv[1:4]
     job = json.loads(host(job_path).read_text())
     if job.get("subcommand") != sub:
         raise SystemExit(f"flashprove: job.json is for {job.get('subcommand')!r}, not {sub!r}")
-    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}
+    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify,
+                "perturb": perturb}  # fmt: skip
     if sub not in handlers:
         raise SystemExit(f"flashprove: no subcommand {sub!r}")
-    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    WARNINGS.clear()
+    out = handlers[sub](job)
+    out["warnings"] = [*out.get("warnings", []), *WARNINGS]
+    host(out_path).write_text(json.dumps(out, sort_keys=True, indent=2) + "\n")
     return 0
 
 

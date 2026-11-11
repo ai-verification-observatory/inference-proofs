@@ -56,7 +56,7 @@ The same in prose. Authored inputs live in git and change by pull request. A run
 
 ## Module boundaries
 
-The harness is one Python package, `iproofs` (distribution `inference-proofs-harness`, source in `harness/src/iproofs/`). Modules are arranged in layers. A module may import only from modules in lower layers or its own layer where stated; the import graph has no cycles (INV-ARCH-1). A test ([`test_import_layers`](../../harness/tests/unit/test_import_layers.py)) reads the table below, parses every module's imports and fails on an import the table does not allow, on a cycle, and on a module-level import of an optional dependency (INV-ARCH-6). Imports under `if TYPE_CHECKING:` count for the layer rule and are exempt from INV-ARCH-6.
+The harness is one Python package, `iproofs` (distribution `inference-proofs-harness`, source in `harness/src/iproofs/`). Modules are arranged in layers. A module may import only from modules in lower layers or its own layer where stated; the import graph has no cycles (INV-ARCH-1). No test checks the table since 2026-11-10 (the module-layer test was withdrawn with the other layout checks), so it states the intent and reviewers hold it. The rule that matters in practice is INV-ARCH-6: `validate`, `derive`, `release` and `site` import nothing that needs a GPU host or an optional dependency.
 
 | Layer | Module | Responsibility | May import |
 |---|---|---|---|
@@ -66,18 +66,17 @@ The harness is one Python package, `iproofs` (distribution `inference-proofs-har
 | 1 | `iproofs.quantity` | labelled quantity and statistic types, vocabularies (units, scopes, grades, tiers) | `errors` |
 | 1 | `iproofs.gguf` | GGUF header reader (local file or HTTP range reads), the ggml type table and the weight-width method `gguf-active-mean/1` ([RFC-0003](../../rfcs/0003-workloads.md#weight-bits) WB-5) | `errors` |
 | 2 | `iproofs.schema` | schema registry, `$id` resolution, validation with Draft 2020-12 | `errors`, `serialize` |
-| 2 | `iproofs.model` | frozen dataclasses for every document, load = parse, validate, construct | `errors`, `serialize`, `quantity`, `schema` |
-| 3 | `iproofs.provenance` | digests (files, models, proofs), pin checks, machine record | layers 0 to 2 |
+| 2 | `iproofs.model` | frozen dataclasses for the documents code reads field by field (authored inputs, adapter output), load = parse, validate, construct; the documents the harness writes are trees checked against their schema ([RFC-0012 §Python loading](../../rfcs/0012-schemas-and-serialization.md#python-loading)) | `errors`, `serialize`, `quantity`, `schema` |
+| 3 | `iproofs.provenance` | digests (files, models, proofs; the files of a model or a proof are hashed once each, several at a time), pin checks, machine record | layers 0 to 2 |
 | 3 | `iproofs.derive` | derived metrics and statistics from stored raw quantities ([RFC-0004](../../rfcs/0004-metrics-timing-grades.md)) | layers 0 to 2 |
 | 4 | `iproofs.workloads` | resolve workload, fetch model, materialise prompts | layers 0 to 3 |
 | 4 | `iproofs.serving` | production-serving records: SM-1 to SM-3, `serving pin`, fetch of the publisher's release from an ungated byte-identical copy ([RFC-0015](../../rfcs/0015-reference-rows.md) SRV-6, [RFC-0014](../../rfcs/0014-provenance-and-integrity.md#model-fetch-and-verification)) | layers 0 to 3 |
 | 4 | `iproofs.adapter` | job.json and out.json, `docker run` argv, io dirs, path safety, `ContainerRunner` implementations | layers 0 to 3, and `iproofs.measure` (a container call is timed where it runs, RFC-0011 T-1) |
 | 4 | `iproofs.measure` | monotonic clock, NVML sampler, cgroup sampler, release watcher, proof sizes ([RFC-0011](../../rfcs/0011-measurement-and-sampling.md)) | layers 0 to 3 |
-| 4 | `iproofs.reference` | pairing reference rows with prover rows for overhead ([RFC-0015](../../rfcs/0015-reference-rows.md)) | layers 0 to 3 |
 | 5 | `iproofs.controls` | mutations, honest twins, classification, `controls.json` ([RFC-0008](../../rfcs/0008-negative-controls.md)) | layers 0 to 4 |
 | 5 | `iproofs.selftest` | the RFC-0011 calibration self-test (`machine-record --selftest`) | layers 0 to 4 |
 | 6 | `iproofs.runner` | job state machine, timeouts, retries, crash recovery ([RFC-0010](../../rfcs/0010-harness-runner.md)) | layers 0 to 5 |
-| 7 | `iproofs.validate` | every CI check ([RFC-0013](../../rfcs/0013-validation-and-ci.md)) | layers 0 to 5 |
+| 7 | `iproofs.validate` | every CI check ([RFC-0013](../../rfcs/0013-validation-and-ci.md)); `validate.memo` keeps, outside the repository, the results of the checks that read one file, by the sha256 of its bytes | layers 0 to 5 |
 | 7 | `iproofs.release` | freeze, eligibility, statistics, target evaluation | layers 0 to 5 |
 | 8 | `iproofs.site` | static site from a frozen release | layers 0 to 5, `release` |
 | 9 | `iproofs.cli` | argparse entry point; translates `IProofsError` to exit codes | every module |
@@ -116,5 +115,5 @@ Three boundaries matter: the adapter container (untrusted code from the measured
 
 ## RISK
 
-- RISK: the layer rules may force small duplications (for example digest helpers needed by both `adapter` and `provenance`). Resolution: shared helpers move down to layer 1 or 3, never sideways; `test_import_layers` keeps the rule mechanical.
+- RISK: the layer rules may force small duplications (for example digest helpers needed by both `adapter` and `provenance`). Resolution: shared helpers move down to layer 1 or 3, never sideways.
 - RISK: SASH's segment grid and FlashProve's per-request proofs stress the single `proofs/<proof_id>/` abstraction differently. Resolution: the `proofs` declaration in `system.yaml` ([RFC-0005](../../rfcs/0005-adapter-contract.md#systemyaml)); revisited after the first SASH adapter run.

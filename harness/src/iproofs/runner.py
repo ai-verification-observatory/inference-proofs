@@ -20,19 +20,31 @@ from pathlib import Path
 from typing import Any, Literal, Protocol, TextIO
 
 from iproofs import __version__, selftest
-from iproofs.adapter import ContainerRunner, IoDirs, StepResult, check_proofs
+from iproofs.adapter import (
+    TRACE_FILE,
+    ContainerRunner,
+    DockerRunner,
+    IoDirs,
+    StepResult,
+    check_proofs,
+    check_requests,
+)
 from iproofs.controls import (
     EXPECTED,
+    LEVEL_TRIALS,
     SEED_RECORD,
     SEED_SCHEMA,
     SHARED_PROVER_CONTROLS,
     SHARED_VERIFIER_CONTROLS,
     HonestProof,
+    Mutator,
     NotApplicable,
+    Series,
     VerifyCall,
     VerifyResult,
     controls_document,
     disclosure_pending,
+    level_control_record,
     merge_parts,
     new_control_seed,
     parse_only,
@@ -73,6 +85,7 @@ from iproofs.measure import (
     cap_text,
     files_bytes,
     proof_size,
+    reduce_strace,
     select_readers,
     span_seconds,
 )
@@ -133,15 +146,21 @@ from iproofs.serving import (
     serving_manifest,
 )
 from iproofs.workloads import (
+    BEACON_WINDOW,
     asserted_inputs,
     default_cache,
     ensure_model,
+    generator_seed,
     hub_download,
     load_workload,
     materialise_prompts,
     model_dir,
     workload_digest,
 )
+
+VERIFY_TRACE = "verify-trace"  # RFC-0018 CH-4: <run-dir>/verify-trace/<proof_id>.json
+UNTIMED = ("verify", "logprobs", "perturb", "mutate_reply")  # no step of the run's timing
+MARKS = ("generation.start", "generation.end")  # RFC-0018 AD-4, under /io/marks
 
 # RFC-0014 §The commitment record: <job tmp>/commitment/{verifier,prover}/, never mounted
 # read-write (kept with io/ under --keep-io); prover-ro/ holds the rechecked copies mounted
@@ -179,6 +198,93 @@ class JobSpec:
     control_suite: bool
     results_root: str
     release: str
+
+
+@dataclass(frozen=True, slots=True)
+class LevelRun:
+    """A session of a level (RFC-0018 §Sessions): the level file by digest, the rung whose
+    workload the system runs, the slot k (1 to `slots`) whose N prompts prove gets, and the
+    request every reply must meet. `beacon` is the level's stored beacon record (`beacon/1`),
+    the seed of a `beacon-window/1` workload; None while no round is stored."""
+
+    id: str
+    digest: str
+    rung: str
+    slot: int | None  # None: the serving baseline's ladder run (CO-4), which proves no slot
+    slots: int
+    requests: int
+    prompt_tokens: int
+    output_tokens: int
+    beacon: Mapping[str, object] | None = None
+    ladder: tuple[int, ...] = ()  # CO-4: `baseline.ladder`, `warmup_batches`, `timed_batches`,
+    warmup_batches: int = 0  # and the count of distinct ladder prompts (`baseline.prompts`)
+    timed_batches: int = 0
+    ladder_prompts: int = 0
+
+
+def level_run(
+    root: Path,
+    registry: SchemaRegistry,
+    level_id: str,
+    system: str,
+    workload: str,
+    slot: int | None,
+) -> LevelRun:
+    """`iproofs run --level ID --session K`: the level file, the rung on which `system` runs
+    `workload`, and slot K. A workload on no rung, or a slot outside 1..slots, is `config`.
+    Without a slot (`--load ladder`, CO-4) the rung is the one any system runs `workload` on."""
+    from iproofs.level import (  # noqa: PLC0415 (Level 1 only)
+        beacon_file,
+        level_digest,
+        level_file,
+        load_beacon,
+        load_level,
+    )
+
+    level = load_level(root, level_id, registry=registry)
+    rung = next((r for r in level.rungs if r.workloads.get(system) == workload
+                 or (slot is None and workload in r.workloads.values())), None)  # fmt: skip
+    if rung is None:
+        raise IProofsError(ErrorKind.CONFIG, f"{level_id} has no rung on which {system} runs "
+                           f"{workload}")  # fmt: skip
+    if slot is not None and not 1 <= slot <= level.sessions.slots:
+        raise IProofsError(ErrorKind.CONFIG, f"--session {slot}: {level_id} has slots 1 to "
+                           f"{level.sessions.slots}")  # fmt: skip
+    beacon = (
+        load_beacon(root, level, registry=registry)
+        if beacon_file(root, level.id).is_file()
+        else None
+    )
+    b = level.baseline
+    return LevelRun(level.id, level_digest(level_file(root, level.id)), rung.id, slot,
+                    level.sessions.slots, rung.requests_per_session,
+                    level.request.prompt_tokens, level.request.output_tokens, beacon,
+                    tuple(b.ladder), b.warmup_batches, b.timed_batches, b.prompts)  # fmt: skip
+
+
+@dataclass(frozen=True, slots=True)
+class ModelPaths:
+    """RFC-0018 CH-4: what a trace path is matched against (container and host forms, with
+    their realpaths, taken before any file is removed) and the host files whose presence the
+    verify-trace record states."""
+
+    files: frozenset[str]
+    dirs: frozenset[str]
+    host_files: tuple[Path, ...]
+
+
+def model_paths(wl: Workload, models: Path | None) -> ModelPaths:
+    """The workload's `model.files` under /models and under the host model directory, each
+    with its realpath, and the directories themselves."""
+    files = {f"/models/{f.path}" for f in wl.model.files}
+    dirs = {"/models"}
+    host: list[Path] = []
+    if models is not None:
+        dirs |= {str(models), os.path.realpath(models)}
+        for f in wl.model.files:
+            host.append(models / f.path)
+            files |= {str(models / f.path), os.path.realpath(models / f.path)}
+    return ModelPaths(frozenset(files), frozenset(dirs), tuple(host))
 
 
 class Environment(Protocol):
@@ -401,6 +507,12 @@ class Job:
     sizing: bool = False  # RFC-0015 SRV-1: a sizing capture (--sizing-batches)
     engine_interface: str | None = None  # from the recorded engine command (RFC-0015 Q8)
     engine_observed: dict[str, object] | None = None  # the engine as the adapter saw it run
+    level: Mapping[str, object] | None = None  # manifest `level` of a level session (RFC-0018)
+    model_paths: ModelPaths | None = None  # RFC-0018 CH-4, taken before the first verify
+    models_removed: bool = False  # hosted level run: the weights left the cache before verify
+    optional_subcommands: tuple[str, ...] = ()  # from info (RFC-0018 AD-2)
+    ladder: dict[str, object] | None = None  # prove job.json of a ladder run (RFC-0018 CO-4)
+    marks: list[tuple[str, int]] = field(default_factory=list)  # (name, mono_ns), AD-4
 
 
 class Runner:
@@ -425,6 +537,7 @@ class Runner:
         load: str = "matched",
         source_prompt_digest: str | None = None,
         sizing_batches: int | None = None,
+        level: LevelRun | None = None,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -450,11 +563,15 @@ class Runner:
         self.source_prompt_digest = source_prompt_digest  # the --prompts-from run's (SRV-8)
         self.sizing_batches = sizing_batches  # RFC-0015 SRV-1: a sizing capture's batch count
         self.readers: CgroupReader = NullCgroupReader()
+        self.level = level  # RFC-0018: one run is one session of this slot
 
     # ---------------------------------------------------------------- public
 
     def run_many(self, base: JobSpec, repetitions: int) -> list[Path]:
-        below = repetitions < MIN_REPETITIONS  # allowed for tests, always marked
+        if self.level is not None and repetitions != 1:
+            raise IProofsError(ErrorKind.CONFIG, "a level run is one session; it takes no "
+                               "repetitions (RFC-0018 SE-1)")  # fmt: skip
+        below = repetitions < MIN_REPETITIONS and self.level is None  # tests; always marked
         self.repetitions = repetitions
         self._conform(base)
         return [
@@ -468,6 +585,8 @@ class Runner:
         results = Path(spec.results_root)
         run_id, staging = allocate_run_id(results, spec, date)
         job = Job(spec, run_id, staging, events=EventLog(clock=self.clock))
+        if self.level is not None:
+            job.level = {"id": self.level.id, "digest": self.level.digest}
         seed = self.replay_seed if seed is None else seed
         job.seed = int.from_bytes(os.urandom(8), "big") if seed is None else seed
         if below_minimum:
@@ -625,14 +744,19 @@ class Runner:
             )
         batch, batches = _run_shape(job)
         count = batch * batches
-        job.prompts = materialise_prompts(
-            self.root, job.workload, job.models, job.seed,
-            count=count, own_tokenizer=job.serving_record is not None,
-        )  # fmt: skip
+        if self.level is not None and self.load == "ladder":
+            job.prompts = self._ladder_prompts(job, count)
+        elif self.level is not None:
+            job.prompts = self._level_prompts(job, count)
+        else:
+            job.prompts = materialise_prompts(
+                self.root, job.workload, job.models, job.seed,
+                count=count, own_tokenizer=job.serving_record is not None,
+            )  # fmt: skip
         io = job.staging / "io"
         io.mkdir()
         job.prompt_set_digest = write_jsonl(io / "prompts.jsonl", job.prompts)
-        if count != job.workload.prompts.count:  # RFC-0015 SRV-8: an extended prompt set
+        if count != job.workload.prompts.count and self.load != "ladder":  # SRV-8: extended set
             prefix = job.staging / "logs/prompt-prefix.jsonl"
             job.prompt_prefix_digest = write_jsonl(
                 prefix, job.prompts[: job.workload.prompts.count]
@@ -649,6 +773,84 @@ class Runner:
                     ErrorKind.CONFIG, "a ref-recompute job needs --prompts-from a run with claims"
                 )
             write_jsonl(io / "claimed.jsonl", self.claims)
+
+    def _level_shape(self, job: Job) -> None:
+        lv, wl = self.level, job.workload
+        assert lv is not None
+        assert wl is not None
+        shape = (wl.shape.prompt_tokens, wl.shape.output_tokens)
+        if shape != (lv.prompt_tokens, lv.output_tokens):
+            raise IProofsError(ErrorKind.CONFIG, f"{wl.id} has shape {shape[0]} + {shape[1]} "
+                               f"tokens; {lv.id} requests {lv.prompt_tokens} + "
+                               f"{lv.output_tokens}")  # fmt: skip
+
+    def _ladder_prompts(self, job: Job, count: int) -> list[list[int]]:
+        """RFC-0018 CO-4: the rung's ladder prompts, after its slots' prompts and KL windows in
+        the beacon stream (`iproofs.level.baseline_prompts`). A workload that draws from a seed
+        (the fake systems) draws `count` prompts from the job's seed instead."""
+        lv, wl = self.level, job.workload
+        assert lv is not None
+        assert wl is not None
+        assert job.models is not None
+        self._level_shape(job)
+        if wl.prompts.generator != BEACON_WINDOW:
+            return materialise_prompts(self.root, wl, job.models, job.seed, count=count,
+                                       own_tokenizer=job.serving_record is not None)  # fmt: skip
+        if lv.beacon is None:
+            raise IProofsError(ErrorKind.CONFIG, f"{wl.id} draws from the {lv.id} beacon; "
+                               f"no levels/{lv.id}-beacon.json is stored yet")  # fmt: skip
+        from iproofs.level import (  # noqa: PLC0415 (Level 1 only)
+            baseline_prompts,
+            load_level,
+            rung_stream,
+            rung_tokenizer_workload,
+        )
+        from iproofs.workloads import (  # noqa: PLC0415
+            local_corpus,
+            pinned_corpus,
+            tokenizer_file,
+            tokenizer_for,
+        )
+
+        level = load_level(self.root, lv.id, registry=self.registry)
+        rung = level.rung(lv.rung)
+        digest = level.prompts.corpus_digest
+        texts = local_corpus(self.root, digest) or pinned_corpus(self.root, digest)
+        if texts is None:
+            raise IProofsError(ErrorKind.CONFIG, f"corpus {digest} is not available locally")
+        source = rung_tokenizer_workload(self.root, level, rung)
+        tokenizer = tokenizer_for(tokenizer_file(self.root, source, default_cache()))
+        stream = rung_stream(texts, tokenizer, level, rung, str(lv.beacon["randomness"]))
+        job.seed = generator_seed(wl, lv.beacon)
+        prompts = baseline_prompts(stream, level, rung)
+        if len(prompts) != count:
+            raise IProofsError(ErrorKind.CONFIG, f"{len(prompts)} ladder prompts, a run of "
+                               f"{count}")  # fmt: skip
+        return prompts
+
+    def _level_prompts(self, job: Job, count: int) -> list[list[int]]:
+        """RFC-0018 §Sessions: slot k's N prompts of the rung's stream. The workload's shape is
+        the level's request and its prompt count (one session) is the rung's N, or `config`
+        before any step. A `beacon-window/1` workload draws with the stored beacon record."""
+        lv, wl = self.level, job.workload
+        assert lv is not None
+        assert wl is not None
+        assert job.models is not None
+        self._level_shape(job)
+        if lv.slot is None:
+            raise IProofsError(ErrorKind.CONFIG, "a level session needs --session (RFC-0018)")
+        if wl.prompts.count != lv.requests or count != lv.requests:
+            raise IProofsError(ErrorKind.CONFIG, f"{wl.id} proves {count} prompts of a set of "
+                               f"{wl.prompts.count}; a {lv.id} session of rung {lv.rung} "
+                               f"proves {lv.requests}")  # fmt: skip
+        seed: int | Mapping[str, object] = job.seed
+        if wl.prompts.generator == BEACON_WINDOW:
+            if lv.beacon is None:
+                raise IProofsError(ErrorKind.CONFIG, f"{wl.id} draws from the {lv.id} beacon; "
+                                   f"no levels/{lv.id}-beacon.json is stored yet")  # fmt: skip
+            seed = lv.beacon
+        job.seed = generator_seed(wl, seed)  # the manifest's prompt_seed
+        return materialise_prompts(self.root, wl, job.models, seed, slot=lv.slot)
 
     def _resolve_inputs(
         self, job: Job, log: JsonlLogger | None = None, *, models: bool = True
@@ -715,6 +917,14 @@ class Runner:
         wl = job.workload
         if self.sizing_batches is not None:  # SRV-1: a sizing capture, matched load only
             job.run_shape = (wl.shape.batch_size, self._sizing(job, entry))
+        elif self.load == "ladder":  # RFC-0018 CO-4: one batch of every ladder prompt
+            if self.level is None:
+                raise IProofsError(ErrorKind.CONFIG, "--load ladder serves a level's baseline: "
+                                   "give --level (RFC-0018 CO-4)")  # fmt: skip
+            job.run_shape = (self.level.ladder_prompts, 1)
+            job.ladder = {"ladder": list(self.level.ladder),
+                          "warmup_batches": self.level.warmup_batches,
+                          "timed_batches": self.level.timed_batches}  # fmt: skip
         elif self.load == "high":
             job.run_shape = (entry.batch_size or wl.shape.batch_size,
                              max(wl.shape.batches_per_session, 2))  # fmt: skip
@@ -896,8 +1106,9 @@ class Runner:
         extra: dict[str, object],
         io: Path | None = None,
         *,
-        control: bool = False,
+        control: bool | Mapping[str, object] = False,
         ro_mounts: Sequence[tuple[Path, str]] = (),
+        trace_dir: Path | None = None,
     ) -> tuple[AdapterOut, StepResult]:
         assert job.system is not None
         assert job.workload is not None
@@ -918,7 +1129,7 @@ class Runner:
                     "batches_per_session": shape.batches_per_session,
                     "context_window": shape.context_window,
                 },
-                "control": control,
+                "control": control if isinstance(control, bool) else dict(control),
                 **extra,
             },
         )
@@ -937,7 +1148,7 @@ class Runner:
         sampler.start()
         idle.start()
         try:
-            result = self._run_container(job, sub, io, cpuset, mems, ro_mounts)
+            result = self._run_container(job, sub, io, cpuset, mems, ro_mounts, trace_dir)
         except BaseException:
             sampler.stop(0, 0)  # the call failed before it ended; nothing is recorded
             idle.stop()
@@ -972,7 +1183,7 @@ class Runner:
                 "exit_code": result.exit_code,
             }
         )
-        return self._after_call(job, sub, io, result, control)
+        return self._after_call(job, sub, io, result, bool(control))
 
     def _run_container(
         self,
@@ -982,24 +1193,22 @@ class Runner:
         cpuset: str,
         mems: str,
         ro_mounts: Sequence[tuple[Path, str]],
+        trace_dir: Path | None = None,
     ) -> StepResult:
         assert job.system is not None
-        return self.containers.run(
-            job.image,
-            sub,
-            io,
-            models_dir=job.models if sub != "verify" else None,
-            gpu=self._gpu_arg(sub),
-            cpuset=cpuset,
-            mems=mems,
-            memory=None,
-            timeout_s=job.system.timeout(sub),
-            ro_mounts=ro_mounts,
-            log_sinks=[
-                job.logs.setdefault(f"{job.log_prefix}{sub}.{s}", Capture())
-                for s in ("stdout", "stderr")
-            ],
-        )
+        sinks = [job.logs.setdefault(f"{job.log_prefix}{sub}.{s}", Capture())
+                 for s in ("stdout", "stderr")]  # fmt: skip
+        models = job.models if sub not in ("verify", "mutate_reply") else None
+        timeout = job.system.timeout(sub)
+        if trace_dir is None:  # the call of every run before RFC-0018
+            return self.containers.run(job.image, sub, io, models_dir=models,
+                                       gpu=self._gpu_arg(sub), cpuset=cpuset, mems=mems,
+                                       memory=None, timeout_s=timeout, ro_mounts=ro_mounts,
+                                       log_sinks=sinks)  # fmt: skip
+        return self.containers.run(job.image, sub, io, models_dir=models, gpu=self._gpu_arg(sub),
+                                   cpuset=cpuset, mems=mems, memory=None, timeout_s=timeout,
+                                   ro_mounts=ro_mounts, log_sinks=sinks,
+                                   trace_dir=trace_dir)  # fmt: skip
 
     def _gpu_arg(self, sub: str) -> int | str | None:
         """The container runner's GPU: the one bound index, or a serving job's list
@@ -1012,7 +1221,7 @@ class Runner:
     def _after_call(
         self, job: Job, sub: str, io: Path, result: StepResult, control: bool
     ) -> tuple[AdapterOut, StepResult]:
-        if sub != "verify" and not control:  # a control call never moves the run's timing
+        if sub not in UNTIMED and not control:  # never moves the run's timing
             job.steps[sub] = result
             job.events.record(f"{sub}.start", result.started_mono_ns)
             job.events.record(f"{sub}.end", result.ended_mono_ns)
@@ -1045,6 +1254,7 @@ class Runner:
             {"name": i.name, "url": i.url, "digest": i.digest} for i in out.image_inputs or ()
         ]
         job.adapter_build = (out.adapter_commit, out.adapter_dirty)  # baked in at build (B6)
+        job.optional_subcommands = tuple(out.optional_subcommands or ())
         pinned = job.system.upstream.commit if job.system.upstream else None
         if pinned is not None and out.upstream_commit != pinned:
             raise IProofsError(
@@ -1052,13 +1262,15 @@ class Runner:
                 f"info reports upstream {out.upstream_commit}, system.yaml pins {pinned}",
             )
 
-    def _setup(self, job: Job) -> None:
-        self._call(job, "setup", {})
+    def _setup(self, job: Job, control: Mapping[str, object] | None = None) -> None:
+        self._call(job, "setup", {}, control=control or False)
 
-    def _commit(self, job: Job) -> None:
+    def _commit(self, job: Job, control: Mapping[str, object] | None = None) -> None:
         """RFC-0014 §The commitment record: copy the commit step's files into a store no
         later container mounts read-write, and record their digests."""
-        job.commit, _ = self._call(job, "commit", {"model_dir": "/models"})
+        job.commit, _ = self._call(
+            job, "commit", {"model_dir": "/models"}, control=control or False
+        )
         io = IoDirs(job.staging / "io")
         records: dict[str, object] = {"commitment_id": job.commit.commitment_id}
         for kind, side in STORE_SIDES.items():
@@ -1133,7 +1345,7 @@ class Runner:
                     )
         return found
 
-    def _prove(self, job: Job, log: JsonlLogger | None = None) -> None:  # noqa: PLR0912
+    def _prove(self, job: Job, log: JsonlLogger | None = None) -> None:  # noqa: PLR0912, PLR0915
         assert job.system is not None
         assert job.workload is not None
         reference = _reference(job)  # RFC-0015: no commitment, outputs instead of proofs
@@ -1148,6 +1360,8 @@ class Runner:
             incremental_proofs=job.system.incremental_proofs,
         )
         watcher.start()
+        marks = ReleaseWatcher(job.staging / "io/marks", clock=self.clock, names=MARKS)
+        marks.start()
         fields: dict[str, object] = {"claims_file": "/io/claimed.jsonl"} if _recompute(job) else {}
         try:
             out, _ = self._call(
@@ -1173,6 +1387,7 @@ class Runner:
             raise
         finally:
             end = job.steps["prove"].ended_mono_ns if "prove" in job.steps else None
+            job.marks = [(m.proof_id, m.mono_ns) for m in marks.stop(call_end_ns=end)]
             releases = watcher.stop(call_end_ns=end)
         problem = engine_command_problem(job.staging / "io", _engine_args(job), required=True)
         if reference and problem is not None:
@@ -1183,6 +1398,11 @@ class Runner:
             message = "a production-serving run needs the inotify release watcher; it polled"
             raise IProofsError(ErrorKind.ENVIRONMENT, message, step="prove")
         job.warnings += check_proofs(IoDirs(job.staging / "io"), out, job.system)
+        job.warnings += [f"prove: {w}" for w in out.warnings]  # the adapter's, e.g. a ladder's
+        # RFC-0017 INV-REQ-2; under a level, every request claims the level's reply (AD-1)
+        check_requests(
+            out, self.level.output_tokens if self.level else job.workload.shape.output_tokens
+        )
         watcher.check_unchanged()
         job.proofs, job.observable = out, watcher.observable
         if _recompute(job):
@@ -1228,6 +1448,8 @@ class Runner:
         assert job.commit is not None
         entries = {p.proof_id: p for p in job.proofs.proofs or ()}
         (job.staging / "verifier").mkdir()
+        if job.level is not None:
+            self._weights_away(job)
         for i, (proof_id, _) in enumerate(job.releases):
             seconds, verdict = self._verify_one(job, proof_id, entries[proof_id], single=False)
             job.verify_seconds[proof_id], job.verdicts[proof_id] = seconds, verdict
@@ -1252,6 +1474,112 @@ class Runner:
         if failure is not None:
             raise failure
         self._archive(job)
+
+    def _mode(self) -> str:
+        if isinstance(self.containers, DockerRunner):
+            return DockerRunner.MODE
+        return "hosted" if self.hosted else "in-process"
+
+    def _weights_away(self, job: Job) -> None:
+        """RFC-0018 CH-4 (b), after the last prove and before the first verify: the model
+        paths a trace is matched against, taken while the files exist; then, in a hosted
+        container, the workload's weights removed from the cache. Docker never mounts them
+        into a verify container; repository test data (the fake systems) is never removed."""
+        assert job.workload is not None
+        job.model_paths = model_paths(job.workload, job.models)
+        cached = job.workload.model.source.hub != "repository" and job.serving_record is None
+        if self._mode() != "hosted" or job.models is None or not cached:
+            return
+        for p in [job.models, *job.models.rglob("*")]:  # the cache entry is read-only
+            if p.is_dir() and not p.is_symlink():
+                p.chmod(0o700)
+        shutil.rmtree(job.models)
+        job.models_removed = True
+
+    def _verify_trace(self, job: Job, proof_id: str, trace_dir: Path, result: StepResult) -> None:
+        """RFC-0018 CH-4: `verify-trace/<proof_id>.json`, the reduction of the verify call's
+        file-open trace, whether a GPU was visible to it and whether the workload's model
+        files were on its filesystem. No trace file means no trace tool ran: `tool` null."""
+        assert job.model_paths is not None
+        paths, mode = job.model_paths, self._mode()
+        docker = mode == DockerRunner.MODE
+        raw = trace_dir / TRACE_FILE
+        text = raw.read_text("utf-8", errors="replace") if raw.is_file() else None
+        realpath: Callable[[str], str] = (lambda p: p) if docker else os.path.realpath
+        reduced = reduce_strace(text or "", paths.files, paths.dirs, realpath)
+
+        def size(path: str) -> int | None:
+            if docker or not os.path.isabs(path):  # a container path, or relative to its cwd
+                return None
+            try:
+                return os.stat(path).st_size if os.path.isfile(path) else None
+            except OSError:
+                return None
+
+        if docker:  # INV: a verify container is given neither a GPU nor /models
+            given_gpu = "--gpus" in result.argv
+            present = any(a.endswith((":/models:ro", ":/models")) for a in result.argv)
+        else:
+            given_gpu = self._gpu_arg("verify") is not None
+            present = any(p.exists() for p in paths.host_files)
+        doc: dict[str, object] = {
+            "schema": "verify-trace/1",
+            "run_id": job.run_id,
+            "proof_id": proof_id,
+            "mode": mode,
+            "tool": "strace" if text is not None else None,
+            "trace": None
+            if text is None
+            else {"digest": file_digest(raw), "bytes": raw.stat().st_size},
+            "opened": [{"path": p, "bytes": size(p)} for p in reduced.opened],
+            "failed_opens": reduced.failed,
+            "model_files_opened": [{"path": c.path, "ok": c.ok} for c in reduced.model_files],
+            "gpu_devices_opened": list(reduced.gpu_devices),
+            "gpu_visible": given_gpu or bool(reduced.gpu_devices),
+            "model_files_present": present,
+            "model_files_removed": job.models_removed,
+        }
+        errors = self.registry.errors("verify-trace/1", doc)
+        if errors:
+            raise IProofsError(ErrorKind.INTERNAL, f"verify-trace fails its schema: {errors[0]}")
+        (job.staging / VERIFY_TRACE).mkdir(exist_ok=True)
+        write_json(job.staging / VERIFY_TRACE / f"{proof_id}.json", doc)
+
+    def logprobs(self, job: Job, texts: Sequence[Sequence[int]], vocab: int) -> list[Path] | None:
+        """RFC-0018 AD-2, FI-7: the system's own next-token distributions over each KL text, from
+        the optional `logprobs` subcommand with the run's commitment and prover files. Each
+        returned file holds, for the scored positions only (the second half of the text), one
+        row of `vocab` float16 log-probabilities per position, row r predicting token
+        len(text)/2 + r + 1. The files are large, so the paths are returned, each size checked.
+        None, the defined unsupported outcome, when `info` does not list it; nothing is called."""
+        if "logprobs" not in job.optional_subcommands:
+            return None
+        assert job.commit is not None
+        io = job.staging / "logprobs-io"
+        io.mkdir(parents=True)
+        write_jsonl(io / "texts.jsonl", [list(t) for t in texts])
+        recorded = self._recorded(job, "prover_files", job.staging / "prover-ro", "logprobs")
+        ro = list(zip(recorded, job.commit.prover_files or (), strict=True))
+        out, _ = self._call(job, "logprobs", {
+            "commitment_id": job.commit.commitment_id,
+            "prover_files": list(job.commit.prover_files or ()),
+            "model_dir": "/models",
+            "texts_file": "/io/texts.jsonl",
+        }, io=io, ro_mounts=ro)  # fmt: skip
+        files = out.logprobs_files or ()
+        if len(files) != len(texts):
+            raise IProofsError(ErrorKind.ADAPTER, f"logprobs: {len(files)} files for "
+                               f"{len(texts)} texts", step="logprobs")  # fmt: skip
+        paths = []
+        for text, name in zip(texts, files, strict=True):
+            path = IoDirs(io).host(name, "logprobs")
+            rows = max(len(text) - len(text) // 2 - 1, 0)
+            if path.stat().st_size != 2 * rows * vocab:
+                raise IProofsError(ErrorKind.ADAPTER, f"logprobs: {name} has "
+                                   f"{path.stat().st_size} bytes, not 2 x {rows} x {vocab}",
+                                   step="logprobs")  # fmt: skip
+            paths.append(path)
+        return paths
 
     def _check_proof(self, job: Job, proof_id: str, step: str) -> None:
         """RFC-0014: the proof's digest, rechecked immediately before a verify or a control
@@ -1286,6 +1614,10 @@ class Runner:
         shutil.copytree(job.staging / "io/proofs" / proof_id, io / "proof")
         files = self._verifier_files(job, io)
         request_index = entry.request_index
+        traced = job.level is not None and not single
+        trace_dir = job.staging / "verify" / f"{proof_id}-trace" if traced else None
+        if trace_dir is not None:
+            trace_dir.mkdir(parents=True)
         out, result = self._call(
             job,
             "verify",
@@ -1299,7 +1631,10 @@ class Runner:
             },
             io=io,
             ro_mounts=[(io / "verifier", "/io/verifier")] if files else [],
+            trace_dir=trace_dir,
         )
+        if trace_dir is not None:
+            self._verify_trace(job, proof_id, trace_dir, result)
         result_path = job.staging / "verifier" / f"{proof_id}{'-1cpu' if single else ''}.json"
         write_json(
             result_path,
@@ -1353,7 +1688,7 @@ class Runner:
         return VerifyCall("twin", 0, str(job.commit.commitment_id), honest.request,
                           honest.claimed_output, honest_dir, parts, {})  # fmt: skip
 
-    def _control_prove(
+    def _control_prove(  # noqa: PLR0913 (keyword-only options of one control prove)
         self,
         job: Job,
         control_id: str,
@@ -1363,6 +1698,8 @@ class Runner:
         models: Path | None = None,
         batches: int | None = None,
         log: JsonlLogger | None = None,
+        trial: int = 0,
+        control: Mapping[str, object] | None = None,
     ) -> tuple[list[VerifyCall], object]:
         """A `prove` with `control: true` in its own io dir: the run's commitment and prover
         files, optionally other weights (P1) or explicit flags (weakened provers). Returns the
@@ -1372,11 +1709,14 @@ class Runner:
         assert job.workload is not None
         commitment = str(job.commit.commitment_id)
         shape = job.workload.shape
-        io = work / f"prove-{control_id}"
+        io = work / (f"prove-{control_id}" + (f"-{trial}" if trial else ""))
         io.mkdir(parents=True)
         shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
         if (job.staging / "io/state").is_dir():
             shutil.copytree(job.staging / "io/state", io / "state")
+        if models is None and job.models_removed:  # hosted level run: fetched again (CH-4)
+            job.models = self._models(job.workload, log)
+            job.models_removed = False
         honest_models = job.models
         job.models = models or honest_models
         try:
@@ -1393,7 +1733,7 @@ class Runner:
                     "control_flags": list(flags),
                 },
                 io=io,
-                control=True,
+                control=control or True,
             )
         finally:
             job.models = honest_models
@@ -1427,7 +1767,68 @@ class Runner:
         made_for = (record.source_model_digest, record.workload["version"])
         if made_for != (job.workload.model.digest, job.workload.version):
             return "the perturbed commitment was made from other weights or workload version"
+        if job.level is not None and "digest_w_prime" not in record.perturbation:
+            return ("the perturbed commitment was not made by the adapter's perturb with the "
+                    "level's model change (RFC-0018 CH-2, AD-5)")  # fmt: skip
         return record
+
+    def _mutator(self, job: Job, work: Path, log: JsonlLogger | None) -> Mutator:
+        """RFC-0018 AD-6: the adapter's `mutate_reply` on a copy of an honest proof, in its own
+        io dir, with neither the weights nor a GPU. The adapter decides nothing here; the
+        mutated proof goes to verify like any control's."""
+        calls = 0
+
+        def mutate(
+            target: HonestProof, proof: Path, position: int, token: int, k: int
+        ) -> tuple[Path, Mapping[str, object]]:
+            nonlocal calls
+            calls += 1
+            self._check_proof(job, target.proof_id, "controls")
+            io = work / f"mutate-{calls}"
+            shutil.copytree(proof, io / "proof")
+            fields = {"proof_dir": "/io/proof", "position": position, "token": token,
+                      "out_dir": "/io/mutated"}  # fmt: skip
+            out, result = self._call(job, "mutate_reply", fields, io=io, control=True)
+            self._log_call(log, job, "C1", k, "mutate_reply", result)
+            shutil.rmtree(io / "proof")
+            mutated = io / "mutated"
+            files = sorted(mutated.iterdir()) if mutated.is_dir() else []
+            if (
+                out.mutated is None
+                or not files
+                or any(p.is_symlink() or not p.is_file() for p in files)
+            ):
+                raise IProofsError(ErrorKind.ADAPTER, "mutate_reply: /io/mutated holds no proof "
+                                   "of regular files", step="controls")  # fmt: skip
+            return mutated, dict(out.mutated)
+
+        return mutate
+
+    def _perturb(self, job: Job, change: str, weights: Path) -> dict[str, object]:
+        """RFC-0018 AD-5: the adapter's `perturb` writes W' to /io/perturbed, from the model
+        directory and the level's change; W' moves to `weights` (the cache entry P1 reads)
+        and the adapter's record of the change is returned."""
+        if "perturb" not in job.optional_subcommands:
+            raise IProofsError(ErrorKind.CONFIG, f"{job.spec.system} lists no perturb "
+                               "subcommand: MODEL has no W' (RFC-0018 AD-5)")  # fmt: skip
+        io = job.staging / "perturb-io"
+        io.mkdir()
+        fields: dict[str, object] = {"change": change, "model_dir": "/models",
+                                     "out_dir": "/io/perturbed"}  # fmt: skip
+        out, _ = self._call(job, "perturb", fields, io=io, control=True)
+        made = io / "perturbed"
+        if out.perturbation is None or not made.is_dir() or not any(made.iterdir()):
+            raise IProofsError(ErrorKind.ADAPTER, "perturb wrote no model to /io/perturbed",
+                               step="perturb")  # fmt: skip
+        weights.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(made, weights)
+        return dict(out.perturbation)
+
+    def _no_perturb(self, job: Job) -> str | None:
+        """RFC-0018 AD-5: under a level, MODEL needs W' from the adapter's own `perturb`."""
+        if job.level is not None and "perturb" not in job.optional_subcommands:
+            return "the adapter lists no perturb subcommand, so MODEL has no W' (RFC-0018 AD-5)"
+        return None
 
     def _prover_controls(
         self,
@@ -1444,20 +1845,30 @@ class Runner:
             return []
         twin = self._honest_twin(job)
 
-        def p1() -> list[VerifyCall]:
+        def p1(k: int = 0) -> list[VerifyCall]:
             if isinstance(perturbed, str):
                 raise NotApplicable(perturbed)
             weights = perturbed_weights(perturbed)
             if weights is None:
                 raise NotApplicable("the perturbed weights are not on this host")
-            return self._control_prove(job, "P1", work, models=weights, batches=1, log=log)[0]
+            control = None
+            if job.level is not None:  # RFC-0018: the job says which control and which W'
+                control = {"id": "P1", "perturbation": dict(perturbed.perturbation)}
+            return self._control_prove(job, "P1", work, models=weights, batches=1, log=log,
+                                       trial=k, control=control)[0]  # fmt: skip
 
         def p2() -> list[VerifyCall]:
             raise NotApplicable("the workload declares one precision")
 
         builds = {"P1": p1, "P2": p2}
         return [
-            prover_side_record(cid, EXPECTED[cid], "shared", builds[cid], lambda: [twin], verify)
+            level_control_record(
+                "P1", [Series({}, p1)], lambda: [twin], verify, side="prover", trials=LEVEL_TRIALS
+            )
+            if cid == "P1" and job.level is not None
+            else prover_side_record(
+                cid, EXPECTED[cid], "shared", builds[cid], lambda: [twin], verify
+            )
             for cid in wanted
         ]
 
@@ -1514,7 +1925,7 @@ class Runner:
         work = job.staging / "controls-io"
         trials = 0
 
-        perturbed = self._perturbed(job)
+        perturbed = self._no_perturb(job) or self._perturbed(job)
         store = perturbed_dir(Path(job.spec.results_root), job.spec.release, job.spec.system,
                               job.spec.workload) / "commitment"  # fmt: skip
 
@@ -1572,6 +1983,11 @@ class Runner:
             check=lambda proof_id: self._check_proof(job, proof_id, "controls"),
             only=only,
             reads=reads,
+            level=job.level is not None,
+            no_perturbed=perturbed if isinstance(perturbed, str) else "",
+            mutate=self._mutator(job, work, log)
+            if job.level is not None and "mutate_reply" in job.optional_subcommands
+            else None,
         )
         for r in records:
             for t in r["trials"]:  # type: ignore[attr-defined]
@@ -1727,9 +2143,9 @@ class Runner:
         write_text(job.staging / "digests.txt", "".join(sorted(lines)))
         # proof bytes never stay in a run directory (RFC-0009) unless --keep-io (RFC-0010)
         for scratch in (
-            ("prover-ro", "verify", "controls-io")
+            ("prover-ro", "verify", "controls-io", "logprobs-io")
             if self.keep_io
-            else (*SCRATCH, "io", "verify", "controls-io")
+            else (*SCRATCH, "io", "verify", "controls-io", "logprobs-io")
         ):
             shutil.rmtree(job.staging / scratch, ignore_errors=True)
         (job.staging / "job.lock").unlink()
@@ -1841,36 +2257,40 @@ class Runner:
     ) -> dict[str, object]:
         spec = job.spec
         tokens = self._tokens(job) if metrics else [(0, 0)] * len(job.releases)
-        return {
-            "schema": "run/1",
-            "run_id": job.run_id,
-            "release": spec.release,
-            "system": spec.system,
-            "workload": {"id": spec.workload, "version": spec.workload_version},
-            "profile": spec.profile,
-            "repetition": spec.repetition,
-            "control": False,
-            "system_kind": job.system.kind if job.system else "test",
-            "claim": claim,
-            "status": "failed" if job.failure else "completed",
-            "failure": job.failure.to_json() if job.failure else None,
-            "replaces": None,
-            "raw": {},
-            "adapter_phases": {},
-            "metrics": metrics,
-            "events": job.events.events,
-            "proofs": [
-                {
-                    "proof_id": pid,
-                    "release_mono_ns": ns,
-                    "tokens_covered": sum(tokens[i]),
-                    "verdict": job.verdicts.get(pid),
-                }
-                | self._claim(job, pid)
-                for i, (pid, ns) in enumerate(job.releases)
-            ],
-            "warnings": list(job.warnings),
-        } | ({"inputs": self._run_inputs(job)} if metrics and job.workload else {})
+        return (
+            {
+                "schema": "run/1",
+                "run_id": job.run_id,
+                "release": spec.release,
+                "system": spec.system,
+                "workload": {"id": spec.workload, "version": spec.workload_version},
+                "profile": spec.profile,
+                "repetition": spec.repetition,
+                "control": False,
+                "system_kind": job.system.kind if job.system else "test",
+                "claim": claim,
+                "status": "failed" if job.failure else "completed",
+                "failure": job.failure.to_json() if job.failure else None,
+                "replaces": None,
+                "raw": {},
+                "adapter_phases": {},
+                "metrics": metrics,
+                "events": job.events.events,
+                "proofs": [
+                    {
+                        "proof_id": pid,
+                        "release_mono_ns": ns,
+                        "tokens_covered": sum(tokens[i]),
+                        "verdict": job.verdicts.get(pid),
+                    }
+                    | self._claim(job, pid)
+                    for i, (pid, ns) in enumerate(job.releases)
+                ],
+                "warnings": list(job.warnings),
+            }
+            | ({"inputs": self._run_inputs(job)} if metrics and job.workload else {})
+            | ({"marks": [{"name": n, "mono_ns": ns} for n, ns in job.marks]} if job.marks else {})
+        )
 
     def _run_inputs(self, job: Job) -> dict[str, QuantityTree]:
         """run.json `inputs`: the workload's asserted inputs (RFC-0003 WB-4) and, for a profile
@@ -1916,81 +2336,106 @@ class Runner:
         )
         source = wl.model.source
         verifier = self._verifier_profile(job)
-        return {
-            "schema": "manifest/1",
-            "run_id": job.run_id,
-            "release": spec.release,
-            "control": False,
-            "harness": {
-                "version": __version__,
-                "git_commit": harness_commit,
-                "git_dirty": harness_dirty,
-                "lock_digest": file_digest(self.root / "uv.lock"),
-                "nonconforming": bool(self.nonconforming),
-            },
-            "runner": {
-                "handle": self.operator.handle,
-                "organisation": self.operator.organisation,
-                "affiliated_systems": list(self.operator.affiliated_systems),
-            },
-            "claim": claim,
-            "provider": self.provider,
-            "system": {
-                "name": system.name,
-                "system_manifest_digest": file_digest(
-                    self.root / "systems" / system.name / "system.yaml"
-                ),
-                "claim_digest": file_digest(card) if card else None,
-                "upstream": (
-                    {"repo": system.upstream.repo, "commit": system.upstream.commit}
-                    if system.upstream
-                    else None
-                ),
-                # the image's own record when it bakes one in (B6), else this checkout's
-                "adapter_commit": job.adapter_build[0]
-                if re.fullmatch(r"[0-9a-f]{40}", job.adapter_build[0] or "")
-                else harness_commit,
-                "adapter_dirty": adapter_dirty
-                if job.adapter_build[1] is None
-                else job.adapter_build[1],
-                "image": {
-                    "ref": job.image,
-                    "digest_kind": "config" if job.image.startswith("local/") else "manifest",
+        return (
+            {
+                "schema": "manifest/1",
+                "run_id": job.run_id,
+                "release": spec.release,
+                "control": False,
+                "harness": {
+                    "version": __version__,
+                    "git_commit": harness_commit,
+                    "git_dirty": harness_dirty,
+                    "lock_digest": file_digest(self.root / "uv.lock"),
+                    "nonconforming": bool(self.nonconforming),
                 },
-                "image_inputs": job.image_inputs,
-            },
-            "workload": {
-                "id": wl.id,
-                "version": wl.version,
-                "file_digest": workload_digest(self.root, wl.id),
-                "model": {
-                    "source": f"{source.hub}:{source.path or source.repo}",
-                    "revision": wl.model.revision,
-                    "digest": wl.model.digest,
+                "runner": {
+                    "handle": self.operator.handle,
+                    "organisation": self.operator.organisation,
+                    "affiliated_systems": list(self.operator.affiliated_systems),
                 },
-                "corpus_digest": wl.prompts.corpus_digest,
-                "prompt_seed": f"0x{job.seed:016x}",
-                "prompt_set_digest": job.prompt_set_digest,
-                "steady_rule": STEADY_RULE,  # RFC-0004 INV-SCOPE-5
+                "claim": claim,
+                "provider": self.provider,
+                "system": {
+                    "name": system.name,
+                    "system_manifest_digest": file_digest(
+                        self.root / "systems" / system.name / "system.yaml"
+                    ),
+                    "claim_digest": file_digest(card) if card else None,
+                    "upstream": (
+                        {"repo": system.upstream.repo, "commit": system.upstream.commit}
+                        if system.upstream
+                        else None
+                    ),
+                    # the image's own record when it bakes one in (B6), else this checkout's
+                    "adapter_commit": job.adapter_build[0]
+                    if re.fullmatch(r"[0-9a-f]{40}", job.adapter_build[0] or "")
+                    else harness_commit,
+                    "adapter_dirty": adapter_dirty
+                    if job.adapter_build[1] is None
+                    else job.adapter_build[1],
+                    "image": {
+                        "ref": job.image,
+                        "digest_kind": "config" if job.image.startswith("local/") else "manifest",
+                    },
+                    "image_inputs": job.image_inputs,
+                }
+                | (
+                    {"optional_subcommands": list(job.optional_subcommands)}
+                    if job.optional_subcommands
+                    else {}
+                ),
+                "workload": {
+                    "id": wl.id,
+                    "version": wl.version,
+                    "file_digest": workload_digest(self.root, wl.id),
+                    "model": {
+                        "source": f"{source.hub}:{source.path or source.repo}",
+                        "revision": wl.model.revision,
+                        "digest": wl.model.digest,
+                    },
+                    "corpus_digest": wl.prompts.corpus_digest,
+                    "prompt_seed": f"0x{job.seed:016x}",
+                    "prompt_set_digest": job.prompt_set_digest,
+                    "steady_rule": STEADY_RULE,  # RFC-0004 INV-SCOPE-5
+                }
+                | self._serving_workload(job),
+                "profile": {
+                    "prover": spec.profile,
+                    "verifier": verifier,
+                    "verifier_host": "same_as_prover",
+                    "reference_file": job.reference_file,
+                    "reference_digest": file_digest(self.root / job.reference_file),
+                },
+                "machine": job.machine,
+                # the host's last self-test from this harness version (RFC-0011); none: ineligible
+                "prompts_from": self.prompts_from,
+                "self_test": selftest.saved(Path(job.spec.results_root))
+                or {"passed": False, "checks": []},
+                "commands": job.commands,
+                "commitment": job.commitment_record if system.kind != "reference" else None,
+                "proofs": job.proof_records,
+                "warnings": job.warnings,
             }
-            | self._serving_workload(job),
-            "profile": {
-                "prover": spec.profile,
-                "verifier": verifier,
-                "verifier_host": "same_as_prover",
-                "reference_file": job.reference_file,
-                "reference_digest": file_digest(self.root / job.reference_file),
-            },
-            "machine": job.machine,
-            # the host's last self-test from this harness version (RFC-0011); none: ineligible
-            "prompts_from": self.prompts_from,
-            "self_test": selftest.saved(Path(job.spec.results_root))
-            or {"passed": False, "checks": []},
-            "commands": job.commands,
-            "commitment": job.commitment_record if system.kind != "reference" else None,
-            "proofs": job.proof_records,
-            "warnings": job.warnings,
-        } | self._serving_manifest(job)
+            | self._serving_manifest(job)
+            | self._level_manifest(job)
+        )
+
+    def _level_manifest(self, job: Job) -> dict[str, object]:
+        """RFC-0018: a level session's level file by digest and its slot, rung and request
+        count, with the beacon round its prompts were drawn from (null for a workload that
+        draws from a seed)."""
+        lv = self.level
+        if lv is None or job.level is None:
+            return {}
+        beacon = None
+        if lv.beacon is not None and job.workload is not None \
+                and job.workload.prompts.generator == BEACON_WINDOW:  # fmt: skip
+            beacon = {"round": lv.beacon["round"], "seed": f"0x{job.seed:016x}"}
+        requests = lv.requests if lv.slot is not None else len(job.prompts)
+        return {"level": dict(job.level),
+                "session": {"slot": lv.slot, "rung": lv.rung, "requests": requests,
+                            "beacon": beacon}}  # fmt: skip
 
     def _serving_workload(self, job: Job) -> dict[str, object]:
         """RFC-0010 manifest `workload` fields of a production-serving run (SRV-1, SRV-8)."""
@@ -2173,6 +2618,7 @@ def _statistic(values: list[float], unit: Unit, scope: Scope | None, ref: str) -
         "stdev": statistics.stdev(values) if len(values) >= 2 else None,
         "min": min(values),
         "max": max(values),
+        "median": statistics.median(values),  # RFC-0017 ST-1
     }
     return q
 
@@ -2415,6 +2861,8 @@ def controls_for_run(  # noqa: PLR0915 (one check per refusal)
         )
     manifest = json.loads((run_dir / "manifest.json").read_text())
     job.image = manifest["system"]["image"]["ref"]
+    job.level = manifest.get("level")  # a level session's suite (RFC-0018 CH-1)
+    job.optional_subcommands = tuple(manifest["system"].get("optional_subcommands", ()))
     job.commitment_record = manifest["commitment"]  # digests rechecked before every verify
     job.proof_records = manifest["proofs"]  # proof digests rechecked before every control
     if not (run_dir / COMMITMENT_STORE).is_dir():
@@ -2486,12 +2934,18 @@ def perturbed_dir(results_root: Path, release: str, system: str, workload: str) 
     return results_root / release / system / "_controls" / workload
 
 
-def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
+def prepare_perturbed(
+    runner: Runner, spec: JobSpec, cache: Path, change: str | None = None
+) -> Path:
     """`iproofs controls --prepare-perturbed WORKLOAD` (RFC-0008 C3 and P1): perturb one
     element of the workload's weights into `<cache>/perturbed/<model digest>/`, commit that
     copy through the adapter, and store the commit record and its files under
     `results/<release>/<system>/_controls/<workload>/`. Once per workload per release; the
-    perturbed weights stay in the cache on this host."""
+    perturbed weights stay in the cache on this host.
+
+    With `change` (a level's `systems.<id>.model_change`, RFC-0018 CH-2), W' comes from the
+    adapter's own `perturb` subcommand (AD-5), refused when its `info` does not list it, and
+    the setup and commit of W' run as control C3 with that perturbation in their job."""
     import tempfile  # noqa: PLC0415
 
     out = perturbed_dir(Path(spec.results_root), spec.release, spec.system, spec.workload)
@@ -2509,24 +2963,31 @@ def prepare_perturbed(runner: Runner, spec: JobSpec, cache: Path) -> Path:
         source = model_digest(job.models)
         weights = cache / "perturbed" / source.removeprefix("sha256:")
         shutil.rmtree(weights, ignore_errors=True)
-        try:
-            change = perturb_model(job.models, weights)
-        except NotApplicable as e:
-            raise IProofsError(ErrorKind.CONFIG, f"cannot perturb {spec.workload}: {e}") from e
+        control: dict[str, object] | None = None
+        if change is not None:
+            perturbation: dict[str, object] = runner._perturb(job, change, weights)
+            control = {"id": "C3", "perturbation": perturbation}
+        else:
+            try:
+                perturbation = asdict(perturb_model(job.models, weights))
+            except NotApplicable as e:
+                raise IProofsError(ErrorKind.CONFIG, f"cannot perturb {spec.workload}: {e}") from e
         job.models = weights
-        runner._commit(job)
-        record: dict[str, object] = {
+        if control is not None:
+            runner._setup(job, control)
+        runner._commit(job, control)
+        record: dict[str, Any] = {
             "schema": "perturbed-commitment/1",
             "release": spec.release,
             "system": spec.system,
             "workload": {"id": job.workload.id, "version": job.workload.version},
             "source_model_digest": source,
             "model_digest": model_digest(weights),
-            "perturbation": asdict(change),
+            "perturbation": perturbation,
             "commitment": job.commitment_record,
             "image": job.image,
             "harness_version": __version__,
-        }
+        } | ({"change": change} if change is not None else {})
         errors = runner.registry.errors("perturbed-commitment/1", record)
         if errors:
             raise IProofsError(ErrorKind.INTERNAL, "perturbed.json: " + "; ".join(errors))
@@ -2612,7 +3073,7 @@ def _serving_fields(job: Job) -> dict[str, object]:
     if entry is None:
         return {}
     gpus = {"gpus": entry.gpus} if entry.gpus is not None else {}
-    return {"load_point": entry.load_point or "matched", **gpus}
+    return {"load_point": entry.load_point or "matched", **gpus, **(job.ladder or {})}
 
 
 def _engine_args(job: Job) -> tuple[str, ...]:

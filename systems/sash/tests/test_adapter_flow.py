@@ -115,8 +115,14 @@ def test_verify_outcomes(step: Step, proved: dict[str, Any], monkeypatch: pytest
     assert out["raw_last_line"]
 
 
-def test_verify_rejects_another_output(step: Step, proved: dict[str, Any]) -> None:
-    assert verify(step, proved, claimed=[*TOK[:-1], 7])["verdict"] == "reject"
+def test_another_claimed_output_is_a_note_not_a_verdict(step: Step, proved: dict[str, Any]) -> None:
+    """RFC-0018 AD-6: boundary-grid takes no claimed output, so the adapter's comparison with the
+    proof's ids is recorded and decides nothing."""
+    out = verify(step, proved, claimed=[*TOK[:-1], 7])
+    assert out["verdict"] == "accept"
+    [note] = out["warnings"]
+    assert note.startswith("note: claimed_output is not")
+    assert verify(step, proved)["warnings"] == []
 
 
 def test_verify_refuses_files_other_than_the_commitment(

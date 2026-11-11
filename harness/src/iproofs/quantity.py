@@ -31,6 +31,15 @@ class Unit(StrEnum):
     GPU_S_PER_TOKEN = "gpu_s/token"
     BIT_PER_WEIGHT = "bit/weight"
     RATIO = "ratio"
+    # RFC-0017: figures per request, the unit a system releases proofs for
+    TOKEN_PER_REQUEST = "token/request"
+    GPU_S_PER_REQUEST = "gpu_s/request"
+    USD_PER_REQUEST = "USD/request"
+    B_PER_REQUEST = "B/request"
+    S_PER_REQUEST = "s/request"
+    # RFC-0018: the serving ladder's rate and the KL figure
+    REQUEST_PER_GPU_S = "request/gpu_s"
+    NAT_PER_TOKEN = "nat/token"
 
 
 class Scope(StrEnum):
@@ -89,7 +98,8 @@ class ScopeMapping(StrEnum):
 TIME_UNITS = frozenset({
     Unit.S, Unit.NS, Unit.TOKEN_PER_S, Unit.S_PER_TOKEN,
     Unit.USD, Unit.USD_PER_1K_TOKEN, Unit.PARAM_TOKEN_PER_S, Unit.S_PER_BIT_TOKEN,
-    Unit.GPU_S_PER_TOKEN,
+    Unit.GPU_S_PER_TOKEN, Unit.GPU_S_PER_REQUEST, Unit.USD_PER_REQUEST, Unit.S_PER_REQUEST,
+    Unit.REQUEST_PER_GPU_S,
 })  # fmt: skip
 
 

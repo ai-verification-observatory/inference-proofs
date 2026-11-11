@@ -1,0 +1,31 @@
+{
+  "failed_opens": 12,
+  "gpu_devices_opened": [],
+  "gpu_visible": false,
+  "mode": "docker",
+  "model_files_opened": [
+    {
+      "path": "/models/weights.bin"
+    }
+  ],
+  "model_files_present": false,
+  "model_files_removed": false,
+  "opened": [
+    {
+      "bytes": null,
+      "path": "/etc/ld.so.cache"
+    },
+    {
+      "bytes": null,
+      "path": "/io/proof/tag.bin"
+    }
+  ],
+  "proof_id": "req-0",
+  "run_id": "2026-11-10-fake-fake-tiny-ci-ci-cpu-1",
+  "schema": "verify-trace/1",
+  "tool": "strace",
+  "trace": {
+    "bytes": 2048,
+    "digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

@@ -1,615 +1,400 @@
 {
   "entries": [
     {
-      "found": [
-        "Proved: hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside",
-        "anthropics/FlashProve",
-        "fp-maverick-w1024-b1",
-        "Llama 4 Maverick",
-        "UD-Q4_K_XL (GGUF)",
-        "NVIDIA H200",
-        "H200",
-        "prover-h200-hosted",
-        "fp-maverick-w1024-b24"
-      ],
-      "group": "Benchmarked",
-      "kind": "system",
-      "meta": "Llama 4 Maverick",
-      "name": "FlashProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "flashprove llama 4 maverick proved: hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside anthropics/flashprove fp-maverick-w1024-b1 llama 4 maverick ud-q4_k_xl (gguf) nvidia h200 h200 prover-h200-hosted fp-maverick-w1024-b24 zk proof cryptographic proved",
-      "tier": 0,
-      "url": "/flashprove"
-    },
-    {
-      "found": [
-        "Proved: STARK over an execution trace (Circle STARK)",
-        "sg-ai-safety-hub/zk-inference-prover",
-        "sash-l31-8b-c1024",
-        "Llama 3.1 8B",
-        "W8A8 (8-bit weights and activations)",
-        "NVIDIA H200",
-        "H200",
-        "prover-h200-hosted"
-      ],
-      "group": "Benchmarked",
-      "kind": "system",
-      "meta": "Llama 3.1 8B",
-      "name": "SASH",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "sash llama 3.1 8b proved: stark over an execution trace (circle stark) sg-ai-safety-hub/zk-inference-prover sash-l31-8b-c1024 llama 3.1 8b w8a8 (8-bit weights and activations) nvidia h200 h200 prover-h200-hosted zk proof cryptographic proved",
-      "tier": 0,
-      "url": "/sash"
-    },
-    {
-      "context": "flashprove llama 4 maverick",
-      "figures": [
-        {
-          "name": "One proof covers",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-covers"
-        },
-        {
-          "name": "Proof size",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-proof_size"
-        },
-        {
-          "name": "Check time",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-check_time"
-        },
-        {
-          "name": "Overhead vs production serving",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-overhead"
-        },
-        {
-          "name": "Proving time per token, per Gbit of active weights",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-per_bit"
-        },
-        {
-          "name": "Proof size per token, per Gbit of active weights",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-size_bit"
-        },
-        {
-          "name": "Check time per token, per Gbit of active weights",
-          "url": "/flashprove#flashprove--exact-match-cp-verify--fp-maverick-w1024-b24-fig-check_bit"
-        },
-        {
-          "name": "Proving rate",
-          "url": "/flashprove#figures"
-        },
-        {
-          "name": "GPU cost per 1M tokens",
-          "url": "/flashprove#figures"
-        },
-        {
-          "name": "Preparing the model (once)",
-          "url": "/flashprove#figures"
-        },
-        {
-          "name": "Checker memory",
-          "url": "/flashprove#figures"
-        },
-        {
-          "name": "GPU memory",
-          "url": "/flashprove#figures"
-        }
-      ],
       "found": [],
-      "group": "FlashProve",
-      "kind": "section",
-      "meta": "",
-      "name": "Figures",
+      "group": "Models",
+      "kind": "model",
+      "meta": "Meta · MoE, 400B total, 17B active",
+      "name": "Llama 4 Maverick 17B-128E Instruct",
       "pie": "",
-      "terms": "figures one proof covers proof size check time overhead vs production serving proving time per token, per gbit of active weights proof size per token, per gbit of active weights check time per token, per gbit of active weights proving rate gpu cost per 1m tokens preparing the model (once) checker memory gpu memory figures numbers measured spread runs",
+      "terms": "llama 4 maverick 17b-128e instruct meta · moe, 400b total, 17b active llama-4-maverick",
       "tier": 1,
-      "url": "/flashprove#figures"
+      "url": "/#llama-4-maverick"
     },
     {
-      "context": "flashprove llama 4 maverick",
       "found": [],
-      "group": "FlashProve",
-      "kind": "section",
-      "meta": "",
-      "name": "Tamper tests",
+      "group": "Models",
+      "kind": "model",
+      "meta": "Meta · Dense, 8.03B",
+      "name": "Llama 3.1 8B Instruct",
       "pie": "",
-      "terms": "tamper tests tamper tests controls negative accepted rejected",
+      "terms": "llama 3.1 8b instruct meta · dense, 8.03b llama-3.1-8b",
       "tier": 1,
-      "url": "/flashprove#tamper"
+      "url": "/#llama-3.1-8b"
     },
     {
-      "context": "flashprove llama 4 maverick",
       "found": [],
-      "group": "FlashProve",
-      "kind": "section",
-      "meta": "",
-      "name": "How we read it",
+      "group": "Models",
+      "kind": "model",
+      "meta": "OpenAI · Dense, 137M",
+      "name": "GPT-2",
       "pie": "",
-      "terms": "how we read it how we read it quotes sources read",
+      "terms": "gpt-2 openai · dense, 137m gpt-2",
       "tier": 1,
-      "url": "/flashprove#how-we-read"
+      "url": "/#gpt-2"
     },
     {
-      "context": "flashprove llama 4 maverick",
       "found": [],
-      "group": "FlashProve",
-      "kind": "section",
-      "meta": "",
-      "name": "Claim card in full",
+      "group": "Glyph",
+      "kind": "petal",
+      "meta": "A soundness level of 128 bits or more, proven for the verifier code the system runs.",
+      "name": "Unforgeable",
       "pie": "",
-      "terms": "claim card in full claim card residual quality gap",
-      "tier": 1,
-      "url": "/flashprove#card-exact-match-cp-verify"
-    },
-    {
-      "context": "sash llama 3.1 8b",
-      "figures": [
-        {
-          "name": "One proof covers",
-          "url": "/sash#fig-covers"
-        },
-        {
-          "name": "Proof size",
-          "url": "/sash#fig-proof_size"
-        },
-        {
-          "name": "Check time",
-          "url": "/sash#fig-check_time"
-        },
-        {
-          "name": "Overhead vs production serving",
-          "url": "/sash#fig-overhead"
-        },
-        {
-          "name": "Proving time per token, per Gbit of active weights",
-          "url": "/sash#fig-per_bit"
-        },
-        {
-          "name": "Proof size per token, per Gbit of active weights",
-          "url": "/sash#fig-size_bit"
-        },
-        {
-          "name": "Check time per token, per Gbit of active weights",
-          "url": "/sash#fig-check_bit"
-        },
-        {
-          "name": "Proving rate",
-          "url": "/sash#figures"
-        },
-        {
-          "name": "GPU cost per 1M tokens",
-          "url": "/sash#figures"
-        },
-        {
-          "name": "Preparing the model (once)",
-          "url": "/sash#figures"
-        },
-        {
-          "name": "Checker memory",
-          "url": "/sash#figures"
-        },
-        {
-          "name": "GPU memory",
-          "url": "/sash#figures"
-        }
-      ],
-      "found": [],
-      "group": "SASH",
-      "kind": "section",
-      "meta": "",
-      "name": "Figures",
-      "pie": "",
-      "terms": "figures one proof covers proof size check time overhead vs production serving proving time per token, per gbit of active weights proof size per token, per gbit of active weights check time per token, per gbit of active weights proving rate gpu cost per 1m tokens preparing the model (once) checker memory gpu memory figures numbers measured spread runs",
-      "tier": 1,
-      "url": "/sash#figures"
-    },
-    {
-      "context": "sash llama 3.1 8b",
-      "found": [],
-      "group": "SASH",
-      "kind": "section",
-      "meta": "",
-      "name": "Tamper tests",
-      "pie": "",
-      "terms": "tamper tests tamper tests controls negative accepted rejected",
-      "tier": 1,
-      "url": "/sash#tamper"
-    },
-    {
-      "context": "sash llama 3.1 8b",
-      "found": [],
-      "group": "SASH",
-      "kind": "section",
-      "meta": "",
-      "name": "How we read it",
-      "pie": "",
-      "terms": "how we read it how we read it quotes sources read",
-      "tier": 1,
-      "url": "/sash#how-we-read"
-    },
-    {
-      "context": "sash llama 3.1 8b",
-      "found": [],
-      "group": "SASH",
-      "kind": "section",
-      "meta": "",
-      "name": "Claim card in full",
-      "pie": "",
-      "terms": "claim card in full claim card residual quality gap",
-      "tier": 1,
-      "url": "/sash#card-sound-defaults"
-    },
-    {
-      "found": [
-        "fp-maverick-w1024-b24",
-        "Llama 4 Maverick",
-        "NVIDIA H200",
-        "H200",
-        "serving-h200x4-hosted",
-        "vLLM",
-        "FP8",
-        "sash-l31-8b-c1024",
-        "Llama 3.1 8B",
-        "serving-h200x1-hosted",
-        "BF16"
-      ],
-      "group": "References",
-      "kind": "reference",
-      "meta": "The baseline for cost comparison.",
-      "name": "Production serving",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "production serving the baseline for cost comparison. fp-maverick-w1024-b24 llama 4 maverick nvidia h200 h200 serving-h200x4-hosted vllm fp8 sash-l31-8b-c1024 llama 3.1 8b serving-h200x1-hosted bf16 reference references baseline",
+      "terms": "unforgeable a soundness level of 128 bits or more, proven for the verifier code the system runs.",
       "tier": 2,
-      "url": "/reference#ref-serve"
-    },
-    {
-      "found": [
-        "Gemma 4 31B",
-        "closed source"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Gemma 4 31B",
-      "name": "Attestable prover",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 yes\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "attestable prover gemma 4 31b closed source zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-attestable"
-    },
-    {
-      "found": [
-        "GPT-2, Gemma 3, Llama 2",
-        "google/gemma-3-1b-it",
-        "meta-llama/Llama-2-7b-hf",
-        "sumcheck / GKR interactive proofs"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "GPT-2, Gemma 3, Llama 2",
-      "name": "DeepProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "deepprove gpt-2, gemma 3, llama 2 google/gemma-3-1b-it meta-llama/llama-2-7b-hf sumcheck / gkr interactive proofs zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-deepprove"
-    },
-    {
-      "found": [
-        "nanoGPT example",
-        "circuit compiled to a PLONKish SNARK (Halo2)"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "nanoGPT example (size not stated)",
-      "name": "EZKL",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 partly\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "ezkl nanogpt example circuit compiled to a plonkish snark (halo2) zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-ezkl"
-    },
-    {
-      "found": [
-        "GPT-2 (125M)",
-        "Qwen/Qwen2-0.5B",
-        "lookup-centric (Jolt-style) with sumcheck"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "GPT-2 (125M); Qwen/Qwen2-0.5B",
-      "name": "JOLT Atlas",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "jolt atlas gpt-2 (125m) qwen/qwen2-0.5b lookup-centric (jolt-style) with sumcheck zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-jolt-atlas"
-    },
-    {
-      "found": [
-        "LeNet demo",
-        "sumcheck / GKR interactive proofs"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "LeNet demo; no LLM named",
-      "name": "JSTprove",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "jstprove lenet demo sumcheck / gkr interactive proofs zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-jstprove"
-    },
-    {
-      "found": [
-        "STARK over an execution trace (Circle STARK)"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "No LLM named",
-      "name": "LuminAIR",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "luminair stark over an execution trace (circle stark) zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-luminair"
-    },
-    {
-      "found": [
-        "closed source"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Model not named",
-      "name": "NanoZK",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 yes\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "nanozk closed source zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-nanozk"
-    },
-    {
-      "found": [
-        "Unmaintained",
-        "LLaMA (branch “llama”)"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "LLaMA (branch “llama”), size not stated",
-      "name": "opML",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 partly\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "opml unmaintained llama (branch “llama”) rerun re-execution recompute optimistic dispute re-executed",
-      "tier": 5,
-      "url": "/#nb-opml"
-    },
-    {
-      "found": [
-        "Archived"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Model not named",
-      "name": "Private ML SDK",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "private ml sdk archived tee enclave hardware attestation confidential attested",
-      "tier": 5,
-      "url": "/#nb-private-ml-sdk"
-    },
-    {
-      "found": [
-        "sumcheck / GKR interactive proofs"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "No LLM named",
-      "name": "Remainder (Community Edition)",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "remainder (community edition) sumcheck / gkr interactive proofs zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-remainder"
+      "url": "/checks#unforgeable"
     },
     {
       "found": [],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Model not named",
-      "name": "Tinfoil",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "tinfoil tee enclave hardware attestation confidential attested",
-      "tier": 5,
-      "url": "/#nb-tinfoil"
-    },
-    {
-      "found": [
-        "Llama 3.1-8B-Instruct"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Llama 3.1-8B-Instruct",
-      "name": "TOPLOC",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "toploc llama 3.1-8b-instruct fingerprint fingerprinted",
-      "tier": 5,
-      "url": "/#nb-toploc"
-    },
-    {
-      "found": [
-        "closed source"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Model not named",
-      "name": "Verde (with RepOps)",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "verde (with repops) closed source rerun re-execution recompute optimistic dispute re-executed",
-      "tier": 5,
-      "url": "/#nb-verde"
-    },
-    {
-      "found": [
-        "Llama 4 Maverick (400B-parameter mixture of experts)",
-        "Llama-2-7B",
-        "hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Llama 4 Maverick (400B-parameter mixture of experts); Llama-2-7B",
-      "name": "VerInf",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 partly\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 yes\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 partly\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 yes\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "verinf llama 4 maverick (400b-parameter mixture of experts) llama-2-7b hash-based iop (merkle trees, fiat-shamir) over linear-code commitments; may use sumcheck and lookups inside zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-verinf"
-    },
-    {
-      "found": [
-        "GPT-2",
-        "closed source"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "GPT-2",
-      "name": "zkGPT",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "zkgpt gpt-2 closed source zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-zkgpt"
-    },
-    {
-      "found": [
-        "Archived",
-        "Llama-2-7B and Llama-2-13B"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Llama-2-7B and Llama-2-13B",
-      "name": "zkLLM",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "zkllm archived llama-2-7b and llama-2-13b zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-zkllm"
-    },
-    {
-      "found": [
-        "Unmaintained",
-        "A distilled GPT-2",
-        "circuit compiled to a PLONKish SNARK (Halo2)"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "A distilled GPT-2",
-      "name": "ZKML",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "zkml unmaintained a distilled gpt-2 circuit compiled to a plonkish snark (halo2) zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-zkml"
-    },
-    {
-      "found": [
-        "Llama-3 (8B parameters)",
-        "VGG-16",
-        "closed source"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "Llama-3 (8B parameters); VGG-16",
-      "name": "zkPyTorch",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 no\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 no\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "zkpytorch llama-3 (8b parameters) vgg-16 closed source zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-zkpytorch"
-    },
-    {
-      "found": [
-        "MLPerf Edge Inference v4.1 models, LLMs among them",
-        "accumulation / folding of repeated blocks"
-      ],
-      "group": "Not benchmarked",
-      "kind": "unbenchmarked",
-      "meta": "MLPerf Edge Inference v4.1 models, LLMs among them, none named",
-      "name": "ZKTorch",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 yes\" data-n=\"1\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"sl s2 no\" data-n=\"2\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"sl s3 no\" data-n=\"3\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"sl s4 no\" data-n=\"4\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"sl s5 no\" data-n=\"5\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"sl s6 partly\" data-n=\"6\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "zktorch mlperf edge inference v4.1 models, llms among them accumulation / folding of repeated blocks zk proof cryptographic proved",
-      "tier": 5,
-      "url": "/#nb-zktorch"
-    },
-    {
-      "found": [],
-      "group": "Properties",
-      "kind": "property",
-      "meta": "Does the checker learn nothing about the weights?",
+      "group": "Glyph",
+      "kind": "petal",
+      "meta": "Zero knowledge proven for the program run, with no leak beyond public sizes.",
       "name": "Weights hidden",
-      "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"on\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "weights hidden does the checker learn nothing about the weights?",
-      "tier": 3,
-      "url": "/criteria#weights_hidden"
+      "pie": "",
+      "terms": "weights hidden zero knowledge proven for the program run, with no leak beyond public sizes.",
+      "tier": 2,
+      "url": "/checks#weights_hidden"
     },
     {
       "found": [],
-      "group": "Properties",
-      "kind": "property",
-      "meta": "Is each checked token tied to the committed weights?",
-      "name": "Model bound",
-      "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"on\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "model bound is each checked token tied to the committed weights?",
-      "tier": 3,
-      "url": "/criteria#model_bound"
+      "group": "Glyph",
+      "kind": "petal",
+      "meta": "The replies are not shown below a second run of the publisher's 16-bit model.",
+      "name": "Faithful model",
+      "pie": "",
+      "terms": "faithful model the replies are not shown below a second run of the publisher's 16-bit model.",
+      "tier": 2,
+      "url": "/checks#faithful_model"
     },
     {
       "found": [],
-      "group": "Properties",
-      "kind": "property",
-      "meta": "Does one check cover every output token of a request?",
-      "name": "Whole output checked",
-      "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"on\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "whole output checked does one check cover every output token of a request?",
-      "tier": 3,
-      "url": "/criteria#whole_output"
+      "group": "Glyph",
+      "kind": "petal",
+      "meta": "The system passed on every model of the level.",
+      "name": "Any model",
+      "pie": "",
+      "terms": "any model the system passed on every model of the level.",
+      "tier": 2,
+      "url": "/checks#any_model"
     },
     {
       "found": [],
-      "group": "Properties",
-      "kind": "property",
-      "meta": "Is the security argument for this configuration checked by a proof assistant?",
-      "name": "Formally verified",
-      "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"on\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "formally verified is the security argument for this configuration checked by a proof assistant?",
-      "tier": 3,
-      "url": "/criteria#formally_verified"
+      "group": "Glyph",
+      "kind": "petal",
+      "meta": "Soundness rests on cryptographic assumptions alone (for example a random oracle): no setup ceremony, hardware maker's key or third party. Public files fixed before the hash do not count: every non-interactive proof has them.",
+      "name": "Only the verifier trusted",
+      "pie": "",
+      "terms": "only the verifier trusted soundness rests on cryptographic assumptions alone (for example a random oracle): no setup ceremony, hardware maker's key or third party. public files fixed before the hash do not count: every non-interactive proof has them.",
+      "tier": 2,
+      "url": "/checks#no_trusted_party"
     },
     {
       "found": [],
-      "group": "Properties",
-      "kind": "property",
-      "meta": "Is a soundness level stated for this configuration, and proven?",
-      "name": "Security level",
-      "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"on\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"off\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "security level is a soundness level stated for this configuration, and proven?",
+      "group": "Checks",
+      "kind": "check",
+      "meta": "Three session slots each hold a complete session, built from the public pin, unpatched, with no weakening flag.",
+      "name": "Run",
+      "pie": "",
+      "terms": "run three session slots each hold a complete session, built from the public pin, unpatched, with no weakening flag.",
       "tier": 3,
-      "url": "/criteria#security_level"
+      "url": "/checks#run"
     },
     {
       "found": [],
-      "group": "Properties",
-      "kind": "property",
-      "meta": "Does a check hold without trusting a chip maker, a setup ceremony or an honest party?",
-      "name": "No trusted party",
-      "pie": "<svg class=\"kmini\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"off\" d=\"M15.01 1.01L25.49 7.07L15.36 12.52Z\"/><path class=\"off\" d=\"M26.00 7.95L26.00 20.05L16.21 14.00Z\"/><path class=\"off\" d=\"M25.49 20.93L15.01 26.99L15.36 15.48Z\"/><path class=\"off\" d=\"M13.99 26.99L3.51 20.93L13.64 15.48Z\"/><path class=\"off\" d=\"M3.00 20.05L3.00 7.95L12.79 14.00Z\"/><path class=\"on\" d=\"M3.51 7.07L13.99 1.01L13.64 12.52Z\"/></svg>",
-      "terms": "no trusted party does a check hold without trusting a chip maker, a setup ceremony or an honest party?",
+      "group": "Checks",
+      "kind": "check",
+      "meta": "A proof made after one weight was changed is not accepted, and an honest proof checked against the changed weights' commitment is refused, in 3 of 3 trials each.",
+      "name": "Model",
+      "pie": "",
+      "terms": "model a proof made after one weight was changed is not accepted, and an honest proof checked against the changed weights' commitment is refused, in 3 of 3 trials each.",
       "tier": 3,
-      "url": "/criteria#no_trusted_party"
+      "url": "/checks#model"
+    },
+    {
+      "found": [],
+      "group": "Checks",
+      "kind": "check",
+      "meta": "A proof checked with one prompt token changed is refused, in 3 of 3 trials.",
+      "name": "Prompt",
+      "pie": "",
+      "terms": "prompt a proof checked with one prompt token changed is refused, in 3 of 3 trials.",
+      "tier": 3,
+      "url": "/checks#prompt"
+    },
+    {
+      "found": [],
+      "group": "Checks",
+      "kind": "check",
+      "meta": "Every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
+      "name": "Reply",
+      "pie": "",
+      "terms": "reply every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
+      "tier": 3,
+      "url": "/checks#reply"
+    },
+    {
+      "found": [],
+      "group": "Checks",
+      "kind": "check",
+      "meta": "Every counted verdict came from a check run with no GPU visible, on a filesystem holding no model file, under a file-open trace that names no model file.",
+      "name": "No weight file",
+      "pie": "",
+      "terms": "no weight file every counted verdict came from a check run with no gpu visible, on a filesystem holding no model file, under a file-open trace that names no model file.",
+      "tier": 3,
+      "url": "/checks#no_weight_file"
+    },
+    {
+      "found": [],
+      "group": "Checks",
+      "kind": "check",
+      "meta": "The system's replies score above the model's bar: the damaged copy of the model that every honest copy scores above, scored by the leading tokens each reply shares with the publisher's 16-bit model.",
+      "name": "Fidelity",
+      "pie": "",
+      "terms": "fidelity the system's replies score above the model's bar: the damaged copy of the model that every honest copy scores above, scored by the leading tokens each reply shares with the publisher's 16-bit model.",
+      "tier": 3,
+      "url": "/checks#fidelity"
     },
     {
       "found": [],
       "group": "Pages",
       "kind": "page",
-      "meta": "What each state means for each property",
-      "name": "Criteria",
+      "meta": "The six checks, the order rule, what is not tested",
+      "name": "Checks",
       "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15.02 1.02L25.48 7.06L15.83 11.70Z\"/><path d=\"M26.00 7.96L26.00 20.04L17.15 14.00Z\"/><path d=\"M25.48 20.94L15.02 26.98L15.83 16.30Z\"/><path d=\"M13.98 26.98L3.52 20.94L13.17 16.30Z\"/><path d=\"M3.00 20.04L3.00 7.96L11.85 14.00Z\"/><path d=\"M3.52 7.06L13.98 1.02L13.17 11.70Z\"/></svg>",
-      "terms": "criteria what each state means for each property criteria states rules yes partly no not stated",
+      "terms": "checks the six checks, the order rule, what is not tested checks order rule undecided not tested",
       "tier": 4,
-      "url": "/criteria"
+      "url": "/checks"
     },
     {
       "found": [],
-      "group": "Pages",
-      "kind": "page",
-      "meta": "Its runs, claim cards and reference file",
-      "name": "Release v0.1",
-      "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M15.02 1.02L25.48 7.06L15.83 11.70Z\"/><path d=\"M26.00 7.96L26.00 20.04L17.15 14.00Z\"/><path d=\"M25.48 20.94L15.02 26.98L15.83 16.30Z\"/><path d=\"M13.98 26.98L3.52 20.94L13.17 16.30Z\"/><path d=\"M3.00 20.04L3.00 7.96L11.85 14.00Z\"/><path d=\"M3.52 7.06L13.98 1.02L13.17 11.70Z\"/></svg>",
-      "terms": "release v0.1 its runs, claim cards and reference file release runs records index overhead cost price",
-      "tier": 4,
-      "url": "/release"
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no public verifier",
+      "name": "Attestable prover",
+      "pie": "",
+      "terms": "attestable prover no public verifier",
+      "tier": 5,
+      "url": "/#nr-attestable"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "licence",
+      "name": "DeepProve",
+      "pie": "",
+      "terms": "deepprove licence",
+      "tier": 5,
+      "url": "/#nr-deepprove"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "licence",
+      "name": "EZKL",
+      "pie": "",
+      "terms": "ezkl licence",
+      "tier": 5,
+      "url": "/#nr-ezkl"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "not yet run",
+      "name": "FlashProve",
+      "pie": "",
+      "terms": "flashprove not yet run",
+      "tier": 5,
+      "url": "/#nr-flashprove"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "licence",
+      "name": "JOLT Atlas",
+      "pie": "",
+      "terms": "jolt atlas licence",
+      "tier": 5,
+      "url": "/#nr-jolt-atlas"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "licence",
+      "name": "JSTprove",
+      "pie": "",
+      "terms": "jstprove licence",
+      "tier": 5,
+      "url": "/#nr-jstprove"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no configuration at the request",
+      "name": "LuminAIR",
+      "pie": "",
+      "terms": "luminair no configuration at the request",
+      "tier": 5,
+      "url": "/#nr-luminair"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no public verifier",
+      "name": "NanoZK",
+      "pie": "",
+      "terms": "nanozk no public verifier",
+      "tier": 5,
+      "url": "/#nr-nanozk"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "another kind of check",
+      "name": "opML",
+      "pie": "",
+      "terms": "opml another kind of check",
+      "tier": 5,
+      "url": "/#nr-opml"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "another kind of check",
+      "name": "Private ML SDK",
+      "pie": "",
+      "terms": "private ml sdk another kind of check",
+      "tier": 5,
+      "url": "/#nr-private-ml-sdk"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no configuration at the request",
+      "name": "Remainder (Community Edition)",
+      "pie": "",
+      "terms": "remainder (community edition) no configuration at the request",
+      "tier": 5,
+      "url": "/#nr-remainder"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "not yet run",
+      "name": "SASH",
+      "pie": "",
+      "terms": "sash not yet run",
+      "tier": 5,
+      "url": "/#nr-sash"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "another kind of check",
+      "name": "Tinfoil",
+      "pie": "",
+      "terms": "tinfoil another kind of check",
+      "tier": 5,
+      "url": "/#nr-tinfoil"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "another kind of check",
+      "name": "TOPLOC",
+      "pie": "",
+      "terms": "toploc another kind of check",
+      "tier": 5,
+      "url": "/#nr-toploc"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "another kind of check",
+      "name": "Verde (with RepOps)",
+      "pie": "",
+      "terms": "verde (with repops) another kind of check",
+      "tier": 5,
+      "url": "/#nr-verde"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "another kind of check",
+      "name": "VerInf",
+      "pie": "",
+      "terms": "verinf another kind of check",
+      "tier": 5,
+      "url": "/#nr-verinf"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no configuration at the request",
+      "name": "zkGPT",
+      "pie": "",
+      "terms": "zkgpt no configuration at the request",
+      "tier": 5,
+      "url": "/#nr-zkgpt"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no configuration at the request",
+      "name": "zkLLM",
+      "pie": "",
+      "terms": "zkllm no configuration at the request",
+      "tier": 5,
+      "url": "/#nr-zkllm"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no configuration at the request",
+      "name": "ZKML",
+      "pie": "",
+      "terms": "zkml no configuration at the request",
+      "tier": 5,
+      "url": "/#nr-zkml"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no public verifier",
+      "name": "zkPyTorch",
+      "pie": "",
+      "terms": "zkpytorch no public verifier",
+      "tier": 5,
+      "url": "/#nr-zkpytorch"
+    },
+    {
+      "found": [],
+      "group": "Not run",
+      "kind": "notrun",
+      "meta": "no configuration at the request",
+      "name": "ZKTorch",
+      "pie": "",
+      "terms": "zktorch no configuration at the request",
+      "tier": 5,
+      "url": "/#nr-zktorch"
     }
   ]
 }

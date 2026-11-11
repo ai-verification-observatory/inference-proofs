@@ -1,0 +1,130 @@
+{
+  "claim": {
+    "card_version": 1,
+    "configuration": "default",
+    "system": "fake"
+  },
+  "commands": [
+    {
+      "argv": [
+        "docker",
+        "start",
+        "--attach",
+        "x"
+      ],
+      "cpuset": "0-1",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "none",
+      "started_at": "2026-11-20T09:59:00Z",
+      "step": "commit"
+    }
+  ],
+  "commitment": {
+    "commitment_id": "c1",
+    "prover_files": [],
+    "verifier_files": [
+      {
+        "bytes": 32,
+        "digest": "sha256:abababababababababababababababababababababababababababababababab",
+        "name": "vk.bin"
+      }
+    ]
+  },
+  "control": false,
+  "harness": {
+    "git_commit": "0123456789abcdef0123456789abcdef01234567",
+    "git_dirty": false,
+    "lock_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "nonconforming": false,
+    "version": "0.1.0"
+  },
+  "level": {
+    "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "id": "L1"
+  },
+  "machine": {},
+  "profile": {
+    "prover": "ci-cpu",
+    "reference_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "reference_file": "reference/ci.yaml",
+    "verifier": "ci-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:abababababababababababababababababababababababababababababababab",
+      "parts": [
+        {
+          "bytes": 32,
+          "digest": "sha256:abababababababababababababababababababababababababababababababab",
+          "name": "body.bin"
+        },
+        {
+          "bytes": 32,
+          "digest": "sha256:abababababababababababababababababababababababababababababababab",
+          "name": "tag.bin"
+        }
+      ],
+      "proof_id": "req-0"
+    }
+  ],
+  "provider": "hosted-ci",
+  "release": "v0.1",
+  "run_id": "2026-11-20-fake-fake-tiny-ci-ci-cpu-1",
+  "runner": {
+    "affiliated_systems": [
+      "fake"
+    ],
+    "handle": "ci",
+    "organisation": "none"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "session": {
+    "beacon": {
+      "round": 12345678,
+      "seed": "0x0123456789abcdef"
+    },
+    "requests": 5,
+    "rung": "llama-3.1-8b",
+    "slot": 2
+  },
+  "system": {
+    "adapter_commit": "0123456789abcdef0123456789abcdef01234567",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/example/iproofs-fake@sha256:abababababababababababababababababababababababababababababababab"
+    },
+    "image_inputs": [],
+    "name": "fake",
+    "system_manifest_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "upstream": null
+  },
+  "warnings": [],
+  "workload": {
+    "corpus_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "file_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "id": "fake-tiny-ci",
+    "model": {
+      "digest": "sha256:abababababababababababababababababababababababababababababababab",
+      "revision": "0123456789abcdef0123456789abcdef01234567",
+      "source": "repo:systems/fake/model"
+    },
+    "prompt_seed": "0x1f2e3d4c5b6a7988",
+    "prompt_set_digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "version": 1
+  }
+}

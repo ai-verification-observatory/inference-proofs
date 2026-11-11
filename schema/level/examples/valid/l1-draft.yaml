@@ -1,0 +1,117 @@
+# Level 1 (RFC-0018): the frozen definition of the first ladder. Every constant a rule of
+# RFC-0018 names is here. While `frozen` is null this is a draft: probes and development runs
+# may use it; a counted run names the frozen file by digest and `release freeze` refuses any
+# other. Values marked "to pin" are filled before freezing (`iproofs level check --frozen`).
+schema: "level/1"
+id: "L1"
+name: "Level 1"
+frozen: null
+request:
+  prompt_tokens: 512
+  output_tokens: 512
+  decoding: "greedy"
+  ignore_eos: true
+  every_reply_token_checked: true
+prompts:
+  generator: "beacon-window/1"
+  corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"
+  beacon:
+    name: "drand quicknet"
+    chain_hash: "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971"
+    relays: ["https://api.drand.sh", "https://drand.cloudflare.com"]
+    round: null  # PR-2: the first round after the commit that freezes this file
+sessions:
+  slots: 3
+  attempts_per_slot: 5
+  cap_usd: 40
+steady:
+  group_gap_s: 1.0
+  min_later_groups: 3
+  tolerance: 0.05
+baseline:
+  ladder: [1, 2, 4, 8, 16, 32, 64, 128, 256]
+  plateau: 0.05
+  warmup_batches: 1
+  timed_batches: 3
+  prompts: 1024
+order:
+  margin: 0.10
+fidelity:
+  score: "matched_prefix"
+  test: "paired-sign-flip"
+  alpha: 0.05
+  exact_up_to: 20
+  resamples: 200000
+  engine: {tool: "llama.cpp", repo: "ggml-org/llama.cpp", commit: null}  # to pin
+kl:
+  texts: 64
+  tokens: 512
+price: {reference: "reference/v1.0.yaml", cost: "h200"}
+# Rungs, largest model first (RFC-0018 OR-6). A rung's workloads name the systems run on it.
+rungs:
+  - id: "llama-4-maverick"
+    model: "Llama 4 Maverick 17B-128E Instruct"
+    publisher: "Meta"
+    parameters_total: 400000000000
+    parameters_active: 17000000000
+    requests_per_session: 120
+    workloads: {flashprove: "l1-maverick-p512-o512"}
+    serving: "llama-4-maverick-17b-128e-instruct-fp8"
+    reference:
+      # FI-1: the publisher's 16-bit release (the serving record is FP8). Meta's repository is
+      # gated; unsloth's copy at this revision is the one the Maverick workloads already pin for
+      # their tokenizer. Files and digest to pin with `iproofs serving pin`.
+      source: {hub: "huggingface", repo: "unsloth/Llama-4-Maverick-17B-128E-Instruct", revision: "86c5ecb6f2fbddf604c60120125fb202e09f2556"}
+      dtype: "bf16"
+    controls:
+      - {id: "reference-2", kind: "honest", recipe: "rerun"}
+      - {id: "q8_0", kind: "honest", recipe: "quantize", type: "Q8_0"}
+      - {id: "q4_k_m", kind: "honest", recipe: "quantize", type: "Q4_K_M"}
+      - {id: "q3_k_s", kind: "damaged", recipe: "quantize", type: "Q3_K_S"}
+      - {id: "q2_k", kind: "damaged", recipe: "quantize", type: "Q2_K"}
+      - {id: "drop-every-4th-block", kind: "damaged", recipe: "drop_blocks", every: 4}
+      - id: "smaller-model"
+        kind: "damaged"
+        recipe: "other_model"
+        model: "Llama 4 Scout 17B-16E Instruct"
+        source: {hub: "huggingface", repo: "unsloth/Llama-4-Scout-17B-16E-Instruct", revision: null}  # to pin
+  - id: "llama-3.1-8b"
+    model: "Llama 3.1 8B Instruct"
+    publisher: "Meta"
+    parameters_total: 8030261248
+    parameters_active: 8030261248
+    requests_per_session: 5
+    workloads: {sash: "l1-l31-8b-p512-o512"}
+    serving: "llama-3.1-8b-instruct-bf16"
+    reference:
+      # FI-1: the serving record is the publisher's BF16 release; the reference uses its files.
+      serving_files: true
+      dtype: "bf16"
+    controls:
+      - {id: "reference-2", kind: "honest", recipe: "rerun"}
+      - {id: "q8_0", kind: "honest", recipe: "quantize", type: "Q8_0"}
+      - {id: "q4_k_m", kind: "honest", recipe: "quantize", type: "Q4_K_M"}
+      - {id: "q3_k_s", kind: "damaged", recipe: "quantize", type: "Q3_K_S"}
+      - {id: "q2_k", kind: "damaged", recipe: "quantize", type: "Q2_K"}
+      - {id: "drop-every-4th-block", kind: "damaged", recipe: "drop_blocks", every: 4}
+      - id: "smaller-model"
+        kind: "damaged"
+        recipe: "other_model"
+        model: "Llama 3.2 1B Instruct"
+        source: {hub: "huggingface", repo: "unsloth/Llama-3.2-1B-Instruct", revision: null}  # to pin
+# Per system: what OR-2 reads, and the MODEL check's weight change (CH-2). Security words are
+# the publisher's, from its claim card at the pin; `stated` is true when the publisher states a
+# numeric level for the system's proofs at the pin, for any verifier it ships.
+systems:
+  flashprove:
+    security:
+      stated: true
+      words: "For the Lean verifier: a false claim is accepted with probability at most about q/2^124 + 2^-101 after q hash queries. Not claimed for cp_verify, which this row runs: \"The C++ programs' printed bits are their own accounting, not a theorem\"."
+      source: "systems/flashprove/claim.yaml#security.level"
+    model_change: "one Q4_K block scale of one dense attention tensor of block 0, raised by one step, in the committed GGUF file"
+  sash:
+    security:
+      stated: true
+      words: "100 conjectured bits for each segment proof, by stwo's conjectured-soundness accounting (blowup 2, 100 FRI queries, no grinding). A level for the whole grid of segments is not stated."
+      source: "systems/sash/claim.yaml#security.level"
+    model_change: "one BF16 weight of a dense projection of block 0 changed by enough steps to change its int8 code after SASH's load-time quantization"

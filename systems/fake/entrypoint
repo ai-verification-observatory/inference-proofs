@@ -16,12 +16,15 @@ turns the verifier into one that accepts everything (systems/fake-broken).
 IPROOFS_FAKE_FAULT makes `prove` misbehave for the integration tests (docs/spec/07): `exit`
 exits 3, `sleep` outlasts any timeout, `escape` lists a part outside its proof directory, and
 `network` tries to reach the network and exits 3 when it cannot.
+IPROOFS_FAKE_L1=1 turns on what RFC-0018 adds (AD-4 to AD-6): `info` lists the optional
+subcommands `perturb` and `mutate_reply`, and `prove` writes the generation marks.
 """
 
 import hashlib
 import hmac
 import json
 import os
+import shutil
 import socket
 import sys
 import time
@@ -70,6 +73,24 @@ def base(sub: str) -> dict[str, object]:
 
 
 INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+LEVEL_1 = os.environ.get("IPROOFS_FAKE_L1") == "1"
+
+
+def control_warnings(job: dict) -> list[str]:
+    """RFC-0018: only a level's MODEL control job may load weights other than the published
+    ones, and it says so."""
+    control = job.get("control")
+    if isinstance(control, dict):
+        return [f"control {control['id']}: weights W' ({control['perturbation']['unit']})"]
+    return []
+
+
+def mark(name: str) -> None:
+    """RFC-0018 AD-4: an empty file under a temporary name, renamed into /io/marks."""
+    marks = host("/io/marks")
+    marks.mkdir(parents=True, exist_ok=True)
+    (marks / f".tmp-{name}").write_bytes(b"")
+    os.rename(marks / f".tmp-{name}", marks / name)
 
 
 def info(job: dict) -> dict:
@@ -78,6 +99,8 @@ def info(job: dict) -> dict:
            "upstream_commit": UPSTREAM_COMMIT, "image_inputs": inputs,
            "workloads": ["fake-tiny-ci"], "profile": "ci-cpu",
            "contract_versions": ["adapter/1"]}
+    if LEVEL_1:
+        out["optional_subcommands"] = ["perturb", "mutate_reply"]
     if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
         out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
         out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
@@ -85,7 +108,7 @@ def info(job: dict) -> dict:
 
 
 def setup(job: dict) -> dict:
-    return {**base("setup"), "ready": True, "log_files": []}
+    return {**base("setup"), "ready": True, "log_files": [], "warnings": control_warnings(job)}
 
 
 def commit(job: dict) -> dict:
@@ -93,7 +116,7 @@ def commit(job: dict) -> dict:
     state.mkdir(parents=True, exist_ok=True)
     key = model_commitment(host(job["model_dir"]))
     return {**base("commit"), "commitment_id": key, "verifier_files": [], "prover_files": [],
-            "sizes": {"verifier_bytes": 0, "prover_bytes": 0}}
+            "sizes": {"verifier_bytes": 0, "prover_bytes": 0}, "warnings": control_warnings(job)}
 
 
 def prove(job: dict) -> dict:
@@ -121,6 +144,10 @@ def prove(job: dict) -> dict:
     proofs_dir = host("/io/proofs")
     proofs_dir.mkdir(parents=True, exist_ok=True)
     delay = float(os.environ.get("IPROOFS_FAKE_DELAY_S", "0.05"))
+    if LEVEL_1:  # every reply is generated before proving starts (AD-4)
+        mark("generation.start")
+        time.sleep(delay)  # the fake's replies are a hash of the request: nothing to generate
+        mark("generation.end")
     proofs = []
     for i, request in enumerate(prompts[:count]):
         proof_id = f"req-{i}"
@@ -139,7 +166,37 @@ def prove(job: dict) -> dict:
     # the binding report (RFC-0008): the tag edge is unbound only when its skip was passed
     unbound = "--unsound-skip-tag" in flags
     host("/io/binding.json").write_text(json.dumps({"edges": {"tag": "unbound" if unbound else "bound"}}))
-    return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json"}
+    return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json",
+            "warnings": control_warnings(job)}
+
+
+def perturb(job: dict) -> dict:
+    """RFC-0018 AD-5: W' is the model with byte 0 of weights.bin raised by one (mod 256)."""
+    src, dst = host(job["model_dir"]), host(job["out_dir"])
+    shutil.copytree(src, dst)
+    for p in [dst, *dst.rglob("*")]:
+        p.chmod(0o755 if p.is_dir() else 0o644)
+    weights = dst / "weights.bin"
+    data = bytearray(weights.read_bytes())
+    old = data[0]
+    data[0] = (old + 1) % 256
+    weights.write_bytes(bytes(data))
+    return {**base("perturb"), "perturbation": {
+        "tensor": "weights.bin", "index": 0, "old": old, "new": data[0], "unit": "one byte",
+        "digest_w": model_commitment(src), "digest_w_prime": model_commitment(dst),
+        "digest_tool": None}}
+
+
+def mutate_reply(job: dict) -> dict:
+    """RFC-0018 AD-6: the fake proof holds no reply, so the reply it states is taken to be
+    body.bin; one bit of byte `position mod 32` is flipped. It decides nothing."""
+    src, dst = host(job["proof_dir"]), host(job["out_dir"])
+    shutil.copytree(src, dst)
+    body = bytearray((dst / "body.bin").read_bytes())
+    body[job["position"] % len(body)] ^= 1
+    (dst / "body.bin").write_bytes(bytes(body))
+    return {**base("mutate_reply"),
+            "mutated": {"parts": ["body.bin"], "fields": [f"reply[{job['position']}]"]}}
 
 
 def verify(job: dict) -> dict:
@@ -191,7 +248,8 @@ def main() -> int:
         return 0
     if job.get("subcommand") != sub:
         raise SystemExit(f"fake: job.json is for {job.get('subcommand')!r}, not {sub!r}")
-    out = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}[sub](job)
+    out = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify,
+           "perturb": perturb, "mutate_reply": mutate_reply}[sub](job)
     host(out_path).write_text(json.dumps(out, sort_keys=True, indent=2) + "\n")
     return 0
 

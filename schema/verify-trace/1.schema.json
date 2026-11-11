@@ -1,0 +1,179 @@
+{
+  "$id": "https://inference-proofs.org/schema/verify-trace/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "no trace tool in the image: nothing was traced (NO WEIGHT FILE undecided, not run)",
+      "else": {
+        "properties": {
+          "trace": {
+            "type": "object"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "tool": {
+            "type": "null"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failed_opens": {
+            "const": 0
+          },
+          "gpu_devices_opened": {
+            "maxItems": 0
+          },
+          "model_files_opened": {
+            "maxItems": 0
+          },
+          "opened": {
+            "maxItems": 0
+          },
+          "trace": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "failed_opens": {
+      "$comment": "paths tried and never opened",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "gpu_devices_opened": {
+      "items": {
+        "pattern": "^/dev/nvidia[0-9]+$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "gpu_visible": {
+      "$comment": "true when the call was given a GPU or the trace shows a GPU device node opened",
+      "type": "boolean"
+    },
+    "mode": {
+      "$comment": "docker: the trace ran inside the verify container and paths are container paths; hosted: around the adapter process in the provider's container; in-process: tests",
+      "enum": [
+        "docker",
+        "hosted",
+        "in-process"
+      ]
+    },
+    "model_files_opened": {
+      "$comment": "every open call, successful or not, of a path that is or resolves to a workload model file or lies under the model directory",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "ok"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "model_files_present": {
+      "$comment": "docker: /models mounted into the verify container; otherwise any workload model file on the host filesystem at verify time",
+      "type": "boolean"
+    },
+    "model_files_removed": {
+      "$comment": "hosted: the harness removed the workload's weights from the cache after the last prove and before the first verify",
+      "type": "boolean"
+    },
+    "opened": {
+      "$comment": "every path opened, once, in first-open order, with its size when the harness could read it (null for a container path)",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "bytes": {
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "bytes"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "proof_id": {
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,127}$",
+      "type": "string"
+    },
+    "run_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "schema": {
+      "const": "verify-trace/1"
+    },
+    "tool": {
+      "enum": [
+        "strace",
+        null
+      ]
+    },
+    "trace": {
+      "$comment": "the raw strace output, which the run directory does not keep",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bytes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            }
+          },
+          "required": [
+            "digest",
+            "bytes"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "run_id",
+    "proof_id",
+    "mode",
+    "tool",
+    "trace",
+    "opened",
+    "failed_opens",
+    "model_files_opened",
+    "gpu_devices_opened",
+    "gpu_visible",
+    "model_files_present",
+    "model_files_removed"
+  ],
+  "title": "The file-open trace of one counted verify call: results/.../<run-id>/verify-trace/<proof_id>.json (RFC-0018 CH-4)",
+  "type": "object"
+}

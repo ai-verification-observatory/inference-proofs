@@ -1,0 +1,124 @@
+# Reference profiles and cost basis for Level 1 releases from v1.0 (RFC-0018, RFC-0006
+# §Reference file). The H200 hosted profiles, the serving profiles, verifier-cpu and `costs.h200`
+# are copied from reference/v0.1.yaml unchanged; see that file for their readings. Every Level 1
+# figure is in GPU-seconds of bound H200 GPUs, priced at `costs.h200` (levels/L1.yaml `price`).
+# `cost` is required by reference/1; it holds the same H200 basis, since a v1.0 release has no
+# H100 profile. Drivers unpinned (RFC-0006 Q5).
+schema: "reference/1"
+release: "v1.0"
+profiles:
+  # Hosted H200 prover (copied from v0.1): a minimum spec that Hugging Face Jobs `h200` (1 GPU,
+  # 23 vCPU, 256 GB) meets; FlashProve needs a larger host of the profile (330 GB available to
+  # commit, systems/flashprove/README.md). The job binds one GPU; others stay idle and unpriced (R1).
+  prover-h200-hosted:
+    kind: "prover"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 1, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 23}
+    host_memory_gib_min: 200
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+  # Hosted serving profiles (copied from v0.1, RFC-0006 R6): the baseline ladder (RFC-0018 CO-4)
+  # runs on the fewest H200 that hold the rung's serving record, every bound GPU priced.
+  serving-h200x1-hosted:
+    kind: "serving"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 1, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 23}
+    host_memory_gib_min: 200
+    disk: {type: "any", free_gib_min: 500}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+    pairs_with: ["prover-h200-hosted"]
+    shm_gib_min: 8
+  serving-h200x4-hosted:
+    kind: "serving"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 4, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 92}
+    host_memory_gib_min: 800
+    disk: {type: "any", free_gib_min: 1000}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+    pairs_with: ["prover-h200-hosted"]
+    shm_gib_min: 8
+  # RFC-0018 FI-1: the GPU profile of the Maverick fidelity reference, llama.cpp on the 16-bit
+  # release (about 800 GB of weights) on 8 H200. reference/1 has no fidelity kind, so it is
+  # declared as a serving profile (several bound GPUs, all priced); no overhead joins it. Its
+  # minimums are serving-h200x4-hosted's doubled. Unverified: that Hugging Face Jobs offers an
+  # 8-H200 flavour; none was read on 2026-11-10.
+  fidelity-h200x8-hosted:
+    kind: "serving"
+    gpu: {model: "NVIDIA H200", form_factor: "SXM", count: 8, memory_mib_min: 140000}
+    cpu: {logical_cpus_on_gpu_numa_node: 15, logical_cpus_total_min: 184}
+    host_memory_gib_min: 1600
+    disk: {type: "any", free_gib_min: 2000}
+    os: {id: "ubuntu", version_id: "24.04"}
+    kernel_min: "5.19"
+    driver: "unpinned"
+    container_runtime: {kind: "hosted", cgroup_version: "2"}
+    cost: "h200"
+    pairs_with: ["prover-h200-hosted"]
+    shm_gib_min: 8
+  verifier-cpu:
+    kind: "verifier"
+    gpu: null
+    cpu: {logical_cpus: 8}
+    host_memory_gib: 32
+    emulation: {allowed_on: ["prover-h200-hosted"]}
+  # RFC-0018 CH-4: the verify calls of a Level 1 session run with no GPU visible and no model
+  # file present, on Hugging Face Jobs `cpu-xl` (16 vCPU, 124 GB, read 2026-11-10). 124 GB is
+  # 115 GiB rounded down. No GPU profile emulates it: a verify call on a GPU host would see a GPU.
+  verifier-cpu-hosted:
+    kind: "verifier"
+    gpu: null
+    cpu: {logical_cpus: 16}
+    host_memory_gib: 115
+    emulation: {allowed_on: []}
+cost:
+  price_per_gpu_hour_usd:
+    value: 5.345
+    unit: "USD/gpu_hour"
+    scope: null
+    grade: "asserted"
+    tier: "reported"
+    source: {kind: "reference_file", ref: "reference/v1.0.yaml#/cost"}
+    null_reason: null
+  basis: "median on-demand list price of the named providers on the named date"
+  providers: ["RunPod", "CoreWeave", "Nebius", "DigitalOcean"]
+  date: "2026-11-08"
+  readings:
+    - {provider: "RunPod", url: "https://www.runpod.io/pricing", offer: "H200 SXM 141 GB, Secure Cloud", list_price_usd_per_hour: 5.29, gpus: 1}
+    - {provider: "CoreWeave", url: "https://www.coreweave.com/pricing", offer: "NVIDIA HGX H200 (8 GPUs), on-demand", list_price_usd_per_hour: 50.44, gpus: 8}
+    - {provider: "Nebius", url: "https://nebius.com/prices", offer: "NVIDIA HGX H200, on-demand, per GPU", list_price_usd_per_hour: 5.40, gpus: 1}
+    - {provider: "DigitalOcean", url: "https://www.digitalocean.com/pricing/gpu-droplets", offer: "NVIDIA HGX H200 GPU Droplet, on-demand, per GPU", list_price_usd_per_hour: 4.47, gpus: 1}
+  priced: ["gpu"]
+  not_priced: ["cpu", "host_memory", "disk", "network"]
+# RFC-0006 C7: the H200 basis read on 2026-11-08 (copied from reference/v0.1.yaml#/costs/h200).
+costs:
+  h200:
+    price_per_gpu_hour_usd:
+      value: 5.345
+      unit: "USD/gpu_hour"
+      scope: null
+      grade: "asserted"
+      tier: "reported"
+      source: {kind: "reference_file", ref: "reference/v1.0.yaml#/costs/h200"}
+      null_reason: null
+    basis: "median on-demand list price of the named providers on the named date"
+    providers: ["RunPod", "CoreWeave", "Nebius", "DigitalOcean"]
+    date: "2026-11-08"
+    readings:
+      - {provider: "RunPod", url: "https://www.runpod.io/pricing", offer: "H200 SXM 141 GB, Secure Cloud", list_price_usd_per_hour: 5.29, gpus: 1}
+      - {provider: "CoreWeave", url: "https://www.coreweave.com/pricing", offer: "NVIDIA HGX H200 (8 GPUs), on-demand", list_price_usd_per_hour: 50.44, gpus: 8}
+      - {provider: "Nebius", url: "https://nebius.com/prices", offer: "NVIDIA HGX H200, on-demand, per GPU", list_price_usd_per_hour: 5.40, gpus: 1}
+      - {provider: "DigitalOcean", url: "https://www.digitalocean.com/pricing/gpu-droplets", offer: "NVIDIA HGX H200 GPU Droplet, on-demand, per GPU", list_price_usd_per_hour: 4.47, gpus: 1}
+    priced: ["gpu"]
+    not_priced: ["cpu", "host_memory", "disk", "network"]

@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 from collections.abc import Iterable, Mapping
+from functools import partial
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
@@ -19,6 +20,7 @@ from iproofs.validate import (
     cost,
     precision,
 )
+from iproofs.validate.memo import Memo
 
 # RFC-0013 §G2 inputs: documents that name a schema
 G2_GLOBS = (
@@ -27,8 +29,15 @@ G2_GLOBS = (
     "systems/*/system.yaml",
     "systems/*/external.yaml",
     "systems/*/controls.yaml",
+    "systems/*/properties.yaml",
     "workloads/**/*.yaml",
     "reference/*.yaml",
+    "levels/*.yaml",
+    "levels/*.json",
+    "releases/*/board.json",
+    "results/**/fidelity.json",
+    "results/**/fidelity/*/fidelity-run.json",
+    "results/**/verify-trace/*.json",
     "targets/**/*.yaml",
     "releases/*/release.yaml",
     "releases/*/index.json",
@@ -74,19 +83,32 @@ def documents(root: Path, files: Iterable[str]) -> list[str]:
 # ---------------------------------------------------------------- G2
 
 
-def g2_schema(root: Path, files: list[str], registry: SchemaRegistry) -> list[Finding]:
+def _schema_problems(path: Path, registry: SchemaRegistry) -> list[str]:
+    """The SCHEMA messages of one document, without its path: a function of its bytes, its
+    file type and the schema tree."""
+    try:
+        load_document(path, registry)
+    except IProofsError as e:
+        return [line.split(": ", 1)[1] if ": " in line else line for line in e.message.splitlines()]
+    return []
+
+
+def g2_schema(
+    root: Path, files: list[str], registry: SchemaRegistry, memo: Memo | None = None
+) -> list[Finding]:
     found = []
     for rel in documents(root, files):
         path = root / rel
         if (rel.startswith("systems/") and rel.endswith(("claim.yaml",))) or "/claims/" in rel:
             found += check_claim(path, root, registry)
             continue
-        try:
-            load_document(path, registry)
-        except IProofsError as e:
-            for line in e.message.splitlines():
-                message = line.split(": ", 1)[1] if ": " in line else line
-                found.append(Finding("G2", rel, "SCHEMA", message, ErrorKind.CONFIG))
+        if memo is None:
+            problems = _schema_problems(path, registry)
+        else:
+            problems = memo.check(
+                f"G2{path.suffix}", path.read_bytes(), partial(_schema_problems, path, registry)
+            )
+        found += [Finding("G2", rel, "SCHEMA", m, ErrorKind.CONFIG) for m in problems]
     for problem in check_examples(root / "schema", registry):
         found.append(Finding("G2", "schema", "EXAMPLE", problem.splitlines()[0], ErrorKind.CONFIG))
     return found
@@ -242,7 +264,13 @@ def g2_size(root: Path, files: list[str]) -> list[Finding]:
 G3_SKIP = ("schema/",)
 
 
-def g3_format(root: Path, files: list[str]) -> list[Finding]:
+def _canonical(path: Path, memo: Memo | None) -> bool:
+    if memo is None:
+        return check_format(path)
+    return memo.check("G3", path.read_bytes(), lambda: check_format(path))
+
+
+def g3_format(root: Path, files: list[str], memo: Memo | None = None) -> list[Finding]:
     return [
         Finding(
             "G3",
@@ -253,7 +281,9 @@ def g3_format(root: Path, files: list[str]) -> list[Finding]:
             hint=f"run iproofs fmt {rel}",
         )
         for rel in files
-        if rel.endswith(".json") and not rel.startswith(G3_SKIP) and not check_format(root / rel)
+        if rel.endswith(".json")
+        and not rel.startswith(G3_SKIP)
+        and not _canonical(root / rel, memo)
     ]
 
 
@@ -325,23 +355,32 @@ def _ratio_scope(root: Path, rel: str, key: str, q: Mapping[str, object]) -> lis
 
 
 def validate_tree(
-    root: Path, *, only: Iterable[str] | None = None, base_ref: str | None = None
+    root: Path,
+    *,
+    only: Iterable[str] | None = None,
+    base_ref: str | None = None,
+    memo_path: Path | None = None,
 ) -> list[Finding]:
-    """Every tree gate; `only` limits the per-file gates to those repository paths."""
+    """Every tree gate; `only` limits the per-file gates to those repository paths. With
+    `memo_path`, the checks that read one file reuse their stored results for the same bytes
+    (iproofs.validate.memo); without it, as in a release freeze, every check is computed."""
     registry = SchemaRegistry.from_tree(root / "schema")
+    memo = Memo(memo_path, registry) if memo_path is not None else None
     wanted = [o.rstrip("/") for o in only] if only is not None else []
     # a gate fixture directory named on the command line is scanned (`validate .../gates/G7`)
     fixtures = [w for w in wanted if (w + "/").startswith(EXCLUDED)]
     files = tracked_files(root, fixtures=bool(fixtures))
     if only is not None:
         files = [f for f in files if any(f == w or f.startswith(w + "/") for w in wanted)]
-    found = g2_schema(root, files, registry) + g2_xref(root, files) + g2_size(root, files)
+    found = g2_schema(root, files, registry, memo) + g2_xref(root, files) + g2_size(root, files)
     if base_ref:
         found += g2_append_only(root, base_ref)
-    found += g3_format(root, files) + g4_derived(root, files) + g5_labels(root, files)
+    found += g3_format(root, files, memo) + g4_derived(root, files) + g5_labels(root, files)
     found += g6_policy(root, files) + g7_pins(root, files)
-    found += g9_secrets(root, files, only or ())
+    found += g9_secrets(root, files, only or (), memo)
     found += precision.check(root, files, registry) + cost.check(root, files)
+    if memo is not None:
+        memo.save(whole=only is None)
     return sorted(found, key=lambda f: (f.gate, f.path.encode(), f.pointer))
 
 
@@ -571,6 +610,22 @@ _VERSION_FIELD = re.compile(r"""(?i)["']?\w*version\w*["']?\s*[:=]""")
 
 def scan_text(text: str, rel: str) -> list[Finding]:
     """SEC-1 to SEC-11 over one file, with the same compiled patterns the redactor uses."""
+    return [_secret(rel, n, rule, kind) for n, rule, kind in _scan(text)]
+
+
+def _secret(rel: str, line: int, rule: str, kind: str) -> Finding:
+    return Finding(
+        "G9",
+        f"{rel}:{line}",
+        rule,
+        f"matches the {kind} pattern",
+        ErrorKind.POLICY,
+        hint="remove it; never commit secrets or host identifiers (AGENTS.md rule 7)",
+    )
+
+
+def _scan(text: str) -> list[tuple[int, str, str]]:
+    """(line, rule, kind) of every hit: a function of the text alone."""
     found = []
     for n, line in enumerate(text.splitlines(), start=1):
         spans: list[tuple[int, int]] = []
@@ -588,17 +643,7 @@ def scan_text(text: str, rel: str) -> list[Finding]:
                 if p.rule == "SEC-6" and not is_ipv6(hit):
                     continue
                 spans.append(m.span())
-                found.append(
-                    Finding(
-                        "G9",
-                        f"{rel}:{n}",
-                        p.rule,
-                        f"matches the {p.kind} pattern",
-                        ErrorKind.POLICY,
-                        hint="remove it; never commit secrets "
-                        "or host identifiers (AGENTS.md rule 7)",
-                    )
-                )
+                found.append((n, p.rule, p.kind))
     return found
 
 
@@ -608,16 +653,20 @@ def _allowlisted(rel: str) -> bool:
     )
 
 
-def g9_secrets(root: Path, files: list[str], only: Iterable[str] = ()) -> list[Finding]:
+def g9_secrets(
+    root: Path, files: list[str], only: Iterable[str] = (), memo: Memo | None = None
+) -> list[Finding]:
     """Allowlisted files are skipped unless a requested path lies inside the allowlist."""
     named = tuple(w + "/" for w in (o.rstrip("/") for o in only) if _allowlisted(w + "/"))
     found = []
     for rel in files:
         if _allowlisted(rel) and not (rel.startswith(named) or rel + "/" in named):
             continue
+        data = (root / rel).read_bytes()
         try:
-            text = (root / rel).read_text("utf-8")
+            text = data.decode("utf-8")
         except UnicodeDecodeError:
             continue  # binary files hold no text secrets this gate can see
-        found += scan_text(text, rel)
+        hits = _scan(text) if memo is None else memo.check("G9", data, partial(_scan, text))
+        found += [_secret(rel, n, rule, kind) for n, rule, kind in hits]
     return found

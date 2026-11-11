@@ -8,6 +8,7 @@ is a captured upstream output. IPROOFS_SASH_STUB_GRID picks the `boundary-grid` 
 layer-0 statement states.
 """
 
+import hashlib
 import json
 import os
 import re
@@ -45,6 +46,40 @@ def opt(argv: list[str], name: str) -> str:
     return argv[argv.index(name) + 1]
 
 
+def bound(ser: Path, tag: str) -> bool:
+    """The stand-in's proof of a segment is the sha256 of its statement, so a changed statement
+    is a rejected segment, as verify_composed's Horner checks make it."""
+    fixed = (ser / f"{tag}.fixed.json").read_bytes()
+    return (ser / f"{tag}.proof.json").read_text() == hashlib.sha256(fixed).hexdigest()
+
+
+def grid_of(argv: list[str]) -> int:
+    """boundary-grid on the stand-in's files: every proof bound to its statement, and each id of
+    the last block equal to the argmax the head before it emitted."""
+    ser = host(opt(argv, "--dir"))
+    plan = host(opt(argv, "--plan")).read_text().splitlines()
+    tags = [ln.split()[-1] for ln in plan if ln and not ln.startswith("#")]
+    accepted = sum(bound(ser, t) for t in tags)
+    blocks = sorted({int(re.match(r"B(\d+)", t).group(1)) for t in tags})  # type: ignore[union-attr]
+    b = blocks[-1]
+    load = lambda t: json.loads((ser / f"{t}.fixed.json").read_text())  # noqa: E731
+    tok_in, here, before = (
+        load(f"B{b}L0")["tok_in"],
+        load(f"B{b}head")["tok_out"],
+        load(f"B{b - 1}head")["tok_out"],
+    )
+    emitted = [before[-1], *here[:-1]]
+    bad = [t for t, (i, e) in enumerate(zip(tok_in, emitted, strict=True)) if i != e]
+    ok = accepted == len(tags) and not bad
+    doc = {"result": {"all_chain": True, "failures": [],
+                      "verified": {"run": len(tags), "accepted": accepted,
+                                   "all": accepted == len(tags)},
+                      "tokens": {"all": not bad, "mismatches": bad, "unbacked": []}}}  # fmt: skip
+    print(json.dumps(doc, indent=1))
+    print(f"grid: {'ok' if ok else 'FAIL'}", file=sys.stderr)
+    return 0 if ok else 1
+
+
 def grid(outcome: str) -> int:
     if outcome == "panic":
         print("thread 'main' panicked at prover/src/boundary.rs: stub", file=sys.stderr)
@@ -61,7 +96,15 @@ def grid(outcome: str) -> int:
 
 def harness(argv: list[str]) -> int:
     mod = argv[argv.index("-m") + 1] if "-m" in argv else ""
-    if mod == "harness.witness.extract":  # common.tokens() and ppl.ACALIB write these
+    if mod == "harness.witness.gen_ids":  # which proofs were released before this request began
+        seen = (
+            sorted(p.name for p in host("/io/proofs").iterdir())
+            if host("/io/proofs").is_dir()
+            else []
+        )
+        with host("/io/stub-released.jsonl").open("a") as f:
+            f.write(json.dumps(seen) + "\n")
+    elif mod == "harness.witness.extract":  # common.tokens() and ppl.ACALIB write these
         for name in ("tokens.npz", "attn_ranges.json"):
             (host(os.environ["ZK_OUT"]) / name).touch()
     elif mod == "harness.witness.shapes" and "--merge" in argv:
@@ -85,11 +128,18 @@ def compose_chunks(argv: list[str]) -> int:
     plan = host(opt(argv, "--plan")).read_text().splitlines()
     tags = [ln.split()[-1] for ln in plan if ln and not ln.startswith("#")][lo:hi]
     ser, tok = host(opt(argv, "--ser-dir")), json.loads(os.environ["IPROOFS_SASH_STUB_TOK"])
+    nb = 1 + max(int(ln.split()[-1][1:].split("L")[0].split("h")[0]) for ln in plan
+                 if ln and not ln.startswith("#"))  # fmt: skip
     for t in tags:
-        fixed = {"tok_in": tok if re.fullmatch(r"B\d+L0", t) else []}
-        (ser / f"{t}.fixed.json").write_text(json.dumps(fixed))
+        fixed: dict[str, list[int]] = {"tok_in": tok if re.fullmatch(r"B\d+L0", t) else []}
+        if t == f"B{nb - 1}head":  # the head emits each next id; the last is past the reply
+            fixed = {"tok_out": [*tok[1:], 0]}
+        elif t.endswith("head"):  # the last prompt block's head emits the reply's first id
+            fixed = {"tok_out": [0] * (len(tok) - 1) + [tok[0]]}
+        text = json.dumps(fixed, indent=1)
+        (ser / f"{t}.fixed.json").write_text(text)
         (ser / f"{t}.claims.json").write_text("{}")
-        (ser / f"{t}.proof.json").write_text("{}")
+        (ser / f"{t}.proof.json").write_text(hashlib.sha256(text.encode()).hexdigest())
     # util.rs unsound_skips(), and the edges each switch unbinds (prover/README.md#L86-L102)
     skips = [a.removeprefix("--unsound-skip-") for a in argv if a.startswith("--unsound-skip-")]
     skips += ["argmax-lax"] * argv.count("--unsound-argmax-lax")
@@ -107,7 +157,8 @@ def prover(argv: list[str]) -> int:
     elif argv[1] == "compose-chunks":
         return compose_chunks(argv)
     elif argv[1] == "boundary-grid":
-        return grid(os.environ.get("IPROOFS_SASH_STUB_GRID", "accept"))
+        outcome = os.environ.get("IPROOFS_SASH_STUB_GRID", "check")
+        return grid_of(argv) if outcome == "check" else grid(outcome)
     return 0
 
 

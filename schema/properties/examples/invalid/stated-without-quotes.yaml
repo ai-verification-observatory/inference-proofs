@@ -1,0 +1,23 @@
+# Invalid: a stated petal (unforgeable) with no quote.
+schema: "properties/1"
+system: "fake"
+configuration: "default"
+upstream: {repo: "example/fake-prover", commit: "0123456789abcdef0123456789abcdef01234567"}
+read: "2026-11-11"
+petals:
+  unforgeable:
+    state: "amber"
+    reason: "a conjectured level of 100 bits, stated for the protocol"
+    quotes: []
+    sources_read: ["README.md"]
+  weights_hidden:
+    state: "red"
+    reason: "the verifier receives the weights"
+    quotes:
+      - {text: "verify reads the model file", url: "https://example.org/fake/docs/verify.md#L3"}
+    sources_read: ["README.md", "docs/verify.md"]
+  no_trusted_party:
+    state: "not_stated"
+    reason: "no statement on setup or trusted keys"
+    quotes: []
+    sources_read: ["README.md", "docs/verify.md"]

@@ -1,0 +1,41 @@
+# RFC-0018 Level 1, rung gpt-2: the level's request on GPT-2 (124M), 512 prompt tokens and a
+# 512-token greedy reply, every reply token checked; GPT-2's context is exactly 1,024 tokens. A
+# session is 5 requests of one; its prompts are slot k of the rung's beacon-window/1 stream
+# (PR-1, PR-3), so `count` is one slot. The files are OpenAI's release, in its own dtype (FP32),
+# at the pinned revision of openai-community/gpt2 (the organisation's current home on the Hub);
+# sha256 of model.safetensors is the Hub's LFS digest, the others the hash of the downloaded file
+# at that revision (2026-11-11); model.digest is listing_digest over them (RFC-0014).
+# parameters: the Hub's safetensors count at the revision (F32 tensors, 137,022,720). How the
+# prover quantizes the weights is its own (systems/deepprove/README.md).
+schema: "workload/1"
+id: "l1-gpt2-p512-o512"
+version: 1
+division: "native"
+model:
+  source: {hub: "huggingface", repo: "openai-community/gpt2"}
+  revision: "607a30d783dfa663caf39e06633721c8d4cfcd7e"
+  files:
+    - {path: "config.json", sha256: "0daed7749b4f02b8f76240d5444551d7b08712dab4d0adb8239c56ba823bb7b4", bytes: 665}
+    - {path: "generation_config.json", sha256: "ed0b32ac72c0f5f44a719abb2d7786ea5146c871f83717b7f2018065954de02b", bytes: 124}
+    - {path: "merges.txt", sha256: "1ce1664773c50f3e0cc8842619a93edc4624525b728b188a9e0be33b7726adc5", bytes: 456318}
+    - {path: "model.safetensors", sha256: "248dfc3911869ec493c76e65bf2fcf7f615828b0254c12b473182f0f81d3a707", bytes: 548105171}
+    - {path: "tokenizer.json", sha256: "8414cab924d8b9b33013f0d221c5862f365ee9be39c5c2bfae8a5a9e970478a6", bytes: 1355256}
+    - {path: "tokenizer_config.json", sha256: "5e04eb606e3a1583530a42e36c2a6b6615c86f34fe77e44d9ddeb43ff940931f", bytes: 26}
+    - {path: "vocab.json", sha256: "196139668be63f3b5d6574427317ae82f612a97c5d1cdaf36ed2256dbf636783", bytes: 1042301}
+  digest: "sha256:703f4985110b821e5511ec79888fc1de225d9a3ecc4315b7d4e7fb80ae7264ce"
+  licence: {name: "MIT", url: "https://huggingface.co/openai-community/gpt2/blob/607a30d783dfa663caf39e06633721c8d4cfcd7e/README.md", gated: false}
+  parameters: {total: 137022720, active_per_token: 137022720, source: "https://huggingface.co/api/models/openai-community/gpt2/revision/607a30d783dfa663caf39e06633721c8d4cfcd7e?expand%5B%5D=safetensors"}
+  tokenizer_file: "tokenizer.json"
+  vocab_size: 50257
+precision:
+  served: "FP32"
+  proved: "quantized by the prover (systems/deepprove/README.md)"
+prompts:
+  generator: "beacon-window/1"
+  corpus_digest: "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a"
+  count: 5
+  length_rule: {prompt_tokens: 512}
+shape: {prompt_tokens: 512, output_tokens: 512, batch_size: 1, batches_per_session: 5, context_window: 1024}
+decoding: {rule: "greedy"}
+phase: "both"
+systems: ["deepprove", "ref-serve"]

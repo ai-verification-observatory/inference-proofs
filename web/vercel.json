@@ -65,14 +65,49 @@
   "outputDirectory": "public",
   "redirects": [
     {
-      "destination": "/flashprove",
-      "permanent": true,
+      "destination": "/",
+      "permanent": false,
       "source": "/system"
     },
     {
-      "destination": "/flashprove",
-      "permanent": true,
+      "destination": "/",
+      "permanent": false,
       "source": "/system.html"
+    },
+    {
+      "destination": "/checks",
+      "permanent": false,
+      "source": "/criteria"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
+      "source": "/deepprove"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
+      "source": "/flashprove"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
+      "source": "/reference"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
+      "source": "/release"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
+      "source": "/sash"
+    },
+    {
+      "destination": "/",
+      "permanent": false,
+      "source": "/targets"
     },
     {
       "destination": "/og/icon-32.png",

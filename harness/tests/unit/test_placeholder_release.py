@@ -98,7 +98,7 @@ def test_tokens_covered_per_proof_statistics(tree: Path) -> None:
         q = config(doc, system)["statistics"]["tokens_covered_per_proof"]
         assert q["value"] == want
         assert q["stats"] == {"n": 3, "n_failed": failed, "mean": want, "stdev": 0.0,
-                              "min": want, "max": want}  # fmt: skip
+                              "min": want, "max": want, "median": want}  # fmt: skip
         assert (q["unit"], q["scope"], q["grade"]) == ("token", None, "derived")
 
 
@@ -190,6 +190,11 @@ def test_tree_files_equal_the_real_ones(tree: Path) -> None:
     rels = [f"workloads/{w}.yaml" for w in (ph.WORKLOAD, ph.SASH_WORKLOAD)]
     rels += [f"systems/{s}/system.yaml" for s in ph.SYSTEMS]
     for rel in rels:
+        if rel == "systems/sash/system.yaml":  # the one edit: SASH's v0.1 release behaviour
+            want = yaml.safe_load((ROOT / rel).read_text())
+            ph._sash_v01(want)
+            assert yaml.safe_load((tree / rel).read_text()) == want, rel
+            continue
         assert (tree / rel).read_bytes() == (ROOT / rel).read_bytes(), rel
     for system, workload in ph.NATIVE.items():
         wl = yaml.safe_load((tree / f"workloads/{workload}.yaml").read_text())

@@ -11,6 +11,10 @@ A CPU-only toy prover and verifier implementing the adapter contract `adapter/1`
 | `commit` | `commitment_id = sha256` of the RFC-0012 model digest string of `/models`; no verifier or prover files |
 | `prove` | per request: `body.bin = sha256(key, request)`, `tag.bin = HMAC-SHA256(key, request, claimed_output, body)`, released one by one through `/io/proofs/.tmp-<id>/` and an atomic rename, `IPROOFS_FAKE_DELAY_S` apart (default 0.05 s) |
 | `verify` | recomputes the tag with the `commitment_id` the harness passes from its commit record; `accept` (exit 0), `reject` (exit 1, tag mismatch) or `invalid_call` (exit 2, a part missing or shorter than 32 bytes) |
+| `perturb` | with `IPROOFS_FAKE_L1=1` only (RFC-0018 AD-5): copies `/models` to the job's `out_dir` with byte 0 of `weights.bin` raised by one, and returns that change |
+| `mutate_reply` | with `IPROOFS_FAKE_L1=1` only (RFC-0018 AD-6): copies the proof to `out_dir` with one bit of `body.bin` flipped at the reply position mod 32; it decides nothing |
+
+With `IPROOFS_FAKE_L1=1`, `info` lists `perturb` and `mutate_reply` in `optional_subcommands`, and `prove` renames `/io/marks/generation.start` and `generation.end` into place before its first proof (AD-4). A setup, commit or prove whose job names a `control` object (a level's C3 or P1) says in its warnings that it loaded W'.
 
 The prover keys the HMAC with the commitment of the weights it actually loads, not with the `commitment_id` in its job file. Proving with weights other than the committed ones (control P1) therefore produces proofs the verifier rejects.
 

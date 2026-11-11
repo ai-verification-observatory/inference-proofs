@@ -1,0 +1,939 @@
+{
+  "$defs": {
+    "baseline": {
+      "$comment": "RFC-0018 CO-4: the rung's serving record served at the ladder's concurrencies; full load is the lowest concurrency within the plateau of the highest rate. Null fields and a cause when no baseline run is stored or none of its ladder rungs succeeded.",
+      "additionalProperties": false,
+      "properties": {
+        "cause": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "concurrency": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "gpu_seconds_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "gpus": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "ladder": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "concurrency": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "replies_per_gpu_second": {
+                "$ref": "#/$defs/value"
+              }
+            },
+            "required": [
+              "concurrency",
+              "replies_per_gpu_second"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "run_id": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/runId"
+            }
+          ]
+        },
+        "serving": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "usd_per_reply": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "required": [
+        "serving",
+        "run_id",
+        "gpus",
+        "concurrency",
+        "gpu_seconds_per_reply",
+        "usd_per_reply",
+        "ladder",
+        "cause"
+      ],
+      "type": "object"
+    },
+    "check": {
+      "$comment": "RFC-0018 §The six checks: an undecided check names its cause; held and failed name none. `note` carries a publisher's sentence (CH-5) or the harness's reason.",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "cause": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "state": {
+                "const": "undecided"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "cause": {
+          "enum": [
+            null,
+            "system limit",
+            "not run",
+            "not resolved",
+            "not reproduced"
+          ]
+        },
+        "evidence": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state": {
+          "enum": [
+            "held",
+            "failed",
+            "undecided"
+          ]
+        }
+      },
+      "required": [
+        "state",
+        "cause",
+        "evidence",
+        "note"
+      ],
+      "type": "object"
+    },
+    "petal": {
+      "$comment": "RFC-0018 §The glyph: one petal; `basis` says whether a publisher's statement, our test or our runs decided it",
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "enum": [
+            "statement",
+            "test",
+            "run"
+          ]
+        },
+        "id": {
+          "enum": [
+            "unforgeable",
+            "weights_hidden",
+            "faithful_model",
+            "any_model",
+            "no_trusted_party"
+          ]
+        },
+        "quotes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "reason": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "green",
+            "amber",
+            "red",
+            "hollow"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "state",
+        "basis",
+        "reason",
+        "quotes"
+      ],
+      "type": "object"
+    },
+    "row": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "OR-1, OR-4: only a passed, ranked row holds a position",
+          "else": {
+            "properties": {
+              "position": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "ranked": {
+                "const": true
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "passed": {
+                "const": true
+              },
+              "position": {
+                "type": "integer"
+              },
+              "unranked_reason": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ],
+      "properties": {
+        "checks": {
+          "additionalProperties": false,
+          "properties": {
+            "fidelity": {
+              "$ref": "#/$defs/check"
+            },
+            "model": {
+              "$ref": "#/$defs/check"
+            },
+            "no_weight_file": {
+              "$ref": "#/$defs/check"
+            },
+            "prompt": {
+              "$ref": "#/$defs/check"
+            },
+            "reply": {
+              "$ref": "#/$defs/check"
+            },
+            "run": {
+              "$ref": "#/$defs/check"
+            }
+          },
+          "required": [
+            "run",
+            "model",
+            "prompt",
+            "reply",
+            "no_weight_file",
+            "fidelity"
+          ],
+          "type": "object"
+        },
+        "commit": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/commit"
+            }
+          ]
+        },
+        "configuration": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+            }
+          ]
+        },
+        "fidelity": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "kl": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/$defs/value"
+                    }
+                  ]
+                },
+                "kl_note": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "mean_prefix": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "n": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "p_above_bar": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "p_below_bar": {
+                  "maximum": 1,
+                  "minimum": 0,
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "n",
+                "mean_prefix",
+                "p_above_bar",
+                "p_below_bar",
+                "kl",
+                "kl_note"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "glyph": {
+          "$comment": "GL-1 to GL-5: the five petals in drawing order; never moves a position (GL-4)",
+          "items": false,
+          "minItems": 5,
+          "prefixItems": [
+            {
+              "$ref": "#/$defs/petal",
+              "properties": {
+                "id": {
+                  "const": "unforgeable"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/petal",
+              "properties": {
+                "id": {
+                  "const": "weights_hidden"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/petal",
+              "properties": {
+                "id": {
+                  "const": "faithful_model"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/petal",
+              "properties": {
+                "id": {
+                  "const": "any_model"
+                }
+              }
+            },
+            {
+              "$ref": "#/$defs/petal",
+              "properties": {
+                "id": {
+                  "const": "no_trusted_party"
+                }
+              }
+            }
+          ],
+          "type": "array"
+        },
+        "incomplete_sessions": {
+          "$comment": "SE-3: a session that ended incomplete, with its exit code and cause (AGENTS.md rule 5); it enters no figure and no check except RUN",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "cause": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "exit_code": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "last_line": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "run_id": {
+                "$ref": "../quantity/1.schema.json#/$defs/runId"
+              },
+              "slot": {
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "step": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "run_id",
+              "slot",
+              "exit_code",
+              "step",
+              "cause",
+              "last_line"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "multiple": {
+          "$comment": "CO-5: mean steady m over the baseline's GPU-seconds per reply; null (not_applicable) when the row has no steady state",
+          "$ref": "#/$defs/value"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "position": {
+          "minimum": 1,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "proof_bytes_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "ranked": {
+          "type": "boolean"
+        },
+        "security": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "source": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "stated": {
+                  "type": "boolean"
+                },
+                "words": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "stated",
+                "words",
+                "source"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "session_gpu_seconds_per_reply": {
+          "$comment": "CO-1: GPU-seconds from the start of commit to the release of the last proof, over N; mean of the counted sessions",
+          "$ref": "#/$defs/value"
+        },
+        "session_multiple": {
+          "$comment": "CO-5: session cost per reply over the baseline's GPU-seconds per reply, printed as 'cold sessions of N replies'",
+          "$ref": "#/$defs/value"
+        },
+        "session_usd_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "sessions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "cause": {
+                "enum": [
+                  null,
+                  "too few groups",
+                  "uneven groups",
+                  "missing generation mark"
+                ]
+              },
+              "generation_gpu_seconds_per_reply": {
+                "$comment": "CO-3: the generation phase's GPU-seconds (between the adapter's generation marks) over the session's N replies, included in m; null when the session has no generation phase",
+                "minimum": 0,
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "gpus": {
+                "minimum": 1,
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "groups": {
+                "items": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              "m": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "run_id": {
+                "$ref": "../quantity/1.schema.json#/$defs/runId"
+              },
+              "session": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "slot": {
+                "minimum": 1,
+                "type": "integer"
+              },
+              "steady": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "slot",
+              "run_id",
+              "gpus",
+              "groups",
+              "m",
+              "session",
+              "steady",
+              "cause"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "steady_gpu_seconds_per_reply": {
+          "$comment": "CO-3: mean m of the counted sessions; null when any counted session has no steady state",
+          "$ref": "#/$defs/value"
+        },
+        "steady_usd_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "system": {
+          "$ref": "../quantity/1.schema.json#/$defs/systemId"
+        },
+        "unranked_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verify_seconds_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "workload": {
+          "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        }
+      },
+      "required": [
+        "system",
+        "workload",
+        "configuration",
+        "commit",
+        "checks",
+        "passed",
+        "ranked",
+        "position",
+        "unranked_reason",
+        "multiple",
+        "session_multiple",
+        "steady_gpu_seconds_per_reply",
+        "session_gpu_seconds_per_reply",
+        "steady_usd_per_reply",
+        "session_usd_per_reply",
+        "sessions",
+        "incomplete_sessions",
+        "fidelity",
+        "security",
+        "verify_seconds_per_reply",
+        "proof_bytes_per_reply",
+        "glyph"
+      ],
+      "type": "object"
+    },
+    "rung": {
+      "additionalProperties": false,
+      "properties": {
+        "baseline": {
+          "$ref": "#/$defs/baseline"
+        },
+        "fidelity": {
+          "additionalProperties": false,
+          "properties": {
+            "bar": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "control": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "mean_prefix": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "control",
+                    "mean_prefix"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "cause": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "controls": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "honest",
+                      "damaged"
+                    ]
+                  },
+                  "kl": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "$ref": "#/$defs/value"
+                      }
+                    ]
+                  },
+                  "mean_prefix": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "failed"
+                    ]
+                  }
+                },
+                "required": [
+                  "id",
+                  "kind",
+                  "status",
+                  "mean_prefix",
+                  "kl"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "path": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "path",
+            "bar",
+            "controls",
+            "cause"
+          ],
+          "type": "object"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9.-]{1,63}$",
+          "type": "string"
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "parameters_active": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "parameters_total": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "publisher": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "requests_per_session": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/row"
+          },
+          "type": "array"
+        },
+        "systems_run": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id",
+        "model",
+        "publisher",
+        "parameters_total",
+        "parameters_active",
+        "requests_per_session",
+        "systems_run",
+        "baseline",
+        "fidelity",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "value": {
+      "oneOf": [
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/quantity"
+        },
+        {
+          "$ref": "../quantity/1.schema.json#/$defs/statistic"
+        }
+      ]
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/board/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "releases/<release>/board.json, written by `iproofs release board` from stored records only (RFC-0018 §The board file). Rungs in the level file's order; rows in the order rule's order (OR-5).",
+  "properties": {
+    "date": {
+      "$comment": "the newest run date among the records read; null when nothing has run",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "format": "date",
+          "type": "string"
+        }
+      ]
+    },
+    "frontier": {
+      "$comment": "OR-6: the largest rung with a passed row; null when no row has passed",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "rows": {
+              "items": {
+                "$ref": "../quantity/1.schema.json#/$defs/systemId"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "rung": {
+              "type": "string"
+            },
+            "systems_run": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          "required": [
+            "rung",
+            "rows",
+            "systems_run"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "level": {
+      "pattern": "^L[0-9]+$",
+      "type": "string"
+    },
+    "level_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "price": {
+      "additionalProperties": false,
+      "properties": {
+        "basis": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "format": "date",
+              "type": "string"
+            }
+          ]
+        },
+        "reference": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "usd_per_gpu_hour": {
+          "$ref": "#/$defs/value"
+        }
+      },
+      "required": [
+        "basis",
+        "reference",
+        "usd_per_gpu_hour",
+        "date"
+      ],
+      "type": "object"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "request": {
+      "additionalProperties": false,
+      "properties": {
+        "decoding": {
+          "const": "greedy"
+        },
+        "output_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prompt_tokens": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prompt_tokens",
+        "output_tokens",
+        "decoding"
+      ],
+      "type": "object"
+    },
+    "rungs": {
+      "items": {
+        "$ref": "#/$defs/rung"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "board/1"
+    }
+  },
+  "required": [
+    "schema",
+    "level",
+    "level_digest",
+    "release",
+    "date",
+    "price",
+    "request",
+    "frontier",
+    "rungs"
+  ],
+  "title": "Level board (RFC-0018 §The board file)",
+  "type": "object"
+}

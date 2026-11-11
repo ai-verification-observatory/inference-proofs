@@ -17,15 +17,20 @@ each argument to its upstream source.
   generates and installs the device kernels for the plan's shapes into a copy of the source
   and rebuilds the CUDA backend (upstream's documented way to a device build), proves the
   grid with `compose-chunks` on that backend, and releases one directory per sequence.
-- `verify` runs `boundary-grid --verify` on the SIMD backend and compares the claimed output
-  with the ids the proof states for the generated block.
+- `verify` runs `boundary-grid --verify` on the SIMD backend; its verdict alone is the verdict.
+  The claimed output, which the grid does not take, is compared with the ids the proof states
+  for the reply block and a difference is recorded as a note, never a verdict (RFC-0018 AD-6).
+- `perturb` (RFC-0018 AD-5) writes W' with weight_change.py's change; `mutate_reply` (AD-6)
+  changes one reply token in a proof where the grid reads it.
 
 IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run
 this file in process. IPROOFS_SASH_EXEC names a program every upstream process is run
 through (tests only: a stub that stands in for the binaries); the logged argv is unchanged.
 """
 
+import fcntl
 import hashlib
+import importlib.util
 import json
 import os
 import re
@@ -35,12 +40,17 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 UPSTREAM_COMMIT = "eb95bfa887299d1637550228d42086c27cbb2b3b"  # INV-ADAPTER-2
-WORKLOADS = ["sash-l31-8b-c4096", "sash-l31-8b-c1024"]
+WORKLOADS = ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
 FORBIDDEN_FLAGS = ["--unsound-skip-", "--unsound-argmax-lax"]  # README.md, system.yaml values
 STUB = os.environ.get("IPROOFS_SASH_EXEC")
+OPTIONAL = ["perturb", "mutate_reply"]  # RFC-0018 AD-5, AD-6
+# levels/L1.yaml systems.sash.model_change: a block-0 projection other than q_proj, which is
+# rescaled before quantization (U/harness/witness/model.py L439, L468-L470)
+PERTURB_TENSOR = "model.layers.0.self_attn.o_proj.weight"
 
 SIMD = "/usr/local/bin/zk-prover-simd"  # the reference backend: emission, model-roots, grid
 SRC, HSRC = "/src", "/src/harness"
@@ -172,7 +182,9 @@ def harness_env() -> dict[str, str]:
 
 def geometry(shape: dict, layers: int) -> dict[str, object]:
     """One generated block of S = output tokens, as every upstream run sets it; the head over
-    the last prompt block and the generated block; the links the grid implies."""
+    the last prompt block and the generated block; the links the grid implies (headline-c4096.sh
+    L106-L114: B (L - 1) + 2 on the layer axis, (B - 1) L on the token axis). Level 1's 512 + 512
+    is B = 2, head blocks 0 and 1: README.md §Level 1 says what upstream records of that shape."""
     p, s = shape["prompt_tokens"], shape["output_tokens"]
     if p % s or p & (p - 1):  # extract.py refuses a ragged block; gen_ids a non-power-of-two
         raise SystemExit(f"sash: {p} prompt tokens is not a power of two whole blocks of {s}")
@@ -243,7 +255,7 @@ def info(job: dict) -> dict:
     out = {**base("info"), "system": "sash", "upstream_commit": UPSTREAM_COMMIT,
            "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
            "workloads": WORKLOADS, "profile": "prover-h100",
-           "contract_versions": ["adapter/1"]}  # fmt: skip
+           "contract_versions": ["adapter/1"], "optional_subcommands": OPTIONAL}  # fmt: skip
     if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
         out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
         out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
@@ -424,11 +436,11 @@ def prove(job: dict) -> dict:
             "phases": [{"name": k, "seconds": v} for k, v in phases.items()]}  # fmt: skip
 
 
-def verdict_of(code: int, stdout: str, stderr: str, proved: list[int] | None,
-               claimed: list[int]) -> tuple[str, str]:  # fmt: skip
+def verdict_of(code: int, stdout: str, stderr: str) -> tuple[str, str]:
     """RFC-0005 §Verdict normalisation for SASH, from `boundary-grid`'s exit status and JSON
     (boundary.rs: exit 0 only when every link chained, every id checked and every segment
-    proof verified; 1 otherwise, after the JSON is written)."""
+    proof verified; 1 otherwise, after the JSON is written). Upstream's verifier alone decides:
+    it takes no claimed output (README.md §Level 1; RFC-0018 AD-6)."""
     line = last_line(stderr) or last_line(stdout)
     try:
         r = json.loads(stdout)["result"]
@@ -442,11 +454,7 @@ def verdict_of(code: int, stdout: str, stderr: str, proved: list[int] | None,
         return "reject", line  # the grid check failed
     passed = (code == 0 and r.get("all_chain") is True and v.get("all") is True
               and run_ > 0 and accepted == run_ and tk.get("all") is True)  # fmt: skip
-    if not passed or proved is None:
-        return "no_verdict", line
-    if proved != claimed:
-        return "reject", "claimed_output is not the generated block's ids the proof states"
-    return "accept", line
+    return ("accept" if passed else "no_verdict"), line
 
 
 def verify(job: dict) -> dict:
@@ -471,9 +479,129 @@ def verify(job: dict) -> dict:
     except (OSError, ValueError, KeyError, TypeError):
         proved = None
     stdout = host("/io/verify/grid.json").read_text()
-    verdict, line = verdict_of(p.returncode, stdout, p.stderr, proved, job["claimed_output"])
+    verdict, line = verdict_of(p.returncode, stdout, p.stderr)
+    # a note, never a verdict (RFC-0018 AD-6): does the claim equal the reply the proof states?
+    notes = [] if proved == job["claimed_output"] else [
+        "note: claimed_output is not the reply block's ids the proof states (tok_in of "
+        f"B{g['blocks'] - 1}L0); boundary-grid takes no claimed output, so this decides nothing"]
     return {**base("verify"), "verdict": verdict, "raw_exit_code": p.returncode,
-            "raw_last_line": line, "seconds": seconds}  # fmt: skip
+            "raw_last_line": line, "seconds": seconds, "warnings": notes}  # fmt: skip
+
+
+def clone(src: Path, dst: Path) -> None:
+    """A copy that shares its blocks where the file system can (FICLONE), else a copy."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    with src.open("rb") as i, dst.open("wb") as o:
+        try:
+            fcntl.ioctl(o.fileno(), 0x40049409, i.fileno())  # FICLONE, linux/fs.h
+        except OSError:
+            shutil.copyfileobj(i, o, 64 << 20)
+
+
+def weight_change() -> object:
+    """weight_change.py, which lies beside this file (in the image: /opt/sash)."""
+    spec = importlib.util.spec_from_file_location(
+        "weight_change", Path(__file__).resolve().parent / "weight_change.py")
+    if spec is None or spec.loader is None:
+        raise SystemExit("sash: no weight_change.py beside the entrypoint")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def perturb(job: dict) -> dict:
+    """RFC-0018 AD-5 on a CPU: W' is the model directory with one BF16 weight of layer 0's o_proj
+    changed by the fewest BF16 steps that move its int8 code and not its channel's scale, the
+    first row that has one (weight_change.py; SASH's load-time quantization, quant.py). SASH has
+    no weight digest tool of its own: the digests are of the changed file."""
+    if "BF16" not in job["change"]:
+        raise SystemExit(f"sash: perturb changes a BF16 weight, not {job['change']!r}")
+    wc: Any = weight_change()
+    src, out = host(job["model_dir"]), host(job["out_dir"])
+    shards = [p for p in sorted(src.glob("*.safetensors"))
+              if PERTURB_TENSOR in json.loads(p.read_bytes()[8 : 8 + int.from_bytes(
+                  p.read_bytes()[:8], "little")])]  # fmt: skip
+    if len(shards) != 1:
+        raise SystemExit(f"sash: {PERTURB_TENSOR} is in {len(shards)} safetensors files, not 1")
+    shard = shards[0]
+    for row in range(1 << 20):
+        offset, values = wc.read_row(shard, PERTURB_TENSOR, row)
+        if not values:
+            raise SystemExit(f"sash: no row of {PERTURB_TENSOR} has a single-weight change")
+        change = wc.best_in_row(values)
+        if change is not None:
+            break
+    at = offset + 2 * change.col
+    for p in sorted(src.rglob("*")):
+        if p.is_file():
+            clone(p, out / p.relative_to(src))
+    changed = out / shard.relative_to(src)
+    with changed.open("r+b") as f:
+        f.seek(at)
+        f.write(change.after.to_bytes(2, "little"))
+    digest = lambda p: "sha256:" + hashlib.sha256(p.read_bytes()).hexdigest()  # noqa: E731
+    return {**base("perturb"), "perturbation": {
+        "tensor": PERTURB_TENSOR, "index": row * len(values) + change.col,
+        "old": change.before.to_bytes(2, "little").hex(),
+        "new": change.after.to_bytes(2, "little").hex(),
+        "unit": f"{abs(change.steps)} BF16 step(s) {'up' if change.steps > 0 else 'down'} of row "
+                f"{row}, column {change.col}: int8 code {change.code_before} to "
+                f"{change.code_after} at scale {change.scale!r}, byte {at} of {shard.name}",
+        "digest_w": digest(shard), "digest_w_prime": digest(changed), "digest_tool": None}}
+
+
+def edit_item(text: str, key: str, index: int, old: int, new: int) -> str:
+    """`text` with element `index` of the top-level list `key` changed from old to new, every
+    other byte as it was; checked by parsing both."""
+    m = re.search(rf'"{re.escape(key)}"\s*:\s*\[', text)
+    if m is None:
+        raise SystemExit(f"sash: no list {key!r}")
+    items = list(re.finditer(r"-?\d+", text[m.end() : text.index("]", m.end())]))
+    if not 0 <= index < len(items) or int(items[index].group()) != old:
+        raise SystemExit(f"sash: {key}[{index}] is not {old}")
+    a, b = m.end() + items[index].start(), m.end() + items[index].end()
+    edited = text[:a] + str(new) + text[b:]
+    want = json.loads(text)
+    want[key][index] = new
+    if json.loads(edited) != want:
+        raise SystemExit(f"sash: editing {key}[{index}] changed more than that value")
+    return edited
+
+
+def mutate_reply(job: dict) -> dict:
+    """RFC-0018 AD-6 on a CPU: the proof with reply token `position` changed where boundary-grid
+    reads it, and in the field the proof pairs with it, byte for byte otherwise. The reply is
+    `tok_in` of the last block's layer-0 statement; each of its ids is checked against the
+    argmax the head proved for the position before (`tok_out` of that block's head, or the last
+    of the previous block's head at position 0) (U/prover/src/boundary.rs L1148-L1156,
+    L1562-L1601; both pinned to their proofs, compose.rs L7845-L7857). Decides nothing."""
+    src, out = host(job["proof_dir"]), host(job["out_dir"])
+    blocks = sorted(int(m.group(1)) for p in src.glob("B*L0.fixed.json")
+                    if (m := re.fullmatch(r"B(\d+)L0\.fixed\.json", p.name))
+                    and json.loads(p.read_text()).get("tok_in"))  # fmt: skip
+    if not blocks:
+        raise SystemExit(f"sash: {src} has no statement with tok_in")
+    b, t, token = blocks[-1], int(job["position"]), int(job["token"])
+    reply = f"B{b}L0.fixed.json"
+    tok_in = json.loads((src / reply).read_text())["tok_in"]
+    if not 0 <= t < len(tok_in):
+        raise SystemExit(f"sash: position {t} is outside the reply's {len(tok_in)} tokens")
+    old = int(tok_in[t])
+    head, at = (f"B{b}head.fixed.json", t - 1) if t > 0 else (f"B{b - 1}head.fixed.json", -1)
+    if not (src / head).is_file():
+        raise SystemExit(f"sash: {src} has no {head}, which emits reply position {t}")
+    tok_out = json.loads((src / head).read_text()).get("tok_out") or []
+    at = at % len(tok_out) if tok_out else 0
+    if not tok_out or int(tok_out[at]) != old:
+        raise SystemExit(f"sash: {head} tok_out[{at}] is not reply position {t}'s id {old}")
+    out.mkdir(parents=True, exist_ok=True)
+    for p in sorted(src.iterdir()):
+        if p.is_file():
+            shutil.copyfile(p, out / p.name)
+    (out / reply).write_text(edit_item((src / reply).read_text(), "tok_in", t, old, token))
+    (out / head).write_text(edit_item((src / head).read_text(), "tok_out", at, old, token))
+    return {**base("mutate_reply"), "mutated": {
+        "parts": [reply, head], "fields": [f"{reply} tok_in[{t}]", f"{head} tok_out[{at}]"]}}
 
 
 def main() -> int:
@@ -485,7 +613,8 @@ def main() -> int:
                  if any(f.startswith(p) for p in FORBIDDEN_FLAGS)]  # fmt: skip
     if weakening and job.get("control") is not True:  # INV-ADAPTER-10, before any process
         raise SystemExit(f"sash: refusing {weakening} outside a control job")
-    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify}
+    handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify,
+                "perturb": perturb, "mutate_reply": mutate_reply}  # fmt: skip
     if sub not in handlers:
         raise SystemExit(f"sash: no subcommand {sub!r}")
     host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")

@@ -48,12 +48,12 @@ The model is Ethproofs, which made zkVM provers for Ethereum blocks comparable b
 2. **G2. Comparable by construction.** Fixed workloads, fixed reference hardware, fixed timing scopes, fixed cost basis. Where systems cannot run the same workload, the benchmark says so and compares only what is comparable.
 3. **G3. Reproducible.** Every row pins the prover commit, container digest, model hash, hardware and driver versions, and the exact command. A number is called measured only once someone other than the authors has reproduced it.
 4. **G4. Adversarial.** Every system faces the same negative controls; each row reports which ones it rejects.
-5. **G5. Neutral.** Open methodology in RFCs, neutral language. No single score and no ranking.
+5. **G5. Neutral.** Open methodology in RFCs, neutral language. One ranked figure inside a model's rung, by a published order rule (RFC-0018); no single score across properties and no ranking across rungs.
 6. **G6. Low cost to join.** A prover joins through a thin adapter. The harness never forks or patches a prover.
 
 ## 5. Non-goals
 
-- Ranking systems or naming a "fastest" or "best" prover.
+- Ranking across rungs, or naming a "fastest" or "best" prover. Inside a rung, RFC-0018's order rule ranks the systems that passed (owner decision, 2026-11-10).
 - Certifying security. The benchmark reports declared claims and test results; it does not audit soundness proofs or code.
 - Building or maintaining provers or shared proving libraries.
 - Training, fine-tuning or compute-accounting claims (out of scope for v0; see Roadmap).

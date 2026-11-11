@@ -33,6 +33,57 @@
         "2026-11-06-fake-fake-tiny-ci-ci-cpu-3"
       ],
       "statistics": {
+        "cost_per_request_prove.session": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "prove.session",
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/cost_per_request_prove.session",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/cost_per_request_prove.session",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/cost_per_request_prove.session"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": null
+        },
+        "cost_per_request_prove.steady": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/cost_per_request_prove.steady",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/cost_per_request_prove.steady",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/cost_per_request_prove.steady"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": null
+        },
+        "cost_per_request_whole_wall": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "whole_wall",
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/cost_per_request_whole_wall",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/cost_per_request_whole_wall",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/cost_per_request_whole_wall"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": null
+        },
         "proof_bytes": {
           "grade": "derived",
           "null_reason": null,
@@ -49,6 +100,7 @@
           "stats": {
             "max": 64.0,
             "mean": 64.0,
+            "median": 64.0,
             "min": 64.0,
             "n": 3,
             "n_failed": 0,
@@ -73,6 +125,23 @@
           },
           "tier": "reported",
           "unit": "B/bit_token",
+          "value": null
+        },
+        "proof_bytes_per_request": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": null,
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/proof_bytes_per_request",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/proof_bytes_per_request",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/proof_bytes_per_request"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "B/request",
           "value": null
         },
         "prove_gpu_memory_peak": {
@@ -108,6 +177,7 @@
           "stats": {
             "max": 1.5,
             "mean": 1.5,
+            "median": 1.5,
             "min": 1.5,
             "n": 3,
             "n_failed": 0,
@@ -133,6 +203,7 @@
           "stats": {
             "max": 1.0,
             "mean": 1.0,
+            "median": 1.0,
             "min": 1.0,
             "n": 3,
             "n_failed": 0,
@@ -175,6 +246,7 @@
           "stats": {
             "max": 36.0,
             "mean": 36.0,
+            "median": 36.0,
             "min": 36.0,
             "n": 3,
             "n_failed": 0,
@@ -252,6 +324,23 @@
           "unit": "token",
           "value": null
         },
+        "tokens_covered_per_request": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": null,
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/tokens_covered_per_request",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/tokens_covered_per_request",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/tokens_covered_per_request"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "token/request",
+          "value": null
+        },
         "tokens_covered_steady": {
           "grade": "derived",
           "null_reason": null,
@@ -268,6 +357,7 @@
           "stats": {
             "max": 36.0,
             "mean": 36.0,
+            "median": 36.0,
             "min": 36.0,
             "n": 3,
             "n_failed": 0,
@@ -292,6 +382,23 @@
           },
           "tier": "reported",
           "unit": "s/bit_token",
+          "value": null
+        },
+        "verify_seconds_per_request": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "verify",
+          "source": {
+            "inputs": [
+              "releases/v0.1/index.json#/freeze_derived/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/verify_seconds_per_request",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/verify_seconds_per_request",
+              "releases/v0.1/index.json#/freeze_derived/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/verify_seconds_per_request"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-STAT@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "s/request",
           "value": null
         }
       },
@@ -326,6 +433,57 @@
   ],
   "freeze_derived": {
     "2026-11-03-fake-fake-tiny-ci-ci-cpu-1": {
+      "cost_per_request_prove.session": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "prove.session",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/cost_per_1k_tokens_prove.session",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
+      "cost_per_request_prove.steady": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "prove.steady",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/cost_per_1k_tokens_prove.steady",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
+      "cost_per_request_whole_wall": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "whole_wall",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/cost_per_1k_tokens_whole_wall",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
       "proof_bytes_per_active_weight_bit_token": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -341,6 +499,22 @@
         },
         "tier": "reported",
         "unit": "B/bit_token",
+        "value": null
+      },
+      "proof_bytes_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/proof_bytes_total",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-BPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "B/request",
         "value": null
       },
       "seconds_per_active_weight_bit_token_prove.session": {
@@ -410,6 +584,22 @@
         "unit": "token",
         "value": null
       },
+      "tokens_covered_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-TPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "token/request",
+        "value": null
+      },
       "verify_seconds_per_active_weight_bit_token": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -426,9 +616,76 @@
         "tier": "reported",
         "unit": "s/bit_token",
         "value": null
+      },
+      "verify_seconds_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "verify",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/verify_seconds_total",
+            "results/v0.1/fake/2026-11-03-fake-fake-tiny-ci-ci-cpu-1/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-VSPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "s/request",
+        "value": null
       }
     },
     "2026-11-05-fake-fake-tiny-ci-ci-cpu-2": {
+      "cost_per_request_prove.session": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "prove.session",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/cost_per_1k_tokens_prove.session",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
+      "cost_per_request_prove.steady": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "prove.steady",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/cost_per_1k_tokens_prove.steady",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
+      "cost_per_request_whole_wall": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "whole_wall",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/cost_per_1k_tokens_whole_wall",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
       "proof_bytes_per_active_weight_bit_token": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -444,6 +701,22 @@
         },
         "tier": "reported",
         "unit": "B/bit_token",
+        "value": null
+      },
+      "proof_bytes_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/proof_bytes_total",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-BPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "B/request",
         "value": null
       },
       "seconds_per_active_weight_bit_token_prove.session": {
@@ -513,6 +786,22 @@
         "unit": "token",
         "value": null
       },
+      "tokens_covered_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-TPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "token/request",
+        "value": null
+      },
       "verify_seconds_per_active_weight_bit_token": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -529,9 +818,76 @@
         "tier": "reported",
         "unit": "s/bit_token",
         "value": null
+      },
+      "verify_seconds_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "verify",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/verify_seconds_total",
+            "results/v0.1/fake/2026-11-05-fake-fake-tiny-ci-ci-cpu-2/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-VSPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "s/request",
+        "value": null
       }
     },
     "2026-11-06-fake-fake-tiny-ci-ci-cpu-3": {
+      "cost_per_request_prove.session": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "prove.session",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/cost_per_1k_tokens_prove.session",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
+      "cost_per_request_prove.steady": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "prove.steady",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/cost_per_1k_tokens_prove.steady",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
+      "cost_per_request_whole_wall": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "whole_wall",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/cost_per_1k_tokens_whole_wall",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-COST-REQ-S@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "USD/request",
+        "value": null
+      },
       "proof_bytes_per_active_weight_bit_token": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -547,6 +903,22 @@
         },
         "tier": "reported",
         "unit": "B/bit_token",
+        "value": null
+      },
+      "proof_bytes_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/proof_bytes_total",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-BPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "B/request",
         "value": null
       },
       "seconds_per_active_weight_bit_token_prove.session": {
@@ -616,6 +988,22 @@
         "unit": "token",
         "value": null
       },
+      "tokens_covered_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": null,
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/tokens_covered_total",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-TPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "token/request",
+        "value": null
+      },
       "verify_seconds_per_active_weight_bit_token": {
         "grade": "derived",
         "null_reason": "missing_input",
@@ -631,6 +1019,22 @@
         },
         "tier": "reported",
         "unit": "s/bit_token",
+        "value": null
+      },
+      "verify_seconds_per_request": {
+        "grade": "derived",
+        "null_reason": "missing_input",
+        "scope": "verify",
+        "source": {
+          "inputs": [
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/verify_seconds_total",
+            "results/v0.1/fake/2026-11-06-fake-fake-tiny-ci-ci-cpu-3/run.json#/metrics/requests_count"
+          ],
+          "kind": "derivation",
+          "ref": "derive:D-VSPR@0.1.0.dev0"
+        },
+        "tier": "reported",
+        "unit": "s/request",
         "value": null
       }
     }

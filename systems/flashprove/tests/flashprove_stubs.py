@@ -42,7 +42,8 @@ print("cp_commit: done. the commitment is complete and can be handed out")
 
 # cp_prove: batches of -batch, oldest request first, each response renamed into out/ in the
 # documented order (.y, then .proof). The "proof" is the request's words and y, so the stand-in
-# verifier can tell a changed request or token. A first token of 999 gets <id>.failed.
+# verifier can tell a changed request or token; y is 0 unless e = T. A first token of 999 gets
+# <id>.failed.
 CP_PROVE = """
 spool, size = Path(opt("-spool")), int(opt("-batch"))
 assert (Path(opt("-isk")) / "seed.bin").is_file() and os.path.isdir(os.environ["TMPDIR"])
@@ -58,7 +59,8 @@ for b in range(int(opt("-most-batches"))):
         if first == 999:
             (spool / "out" / (r.stem + ".failed")).write_bytes(b"")
             continue
-        y = (first % 1000).to_bytes(4, "little")
+        n, e = len(words) // 4 - 2, int.from_bytes(words[-4:], "little")
+        y = (first % 1000 if e == n else 0).to_bytes(4, "little")  # y unused when e < T
         for ending, data in ((".y", y), (".proof", words + y)):
             (spool / "out/.tmp" / (r.stem + ending)).write_bytes(data)
             os.rename(spool / "out/.tmp" / (r.stem + ending), spool / "out" / (r.stem + ending))
@@ -73,7 +75,9 @@ CP_VERIFY = """
 config, ivk, req, y, proof = map(Path, a[1:6])
 assert sorted(p.name for p in config.iterdir()) == ["KL.bin", "layout.txt", "policy.txt"]
 assert (ivk / "key.bin").is_file() and (ivk / "leaf/0.bin").is_file()
-assert "-next-token" in a and int(opt("-j")) >= 1
+words = req.read_bytes()
+assert ("-next-token" in a) == (int.from_bytes(words[-4:], "little") == len(words) // 4 - 2)
+assert int(opt("-j")) >= 1
 forced = os.environ.get("STUB_VERIFY")
 if forced:
     code, _, line = forced.partition(":")
@@ -84,6 +88,62 @@ ok = proof.read_bytes() == req.read_bytes() + y.read_bytes() and opt("-id") == "
 print("YES" if ok else "NO: statement")
 sys.exit(0 if ok else 1)
 """
+
+
+# The integer model's Python: the float64 check prints a pytest summary (STUB_FLOAT64 replaces it);
+# a `-c` program runs as given, with FAKE_INTEGER_MODEL below importable as `integer_model`.
+IM_PYTHON = """
+if "-m" in a:
+    assert a[a.index("-m") + 1] == "pytest" and os.environ["INTEGER_MODEL_TEST_DEVICE"] == "cuda"
+    assert Path("tests/test_arithmetic_edges.py").is_file()
+    print(os.environ.get("STUB_FLOAT64", "==== 12 passed in 0.50s ===="))
+    sys.exit(0)
+sys.path.insert(0, os.environ["STUB_FAKE_MODULES"])
+sys.argv = a[a.index("-c") + 1 :]
+exec(compile(sys.argv[0], "<-c>", "exec"), {"__name__": "__main__"})
+"""
+
+# A stand-in for the package's load_from_folder: it checks the folder and the digests as the
+# loader does, and its "greedy choice" after a token t at position n is (7 t + n) mod 1000.
+FAKE_INTEGER_MODEL = """
+import hashlib, json
+from pathlib import Path
+
+
+class _Model:
+    def new_sequence(self):
+        return []
+
+    def extend(self, seq, ids):
+        out = []
+        for t in ids:
+            seq.append(int(t))
+            out.append((7 * seq[-1] + len(seq)) % 1000)
+        return out
+
+    def free(self, seq):
+        seq.clear()
+
+
+def load_from_folder(folder, device, options):
+    spec = json.loads((Path(folder) / "integer_model.json").read_text())["weight_settings"]
+    assert device == "cuda" and spec["blocks"] == "gguf"
+    assert all(Path(s).is_file() for s in spec["shards"]) and len(spec["shards"]) == 5
+    where = {"wsums.txt": spec["setup_folder"], "fold.txt": spec["setup_folder"]}
+    for name, digest in options["sha256"].items():
+        data = (Path(where.get(name, folder)) / name).read_bytes()
+        assert hashlib.sha256(data).hexdigest() == digest, name
+    return _Model()
+"""
+
+
+def greedy(prompt: list[int], length: int) -> list[int]:
+    """The reply FAKE_INTEGER_MODEL writes, computed here by its rule."""
+    seq, reply = list(prompt), [(7 * prompt[-1] + len(prompt)) % 1000]
+    while len(reply) < length:
+        seq.append(reply[-1])
+        reply.append((7 * seq[-1] + len(seq)) % 1000)
+    return reply
 
 
 # The fit's four programs: each writes the file the next one reads, with the bytes whose digests
@@ -134,6 +194,9 @@ def adapter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     config.mkdir()
     (weights / "wsums.txt").write_text("sums\n")
     (weights / "fold.txt").write_text("eres 10\nqkrows asis\n")
+    for i in range(1, 6):
+        name = f"Llama-4-Maverick-17B-128E-Instruct-UD-Q4_K_XL-0000{i}-of-00005.gguf"
+        (weights / name).write_bytes(bytes([i]))
     for name in ("policy.txt", "KL.bin", "layout.txt"):
         (config / name).write_text(name)
     fit_stubs(src, tmp_path)
@@ -145,6 +208,14 @@ def adapter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
         f"{hashlib.sha256(b'KL.bin').hexdigest()}  config/KL.bin\n"
     )
     monkeypatch.setenv("IPROOFS_FLASHPROVE_SRC", str(src))
+    edges = src / "integrations/vllm/integer_model/tests/test_arithmetic_edges.py"
+    edges.parent.mkdir(parents=True)
+    edges.write_text("")
+    write_stub(tmp_path / "im-python", IM_PYTHON)
+    monkeypatch.setenv("IPROOFS_FLASHPROVE_IM_PYTHON", str(tmp_path / "im-python"))
+    (tmp_path / "fake").mkdir()
+    (tmp_path / "fake/integer_model.py").write_text(FAKE_INTEGER_MODEL)
+    monkeypatch.setenv("STUB_FAKE_MODULES", str(tmp_path / "fake"))
     loader = importlib.machinery.SourceFileLoader("flashprove", str(SYSTEM / "entrypoint"))
     spec = importlib.util.spec_from_loader("flashprove", loader)
     assert spec is not None

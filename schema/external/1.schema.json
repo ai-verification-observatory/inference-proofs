@@ -92,6 +92,6 @@
     "upstream",
     "figures"
   ],
-  "title": "Upstream figures of one system (RFC-0004 \u00a7Mapping from upstream scopes)",
+  "title": "Upstream figures of one system (RFC-0004 §Mapping from upstream scopes)",
   "type": "object"
 }

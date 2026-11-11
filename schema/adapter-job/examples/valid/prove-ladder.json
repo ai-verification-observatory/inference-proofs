@@ -1,0 +1,39 @@
+{
+  "batch_size": 1024,
+  "batches": 1,
+  "commitment_id": "not_applicable",
+  "contract": "adapter/1",
+  "control": false,
+  "gpus": 1,
+  "ladder": [
+    1,
+    2,
+    4,
+    8,
+    16,
+    32,
+    64,
+    128,
+    256
+  ],
+  "load_point": "ladder",
+  "model_dir": "/models",
+  "prompts_file": "/io/prompts.jsonl",
+  "prover_files": [],
+  "run_id": "2026-12-02-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1",
+  "schema": "adapter-job/1",
+  "shape": {
+    "batch_size": 1,
+    "batches_per_session": 5,
+    "context_window": 1024,
+    "output_tokens": 512,
+    "prompt_tokens": 512
+  },
+  "subcommand": "prove",
+  "timed_batches": 3,
+  "warmup_batches": 1,
+  "workload": {
+    "id": "l1-l31-8b-p512-o512",
+    "version": 1
+  }
+}

@@ -107,9 +107,19 @@ def _plain(path: Path, node: object, pointer: str) -> object:
     raise _config(path, f"{pointer or '/'}: {type(node).__name__} is not a JSON type")
 
 
+# Parsed YAML by the sha256 of the file's bytes, kept as JSON text: a tree is a function of the
+# bytes alone, and every caller gets its own copy. Failures are not kept (they name the path).
+_YAML_TREES: dict[bytes, str] = {}
+_YAML_TREES_MAX = 4096
+
+
 def load_yaml(path: Path) -> dict[str, object]:
     """Load an authored YAML file under the RFC-0012 subset rules; plain JSON types only."""
     raw = path.read_bytes()
+    key = hashlib.sha256(raw).digest()
+    if key in _YAML_TREES:
+        known: dict[str, object] = json.loads(_YAML_TREES[key])
+        return known
     if raw.startswith(b"\xef\xbb\xbf"):
         raise _config(path, "byte-order mark is not allowed")
     if b"\r" in raw:
@@ -126,4 +136,7 @@ def load_yaml(path: Path) -> dict[str, object]:
         raise _config(path, "top level must be a mapping")
     plain = _plain(path, tree, "")
     assert isinstance(plain, dict)
+    if len(_YAML_TREES) >= _YAML_TREES_MAX:
+        _YAML_TREES.clear()
+    _YAML_TREES[key] = json.dumps(plain, ensure_ascii=False, allow_nan=False)
     return plain
