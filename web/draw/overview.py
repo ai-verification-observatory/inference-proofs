@@ -216,6 +216,7 @@ def frontier_html():
     under it."""
     run = [r for r in S.V["rungs"] if r["rows"]]
     empty = [r["model"] for r in S.V["rungs"] if not r["rows"]]
+    front = S.V["frontier"]
     items = []
     for rung in run:
         passed = sum(1 for row in rung["rows"] if row["passed"])
@@ -223,9 +224,17 @@ def frontier_html():
             state, said = "s2", f"{passed} system{'s' if passed != 1 else ''} passed"
         else:
             state, said = "s1", f"{len(rung['rows'])} run, none passed"
+        top = front is not None and front["rung"] == rung["id"]
+        tag = ""
+        if top:  # OR-6: the largest model with a passed system, and who holds position 1 on it
+            state += " bl-top"
+            names = ", ".join(name_of(row) for row in front["rows"])
+            first = front["rows"][0]
+            said = f"#1 {names}" if first["position"] == 1 else f"passed: {names}"
+            tag = '<span class="bl-k">Largest model proved</span>'
         cost = _best_multiple(rung)
         items.append(
-            f'<li class="bl-r {state}"><a href="#{e(rung["id"])}">'
+            f'<li class="bl-r {state}"><a href="#{e(rung["id"])}">{tag}'
             f'<span class="bl-m">{e(rung["model"])}</span>'
             f'<span class="bl-p">{e(params(rung["parameters_total"]))}</span>'
             f'<span class="bl-bar" aria-hidden="true"></span>'

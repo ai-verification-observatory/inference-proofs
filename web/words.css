@@ -143,6 +143,11 @@ html:has(.top.s-on) { overflow: hidden; }
 .s1 .bl-bar { background: repeating-linear-gradient(-45deg, var(--ground) 0 2px, transparent 2px 7px); }
 .s0 .bl-bar { height: 0; border-width: 2px 0 0; }
 .s0 .bl-s { opacity: .72; }
+.bl-k { grid-column: 1 / -1; font: 600 12px/1 var(--mono); letter-spacing: var(--track); text-transform: uppercase; margin-bottom: -6px; }
+.bl-top a { padding: 12px 0 14px; }
+.bl-top .bl-m { font-size: 34px; }
+.bl-top .bl-s, .bl-top .bl-c { font-size: 18px; font-weight: 700; }
+.bl-top .bl-bar { height: 22px; }
 /* the frontier: one line, the largest model a system passed on */
 .front { font: 900 56px/.95 var(--disp); font-stretch: 66%; letter-spacing: -.008em; margin: 0; max-width: 24ch; text-wrap: balance; }
 .front a { text-decoration-thickness: 3px; text-underline-offset: 6px; }
@@ -272,6 +277,8 @@ html:has(.top.s-on) { overflow: hidden; }
   .bl-r a { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "m p" "bar bar" "s c"; gap: 6px 12px; padding: 10px 0; }
   .bl-m { grid-area: m; font-size: 19px; } .bl-p { grid-area: p; } .bl-bar { grid-area: bar; }
   .bl-s { grid-area: s; } .bl-c { grid-area: c; }
+  .bl-k { grid-area: k; } .bl-top a { grid-template-areas: "k k" "m p" "bar bar" "s c"; }
+  .bl-top .bl-m { font-size: 26px; } .bl-top .bl-s, .bl-top .bl-c { font-size: 15px; }
   /* one line: the logo, the page, a search button and GitHub; the button opens the field over the line */
   .tl { display: contents; }
   .top { grid-template-columns: auto 1fr auto auto; gap: 16px 18px; padding-block: 16px; }
