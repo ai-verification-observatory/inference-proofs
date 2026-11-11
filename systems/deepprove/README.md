@@ -37,10 +37,8 @@ and every Level 1 check that needs a verdict stays undecided.
 What this means for the benchmark (a reading, not legal advice):
 
 - Building and running DeepProve privately to measure it is inside "testing and evaluating".
-- Publishing results and distributing the image are not covered by the licence; the project has
-  the publisher's permission for both. The image is built by the images workflow and pushed to
-  the project registry like every other adapter, hosted runners pull it, and the results are
-  published.
+- The image is built by the images workflow and pushed to the project registry like every other
+  adapter, and hosted runners pull it.
 - Nothing from upstream is vendored into this repository: the adapter, its tests and the
   stand-in proof files hold no upstream code.
 
