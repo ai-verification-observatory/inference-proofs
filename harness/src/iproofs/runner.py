@@ -1399,10 +1399,19 @@ class Runner:
             raise IProofsError(ErrorKind.ENVIRONMENT, message, step="prove")
         job.warnings += check_proofs(IoDirs(job.staging / "io"), out, job.system)
         job.warnings += [f"prove: {w}" for w in out.warnings]  # the adapter's, e.g. a ladder's
-        # RFC-0017 INV-REQ-2; under a level, every request claims the level's reply (AD-1)
-        check_requests(
-            out, self.level.output_tokens if self.level else job.workload.shape.output_tokens
-        )
+        # RFC-0017 INV-REQ-2; under a level, every request claims the level's reply (AD-1). A
+        # serving ladder serves each ladder prompt once per concurrency (CO-4), so there each
+        # served reply, not each prompt, holds the level's reply length.
+        tokens = self.level.output_tokens if self.level else job.workload.shape.output_tokens
+        if self.load == "ladder":
+            short = sorted(
+                {p.proof_id for p in out.proofs or () if len(p.claimed_output) != tokens}
+            )
+            if short:
+                raise IProofsError(ErrorKind.ADAPTER, f"ladder replies of another length than "
+                                   f"{tokens}: {short[:5]}", step="prove")  # fmt: skip
+        else:
+            check_requests(out, tokens)
         watcher.check_unchanged()
         job.proofs, job.observable = out, watcher.observable
         if _recompute(job):
