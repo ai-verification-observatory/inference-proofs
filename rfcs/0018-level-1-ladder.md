@@ -87,6 +87,7 @@ A draft level file (`frozen: null`) can run probes and development runs. A count
 - SE-2. The harness records the wall time of every call, the release time of every proof (the release watcher, RFC-0011), and the GPUs the system binds. Machine-seconds are GPU-seconds of the bound GPUs (RFC-0006 R1); the rented machine's other GPUs are printed on the system page, not counted.
 - SE-3. Three complete sessions count, one per slot: for each slot, the first complete run by start time. A session that ends incomplete is recorded with its exit code and last lines (AGENTS.md rule 5), enters no figure and no check except RUN (§Checks), and is printed on the system page. At most five runs per slot; a slot with five incomplete runs makes RUN `failed`.
 - SE-4. A session stops at the rung's spending cap (`rungs[].cap_usd`, else `sessions.cap_usd`), recorded as incomplete with cause `cap`. The cap is a constant of the level, the same for every system on a rung.
+- SE-5. A refusal ends the slot at once. When the system's own code declines the request with a reason about its inputs (a refusal it raises on purpose, quoted from the run's last lines: not a crash of our adapter, a host fault, a timeout, out of memory or the cap), RUN is `failed` without further attempts: the slot's prompts and greedy replies are fixed, so a rerun proves the same request and meets the same refusal. A reviewer records it in `results/<release>/<system>/refusals/slot-<k>.json`, naming the run, the refusal line and the upstream source line that raises it (owner decision, 2026-11-11).
 
 ### Cost
 
@@ -105,7 +106,7 @@ Each check ends `held`, `failed` or `undecided`. An undecided check names its ca
 
 | Check | Id | Held when | Failed when | Evidence |
 |---|---|---|---|---|
-| RUN | `run` | three slots each have a complete session (SE-1), built from the public pin, unpatched, no weakening flag | a slot has five incomplete runs, or a counted session used a weakening flag | `run.json` of every session |
+| RUN | `run` | three slots each have a complete session (SE-1), built from the public pin, unpatched, no weakening flag | a slot has five incomplete runs or a recorded refusal (SE-5), or a counted session used a weakening flag | `run.json` of every session |
 | MODEL | `model` | P1 (RFC-0008: commit W, prove with W′, one weight changed) produced no accepted proof in 3 of 3 trials, and C3 (an honest proof verified against the commitment of W′) was refused in 3 of 3 trials | any trial of either accepted | `controls.json` |
 | PROMPT | `prompt` | C2 (one prompt token changed at a seeded position) refused in 3 of 3 trials | any trial accepted | `controls.json` |
 | REPLY | `reply` | every accepted proof covers all 512 reply tokens (RFC-0017 INV-REQ-2), and C1 refused at the first, the last and one seeded interior reply position, 3 of 3 trials each | coverage short, or any trial accepted | `run.json`, `controls.json` |
@@ -225,6 +226,7 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 |---|---|
 | A counted run names another level digest | `release freeze` refuses it |
 | A slot has no complete session | RUN `undecided` (`not run`) below five attempts, `failed` at five |
+| The system refuses the request (SE-5) | RUN `failed` at once, with the refusal record; no further attempt in that slot |
 | A session has fewer than 4 release groups | no steady state, cause `too few groups`; the row prints session cost |
 | The baseline ladder fails at a concurrency | that rung of the ladder is recorded failed; full load is chosen among the rest; with none, the rung has no multiple |
 | A fidelity control fails to run | it is absent from the bar choice and printed as failed |

@@ -156,7 +156,7 @@ def test_development_run_installs_and_passes_the_engine_image() -> None:
     assert 'image_args=(--image "$IPROOFS_DEV_IMAGE" --keep-io)' in text
     assert '${image_args[@]+"${image_args[@]}"}' in text
     assert "sha256sum -c --quiet" in text
-    assert '[ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv' in text
+    assert "if ! command -v uv >/dev/null; then" in text
 
 
 DEV_IMAGE = "docker.io/vllm/vllm-openai@sha256:" + "a" * 64

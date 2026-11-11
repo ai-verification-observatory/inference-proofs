@@ -2,7 +2,8 @@
 
 Every state is computed from stored records only (CH-6): the release's counted sessions
 (`run.json`, `manifest.json`, `controls.json`, `verify-trace/*.json`), the rung's
-`fidelity.json` and reproduction records `results/<release>/<system>/reproductions/<check>.json`.
+`fidelity.json`, reproduction records `results/<release>/<system>/reproductions/<check>.json`
+and refusal records `results/<release>/<system>/refusals/slot-<k>.json` (SE-5).
 No reviewer sets a state. Nothing here writes a file or reads a clock.
 """
 
@@ -267,10 +268,35 @@ def _weakened(run: RunView, flags: Sequence[str]) -> list[str]:
     return used
 
 
-def check_run(sessions: RowSessions, level: object, flags: Sequence[str]) -> CheckState:
+def refusals(root: Path, release: str, system: str, sessions: RowSessions) -> dict[int, str]:
+    """SE-5: slot -> the refusal record's repository path, for each record
+    `results/<release>/<system>/refusals/slot-<k>.json` whose `run_id` is an incomplete run of
+    that slot. A record naming another run is refused, so it cannot stand for a run it does not
+    describe."""
+    out: dict[int, str] = {}
+    folder = root / "results" / release / system / "refusals"
+    for path in sorted(folder.glob("slot-*.json")) if folder.is_dir() else []:
+        doc = json.loads(path.read_text())
+        slot = int(path.stem.removeprefix("slot-"))
+        ids = {s.run_id for s in sessions.incomplete if s.slot == slot}
+        if doc.get("run_id") not in ids:
+            named = doc.get("run_id")
+            message = f"{rel(root, path)}: run_id {named!r} is no incomplete run of slot {slot}"
+            raise IProofsError(ErrorKind.CONFIG, message)
+        out[slot] = rel(root, path)
+    return out
+
+
+def check_run(
+    sessions: RowSessions,
+    level: object,
+    flags: Sequence[str],
+    refused: Mapping[int, str] | None = None,
+) -> CheckState:
     """RUN: held when every slot has a complete session and no counted session used a
-    weakening flag; failed on a weakening flag or a slot with `attempts_per_slot` incomplete
-    runs and none complete; else undecided, `not run`."""
+    weakening flag; failed on a weakening flag, a slot with `attempts_per_slot` incomplete
+    runs and none complete, or a slot with a refusal record (SE-5) and none complete; else
+    undecided, `not run`."""
     for s in sessions.counted_in_order():
         used = _weakened(s.run, flags)
         if used:
@@ -280,6 +306,9 @@ def check_run(sessions: RowSessions, level: object, flags: Sequence[str]) -> Che
     attempts = int_of(field_of(level, "sessions"), "attempts_per_slot", 5)
     for k in range(1, slots + 1):
         tried = [s for s in sessions.incomplete if s.slot == k]
+        if k not in sessions.counted and refused and k in refused:
+            return CheckState(FAILED, None, (refused[k], *(f"{s.path}/run.json" for s in tried)),
+                              f"slot {k}: the system refused the request (SE-5)")  # fmt: skip
         if k not in sessions.counted and len(tried) >= attempts:
             return CheckState(FAILED, None, tuple(f"{s.path}/run.json" for s in tried),
                               f"slot {k} has {len(tried)} incomplete runs")  # fmt: skip
@@ -540,7 +569,12 @@ def checks_from(
     positions = _reproduced(positions, root, release, system, "reply")
     reply = coverage if coverage.state == FAILED else _combine([coverage, positions])
     out = {
-        "run": check_run(sessions, level, _forbidden_flags(root, system)),
+        "run": check_run(
+            sessions,
+            level,
+            _forbidden_flags(root, system),
+            refusals(root, release, system, sessions),
+        ),
         "model": model,
         "prompt": _reproduced(control("C2", VERIFIER_REFUSED), root, release, system, "prompt"),
         "reply": reply,
