@@ -1,12 +1,12 @@
 {
+  "exit_code": 1,
+  "raised_at": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/extract.py#L1005-L1006",
+  "recorded": "2026-11-11",
+  "refusal": "AssertionError: block 0 layer 1: the attention output's no-wrap window does not fit: 1 + 16 + 6 + 9 = 32 > 31 (over by 1, magnitude form). The two limbs must together cover |acc| (22 bits) and the exponent window must cover e = jv - jo, so no wider decomposition of either recovers a bit, and the one bit the magnitude form is worth is already taken. What is left is a narrower context or a quantization whose accumulator is narrower.",
+  "refusal_text_from": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/shapes.py#L170-L176",
   "rule": "RFC-0018 SE-5",
   "run_id": "2026-11-11-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
   "slot": 1,
   "step": "prove",
-  "exit_code": 1,
-  "refusal": "AssertionError: block 0 layer 1: the attention output's no-wrap window does not fit: 1 + 16 + 6 + 9 = 32 > 31 (over by 1, magnitude form). The two limbs must together cover |acc| (22 bits) and the exponent window must cover e = jv - jo, so no wider decomposition of either recovers a bit, and the one bit the magnitude form is worth is already taken. What is left is a narrower context or a quantization whose accumulator is narrower.",
-  "raised_at": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/extract.py#L1005-L1006",
-  "refusal_text_from": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/harness/witness/shapes.py#L170-L176",
-  "why_a_refusal": "Upstream's witness extraction checks that the attention output fits its field window and refuses by design when it does not, with the numbers; the message names the input's shape and quantization, not a fault of the adapter or the host.",
-  "recorded": "2026-11-11"
+  "why_a_refusal": "Upstream's witness extraction checks that the attention output fits its field window and refuses by design when it does not, with the numbers; the message names the input's shape and quantization, not a fault of the adapter or the host."
 }
