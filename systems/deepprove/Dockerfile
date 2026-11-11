@@ -8,10 +8,7 @@
 # commit and dirty flag as build arguments.
 #
 # LICENCE: DeepProve's licence (LICENSE at the pin) grants internal use for testing and
-# evaluation only and forbids distributing the Software or any portion of it to a third party
-# (Sections 2 and 4). This image holds the source and the compiled programs: build it where it
-# runs, or keep it in a registry only the operator can read. Do not push it to a public
-# registry (README.md §Licence).
+# evaluation only (Sections 2 and 4); README.md §Licence covers publishing and this image.
 #
 # Build with the systems/ directory as context:
 #   docker build --build-arg IPROOFS_ADAPTER_COMMIT=$(git rev-parse HEAD) \
