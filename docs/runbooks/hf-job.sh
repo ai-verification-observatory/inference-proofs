@@ -494,8 +494,13 @@ if ! command -v uv >/dev/null; then
   log "uv: not in the image; uv $UV_VERSION from its GitHub release, sha256 checked"
   UV_DIR="$WORK/uv-$UV_VERSION"
   mkdir -p "$UV_DIR"
-  if ! curl -fsSL --retry 3 -o "$WORK/uv.tar.gz" \
-      "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz" \
+  UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz"
+  if command -v curl >/dev/null; then
+    uv_fetch() { curl -fsSL --retry 3 -o "$WORK/uv.tar.gz" "$UV_URL"; }
+  else  # the ref-fidelity image has python3 but no curl
+    uv_fetch() { python3 -I -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$UV_URL" "$WORK/uv.tar.gz"; }
+  fi
+  if ! uv_fetch \
     || ! echo "$UV_SHA256  $WORK/uv.tar.gz" | sha256sum -c --quiet - \
     || ! tar -xzf "$WORK/uv.tar.gz" -C "$UV_DIR" --strip-components=1; then
     log "uv: download or check failed; stopping"
