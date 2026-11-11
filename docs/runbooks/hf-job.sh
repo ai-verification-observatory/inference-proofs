@@ -485,12 +485,12 @@ else
   GPU_ARGS=(--gpu "$GPU")
 fi
 
-# An image without uv gets the pinned release, its sha256 checked. The adapter images and the
-# pinned vLLM image ship their own (pinned by the image digest; job.log records `uv --version`),
-# so nothing is downloaded for them.
+# An image without uv (the ref-fidelity image, an engine image) gets the pinned release, its
+# sha256 checked. The prover images and the pinned vLLM image ship their own (pinned by the image
+# digest; job.log records `uv --version`), so nothing is downloaded for them.
 UV_VERSION=0.11.18
 UV_SHA256=588f3e360f69ce02b6982aa99f2240e803933a6b7e176ac01617830adf955add
-if [ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv >/dev/null; then
+if ! command -v uv >/dev/null; then
   log "uv: not in the image; uv $UV_VERSION from its GitHub release, sha256 checked"
   UV_DIR="$WORK/uv-$UV_VERSION"
   mkdir -p "$UV_DIR"
