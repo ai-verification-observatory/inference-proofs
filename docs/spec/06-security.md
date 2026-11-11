@@ -43,7 +43,7 @@ Every adapter container runs with `--network none`, `--read-only` root filesyste
 
 The harness treats everything an adapter writes as hostile input:
 
-- `out.json` is read with a size limit of 16 MiB, parsed with the stdlib JSON parser, and validated against `adapter-out/1` before any field is used. Invalid output is `ErrorKind.adapter`.
+- `out.json` is read with a size limit of 128 MiB (a Level 1 serving ladder returns about 8,200 replies of 512 token ids), parsed with the stdlib JSON parser, and validated against `adapter-out/1` before any field is used. Invalid output is `ErrorKind.adapter`.
 - Every path in `out.json` (proof parts, verifier files, prover files, logs) is resolved relative to the step's `/io` on the host and rejected (`ErrorKind.adapter`) if, after `os.path.realpath`, it leaves that directory, is a symlink, is a device or FIFO, or is not a regular file.
 - Proof ids must match the RFC-0012 pattern (one path component).
 - File counts and sizes are capped by `system.yaml` (`max_proof_parts`, `max_proof_bytes`); exceeding a cap is `ErrorKind.adapter`, recorded, not truncated.

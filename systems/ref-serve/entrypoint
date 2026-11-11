@@ -643,7 +643,10 @@ def main() -> int:
     handlers = {"info": info, "setup": setup, "prove": prove}
     if sub not in handlers:  # RFC-0015: the harness skips commit and verify
         raise SystemExit(f"ref-serve: no {sub!r} step for a reference system")
-    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    # compact: a Level 1 ladder returns about 8,200 replies of 512 token ids
+    host(out_path).write_text(
+        json.dumps(handlers[sub](job), sort_keys=True, separators=(",", ":")) + "\n"
+    )
     return 0
 
 

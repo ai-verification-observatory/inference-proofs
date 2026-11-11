@@ -23,7 +23,8 @@ from iproofs.measure import Capture, drain, timed_call
 from iproofs.model import AdapterOut, System, load
 from iproofs.schema import SchemaRegistry
 
-MAX_OUT_JSON_BYTES = 16 * 1024 * 1024
+# 128 MiB: a Level 1 serving ladder returns about 8,200 replies of 512 token ids (RFC-0018 CO-4)
+MAX_OUT_JSON_BYTES = 128 * 1024 * 1024
 DEFAULT_MAX_PROOF_PARTS = 10_000
 DEFAULT_MAX_PROOF_BYTES = 64 * 1024**3  # per part
 
