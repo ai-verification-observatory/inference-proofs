@@ -4,9 +4,10 @@
 # pinned revisions (RFC-0014 SM-1 to SM-3; Hub tree listings read 2026-11-09). The four
 # safetensors and the index are the SASH workloads' own files (equal sha256); config.json,
 # generation_config.json, special_tokens_map.json and tokenizer.json are Meta's, which the
-# workloads' unsloth copy is not. The copy lacks Meta's tokenizer_config.json, which waits for
-# RFC-0015 Q7. The file list, digest, vocab_size and shape are written by `iproofs serving
-# pin`, never typed. Meta's card names no precision for serving: release_statement "not stated".
+# workloads' unsloth copy is not. The copy lacks Meta's tokenizer_config.json, so the record
+# takes it from Meta's repository (`source: publisher`, RFC-0015 Q7; added 2026-11-11, digest
+# recomputed): llama.cpp's converter needs it for the fidelity reference. The file list,
+# digest, vocab_size and shape are written by `iproofs serving pin`, never typed. Meta's card names no precision for serving: release_statement "not stated".
 schema: "serving-model/1"
 id: "llama-3.1-8b-instruct-bf16"
 version: 1
@@ -35,7 +36,8 @@ model:
     - {path: "model.safetensors.index.json", sha256: "146776fce3f6db1103aa6f249e65ee5544c5923ce6f971b092eee79aa6e5d37b", bytes: 23950, storage: "git", publisher_blob: "0fd8120f1c6acddc268ebc2583058efaf699a771"}
     - {path: "special_tokens_map.json", sha256: "6f38c73729248f6c127296386e3cdde96e254636cc58b4169d3fd32328d9a8ec", bytes: 296, storage: "git", publisher_blob: "02ee80b6196926a5ad790a004d9efd6ab1ba6542"}
     - {path: "tokenizer.json", sha256: "79e3e522635f3171300913bb421464a87de6222182a0570b9b2ccba2a964b2b4", bytes: 9085657, storage: "git", publisher_blob: "5cc5f00a5b203e90a27a3bd60d1ec393b07971e8"}
-  digest: "sha256:67e1fb8b9abdeaa297e44ca89e686503daf987e8663d7e5f3ae599f3ae817d48"
+    - {path: "tokenizer_config.json", sha256: "177c7b61e616fecb84c17ce0591acb92c6c4d60e9ac5ababfb940ff23bbcd424", bytes: 55351, storage: "git", publisher_blob: "db88166e2bc4c799fd5d1ae643b75e84d03ee70e", source: "publisher"}
+  digest: "sha256:821dfd682268c72a052e0f661bff9a00359d3bb2a2dadc9beac669102b14ffa4"
   licence: {name: "Llama 3.1 Community License", url: "https://huggingface.co/NousResearch/Meta-Llama-3.1-8B-Instruct/blob/d10aef7999a2b5ba950ab3974312feeedbfe0b77/LICENSE", gated: false}
   vocab_size: 128256
   shape: {layers: 32, attention_heads: 32, kv_heads: 8, head_dim: 128, kv_dtype: "bfloat16"}
