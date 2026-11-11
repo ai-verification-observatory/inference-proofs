@@ -588,6 +588,8 @@ class Runner:
         if self.level is not None:
             job.level = {"id": self.level.id, "digest": self.level.digest}
         seed = self.replay_seed if seed is None else seed
+        if seed is None and os.environ.get("IPROOFS_DEV_PROMPT_SEED"):  # dev/sash-pr36 only
+            seed = int(os.environ["IPROOFS_DEV_PROMPT_SEED"], 0)
         job.seed = int.from_bytes(os.urandom(8), "big") if seed is None else seed
         if below_minimum:
             job.warnings.append("repetitions_below_minimum")

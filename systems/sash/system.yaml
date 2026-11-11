@@ -8,13 +8,13 @@ contract: "adapter/1"
 upstream:
   repo: "sg-ai-safety-hub/zk-inference-prover"
   url: "https://github.com/sg-ai-safety-hub/zk-inference-prover"
-  commit: "eb95bfa887299d1637550228d42086c27cbb2b3b"
+  commit: "c1ed787ca67a702dbab4b31661f6aa40b65dc168"
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
   digest: "sha256:132db94d3a9fac330fb8e8d97188084a3eac7a4fb7f06b7518ef2582abb8e2a0"
 # l1-l31-8b-p512-o512 (RFC-0018 Level 1): 512 + 512, five requests a session, one grid of two
 # blocks per request; README.md §Level 1 has the geometry and the open items.
-workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
+workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512", "dev-l31-8b-toc-p512-o512"]
 profile: "prover-h100"
 deterministic_proofs: true
 # a job proves its requests one after another and releases each grid as it completes: 5 proofs
