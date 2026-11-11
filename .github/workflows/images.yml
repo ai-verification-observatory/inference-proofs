@@ -1,8 +1,9 @@
 name: images
 
-# RFC-0014 B7: build an adapter image from a clean checkout of main (B6) and push it to the
-# project registry, ghcr.io/ai-verification-observatory/ (Q2). The job summary prints the
-# manifest digest that system.yaml then pins. Run by hand; it never blocks a merge.
+# RFC-0014 B7: build an adapter image from a clean checkout of the branch it is run on (B6) and
+# push it to the project registry, ghcr.io/ai-verification-observatory/ (Q2), tagged with the
+# commit. The job summary prints the manifest digest that system.yaml then pins. Run by hand; it
+# never blocks a merge and never runs on a pull request.
 on:
   workflow_dispatch:
     inputs:
@@ -10,14 +11,14 @@ on:
         description: "systems/<name> to build"
         required: true
         type: choice
-        options: [ref-serve, ref-recompute, sash, flashprove]
+        options: [ref-serve, ref-recompute, ref-fidelity, sash, flashprove]
 
 permissions:
   contents: read
 
 jobs:
   build:
-    if: github.ref == 'refs/heads/main'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     permissions:  # this job alone pushes packages; it never runs on a pull request
