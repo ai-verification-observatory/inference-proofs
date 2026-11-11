@@ -636,7 +636,9 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
     [ -n "$repo" ] || continue
     if [ "$rev" = None ]; then log "$what of $RUNG has no pinned revision in levels/L1.yaml"; exit 3; fi
     log "download $what: $repo at $rev, at most $(left) s"
-    env -u HF_TOKEN timeout --kill-after=60 "$(left)" hfcli download "$repo" --revision "$rev" \
+    # timeout runs a program, not the hfcli function: the same command, spelled out
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" \
+      uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf download "$repo" --revision "$rev" \
       --local-dir "$WORK/$what" >/dev/null || { log "download of $repo failed"; exit 3; }
     fetch_args+=("--$what-dir" "$WORK/$what")
   done < <("$PY" -c 'import sys
