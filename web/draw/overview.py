@@ -210,45 +210,40 @@ def _best_multiple(rung):
 
 
 def frontier_html():
-    """The band: the ladder at a glance, naming no system (the rows name them). Each model with a
-    run, biggest first, with whether a system passed on it and the lowest multiple of serving
-    among those that did (OR-6); the models no system has run yet (the open seats) in one line
-    under it."""
-    run = [r for r in S.V["rungs"] if r["rows"]]
-    empty = [r["model"] for r in S.V["rungs"] if not r["rows"]]
-    front = S.V["frontier"]
-    items = []
-    for rung in run:
-        passed = sum(1 for row in rung["rows"] if row["passed"])
-        if passed:
-            state, said = "s2", f"{passed} system{'s' if passed != 1 else ''} passed"
-        else:
-            state, said = "s1", f"{len(rung['rows'])} run, none passed"
-        top = front is not None and front["rung"] == rung["id"]
-        tag = ""
-        if top:  # OR-6: the largest model with a passed system, and who holds position 1 on it
-            state += " bl-top"
-            names = ", ".join(name_of(row) for row in front["rows"])
-            first = front["rows"][0]
-            said = f"#1 {names}" if first["position"] == 1 else f"passed: {names}"
-            tag = '<span class="bl-k">Largest model proved</span>'
-        cost = _best_multiple(rung)
-        items.append(
-            f'<li class="bl-r {state}"><a href="#{e(rung["id"])}">{tag}'
-            f'<span class="bl-m">{e(rung["model"])}</span>'
-            f'<span class="bl-p">{e(params(rung["parameters_total"]))}</span>'
-            f'<span class="bl-bar" aria-hidden="true"></span>'
-            f'<span class="bl-s">{e(said)}</span>'
-            f'<span class="bl-c">{e(cost or "")}</span></a></li>'
-        )
-    head = "Proved inference, by model size" if run else "No system has run yet."
-    sub = []
-    if empty and run:
-        sub.append("No system yet on " + ", ".join(empty))
-    sub.append(request_words())
-    ladder = f'<ol class="bl">{"".join(items)}</ol>' if items else ""
-    return (f'<h1 class="band-h">{e(head)}</h1>{ladder}'
-            f'<p class="fsub">{e(" · ".join(sub))}</p>')  # fmt: skip
+    """The band: one line, the largest model a system passed on (OR-6) and who holds position 1
+    there, or the largest model run when none passed; under it, how many other models and
+    systems the ladder holds."""
+    rungs, front = S.V["rungs"], S.V["frontier"]
+    run = [r for r in rungs if r["rows"]]
+    systems = {row["system"] for r in rungs for row in r["rows"]}
+    if not run:
+        return (f'<h1 class="band-h">No system has run yet.</h1>'
+                f'<p class="fsub">{e(str(len(rungs)))} models · {e(request_words())}</p>')  # fmt: skip
+    rung = next(r for r in rungs if r["id"] == front["rung"]) if front else run[0]
+    if front:
+        names = ", ".join(name_of(row) for row in front["rows"])
+        said = f"#1 {names}" if front["rows"][0]["position"] == 1 else f"passed: {names}"
+        state, tag = "s2 bl-top", "Largest model proved"
+        shown = {row["system"] for row in front["rows"]}
+    else:
+        said = f"{len(rung['rows'])} run, none passed"
+        state, tag, shown = "s1 bl-top", "Largest model run", set()
+    line = (
+        f'<li class="bl-r {state}"><a href="#{e(rung["id"])}">'
+        f'<span class="bl-k">{e(tag)}</span>'
+        f'<span class="bl-m">{e(rung["model"])}</span>'
+        f'<span class="bl-p">{e(params(rung["parameters_total"]))}</span>'
+        f'<span class="bl-bar" aria-hidden="true"></span>'
+        f'<span class="bl-s">{e(said)}</span>'
+        f'<span class="bl-c">{e(_best_multiple(rung) or "")}</span></a></li>'
+    )
+    more_models, more_systems = len(rungs) - 1, len(systems - shown)
+    caption = [f"+{more_models} model{'s' if more_models != 1 else ''}"] if more_models else []
+    if more_systems:
+        caption.append(f"+{more_systems} system{'s' if more_systems != 1 else ''}")
+    caption.append(request_words())
+    return (f'<h1 class="band-h">Proved inference, by model size</h1><ol class="bl">{line}</ol>'
+            f'<p class="fsub">{e(" · ".join(caption))}</p>')  # fmt: skip
 
 
 def not_run_html():
