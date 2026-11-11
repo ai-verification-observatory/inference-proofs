@@ -178,7 +178,8 @@ def page(title, desc, body, cls, path, card):
         f'<meta name="color-scheme" content="dark"><meta name="theme-color" content="{GROUND}">'
         f"{meta}{icon_links()}{preloads()}"
         f'<link rel="stylesheet" href="{version("words.css")}"></head><body class="{cls}">{new_tab(body)}'
-        f'<p class="sr" aria-live="polite" id="live"></p><script src="{version("words.js")}" defer></script></body></html>'
+        f'<p class="sr" aria-live="polite" id="live"></p><script src="{version("words.js")}" defer></script>'
+        f'<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script></body></html>'
     )
 
 
