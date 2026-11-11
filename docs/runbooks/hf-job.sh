@@ -28,7 +28,9 @@
 # docs/runbooks/level-1.md) adds `level=L1` (the run is one session of the level; REPETITIONS
 # must be 1), `session=K` (its slot, 1 to 3) and `ladder` (a production-serving ladder run), for
 # example `l1-l31-8b-p512-o512:1:level=L1:session=1:keep-io` or
-# `l1-l31-8b-p512-o512:1:level=L1:ladder`. `keep-io` is
+# `l1-l31-8b-p512-o512:1:level=L1:ladder`; `perturbed` first commits the level's changed weights
+# on this host for the Model check (C3, P1), so a full session with its controls is
+# `l1-maverick-p512-o512:1:level=L1:session=1:perturbed:controls`. `keep-io` is
 # refused for flashprove: its io/ holds a copy of the weights and its commitment store the
 # prover's secret key. Every run is a development run on IPROOFS_PROFILE
 # (--allow-nonconforming: the profile pins no driver, RFC-0006 Q5), written outside the checkout and
@@ -661,7 +663,7 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
   exit "$rc"
 fi
 if [ "$MODE" != run ] || [ $# -lt 2 ]; then
-  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder]..."
+  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed]..."
   log "       hf-job.sh seed|merge SYSTEM RUN_PATH | hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
   exit 2
 fi
@@ -717,6 +719,7 @@ for step in "$@"; do
       level=*) extra+=(--level "${flag#level=}"); level_step=1; RELEASE=v1.0 ;;
       session=*) extra+=(--session "${flag#session=}") ;;
       ladder) extra+=(--load ladder) ;;
+      perturbed) ;;  # handled below: the Model check's W' is committed before the run
       *) log "unknown step field $flag in $step"; exit 2 ;;
     esac
   done
@@ -769,6 +772,16 @@ if reference_role(root, sys.argv[1]) == "serve":
     log "$remaining s left before the reserve; $workload not started"
     failed=1
     break
+  fi
+  if has_opt "${opts:-}" perturbed; then  # RFC-0018 CH-2: commit W' on this host, for C3 and P1
+    level_id=L1
+    for flag in ${flags[@]+"${flags[@]}"}; do case "$flag" in level=*) level_id=${flag#level=} ;; esac; done
+    log "prepare-perturbed $SYSTEM $workload (level $level_id), at most $(left) s"
+    if ! env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" controls --prepare-perturbed "$workload" \
+      --system "$SYSTEM" --profile "$PROFILE" --hosted --gpu "$GPU" --level "$level_id" \
+      --results "$DEV" ${image_args[@]+"${image_args[@]:0:2}"}; then
+      log "prepare-perturbed failed; the run goes on and records C3 and P1 not_applicable"
+    fi
   fi
   reps_args=(--repetitions "${reps:-1}")
   if [ "$level_step" -eq 1 ]; then  # one run is one session of the level (RFC-0018 SE-1)

@@ -758,27 +758,27 @@ def _prepare_perturbed(args: argparse.Namespace) -> int:
         raise IProofsError(
             ErrorKind.CONFIG, "--prepare-perturbed takes --system and --profile, not a RUN_DIR"
         )
-    if (
-        args.only
-        or args.seed
-        or args.merge
-        or args.draw_seed
-        or args.hosted
-        or args.gpu is not None
-    ):
+    if args.only or args.seed or args.merge or args.draw_seed:
         raise IProofsError(
-            ErrorKind.CONFIG,
-            "--prepare-perturbed takes no --only, --seed, --merge, --draw-seed, --hosted or --gpu",
+            ErrorKind.CONFIG, "--prepare-perturbed takes no --only, --seed, --merge or --draw-seed"
         )
     root = repo_root(Path.cwd())
     system_file = root / "systems" / args.system / "system.yaml"
     if not system_file.is_file():
         raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
-    containers, image, registry = _containers(system_file, args.in_process, args.image)
+    containers, image, registry = _containers(
+        system_file, args.in_process, args.image, hosted=args.hosted
+    )
     wl = load_workload(args.prepare_perturbed, root=root, registry=registry)
-    runner = Runner(containers, root=root, registry=registry, image=image)
+    release = _release(root, args.level)
+    env = None
+    if args.gpu is not None:
+        env = _environment(args.gpu, args.hosted, _prover_cpus(root, args.profile, registry),
+                           _verifier_cpus(root, release, registry), None)  # fmt: skip
+    runner = Runner(containers, root=root, registry=registry, image=image, hosted=args.hosted,
+                    progress=None if args.quiet else sys.stderr, env=env)  # fmt: skip
     spec = JobSpec(args.system, wl.id, wl.version, args.profile, 1, False, str(args.results),
-                   _release(root, args.level))  # fmt: skip
+                   release)  # fmt: skip
     change = None
     if args.level is not None:
         from iproofs.level import load_level  # noqa: PLC0415
