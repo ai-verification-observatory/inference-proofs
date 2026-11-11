@@ -1,0 +1,12 @@
+{
+  "chain_hash": "52db9ba70e0cc0f6eaf7803dd07447a1f5477735fd3f661792ba94600c84e971",
+  "fetched": "2026-11-11",
+  "randomness": "f12fe018f4f30a1533c0b76ada57af9d908d5433834f005a5d5870adedf440df",
+  "relays": [
+    "https://api.drand.sh",
+    "https://drand.cloudflare.com"
+  ],
+  "round": 33867489,
+  "schema": "beacon/1",
+  "signature": "b320b34a3f1f4ad28c0f039e09e10ecc82d18d8deb85846557f7d60dc954ae301deea8498c437963501c7c2460030fc6"
+}
