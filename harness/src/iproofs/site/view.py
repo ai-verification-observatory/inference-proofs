@@ -157,6 +157,8 @@ def _rung(
         "parameters_total": level_rung["parameters_total"],
         "parameters_active": level_rung.get("parameters_active"),
         "requests_per_session": level_rung["requests_per_session"],
+        # FI-1: the precision of the rung's fidelity reference (the KL column's head)
+        "reference_dtype": level_rung["reference"]["dtype"],
         "systems_run": 0,
         "baseline": None,
         "fidelity": None,
@@ -276,6 +278,14 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
         "checks": list(CHECKS),
         "petals": list(PETALS),
         "order_margin": level["order"]["margin"],
+        # the level's constants the checks page words its rules with
+        "constants": {
+            "slots": level["sessions"]["slots"],
+            "attempts_per_slot": level["sessions"]["attempts_per_slot"],
+            "group_gap_s": level["steady"]["group_gap_s"],
+            "plateau": level["baseline"]["plateau"],
+            "ladder_top": max(level["baseline"]["ladder"]),
+        },
         "frontier": frontier,
         "rungs": rungs,
         "systems": systems,
