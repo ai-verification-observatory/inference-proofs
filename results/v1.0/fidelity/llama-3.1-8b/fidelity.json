@@ -1,0 +1,444 @@
+{
+  "bar": {
+    "control": "q3_k_s",
+    "mean_prefix": 1.4
+  },
+  "bar_tests": [
+    {
+      "a": "reference-2",
+      "b": "q3_k_s",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "q3_k_s",
+      "method": "exact",
+      "n": 15,
+      "p": 6.103515625e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "q3_k_s",
+      "method": "exact",
+      "n": 15,
+      "p": 0.00244140625,
+      "seed": null
+    },
+    {
+      "a": "reference-2",
+      "b": "q2_k",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "q2_k",
+      "method": "exact",
+      "n": 15,
+      "p": 6.103515625e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "q2_k",
+      "method": "exact",
+      "n": 15,
+      "p": 0.0029296875,
+      "seed": null
+    },
+    {
+      "a": "reference-2",
+      "b": "drop-every-4th-block",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "drop-every-4th-block",
+      "method": "exact",
+      "n": 15,
+      "p": 6.103515625e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "drop-every-4th-block",
+      "method": "exact",
+      "n": 15,
+      "p": 0.000244140625,
+      "seed": null
+    },
+    {
+      "a": "reference-2",
+      "b": "smaller-model",
+      "method": "exact",
+      "n": 15,
+      "p": 3.0517578125e-05,
+      "seed": null
+    },
+    {
+      "a": "q8_0",
+      "b": "smaller-model",
+      "method": "exact",
+      "n": 15,
+      "p": 6.103515625e-05,
+      "seed": null
+    },
+    {
+      "a": "q4_k_m",
+      "b": "smaller-model",
+      "method": "exact",
+      "n": 15,
+      "p": 0.001953125,
+      "seed": null
+    }
+  ],
+  "controls": [
+    {
+      "cause": null,
+      "id": "reference-2",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/reference-2.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.0
+      },
+      "mean_prefix": 512.0,
+      "recipe": "rerun",
+      "scores": [
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q8_0",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q8_0.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.002956
+      },
+      "mean_prefix": 106.06666666666666,
+      "recipe": "quantize",
+      "scores": [
+        32,
+        2,
+        7,
+        512,
+        104,
+        512,
+        30,
+        5,
+        34,
+        0,
+        45,
+        23,
+        108,
+        59,
+        118
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q4_k_m",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q4_k_m.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.133536
+      },
+      "mean_prefix": 5.266666666666667,
+      "recipe": "quantize",
+      "scores": [
+        1,
+        2,
+        8,
+        0,
+        16,
+        14,
+        3,
+        0,
+        4,
+        0,
+        6,
+        6,
+        4,
+        8,
+        7
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q3_k_s",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q3_k_s.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.565702
+      },
+      "mean_prefix": 1.4,
+      "recipe": "quantize",
+      "scores": [
+        3,
+        0,
+        1,
+        2,
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        4,
+        1
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "q2_k",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q2_k.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.925209
+      },
+      "mean_prefix": 1.4,
+      "recipe": "quantize",
+      "scores": [
+        3,
+        0,
+        2,
+        0,
+        6,
+        0,
+        3,
+        0,
+        0,
+        0,
+        0,
+        1,
+        4,
+        1,
+        1
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "drop-every-4th-block",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/drop-every-4th-block.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 3.298522
+      },
+      "mean_prefix": 0.2,
+      "recipe": "drop_blocks",
+      "scores": [
+        0,
+        0,
+        1,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "status": "ok"
+    },
+    {
+      "cause": null,
+      "id": "smaller-model",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "note": "computed by llama.cpp on the committed file, not the proved computation",
+        "null_reason": null,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/smaller-model.log#Mean KLD"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 1.262184
+      },
+      "mean_prefix": 1.3333333333333333,
+      "recipe": "other_model",
+      "scores": [
+        4,
+        0,
+        1,
+        0,
+        4,
+        2,
+        0,
+        0,
+        1,
+        0,
+        0,
+        3,
+        3,
+        1,
+        1
+      ],
+      "status": "ok"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "ghcr.io/ai-verification-observatory/ref-fidelity@sha256:551f117580ac8944ac89c76cfc9d289114e09810cc4fc4183596e1a868194c48",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "n": 15,
+  "prompts_digest": "sha256:8641efd822be1643a7ea9bccaacc58d2eaa426fb8e22171f0c931ecdd620f61a",
+  "reference": {
+    "digest": "sha256:44d3dc247e8de593a2cb12bd8118df58aa6f52fab2a43945066c8331b3cedcd4",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "rows": {
+    "sash": {
+      "cause": null,
+      "kl": null,
+      "kl_note": "not measured: the committed copy is not a file llama.cpp loads (FI-7)",
+      "mean_prefix": 31.0,
+      "p_above_bar": 0.0001220703125,
+      "p_below_bar": 1.0,
+      "scores": [
+        9,
+        2,
+        20,
+        11,
+        6,
+        360,
+        1,
+        0,
+        9,
+        0,
+        6,
+        6,
+        15,
+        8,
+        12
+      ],
+      "state": "held",
+      "tests": [
+        {
+          "a": "sash",
+          "b": "q3_k_s",
+          "method": "exact",
+          "n": 15,
+          "p": 0.0001220703125,
+          "seed": null
+        },
+        {
+          "a": "q3_k_s",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        }
+      ]
+    }
+  },
+  "rung": "llama-3.1-8b",
+  "schema": "fidelity/1",
+  "test": {
+    "alpha": 0.05,
+    "exact_up_to": 20,
+    "resamples": 200000,
+    "score": "matched_prefix",
+    "seed_rule": "first 8 bytes, big-endian, of sha256(randomness || 0x00 || utf8(a) || 0x00 || utf8(b)), randomness the beacon round's 32 bytes, a beats b being tested",
+    "test": "paired-sign-flip"
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "adapter": {
+    "adapter_commit": "aa5f31f97e76eccb77c7a52fcc54cbe9b8109dcb",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "info",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.11585139199996775,
+      "stderr_tail": [],
+      "step": "info"
+    },
+    {
+      "call": "reference",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "convert",
+          "seconds": 55.1028634270001
+        },
+        {
+          "name": "reference",
+          "seconds": 44.18989694000038
+        },
+        {
+          "name": "reference_2",
+          "seconds": 52.31381357600003
+        },
+        {
+          "name": "q8_0",
+          "seconds": 62.34028152599967
+        },
+        {
+          "name": "q4_k_m",
+          "seconds": 82.97839283599978
+        },
+        {
+          "name": "q3_k_s",
+          "seconds": 56.32680189700022
+        },
+        {
+          "name": "q2_k",
+          "seconds": 70.09058668199987
+        },
+        {
+          "name": "drop_every_4th_block",
+          "seconds": 61.24316406900016
+        }
+      ],
+      "seconds": 493.04816005400016,
+      "stderr_tail": [],
+      "step": "prove"
+    },
+    {
+      "call": "other_model",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "smaller_model",
+          "seconds": 32.25503865799965
+        }
+      ],
+      "seconds": 32.355960813000365,
+      "stderr_tail": [],
+      "step": "prove"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "ghcr.io/ai-verification-observatory/ref-fidelity@sha256:551f117580ac8944ac89c76cfc9d289114e09810cc4fc4183596e1a868194c48",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "70229511592cc16e9940be5c5dfe9b51760d99d7",
+    "git_dirty": false
+  },
+  "kl_texts_digest": "sha256:ba5139592d8812216c9c324d5550e4f1e3555eed37c4d3d345be9a391f46a84b",
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "not_run": {},
+  "other_model": {
+    "files": {
+      ".cache/huggingface/.gitignore": "sha256:684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+      ".cache/huggingface/CACHEDIR.TAG": "sha256:f6572428f6d5e1575e73a1502895a8731f10757dfbb634909c6e154b849af91d",
+      ".cache/huggingface/download/.gitattributes.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/.gitattributes.metadata": "sha256:f172a1a8aeafd836c22eca419f2bc5aa4b61d67e0eb25cdc50cfb8a2a84e363a",
+      ".cache/huggingface/download/README.md.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/README.md.metadata": "sha256:86cfc046403a06a46bb851220c7f6166bb39d362f32f3a296c3fe67f2b05bc5f",
+      ".cache/huggingface/download/chat_template.jinja.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/chat_template.jinja.metadata": "sha256:ff3d6bb36ff1ca87fd98e10fb26b91a96e14e75f3c5cb3f9716188106acef8e8",
+      ".cache/huggingface/download/config.json.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/config.json.metadata": "sha256:709bf08e66c9374e5ebfedb958409d93758c13e50141b1989da8c17b54ee8da2",
+      ".cache/huggingface/download/generation_config.json.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/generation_config.json.metadata": "sha256:22bdfd2e7f8242f707608ee895c96761f2a1f29c0090a32dca390c79011c9038",
+      ".cache/huggingface/download/model.safetensors.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/model.safetensors.metadata": "sha256:73937b4d453be24017efcd9589ff1bd3605f67079e27eb417b79e7a707ee84fd",
+      ".cache/huggingface/download/special_tokens_map.json.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/special_tokens_map.json.metadata": "sha256:d59bd91f1081310a2f17df54225ea22af875c611cbe4c87f5329f0584eeed391",
+      ".cache/huggingface/download/tokenizer.json.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/tokenizer.json.metadata": "sha256:a3db4d9c1172f248db8d333e2726c5b04bcb79da13305792e14a5332e7a9209c",
+      ".cache/huggingface/download/tokenizer_config.json.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/tokenizer_config.json.metadata": "sha256:b33e3341c4227e42f3ed5ba42b8f3c2d2732f966d41e27f0abbfc579ccfe8cfc",
+      ".cache/huggingface/trees/5a8abab4a5d6f164389b1079fb721cfab8d7126c.json": "sha256:e11c9fe74b6115c850c5a44bb619d8f63b73e6354af497f8996d31168bfbeea4",
+      ".gitattributes": "sha256:34448b82c17d60fec9b65b1f093c115ddbaadc04beb1b0140b6bfed2e012a930",
+      "README.md": "sha256:691f034445e79cee0fac0558363db74cf664ec68cf22df82db398049610d9133",
+      "chat_template.jinja": "sha256:5816fce10444e03c2e9ee1ef8a4a1ea61ae7e69e438613f3b17b69d0426223a4",
+      "config.json": "sha256:dfb67fd8afe73a1c75245824ef9d64a6ba8983025447e3bf76aa1ea57ee46152",
+      "generation_config.json": "sha256:6d4f979915331212d7672c68b22a4ddad9e21ed8126cf2bd1ea6b2b88f595c1c",
+      "model.safetensors": "sha256:1ff795ff6a07e6a68085d206fb84417da2f083f68391c2843cd2b8ac6df8538f",
+      "special_tokens_map.json": "sha256:94e708c3f5e64acf85bbe5ad01467a1248faadb73e83b41793087ecced586e8f",
+      "tokenizer.json": "sha256:6b9e4e7fb171f92fd137b777cc2714bf87d11576700a1dcd7a399e7bbe39537b",
+      "tokenizer_config.json": "sha256:9ddd255c19fe319c8d4e891163540382e9fbda99f394674f2a929efc47d57458"
+    },
+    "source": [
+      {
+        "hub": "huggingface",
+        "repo": "unsloth/Llama-3.2-1B-Instruct",
+        "revision": "5a8abab4a5d6f164389b1079fb721cfab8d7126c"
+      }
+    ]
+  },
+  "prompts_digest": "sha256:8641efd822be1643a7ea9bccaacc58d2eaa426fb8e22171f0c931ecdd620f61a",
+  "reference": {
+    "checked": "against the serving record",
+    "serving": "llama-3.1-8b-instruct-bf16"
+  },
+  "release": "v1.0",
+  "rung": "llama-3.1-8b",
+  "schema": "fidelity-run/1",
+  "slots": 1
+}

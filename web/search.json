@@ -15,10 +15,10 @@
       "found": [],
       "group": "Systems",
       "kind": "system",
-      "meta": "Llama 3.1 8B Instruct · not passed: Run undecided, Model undecided, Prompt undecided, Reply undecided, No weight file undecided, Fidelity undecided",
+      "meta": "Llama 3.1 8B Instruct · not passed: Model undecided, Prompt undecided, Reply undecided, No weight file undecided",
       "name": "SASH",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 amber\" d=\"M14.51 1.26L27.28 10.53L14.87 14.19Z\"/><path class=\"sl s2 red\" d=\"M27.60 11.50L22.72 26.52L15.40 15.84Z\"/><path class=\"sl s3 hollow\" stroke-width=\"1\" d=\"M20.88 26.62L7.12 26.62L14.00 17.68Z\"/><path class=\"sl s4 hollow\" stroke-width=\"1\" d=\"M5.44 25.40L1.19 12.32L11.82 16.09Z\"/><path class=\"sl s5 red\" d=\"M0.72 10.53L13.49 1.26L13.13 14.19Z\"/></svg>",
-      "terms": "sash llama 3.1 8b instruct · not passed: run undecided, model undecided, prompt undecided, reply undecided, no weight file undecided, fidelity undecided l1-l31-8b-p512-o512 sash",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 amber\" d=\"M14.51 1.26L27.28 10.53L14.87 14.19Z\"/><path class=\"sl s2 red\" d=\"M27.60 11.50L22.72 26.52L15.40 15.84Z\"/><path class=\"sl s3 amber\" d=\"M21.89 27.12L6.11 27.12L14.00 16.86Z\"/><path class=\"sl s4 hollow\" stroke-width=\"1\" d=\"M5.44 25.40L1.19 12.32L11.82 16.09Z\"/><path class=\"sl s5 red\" d=\"M0.72 10.53L13.49 1.26L13.13 14.19Z\"/></svg>",
+      "terms": "sash llama 3.1 8b instruct · not passed: model undecided, prompt undecided, reply undecided, no weight file undecided l1-l31-8b-p512-o512 sash",
       "tier": 0,
       "url": "/sash"
     },
