@@ -180,7 +180,6 @@ html:has(.top.s-on) { overflow: hidden; }
 /* a row of the ladder joins the stem: its rules start there */
 .none { font: var(--f-meta); color: var(--muted); }
 .rung > .none { display: flex; align-items: center; height: 56px; margin: 24px 0 0 calc(-1 * var(--off)); padding-left: calc(var(--off) + 48px); box-shadow: inset 0 1px 0 var(--rule), inset 0 -1px 0 var(--line); }
-.nt { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 760px; margin-top: 28px; }
 .lad { width: calc(100% + var(--off)); margin: 24px 0 0 calc(-1 * var(--off)); border-collapse: collapse; table-layout: fixed; }
 .lad col.c1 { width: calc(56px + var(--off)); } .lad col.c2 { width: 74px; } .lad col.c3 { width: 22%; }
 .lad thead th { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); text-align: left; padding: 0 18px 12px 0; vertical-align: bottom; border-bottom: 1px solid var(--rule); }
@@ -368,7 +367,6 @@ html:has(.top.s-on) { overflow: hidden; }
   .rm { font-size: 38px; line-height: 33px; }
   .ri { margin-top: 14px; }
   .rung > .none { height: 48px; padding-left: calc(var(--off) + 36px); }
-  .nt { margin-top: 24px; }
   .notrun { margin-top: 56px; position: relative; padding-left: calc(var(--stem) + var(--off)); }
   .notrun:before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--stem); background: var(--cobalt); }
   .notrun > .sect { margin-left: calc(-1 * var(--off)); padding-left: var(--off); }

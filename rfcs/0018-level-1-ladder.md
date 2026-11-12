@@ -199,7 +199,7 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 ### Site
 
 - SI-1. The overview is the ladder: the frontier headline, then one section per rung, largest first. A rung section has its head (model, publisher, total parameters, request, baseline line) and its rows in OR-5 order: position, glyph, system name, status (passed, or the checks not held), multiple, session cost per reply in USD, check time per reply, KL. Rows sort only by the order rule; column heads do not re-sort across positions.
-- SI-2. One line under the first rung: "Ranked by cost among systems that passed our checks. The glyph shows how far each is from a perfect prover; it does not move the order."
+- SI-2. Withdrawn (owner decision, 2026-11-12): the overview prints no line on how its rows are ranked. The order rule, and that the glyph never moves a position, are stated on the checks page.
 - SI-3. The system page: the glyph with each petal's state, basis, reason and quotes; the six checks with state, cause and evidence links; the sessions; the cost parts; fidelity beside the rung's controls.
 - SI-4. Systems not run are listed after the ladder, alphabetical, each with one fixed reason (`licence`, `no public verifier`, `no configuration at the request`, `another kind of check`, `not yet run`) from `web/_data/facts.json`.
 - SI-5. No figure of v0.1 is printed. The v0.1 release stays in the repository as a record.

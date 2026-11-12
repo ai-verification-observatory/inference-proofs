@@ -1,5 +1,5 @@
 """The overview (`index.html`): the ladder (RFC-0018 SI-1). The frontier headline, then one section
-per model, largest first: its head (model, publisher, total parameters, the request, the serving
+per model, largest first: its head (model, publisher, total parameters, the serving
 baseline) and its rows in the board's order (OR-5), then the systems not run (SI-4). Rows sort
 only by the order rule: no column head re-sorts them. Also the figure cells the system pages use.
 """
@@ -24,9 +24,7 @@ from .words import (
     sub_words,
 )
 
-# RFC-0018 SI-2, under the first rung; and what the checks do not test (the checks page)
-UNDER = ("Ranked by cost among systems that passed our checks. The glyph shows how far each is "
-         "from a perfect prover; it does not move the order.")  # fmt: skip
+# what the checks do not test (the checks page)
 NOT_TESTED = ("These checks run each system's own prover and verifier. None attempts a forged "
               "proof: soundness and weight secrecy are not tested.")  # fmt: skip
 ROW_GLYPH = (56, 44)  # the row glyph's sizes: wide screens, then phones
@@ -224,7 +222,7 @@ def baseline_html(rung):
             f'{fig_html(b["gpu_seconds_per_reply"])}</p>')  # fmt: skip
 
 
-def rung_html(rung, first):
+def rung_html(rung):
     head = (
         f'<header class="rh"><h2 class="rm" id="h-{e(rung["id"])}">{e(rung["model"])}</h2>'
         f'<p class="ri">{e(rung["publisher"])} · '
@@ -240,9 +238,8 @@ def rung_html(rung, first):
         body = (
             f'<table class="lad">{cols}<thead><tr>{ths}</tr></thead><tbody>{rows}</tbody></table>'
         )
-    after = f'<p class="nt">{e(UNDER)}</p>' if first else ""
     return (f'<section class="rung" id="{e(rung["id"])}" aria-labelledby="h-{e(rung["id"])}">'
-            f"{head}{body}{after}</section>")  # fmt: skip
+            f"{head}{body}</section>")  # fmt: skip
 
 
 def _best_multiple(rung):
@@ -309,7 +306,7 @@ def not_run_html():
 
 
 def build_index():
-    rungs = "".join(rung_html(r, i == 0) for i, r in enumerate(S.V["rungs"]))
+    rungs = "".join(rung_html(r) for r in S.V["rungs"])
     body = f"""
 {header("home")}
 <main id="main" class="home">
