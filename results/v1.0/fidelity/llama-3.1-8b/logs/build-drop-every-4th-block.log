@@ -1,0 +1,1 @@
+{"architecture": "llama", "arrays_filtered": [], "block_count": 32, "dropped": [3, 7, 11, 15, 19, 23, 27, 31], "every": 4, "group": 1, "new_block_count": 24, "new_tensors": 220, "tensors": 292}

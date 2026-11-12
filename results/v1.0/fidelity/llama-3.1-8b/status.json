@@ -1,0 +1,233 @@
+{
+  "controls": {
+    "drop-every-4th-block": {
+      "build": {
+        "architecture": "llama",
+        "arrays_filtered": [],
+        "block_count": 32,
+        "dropped": [
+          3,
+          7,
+          11,
+          15,
+          19,
+          23,
+          27,
+          31
+        ],
+        "every": 4,
+        "group": 1,
+        "new_block_count": 24,
+        "new_tensors": 220,
+        "tensors": 292
+      },
+      "call": "reference",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/drop-every-4th-block.log",
+      "replies": "fidelity/replies/drop-every-4th-block.jsonl",
+      "status": "ok"
+    },
+    "q2_k": {
+      "build": {
+        "type": "Q2_K"
+      },
+      "call": "reference",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/q2_k.log",
+      "replies": "fidelity/replies/q2_k.jsonl",
+      "status": "ok"
+    },
+    "q3_k_s": {
+      "build": {
+        "type": "Q3_K_S"
+      },
+      "call": "reference",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/q3_k_s.log",
+      "replies": "fidelity/replies/q3_k_s.jsonl",
+      "status": "ok"
+    },
+    "q4_k_m": {
+      "build": {
+        "type": "Q4_K_M"
+      },
+      "call": "reference",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/q4_k_m.log",
+      "replies": "fidelity/replies/q4_k_m.jsonl",
+      "status": "ok"
+    },
+    "q8_0": {
+      "build": {
+        "type": "Q8_0"
+      },
+      "call": "reference",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/q8_0.log",
+      "replies": "fidelity/replies/q8_0.jsonl",
+      "status": "ok"
+    },
+    "reference-2": {
+      "build": {},
+      "call": "reference",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/reference-2.log",
+      "replies": "fidelity/replies/reference-2.jsonl",
+      "status": "ok"
+    },
+    "smaller-model": {
+      "build": {},
+      "call": "other_model",
+      "cause": null,
+      "continuations": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "kl_log": "fidelity/kl/smaller-model.log",
+      "replies": "fidelity/replies/smaller-model.jsonl",
+      "status": "ok"
+    }
+  },
+  "kl_base": {
+    "cause": null,
+    "log": "fidelity/kl/reference.log",
+    "status": "ok"
+  },
+  "reference": {
+    "cause": null,
+    "continuations": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "replies": "fidelity/replies/reference.jsonl",
+    "status": "ok"
+  }
+}

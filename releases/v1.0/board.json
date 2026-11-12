@@ -967,10 +967,147 @@
         }
       },
       "fidelity": {
-        "bar": null,
-        "cause": "no fidelity.json stored",
-        "controls": [],
-        "path": null
+        "bar": {
+          "control": "q3_k_s",
+          "mean_prefix": 1.4
+        },
+        "cause": null,
+        "controls": [
+          {
+            "id": "reference-2",
+            "kind": "honest",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/reference-2.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 0.0
+            },
+            "mean_prefix": 512.0,
+            "status": "ok"
+          },
+          {
+            "id": "q8_0",
+            "kind": "honest",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q8_0.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 0.002956
+            },
+            "mean_prefix": 106.06666666666666,
+            "status": "ok"
+          },
+          {
+            "id": "q4_k_m",
+            "kind": "honest",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q4_k_m.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 0.133536
+            },
+            "mean_prefix": 5.266666666666667,
+            "status": "ok"
+          },
+          {
+            "id": "q3_k_s",
+            "kind": "damaged",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q3_k_s.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 0.565702
+            },
+            "mean_prefix": 1.4,
+            "status": "ok"
+          },
+          {
+            "id": "q2_k",
+            "kind": "damaged",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/q2_k.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 0.925209
+            },
+            "mean_prefix": 1.4,
+            "status": "ok"
+          },
+          {
+            "id": "drop-every-4th-block",
+            "kind": "damaged",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/drop-every-4th-block.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 3.298522
+            },
+            "mean_prefix": 0.2,
+            "status": "ok"
+          },
+          {
+            "id": "smaller-model",
+            "kind": "damaged",
+            "kl": {
+              "grade": "measured",
+              "note": "computed by llama.cpp on the committed file, not the proved computation",
+              "null_reason": null,
+              "scope": null,
+              "source": {
+                "kind": "adapter",
+                "ref": "results/v1.0/fidelity/llama-3.1-8b/kl/smaller-model.log#Mean KLD"
+              },
+              "tier": "reported",
+              "unit": "nat/token",
+              "value": 1.262184
+            },
+            "mean_prefix": 1.3333333333333333,
+            "status": "ok"
+          }
+        ],
+        "path": "results/v1.0/fidelity/llama-3.1-8b/fidelity.json"
       },
       "id": "llama-3.1-8b",
       "model": "Llama 3.1 8B Instruct",
@@ -982,10 +1119,12 @@
         {
           "checks": {
             "fidelity": {
-              "cause": "not run",
-              "evidence": [],
-              "note": "no fidelity.json for the rung",
-              "state": "undecided"
+              "cause": null,
+              "evidence": [
+                "results/v1.0/fidelity/llama-3.1-8b/fidelity.json"
+              ],
+              "note": null,
+              "state": "held"
             },
             "model": {
               "cause": "not run",
@@ -996,9 +1135,11 @@
             "no_weight_file": {
               "cause": "not run",
               "evidence": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/verify-trace/"
               ],
-              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 4 more)",
+              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 14 more)",
               "state": "undecided"
             },
             "prompt": {
@@ -1010,23 +1151,34 @@
             "reply": {
               "cause": "not run",
               "evidence": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json"
               ],
               "note": "C1 at the first position: no counted trial stored; C1 at the last position: no counted trial stored; C1 at the interior position: no counted trial stored",
               "state": "undecided"
             },
             "run": {
-              "cause": "not run",
+              "cause": null,
               "evidence": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json"
               ],
-              "note": "no complete session in slot 2, 3",
-              "state": "undecided"
+              "note": null,
+              "state": "held"
             }
           },
           "commit": "4f41667297430a598165c4a8604258fe37d952ae",
           "configuration": "sound-defaults",
-          "fidelity": null,
+          "fidelity": {
+            "kl": null,
+            "kl_note": "not measured: the committed copy is not a file llama.cpp loads (FI-7)",
+            "mean_prefix": 31.0,
+            "n": 15,
+            "p_above_bar": 0.0001220703125,
+            "p_below_bar": 1.0
+          },
           "generation_multiple": {
             "grade": "derived",
             "null_reason": "not_applicable",
@@ -1067,8 +1219,8 @@
               "basis": "test",
               "id": "faithful_model",
               "quotes": [],
-              "reason": "no fidelity run stored",
-              "state": "hollow"
+              "reason": "above the bar; the reference rerun scores above the row (p = 3.052e-05, alpha 0.05, n = 15)",
+              "state": "amber"
             },
             {
               "basis": "run",
@@ -1088,7 +1240,7 @@
           "incomplete_sessions": [],
           "multiple": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -1100,7 +1252,7 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 51198.13250152912
+            "value": null
           },
           "passed": false,
           "position": null,
@@ -1110,23 +1262,25 @@
             "scope": null,
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/metrics/proof_bytes_per_request"
               ],
               "kind": "derivation",
               "ref": "derive:D-BPR@0.1.0.dev0"
             },
             "stats": {
               "max": 3912188191.8,
-              "mean": 3912188191.8,
-              "median": 3912188191.8,
-              "min": 3912188191.8,
-              "n": 1,
+              "mean": 3908618263.5333333,
+              "median": 3911233903.8,
+              "min": 3902432695.0,
+              "n": 3,
               "n_failed": 0,
-              "stdev": null
+              "stdev": 5378067.492804436
             },
             "tier": "reported",
             "unit": "B/request",
-            "value": 3912188191.8
+            "value": 3908618263.5333333
           },
           "proving_multiple": {
             "grade": "derived",
@@ -1157,23 +1311,27 @@
             "source": {
               "inputs": [
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/events",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/events",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-SESSION@0.1.0.dev0"
             },
             "stats": {
-              "max": 2490.397984749,
-              "mean": 2490.397984749,
-              "median": 2490.397984749,
+              "max": 2725.4387569366,
+              "mean": 2644.5858689848665,
+              "median": 2717.920865269,
               "min": 2490.397984749,
-              "n": 1,
+              "n": 3,
               "n_failed": 0,
-              "stdev": null
+              "stdev": 133.5835222159949
             },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 2490.397984749
+            "value": 2644.5858689848665
           },
           "session_multiple": {
             "grade": "derived",
@@ -1189,7 +1347,7 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 57766.455205816106
+            "value": 61342.9468198215
           },
           "session_usd_per_reply": {
             "grade": "derived",
@@ -1205,7 +1363,7 @@
             },
             "tier": "reported",
             "unit": "USD/request",
-            "value": 3.6975492301342787
+            "value": 3.9264754082566973
           },
           "sessions": [
             {
@@ -1224,6 +1382,40 @@
               "session": 2490.397984749,
               "slot": 1,
               "steady": true
+            },
+            {
+              "cause": "uneven groups",
+              "generation_gpu_seconds_per_reply": null,
+              "gpus": 1,
+              "groups": [
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "m": null,
+              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
+              "session": 2725.4387569366,
+              "slot": 2,
+              "steady": false
+            },
+            {
+              "cause": null,
+              "generation_gpu_seconds_per_reply": null,
+              "gpus": 1,
+              "groups": [
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "m": 2384.122089685,
+              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+              "session": 2717.920865269,
+              "slot": 3,
+              "steady": true
             }
           ],
           "steady_generation_gpu_seconds_per_reply": {
@@ -1233,7 +1425,9 @@
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-GENERATION@0.1.0.dev0"
@@ -1244,27 +1438,21 @@
           },
           "steady_gpu_seconds_per_reply": {
             "grade": "derived",
-            "null_reason": null,
+            "note": "no steady state: slot 2: uneven groups",
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-STEADY@0.1.0.dev0"
             },
-            "stats": {
-              "max": 2207.22780289075,
-              "mean": 2207.22780289075,
-              "median": 2207.22780289075,
-              "min": 2207.22780289075,
-              "n": 1,
-              "n_failed": 0,
-              "stdev": null
-            },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 2207.22780289075
+            "value": null
           },
           "steady_proving_gpu_seconds_per_reply": {
             "grade": "derived",
@@ -1273,7 +1461,9 @@
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-PROVING@0.1.0.dev0"
@@ -1284,7 +1474,7 @@
           },
           "steady_usd_per_reply": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -1296,7 +1486,7 @@
             },
             "tier": "reported",
             "unit": "USD/request",
-            "value": 3.277120168458627
+            "value": null
           },
           "system": "sash",
           "unranked_reason": null,
@@ -1306,23 +1496,25 @@
             "scope": "verify",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/metrics/verify_seconds_per_request"
               ],
               "kind": "derivation",
               "ref": "derive:D-VSPR@0.1.0.dev0"
             },
             "stats": {
-              "max": 993.7820811386,
-              "mean": 993.7820811386,
-              "median": 993.7820811386,
+              "max": 1064.4517651742,
+              "mean": 1037.0059626898,
+              "median": 1052.7840417566,
               "min": 993.7820811386,
-              "n": 1,
+              "n": 3,
               "n_failed": 0,
-              "stdev": null
+              "stdev": 37.884850464288874
             },
             "tier": "reported",
             "unit": "s/request",
-            "value": 993.7820811386
+            "value": 1037.0059626898
           },
           "workload": "l1-l31-8b-p512-o512"
         }
