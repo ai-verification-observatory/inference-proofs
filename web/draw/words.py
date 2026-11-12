@@ -29,27 +29,37 @@ def quoted(text):
 # ------------------------------------------------------------------ the six checks (RFC-0018)
 CHECK_NAME = {"run": "Run", "model": "Model", "prompt": "Prompt", "reply": "Reply",
               "no_weight_file": "No weight file", "fidelity": "Fidelity"}  # fmt: skip
+# {slots}, {attempts} and {reply_tokens} are the level file's constants (`overview.filled`)
 CHECK_HELD = {
-    "run": "Three session slots each hold a complete session, built from the public pin, "
-    "unpatched, with no weakening flag.",
+    "run": "Each of the {slots} session slots holds a complete session, built from the public "
+    "pin, unpatched, with no weakening flag.",
     "model": "A proof made after one weight was changed is not accepted, and an honest proof "
     "checked against the changed weights' commitment is refused, in 3 of 3 trials each.",
     "prompt": "A proof checked with one prompt token changed is refused, in 3 of 3 trials.",
-    "reply": "Every accepted proof covers all 512 reply tokens, and a changed reply token is "
-    "refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
+    "reply": "Every accepted proof covers all {reply_tokens} reply tokens, and a changed reply "
+    "token is refused at the first, the last and one seeded interior position, in 3 of 3 trials "
+    "each.",
     "no_weight_file": "Every counted verdict came from a check run with no GPU visible, on a "
     "filesystem holding no model file, under a file-open trace that names no model file.",
     "fidelity": "The system's replies score above the model's bar: the damaged copy of the model "
     "that every honest copy scores above, scored by the leading tokens each reply shares with the "
-    "publisher's 16-bit model.",
+    "reply of the publisher's original weights.",
 }
+# after the colon, what an accepted trial is: the verifier accepted a false statement (RFC-0018
+# §The glyph)
 CHECK_FAILED = {
-    "run": "A slot has five incomplete runs, or a counted session used a weakening flag.",
-    "model": "Any trial is accepted.",
-    "prompt": "Any trial is accepted.",
-    "reply": "A proof covers fewer reply tokens, or any trial is accepted.",
+    "run": "A slot has {attempts} incomplete runs, the system's own code refuses the request, or "
+    "a counted session used a weakening flag.",
+    "model": "Any trial is accepted: the verifier accepts a proof for weights other than the "
+    "committed ones.",
+    "prompt": "Any trial is accepted: the verifier accepts a proof for a prompt other than the "
+    "one proved.",
+    "reply": "A proof covers fewer reply tokens, or any trial is accepted: the verifier accepts "
+    "a reply with a token changed.",
     "no_weight_file": "The trace names a model file, or a check needed one.",
-    "fidelity": "The bar scores above the system's replies.",
+    "fidelity": "The bar scores above the system's replies: they match the replies of the "
+    "publisher's original weights for fewer leading tokens than those of a copy damaged on "
+    "purpose.",
 }
 CHECK_EVIDENCE = {
     "run": "every session's run record",
@@ -84,8 +94,9 @@ PETAL_RULE = {
         "check failed.",
     ),
     "faithful_model": (
-        "The replies are not shown below a second run of the publisher's 16-bit model.",
-        "The replies score above the model's bar, and the second run of the 16-bit model scores above them.",
+        "The replies are not shown below a second run of the publisher's original weights.",
+        "The replies score above the model's bar, and the second run of the original weights "
+        "scores above them.",
         "Our Fidelity check failed.",
     ),
     "any_model": (
@@ -101,6 +112,143 @@ PETAL_RULE = {
         "A trusted setup, hardware attestation or a trusted key, or not stated.",
     ),
 }
+# ------------------------------------------------------------------ the checks page's terms
+# RFC-0018 §Terms and the glossary's Proved and Commitment, in short. {request} is the level's
+# request in words.
+TERMS = (
+    ("proof", "The files a system writes for one reply. Its verifier is a program that accepts "
+     "or refuses them. Each publisher states what an accepted proof shows, for example that "
+     "each reply token is the committed model's top choice, and under which assumptions. A "
+     "sound verifier accepts a reply that statement does not cover only with the probability "
+     "its security level bounds."),
+    ("commitment", "The value a system's commit step produces: it fixes the weights a later "
+     "proof refers to. The verifier is given the value from our record of that step, never from "
+     "files sent with a proof."),
+    ("request", "{request}. The same request for every system on every model."),
+    ("ladder", "The models, largest first, each an open-weights release named by its publisher. "
+     "A system has a row on each model it was run on."),
+)  # fmt: skip
+
+# ------------------------------------------------------------------ the figures (RFC-0018 §Cost, FI-7)
+# The overview's four figure columns: the anchor on the checks page, the column head, and the
+# definition as (label, words) lines. {slots}, {gap} (the release-group gap), {full} (the share
+# of the highest rate that is full load) and {top} (the ladder's top concurrency) are the level
+# file's constants; {reference} is each model's reference precision.
+FIGURE_NAME = {"multiple": "Multiple of serving", "cost": "Cost per reply",
+               "check-time": "Check time per reply", "kl": "KL to the reference"}  # fmt: skip
+FIGURE_RULE = {
+    "multiple": (
+        ("proving", "m, GPU-seconds per further proved reply. In one session, proofs released "
+         "within {gap} of the previous release form a group. m is the GPU time from the first "
+         "group's last release to the session's last release, over the replies of the later "
+         "groups, generating the replies included. The mean of {slots} sessions, each from a "
+         "cold start."),
+        ("serving", "b, GPU-seconds per reply of plain serving: the publisher's own release, "
+         "served by the pinned engine on the fewest H200 that hold it, at full load. Full load "
+         "is the lowest concurrency that reaches {full} of the highest rate, on a ladder up to "
+         "{top} concurrent requests."),
+        ("multiple", "m over b, on one model. Both halves are GPU-seconds of the same GPU at one "
+         "price, so the multiple is the same in dollars."),
+        ("cold", "A system whose sessions release too few groups, or uneven ones, has no m. It "
+         "prints its session cost per reply over b, labelled as cold sessions."),
+    ),
+    "cost": (
+        ("steady", "m in USD, at the release's price of one H200 GPU-hour."),
+        ("session", "Where a system has no multiple: the GPU time from the start of commit to "
+         "the release of the last proof, over the session's replies, in USD."),
+    ),
+    "check-time": (
+        ("check", "The time the system's verifier takes on a session's proofs, over the "
+         "session's replies."),
+    ),
+    "kl": (
+        ("kl", "The mean KL divergence per scored token, in nats, of the file the system "
+         "commits from the reference: the publisher's original weights, {reference}."),
+        ("computed by", "llama.cpp, on the committed file, not on the proved computation. It is "
+         "printed and decides no check."),
+        ("none", "Not measured where llama.cpp cannot load the committed file."),
+    ),
+}  # fmt: skip
+# a rung's fidelity reference, by its stored precision (FI-1)
+REFERENCE_WORD = {"bf16": "16-bit", "f16": "16-bit", "f32": "32-bit"}
+
+
+def kl_head(dtype):
+    return f"KL to the {REFERENCE_WORD[dtype]} model"
+
+
+# the order rule (RFC-0018 OR-1 to OR-4, GL-4), as (label, words). {margin} is the level's.
+# "Session m" is one counted session's m.
+ORDER_RULE = (
+    ("ranked", "Only a system that passed on a model, and only on that model."),
+    ("above", "A system is placed above another when its multiple is at least {margin} lower "
+     "and its highest session m is below the other's lowest. A system with a multiple is placed "
+     "above one without. Two without compare the same way on session cost per reply."),
+    ("position", "1 plus the number of systems placed above. The count of systems run on the "
+     "model is printed beside it."),
+    ("unranked", "A system that passed is ranked only when its publisher states a security "
+     "level at the pinned commit. The level is printed as stated: our tests cannot tell 60 bits "
+     "from 128."),
+    ("glyph", "The glyph never moves a position."),
+    ("models", "Nothing is compared across models: they differ in what serving costs and in how "
+     "proving scales."),
+)  # fmt: skip
+# ------------------------------------------------------------------ the mandate page
+# The headline, what the site is for, then what we do, what we do not do, who runs it and how to
+# check us: each line (a plain label, the rule that binds it, the file that rule is in, the
+# words). A line with no file is the owner's commitment.
+RFC_18 = "rfcs/0018-level-1-ladder.md"
+MANDATE_BELIEF = (
+    "We believe a claim about which AI model answered should come with evidence anyone can "
+    "afford to check."
+)
+MANDATE_WHAT = (
+    "When a service says a reply came from a given AI model, you normally have to take its word. "
+    "A proof of inference is a file that lets anyone check that claim without running the model. "
+    "This site tests the systems that make such proofs. It measures how much more a proved "
+    "reply costs than serving the same reply without a proof, and whether each system's checker "
+    "refuses a proof once the model, the prompt or the reply is changed. Every system gets the "
+    "same request on the same kind of GPU, and we run each one as published, with no change to "
+    "its code."
+)
+MANDATE = (
+    ("What we do", (
+        ("As published", "rule 1", "AGENTS.md", "Run each system at a fixed public version, "
+         "with no change to its code and no setting its documentation does not name."),
+        ("Same request", "Request, PR-2", RFC_18, "Give every system the same request. The "
+         "prompts come from a public random draw made after the rules are frozen, so nobody, us "
+         "included, picks them or sets a rule knowing them."),
+        ("Every run", "rule 5", "AGENTS.md", "Record every run of a release, failed ones with "
+         "their error code and last lines of output. Report ranges and sample sizes, never a "
+         "single best run."),
+        ("Computed", "CH-6", RFC_18, "Compute every check result from stored records. No "
+         "reviewer sets one by hand."),
+        ("Confirmed", "CH-8", RFC_18, "Before we publish that a system's checker accepted a "
+         "changed model, prompt or reply, reproduce it with the system's own command, outside "
+         "our own code. Until then the check reads undecided and we tell the system's "
+         "publisher."),
+    )),
+    ("What we do not do", (
+        ("Payment", "", None, "Take payment for a listing, a place in the ranking or a rerun."),
+        ("Building", "What this project is", "AGENTS.md", "Build these systems or certify "
+         "them."),
+        ("Security", "Non-Goals", RFC_18, "Test whether a proof can be forged or whether it "
+         "keeps the model's weights hidden. No check attempts a forged proof."),
+        ("Across models", "OR-1", RFC_18, "Rank systems across models. Each model has its own "
+         "ranking, of the systems that passed the six checks."),
+    )),
+    ("Who runs it", (
+        ("Operator", "", None, "Lucid Computing runs this project."),
+        ("Conflicts", "Conflicts of Interest", RFC_18, "FlashProve is published by Anthropic. "
+         "Parts of this project's code and text are drafted with Claude, Anthropic's model."),
+    )),
+    ("How to check us", (
+        ("Sources", "rule 2", "AGENTS.md", "Every figure shows its unit, what was timed and "
+         "its sample size, and names the source it came from."),
+        ("Open code", "Licence", "README.md", "The rules, the code we use to run each system "
+         "and the measuring code are public."),
+    )),
+)  # fmt: skip
 CAUSE_WORD = {
     "system limit": "the system cannot do what the test needs; the publisher's sentence is quoted",
     "not run": "the test has not been run",

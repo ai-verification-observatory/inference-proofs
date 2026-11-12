@@ -10,7 +10,8 @@ import re
 from . import state as S
 
 GROUND, PAPER, MUTED, RULE = "#0b0b0c", "#f1efe9", "#9b978e", "#6f6a62"
-VIOLET = "#c45cff"
+LINE = "#2a2927"  # the hairline between rows (words.css --line), never text
+COBALT = "#5b7bff"  # the brand ink: the band, page titles, the mark and the stems
 STATES = ("red", "amber", "green")  # the filled petal states, darkest first
 
 
@@ -32,7 +33,7 @@ def check_inks():
     css = dict(re.findall(r"--(\w+):\s*(#[0-9a-f]{6})", (S.HERE / "words.css").read_text()))
     S.INK = {s: css[s] for s in STATES}
     for k, v in {"ground": GROUND, "paper": PAPER, "muted": MUTED, "rule": RULE,
-                 "violet": VIOLET}.items():  # fmt: skip
+                 "cobalt": COBALT}.items():  # fmt: skip
         assert css.get(k) == v, f"words.css --{k} is {css.get(k)}, the build checks {v}"
     S.ladder, prev = [], GROUND
     for st in STATES:
@@ -44,8 +45,8 @@ def check_inks():
     S.pairs = [
         ("paper text on ground", PAPER, GROUND),
         ("muted text on ground", MUTED, GROUND),
-        ("black text on violet", GROUND, VIOLET),
-        ("violet text on ground", VIOLET, GROUND),
+        ("black text on cobalt", GROUND, COBALT),
+        ("cobalt text on ground", COBALT, GROUND),
     ]
     S.pairs += [(f"ground text on {s}", GROUND, S.INK[s]) for s in STATES]
     for name, a, b in S.pairs:

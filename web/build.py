@@ -18,7 +18,7 @@ This module is the entry point: it reads the view into the build's state (`setup
 `out` holds no page or card source the build no longer writes (`check_stale`) and writes the
 files (`render`). The drawing is in the package draw/ beside it, in this order of imports:
 state (what `setup` reads), words (fixed words, numbers as shown), inks (contrast checks), hexagon
-(the glyph's geometry), chrome (header, footer, page frame, fonts, share tags), overview (the
+(the glyph's geometry), mark (the turnstile, the lockup, the token cells), chrome (header, footer, page frame, fonts, share tags), overview (the
 ladder), pages (system pages, checks, 404) and outputs (search.json, vercel.json, og/ sources,
 the fonts block, the README table). Every name of those modules reads as `build.<name>` too.
 """
@@ -29,7 +29,7 @@ import pathlib
 import sys
 import types
 
-PARTS = ("state", "words", "inks", "hexagon", "chrome", "overview", "pages", "outputs")
+PARTS = ("state", "words", "inks", "hexagon", "mark", "chrome", "overview", "pages", "outputs")
 
 
 def _load_draw():
@@ -87,9 +87,12 @@ def setup(view, out):
     S.ROWS = [row for rung in view["rungs"] for row in rung["rows"]]
     S.PAGE = {row["page"]: row for row in S.ROWS}
     assert len(S.PAGE) == len(S.ROWS), "two rows share a page"
-    assert set(S.PAGE).isdisjoint({"index", "checks", "404"}), "a row's page is a site page"
+    assert set(S.PAGE).isdisjoint({"index", "checks", "mandate", "404"}), (
+        "a row's page is a site page"
+    )
     draw.inks.check_inks()
     draw.chrome.load_faces()
+    draw.mark.load_wordmark()
 
 
 def check_stale():
@@ -99,7 +102,7 @@ def check_stale():
     `python -O` drops)."""
     c = draw.chrome
     pages = {c.file_of("/"), *(c.file_of(f"/{p}") for p in S.PAGE), c.file_of(c.CHECKS_PAGE),
-             S.HERE / "404.html"}  # fmt: skip
+             c.file_of(c.MANDATE_PAGE), S.HERE / "404.html"}  # fmt: skip
     stale = sorted(q.name for q in set(S.HERE.glob("*.html")) - pages)
     if stale:
         raise RuntimeError(f"pages the build no longer writes: {stale}")
@@ -123,6 +126,7 @@ def render(view, out, *, write_json, write_text):
     for pid in S.PAGE:
         pages[file_of(f"/{pid}")] = draw.pages.build_system(pid)
     pages[file_of(draw.chrome.CHECKS_PAGE)] = draw.pages.build_checks()
+    pages[file_of(draw.chrome.MANDATE_PAGE)] = draw.pages.build_mandate()
     pages[S.HERE / "404.html"] = draw.pages.build_404()
     if set(pages) != expected:
         raise RuntimeError(f"check_stale lists {sorted(q.name for q in expected)}, the build "

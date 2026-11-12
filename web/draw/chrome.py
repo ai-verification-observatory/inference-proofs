@@ -10,13 +10,14 @@ import json
 import re
 
 from . import state as S
-from .hexagon import mark_svg
 from .inks import GROUND
+from .mark import lockup_svg
 from .words import PETAL_NAME, PETAL_WORD, e
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
+MANDATE_PAGE = "/mandate"  # what the site is for, what it does and does not do, who runs it
 CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
 
 
@@ -26,9 +27,9 @@ def file_of(path):
 
 # ------------------------------------------------------------------ fonts, served from fonts/
 # fonts/faces.json lists each woff2 file (named with its own hash, so it can be cached for good)
-# with the family, weights, widths and unicode range Google Fonts gives it. The arrows subset comes
-# last, so its glyphs win where ranges overlap.
-PRELOAD = ("archivo-latin.", "plex-mono-400-latin.", "plex-mono-500-latin.")
+# with the family, weights, widths and unicode range Google Fonts gives it (latin and latin-ext). A
+# subset named arrows, when one is listed, comes last, so its glyphs win where ranges overlap.
+PRELOAD = ("big-shoulders-latin.", "martian-mono-latin.")
 
 
 def load_faces():
@@ -89,13 +90,14 @@ def header(here):
     def a(href, label, key):
         return f'<a href="{href}"{" aria-current=page" if here == key else ""}>{label}</a>'
 
-    # The logo leads to the overview; the nav holds the other pages; systems are reached by search
-    # (one link each would not scale) or from the overview.
+    # The lockup leads to the overview; the nav holds the other pages; systems are reached by
+    # search (one link each would not scale) or from the overview.
     nav = a(CHECKS_PAGE, "Checks", "checks")
+    logo = lockup_svg(LOGO_CAP)
     current = " aria-current=page" if here == "home" else ""
     return (
         '<a class="skip" href="#main">Skip to content</a>'
-        f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{LOGO_MARK}<span>Inference proofs</span></a></p>'
+        f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{logo}</a></p>'
         f'<nav aria-label="Site">{nav}</nav></div>'
         f"{search_box(here)}"
         f'<a class="repo" href="{e(S.REPO_URL)}">{GITHUB_MARK}<span>GitHub</span></a>'
@@ -103,8 +105,9 @@ def header(here):
     )
 
 
-# The site's mark, as on the icon and the preview cards: the hex asterisk, here in violet
-LOGO_MARK = mark_svg(22)
+# The lockup INFERENCE ⊢ PROOFS at a cap height of 15 px: 1 px per unit of the mark, so its stem
+# (3 px), cells (5 px) and gaps (1 px) sit on whole pixels; the words in paper, the mark in cobalt.
+LOGO_CAP = 15
 
 SEARCH_MARK = (
     '<svg class="si" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">'
@@ -137,12 +140,18 @@ def link(path):
     return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
 
 
+def level_words():
+    """The level and its state: "Level 1 (frozen 2026-11-11)", or "(draft)"."""
+    lv = S.V["level"]
+    state = f"frozen {lv['frozen']}" if lv["frozen"] else "draft"
+    return f"{lv['name']} ({state})"
+
+
 def footer():
     """Every page's footer, one line: the level file and its digest, the release's board file
     when there is one, and the licence."""
     lv, rel = S.V["level"], S.V["release"]
-    state = f"frozen {lv['frozen']}" if lv["frozen"] else "draft"
-    parts = [f'<a class="nw" href="{e(link(lv["path"]))}">{e(lv["name"])} ({state})</a>'
+    parts = [f'<a class="nw" href="{e(link(lv["path"]))}">{e(level_words())}</a>'
              f' <code class="nw">{e(lv["digest"][:19])}</code>']  # fmt: skip
     if rel is not None:
         board = rel["board"]
@@ -151,6 +160,7 @@ def footer():
         parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
                      else f'<span>{e(name)} ({e(board)})</span>')  # fmt: skip
     parts.append(e(str(S.V["licence"]).replace(" ", "\u00a0")))
+    parts.append(f'<a class="nw" href="{MANDATE_PAGE}">Mandate</a>')
     return f'<footer class="foot"><p>{"\u00a0\u00b7 ".join(parts)}</p></footer>'
 
 
