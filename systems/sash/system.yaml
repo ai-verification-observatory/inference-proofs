@@ -11,7 +11,7 @@ upstream:
   commit: "4f41667297430a598165c4a8604258fe37d952ae"
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
-  digest: "sha256:e6c85bcf595acf9b7c57e1bee0e68291db9c06bb6259d601f2dc9b0a7809826c"
+  digest: "sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5"
 # l1-l31-8b-p512-o512 (RFC-0018 Level 1): 512 + 512, five requests a session, one grid of two
 # blocks per request; README.md §Level 1 has the geometry and the open items.
 workloads: ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512", "dev-l31-8b-toc-p512-o512"]
