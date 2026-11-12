@@ -1,0 +1,25 @@
+# RFC-0018 FI-9: the fidelity reference in vLLM, for a rung whose 16-bit reference llama.cpp at
+# the level's pin cannot run (Llama 4 Maverick: llama.cpp v0.9.0 stops on MUL_MAT_ID with an
+# illegal memory access on the 16-bit file, README.md). It is a reference job, not a row:
+# `iproofs fidelity run --engine vllm` drives it (info, then one prove call per model source).
+# The engine options are fixed in the entrypoint and documented in README.md; engine_args stays
+# empty.
+schema: system/1
+name: ref-fidelity-vllm
+kind: reference
+contract: adapter/1
+reference_role: fidelity
+engine:
+  name: vllm
+  version: 0.32.0
+  image: docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+  commit: 5df63a7203cdb9328d824a27b682e77c7b9928be  # the image ENV VLLM_BUILD_COMMIT (ref-serve)
+# RFC-0014 B7: the images workflow builds it; the digest is pinned here once built.
+workloads:
+- id: l1-maverick-p512-o512
+  precision_used: BF16
+  precision_substitution: null
+  engine_args: []
+deterministic_proofs: true
+incremental_proofs: false
+forbidden_flags: []
