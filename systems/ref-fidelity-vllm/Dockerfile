@@ -8,9 +8,15 @@
 #     --build-arg IPROOFS_ADAPTER_DIRTY=$(test -z "$(git status --porcelain)" && echo false || echo true) \
 #     -f systems/ref-fidelity-vllm/Dockerfile systems
 FROM docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34 AS fetch
+ENV DEBIAN_FRONTEND=noninteractive
+# git for the job's clone of this repository (hf-job.sh): the engine image has none and the
+# image runs as uid 10001. Ubuntu 24.04's version, as ref-fidelity pins it (PIN-5).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git=1:2.43.0-1ubuntu7.4 \
+ && rm -rf /var/lib/apt/lists/*
 COPY ref-fidelity-vllm/inputs.lock /fetch/inputs.lock
 
-FROM docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
+FROM fetch
 COPY --from=fetch /fetch/ /opt/iproofs/fetch/
 COPY fake/write_inputs.py /opt/iproofs/write_inputs.py
 COPY ref-fidelity-vllm/entrypoint /opt/ref-fidelity-vllm/entrypoint
