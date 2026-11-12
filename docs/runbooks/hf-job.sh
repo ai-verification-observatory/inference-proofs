@@ -81,6 +81,10 @@
 #   IPROOFS_FIDELITY_SLOTS  fidelity only: llama-server slots, the prompts sent at once (default
 #                         1); each control's replies are made the way the reference's are, and
 #                         the reference rerun (FI-2) shows what batching changes
+#   IPROOFS_FIDELITY_ENGINE fidelity only: vllm runs the reference, its rerun and the smaller
+#                         model in the ref-fidelity-vllm image (RFC-0018 FI-9); default llama.cpp
+#   IPROOFS_FIDELITY_PART controls: only the quantized controls, in the ref-fidelity image, from
+#                         the 16-bit GGUF IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN (FI-9)
 #   IPROOFS_STORED_DIR    controls only: a read-only mount of the stored run (`hf jobs run -v
 #                         hf://buckets/<namespace>/<bucket>/RUN_PATH:/stored:ro`)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
@@ -633,6 +637,25 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
   RELEASE=v1.0
   log "level prompts $RUNG (needs levels/L1-beacon.json at this commit)"
   "$IP" level prompts "$RUNG" --out "$WORK/prompts" || { log "level prompts failed"; exit 3; }
+  if [ "${IPROOFS_FIDELITY_PART:-}" = controls ]; then
+    # RFC-0018 FI-9: the quantized controls only, built in llama.cpp from a 16-bit GGUF named by
+    # IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN; its files are hashed into the part's record
+    spec=${IPROOFS_FIDELITY_GGUF:?IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN}
+    src=${spec%%:*}; pattern=${spec#*:}; repo=${src%@*}; rev=${src#*@}
+    log "download the 16-bit GGUF: $repo at $rev ($pattern), at most $(left) s"
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" \
+      uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf download "$repo" --revision "$rev" \
+      --include "$pattern" --local-dir "$WORK/reference-gguf" >/dev/null || { log "download of $repo failed"; exit 3; }
+    SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
+    log "fidelity run $RUNG --part controls on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
+      --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
+      --results "$DEV" --work "$WORK/fidelity-io" --part controls \
+      --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src"
+    rc=$?
+    log "fidelity run exit $rc"
+    exit "$rc"
+  fi
   # the rung's reference and other model, at the revisions levels/L1.yaml pins; their files are
   # hashed into fidelity-run.json by the run (RFC-0018 FI-1, FI-2)
   fetch_args=()
@@ -666,10 +689,11 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
     timeout --kill-after=60 "$(left)" "$IP" fetch-model --serving "$record" || { log "fetch failed"; exit 3; }
   fi
   SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
-  log "fidelity run $RUNG on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+  ENGINE=${IPROOFS_FIDELITY_ENGINE:-llama.cpp}
+  log "fidelity run $RUNG in $ENGINE on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
   env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
     --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
-    --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"}
+    --engine "$ENGINE" --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"}
   rc=$?
   log "fidelity run exit $rc"
   exit "$rc"

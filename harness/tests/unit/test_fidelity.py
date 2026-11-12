@@ -281,3 +281,31 @@ def test_kl_against_a_llama_cpp_base_file(tmp_path: Path) -> None:
     assert scored_texts(base, 1) == [[1, 11, 12, 13], [1, 15, 16, 17]]
     with pytest.raises(ValueError, match="float16"):
         mean_kl_against_base(path, lambda c: uniform + uniform)
+
+
+def test_a_controls_part_supplies_the_controls_a_vllm_run_left_out(tmp_path: Path) -> None:
+    """FI-9: the quantize controls a vLLM run records as not run take the controls part's
+    outcome; a control neither ran keeps the vLLM run's cause."""
+    import json  # noqa: PLC0415
+    from types import SimpleNamespace  # noqa: PLC0415
+
+    from iproofs.commands.fidelity import _controls  # noqa: PLC0415
+
+    (tmp_path / "replies").mkdir()
+    for ident in ("reference-2", "q8_0"):
+        (tmp_path / "replies" / f"{ident}.jsonl").write_text("[1, 2]\n")
+    ok = {"status": "ok", "cause": None}
+    (tmp_path / "status.json").write_text(json.dumps({"controls": {"reference-2": ok}}))
+    (tmp_path / "status-controls.json").write_text(json.dumps({"controls": {"q8_0": ok}}))
+    record = {"not_run": {"q8_0": "run in llama.cpp by the controls part",
+                          "drop": "not run: the 16-bit file in llama.cpp"}}  # fmt: skip
+    rung = SimpleNamespace(controls=[
+        SimpleNamespace(id="reference-2", kind="honest", recipe="rerun"),
+        SimpleNamespace(id="q8_0", kind="honest", recipe="quantize"),
+        SimpleNamespace(id="drop", kind="damaged", recipe="drop_blocks"),
+    ])  # fmt: skip
+    got = {spec["id"]: (replies, cause) for spec, replies, cause, _ in
+           _controls(rung, tmp_path, "results/x", record)}  # type: ignore[arg-type]  # fmt: skip
+    assert got["reference-2"] == ([[1, 2]], None)
+    assert got["q8_0"] == ([[1, 2]], None)
+    assert got["drop"] == (None, "not run: the 16-bit file in llama.cpp")

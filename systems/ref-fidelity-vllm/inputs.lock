@@ -1,0 +1,4 @@
+# RFC-0014 B2: every external input the fetch stage downloads, one per line:
+# <name>	<url>	sha256:<hex>
+# None: the pinned vLLM image holds everything the reference runs; the model files are fetched
+# by the harness at run time and hashed into fidelity-run.json.

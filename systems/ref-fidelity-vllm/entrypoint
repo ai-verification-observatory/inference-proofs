@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+"""ref-fidelity-vllm: the fidelity reference of RFC-0018 FI-9 in vLLM, for a rung whose 16-bit
+reference llama.cpp at the level's pin cannot run (Llama 4 Maverick).
+
+Usage: entrypoint <info|prove> /io/job.json /io/out.json
+
+`iproofs fidelity run --engine vllm` writes /io/job.json and calls `prove` once per model
+source: `reference` (the publisher's 16-bit files at /models: the reference's replies and the
+`rerun` control's) and `other_model` (the smaller model of the same publisher at /models). Each
+call loads the model once in vLLM's offline engine, tensor-parallel over the GPUs it is given,
+and generates each prompt's greedy reply: token ids in, temperature 0, `ignore_eos` (an end
+token chosen greedily stays in the reply and generation goes on, the request of RFC-0018),
+exactly `output_tokens` tokens, no prefix cache. Replies go to
+/io/fidelity/replies/<id>.jsonl, one per line in prompt order. The `rerun` control sends the
+prompts in reverse order, so the batches it runs in differ from the reference's; its replies are
+put back in prompt order. A recipe this image does not build (`quantize`, `drop_blocks`) is
+recorded failed with its cause; the llama.cpp image builds the quantized controls (FI-9). No KL:
+llama.cpp's KL base needs the 16-bit file in llama.cpp (FI-7).
+
+/io/fidelity/status.json has the same form as ref-fidelity's. IPROOFS_IO and IPROOFS_MODELS map
+/io and /models to host directories when the tests or a hosted job run this file as a process;
+IPROOFS_VLLM_FAKE names a module that stands in for vLLM in the CPU tests.
+"""
+
+import importlib
+import json
+import os
+import sys
+import time
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+SYSTEM_YAML = Path(os.environ.get("IPROOFS_SYSTEM_YAML", "/opt/iproofs/system.yaml"))
+INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
+CTX_MARGIN = 64  # tokens beyond prompt plus reply
+KL_CAUSE = ("not measured: llama.cpp's KL base needs the 16-bit file in llama.cpp, which the "
+            "level's llama.cpp pin cannot run on this rung (RFC-0018 FI-9)")  # fmt: skip
+
+
+def host(container_path: str) -> Path:
+    for prefix, env in (("/io", "IPROOFS_IO"), ("/models", "IPROOFS_MODELS")):
+        if container_path == prefix or container_path.startswith(prefix + "/"):
+            return Path(os.environ.get(env, prefix) + container_path[len(prefix) :])
+    raise SystemExit(f"ref-fidelity-vllm: path {container_path!r} outside /io and /models")
+
+
+def base(sub: str) -> dict[str, object]:
+    return {"schema": "adapter-out/1", "contract": "adapter/1", "subcommand": sub,
+            "phases": [], "warnings": []}  # fmt: skip
+
+
+def read_jsonl(path: Path) -> list[list[int]]:
+    return [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+
+
+def write_replies(path: Path, replies: list[list[int]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text("".join(json.dumps(r, separators=(",", ":")) + "\n" for r in replies))
+    os.replace(tmp, path)
+
+
+def save_status(update: dict) -> None:
+    """Merge this call's outcomes into /io/fidelity/status.json (calls add, never remove)."""
+    path = host("/io/fidelity/status.json")
+    doc = json.loads(path.read_text()) if path.is_file() else {"controls": {}}
+    doc["controls"].update(update.pop("controls", {}))
+    doc.update(update)
+    tmp = path.with_name("status.json.tmp")
+    tmp.write_text(json.dumps(doc, sort_keys=True, indent=2) + "\n")
+    os.replace(tmp, path)
+
+
+def vllm() -> object:
+    """vLLM, or the CPU tests' stand-in."""
+    return importlib.import_module(os.environ.get("IPROOFS_VLLM_FAKE", "vllm"))
+
+
+def engine_environment() -> None:
+    """Caches on the one writable disk; offline: the files at /models are the only model."""
+    work = host("/io/work")
+    for key, sub in (("HOME", "home"), ("XDG_CACHE_HOME", "cache"), ("VLLM_CACHE_ROOT", "vllm"),
+                     ("TRITON_CACHE_DIR", "triton"), ("TORCHINDUCTOR_CACHE_DIR", "inductor")):
+        (work / sub).mkdir(parents=True, exist_ok=True)
+        os.environ[key] = str(work / sub)
+    os.environ.update({"HF_HUB_OFFLINE": "1", "TRANSFORMERS_OFFLINE": "1"})
+
+
+class Engine:
+    """One model in vLLM's offline engine."""
+
+    def __init__(self, model: Path, gpus: int, max_len: int) -> None:
+        v = vllm()
+        self.v = v
+        self.llm = v.LLM(model=str(model), tensor_parallel_size=gpus, dtype="bfloat16",  # type: ignore[attr-defined]
+                         max_model_len=max_len, enable_prefix_caching=False, seed=0,
+                         limit_mm_per_prompt={"image": 0}, trust_remote_code=False)  # fmt: skip
+
+    def replies(self, prompts: list[list[int]], n: int) -> list[list[int]]:
+        params = self.v.SamplingParams(temperature=0.0, max_tokens=n, min_tokens=n,  # type: ignore[attr-defined]
+                                       ignore_eos=True, detokenize=False)  # fmt: skip
+        inputs = [{"prompt_token_ids": p} for p in prompts]
+        outs = self.llm.generate(inputs, params, use_tqdm=False)
+        got = [list(o.outputs[0].token_ids) for o in outs]
+        short = [i for i, r in enumerate(got) if len(r) != n]
+        if short:
+            raise RuntimeError(f"replies {short[:5]} are not {n} tokens")
+        return got
+
+
+make_engine = Engine  # the tests replace this
+
+
+def generate(engine: Engine, ident: str, prompts: list[list[int]], n: int,
+             reverse: bool = False) -> str:  # fmt: skip
+    order = list(range(len(prompts)))[:: -1 if reverse else 1]
+    got = engine.replies([prompts[i] for i in order], n)
+    replies: list[list[int]] = [[] for _ in prompts]
+    for i, r in zip(order, got, strict=True):
+        replies[i] = r
+    write_replies(host(f"/io/fidelity/replies/{ident}.jsonl"), replies)
+    return f"fidelity/replies/{ident}.jsonl"
+
+
+def phase(name: str) -> str:
+    return "".join(c if c.isalnum() else "_" for c in name.lower())[:32].strip("_") or "phase"
+
+
+def prove(job: dict) -> dict:
+    for sub in ("work", "fidelity/replies", "fidelity/logs"):
+        host(f"/io/{sub}").mkdir(parents=True, exist_ok=True)
+    engine_environment()
+    prompts = read_jsonl(host(job["prompts_file"]))
+    n = int(job["output_tokens"])
+    gpus = len([g for g in os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",") if g])
+    phases: list[dict] = []
+    update: dict = {"controls": {}}
+    call = job["call"]
+    started = time.monotonic()
+    try:
+        engine = make_engine(host(job["model_dir"]), gpus, max(map(len, prompts)) + n + CTX_MARGIN)
+    except Exception as e:  # noqa: BLE001 (the engine's own error is the cause recorded)
+        cause = f"vLLM did not load the model: {type(e).__name__}: {e}"
+        if call == "reference":
+            save_status({"reference": {"status": "failed", "cause": cause}})
+            raise SystemExit(f"ref-fidelity-vllm: {cause}") from e
+        save_status({"controls": {c["id"]: {"call": call, "status": "failed", "cause": cause,
+                                            "replies": None, "kl_log": None, "build": {}}
+                                  for c in job["controls"]}})  # fmt: skip
+        return {**base("prove"), "proofs": [], "phases": phases}
+    phases.append({"name": "load", "seconds": time.monotonic() - started})
+    if call == "reference":
+        started = time.monotonic()
+        try:
+            replies = generate(engine, "reference", prompts, n)
+        except Exception as e:  # noqa: BLE001
+            save_status({"reference": {"status": "failed", "cause": f"{type(e).__name__}: {e}"}})
+            raise SystemExit(f"ref-fidelity-vllm: {e}") from e
+        phases.append({"name": "reference", "seconds": time.monotonic() - started})
+        update["reference"] = {"status": "ok", "cause": None, "replies": replies,
+                               "continuations": [0] * len(prompts)}  # fmt: skip
+        update["kl_base"] = {"status": "failed", "cause": KL_CAUSE, "log": None}
+    for control in job["controls"]:
+        started = time.monotonic()
+        record: dict[str, object] = {"call": call, "status": "failed", "cause": None,
+                                     "replies": None, "kl_log": None, "build": {},
+                                     "kl_cause": KL_CAUSE}  # fmt: skip
+        recipe = control["recipe"]
+        try:
+            if recipe == "rerun" and call == "reference":
+                record["replies"] = generate(engine, control["id"], prompts, n, reverse=True)
+                record["build"] = {"order": "prompts in reverse order"}
+            elif recipe == "other_model" and call == "other_model":
+                record["replies"] = generate(engine, control["id"], prompts, n)
+            else:
+                raise RuntimeError(f"recipe {recipe!r} is not one this image builds in a "
+                                   f"{call} call")  # fmt: skip
+            record["status"] = "ok"
+        except Exception as e:  # noqa: BLE001 (a failed control is recorded, the call goes on)
+            record["cause"] = f"{type(e).__name__}: {e}"
+        phases.append({"name": phase(control["id"]), "seconds": time.monotonic() - started})
+        update["controls"][control["id"]] = record
+    save_status(update)
+    return {**base("prove"), "proofs": [], "phases": phases}
+
+
+def system() -> dict:
+    import yaml  # noqa: PLC0415 (vLLM's image carries PyYAML)
+
+    path = SYSTEM_YAML if SYSTEM_YAML.is_file() else HERE / "system.yaml"
+    return dict(yaml.safe_load(path.read_text()))
+
+
+def info(job: dict) -> dict:
+    doc = system()
+    out = {**base("info"), "system": doc["name"],
+           "upstream_commit": os.environ.get("VLLM_BUILD_COMMIT", doc["engine"]["commit"]),
+           "image_inputs": json.loads(INPUTS.read_text())["inputs"] if INPUTS.is_file() else [],
+           "workloads": sorted({w["id"] for w in doc["workloads"]}), "profile": "fidelity",
+           "contract_versions": ["adapter/1"]}  # fmt: skip
+    if "IPROOFS_ADAPTER_COMMIT" in os.environ:  # baked in by the image build (B6)
+        out["adapter_commit"] = os.environ["IPROOFS_ADAPTER_COMMIT"]
+        out["adapter_dirty"] = os.environ.get("IPROOFS_ADAPTER_DIRTY", "true") != "false"
+    return out
+
+
+def main() -> int:
+    sub, job_path, out_path = sys.argv[1:4]
+    job = json.loads(host(job_path).read_text())
+    if job.get("subcommand") != sub:
+        raise SystemExit(f"ref-fidelity-vllm: job.json is for {job.get('subcommand')!r}, not "
+                         f"{sub!r}")  # fmt: skip
+    handlers = {"info": info, "prove": prove}
+    if sub not in handlers:
+        raise SystemExit(f"ref-fidelity-vllm: no {sub!r} step for a reference job")
+    host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -350,7 +350,8 @@
           "type": "string"
         },
         "tool": {
-          "const": "llama.cpp"
+          "$comment": "RFC-0018 FI-9: vllm where the level's llama.cpp pin cannot run the 16-bit reference",
+          "enum": ["llama.cpp", "vllm"]
         }
       },
       "required": [
