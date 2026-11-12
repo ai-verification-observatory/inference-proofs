@@ -1,15 +1,15 @@
 {
-  "adapter_commit": "6e28a7f4454ecc61c922fb59961e08e574934442",
-  "adapter_dirty": true,
+  "adapter_commit": "c3a508bfb392d34374209d2a9f964921d842f642",
+  "adapter_dirty": false,
   "contract": "adapter/1",
   "contract_versions": [
     "adapter/1"
   ],
   "image_inputs": [
     {
-      "digest": "sha256:80f0f749ef6dc34419dd8f9451ffa7d729a6a84bd17d6334a2b44055185a6f5f",
+      "digest": "sha256:08eb04abd87a13459175dc4def259c6335d43b7916219c388d7ca08a3e35133c",
       "name": "zk-inference-prover",
-      "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover.git#eb95bfa887299d1637550228d42086c27cbb2b3b"
+      "url": "https://github.com/0xChqrles/zk-inference-prover.git#4f41667297430a598165c4a8604258fe37d952ae"
     },
     {
       "digest": "sha256:ac0a04b2bb6ca1e69c959e9b941ea4362dfaa005b9a9c86444aa434bca396a08",
@@ -22,7 +22,7 @@
   "schema": "adapter-out/1",
   "subcommand": "info",
   "system": "sash",
-  "upstream_commit": "eb95bfa887299d1637550228d42086c27cbb2b3b",
+  "upstream_commit": "4f41667297430a598165c4a8604258fe37d952ae",
   "warnings": [],
   "workloads": [
     "sash-l31-8b-c4096",

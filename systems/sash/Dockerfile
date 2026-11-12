@@ -21,12 +21,12 @@ RUN rm -f /etc/apt/sources.list.d/cuda*.list \
     strace=6.8-0ubuntu2 \
  && rm -rf /var/lib/apt/lists/*
 COPY sash/inputs.lock /fetch/inputs.lock
-ADD --keep-git-dir=true https://github.com/sg-ai-safety-hub/zk-inference-prover.git#eb95bfa887299d1637550228d42086c27cbb2b3b /src
+ADD --keep-git-dir=true https://github.com/0xChqrles/zk-inference-prover.git#4f41667297430a598165c4a8604258fe37d952ae /src
 ADD --checksum=sha256:ac0a04b2bb6ca1e69c959e9b941ea4362dfaa005b9a9c86444aa434bca396a08 https://static.rust-lang.org/dist/2025-07-14/rust-nightly-x86_64-unknown-linux-gnu.tar.xz /fetch/
 COPY --from=ghcr.io/astral-sh/uv@sha256:78bc42400d77b0678ba95765305c826652ed5431f399257271dda681d0318f03 /uv /usr/local/bin/uv
 ENV CARGO_HOME=/opt/cargo PATH=/opt/rust/bin:$PATH \
     UV_PYTHON_DOWNLOADS=never UV_CACHE_DIR=/tmp/uv-cache
-RUN test "$(git -C /src rev-parse HEAD)" = eb95bfa887299d1637550228d42086c27cbb2b3b \
+RUN test "$(git -C /src rev-parse HEAD)" = 4f41667297430a598165c4a8604258fe37d952ae \
  && test "sha256:$(git -C /src archive --format=tar HEAD | sha256sum | cut -d' ' -f1)" \
          = "$(awk -F'\t' '$1 == "zk-inference-prover" {print $3}' /fetch/inputs.lock)" \
  && tar -xJf /fetch/rust-nightly-x86_64-unknown-linux-gnu.tar.xz -C /tmp \

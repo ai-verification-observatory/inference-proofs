@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-11",
+  "date": "2026-11-12",
   "frontier": null,
   "level": "L1",
   "level_digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
@@ -978,8 +978,356 @@
       "parameters_total": 8030261248,
       "publisher": "Meta",
       "requests_per_session": 5,
-      "rows": [],
-      "systems_run": 0
+      "rows": [
+        {
+          "checks": {
+            "fidelity": {
+              "cause": "not run",
+              "evidence": [],
+              "note": "no fidelity.json for the rung",
+              "state": "undecided"
+            },
+            "model": {
+              "cause": "not run",
+              "evidence": [],
+              "note": "P1: no counted trial stored; C3: no counted trial stored",
+              "state": "undecided"
+            },
+            "no_weight_file": {
+              "cause": "not run",
+              "evidence": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/"
+              ],
+              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 4 more)",
+              "state": "undecided"
+            },
+            "prompt": {
+              "cause": "not run",
+              "evidence": [],
+              "note": "C2: no counted trial stored",
+              "state": "undecided"
+            },
+            "reply": {
+              "cause": "not run",
+              "evidence": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json"
+              ],
+              "note": "C1 at the first position: no counted trial stored; C1 at the last position: no counted trial stored; C1 at the interior position: no counted trial stored",
+              "state": "undecided"
+            },
+            "run": {
+              "cause": "not run",
+              "evidence": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json"
+              ],
+              "note": "no complete session in slot 2, 3",
+              "state": "undecided"
+            }
+          },
+          "commit": "4f41667297430a598165c4a8604258fe37d952ae",
+          "configuration": "sound-defaults",
+          "fidelity": null,
+          "generation_multiple": {
+            "grade": "derived",
+            "null_reason": "not_applicable",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/steady_generation_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": null
+          },
+          "glyph": [
+            {
+              "basis": "statement",
+              "id": "unforgeable",
+              "quotes": [
+                {
+                  "text": "100 conjectured bits for each segment proof, by stwo's own conjectured-soundness accounting security_bits = pow_bits + log_blowup_factor * n_queries",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L7-L28"
+                }
+              ],
+              "reason": "A level is stated per segment proof and called conjectured; no level is stated for the whole grid, and no proof covers the verifier code.",
+              "state": "amber"
+            },
+            {
+              "basis": "statement",
+              "id": "weights_hidden",
+              "quotes": [],
+              "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/util.rs at 4f41667297430a598165c4a8604258fe37d952ae",
+              "state": "red"
+            },
+            {
+              "basis": "test",
+              "id": "faithful_model",
+              "quotes": [],
+              "reason": "no fidelity run stored",
+              "state": "hollow"
+            },
+            {
+              "basis": "run",
+              "id": "any_model",
+              "quotes": [],
+              "reason": "passed on 0 of 3 rungs; a check is still undecided",
+              "state": "hollow"
+            },
+            {
+              "basis": "statement",
+              "id": "no_trusted_party",
+              "quotes": [],
+              "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/compose.rs at 4f41667297430a598165c4a8604258fe37d952ae",
+              "state": "red"
+            }
+          ],
+          "incomplete_sessions": [],
+          "multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/steady_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 51198.13250152912
+          },
+          "passed": false,
+          "position": null,
+          "proof_bytes_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": null,
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-BPR@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 3912188191.8,
+              "mean": 3912188191.8,
+              "median": 3912188191.8,
+              "min": 3912188191.8,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "B/request",
+            "value": 3912188191.8
+          },
+          "proving_multiple": {
+            "grade": "derived",
+            "null_reason": "not_applicable",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/steady_proving_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": null
+          },
+          "ranked": false,
+          "security": {
+            "source": "systems/sash/claim.yaml#security.level",
+            "stated": true,
+            "words": "100 conjectured bits for each segment proof, by stwo's conjectured-soundness accounting (blowup 2, 100 FRI queries, no grinding). A level for the whole grid of segments is not stated."
+          },
+          "session_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-SESSION@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 2490.397984749,
+              "mean": 2490.397984749,
+              "median": 2490.397984749,
+              "min": 2490.397984749,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 2490.397984749
+          },
+          "session_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/session_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 57766.455205816106
+          },
+          "session_usd_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/session_gpu_seconds_per_reply",
+                "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-USD@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "USD/request",
+            "value": 3.6975492301342787
+          },
+          "sessions": [
+            {
+              "cause": null,
+              "generation_gpu_seconds_per_reply": null,
+              "gpus": 1,
+              "groups": [
+                1,
+                1,
+                1,
+                1,
+                1
+              ],
+              "m": 2207.22780289075,
+              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+              "session": 2490.397984749,
+              "slot": 1,
+              "steady": true
+            }
+          ],
+          "steady_generation_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "note": "no generation phase of its own: generation, if any, is inside the proving interval",
+            "null_reason": "not_applicable",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-GENERATION@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": null
+          },
+          "steady_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-STEADY@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 2207.22780289075,
+              "mean": 2207.22780289075,
+              "median": 2207.22780289075,
+              "min": 2207.22780289075,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 2207.22780289075
+          },
+          "steady_proving_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "note": "no generation phase of its own: generation, if any, is inside the proving interval",
+            "null_reason": "not_applicable",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-PROVING@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": null
+          },
+          "steady_usd_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/steady_gpu_seconds_per_reply",
+                "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-USD@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "USD/request",
+            "value": 3.277120168458627
+          },
+          "system": "sash",
+          "unranked_reason": null,
+          "verify_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "verify",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-VSPR@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 993.7820811386,
+              "mean": 993.7820811386,
+              "median": 993.7820811386,
+              "min": 993.7820811386,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "s/request",
+            "value": 993.7820811386
+          },
+          "workload": "l1-l31-8b-p512-o512"
+        }
+      ],
+      "systems_run": 1
     },
     {
       "baseline": {

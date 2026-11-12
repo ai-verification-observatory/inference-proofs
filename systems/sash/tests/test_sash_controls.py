@@ -26,7 +26,7 @@ def test_edges_are_the_claim_cards() -> None:
     for c in CONTROLS:
         assert c.kind == "weakened_prover"
         assert c.expected == ("accepted",)
-        assert "eb95bfa887299d1637550228d42086c27cbb2b3b" in (c.source or "")
+        assert "4f41667297430a598165c4a8604258fe37d952ae" in (c.source or "")
         [flag] = c.control_flags or ("",)
         [edge] = [e for e in CARD if e["edge"] == c.requires_unbound_edge]
         assert flag == edge["switch"] or flag in edge["edge"]  # the card names the switch
