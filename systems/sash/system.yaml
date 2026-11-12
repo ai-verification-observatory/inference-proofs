@@ -8,7 +8,7 @@ contract: "adapter/1"
 upstream:
   repo: "sg-ai-safety-hub/zk-inference-prover"
   url: "https://github.com/sg-ai-safety-hub/zk-inference-prover"
-  commit: "c1ed787ca67a702dbab4b31661f6aa40b65dc168"
+  commit: "4f41667297430a598165c4a8604258fe37d952ae"
 image:
   repository: "ghcr.io/ai-verification-observatory/sash"
   digest: "sha256:e6c85bcf595acf9b7c57e1bee0e68291db9c06bb6259d601f2dc9b0a7809826c"

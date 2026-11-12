@@ -42,7 +42,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-UPSTREAM_COMMIT = "c1ed787ca67a702dbab4b31661f6aa40b65dc168"  # INV-ADAPTER-2
+UPSTREAM_COMMIT = "4f41667297430a598165c4a8604258fe37d952ae"  # INV-ADAPTER-2
 WORKLOADS = ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512", "dev-l31-8b-toc-p512-o512"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
 FORBIDDEN_FLAGS = ["--unsound-skip-", "--unsound-argmax-lax"]  # README.md, system.yaml values

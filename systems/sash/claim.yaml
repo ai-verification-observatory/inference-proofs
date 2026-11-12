@@ -14,7 +14,7 @@ schema: "claim/1"
 system: "sash"
 configuration: "sound-defaults"
 card_version: 1
-upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "c1ed787ca67a702dbab4b31661f6aa40b65dc168"}
+upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "4f41667297430a598165c4a8604258fe37d952ae"}
 claim_class: "greedy-continuation/exact-match/committed-weights"
 relation: >
   If `boundary-grid --verify` exits 0, every segment proof of the sequence verifies (a segment is
@@ -69,45 +69,45 @@ coverage:
       computed, "which is the rule the model itself decodes by"
 binding:
   edges:
-    - {edge: "1 residual stream into the first norm's reduction", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L21"}
-    - {edge: "2 first norm's output into the q, k, v matmul inputs", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L22"}
-    - {edge: "3 q, k, v outputs into the attention block (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L23"}
-    - {edge: "4 attention scores and values into the attention output (absent on a head segment)", state: "bound", switch: null, source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L24"}
-    - {edge: "5 attention output into the o matmul input (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L25"}
-    - {edge: "6 o output into the first residual add (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L26"}
-    - {edge: "7 first residual add into the second norm's reduction (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L27"}
-    - {edge: "8 second norm's output into the gate and up matmul inputs (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L28"}
-    - {edge: "9 gate and up outputs into the SwiGLU product (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L29"}
-    - {edge: "10 SwiGLU output into the down matmul input (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L30"}
-    - {edge: "11 down output into the second residual add (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L31"}
-    - {edge: "12 each matmul's input times the pinned weights into its accumulator", state: "bound", switch: null, source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L32"}
-    - {edge: "13 residual stream out of this segment into the next layer's segment", state: "bound", switch: "--unsound-skip-layer-boundary", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L33"}
-    - {edge: "14 keys and values out of this token block into the next block (absent on a head segment)", state: "bound", switch: "--unsound-skip-kv-boundary", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L34"}
-    - {edge: "15 embedding row into the first segment's residual stream (bound on layer 0, absent elsewhere)", state: "bound", switch: "--unsound-skip-embedding", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L35"}
-    - {edge: "16 logits into the emitted token (bound on the head segment, absent elsewhere; weakened past bound by --unsound-argmax-lax)", state: "bound", switch: "--unsound-skip-argmax", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L36"}
+    - {edge: "1 residual stream into the first norm's reduction", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L21"}
+    - {edge: "2 first norm's output into the q, k, v matmul inputs", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L22"}
+    - {edge: "3 q, k, v outputs into the attention block (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L23"}
+    - {edge: "4 attention scores and values into the attention output (absent on a head segment)", state: "bound", switch: null, source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L24"}
+    - {edge: "5 attention output into the o matmul input (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L25"}
+    - {edge: "6 o output into the first residual add (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L26"}
+    - {edge: "7 first residual add into the second norm's reduction (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L27"}
+    - {edge: "8 second norm's output into the gate and up matmul inputs (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L28"}
+    - {edge: "9 gate and up outputs into the SwiGLU product (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L29"}
+    - {edge: "10 SwiGLU output into the down matmul input (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L30"}
+    - {edge: "11 down output into the second residual add (absent on a head segment)", state: "bound", switch: "--unsound-skip-residual-stream", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L31"}
+    - {edge: "12 each matmul's input times the pinned weights into its accumulator", state: "bound", switch: null, source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L32"}
+    - {edge: "13 residual stream out of this segment into the next layer's segment", state: "bound", switch: "--unsound-skip-layer-boundary", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L33"}
+    - {edge: "14 keys and values out of this token block into the next block (absent on a head segment)", state: "bound", switch: "--unsound-skip-kv-boundary", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L34"}
+    - {edge: "15 embedding row into the first segment's residual stream (bound on layer 0, absent elsewhere)", state: "bound", switch: "--unsound-skip-embedding", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L35"}
+    - {edge: "16 logits into the emitted token (bound on the head segment, absent elsewhere; weakened past bound by --unsound-argmax-lax)", state: "bound", switch: "--unsound-skip-argmax", source: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L36"}
 residual: ["not stated"]
 availability: "available"
 sources:
-  relation: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/boundary.rs#L1120-L1124"
-  relation.segment: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L3-L6"
-  security.notion: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/README.md#L34-L35"
-  security.level: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/util.rs#L7-L28"
-  assumptions: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L124-L136"
-  assumptions.0: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/compose.rs#L5-L11"
-  assumptions.1: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/README.md#L56-L59"
-  assumptions.2: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/boundary.rs#L1211-L1220"
-  assumptions.3: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/boundary.rs#L1205-L1210"
-  coverage: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L3-L8"
-  coverage.phase: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/chunks.rs#L65-L70"
-  coverage.unit: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L3-L6"
-  coverage.tokens_covered: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/src/boundary.rs#L1148-L1156"
-  coverage.operations: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L19-L45"
-  coverage.operations.head: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/decisions/2026-09-08-the-head-is-proved-over-the-last-prompt-block.md#L5-L11"
-  coverage.policy: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L145-L151"
-  binding: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/docs/statement.md#L10-L45"
-  availability: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/README.md#L21-L43"
-  availability.licence: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/LICENSE#L1-L3"
-  forbidden_flags: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/README.md#L68-L76"
-  forbidden_flags.1: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/c1ed787ca67a702dbab4b31661f6aa40b65dc168/prover/README.md#L94-L102"
+  relation: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/boundary.rs#L1120-L1124"
+  relation.segment: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L3-L6"
+  security.notion: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L34-L35"
+  security.level: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L7-L28"
+  assumptions: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L124-L136"
+  assumptions.0: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/compose.rs#L5-L11"
+  assumptions.1: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L56-L59"
+  assumptions.2: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/boundary.rs#L1211-L1220"
+  assumptions.3: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/boundary.rs#L1205-L1210"
+  coverage: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L3-L8"
+  coverage.phase: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/chunks.rs#L65-L70"
+  coverage.unit: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L3-L6"
+  coverage.tokens_covered: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/boundary.rs#L1148-L1156"
+  coverage.operations: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L19-L45"
+  coverage.operations.head: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/decisions/2026-09-08-the-head-is-proved-over-the-last-prompt-block.md#L5-L11"
+  coverage.policy: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L145-L151"
+  binding: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L10-L45"
+  availability: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/README.md#L21-L43"
+  availability.licence: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/LICENSE#L1-L3"
+  forbidden_flags: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/README.md#L68-L76"
+  forbidden_flags.1: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L94-L102"
 reviewed_by: []
 forbidden_flags: ["--unsound-skip-", "--unsound-argmax-lax"]
