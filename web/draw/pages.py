@@ -9,7 +9,7 @@ fidelity beside the model's controls.
 import re
 
 from . import state as S
-from .chrome import CHECKS_PAGE, MANDATE_PAGE, footer, header, link, page, rung_of
+from .chrome import CHECKS_PAGE, MANDATE_PAGE, footer, header, learn_page, link, page, rung_of
 from .hexagon import glyph_svg
 from .overview import (
     NOT_TESTED,
@@ -331,6 +331,14 @@ def rules(lines, ids=()):
     ) + "</dl>"  # fmt: skip
 
 
+def explained(lead, slug, cls="rd lead"):
+    """One line that leads to the Learn page explaining this one; nothing without that page."""
+    found = learn_page(slug)
+    if found is None:
+        return ""
+    return f'<p class="{cls}">{e(lead)} <a href="/{e(slug)}">{e(found["title"])}</a>.</p>'
+
+
 def build_checks():
     """The terms, the five petals (RFC-0018 §The glyph), the six checks as the entry gate (§The
     six checks) with what is not tested, the figures (§Cost, FI-7) and the order rule."""
@@ -370,6 +378,7 @@ def build_checks():
 <main id="main" class="sys">
   {band("Checks")}
   <div class="wrap">
+    {explained("The reason for each rule on this page:", "method")}
     {section("terms", "Terms", rules(TERMS))}
     <div class="cwrap"><div class="gbig">{glyph}</div><div class="clist">{petals}
       <p class="rd hl">{e(hollow)}</p></div></div>
@@ -407,6 +416,7 @@ def build_mandate():
     <h1 id="h-name" class="sysname creed">{e(MANDATE_BELIEF)}</h1></div></section>
   <div class="wrap">
     <p class="rd lead">{e(MANDATE_WHAT)}</p>
+    {explained("Why a claim about an AI system needs evidence:", "why-verify", cls="rd")}
     {blocks}
   </div>
 </main>

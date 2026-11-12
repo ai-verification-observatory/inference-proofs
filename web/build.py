@@ -9,7 +9,7 @@ words the pages print for stored ids (checks, states, causes, scopes, grades, ti
 reasons, units). Standard library only.
 
 `render` writes into `out`: the pages (the overview, one per row of the board, the checks page,
-404), search.json, the preview-card sources and icon in og/, the @font-face block in words.css,
+the mandate, the Learn pages, 404), search.json, the preview-card sources and icon in og/, the @font-face block in words.css,
 vercel.json (headers with the inline script's hash, redirects, cache rules) and the contrast
 table in README.md when `out` holds one. The static assets (words.css, words.js, fonts/,
 og/*.png, og/cards.json) are in `out` before it runs.
@@ -19,8 +19,9 @@ This module is the entry point: it reads the view into the build's state (`setup
 files (`render`). The drawing is in the package draw/ beside it, in this order of imports:
 state (what `setup` reads), words (fixed words, numbers as shown), inks (contrast checks), hexagon
 (the glyph's geometry), mark (the turnstile, the lockup, the token cells), chrome (header, footer, page frame, fonts, share tags), overview (the
-ladder), pages (system pages, checks, 404) and outputs (search.json, vercel.json, og/ sources,
-the fonts block, the README table). Every name of those modules reads as `build.<name>` too.
+ladder), pages (system pages, checks, 404), figures and learn (the Learn pages: what they draw,
+then their text) and outputs (search.json, vercel.json, og/ sources, the fonts block, the README
+table). Every name of those modules reads as `build.<name>` too.
 """
 
 import importlib
@@ -29,7 +30,8 @@ import pathlib
 import sys
 import types
 
-PARTS = ("state", "words", "inks", "hexagon", "mark", "chrome", "overview", "pages", "outputs")
+PARTS = ("state", "words", "inks", "hexagon", "mark", "chrome", "overview", "pages", "figures",
+         "learn", "outputs")  # fmt: skip
 
 
 def _load_draw():
@@ -87,9 +89,18 @@ def setup(view, out):
     S.ROWS = [row for rung in view["rungs"] for row in rung["rows"]]
     S.PAGE = {row["page"]: row for row in S.ROWS}
     assert len(S.PAGE) == len(S.ROWS), "two rows share a page"
-    assert set(S.PAGE).isdisjoint({"index", "checks", "mandate", "404"}), (
+    learn = draw.learn.slugs()
+    assert set(S.PAGE).isdisjoint({"index", "checks", "mandate", "404", *learn}), (
         "a row's page is a site page"
     )
+    # a Learn page must not take the address of a site page, of a redirect or of a system
+    taken = {"index", "checks", "mandate", "404", "system", "criteria", "reference", "release",
+             "targets", *S.PAGE, *view["planned"]}  # fmt: skip
+    clash = sorted(set(learn) & taken) + sorted({s for s in learn if learn.count(s) > 1})
+    if clash:
+        raise RuntimeError(
+            f"web/learn/index.yaml: the address {clash[0]!r} is taken by another page"
+        )
     draw.inks.check_inks()
     draw.chrome.load_faces()
     draw.mark.load_wordmark()
@@ -102,7 +113,8 @@ def check_stale():
     `python -O` drops)."""
     c = draw.chrome
     pages = {c.file_of("/"), *(c.file_of(f"/{p}") for p in S.PAGE), c.file_of(c.CHECKS_PAGE),
-             c.file_of(c.MANDATE_PAGE), S.HERE / "404.html"}  # fmt: skip
+             c.file_of(c.MANDATE_PAGE), *(c.file_of(f"/{p}") for p in draw.learn.slugs()),
+             S.HERE / "404.html"}  # fmt: skip
     stale = sorted(q.name for q in set(S.HERE.glob("*.html")) - pages)
     if stale:
         raise RuntimeError(f"pages the build no longer writes: {stale}")
@@ -127,6 +139,8 @@ def render(view, out, *, write_json, write_text):
         pages[file_of(f"/{pid}")] = draw.pages.build_system(pid)
     pages[file_of(draw.chrome.CHECKS_PAGE)] = draw.pages.build_checks()
     pages[file_of(draw.chrome.MANDATE_PAGE)] = draw.pages.build_mandate()
+    for address, text in draw.learn.build_all().items():
+        pages[file_of(address)] = text
     pages[S.HERE / "404.html"] = draw.pages.build_404()
     if set(pages) != expected:
         raise RuntimeError(f"check_stale lists {sorted(q.name for q in expected)}, the build "

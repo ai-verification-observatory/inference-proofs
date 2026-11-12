@@ -1,9 +1,9 @@
 """Typed readers of every file the site reads (RFC-0018 §Site).
 
 The level file, the board file of the newest Level 1 release (or one given for a preview), the
-claim cards and `web/_data/facts.json`. No git call and no clock: the same files give the same
-view in a full clone, a depth-1 clone or a tree with no `.git` (CLI-4). Each file is read once
-per build.
+claim cards, `web/_data/facts.json` and the Learn pages' words (`web/learn/`). No git call and
+no clock: the same files give the same view in a full clone, a depth-1 clone or a tree with no
+`.git` (CLI-4). Each file is read once per build.
 """
 
 import re
@@ -20,6 +20,8 @@ REPOSITORY = "https://github.com/ai-verification-observatory/inference-proofs"
 FACTS = "web/_data/facts.json"
 LEVEL = "levels/L1.yaml"
 BOARD = "board.json"
+LEARN = "web/learn"  # the Learn pages' words: index.yaml and one Markdown file per page
+SLUG = re.compile(r"^[a-z][a-z0-9-]{1,31}$")  # a Learn page's address, as a system's name is
 # RFC-0018 SI-4: the one fixed reason a system not run is listed with
 REASONS = ("licence", "no public verifier", "no configuration at the request",
            "another kind of check", "not yet run")  # fmt: skip
@@ -68,6 +70,53 @@ def board(path: Path, registry: SchemaRegistry) -> dict[str, Any]:
     if errors := registry.errors("board/1", tree):
         raise config("\n".join(f"{path}: {e}" for e in errors))
     return dict(tree)
+
+
+def _learn_page(root: Path, entry: dict[str, Any], seen: set[str]) -> dict[str, Any]:
+    slug = str(entry["slug"])
+    if not SLUG.match(slug) or slug in seen:
+        raise config(f"{LEARN}/index.yaml: slug {slug!r} is malformed or listed twice")
+    seen.add(slug)
+    path = root / LEARN / f"{slug}.md"
+    if not path.is_file():
+        raise config(f"no page text at {LEARN}/{slug}.md")
+    return {
+        "slug": slug,
+        "title": str(entry["title"]),
+        "summary": str(entry["summary"]),
+        "path": f"{LEARN}/{slug}.md",
+        "text": path.read_text(encoding="utf-8"),
+    }
+
+
+def learn(root: Path) -> dict[str, Any] | None:
+    """The Learn pages' words: `web/learn/index.yaml` (the hub's words, the tracks and their
+    pages in reading order, the glossary) with each listed page's Markdown text beside it, or
+    None in a tree that holds none. Words only: the renderer draws them, and every figure a page
+    prints still comes from the board file."""
+    index = root / LEARN / "index.yaml"
+    if not index.is_file():
+        return None
+    doc = read_yaml(index)
+    seen: set[str] = set()
+    try:
+        return {
+            "path": LEARN,
+            "title": str(doc["title"]),
+            "lead": str(doc["lead"]),
+            "tracks": [
+                {
+                    "id": str(t["id"]),
+                    "name": str(t["name"]),
+                    "reader": str(t["reader"]),
+                    "pages": [_learn_page(root, p, seen) for p in t["pages"]],
+                }
+                for t in doc["tracks"]
+            ],
+            "glossary": _learn_page(root, doc["glossary"], seen),
+        }
+    except (KeyError, TypeError) as e:
+        raise config(f"{LEARN}/index.yaml: a field is missing or of the wrong type ({e})") from e
 
 
 def engine(root: Path) -> dict[str, Any] | None:
