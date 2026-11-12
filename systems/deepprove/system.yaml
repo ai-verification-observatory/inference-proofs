@@ -7,14 +7,10 @@ upstream:
   repo: "Lagrange-Labs/deep-prove"
   url: "https://github.com/Lagrange-Labs/deep-prove"
   commit: "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662"
-# NOT BUILT: the digest below is a placeholder (all zeros) that no image has, so the runner's
-# integrity check refuses every job until the integrator builds the image and sets its ID here.
-# `local/`: the licence forbids distributing the Software to a third party (README.md §Licence),
-# so the image is built where it runs and never pushed to a public registry. A local image is
-# recorded with digest_kind config and is not eligible for a release (RFC-0014).
+# Built by the images workflow (run 43072194975, adapter commit e4ec75d1); README.md §Licence.
 image:
-  repository: "local/deepprove"
-  digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  repository: "ghcr.io/ai-verification-observatory/deepprove"
+  digest: "sha256:132904786f54bd3ad4afe5d4137870dfdb89d4ff2987286fa464d713cc27a508"
 # l1-gpt2-p512-o512 (RFC-0018 Level 1): 512 + 512 on GPT-2 124M, five requests a session, one
 # worker call and one proof per request. README.md §Level 1 has the route and the open items.
 workloads: ["l1-gpt2-p512-o512"]

@@ -485,17 +485,22 @@ else
   GPU_ARGS=(--gpu "$GPU")
 fi
 
-# An image without uv gets the pinned release, its sha256 checked. The adapter images and the
-# pinned vLLM image ship their own (pinned by the image digest; job.log records `uv --version`),
-# so nothing is downloaded for them.
+# An image without uv (the ref-fidelity image, an engine image) gets the pinned release, its
+# sha256 checked. The prover images and the pinned vLLM image ship their own (pinned by the image
+# digest; job.log records `uv --version`), so nothing is downloaded for them.
 UV_VERSION=0.11.18
 UV_SHA256=588f3e360f69ce02b6982aa99f2240e803933a6b7e176ac01617830adf955add
-if [ -n "${IPROOFS_DEV_IMAGE:-}" ] && ! command -v uv >/dev/null; then
+if ! command -v uv >/dev/null; then
   log "uv: not in the image; uv $UV_VERSION from its GitHub release, sha256 checked"
   UV_DIR="$WORK/uv-$UV_VERSION"
   mkdir -p "$UV_DIR"
-  if ! curl -fsSL --retry 3 -o "$WORK/uv.tar.gz" \
-      "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz" \
+  UV_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION/uv-x86_64-unknown-linux-gnu.tar.gz"
+  if command -v curl >/dev/null; then
+    uv_fetch() { curl -fsSL --retry 3 -o "$WORK/uv.tar.gz" "$UV_URL"; }
+  else  # the ref-fidelity image has python3 but no curl
+    uv_fetch() { python3 -I -c 'import sys, urllib.request; urllib.request.urlretrieve(sys.argv[1], sys.argv[2])' "$UV_URL" "$WORK/uv.tar.gz"; }
+  fi
+  if ! uv_fetch \
     || ! echo "$UV_SHA256  $WORK/uv.tar.gz" | sha256sum -c --quiet - \
     || ! tar -xzf "$WORK/uv.tar.gz" -C "$UV_DIR" --strip-components=1; then
     log "uv: download or check failed; stopping"
@@ -631,7 +636,9 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
     [ -n "$repo" ] || continue
     if [ "$rev" = None ]; then log "$what of $RUNG has no pinned revision in levels/L1.yaml"; exit 3; fi
     log "download $what: $repo at $rev, at most $(left) s"
-    env -u HF_TOKEN timeout --kill-after=60 "$(left)" hfcli download "$repo" --revision "$rev" \
+    # timeout runs a program, not the hfcli function: the same command, spelled out
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" \
+      uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf download "$repo" --revision "$rev" \
       --local-dir "$WORK/$what" >/dev/null || { log "download of $repo failed"; exit 3; }
     fetch_args+=("--$what-dir" "$WORK/$what")
   done < <("$PY" -c 'import sys

@@ -9,17 +9,17 @@ fidelity beside the model's controls.
 import re
 
 from . import state as S
-from .chrome import CHECKS_PAGE, footer, header, link, page, rung_of
+from .chrome import CHECKS_PAGE, MANDATE_PAGE, footer, header, link, page, rung_of
 from .hexagon import glyph_svg
 from .overview import (
     NOT_TESTED,
     baseline_html,
     counted,
     fig_html,
+    filled,
     href,
     kl_html,
     name_of,
-    request_words,
     standing,
     states,
 )
@@ -30,11 +30,19 @@ from .words import (
     CHECK_FAILED,
     CHECK_HELD,
     CHECK_NAME,
+    FIGURE_NAME,
+    FIGURE_RULE,
+    MANDATE,
+    MANDATE_BELIEF,
+    MANDATE_WHAT,
+    ORDER_RULE,
     PETAL_NAME,
     PETAL_RULE,
     PETAL_WORD,
     STATE_WORD,
+    TERMS,
     e,
+    kl_head,
     number,
     quoted,
     sig,
@@ -258,7 +266,7 @@ def fidelity_html(row):
         lead += f'<p class="pl">No bar: {e(fid["cause"] or "no damaged copy qualified")}</p>'
     return (f'{lead}<table class="rt fid"><thead><tr><th scope="col">Replies</th>'
             '<th scope="col">Kind</th><th scope="col">Mean matched prefix</th>'
-            '<th scope="col">KL to the 16-bit model</th></tr></thead>'
+            f'<th scope="col">{e(kl_head(rung_of(row)["reference_dtype"]))}</th></tr></thead>'
             f'<tbody>{"".join(out)}</tbody></table>')  # fmt: skip
 
 
@@ -294,9 +302,21 @@ def build_system(pid):
     return system_page(S.PAGE[pid])
 
 
+def rules(lines, ids=()):
+    """Labelled lines as one list: (label, words) pairs, the level's constants filled in. A label
+    in `ids` is an address of its own."""
+
+    def at(k):
+        return f' id="{k}"' if k in ids else ""
+
+    return '<dl class="cs">' + "".join(
+        f"<div{at(k)}><dt>{e(k)}</dt><dd>{e(filled(v))}</dd></div>" for k, v in lines
+    ) + "</dl>"  # fmt: skip
+
+
 def build_checks():
-    """The five petals (RFC-0018 §The glyph), the six checks as the entry gate (§The six
-    checks), the order rule and what is not tested."""
+    """The terms, the five petals (RFC-0018 §The glyph), the six checks as the entry gate (§The
+    six checks) with what is not tested, the figures (§Cost, FI-7) and the order rule."""
     names = [PETAL_NAME[p] for p in S.V["petals"]]
     glyph = glyph_svg(GLYPH, ["key"] * len(names), names=names, cls="pie-svg big")
     petals = "".join(
@@ -309,11 +329,16 @@ def build_checks():
     )  # fmt: skip
     checks = "".join(
         f'<section class="chk" id="{c}" aria-labelledby="h-{c}"><h3 class="cn2" id="h-{c}">'
-        f'{e(CHECK_NAME[c])}</h3><dl class="cs">'
-        f"<div><dt>held</dt><dd>{e(CHECK_HELD[c])}</dd></div>"
-        f"<div><dt>failed</dt><dd>{e(CHECK_FAILED[c])}</dd></div>"
-        f"<div><dt>evidence</dt><dd>{e(CHECK_EVIDENCE[c])}</dd></div></dl></section>"
+        f"{e(CHECK_NAME[c])}</h3>"
+        + rules((("held", CHECK_HELD[c]), ("failed", CHECK_FAILED[c]),
+                 ("evidence", CHECK_EVIDENCE[c])))
+        + "</section>"
         for c in S.V["checks"]
+    )  # fmt: skip
+    figures = "".join(
+        f'<section class="chk" id="{f}" aria-labelledby="h-{f}"><h3 class="cn2" id="h-{f}">'
+        f"{e(FIGURE_NAME[f])}</h3>{rules(FIGURE_RULE[f])}</section>"
+        for f in FIGURE_RULE
     )
     gate = ("A system passes on a model when it holds all six checks there. A failed check "
             "turns its petals red; a held check never turns a petal green.")  # fmt: skip
@@ -321,35 +346,56 @@ def build_checks():
               "beside it. A petal read from the publisher's documents is red where they are "
               "silent.")  # fmt: skip
     causes = "".join(f"<div><dt>{e(k)}</dt><dd>{e(v)}</dd></div>" for k, v in CAUSE_WORD.items())
-    margin = S.V["order_margin"]
-    order = (
-        f"Only a system that passed on a model is ranked, and only on that model. It is placed "
-        f"above another when its multiple is at least {margin * 100:g}\u202f% lower and its "
-        f"highest session value is below the other's lowest. A system is ranked only when its "
-        f"publisher states a security level at the pinned commit. The glyph never moves a "
-        f"position. Nothing is compared across models."
-    )
-    multiple = (
-        "Multiple of serving: steady GPU-seconds per further proved reply over the GPU-seconds "
-        "per reply of plain serving at full load, on the same GPUs, for one request: "
-        f"{request_words()}."
-    )
+    passed = (f'<p class="rd" id="passed">{e(gate)}</p>'
+              f'<p class="rd" id="not-tested">{e(NOT_TESTED)}</p>')  # fmt: skip
     body = f"""
 {header("checks")}
 <main id="main" class="sys">
   {band("Checks")}
   <div class="wrap">
+    {section("terms", "Terms", rules(TERMS))}
     <div class="cwrap"><div class="gbig">{glyph}</div><div class="clist">{petals}
       <p class="rd hl">{e(hollow)}</p></div></div>
-    {section("checks", "The six checks", f'<p class="rd">{e(gate)}</p><div class="clist">{checks}</div>')}
+    {section("checks", "The six checks", f'{passed}<div class="clist">{checks}</div>')}
     {section("undecided", "Undecided", f'<dl class="cs">{causes}</dl>')}
-    {section("order", "Order", f'<p class="rd">{e(multiple)}</p><p class="rd">{e(order)}</p>')}
-    {section("not-tested", "Not tested", f'<p class="rd">{e(NOT_TESTED)}</p>')}
+    {section("figures", "Figures", f'<div class="clist">{figures}</div>')}
+    {section("order", "Order", rules(ORDER_RULE, ids=("unranked",)))}
   </div>
 </main>
 {footer()}"""
-    return page("Checks", "The five petals of the glyph, the six checks, the order rule.", body,
-                "system checkspage", CHECKS_PAGE.strip("/"), "home")  # fmt: skip
+    return page("Checks", "The five petals of the glyph, the six checks, the figures, the order "
+                "rule.", body, "system checkspage", CHECKS_PAGE.strip("/"), "home")  # fmt: skip
+
+
+def build_mandate():
+    """The mandate: the belief as the headline, what the site is for, then what we do, what we
+    do not do, who runs it and how to check us. Each line has a plain label that links to the
+    rule binding it (the rule's name is the link's title)."""
+
+    def rule(label, name, path):
+        if not path:
+            return e(label)
+        return f'<a href="{e(link(path))}" title="{e(path)}, {e(name)}">{e(label)}</a>'
+
+    blocks = "".join(
+        section(title.lower().replace(" ", "-"), title, '<dl class="cs">' + "".join(
+            f"<div><dt>{rule(label, name, path)}</dt><dd>{e(words)}</dd></div>"
+            for label, name, path, words in lines) + "</dl>")
+        for title, lines in MANDATE
+    )  # fmt: skip
+    body = f"""
+{header(None)}
+<main id="main" class="sys">
+  <section class="mast mast-sys" aria-labelledby="h-name"><div class="mast-in">
+    <h1 id="h-name" class="sysname creed">{e(MANDATE_BELIEF)}</h1></div></section>
+  <div class="wrap">
+    <p class="rd lead">{e(MANDATE_WHAT)}</p>
+    {blocks}
+  </div>
+</main>
+{footer()}"""
+    return page("Mandate", MANDATE_WHAT, body, "system mandatepage", MANDATE_PAGE.strip("/"),
+                "home")  # fmt: skip
 
 
 def build_404():

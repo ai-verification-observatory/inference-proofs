@@ -70,6 +70,25 @@ def test_run_five_incomplete_runs_in_a_slot_fail(tree: Tree) -> None:
     assert [s.incomplete_tree()["exit_code"] for s in sessions.incomplete] == [1] * 5
 
 
+def test_run_refusal_record_fails_the_slot_at_once(tree: Tree) -> None:
+    """SE-5: one incomplete run with a refusal record makes RUN failed; a record naming a run
+    that is not an incomplete run of its slot is refused."""
+    failure = {"exit_code": 1, "step": "prove", "message": "prove exited 1", "kind": "adapter",
+               "last_lines": ["AssertionError: no fit"], "at": "2026-12-01T00:00:00Z"}  # fmt: skip
+    session(tree, 1, 1, failure=failure)
+    assert states(tree)["run"] == ("undecided", "not run")
+    run_id = row_sessions(tree.root, RELEASE, tree.level, RUNG, SYSTEM).incomplete[0].run_id
+    folder = tree.root / "results" / RELEASE / SYSTEM / "refusals"
+    folder.mkdir(parents=True)
+    (folder / "slot-1.json").write_text(json.dumps({"run_id": run_id}))
+    found = checks(tree)["run"]
+    assert (found.state, found.cause) == ("failed", None)
+    assert found.evidence[0] == f"results/{RELEASE}/{SYSTEM}/refusals/slot-1.json"
+    (folder / "slot-1.json").write_text(json.dumps({"run_id": "another-run"}))
+    with pytest.raises(Exception, match="no incomplete run of slot 1"):
+        checks(tree)
+
+
 def test_run_weakening_flag_fails(tree: Tree) -> None:
     three_sessions(tree, argv=["--unsound-skip-argmax"])
     fidelity(tree, {SYSTEM: fidelity_row()})

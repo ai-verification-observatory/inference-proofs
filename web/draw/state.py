@@ -8,13 +8,14 @@ one build never reaches the next.
 import pathlib
 
 # Set by build.setup and build.render (INK, ladder and pairs by inks.check_inks, FACES by
-# chrome.load_faces). Nothing is read when the module is imported.
+# chrome.load_faces, WORDMARK by mark.load_wordmark). Nothing is read when the module is imported.
 HERE = OG = pathlib.Path()
 V: dict = {}
 ROWS: list = []  # every row of the board, rung by rung (largest model first), in board order
 PAGE: dict = {}  # page id -> its row
 INK: dict = {}
 FACES: list = []
+WORDMARK: dict = {}
 REPO_URL = LINK_REF = ""
 ladder: list = []
 pairs: list = []

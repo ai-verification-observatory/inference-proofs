@@ -29,11 +29,11 @@ steady:
   min_later_groups: 3
   tolerance: 0.05
 baseline:
-  ladder: [1, 2, 4, 8, 16, 32, 64, 128, 256]
+  ladder: [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024]
   plateau: 0.05
   warmup_batches: 1
   timed_batches: 3
-  prompts: 1024
+  prompts: 4096
 order:
   margin: 0.10
 fidelity:

@@ -1,5 +1,5 @@
 """The glyph's geometry: the asterisk of n triangles as SVG (`glyph_svg`: five petals for a row,
-RFC-0018 §The glyph; `mark_svg`: the six-slot hex, the logo), and the names set in its triangles.
+RFC-0018 §The glyph), and the names set in its triangles. The site's logo is the turnstile (mark.py).
 """
 
 import math
@@ -10,8 +10,8 @@ from .words import e
 # n triangles make a point-top polygon, clockwise from twelve: segment i spans the side from vertex
 # step*i to vertex step*(i+1) (step = 360/n). The cuts between them widen toward the centre, so the
 # ground they leave draws an asterisk, the footnote mark. A row's glyph has five petals: green,
-# amber and red filled, hollow an outline only, drawn inside its cuts (GL-3). The logo is the
-# six-slot hex in one colour. Drawn in device pixels (viewBox 0 0 size size): every gap and line
+# amber and red filled, hollow an outline only, drawn inside its cuts (GL-3); `mono` draws
+# n slots in one colour. Drawn in device pixels (viewBox 0 0 size size): every gap and line
 # is sized for the size it is shown at (a page draws one copy per size it shows); up to 128 px the
 # hex's centre and flat sides sit on the pixel grid.
 C30 = math.cos(math.radians(30))
@@ -165,8 +165,3 @@ def sized(draw, sizes):
     words.css shows the copy for the width in use, so its cuts and sides sit on the pixel grid
     instead of being scaled between pixels. draw: size -> svg."""
     return "".join(draw(s).replace('<svg class="', f'<svg class="w{s} ', 1) for s in sizes)
-
-
-def mark_svg(size, cls="lm"):
-    """The logo mark: the six-slot hex in one colour (currentColor), the asterisk between them."""
-    return glyph_svg(size, mono=True, cls=cls, n=6)

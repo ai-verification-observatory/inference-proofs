@@ -1,4 +1,5 @@
 // Preview cards: PLAYWRIGHT_MODULE=<path to playwright/index.mjs> node og.mjs, then rebuild the site
+// (OG_CHANNEL=chrome runs an installed Chrome instead of Playwright's own browser)
 // (README §Build and check). Renders each og/<card>.html that the build wrote to og/<card>.png and
 // records the sha256 of both in og/cards.json; the build then names each picture in the pages. A card is 1200 x 630 CSS px at 2x
 // unless its <html> sets data-w, data-h and data-scale (the 180 px touch icon). test_cards.py
@@ -13,7 +14,7 @@ const sha = (buf) => crypto.createHash('sha256').update(buf).digest('hex');
 const cards = fs.readdirSync(DIR).filter((f) => f.endsWith('.html')).map((f) => f.slice(0, -5)).sort();
 if (!cards.length) throw new Error('no card sources in og/: build the site first (README §Build and check)');
 
-const b = await chromium.launch();
+const b = await chromium.launch(process.env.OG_CHANNEL ? { channel: process.env.OG_CHANNEL } : {});
 const record = {};
 for (const card of cards) {
   const src = `${DIR}${card}.html`;
@@ -28,7 +29,11 @@ for (const card of cards) {
   await p.evaluate(() => document.fonts.ready);
   if (!size) {
     const fonts = await p.evaluate(() => [...new Set([...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '')))]);
-    for (const want of ['Archivo', 'IBM Plex Mono']) {
+    // every family the card sets text in must have loaded (the lockup is drawn in outline)
+    const used = await p.evaluate(() => [...new Set([...document.querySelectorAll('body *')]
+      .filter((n) => [...n.childNodes].some((c) => c.nodeType === 3 && c.textContent.trim()))
+      .map((n) => getComputedStyle(n).fontFamily.split(',')[0].replace(/"/g, '').trim()))]);
+    for (const want of used) {
       if (!fonts.includes(want)) throw new Error(`${card}: font ${want} did not load (loaded: ${fonts.join(', ') || 'none'})`);
     }
   }

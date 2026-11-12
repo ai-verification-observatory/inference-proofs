@@ -153,7 +153,7 @@ def fake_writing(tmp_path: Path, body: str) -> Path:
 
 
 def test_out_json_over_16_mib_is_adapter_error(tmp_path: Path) -> None:
-    script = fake_writing(tmp_path, "'x' * (16 * 1024 * 1024 + 1)")
+    script = fake_writing(tmp_path, "'x' * (128 * 1024 * 1024 + 1)")
     with pytest.raises(IProofsError) as e:
         run_fake(tmp_path, script, "setup", {})
     assert e.value.kind is ErrorKind.ADAPTER

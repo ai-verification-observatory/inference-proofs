@@ -187,6 +187,9 @@ def full_load(run_dir: Path, level: LevelLike) -> FullLoad | str:
         return f"every ladder rung failed: {failed}"
     top = max(rates.values())
     full = min(c for c, r in rates.items() if r >= (1 - level.baseline.plateau) * top)
+    if len(rates) > 1 and full == max(rates):  # CO-4: the rate still rose at the top rung
+        return (f"not saturated: the rate still rises at the ladder's top rung (c = {full}), "
+                f"more than {level.baseline.plateau:.0%} above the rung below")  # fmt: skip
     replies_q, seconds_q, gpus_q = parts[full]
     per_reply = derived(FORMULA, __version__, Unit.GPU_S_PER_REQUEST, Scope.PROVE_STEADY,
                         [seconds_q, gpus_q, replies_q],

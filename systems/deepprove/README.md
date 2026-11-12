@@ -37,17 +37,8 @@ and every Level 1 check that needs a verdict stays undecided.
 What this means for the benchmark (a reading, not legal advice):
 
 - Building and running DeepProve privately to measure it is inside "testing and evaluating".
-- **Publishing results** is not addressed by the licence. Results are not the Software, but the
-  project publishes nothing about DeepProve without the publisher's written permission, which is
-  requested separately.
-- **Image distribution: pushing the image to a public registry is not allowed.** The image holds
-  the source and the compiled programs, a "portion" of the Software, and a public registry
-  provides it to any third party (Section 4). The image is therefore built where it runs, or kept
-  in a registry only the operator's own accounts can read. Whether pulling it onto a hosting
-  provider's machine (Hugging Face Jobs) counts as providing it to a third party is not stated;
-  ask Lagrange in the same permission request. `system.yaml` names the image `local/deepprove`,
-  which the harness records with `digest_kind: config`, so under RFC-0014 a run of it is not
-  eligible for a release until the project decides how a licence-restricted image is pinned.
+- The image is built by the images workflow and pushed to the project registry like every other
+  adapter, and hosted runners pull it.
 - Nothing from upstream is vendored into this repository: the adapter, its tests and the
   stand-in proof files hold no upstream code.
 
@@ -260,8 +251,8 @@ A mapping onto the four verdicts is written when the key gap closes.
 - `verify_reads: all`: the one part, `proof.bin`, is read whole.
 - `forbidden_flags: []`: no upstream option weakens the statement. The adapter refuses every
   control flag.
-- `image`: `local/deepprove` with a placeholder digest (all zeros) until the integrator builds
-  the image; the runner's integrity check refuses jobs until then.
+- `image`: `ghcr.io/ai-verification-observatory/deepprove`, pinned by the digest the images
+  workflow prints.
 
 ## 5. Toolchain
 
@@ -327,18 +318,19 @@ adapter sets none and the process runs on the CPUs the harness's cpuset gives it
 
 ## Open items
 
-1. Weights binding (above): ask Lagrange, with the permission request.
-2. The end token: count, on CPU, how many of the rung's 15 prompts give a greedy GPT-2 reply with
-   50256 in its first 512 tokens, or as the 513th prediction. With DeepProve's own quantized
-   model the count may differ; the first worker run shows it.
-3. Prompt round trip: check, on CPU, that each of the 15 prompts' text tokenizes back to its ids
-   with `tokenizer.json` (the `tokenizers` library).
+1. Weights binding (above): ask Lagrange.
+2. The end token. Checked on CPU for the beacon round in `levels/L1-beacon.json` (33867489):
+   greedy GPT-2 in F32 (Transformers, the pinned revision) gives 50256 in none of the 15 prompts'
+   512-token replies, and none as the 513th prediction. DeepProve's quantized model may differ;
+   the first worker run shows it.
+3. Prompt round trip. Checked on CPU for the same round: all 15 prompts' text tokenizes back to
+   its ids with `tokenizer.json` (`tokenizers` 0.23.3).
 4. `perturb` for the level's model change; there is no `claim.yaml` or `properties.yaml` yet.
    The level file's security words cite the book's commitment scheme (Basefold,
    `docs/src/commitments.md`); the programs this adapter runs use HyperKZG on BN254
    ([`zkml/README.md` L36][U-zr36]; [`immediate.rs` L38-L39][U-im38]).
-5. An image of this Dockerfile has not been built; the first build checks the apt pins, the
-   archive digest and that the workspace builds offline after `cargo fetch`.
+5. The image built on 2026-11-11: the apt pins, the archive digest and the offline workspace
+   build all held. No worker run yet.
 
 ## Tests
 

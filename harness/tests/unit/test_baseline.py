@@ -107,6 +107,15 @@ def test_tolerance_edge(tmp_path: Path) -> None:
     assert got.concurrency == 16
 
 
+def test_not_saturated_at_the_top_rung(tmp_path: Path) -> None:
+    """The first Maverick ladder (2026-11-11): the rate rose 32 % from c = 128 to 256, so the
+    top rung is the only one within the plateau and the ladder never reached capacity."""
+    rates = {64: 1.9947, 128: 2.9474, 256: 3.9024}
+    got = full_load(ladder_run(tmp_path, rates, 1), level(tuple(rates)))
+    assert isinstance(got, str)
+    assert got.startswith("not saturated")
+
+
 def test_gpu_count_applied(tmp_path: Path) -> None:
     """On 4 bound GPUs the same replies per GPU-second take 4 times the GPU-seconds of wall
     time per GPU: the rates are per GPU-second, and 1 / 60 GPU-seconds per reply holds."""

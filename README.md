@@ -1,6 +1,6 @@
 <div align="center">
 
-<a href="https://www.inferenceproofs.ai"><img src="web/og/home.png" alt="Inference Proofs: what one proof establishes. Weights hidden, model bound, whole output checked, formally verified, security level, no trusted party." width="100%"></a>
+<a href="https://www.inferenceproofs.ai"><img src="web/og/home.png" alt="INFERENCE ⊢ PROOFS in black and cobalt on paper. inferenceproofs.ai, Level 1 (frozen 2026-11-11)." width="100%"></a>
 
 <h1>Inference Proofs</h1>
 
@@ -9,7 +9,7 @@ The same models, the same reference hardware, the same timing rules,<br>
 and a claim card beside every number saying what the proof establishes.</p>
 
 <a href="https://github.com/ai-verification-observatory/inference-proofs/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/ai-verification-observatory/inference-proofs/ci.yml?branch=main&style=for-the-badge&label=CI&logo=githubactions&logoColor=white"></a>
-<a href="releases/v0.1/release.yaml"><img alt="Benchmark release v0.1" src="https://img.shields.io/badge/release-v0.1-8A2BE2?style=for-the-badge"></a>
+<a href="releases/v0.1/release.yaml"><img alt="Benchmark release v0.1" src="https://img.shields.io/badge/release-v0.1-5B7BFF?style=for-the-badge"></a>
 <a href="https://www.inferenceproofs.ai"><img alt="Site" src="https://img.shields.io/badge/site-inferenceproofs.ai-0B0B0B?style=for-the-badge"></a>
 <br>
 <a href="pyproject.toml"><img alt="Python 3.12 | 3.13" src="https://img.shields.io/badge/python-3.12%20%7C%203.13-3776AB?style=for-the-badge&logo=python&logoColor=white"></a>

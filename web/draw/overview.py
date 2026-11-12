@@ -1,29 +1,30 @@
 """The overview (`index.html`): the ladder (RFC-0018 SI-1). The frontier headline, then one section
-per model, largest first: its head (model, publisher, total parameters, the request, the serving
+per model, largest first: its head (model, publisher, total parameters, the serving
 baseline) and its rows in the board's order (OR-5), then the systems not run (SI-4). Rows sort
 only by the order rule: no column head re-sorts them. Also the figure cells the system pages use.
 """
 
 from . import state as S
-from .chrome import footer, header, page, rung_of
+from .chrome import CHECKS_PAGE, footer, header, page, rung_of
 from .hexagon import glyph_svg, sized
 from .words import (
     CHECK_NAME,
+    FIGURE_NAME,
     NULL_WORD,
     PETAL_NAME,
     PETAL_WORD,
+    REFERENCE_WORD,
     STATE_WORD,
     architecture,
     e,
+    kl_head,
     labels,
     number,
     params,
     sub_words,
 )
 
-# RFC-0018 SI-2, under the first rung; and what the checks do not test (the checks page)
-UNDER = ("Ranked by cost among systems that passed our checks. The glyph shows how far each is "
-         "from a perfect prover; it does not move the order.")  # fmt: skip
+# what the checks do not test (the checks page)
 NOT_TESTED = ("These checks run each system's own prover and verifier. None attempts a forged "
               "proof: soundness and weight secrecy are not tested.")  # fmt: skip
 ROW_GLYPH = (56, 44)  # the row glyph's sizes: wide screens, then phones
@@ -113,8 +114,56 @@ def standing(row):
     return "not passed: " + ", ".join(missing) if missing else "not passed"
 
 
-HEADS = ("", "", "System", "Multiple of serving", "Cost per reply", "Check time per reply",
-         "KL to the 16-bit model")  # fmt: skip
+def defined(words, anchor):
+    """Words linked to where the checks page defines them."""
+    return f'<a class="df" href="{CHECKS_PAGE}#{anchor}">{e(words)}</a>'
+
+
+def standing_html(row):
+    """`standing` on the overview: passed, unranked and each check not held link to their
+    definitions."""
+    if row["passed"] and not row["ranked"]:
+        return (f"{defined('passed', 'passed')}, {defined('unranked', 'unranked')}: "
+                f"{e(row['unranked_reason'])}")  # fmt: skip
+    if row["passed"]:
+        return defined("passed", "passed")
+    missing = [f"{defined(CHECK_NAME[c['id']], c['id'])} {e(STATE_WORD[c['state']])}"
+               for c in row["checks"] if c["state"] != "held"]  # fmt: skip
+    return "not passed: " + ", ".join(missing) if missing else "not passed"
+
+
+def reference_words():
+    """Each model's reference precision (FI-1): "16-bit for A and B, 32-bit for C"."""
+    by: dict[str, list[str]] = {}
+    for rung in S.V["rungs"]:
+        by.setdefault(REFERENCE_WORD[rung["reference_dtype"]], []).append(rung["model"])
+    return ", ".join(f"{word} for {' and '.join(models)}" for word, models in by.items())
+
+
+def filled(text):
+    """A rule of `words` with the level file's constants in it."""
+    r, c = S.V["request"], S.V["constants"]
+    return text.format(
+        gap=f"{c['group_gap_s']:g}\u202fs",
+        reference=reference_words(),
+        slots=c["slots"],
+        attempts=c["attempts_per_slot"],
+        reply_tokens=f"{r['output_tokens']:,}",
+        full=f"{(1 - c['plateau']) * 100:g}\u202f%",
+        top=f"{c['ladder_top']:,}",
+        margin=f"{S.V['order_margin'] * 100:g}\u202f%",
+        request=request_words().capitalize(),
+    )
+
+
+FIGURES = ("multiple", "cost", "check-time", "kl")  # the figure columns, in the row's order
+
+
+def heads(rung):
+    """The figure columns' heads, each linked to its definition; the KL head names the precision
+    of the rung's reference (FI-1)."""
+    names = {**FIGURE_NAME, "kl": kl_head(rung["reference_dtype"])}
+    return [defined(names[f], f) for f in FIGURES]
 
 
 def row_cost(row):
@@ -133,15 +182,15 @@ def row_html(row, rung):
         ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row))),
         ("ck", kl_html(row)),
     )
-    figs = "".join(f'<td class="{c}"><span class="lbl">{e(h)}</span>{html}</td>'
-                   for (c, html), h in zip(cells, HEADS[3:], strict=True))  # fmt: skip
+    figs = "".join(f'<td class="{c}"><span class="lbl">{h}</span>{html}</td>'
+                   for (c, html), h in zip(cells, heads(rung), strict=True))  # fmt: skip
     return (
         f'<tr class="row" id="row-{e(row["page"])}">'
         f'<td class="cp">{position_html(row, rung)}</td>'
         f'<td class="cg"><a class="glyph" href="{e(href(row))}" tabindex="-1" aria-hidden="true">'
         f"{glyph}</a></td>"
         f'<th class="csys" scope="row"><a class="sname" href="{e(href(row))}">{e(name_of(row))}</a>'
-        f'<span class="st">{e(standing(row))}</span>'
+        f'<span class="st">{standing_html(row)}</span>'
         f'<span class="sr">{e(states_words(row))}</span></th>{figs}</tr>'
     )
 
@@ -173,26 +222,24 @@ def baseline_html(rung):
             f'{fig_html(b["gpu_seconds_per_reply"])}</p>')  # fmt: skip
 
 
-def rung_html(rung, first):
+def rung_html(rung):
     head = (
         f'<header class="rh"><h2 class="rm" id="h-{e(rung["id"])}">{e(rung["model"])}</h2>'
         f'<p class="ri">{e(rung["publisher"])} · '
-        f"{e(architecture(rung['parameters_total'], rung.get('parameters_active')))} · "
-        f"{e(request_words())}</p>"
+        f"{e(architecture(rung['parameters_total'], rung.get('parameters_active')))}</p>"
         f"{baseline_html(rung)}</header>"
     )
     if not rung["rows"]:
         body = '<p class="none">Not run yet.</p>'
     else:
-        ths = "".join(f'<th scope="col">{e(h)}</th>' for h in HEADS)
+        ths = "".join(f'<th scope="col">{h}</th>' for h in ("", "", "System", *heads(rung)))
         rows = "".join(row_html(r, rung) for r in rung["rows"])
         cols = '<colgroup><col class="c1"><col class="c2"><col class="c3"><col><col><col><col></colgroup>'
         body = (
             f'<table class="lad">{cols}<thead><tr>{ths}</tr></thead><tbody>{rows}</tbody></table>'
         )
-    after = f'<p class="nt">{e(UNDER)}</p>' if first else ""
     return (f'<section class="rung" id="{e(rung["id"])}" aria-labelledby="h-{e(rung["id"])}">'
-            f"{head}{body}{after}</section>")  # fmt: skip
+            f"{head}{body}</section>")  # fmt: skip
 
 
 def _best_multiple(rung):
@@ -218,7 +265,7 @@ def frontier_html():
     systems = {row["system"] for r in rungs for row in r["rows"]}
     if not run:
         return (f'<h1 class="band-h">No system has run yet.</h1>'
-                f'<p class="fsub">{e(str(len(rungs)))} models · {e(request_words())}</p>')  # fmt: skip
+                f'<p class="fsub">{e(request_words())}</p>')  # fmt: skip
     rung = next(r for r in rungs if r["id"] == front["rung"]) if front else run[0]
     if front:
         names = ", ".join(name_of(row) for row in front["rows"])
@@ -259,12 +306,13 @@ def not_run_html():
 
 
 def build_index():
-    rungs = "".join(rung_html(r, i == 0) for i, r in enumerate(S.V["rungs"]))
+    rungs = "".join(rung_html(r) for r in S.V["rungs"])
     body = f"""
 {header("home")}
 <main id="main" class="home">
   <section class="mast"><div class="mast-in">{frontier_html()}</div></section>
-  <div class="wrap">{rungs}{not_run_html()}</div>
+  <div class="wrap ladder">{rungs}</div>
+  <div class="wrap">{not_run_html()}</div>
 </main>
 {footer()}"""
     models = ", ".join(r["model"] for r in S.V["rungs"])

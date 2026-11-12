@@ -101,7 +101,7 @@ def test_listed_but_unreleased_is_adapter_failure(tmp_path: Path) -> None:
 
 def test_path_safety_out_json_too_large(tmp_path: Path) -> None:
     with (tmp_path / "out.json").open("wb") as f:
-        f.truncate(16 * 1024 * 1024 + 1)
+        f.truncate(128 * 1024 * 1024 + 1)
     assert "larger than" in adapter_error(read_out, IoDirs(tmp_path), REGISTRY, "prove")
 
 
