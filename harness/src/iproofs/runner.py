@@ -32,6 +32,7 @@ from iproofs.adapter import (
 from iproofs.controls import (
     EXPECTED,
     LEVEL_TRIALS,
+    LEVEL_VERIFIER_CONTROLS,
     SEED_RECORD,
     SEED_SCHEMA,
     SHARED_PROVER_CONTROLS,
@@ -2073,12 +2074,15 @@ class Runner:
         paths = ["harness", "pyproject.toml", "uv.lock", f"systems/{job.spec.system}", "schema",
                  "reference"]  # fmt: skip
         commit, dirty = git_state(self.root, paths)
+        suite = [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)]
+        if job.level is not None:  # RFC-0018 CH-1: a session's suite is its checks' controls
+            suite = [cid for cid in suite if cid in (*LEVEL_VERIFIER_CONTROLS, "P1")]
         return {
             "run_id": job.run_id,
             "run_manifest_digest": file_digest(job.staging / "manifest.json"),
             "control_seed": seed,
             "seed_record_digest": seed_record_digest,
-            "suite": [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)],
+            "suite": suite,
             "image": job.image,
             "verifier_profile": self._verifier_profile(job),
             "profile": job.spec.profile,
