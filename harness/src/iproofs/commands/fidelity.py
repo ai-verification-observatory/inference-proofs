@@ -30,7 +30,10 @@ if TYPE_CHECKING:
     from iproofs.schema import SchemaRegistry
 
 SYSTEM = "ref-fidelity"
+SYSTEMS = {"llama.cpp": "ref-fidelity", "vllm": "ref-fidelity-vllm"}  # RFC-0018 FI-9
+ENGINE_REPOS = {"vllm": "vllm-project/vllm"}
 RUN_RECORD = "fidelity-run.json"
+PART = "controls"  # FI-9: the quantized controls, run apart from a vLLM reference
 ROW_PREFIX = "row-"  # the id of a row's committed file in the image's status
 
 
@@ -71,6 +74,26 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
     )
     p.add_argument("--gpus", type=gpu_list, required=True, metavar="LIST")
     p.add_argument("--slots", type=int, default=1, help="llama-server slots (default: 1)")
+    p.add_argument(
+        "--engine",
+        choices=sorted(SYSTEMS),
+        default="llama.cpp",
+        help="vllm: the reference, its rerun and the smaller model in vLLM, for a rung whose "
+        "16-bit reference llama.cpp's pin cannot run (RFC-0018 FI-9; default: llama.cpp)",
+    )
+    p.add_argument(
+        "--part",
+        choices=[PART],
+        help="controls: only the quantize controls, in llama.cpp, built from --reference-gguf-dir "
+        "(FI-9); the record is fidelity-run-controls.json",
+    )
+    p.add_argument(
+        "--reference-gguf-dir",
+        type=Path,
+        help="with --part controls: the 16-bit GGUF of the reference, fetched at "
+        "--gguf-source REPO@REVISION",
+    )
+    p.add_argument("--gguf-source", metavar="REPO@REVISION", help="with --reference-gguf-dir")
     p.add_argument(
         "--work",
         type=Path,
@@ -127,7 +150,7 @@ def _cpuset() -> str:
 
 
 def _containers(
-    root: Path, args: argparse.Namespace, registry: "SchemaRegistry"
+    root: Path, args: argparse.Namespace, registry: "SchemaRegistry", system: str = SYSTEM
 ) -> tuple["ContainerRunner", str]:
     """The runner and the image reference recorded: the pinned image of system.yaml, a local
     build by ID (`local/...`, never eligible for a release, RFC-0014), or, hosted, the image
@@ -142,7 +165,7 @@ def _containers(
     from iproofs.cli import entrypoint_argv, local_image  # noqa: PLC0415
     from iproofs.serialize import load_yaml  # noqa: PLC0415
 
-    system_dir = root / "systems" / SYSTEM
+    system_dir = root / "systems" / system
     pin = load_yaml(system_dir / "system.yaml").get("image")
     pinned = check_image(f"{pin['repository']}@{pin['digest']}") if isinstance(pin, dict) else None
     if args.in_process:
@@ -150,9 +173,9 @@ def _containers(
             raise IProofsError(ErrorKind.CONFIG, "--in-process runs no image")
         runner = InProcessRunner(system_dir / "entrypoint", registry)
         return runner, "local/in-process@sha256:" + "0" * 64
-    image = local_image(SYSTEM, args.image, hosted=args.hosted) if args.image else pinned
+    image = local_image(system, args.image, hosted=args.hosted) if args.image else pinned
     if image is None:
-        raise IProofsError(ErrorKind.CONFIG, f"systems/{SYSTEM}/system.yaml pins no image yet; "
+        raise IProofsError(ErrorKind.CONFIG, f"systems/{system}/system.yaml pins no image yet; "
                            "build it and pass --image")  # fmt: skip
     if args.hosted:
         argv = entrypoint_argv((system_dir / "Dockerfile").read_text())
@@ -245,53 +268,47 @@ def fidelity_run(args: argparse.Namespace) -> int:
     io.mkdir(parents=True, exist_ok=True)
     prompts_digest = write_jsonl(io / "prompts.jsonl", rung_prompts(prompts, level, rung))
     texts_digest = write_jsonl(io / "kl-texts.jsonl", texts)
-    containers, image = _containers(root, args, registry)
+    if args.part is not None and args.engine != "llama.cpp":
+        raise IProofsError(ErrorKind.CONFIG, "--part controls runs in llama.cpp; drop --engine")
+    if args.engine == "vllm" and args.row_gguf:
+        raise IProofsError(ErrorKind.CONFIG, "--row-gguf measures KL in llama.cpp; not with vllm")
+    system = SYSTEMS[args.engine]
+    containers, image = _containers(root, args, registry, system)
     info, said = _call(containers, image, io, {"subcommand": "info"}, None, args, "info")
     if info["exit_code"] != 0 or not said:
-        raise IProofsError(ErrorKind.ADAPTER, f"{SYSTEM} info failed: {info['stderr_tail']}")
+        raise IProofsError(ErrorKind.ADAPTER, f"{system} info failed: {info['stderr_tail']}")
     commit = str(said.get("upstream_commit"))
-    pinned = level.fidelity.engine.commit
+    pinned = _engine_pin(root, level, system)
     if pinned is not None and commit != pinned:
-        raise IProofsError(ErrorKind.INTEGRITY, f"the image runs llama.cpp {commit}, the level "
-                           f"pins {pinned} (fidelity.engine.commit)")  # fmt: skip
-    reference_dir, reference_record = _reference_dir(root, registry, rung, args.reference_dir)
+        raise IProofsError(ErrorKind.INTEGRITY, f"the image runs {args.engine} {commit}, the "
+                           f"pin is {pinned}")  # fmt: skip
     common = {"subcommand": "prove", "rung": rung.id, "model_dir": "/models",
               "dtype": rung.reference.dtype, "prompts_file": "/io/prompts.jsonl",
               "kl_texts_file": "/io/kl-texts.jsonl",
               "output_tokens": level.request.output_tokens,
               "kl": {"tokens": level.kl.tokens, "texts": level.kl.texts},
               "slots": args.slots}  # fmt: skip
-    own = [c for c in rung.controls if c.recipe != "other_model"]
-    calls: list[tuple[str, Path, list[dict[str, object]], bool]] = [
-        ("reference", reference_dir, [_control_job(c) for c in own], True)
-    ]
-    other = [c for c in rung.controls if c.recipe == "other_model"]
-    not_run: dict[str, str] = {}
-    if other and args.other_model_dir is not None:
-        calls.append(("other_model", args.other_model_dir, [_control_job(c) for c in other], True))
-    for c in other if args.other_model_dir is None else []:
-        not_run[c.id] = "not run: no --other-model-dir was given"
-    for system in args.row_gguf:
-        row: dict[str, object] = {"id": f"{ROW_PREFIX}{system}", "kind": "row", "recipe": "file"}
-        calls.append(("file", _row_dir(root, registry, rung, system), [row], False))
+    calls, not_run, reference_record = _plan(args, root, registry, rung)
     records = [info]
-    for name, models, controls, replies in calls:
-        job = {**common, "call": name, "controls": controls, "replies": replies}
+    for name, models, controls, replies, extra in calls:
+        job = {**common, **extra, "call": name, "controls": controls, "replies": replies}
         record, _ = _call(containers, image, io, job, models, args, name)
         records.append(record)
         if name == "reference" and record["exit_code"] != 0:
-            break  # no reference GGUF: the other calls would score against nothing
+            break  # no reference: the other calls would score against nothing
     out = fidelity_dir(args.results or root / "results", args.release, rung.id)
-    _collect(io, out)
+    suffix = f"-{args.part}" if args.part else ""
+    _collect(io, out, suffix)
     commit_sha, dirty = git_state(root)
     run_record = {
         "schema": "fidelity-run/1",
+        **({"part": args.part} if args.part else {}),
         "level": {"id": level.id, "digest": level_digest(level_file(root, level.id))},
         "rung": rung.id,
         "release": args.release,
         "engine": {
-            "tool": "llama.cpp",
-            "repo": level.fidelity.engine.repo,
+            "tool": args.engine,
+            "repo": ENGINE_REPOS.get(args.engine, level.fidelity.engine.repo),
             "commit": commit,
             "image": image,
         },
@@ -303,15 +320,95 @@ def fidelity_run(args: argparse.Namespace) -> int:
         "slots": args.slots,
         "reference": reference_record,
         "other_model": {
-            "source": [_source(c) for c in other],
+            "source": [_source(c) for c in rung.controls if c.recipe == "other_model"],
             "files": _digests(args.other_model_dir) if args.other_model_dir else {},
         },
         "not_run": not_run,
         "calls": records,
     }
-    print(_write_checked(registry, "fidelity-run/1", out / RUN_RECORD, run_record))
+    name = RUN_RECORD.replace(".json", f"{suffix}.json")
+    print(_write_checked(registry, "fidelity-run/1", out / name, run_record))
     reference_ok = len(records) > 1 and records[1]["exit_code"] == 0
     return 0 if reference_ok else 4
+
+
+Call = tuple[str, Path, list[dict[str, object]], bool, dict[str, object]]
+
+
+def _plan(
+    args: argparse.Namespace, root: Path, registry: "SchemaRegistry", rung: "Rung"
+) -> tuple[list[Call], dict[str, str], dict[str, object]]:
+    """The calls of this run (name, model directory, controls, replies wanted, extra job keys),
+    the controls it leaves out with why, and the record of its reference files."""
+    own = [c for c in rung.controls if c.recipe != "other_model"]
+    other = [c for c in rung.controls if c.recipe == "other_model"]
+    not_run: dict[str, str] = {}
+    calls: list[Call] = []
+    if args.part == PART:
+        reference_record, gguf_dir, gguf = _given_gguf(args)
+        chosen = [c for c in own if c.recipe == "quantize"]
+        for c in rung.controls:
+            if c not in chosen:
+                not_run[c.id] = "not in this part: the vLLM run of the rung (FI-9)"
+        extra: dict[str, object] = {"reference_gguf": f"/models/{gguf}"}
+        calls.append(("controls", gguf_dir, [_control_job(c) for c in chosen], True, extra))
+    else:
+        reference_dir, reference_record = _reference_dir(root, registry, rung, args.reference_dir)
+        kept = own if args.engine == "llama.cpp" else [c for c in own if c.recipe == "rerun"]
+        for c in own:
+            if c not in kept:
+                not_run[c.id] = FI9_CAUSES[c.recipe]
+        calls.append(("reference", reference_dir, [_control_job(c) for c in kept], True, {}))
+        if other and args.other_model_dir is not None:
+            calls.append(("other_model", args.other_model_dir,
+                          [_control_job(c) for c in other], True, {}))  # fmt: skip
+        for c in other if args.other_model_dir is None else []:
+            not_run[c.id] = "not run: no --other-model-dir was given"
+        for row_system in args.row_gguf:
+            row: dict[str, object] = {"id": f"{ROW_PREFIX}{row_system}", "kind": "row",
+                                      "recipe": "file"}  # fmt: skip
+            calls.append(("file", _row_dir(root, registry, rung, row_system), [row], False, {}))
+    return calls, not_run, reference_record
+
+
+# FI-9: why a vLLM run of a rung leaves a level control to the llama.cpp part, or does not run it
+FI9_CAUSES = {
+    "quantize": "run in llama.cpp by the controls part (fidelity-run-controls.json), built from "
+    "the 16-bit GGUF (RFC-0018 FI-9)",
+    "drop_blocks": "not run: the copy would be the 16-bit file in llama.cpp, which the level's "
+    "llama.cpp pin cannot run on this rung (RFC-0018 FI-9)",
+}
+
+
+def _engine_pin(root: Path, level: "Level", system: str) -> str | None:
+    """The engine commit the image must report: the level's llama.cpp pin, or the vLLM commit
+    the reference system's system.yaml pins (FI-9)."""
+    from iproofs.serialize import load_yaml  # noqa: PLC0415
+
+    if system == SYSTEM:
+        return level.fidelity.engine.commit
+    engine = load_yaml(root / "systems" / system / "system.yaml").get("engine")
+    commit = engine.get("commit") if isinstance(engine, dict) else None
+    return str(commit) if commit else None
+
+
+def _given_gguf(args: argparse.Namespace) -> tuple[dict[str, object], Path, str]:
+    """FI-9's 16-bit GGUF for the controls part: its source and each file's sha256, the
+    directory, and the first file of the set relative to it."""
+    given = args.reference_gguf_dir
+    if given is None or not given.is_dir() or not args.gguf_source:
+        raise IProofsError(ErrorKind.CONFIG, "--part controls needs --reference-gguf-dir and "
+                           "--gguf-source REPO@REVISION")  # fmt: skip
+    found = sorted(given.rglob("*.gguf"))
+    if not found:
+        raise IProofsError(ErrorKind.CONFIG, f"no .gguf file under {given}")
+    repo, _, revision = str(args.gguf_source).partition("@")
+    source = {"hub": "huggingface", "repo": repo, "revision": revision or None}
+    return (
+        {"source": source, "files": _digests(given)},
+        given,
+        found[0].relative_to(given).as_posix(),
+    )
 
 
 def _write_checked(
@@ -392,9 +489,10 @@ def _call(
     return record, said
 
 
-def _collect(io: Path, out: Path) -> None:
+def _collect(io: Path, out: Path, suffix: str = "") -> None:
     """The image's outputs into the results tree: replies, KL logs and command logs (host paths
-    redacted, AGENTS.md rule 7), the status, and the reference's replies as reference.jsonl."""
+    redacted, AGENTS.md rule 7), the status, and the reference's replies as reference.jsonl. A
+    part's status and command log take its suffix (`status-controls.json`)."""
     from iproofs.log.redact import Redactor  # noqa: PLC0415
 
     redact = Redactor.from_host()
@@ -408,11 +506,10 @@ def _collect(io: Path, out: Path) -> None:
                 shutil.copyfile(f, target / f.name)
             else:
                 (target / f.name).write_text(redact(f.read_text(errors="replace")))
-    for name in ("status.json",):
-        if (src / name).is_file():
-            shutil.copyfile(src / name, out / name)
+    if (src / "status.json").is_file():
+        shutil.copyfile(src / "status.json", out / f"status{suffix}.json")
     if (io / "commands.jsonl").is_file():
-        (out / "commands.jsonl").write_text(redact((io / "commands.jsonl").read_text()))
+        (out / f"commands{suffix}.jsonl").write_text(redact((io / "commands.jsonl").read_text()))
     reference = src / "replies" / "reference.jsonl"
     if reference.is_file():
         shutil.copyfile(reference, out / "reference.jsonl")
@@ -434,12 +531,18 @@ Scored = tuple[dict[str, object], list[list[int]] | None, str | None, dict[str, 
 
 
 def _controls(rung: "Rung", base: Path, ref: str, record: Mapping[str, object]) -> list[Scored]:
-    """Each control of the level file with its stored replies, or the cause it has none."""
+    """Each control of the level file with its stored replies, or the cause it has none. A
+    control a part ran (FI-9, `status-<part>.json`) takes the part's outcome."""
     status_path = base / "status.json"
     status = json.loads(status_path.read_text()) if status_path.is_file() else {}
-    by_id: dict[str, dict[str, object]] = status.get("controls", {})
+    by_id: dict[str, dict[str, object]] = dict(status.get("controls", {}))
     not_run = record.get("not_run")
-    skipped: Mapping[str, str] = not_run if isinstance(not_run, dict) else {}
+    skipped: dict[str, str] = dict(not_run) if isinstance(not_run, dict) else {}
+    for part in sorted(base.glob("status-*.json")):
+        for cid, st in json.loads(part.read_text()).get("controls", {}).items():
+            if cid in skipped or cid not in by_id:
+                by_id[cid] = st
+                skipped.pop(cid, None)
     out: list[Scored] = []
     for c in rung.controls:
         spec: dict[str, object] = {"id": c.id, "kind": c.kind, "recipe": c.recipe}
@@ -510,9 +613,14 @@ def fidelity_score(args: argparse.Namespace) -> int:
         raise IProofsError(ErrorKind.CONFIG, f"no {record_path}: run `iproofs fidelity run`")
     record = json.loads(record_path.read_text())
     digest = level_digest(level_file(root, level.id))
-    if record["level"]["digest"] != digest:
-        raise IProofsError(ErrorKind.CONFIG, f"{record_path} ran under level digest "
-                           f"{record['level']['digest']}, the level file is {digest}")  # fmt: skip
+    for path in [record_path, *sorted(base.glob("fidelity-run-*.json"))]:
+        part = json.loads(path.read_text())
+        if part["level"]["digest"] != digest:
+            ran = part["level"]["digest"]
+            raise IProofsError(ErrorKind.CONFIG, f"{path} ran under level digest {ran}, the "
+                               f"level file is {digest}")  # fmt: skip
+        if part["prompts_digest"] != record["prompts_digest"]:
+            raise IProofsError(ErrorKind.INTEGRITY, f"{path}: other prompts than {record_path}")
     beacon = load_beacon(root, level, registry=registry)
     rule = SignFlipRule(level.fidelity.alpha, level.fidelity.exact_up_to,
                         level.fidelity.resamples, str(beacon["randomness"]))  # fmt: skip
