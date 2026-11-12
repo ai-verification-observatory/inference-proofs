@@ -295,4 +295,6 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
         # the systems the level file names on a rung, run or not (their addresses redirect home
         # while they have no page)
         "planned": sorted({sid for r in level["rungs"] for sid in r.get("workloads") or {}}),
+        # the Learn pages' words (web/learn/), None in a tree with none
+        "learn": inputs.learn(root),
     }

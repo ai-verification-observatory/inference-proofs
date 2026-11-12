@@ -4,6 +4,8 @@ Canonical vocabulary for the whole corpus. Every other document uses these terms
 
 This file quotes the neutral-language rule and its banned words, so it is on the allowlist of the language lint ([RFC-0013](../../rfcs/0013-validation-and-ci.md)).
 
+The site's Learn glossary ([`web/learn/glossary.md`](../../web/learn/glossary.md), served at `/glossary`) restates these terms in plain words for readers, with these meanings, and this file wins on any difference. It also explains the field's general terms that this corpus uses without defining them (soundness, zero knowledge, security level, trusted setup, prover, verifier, witness).
+
 ## Terms
 
 <a id="adapter"></a>**Adapter.** The directory `systems/<name>/` and the OCI image built from it that wraps one upstream prover, unchanged, behind the five subcommands of the adapter contract. An adapter translates; it never patches upstream source. [RFC-0005](../../rfcs/0005-adapter-contract.md).

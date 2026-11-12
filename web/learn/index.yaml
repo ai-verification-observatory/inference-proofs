@@ -1,0 +1,87 @@
+# The Learn pages (the hub at /learn): the tracks and their pages in reading order, then the
+# glossary. Each page's words are in <slug>.md beside this file, in the Markdown subset that
+# web/draw/learn.py reads. A slug is the page's address on the site.
+title: Learn
+lead: >-
+  What a proof of inference is, what it can and cannot tell you, and how this site runs and
+  compares the systems that make such proofs.
+tracks:
+  - id: policy
+    name: For policy readers
+    reader: >-
+      For people who decide whether a claim about an AI system can be relied on: analysts,
+      advisers, regulators, auditors. No cryptography needed.
+    pages:
+      - slug: why-verify
+        title: Why verify
+        summary: >-
+          What it means to verify a claim about an AI system, why that is hard, and which part
+          of it this site covers.
+      - slug: proof-of-inference
+        title: What a proof of inference is
+        summary: >-
+          A file that lets you check that a model fixed in advance gives a certain reply to a
+          certain prompt, without rerunning the model and without seeing it. What a yes means,
+          and what it does not.
+      - slug: three-ways
+        title: Three ways to check
+        summary: >-
+          Rerun the computation, trust the hardware, or check a proof. What each asks you to
+          trust, and what it costs.
+      - slug: treaty
+        title: A treaty, stage by stage
+        summary: >-
+          How proofs of inference fit an agreement between two states that will not show each
+          other their weights, stage by stage.
+      - slug: before-you-rely
+        title: Before you rely on a proof
+        summary: >-
+          Nine questions to put to any system that offers a proof, and where this site answers
+          them.
+  - id: engineering
+    name: For engineers
+    reader: >-
+      For people who build, run or test these systems: ML engineers new to proof systems, and
+      cryptographers new to inference.
+    pages:
+      - slug: statement
+        title: The statement
+        summary: >-
+          Which sentence a proof proves, about which model, for which prompt and reply, in two
+          systems' own words.
+      - slug: inference
+        title: Inference, for cryptographers
+        summary: >-
+          What a language model computes when it answers, how it is served, and why the
+          computation is awkward to prove.
+      - slug: proof-systems
+        title: Proof systems, for ML engineers
+        summary: >-
+          How a short random check can stand in for rerunning a long computation: the ideas the
+          provers on this site are built from.
+      - slug: forward-pass
+        title: Proving a forward pass
+        summary: >-
+          How a transformer's forward pass becomes something a verifier can check: matrix
+          products by sumcheck, the other steps by lookups, the weights by a commitment.
+      - slug: architectures
+        title: Design families
+        summary: >-
+          The ways to write the computation down and to commit to the weights, and the checks
+          that are not proofs: what each makes cheap, what it makes expensive and what it has to
+          trust, in their publishers' own words.
+      - slug: cost
+        title: Where the cost goes
+        summary: >-
+          Why a proved reply costs a multiple of a served one, and how that multiple is computed
+          here.
+      - slug: method
+        title: How we compare
+        summary: >-
+          One request, six checks, one ranked figure, and the reason for each rule, where one is
+          given.
+glossary:
+  slug: glossary
+  title: Glossary
+  summary: >-
+    The terms these pages use, in plain words, with the precise meaning where the two differ.

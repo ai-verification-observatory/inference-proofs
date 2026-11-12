@@ -24,6 +24,7 @@ and a claim card beside every number saying what the proof establishes.</p>
 
 <p>
 <a href="https://www.inferenceproofs.ai"><b>Results</b></a> ·
+<a href="https://www.inferenceproofs.ai/learn"><b>Learn</b></a> ·
 <a href="docs/SPEC.md"><b>Specification</b></a> ·
 <a href="rfcs/README.md"><b>RFCs</b></a> ·
 <a href="docs/PRD.md"><b>PRD</b></a> ·
@@ -356,7 +357,7 @@ Code is licensed under [Apache-2.0](LICENSE). Specifications, data, results and 
 The boundary:
 
 - Code (Apache-2.0): `harness/`, `systems/*/` (except `claim.yaml`, `claims/` and `external.yaml`), `site/` templates, `schema/` and CI configuration.
-- Documents and data (CC BY 4.0): `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, and claim cards and external figures.
+- Documents and data (CC BY 4.0): `docs/`, `rfcs/`, `workloads/`, `reference/`, `results/`, `releases/`, `targets/`, `reports/`, `web/learn/` (the text of the site's Learn pages), and claim cards and external figures.
 - A file that fits neither list is code.
 
 <div align="center">

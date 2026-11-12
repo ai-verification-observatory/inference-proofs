@@ -13,6 +13,7 @@ from .chrome import (
     CARD_W,
     CHECKS_PAGE,
     HEAD_SCRIPT,
+    LEARN_PAGE,
     MANDATE_PAGE,
     font_faces,
     level_words,
@@ -20,6 +21,7 @@ from .chrome import (
 )
 from .hexagon import glyph_svg
 from .inks import COBALT, GROUND, LINE, MUTED, PAPER, ratio
+from .learn import glossary, glossary_entries
 from .mark import lockup_svg, mark_svg, stacked_svg, tile_svg
 from .overview import filled, href, name_of, standing, states
 from .words import (
@@ -36,15 +38,20 @@ from .words import (
 
 # ------------------------------------------------------------------ search
 # search.json, the local index the header's search reads (words.js; nothing leaves the browser):
-# the systems with a row, the models, the six checks, the pages and the systems not run. Each
+# the systems with a row, the models, the six checks, the pages, the Learn pages with the
+# glossary's terms, and the systems not run. Each
 # entry: its name, where it leads, its kind, the group words.js lists it under and the group's
 # tier (systems first, not run last: the order says what kind of entry it is, never how a system
 # did), a line of context, its glyph and the words it is found by.
 # a page's entry carries the mark, drawn on whole pixels (26 x 18 px) in its 28 px slot
 PAGE_MARK = mark_svg(2, cls="pie-svg lm", small=True)
-TIER = {"system": 0, "model": 1, "petal": 2, "check": 3, "figure": 4, "page": 4, "notrun": 5}
+# the script sorts the page in view first inside a tier, which would split a group in two: the
+# Learn pages and the glossary's terms each get a tier of their own
+TIER = {"system": 0, "model": 1, "petal": 2, "check": 3, "figure": 4, "page": 4, "learn": 4.1,
+        "term": 4.2, "notrun": 5}  # fmt: skip
 GROUP = {"system": "Systems", "model": "Models", "petal": "Glyph", "check": "Checks",
-         "figure": "Figures", "page": "Pages", "notrun": "Not run"}  # fmt: skip
+         "figure": "Figures", "page": "Pages", "learn": "Learn", "term": "Glossary",
+         "notrun": "Not run"}  # fmt: skip
 
 
 def search_entries():
@@ -98,6 +105,15 @@ def search_entries():
         PAGE_MARK,
         "mandate about who operator conflicts",
     )
+    if lv := S.V.get("learn"):
+        add("learn", lv["title"], LEARN_PAGE, lv["lead"], PAGE_MARK, "learn explain guide intro")
+        for t in lv["tracks"]:
+            for p in t["pages"]:
+                add("learn", p["title"], f"/{p['slug']}", p["summary"], "", t["name"])
+        g = glossary()
+        add("learn", g["title"], f"/{g['slug']}", g["summary"], "", "terms words definitions")
+        for name, tid, first in glossary_entries():
+            add("term", name, f"/{g['slug']}#{tid}", first, "")
     for r in S.V["not_run"]:
         add("notrun", r["name"], f"/#nr-{r['id']}", r["reason"], "")
     return out

@@ -19,10 +19,17 @@ from .words import PETAL_NAME, PETAL_WORD, e
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
 MANDATE_PAGE = "/mandate"  # what the site is for, what it does and does not do, who runs it
 CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
+LEARN_PAGE = "/learn"  # the hub of the Learn pages (learn.py), when the tree holds their words
 
 
 def file_of(path):
     return S.HERE / f"{path.strip('/') or 'index'}.html"
+
+
+def learn_page(slug):
+    """The Learn page at that address, or None (a tree with no Learn words, or without it)."""
+    tracks = (S.V.get("learn") or {}).get("tracks") or []
+    return next((p for t in tracks for p in t["pages"] if p["slug"] == slug), None)
 
 
 # ------------------------------------------------------------------ fonts, served from fonts/
@@ -86,13 +93,19 @@ GITHUB_MARK = (
 )
 
 
-def header(here):
+def header(here, under=False):
+    """`here` names the nav link to mark; `under` when the page in view is under that link's
+    page and not the page itself."""
+
     def a(href, label, key):
-        return f'<a href="{href}"{" aria-current=page" if here == key else ""}>{label}</a>'
+        mark = f" aria-current={'true' if under else 'page'}" if here == key else ""
+        return f'<a href="{href}"{mark}>{label}</a>'
 
     # The lockup leads to the overview; the nav holds the other pages; systems are reached by
     # search (one link each would not scale) or from the overview.
     nav = a(CHECKS_PAGE, "Checks", "checks")
+    if S.V.get("learn"):
+        nav = a(LEARN_PAGE, "Learn", "learn") + nav
     logo = lockup_svg(LOGO_CAP)
     current = " aria-current=page" if here == "home" else ""
     return (

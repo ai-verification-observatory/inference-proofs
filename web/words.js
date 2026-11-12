@@ -254,4 +254,219 @@
     });
   }
 
+  // ------------------------------------------------------------ the Learn pages' explorers (draw/figures.py)
+  // The build draws each one in full: every step, every case, the worked examples and every sentence. Here one
+  // state is shown at a time and the controls are added. The arithmetic is the build's own (figures.py), on the
+  // numbers the page holds; a sentence is a template of the page ({name} filled in).
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const button = (label, on, cls = 'xb') => { const b = el('button', cls, label); b.type = 'button'; b.addEventListener('click', on); return b; };
+  const check = (label, checked, on) => {
+    const l = el('label', 'xc'); const c = el('input'); c.type = 'checkbox'; c.checked = checked;
+    c.addEventListener('change', () => on(c.checked)); l.append(c, label);
+    return l;
+  };
+  const fill = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => v[k]);
+  const num = (x, d = 2) => x.toLocaleString('en-US', { maximumFractionDigits: d });
+  const rows = (s) => s.split(',').map((r) => r.trim().split(' ').map(Number));
+  const mod = (x, p) => ((x % p) + p) % p;
+  const list = (ws) => ws.length < 2 ? ws.join('') : `${ws.slice(0, -1).join(', ')} and ${ws[ws.length - 1]}`;
+  // a matrix as the build draws one (figures.grid): a table of its entries
+  const grid = (m) => {
+    const t = el('table', 'mx'); const body = el('tbody');
+    m.forEach((r) => { const tr = el('tr'); r.forEach((v) => tr.append(el('td', '', String(v)))); body.append(tr); });
+    t.append(body);
+    return t;
+  };
+  const column = (v) => grid(v.map((x) => [x]));
+
+  const explorers = {
+    // a walk: one step at a time, with a bar of the steps above it
+    steps(root) {
+      const items = $$('.xst', root);
+      if (items.length < 2) return;
+      let k = 0;
+      const dots = el('ol', 'xdots');
+      const show = (i, told) => {
+        k = Math.max(0, Math.min(items.length - 1, i));
+        items.forEach((li, j) => { li.hidden = j !== k; });
+        $$('.xdot', dots).forEach((b, j) => { b.classList.toggle('on', j === k); if (j === k) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+        prev.setAttribute('aria-disabled', String(k === 0)); next.setAttribute('aria-disabled', String(k === items.length - 1));
+        if (told) say(`${$('.xn', items[k]).textContent}: ${$('.xh', items[k]).textContent}`);
+      };
+      // at an end the button stays in place and focusable (aria-disabled): disabling it would drop the focus
+      const prev = button('Back', () => { if (k > 0) show(k - 1, true); });
+      const next = button('Next', () => { if (k < items.length - 1) show(k + 1, true); });
+      items.forEach((li, i) => {
+        const d = el('li'); const b = button(String(i + 1), () => show(i, true), 'xdot');
+        b.setAttribute('aria-label', `${$('.xn', li).textContent}: ${$('.xh', li).textContent}`);
+        d.append(b); dots.append(d);
+      });
+      const bar = el('div', 'xbar'); bar.append(prev, dots, next);
+      root.prepend(bar);
+      show(0, false);
+    },
+
+    // what is changed against what the verifier binds: refused when it binds a changed part
+    tamper(root) {
+      const panel = $('.xpn', root);
+      const picked = (name) => $$(`input[name=${name}]`, panel).filter((c) => c.checked);
+      const update = () => {
+        const changed = picked('change'); const bound = new Set(picked('bind').map((c) => c.value));
+        const caught = changed.filter((c) => bound.has(c.value)); const missed = changed.filter((c) => !bound.has(c.value));
+        const verdict = !changed.length ? 'twin' : caught.length ? 'refuse' : 'false';
+        $$('[data-v]', panel).forEach((p) => { p.hidden = p.dataset.v !== verdict; });
+        const shown = $(`[data-v=${verdict}]`, panel);
+        const parts = $('[data-slot=parts]', shown); const checks = $('[data-slot=checks]', shown);
+        const of = (cs) => cs.map((c) => $(`input[name=bind][value=${c.value}]`, panel).dataset.words);
+        if (parts) parts.textContent = list(of(verdict === 'refuse' ? caught : missed));
+        if (checks) checks.textContent = list(missed.map((c) => c.dataset.check));
+        $$('.xk li', panel).forEach((li) => {
+          const held = bound.has(li.dataset.check); const word = $('span', li);
+          $('.sw', li).className = `sw ${held ? 'held' : 'failed'}`;
+          word.textContent = held ? word.dataset.held : word.dataset.failed;
+        });
+      };
+      panel.addEventListener('change', update);
+      panel.before(el('p', 'xf xhn', root.dataset.wHint));
+      panel.hidden = false;
+      update();
+    },
+
+    // a claimed matrix product checked with one random vector: A·(B·r) against C·r
+    'random-check'(root) {
+      const d = root.dataset; const p = Number(d.p);
+      const A = rows(d.a); const B = rows(d.b); const wrong = rows(d.c); const right = rows(d.ok);
+      const mv = (m, v) => m.map((r) => mod(r.reduce((s, x, i) => s + x * v[i], 0), p));
+      const out = $('.xo', root); const shownC = $('.cl', root); const marked = shownC.innerHTML;
+      let honest = false; let counts = {};  // one tally per set r is drawn from: the two miss at different rates
+      const tally = el('p', 'xf'); const many = Number(d.runs);
+      const set = (top) => top === 1 ? d.wSetbits : fill(d.wSetfield, { top });
+      const one = (top) => {
+        const r = A[0].map(() => Math.floor(Math.random() * (top + 1)));
+        const left = mv(A, mv(B, r)); const got = mv(honest ? right : wrong, r);
+        const c = counts[top] || (counts[top] = { n: 0, k: 0 });
+        const equal = left.every((x, i) => x === got[i]);
+        c.n += 1; if (!equal) c.k += 1;
+        return { r, left, got, equal, c };
+      };
+      const draw = (top) => {
+        const { r, left, got, equal, c } = one(top);
+        const eq = el('div', 'eq'); const lb = (t) => el('span', 'lb', t);
+        eq.append(lb('r'), column(r), lb('A·(B·r)'), column(left), lb('C·r'), column(got));
+        const box = el('div', 'dr'); box.append(eq, el('p', 'vd', equal ? (honest ? d.wTrue : d.wMiss) : d.wDiff));
+        out.replaceChildren(box);
+        tally.textContent = fill(d.wTally, { n: num(c.n), k: num(c.k), set: set(top) });
+        say(`${$('.vd', box).textContent} ${tally.textContent}`);
+      };
+      const batch = (top) => {
+        let c; for (let i = 0; i < many; i++) c = one(top).c;
+        out.replaceChildren();
+        tally.textContent = fill(d.wTally, { n: num(c.n), k: num(c.k), set: set(top) });
+        say(tally.textContent);
+      };
+      const claim = check(d.wWrong, true, (on) => {
+        honest = !on; counts = {}; tally.textContent = '';
+        if (honest) shownC.replaceChildren(grid(right)); else shownC.innerHTML = marked;  // the build's own table
+        out.replaceChildren();
+      });
+      const bar = el('div', 'xbar');
+      bar.append(button(d.wBits, () => draw(1)), button(fill(d.wField, { top: p - 1 }), () => draw(p - 1)),
+        button(fill(d.wMany, { n: num(many), top: p - 1 }), () => batch(p - 1)), claim);
+      out.before(bar); out.after(tally);
+    },
+
+    // the sumcheck of an inner product over the field of p elements, as figures.sumcheck runs it
+    sumcheck(root) {
+      const d = root.dataset; const p = Number(d.p); const lie = Number(d.lie); const many = Number(d.runs);
+      const a0 = rows(d.a)[0]; const b0 = rows(d.b)[0];
+      const fold = (v, r) => v.slice(0, v.length / 2).map((x, i) => mod((1 - r) * x + r * v[v.length / 2 + i], p));
+      const dot = (a, b) => mod(a.reduce((s, x, i) => s + x * b[i], 0), p);
+      const inv2 = (p + 1) / 2;
+      const at = (s, r) => mod(s[0] * mod((r - 1) * (r - 2) * inv2, p) + s[1] * mod(-r * (r - 2), p) + s[2] * mod(r * (r - 1) * inv2, p), p);
+      const run = (challenges, off) => {
+        let a = a0; let b = b0; const claim = mod(dot(a, b) + off, p);
+        let running = claim; const rounds = [];
+        challenges.forEach((r) => {
+          const s = [0, 1, 2].map((t) => dot(fold(a, t), fold(b, t)));
+          s[0] = mod(running - s[1], p);
+          const next = at(s, r);
+          rounds.push({ s, claim: running, r, next });
+          running = next; a = fold(a, r); b = fold(b, r);
+        });
+        const final = mod(a[0] * b[0], p);
+        return { claim, rounds, a: a[0], b: b[0], final, accepted: final === running };
+      };
+      // the build's worked example, run again here: the two must agree
+      const first = $('.tr', root);
+      const draws = () => $$('tbody tr', first).map(() => Math.floor(Math.random() * p));
+      const built = $$('tbody tr', first).map((tr) => Number(tr.lastElementChild.textContent));
+      const again = run($$('tbody tr', first).map((tr) => Number(tr.children[4].textContent)), 0);
+      console.assert(again.accepted && again.rounds.every((rd, i) => rd.next === built[i]), 'sumcheck: the page and the script differ');
+      const out = $('.xo', root); const shown = first.cloneNode(true);
+      let lying = false; let challenges = $$('tbody tr', first).map((tr) => Number(tr.children[4].textContent));
+      const result = el('p', 'xf');
+      const show = () => {
+        const t = run(challenges, lying ? lie : 0);
+        $('.vd', shown).textContent = fill(lying ? d.wLying : d.wHonest, { claim: t.claim });
+        $$('tbody tr', shown).forEach((tr, i) => {
+          const rd = t.rounds[i]; const [s0, s1, s2] = rd.s; const c = tr.children;
+          c[1].textContent = rd.claim; c[2].textContent = fill(d.wSent, { s0, s1, s2 });
+          c[3].textContent = fill(d.wCheck, { s0, s1, sum: mod(s0 + s1, p) });
+          c[4].textContent = rd.r; c[5].textContent = rd.next;
+        });
+        const last = fill(d.wLast, { a: t.a, b: t.b, final: t.final, last: t.rounds[t.rounds.length - 1].next, verdict: t.accepted ? d.wAccepted : d.wRefused });
+        $('.vl', shown).textContent = last;
+        return last;
+      };
+      const who = check(d.wLies, false, (on) => { lying = on; result.textContent = ''; say(show()); });
+      const redraw = button(d.wRedraw, () => { challenges = draws(); result.textContent = ''; say(show()); });
+      const batch = button(fill(d.wMany, { n: num(many) }), () => {
+        let k = 0;
+        for (let i = 0; i < many; i++) if (run(draws(), lying ? lie : 0).accepted) k += 1;
+        result.textContent = `${$('.vd', shown).textContent}. ${fill(d.wRuns, { n: num(many), k: num(k) })}`;
+        say(result.textContent);
+      });
+      const bar = el('div', 'xbar'); bar.append(who, redraw, batch);
+      out.replaceChildren(shown); out.before(bar); out.after(result);
+      show();
+    },
+
+    // the bill for proving a share of replies, in units of the serving bill (figures.bill): generation is paid on
+    // every reply, proving on the share. The fields start on example values; a row of the board fills them when pressed
+    cost(root) {
+      const d = root.dataset;
+      const presets = $$('.pre li', root);
+      const sig = (x) => Number(Number(x).toPrecision(4));  // four significant digits, as the board prints a figure
+      const share = el('input'); share.type = 'range'; share.min = '0'; share.max = '400'; share.step = '1'; share.value = '200';
+      const part = (value) => { const i = el('input'); i.type = 'number'; i.min = '0'; i.step = 'any'; i.inputMode = 'decimal'; i.value = value; return i; };
+      const gen = part(d.g); const prove = part(d.p);
+      const field = (input, words) => { const l = el('label', 'xl'); l.append(el('span', 'xll', words), input); return l; };
+      const shown = el('span', 'xsv'); const out = el('p', 'xr'); out.setAttribute('role', 'status');
+      const last = new Map([[gen, Number(d.g)], [prove, Number(d.p)]]);  // a field's last valid value stands while it is empty
+      const read = (i) => { const x = i.value === '' ? NaN : Number(i.value); if (x >= 0) last.set(i, x); return last.get(i); };
+      const update = () => {
+        // the share as the page shows it, so a reader who multiplies the numbers shown gets the total shown
+        const s = Number((10 ** (Number(share.value) / 100 - 4)).toPrecision(2));
+        const g = read(gen); const p = read(prove);
+        const pct = `${Number((s * 100).toPrecision(2))} %`;
+        shown.textContent = pct; share.setAttribute('aria-valuetext', pct);
+        out.textContent = fill(d.wOut, { share: pct, g: `${num(sig(g), 4)}×`, p: `${num(sig(p), 4)}×`, total: `${num(sig(g + s * p), 4)}×` });
+      };
+      presets.forEach((li) => {
+        const b = button('', () => { gen.value = String(sig(li.dataset.g)); prove.value = String(sig(li.dataset.p)); update(); }, 'pb');
+        b.append(...li.childNodes); li.append(b);
+      });
+      const bar = el('div', 'xbar xin'); const sl = field(share, d.wShare); sl.append(shown);
+      bar.append(sl, field(gen, d.wGeneration), field(prove, d.wProving));
+      [share, gen, prove].forEach((i) => i.addEventListener('input', update));
+      const table = $('.tw', root);
+      table.before(el('p', 'xf xhn', presets.length ? d.wHintrows : d.wHint), bar, out);
+      update();
+    },
+  };
+  $$('.xpl[data-x]').forEach((root) => {
+    const start = explorers[root.dataset.x];
+    if (start) { start(root); root.classList.add('on'); }
+  });
+
 })();
