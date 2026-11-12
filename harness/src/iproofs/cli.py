@@ -291,6 +291,14 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.add_argument("run_dir", type=Path)
     p.set_defaults(handler=serving_size_session)
+    p = command(
+        "split-replies",
+        "move a stored ladder run's reply token ids to replies.jsonl beside run.json (SIZE-1)",
+        serving_sub,
+        "serving split-replies",
+    )
+    p.add_argument("run_dir", type=Path)
+    p.set_defaults(handler=serving_split_replies)
 
     release = sub.add_parser("release", help="benchmark releases (RFC-0009)")
     release_sub = release.add_subparsers(dest="release_command", required=True, metavar="ACTION")
@@ -981,6 +989,29 @@ def _hub_get(url: str) -> bytes:
     from iproofs.workloads import http_get  # noqa: PLC0415
 
     return http_get(url, timeout_s=120.0)
+
+
+def serving_split_replies(args: argparse.Namespace) -> int:
+    """`iproofs serving split-replies RUN_DIR`: a ladder run stored before the runner wrote
+    replies.jsonl itself gets the same two files; every other field is kept."""
+    from iproofs.replies import split_replies  # noqa: PLC0415
+    from iproofs.serialize import write_json  # noqa: PLC0415
+
+    path = args.run_dir / "run.json"
+    doc = json.loads(path.read_text())
+    if (args.run_dir / "manifest.json").is_file():
+        load = json.loads((args.run_dir / "manifest.json").read_text()).get("workload") or {}
+        if load.get("load_point") != "ladder":
+            raise IProofsError(ErrorKind.CONFIG, f"{args.run_dir} is not a ladder run")
+    new = split_replies(args.run_dir, doc)
+    write_json(path, new)
+    block = new.get("replies")
+    block = block if isinstance(block, dict) else {}
+    print(
+        f"serving split-replies {doc.get('run_id')}: {block.get('outputs', 0)} outputs to "
+        f"{block.get('file')} ({block.get('bytes', 0)} bytes, {block.get('sha256')})"
+    )
+    return 0
 
 
 def serving_check_mirror(args: argparse.Namespace) -> int:

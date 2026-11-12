@@ -89,7 +89,7 @@ Cross-document checks (also G2, rule ids `XREF-n`):
 Repository-shape checks (also G2):
 
 - `APP-1` on pull requests, no path under `results/` that exists on the base branch is modified or deleted, and no file is added inside an existing run directory ([RFC-0009 §Append-only rule and corrections](0009-results-and-publication.md#append-only-rule-and-corrections)).
-- `SIZE-1` no committed file outside `results/*/*/*/logs/` exceeds 5 MiB, and no run directory exceeds 10 MiB. This keeps weights and proofs out of git (AGENTS.md rule 8).
+- `SIZE-1` no committed file outside `results/*/*/*/logs/` exceeds 5 MiB, and no run directory exceeds 10 MiB. This keeps weights and proofs out of git (AGENTS.md rule 8). A serving ladder run (RFC-0018 CO-4) answers about 8,000 requests, and their 512-token replies would put about 60 MB in its run.json; the runner writes those token ids to `replies.jsonl` beside it instead, each output keeping `claimed_tokens`, and run.json names the file by sha256. The file goes to the bucket with the run and is not committed (`.gitignore`); `iproofs serving split-replies RUN_DIR` does the same for a run stored before (owner decision, 2026-11-12).
 
 ### G3 JSON format check
 
