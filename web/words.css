@@ -197,6 +197,15 @@ html:has(.top.s-on) { overflow: hidden; }
 .fig .n { font: 600 24px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .fig .u { font: 400 12px/14px var(--mono); }
 .fig .u.x { font: 600 16px/1 var(--mono); margin-left: -.2em; }
+.split { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 18px; row-gap: 6px; margin-top: 10px; }
+.split .sbar { grid-column: 1 / -1; width: 100%; max-width: 168px; height: 4px; display: block; }
+.split .bp { fill: var(--cobalt); }
+.split .bg { fill: var(--rule); }
+.split .part { display: flex; flex-direction: column; row-gap: 2px; }
+.split .pn { font: 600 15px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.split .px { font-weight: 600; margin-left: .1em; }
+.split .pl { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
+.split .pp .pl { color: var(--cobalt); }
 .sub { display: block; font: var(--f-meta); color: var(--muted); margin-top: 4px; }
 .na { font: 600 15px/18px var(--mono); color: var(--muted); }
 

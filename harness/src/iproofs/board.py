@@ -513,6 +513,19 @@ def _row_tree(
                     "D-L1-SESSION", [*events, *proofs], NullReason.MISSING_INPUT,
                     f"cold sessions of {n} replies")  # fmt: skip
     steady_in = (f"{index}/steady_gpu_seconds_per_reply", steady)
+    # CO-7: m = generation + proving where the adapter generates in a phase of its own (AD-4)
+    phased = bool(figures) and all(f.generation is not None for f in figures)
+    no_phase = None if phased else "no generation phase of its own: generation, if any, is " \
+        "inside the proving interval"  # fmt: skip
+    generation = _stat([f.generation if f.m is not None else None for f in figures],
+                       Unit.GPU_S_PER_REQUEST, Scope.PROVE_STEADY, "D-L1-GENERATION",
+                       marks or proofs, NullReason.NOT_APPLICABLE, no_phase)  # fmt: skip
+    proving = _stat([f.m - f.generation if f.m is not None and f.generation is not None
+                     else None for f in figures],
+                    Unit.GPU_S_PER_REQUEST, Scope.PROVE_STEADY, "D-L1-PROVING",
+                    [*proofs, *marks], NullReason.NOT_APPLICABLE, no_phase)  # fmt: skip
+    generation_in = (f"{index}/steady_generation_gpu_seconds_per_reply", generation)
+    proving_in = (f"{index}/steady_proving_gpu_seconds_per_reply", proving)
     session_in = (f"{index}/session_gpu_seconds_per_reply", session)
     first = (row.sessions.counted_in_order() or row.sessions.all)[0]
     commit = first.run.get("manifest", "system", "upstream", "commit")
@@ -533,6 +546,14 @@ def _row_tree(
             "D-L1-MULTIPLE", Unit.RATIO, Scope.WHOLE_WALL, session_in, baseline
         ),
         "steady_gpu_seconds_per_reply": steady,
+        "steady_generation_gpu_seconds_per_reply": generation,
+        "steady_proving_gpu_seconds_per_reply": proving,
+        "generation_multiple": _ratio(
+            "D-L1-MULTIPLE", Unit.RATIO, Scope.PROVE_STEADY, generation_in, baseline
+        ),
+        "proving_multiple": _ratio(
+            "D-L1-MULTIPLE", Unit.RATIO, Scope.PROVE_STEADY, proving_in, baseline
+        ),
         "session_gpu_seconds_per_reply": session,
         "steady_usd_per_reply": _usd(Scope.PROVE_STEADY, steady_in, price),
         "session_usd_per_reply": _usd(Scope.WHOLE_WALL, session_in, price),

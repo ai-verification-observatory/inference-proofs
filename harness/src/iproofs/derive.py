@@ -537,6 +537,10 @@ FORMULAS = {
     "+ n_G) + (generation.end - generation.start) * gpus / N when both marks exist",
     "D-L1-BASELINE-RATE": "CO-4: r_c = timed replies / (timed span * gpus) at concurrency c",
     "D-L1-BASELINE": "CO-4: 1 / r_c at full load, the lowest c with r_c >= (1 - plateau) * max r",
+    "D-L1-GENERATION": "CO-7: mean over counted sessions of the generation phase's GPU-seconds "
+    "(between the AD-4 marks) / N",
+    "D-L1-PROVING": "CO-7: mean over counted sessions of m - the generation phase's "
+    "GPU-seconds / N",
     "D-L1-MULTIPLE": "CO-5: row GPU-seconds per reply / baseline GPU-seconds per reply",
     "D-L1-USD": "GPU-seconds per reply * price per GPU-hour / 3600",
 }
