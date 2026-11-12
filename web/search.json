@@ -609,12 +609,34 @@
       "found": [],
       "group": "Glossary",
       "kind": "term",
+      "meta": "One of the five parts of the glyph: a property a prover can have in full, in part or not at all.",
+      "name": "Petal",
+      "pie": "",
+      "terms": "petal one of the five parts of the glyph: a property a prover can have in full, in part or not at all.",
+      "tier": 4.2,
+      "url": "/glossary#petal"
+    },
+    {
+      "found": [],
+      "group": "Glossary",
+      "kind": "term",
       "meta": "A commitment to a polynomial that can later be opened at one point: the prover shows the polynomial's value there, and the verifier checks it against the commitment alone.",
       "name": "Polynomial commitment",
       "pie": "",
       "terms": "polynomial commitment a commitment to a polynomial that can later be opened at one point: the prover shows the polynomial's value there, and the verifier checks it against the commitment alone.",
       "tier": 4.2,
       "url": "/glossary#polynomial-commitment"
+    },
+    {
+      "found": [],
+      "group": "Glossary",
+      "kind": "term",
+      "meta": "A system's place among the systems that passed on one model: one plus the number of systems placed above it.",
+      "name": "Position",
+      "pie": "",
+      "terms": "position a system's place among the systems that passed on one model: one plus the number of systems placed above it.",
+      "tier": 4.2,
+      "url": "/glossary#position"
     },
     {
       "found": [],
@@ -659,6 +681,17 @@
       "terms": "prover the program that produces a proof, and by extension whoever runs it.",
       "tier": 4.2,
       "url": "/glossary#prover"
+    },
+    {
+      "found": [],
+      "group": "Glossary",
+      "kind": "term",
+      "meta": "Whoever releases a system and its documents, or a model and its weights.",
+      "name": "Publisher",
+      "pie": "",
+      "terms": "publisher whoever releases a system and its documents, or a model and its weights.",
+      "tier": 4.2,
+      "url": "/glossary#publisher"
     },
     {
       "found": [],
@@ -741,6 +774,17 @@
       "found": [],
       "group": "Glossary",
       "kind": "term",
+      "meta": "One system on one model, as the ladder prints it: its standing, its glyph and its figures.",
+      "name": "Row",
+      "pie": "",
+      "terms": "row one system on one model, as the ladder prints it: its standing, its glyph and its figures.",
+      "tier": 4.2,
+      "url": "/glossary#row"
+    },
+    {
+      "found": [],
+      "group": "Glossary",
+      "kind": "term",
       "meta": "One open-weights model of a level, with its serving baseline.",
       "name": "Rung",
       "pie": "",
@@ -780,6 +824,17 @@
       "terms": "serving baseline what it costs to answer the request with no proof: the publisher's own release of the model, served by a standard engine at full load.",
       "tier": 4.2,
       "url": "/glossary#serving-baseline"
+    },
+    {
+      "found": [],
+      "group": "Glossary",
+      "kind": "term",
+      "meta": "One run of a system from a cold start: it commits to the model, then answers and proves a fixed set of requests.",
+      "name": "Session",
+      "pie": "",
+      "terms": "session one run of a system from a cold start: it commits to the model, then answers and proves a fixed set of requests.",
+      "tier": 4.2,
+      "url": "/glossary#session"
     },
     {
       "found": [],

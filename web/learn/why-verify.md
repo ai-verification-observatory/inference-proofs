@@ -1,14 +1,14 @@
 A company says its service answers with a certain model. A lab tells a regulator that the model it sells is the model that was tested. A state tells another state that its data centres serve only approved models. In each case the listener is in the same position: the claim is about a computation that only the claimant can see. This page says what it means to verify such a claim, why that is hard for AI, and which small part of the problem this site covers.
 
 :::note In short
-A proof of inference can show one thing: that a given reply is what a model fixed in advance gives for a given prompt. The checker needs no copy of the model. A proof cannot show that the reply was served, that the machine did nothing else, or that the model is safe. The systems that make such proofs are research prototypes, and the table on the next page is everything this site has run.
+A proof of inference can show one thing: that a given reply is what a model fixed in advance gives for a given prompt. Whoever checks it needs no copy of the weights. A proof cannot show that the reply was served, that the machine did nothing else, or that the model is safe. The systems that make such proofs are research prototypes, and the table on the next page is everything this site has run.
 :::
 
 ## Claims nobody outside can check
 
 You send a prompt to a service and a reply comes back. The service says a particular model wrote it. You hold the prompt and the reply. You do not hold the model, and nothing in the reply says which model produced it.
 
-Researchers who tested commercial services offering four open models in 2024 found that ["11 out of 31 endpoints serve different distributions than reference weights released by Meta"](https://arxiv.org/abs/2410.20247). The causes they name are that providers "may quantize, watermark, or finetune the underlying model", without saying so. A [2026 study](https://arxiv.org/abs/2603.01919) of unofficial resale services reports "identity verification failures in 45.83% of fingerprint tests", and words its conclusion with care: "fingerprint-based evidence consistent with deceptive model claims in a subset of audited endpoints".
+Researchers who tested commercial services offering four open models in 2024 found that ["11 out of 31 endpoints serve different distributions than reference weights released by Meta"](https://arxiv.org/abs/2410.20247). The causes they name are that providers "may quantize, watermark, or finetune the underlying model", without saying so. A [2026 study](https://arxiv.org/abs/2603.01919) of unofficial resale services reports "identity verification failures in 45.83% of fingerprint tests", and concludes: "fingerprint-based evidence consistent with deceptive model claims in a subset of audited endpoints".
 
 Regulators meet a wider version of this gap. The 2026 [International AI Safety Report](https://internationalaisafetyreport.org/publication/international-ai-safety-report-2026) puts it as a matter of evidence: "Information asymmetries limit access to evidence about general-purpose AI systems."
 
@@ -21,7 +21,7 @@ The word is used in four ways, and arguments go wrong when they are mixed.
 | Checking a claim | Finding evidence that a claim is true | Anyone with the evidence |
 | Finding compliance | Deciding that a party has kept a rule or a treaty | An institution, using everything it knows |
 | Formal verification | A mathematical proof that software meets its specification | Specialists, with proof tools |
-| Running a verifier | Running the program that checks a cryptographic proof and answers yes or no | A computer, in seconds or minutes |
+| Running a verifier | Running the program that checks a cryptographic proof and answers yes or no | A computer |
 
 A [RAND report](https://arxiv.org/abs/2507.15916) on verifying AI agreements defines the first: "The act or process of checking whether a claim is true, such as checking whether a party has complied with a requirement as claimed." The tools this site runs are of the fourth kind. Such a tool can supply evidence for the first two. It is never the second by itself: as a [report to the US Congress](https://www.everycrsreport.com/reports/R41201.html) on arms control says, "verification is almost always a matter of judgment".
 
@@ -39,7 +39,7 @@ Each way of checking gives something up against one of these. Rerunning needs th
 
 ## A wide field, and one corner of it
 
-A curated [bibliography of the research](https://github.com/WHodgkins/AI-Verification-Papers), which these pages draw on, defines the field this way:
+A [bibliography of the research](https://github.com/WHodgkins/AI-Verification-Papers), which these pages draw on, defines the field this way:
 
 :::quote https://github.com/WHodgkins/AI-Verification-Papers AI Workload Verification Papers, a bibliography built on a reading list by Will Hodgkins
 AI workload verification establishes properties of computations performed on AI hardware — for example, whether accelerators are being used for training or inference, which model is running, whether required safeguards are active, or whether information has left an approved environment.
@@ -56,7 +56,7 @@ This site covers part of one item of that list, "which model is running": for on
 | A security team | Only replies of our own model leave this server | [Signing the traffic](https://www.anthropic.com/rsp/roadmap) and [recomputing inference on a trusted server](https://www.anthropic.com/research/provable-inference), at Anthropic |
 | A state | Another state's declared data centres do what it declared | Proposals, of which few parts are built |
 
-The needs are well documented. That cryptographic proofs will meet them is not: where something is deployed today, it is usually one of the alternatives that [Three ways to check](/three-ways) compares. And none of the laws and official texts we read asks for a proof. The [EU AI Act](http://publications.europa.eu/resource/celex/32024R1689), for instance, asks providers of general-purpose models for technical documentation, and providers of those with systemic risk also for model evaluations and for cybersecurity protection of the model. A proof could support one of them: that the model evaluated is the model deployed.
+The needs are documented. Nothing shows that cryptographic proofs will meet them: where something is deployed today, it is usually one of the alternatives that [Three ways to check](/three-ways) compares. And none of the laws and official texts we read asks for a proof. The [EU AI Act](http://publications.europa.eu/resource/celex/32024R1689), for instance, asks providers of general-purpose models for technical documentation, and providers of those with systemic risk also for model evaluations and for cybersecurity protection of the model. A proof could support one of them: that the model evaluated is the model deployed.
 
 ## A word in official texts
 

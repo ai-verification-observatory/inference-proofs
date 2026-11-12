@@ -6,7 +6,7 @@ The checker, meaning whoever wants the claim checked, or a server it trusts, hol
 
 It is the method the research on AI agreements proposes first, and it is in use. Anthropic, which also publishes one of the provers on this site, [reports](https://www.anthropic.com/research/provable-inference) that it met its own 2026 goal for checking its inference "through a separate but related project, which signs our inference traffic and recomputes inference on a trusted server". The operator's extra cost is close to nothing. The checker pays for whatever share it reruns.
 
-It asks for two things. The arithmetic has to repeat: two runs of the same model can differ in the last digits, so either the computation is made reproducible or the comparison allows a tolerance, and a tolerance is room to cheat. And a machine other than the operator's own has to hold the weights. Between a company and its own security team that is no obstacle. Between rivals it is the hard part. Designs for that case put the rerunning machine in a guarded enclosure, sometimes inside the operator's data centre, and let only a pass or a fail leave it. The weights are then shown to a box, not to the other side, and everything rests on the box. As [Hausenloy and Li](https://jasminexli.substack.com/cp/207744145) put it, "the recomputation cluster sees the records of someone's frontier computations, so it has to be defended like the secrets themselves".
+It asks for two things. The arithmetic has to repeat. Two runs of the same model can differ in the last digits. Either the computation is made reproducible, or the comparison allows a tolerance, and a tolerance is room to cheat. And a machine other than the operator's own has to hold the weights. Between a company and its own security team that is no obstacle. Between rivals it is the hard part. Designs for that case put the rerunning machine in a guarded enclosure, sometimes inside the operator's data centre, and let only a pass or a fail leave it. The weights are then shown to a box, not to the other side, and everything rests on the box. As [Hausenloy and Li](https://jasminexli.substack.com/cp/207744145) put it, "the recomputation cluster sees the records of someone's frontier computations, so it has to be defended like the secrets themselves".
 
 ## Trust the hardware
 
@@ -18,22 +18,22 @@ What it asks is trust in the chip. The signature is the chip maker's, and it is 
 
 ## Check a proof
 
-The operator commits to its model and produces, for each reply to be checked, a [[proof of inference]]. The checker runs a small program on the proof. [What a proof of inference is](/proof-of-inference) describes it.
+The operator commits to its model and produces, for each reply to be checked, a [[proof of inference]]. The checker runs the [[verifier]] on the proof. [What a proof of inference is](/proof-of-inference) describes it.
 
-Nobody but the operator holds the weights, and the proof itself asks for trust in no special hardware. What is trusted instead is mathematics, the checking program, and the source of the commitment. Whoever is given the prompt, the reply and the proof can run the check, including parties who were not part of the arrangement.
+Nobody but the operator holds the weights, and the proof itself asks for trust in no special hardware. What is trusted instead is a set of mathematical assumptions, the verifier, and the source of the commitment. Whoever is given the prompt, the reply and the proof can run the check, including parties who were not part of the arrangement.
 
-The price is the operator's. Producing a proof costs a large multiple of producing the reply. Today's systems prove a quantized copy of the model with exactly fixed arithmetic, not the model as it is usually served, so the operator has to serve that copy. An operator can also decline to produce a proof. And the software is young: the Singapore AI Safety Hub, which builds one of the provers, [warns](https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note) that "bugs in deployed proof systems have let provers prove false statements before". [Before you rely on a proof](/before-you-rely) gives a recent case of a security claim that had to be lowered.
+The price is the operator's. Producing a proof costs a large multiple of producing the reply. Today's systems prove a [[quantization|quantized]] copy of the model, computed in exact arithmetic, not the model as it is usually served, so the operator has to serve that copy. An operator can also decline to produce a proof. And the software is young: the Singapore AI Safety Hub, which builds one of the provers, [warns](https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note) that "bugs in deployed proof systems have let provers prove false statements before". [Before you rely on a proof](/before-you-rely) gives a recent case of a security claim that had to be lowered.
 
 ## Side by side
 
 | Question | Run it again | Trust the hardware | Check a proof |
 |---|---|---|---|
-| The checker must hold | The weights, and hardware that can run them | The chip maker's public key and the expected report | The commitment and a small program |
-| What has to be trusted | The machine that reruns | The chip maker, and that nobody opened the machine | Mathematical assumptions, the checking program, the source of the commitment |
+| The checker must hold | The weights, and hardware that can run them | The chip maker's public key and the expected report | The commitment and the verifier |
+| What has to be trusted | The machine that reruns | The chip maker, and that nobody opened the machine | Mathematical assumptions, the verifier, the source of the commitment |
 | If only a sample is checked | How it is drawn, and the record it is drawn from | Does not apply: every run is attested | How it is drawn, and the record it is drawn from |
 | What the operator reveals | The weights, to a machine both sides must trust | Nothing beyond the report | The prompt and the reply it proves, and the model's size and shape. Nothing about the weights, where the system hides them |
 | Extra cost to the operator | Close to none | 2.88 % of throughput and 9 to 16 % of first-token latency, in the measurement quoted above | A large multiple of serving: see the [ladder](/) |
-| What breaks it | A dishonest rerun, or arithmetic that does not repeat | Physical access to the machine, or a leaked signing key | A flaw in the checking program, a commitment to the wrong model, or an operator that declines to prove |
+| What breaks it | A dishonest rerun, or arithmetic that does not repeat | Physical access to the machine, or a leaked signing key | A flaw in the verifier, a commitment to the wrong model, or an operator that declines to prove |
 | Where it stands | In use inside at least one company. Between rivals, no party that both trust to rerun | Generally available | Research prototypes |
 
 Two more approaches sit outside this table. Testing a service from outside needs no cooperation: it compares a service's replies with a reference copy, and it is how the cases on [the first page](/why-verify) were found. It gives a statistical verdict over many requests and says little about any one reply. The other is people on site: inspectors, or evaluators working inside a developer. A [2025 report](https://arxiv.org/abs/2506.15867) on verifying AI agreements stresses that "increased access (e.g., physical inspections of data centers) can often substitute for these technical approaches".
@@ -60,4 +60,4 @@ The Singapore AI Safety Hub, which builds a prover and also works on trusted har
 TEEs and activation checks are cheap, and for many settings they are the right tool; TEEs are a sensible starting point for a first agreement. What they cost is trust: in a hardware vendor, in a third party, or in a tolerance. A proof moves that trust into cryptographic assumptions and into code that both sides can read.
 :::
 
-Cost is one open question about that move. How mature the software is, what the checker sees and what the operator has to change are others. Most of the plans written for the case of two states choose rerunning. [A treaty, stage by stage](/treaty) walks through that case and marks, stage by stage, what stands behind each step.
+Cost is one open question about that move. How mature the software is, what the checker sees and what the operator has to change are others. Most of the plans written for the case of two states choose rerunning. [A treaty, stage by stage](/treaty) walks through that case and marks what stands behind each stage.

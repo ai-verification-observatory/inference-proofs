@@ -41,7 +41,7 @@ A proof is compared with the cost of an ordinary reply, so it matters how ordina
 The cost of one served reply therefore depends on the load. A lone request on an idle GPU is expensive, and a request among hundreds is cheap. This benchmark takes the [[serving baseline]] at full load: it raises the concurrency step by step until the rate stops rising.
 
 :::measured baselines
-The serving baselines of Level 1: the publisher's own release of each model, on the fewest GPUs that hold it. A model with no stored baseline run says so.
+The serving baselines of Level 1: the publisher's own release of each model, on the fewest GPUs that hold it. Where a model has no stored baseline run, the line says so.
 :::
 
 The cost of a served reply at full load is the number every proving cost is divided by.

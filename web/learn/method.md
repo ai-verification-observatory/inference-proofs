@@ -4,10 +4,10 @@ A benchmark of provers has to settle three things before it runs anything: what 
 
 Published figures for provers differ in four things at once: the model, the hardware, the timing rule and the statement proved. We fix the hardware, the timing rule and the request. We cannot fix the model: no two runnable systems share one, so each model is a rung and nothing is ranked across rungs. We cannot fix the statement either, so we print it.
 
-1. **The rules are frozen.** The level file holds the constants of the request, the sessions, the steady state, the baseline, the order rule and the fidelity test. The number of trials per control and the thresholds of the glyph are in the RFC. The stated aim is a level file "frozen before the first counted run, so no constant is chosen after seeing a row". The record is less tidy than that sentence. The file was frozen three times on 2026-11-11, each time with a new beacon round: a rung was added, then the serving ladder was extended after a first serving run on the largest model had not reached full load. Every counted run names the last frozen file by its digest, and every page's footer prints it. Two rules were added to the RFC after that freeze: SE-5, on a refusal by a system's own code, and CO-7, the split of m into generation and proving, written after the first FlashProve session was stored. Neither changes a constant, m or the order rule.
+1. **The rules are frozen.** The level file holds the constants of the request, the sessions, the steady state, the baseline, the order rule and the fidelity test. The number of trials per control and the thresholds of the glyph are in the RFC. The stated aim is a level file "frozen before the first counted run, so no constant is chosen after seeing a row". Every counted run names the frozen file by its digest, and every page's footer prints it. The record differs from the aim in two ways, given under [Who wrote the rules](#who-wrote-the-rules-and-how-they-changed).
 2. **Nobody picks the prompts.** They are windows of public-domain books, drawn with a seed taken from a [public randomness beacon](https://docs.drand.love/): the first round produced after the commit that froze the level. In the RFC's words, "nobody, the operator included, knows the prompts when the constants are fixed, and nobody chooses the round". The operator there is whoever runs this benchmark.
 3. **Systems run as published.** Each runs at a full commit hash, unpatched, with no option its documentation does not name. An [[adapter]] wraps it and changes nothing.
-4. **Times are read from outside.** Times are read from outside the system's container. A proof counts as released at the instant our process sees its files appear, because, in the words of [RFC-0011](repo:rfcs/0011-measurement-and-sampling.md), "this project must not depend on code inside the container for its headline numbers".
+4. **Times are read from outside.** Our process reads the clock outside the system's container. A proof counts as released at the instant that process sees its files appear, because, in the words of [RFC-0011](repo:rfcs/0011-measurement-and-sampling.md), "this project must not depend on code inside the container for its headline numbers".
 5. **The commitment comes from our record.** The verifier is given the [[commitment]] from our record of the commit step, never from files sent with a proof. Otherwise, as [RFC-0014](repo:rfcs/0014-provenance-and-integrity.md) puts it, "a forged proof with a matching forged commitment is accepted".
 
 ## One request for every system
@@ -41,7 +41,7 @@ A benchmark that only times honest runs cannot tell a verifier from a program th
 | [No weight file](/checks#no_weight_file) | Trace every file the verifier opens, with no GPU visible and no model file on the machine | The verifier reached its verdicts without opening a model file |
 | [Fidelity](/checks#fidelity) | Compare the replies with those of the publisher's original weights | The proved copy is closer to the original than a copy damaged on purpose |
 
-The three tampering checks reuse the [[control|negative controls]] of [RFC-0008](repo:rfcs/0008-negative-controls.md), and three rules keep them from flattering or accusing a system by accident.
+The three tampering checks reuse the [[control|negative controls]] of [RFC-0008](repo:rfcs/0008-negative-controls.md), and three rules keep them from giving a system a result it has not earned, either way.
 
 - **The honest twin.** Each tampered input is checked beside the untouched one, in the same batch. If the untouched proof is not accepted, the trial is void, "so a broken control or a broken run cannot pass for a strong verifier".
 - **Three states.** A check is held, failed or undecided, and an undecided check names its cause. It "is never worded as a failure".
@@ -53,11 +53,19 @@ No reviewer sets a state. Each is computed from stored records, which every syst
 None of them attempts a forged proof. The RFC says: "Tests cannot tell a proof from a signature." A system whose proof was only the operator's signature over the commitment, the prompt and the reply, made after checking that the loaded weights match the commitment, would refuse every change we make. The checks show that the changes we made to the model, the prompt and the reply were refused: one weight, one prompt token, three reply positions, three trials each. They do not show that every change would be refused, that the proofs are [[soundness|sound]] or that they hide the weights. Those two properties are read from what each publisher states, and marked as such.
 :::
 
+## Fidelity: is the proved model the publisher's?
+
+RFC-0018's motivation says: "A system can quantize a model until proving it is cheap." The Fidelity check asks how far the proved copy has moved from the original.
+
+The score of a reply is the number of leading tokens it shares with the reply of the publisher's original weights to the same prompt. The same score is computed for comparison copies: honest ones (the original run a second time, two mild quantizations) and damaged ones (two harsh quantizations, the model with a quarter of its blocks removed, a smaller model of the same family). The bar is the damaged copy that scores highest among those every honest copy scores above. The check is held when the system's replies score above the bar, by a paired test over the prompts.
+
+The KL divergence from the original is printed beside it and decides nothing, because it "comes from a program that is not the proved computation". The RFC also says where the gate is weak: it "is coarse at 15 replies" on the 8B rung, and "stops gross damage".
+
 ## One figure: the multiple of serving
 
 "A proving rate alone says nothing about cost relative to the work being proved", in the words of [RFC-0015](repo:rfcs/0015-reference-rows.md). The ranked figure is therefore a ratio on one model, the [[multiple]]: m, the GPU-seconds of one more proved reply with its generation included, as the mean of three sessions, over b, the GPU-seconds of a reply served at full load on the same kind of GPU. [Where the cost goes](/cost) defines both and draws the session they are taken from.
 
-Each half can be moved without changing a prover, and has a rule against it. Proofs are grouped by when they were released, not by batch. The rule comes from an error of our own: an earlier rule counted more replies than the interval had produced, and proving looked cheaper than it was. For serving, full load is found by a ladder of concurrencies, and a ladder whose rate is still rising at the top gives no baseline at all. The stated goal is "a cost figure that a hostile expert cannot move by choosing a window, a batch or a baseline".
+Each half can be moved without changing a prover, and has a rule against it. Proofs are grouped by when they were released, not by batch. The rule comes from an error of our own: an earlier rule counted more replies than the interval had produced, and proving looked cheaper than it was. For serving, full load is found by raising the concurrency in steps, and a run whose rate is still rising at the last step gives no baseline at all. The stated goal is "a cost figure that a hostile expert cannot move by choosing a window, a batch or a baseline".
 
 Two limits are admitted in [RFC-0015](repo:rfcs/0015-reference-rows.md)'s own list of drawbacks. Serving with an engine's defaults "is not the maximum achievable serving throughput". And the served precision is the publisher's choice, so the ratio "mixes the cost of proving with a precision difference the publisher chose".
 
@@ -65,13 +73,9 @@ Two limits are admitted in [RFC-0015](repo:rfcs/0015-reference-rows.md)'s own li
 The rows of the board today. A row with too few release groups has no m, and prints its whole-session cost over b instead, labelled as cold sessions.
 :::
 
-## Fidelity: is the proved model the publisher's?
+## Order
 
-RFC-0018's motivation says it in one line: "A system can quantize a model until proving it is cheap." The Fidelity check asks how far the proved copy has moved from the original.
-
-The score of a reply is the number of leading tokens it shares with the reply of the publisher's original weights to the same prompt. The same score is computed for control copies: honest ones (the original run a second time, two mild quantizations) and damaged ones (two harsh quantizations, the model with a quarter of its blocks removed, a smaller model of the same family). The bar is the damaged copy that scores highest among those every honest copy scores above. The check is held when the system's replies score above the bar, by a paired test over the prompts.
-
-The KL divergence from the original is printed beside it and decides nothing, because it "comes from a program that is not the proved computation". The RFC also says where the gate is weak: it "is coarse at 15 replies" on the 8B rung, and "stops gross damage".
+A system is placed above another when its multiple is at least 10 % lower and its highest session m is below the other's lowest. A system with a multiple is placed above one without. A system's position is one plus the number of systems placed above it, so systems with the same count share a position. A system that passed is ranked only if its publisher states a security level. The level is printed as stated and no floor is applied, because "tests cannot tell 60 bits from 128, and the levels publishers state are not comparable without recomputation".
 
 ## The glyph: stated, then lowered by tests
 
@@ -81,19 +85,25 @@ Passing the checks is the entry gate. The [[glyph]] shows the distance from ther
 - **Tests only lower.** A failed check turns its petals red. A held check never turns one green. RFC-0018 gives no reason. The earlier [RFC-0016](repo:rfcs/0016-glyph-properties-and-states.md) did: a passed control shows that one change was refused, and "reading more into it would turn a test into a certificate".
 - **The glyph never moves a position.** The order is cost among the systems that passed.
 
-## Order
-
-A system is placed above another when its multiple is at least 10 % lower and its highest session m is below the other's lowest. A system with a multiple is placed above one without. A system's position is one plus the number of systems placed above it, so systems with the same count share a position. A system that passed is ranked only if its publisher states a security level. The level is printed as stated and no floor is applied, because "tests cannot tell 60 bits from 128, and the levels publishers state are not comparable without recomputation".
-
 ## What was set by judgement
 
-Some constants have no derivation in the text. They were fixed before the runs, not argued for: the 10 % margin of the order rule, the 5 % tolerances of the steady state and of full load, three trials per control, the 0.05 level of the fidelity test, 128 bits for a green Unforgeable petal. If one looks wrong to you, that is an [issue](https://github.com/ai-verification-observatory/inference-proofs/issues) we want.
+Some constants have no derivation in the text. They were fixed before the runs and are not argued for:
+
+- the 10 % margin of the order rule;
+- the 5 % tolerances of the steady state and of full load;
+- three trials per control;
+- the 0.05 level of the fidelity test;
+- 128 bits for a green Unforgeable petal.
+
+If one looks wrong to you, that is an [issue](https://github.com/ai-verification-observatory/inference-proofs/issues) we want.
 
 The same goes for what Level 1 leaves out: closed-weights models, runs made by a lab on its own machines, and any test of soundness. A draft of [Level 2](repo:rfcs/0018-level-1-ladder.md#levels) is published with it "so labs can prepare": a security floor of 100 bits that a third party recomputes from the parameters as run, a KL figure tied to the proved computation that joins the fidelity gate, and a reply chosen after serving.
 
-## Who wrote the rules
+## Who wrote the rules, and how they changed
 
-The [mandate](/mandate) names who runs this benchmark. RFC-0018 carries its own conflict-of-interest note, which we repeat here because it bears on the rules above: the text "was drafted with an AI agent, Claude, made by Anthropic, which publishes FlashProve", and it names the rules that most affect that system: that generation is counted inside m, how the baseline is chosen, and the order rule's need for a stated security level, which FlashProve's documents state for its Lean verifier and not for the C++ verifier the row runs. A rule changes only through a public [RFC](repo:rfcs/README.md). A frozen level is meant never to change: a new rule is a new level. Level 1 has kept its constants since its last freeze and has gained the two rules named above.
+The [mandate](/mandate) names who runs this benchmark. RFC-0018 carries a conflict-of-interest note, repeated here because it bears on the rules above. The text "was drafted with an AI agent, Claude, made by Anthropic, which publishes FlashProve". The note names the rules that most affect FlashProve: that generation is counted inside m, how the baseline is chosen, and the order rule's need for a stated security level. FlashProve's documents state one for its Lean verifier and not for the C++ verifier the row runs.
+
+A rule changes only through a public [RFC](repo:rfcs/README.md), and a frozen level is meant never to change: a new rule is a new level. The record of Level 1 differs in two ways. The level file was frozen three times on 2026-11-11, each time with a new beacon round: a rung was added, then the serving ladder was extended after a first serving run on the largest model had not reached full load. And two rules were added to the RFC after the last freeze: SE-5, on a refusal by a system's own code, and CO-7, the split of m into generation and proving, written after the first FlashProve session was stored. Neither changes a constant, m or the order rule.
 
 ## Reading on
 

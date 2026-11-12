@@ -2,7 +2,7 @@ A proof proves one sentence and nothing more. Two systems can both *prove infere
 
 ## The parts of the sentence
 
-A proof system is built around a relation between two things: a public [[statement]], which the verifier is given, and a private [[witness]], which only the prover holds. The verifier's yes means that a witness exists for which the relation holds. Some systems state more: that the prover knows such a witness. Read which one a system states.
+A proof system is built around a relation between two things: public inputs, which the verifier is given, and a private [[witness]], which only the prover holds. The [[statement]] is the sentence that says the relation holds for them. The verifier's yes means that a witness exists for which the relation holds. Some systems state more: that the prover knows such a witness. Read which one a system states.
 
 | Part | Public or private | For inference |
 |---|---|---|
@@ -21,7 +21,7 @@ FlashProve's documentation says that, under its exact-match policy, a yes from i
 
 SASH's prover cuts the computation into segments: one layer applied to one block of positions, or the output head applied to one block. Its [claim card](repo:systems/sash/claim.yaml) records what its verifier's exit code stands for: every segment proof verifies, every link between segments "ran and chained on its own axis", and every position's token is "the prompt's or the previous position's proved argmax".
 
-Both are statements about a committed model decoding greedily. They differ in almost everything else: what one proof covers, how the pieces are joined, what is hidden, and how the strength of the whole is stated. A proving time can be read only beside the sentence it was obtained for.
+Both are statements about a committed model decoding greedily. They differ in four things: what one proof covers, how the pieces are joined, what is hidden, and how the strength of the whole is stated. A proving time can be read only beside the sentence it was obtained for.
 
 ## Reading it clause by clause
 
@@ -57,7 +57,7 @@ The decoding rule is part of the statement. Under exact match, each reply token 
 
 When a computation is proved in pieces, the statement has to cover the seams. SASH's [documentation](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md) says how its pieces are tied: "The residual stream leaving a segment and the keys and values a block writes are committed as their own trees, and `boundary-grid` compares each such root with the root the consuming segment committed for its input." Its claim card lists sixteen edges, each marked as [[bound]]: twelve inside a segment, two between segments, and two at the ends, where the embedding row enters and the token is chosen.
 
-Fourteen of the sixteen have a switch that turns their check off, named `--unsound-skip-`: the publisher's own label for a proof that would say less. Its [README](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md) adds: "A run with a skip in effect is a control, never a result." This benchmark holds to the same rule.
+Fourteen of the sixteen have a switch that turns their check off, whose name starts with `--unsound-skip-`: the publisher's own label for a proof that would say less. Its [README](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md) adds: "A run with a skip in effect is a control, never a result." This benchmark holds to the same rule.
 
 ### How strong, and for what
 
@@ -71,7 +71,7 @@ Every statement leaves something a dishonest prover can still do. A claim card c
 
 ## The claim card
 
-All of the above is recorded per system in a [[claim card]]: the relation, the security notion and level, the assumptions, what is bound, the residual. Every field is copied from the system's own documents at a pinned commit, with a link to the line. Where the documents are silent the card reads "not stated", which records silence and not the absence of a property. Each card records whether the system's maintainers have reviewed it. At the time of writing, neither of the two cards has been. A card copies or cites: where it sums up several lines of a document in a sentence of its own, the link shows the lines.
+All of the above is recorded per system in a [[claim card]]: the relation, the security notion and level, the assumptions, what is bound, the residual. Every field is copied from the system's own documents at a pinned commit, with a link to the line. Where the documents are silent the card reads "not stated", which records silence and not the absence of a property. Each card records whether the system's maintainers have reviewed it. As of 12 November 2026, neither of the two cards has been. A card copies or cites: where it sums up several lines of a document in a sentence of its own, the link shows the lines.
 
 ## What the benchmark does with it
 
