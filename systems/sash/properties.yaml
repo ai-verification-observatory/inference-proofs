@@ -6,7 +6,7 @@
 schema: "properties/1"
 system: "sash"
 configuration: "sound-defaults"
-upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "eb95bfa887299d1637550228d42086c27cbb2b3b"}
+upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "4f41667297430a598165c4a8604258fe37d952ae"}
 read: "2026-11-11"
 petals:
   unforgeable:
@@ -14,7 +14,7 @@ petals:
     reason: "A level is stated per segment proof and called conjectured; no level is stated for the whole grid, and no proof covers the verifier code."
     quotes:
       - text: "100 conjectured bits for each segment proof, by stwo's own conjectured-soundness accounting security_bits = pow_bits + log_blowup_factor * n_queries"
-        url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L7-L28"
+        url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L7-L28"
     sources_read: []
   weights_hidden:
     state: "not_stated"
