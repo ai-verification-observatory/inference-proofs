@@ -605,6 +605,26 @@ EOF
   # the bucket's read speed is not documented: this line measures it, for the spend log
   log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
   chmod -R u+w "$RUN"  # a copy from the read-only mount keeps its modes; the part writes here
+  # the bucket keeps no file modes: a kept build cache (io/state) would hold build scripts and
+  # binaries cargo finds fresh but cannot run, so a control prove fails for that and reads as
+  # prover_failed. The exec bit goes back on every ELF file and #! script.
+  python3 - "$RUN" <<'PYEOF'
+import os
+import sys
+
+n = 0
+for root, _, files in os.walk(sys.argv[1]):
+    for name in files:
+        path = os.path.join(root, name)
+        if os.path.islink(path):
+            continue
+        with open(path, "rb") as f:
+            head = f.read(4)
+        if head == b"\x7fELF" or head[:2] == b"#!":
+            os.chmod(path, os.stat(path).st_mode | 0o111)
+            n += 1
+print(f"exec bit restored on {n} files")
+PYEOF
   # RFC-0008 C3 and P1: the workload's perturbed commitment, kept beside the stored run in its
   # folder (<release>/<system>/_controls/), goes beside the copy, where the controls read it;
   # every part of a suite shares it (SPLIT-4)
