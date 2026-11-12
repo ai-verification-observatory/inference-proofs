@@ -100,6 +100,7 @@ IO_KEEP_MAX_K=1048576                # a development run's io/ is uploaded only 
                                      # above 1 GiB or a weights file (prune)
 KEEP_IO=0                            # a step keeps io/: .archive stays out of the upload
 MODE=${1:-}
+[ "$MODE" = fidelity ] && RELEASE=v1.0  # the fidelity profiles are in reference/v1.0.yaml
 [ $# -gt 0 ] && shift
 has_opt() { case ":$1:" in *":$2:"*) return 0 ;; esac; return 1; }  # STEP options
 mkdir -p "$OUT" "$DEV" "$WORK/home" "$WORK/hf-home"

@@ -116,6 +116,21 @@ PROFILES: dict[str, dict[str, Any]] = {
         "kernel_min": "5.19",
         "driver": "unpinned",
     },
+    # RFC-0018 FI-8: the Maverick fidelity job (reference/v1.0.yaml)
+    "fidelity-h200x8-hosted": {
+        "id": "fidelity-h200x8-hosted",
+        "hosted": True,
+        "gpu_model": "NVIDIA H200",
+        "gpu_memory_mib_min": 140000,
+        "gpu_count": 8,
+        "logical_cpus_on_gpu_numa_node": 15,
+        "logical_cpus_total_min": 184,
+        "host_memory_gib_min": 1600,
+        "disk_free_gib_min": 2000,
+        "disk_nvme": False,
+        "kernel_min": "5.19",
+        "driver": "unpinned",
+    },
 }
 CUDA_DRIVER_MIN = "12.9"  # SASH's image is CUDA 12.9 (systems/sash/README.md, RFC-0006 Q3)
 CUDA_DRIVER_MIN_FLASHPROVE = "13.2"  # FlashProve's image is CUDA 13.2 Update 2
