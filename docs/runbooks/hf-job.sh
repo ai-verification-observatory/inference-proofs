@@ -604,6 +604,7 @@ EOF
   fi
   # the bucket's read speed is not documented: this line measures it, for the spend log
   log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
+  chmod -R u+w "$RUN"  # a copy from the read-only mount keeps its modes; the part writes here
   # RFC-0008 C3 and P1: the workload's perturbed commitment, kept beside the stored run in its
   # folder (<release>/<system>/_controls/), goes beside the copy, where the controls read it;
   # every part of a suite shares it (SPLIT-4)
