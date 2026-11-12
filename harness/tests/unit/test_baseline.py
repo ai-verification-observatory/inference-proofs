@@ -99,6 +99,22 @@ def test_full_load_plateau(tmp_path: Path) -> None:
     assert REGISTRY.errors("quantity/1", got.ladder[0][1]) == []
 
 
+def test_one_gpu_host_records_a_single_bound_index(tmp_path: Path) -> None:
+    """A one-GPU serving host (the 8B ladder of 2026-11-11) records `bound_index` alone, not
+    `bound_indices`: one GPU, cited at that field."""
+    run_dir = ladder_run(tmp_path, RATES, 1)
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    manifest["machine"]["gpu"] = {"bound_index": 0, "count_visible": 1}
+    (run_dir / "manifest.json").write_text(json.dumps(manifest))
+    got = full_load(run_dir, level(tuple(RATES)))
+    assert isinstance(got, FullLoad)
+    assert (got.concurrency, got.gpus) == (8, 1)
+    assert got.gpu_seconds_per_reply["value"] == pytest.approx(1 / 60, rel=1e-6)
+    source = got.gpu_seconds_per_reply["source"]
+    assert isinstance(source, dict)
+    assert "results/v1.0/ref-serve/r/manifest.json#/machine/gpu/bound_index" in source["inputs"]
+
+
 def test_tolerance_edge(tmp_path: Path) -> None:
     """60 is below 0.95 x 64 = 60.8: full load moves to the next rung within the plateau."""
     rates = RATES | {32: 64.0}

@@ -117,6 +117,7 @@ class _Records:
     run_id: str
     rung: RungLike
     gpus: int
+    gpus_field: str  # the manifest field the count is read from
     outputs: dict[int, list[_Output]]  # by concurrency
 
 
@@ -137,7 +138,13 @@ def _read(run_dir: Path, level: LevelLike) -> _Records | str:  # noqa: PLR0911 (
     rung = _rung_for(level, str(workload.get("id")))
     if rung is None:
         return f"workload {workload.get('id')!r} is on no rung of the level"
-    bound = ((manifest.get("machine") or {}).get("gpu") or {}).get("bound_indices") or []
+    # a multi-GPU host records `bound_indices`, a one-GPU host a single `bound_index`
+    # (provenance.machine_record; board.bound_gpus reads both)
+    gpu = (manifest.get("machine") or {}).get("gpu") or {}
+    bound = gpu.get("bound_indices") or []
+    field = "bound_indices"
+    if not bound and isinstance(gpu.get("bound_index"), int):
+        bound, field = [gpu["bound_index"]], "bound_index"
     if not bound:
         return f"run {run_id} records no bound GPU"
     by_c: dict[int, list[_Output]] = {}
@@ -148,7 +155,7 @@ def _read(run_dir: Path, level: LevelLike) -> _Records | str:  # noqa: PLR0911 (
         out = _Output(m.group(2) == "w", int(m.group(3)), int(m.group(4)),
                       proof.get("request_index"), int(proof["release_mono_ns"]))  # fmt: skip
         by_c.setdefault(int(m.group(1)), []).append(out)
-    return _Records(run_id, rung, len(bound), by_c)
+    return _Records(run_id, rung, len(bound), field, by_c)
 
 
 def full_load(run_dir: Path, level: LevelLike) -> FullLoad | str:
@@ -157,7 +164,7 @@ def full_load(run_dir: Path, level: LevelLike) -> FullLoad | str:
     if isinstance(records, str):
         return records
     run_json = _record_path(run_dir, "run.json")
-    gpus_ref = f"{_record_path(run_dir, 'manifest.json')}#/machine/gpu/bound_indices"
+    gpus_ref = f"{_record_path(run_dir, 'manifest.json')}#/machine/gpu/{records.gpus_field}"
     gpus = measured(records.gpus, Unit.COUNT, None, gpus_ref, None)
     proofs_ref = f"{run_json}#/proofs"
     ladder: list[tuple[int, QuantityTree]] = []
