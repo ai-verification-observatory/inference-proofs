@@ -380,6 +380,10 @@ FI9_CAUSES = {
 }
 
 
+FI9_NO_KL = ("not measured: llama.cpp's KL base is the 16-bit file, which the level's llama.cpp "
+             "pin cannot run on this rung (RFC-0018 FI-9)")  # fmt: skip
+
+
 def _engine_pin(root: Path, level: "Level", system: str) -> str | None:
     """The engine commit the image must report: the level's llama.cpp pin, or the vLLM commit
     the reference system's system.yaml pins (FI-9)."""
@@ -564,9 +568,11 @@ def _rows(
     base: Path,
     ref: str,
     digest: str,
+    no_kl: str | None = None,
 ) -> tuple[dict[str, list[list[int]] | None], dict[str, tuple[dict[str, object] | None, str]]]:
     """FI-6: each row's replies from its counted sessions (None without all three) and its KL
-    figure with the note printed beside it (FI-7)."""
+    figure with the note printed beside it (FI-7); `no_kl`, the note of a rung where no KL is
+    measured (FI-9)."""
     from iproofs.checks import row_sessions  # noqa: PLC0415 (SE-3, the counted sessions)
     from iproofs.fidelity import KL_NOTE, row_replies, session_replies  # noqa: PLC0415
     from iproofs.workloads import load_workload  # noqa: PLC0415
@@ -586,6 +592,8 @@ def _rows(
         quantity = _kl(base, ref, f"{ROW_PREFIX}{system}")
         if quantity is not None:
             row_kl[system] = (quantity, KL_NOTE)
+        elif no_kl is not None:
+            row_kl[system] = (None, no_kl)
         elif any(f.path.endswith(".gguf") for f in wl.model.files):
             row_kl[system] = (None, "not measured: no KL run on the committed GGUF file yet")
         else:
@@ -629,7 +637,8 @@ def fidelity_score(args: argparse.Namespace) -> int:
     if len(reference) != level.sessions.slots * rung.requests_per_session:
         raise IProofsError(ErrorKind.INTEGRITY, f"{reference_path}: {len(reference)} replies")
     controls = _controls(rung, base, ref, record)
-    rows, row_kl = _rows(args, level, rung, registry, base, ref, digest)
+    no_kl = FI9_NO_KL if record["engine"].get("tool") == "vllm" else None
+    rows, row_kl = _rows(args, level, rung, registry, base, ref, digest, no_kl)
     engine = dict(record["engine"])
     header = Header(level.id, digest, rung.id, str(record["prompts_digest"]),
                     {k: engine.get(k) for k in ("tool", "repo", "commit", "image")},
