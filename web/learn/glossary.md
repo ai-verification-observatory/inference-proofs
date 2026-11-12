@@ -38,7 +38,7 @@ Precisely: the value a system's commit step produces. It is binding (nobody can 
 
 ### Control
 
-A deliberate tampering with what a verifier or a prover is given, to see whether the change is refused. Change one weight, one prompt token or one reply token, and a working verifier must say no.
+A deliberate tampering with what a verifier or a prover is given, to see whether the change is refused. Change one weight, one prompt token or one reply token, and a working verifier must refuse.
 
 Also called a negative control. Each one is checked beside its [[honest twin]].
 
@@ -66,7 +66,7 @@ Choosing, at every step of a reply, the token the model scores highest. With exa
 
 ### Honest twin
 
-The untouched proof that is checked next to a tampered one. If the verifier does not accept the twin, the test is void: a refusal means something only when the same verifier accepts the real thing.
+The untouched proof that is checked next to a tampered one. If the verifier does not accept the twin, the test is void: a refusal means something only when the same verifier accepts the untouched proof.
 
 ### Inference
 
@@ -78,7 +78,7 @@ The [front page](/) of this site: one section per model, with the systems run on
 
 ### Level
 
-A frozen definition of the benchmark: the models, the request, the checks, the order rule and every constant. A level never changes once frozen. A new rule is a new level.
+A frozen definition of the benchmark: the models, the request, the checks, the order rule and every constant. A level is meant not to change once frozen: a new rule is a new level. [How we compare](/method) records where Level 1 did change.
 
 Level 1 is defined in [RFC-0018](repo:rfcs/0018-level-1-ladder.md).
 
@@ -104,9 +104,17 @@ Whoever runs the model and answers requests: a company serving an API, a lab, th
 
 Said of a system on a model when all six checks are held there. It is never said of a model.
 
+### Petal
+
+One of the five parts of the [[glyph]]: a property a prover can have in full, in part or not at all.
+
 ### Polynomial commitment
 
 A [[commitment]] to a polynomial that can later be opened at one point: the prover shows the polynomial's value there, and the verifier checks it against the commitment alone. This is how a verifier works with weights it never receives.
+
+### Position
+
+A system's place among the systems that passed on one model: one plus the number of systems placed above it. Only a system that passed, and whose publisher states a security level, has one.
 
 ### Prompt
 
@@ -126,6 +134,10 @@ Said of a statement that a [[soundness|sound]] verifier's acceptance establishes
 
 The program that produces a proof, and by extension whoever runs it. The prover holds everything: the weights, the prompt, the reply. It does far more work than the [[verifier]].
 
+### Publisher
+
+Whoever releases a system and its documents, or a model and its weights. These pages say which is meant where both appear.
+
 ### Quantization
 
 Storing a model's weights, and sometimes its intermediate values, with fewer bits: 8-bit or 4-bit integers in place of 16-bit floating point. It makes a model cheaper to run and to prove, and changes its replies a little or a lot. A proof of inference is about a quantized copy, computed in exactly specified arithmetic.
@@ -136,7 +148,7 @@ An idealised hash function: one that answers every new question with a fresh ran
 
 ### Recomputation
 
-Checking a result by running the computation again. It needs the weights and the compute, and it needs the computation to give the same answer twice.
+Checking a result by running the computation again. It needs the weights and hardware that can run them, and it needs the computation to give the same answer twice.
 
 Checking only a random share of the work is *sampled* recomputation: the guarantee is then statistical. See [Three ways to check](/three-ways).
 
@@ -156,6 +168,10 @@ One prompt and the reply the verifier is given for it. On this site every system
 
 What a dishonest prover can still do while passing verification. A claim card lists it, because no statement covers everything.
 
+### Row
+
+One system on one model, as the [[ladder]] prints it: its standing, its glyph and its figures.
+
 ### Rung
 
 One open-weights model of a level, with its serving baseline. Systems are ranked inside a rung and never across rungs.
@@ -173,6 +189,10 @@ It is stated by a system's publisher, as proven or as conjectured, and for a pro
 ### Serving baseline
 
 What it costs to answer the request with no proof: the publisher's own release of the model, served by a standard engine at full load. It is the denominator of the [[multiple]].
+
+### Session
+
+One run of a system from a cold start: it commits to the model, then answers and proves a fixed set of requests. A position needs three sessions.
 
 ### Soundness
 

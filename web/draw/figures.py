@@ -231,7 +231,7 @@ TREATY_STEPS = (
         "yet.",
     },
     {
-        "title": "A model is swapped",
+        "title": "A model is substituted",
         "stage": "proposed",
         "does": "For some replies the operator used another model. When one of them is drawn, "
         "no valid proof exists for it: the operator sends none, or one the verifier refuses.",
@@ -247,7 +247,7 @@ TREATY_STEPS = (
         ),
         "can": "Show State B one recorded reply for which State A gave no valid proof.",
         "cannot": "Tell a fault from a substitution without an investigation, or count on "
-        "catching a single swapped reply: a sample catches habits.",
+        "catching a single substituted reply.",
     },
     {
         "title": "What stays outside",

@@ -1,4 +1,4 @@
-Suppose two states agree, by treaty or otherwise, to limits on how they develop and use advanced AI. Neither trusts the other, and neither will show the other its weights. Someone has to check. This page walks through what that someone could check with proofs of inference, one stage at a time, and marks each stage by what stands behind it today: run on this site, shown in research, proposed, or outside what a proof can reach. It takes no position on whether such an agreement should exist.
+Suppose two states agree, by treaty or otherwise, to limits on how they develop and use advanced AI. Neither trusts the other, and neither will show the other its weights. Someone has to check. This page walks through what the checker could check with proofs of inference, one stage at a time. Each stage is marked by what stands behind it today: run on this site, shown in research, proposed, or outside what a proof can reach. It takes no position on whether such an agreement should exist.
 
 The short answer: a proof speaks to one of the six things the checking side needs to know. The systems that make such proofs are research prototypes. Most of what an agreement needs rests on equipment, inspectors and intelligence.
 
@@ -10,11 +10,11 @@ The short answer: a proof speaks to one of the six things the checking side need
 
 The rule in our scenario: in its declared data centres, a state serves only models entered in a shared register that the Inspectorate keeps, and trains nothing above an agreed size.
 
-This is one of several rules that have been proposed. A [2026 statement](https://www.pacingthefrontier.com/) by employees of AI companies asks the US government to support an international effort to develop "the technical and governance tools needed to deliberately pace the frontier of automated AI development". An [essay](https://darioamodei.com/post/we-must-pace-the-frontier) by Dario Amodei, chief executive of Anthropic, says that pacing "does not mean halting model training" and that "any agreement must either have ironclad verifiability, or must be limited enough that defection would not be militarily existential". The mechanism the essay names is evaluators placed inside companies, "the key step for verifiability of any pacing commitments". It does not mention cryptographic proofs. Anthropic also publishes FlashProve, the system in the table below. We use the simple rule because most of the technical work has studied it, not because either text proposes it.
+This is one of several rules that have been proposed. A [2026 statement](https://www.pacingthefrontier.com/) by employees of AI companies asks the US government to support an international effort to develop "the technical and governance tools needed to deliberately pace the frontier of automated AI development". An [essay](https://darioamodei.com/post/we-must-pace-the-frontier) by Dario Amodei, chief executive of Anthropic, says that pacing "does not mean halting model training" and that "any agreement must either have ironclad verifiability, or must be limited enough that defection would not be militarily existential". The mechanism the essay names is evaluators placed inside companies, "the key step for verifiability of any pacing commitments". It does not mention cryptographic proofs. Anthropic also publishes FlashProve, a system on the ladder. We use this rule because most of the technical work has studied it, not because either text proposes it.
 
 ## What would have to be checked
 
-A [RAND study](https://arxiv.org/abs/2507.15916) splits the job in two: "verifying that declared uses of large-scale AI compute are compliant", and "verifying that there are no undeclared uses of large-scale AI compute". Other authors cut it another way, familiar from nuclear safeguards: what a state declares has to be correct, and it has to be complete.
+A [RAND study](https://arxiv.org/abs/2507.15916) splits the job in two: "verifying that declared uses of large-scale AI compute are compliant", and "verifying that there are no undeclared uses of large-scale AI compute". Other authors, among them [Amodo Design](https://amododesign.com/notes/2026-06-23-verification-algorithms/), add a split familiar from nuclear safeguards: what a state declares has to be correct, and it has to be complete, meaning that every workload is reported.
 
 | What the Inspectorate needs to know | Does a proof of inference speak to it |
 |---|---|
@@ -25,7 +25,7 @@ A [RAND study](https://arxiv.org/abs/2507.15916) splits the job in two: "verifyi
 | That a declared data centre did nothing else | Not alone. Only together with equipment that records everything leaving it |
 | How a model was trained, or what it can do | No |
 
-A proof speaks to one row of six in full and to one in part. The rest of this page is about that row, and about how far it can be stretched.
+A proof speaks to one row of six in full and to one in part. The rest of this page is about the first of them, and about how far it can be stretched.
 
 :::explore treaty
 The stages below in brief, as a walk in six steps, each marked like its stage. At each one: who holds what, what the Inspectorate can conclude, and what it cannot.
@@ -38,7 +38,7 @@ The operator computes a [[commitment]] to its model and enters it in the registe
 
 This is what this site runs: it checks whether a system's verifier refuses a changed model, prompt or reply, and records what a proved reply costs.
 
-The limits are today's. The proof is about a quantized copy of the model with exactly fixed arithmetic, decoded greedily, so the operator has to serve that copy for a proof to describe what was served. Length is bounded: the request on this site is 512 prompt tokens and a 512-token reply, and Anthropic [states](https://www.anthropic.com/research/provable-inference) that its system "currently proves inference over contexts of up to 1,024 tokens". The Inspectorate sees the prompt, the reply and the model's size and shape. Whether a proof leaks anything about the weights is each publisher's statement, which this site does not test: FlashProve's [guide](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L9-L27) says its authors "expect, rather than know, that the programs hide the weights at the default setting, in honest runs, if the provider keeps its duties". The models on the ladder are open-weights models, not the closed models a real agreement would be about.
+The limits are today's. The proof is about a [[quantization|quantized]] copy of the model, computed in exact arithmetic and decoded greedily, so the operator has to serve that copy for a proof to describe what was served. Length is bounded: the request on this site is 512 prompt tokens and a 512-token reply, and Anthropic [states](https://www.anthropic.com/research/provable-inference) that its system "currently proves inference over contexts of up to 1,024 tokens". The Inspectorate sees the prompt, the reply and the model's size and shape. Whether a proof leaks anything about the weights is each publisher's statement, which this site does not test: FlashProve's [guide](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L9-L27) says its authors "expect, rather than know, that the programs hide the weights at the default setting, in honest runs, if the provider keeps its duties". The models on the ladder are open-weights models, not the closed models a real agreement would be about.
 :::
 
 :::measured rows
@@ -46,7 +46,7 @@ The current rows. The multiple is the GPU time of one more proved reply over the
 :::
 
 :::stage demonstrated The model that was evaluated is the model that serves
-An agreement will want more than "some registered model". It will want the registered model to have been through agreed tests. A proof can tie the two together: if the test replies and the served replies verify against the same commitment, they are replies of the same weights. A [policy memo](https://thefuturesociety.org/international-ai-verification) by The Future Society notes that verification "can confirm that the model evaluated is the one the provider claims it to be".
+An agreement will want more than *some registered model*. It will want the registered model to have been through agreed tests. A proof can tie the two together: if the test replies and the served replies verify against the same commitment, they are replies of the same weights. A [policy memo](https://thefuturesociety.org/international-ai-verification) by The Future Society notes that verification "can confirm that the model evaluated is the one the provider claims it to be".
 
 This has been [shown with proofs](https://arxiv.org/abs/2402.02675) on small models. We found no report of an evaluation under proof at the scale of a large model, and it would have to fit the length and the decoding rule a prover accepts. The same weights are also not the same product: a system prompt or a filter changes behaviour and is outside the proof. And a proof says nothing about whether the tests were the right tests.
 :::

@@ -8,13 +8,13 @@ Ask for the sentence, not the summary. Which positions of a reply are covered: a
 
 ### 2. Where do the prompt, the reply and the commitment come from?
 
-A proof speaks about one prompt and one reply, relative to one number, the [[commitment]]. Ask where each came from. If the operator supplied the prompt and the reply, the proof shows that the operator holds a model that gives this reply, ["not that it necessarily served it earlier"](https://arxiv.org/abs/2402.02675). A sample means something only if a record you trust fixed the replies before the draw, and the operator could not predict the draw.
+A proof speaks about one prompt and one reply, relative to one value, the [[commitment]]. Ask where each came from. If the operator supplied the prompt and the reply, the proof shows that the operator holds a model that gives this reply, ["not that it necessarily served it earlier"](https://arxiv.org/abs/2402.02675). A sample means something only if a record you trust fixed the replies before the draw, and the operator could not predict the draw.
 
-For the commitment, ask who published the number and what ties it to the model you care about: a register, a signed release, an evaluation report. A yes says "the model behind this number", not whose model that is. If the number arrives with the proof, from the party being checked, the check is worth nothing. We always supply it from our own record.
+For the commitment, ask who published the value and what ties it to the model you care about: a register, a signed release, an evaluation report. A yes says *the model behind this value*, not whose model that is. If the value arrives with the proof, from the party being checked, the check is worth nothing. We always supply it from our own record.
 
 ### 3. Is the proved model the model that is served?
 
-A proof needs arithmetic that repeats bit for bit, so a system proves a quantized copy of a model, decoded greedily, within a fixed length. Ask what the operator has to change to serve exactly that copy, because a proof describes what was served only if it was. Then ask how far the copy is from the original: a copy can be faithful, or degraded until proving it is cheap. Here that is the [Fidelity check](/checks#fidelity) and the "Faithful model" petal of the [[glyph]]: a system's replies are compared with those of the original weights, and have to beat copies that we damaged on purpose. Where a row reads "Fidelity undecided", the comparison has not been run yet.
+A proof needs arithmetic that repeats bit for bit, so a system proves a quantized copy of a model, decoded greedily, within a fixed length. Ask what the operator has to change to serve exactly that copy, because a proof describes what was served only if that copy served it. Then ask how far the copy is from the original: a copy can be faithful, or degraded until proving it is cheap. Here that is the [Fidelity check](/checks#fidelity) and the "Faithful model" petal of the [[glyph]]: a system's replies are compared with those of the original weights, and have to score above copies that we damaged on purpose. Where a row reads "Fidelity undecided", the comparison has not been run yet.
 
 ### 4. Who has run it, besides its authors?
 
@@ -22,19 +22,19 @@ A figure published by a system's own team was obtained on its own model, under i
 
 ### 5. How hard is it to forge, and who says so?
 
-Every system should state a [[security level]]. Three follow-up questions matter more than the number. Is it proven, or conjectured from the absence of a known attack? Does it cover the program that actually runs, or a description of it on paper? Has anyone outside the team reviewed it? In late 2025 a conjecture behind the parameters of many proof systems was shown false in its strongest form, and the Ethereum Foundation [warned](https://blog.ethereum.org/2025/12/18/zkevm-security-foundations) that "what was advertised as 100 bits might actually be 80". The proofs still verified: nothing a checker could see had changed. This site prints each publisher's statement in the "Unforgeable" petal. No test of ours can confirm it, and a failed tampering check turns the petal red.
+Ask for the system's [[security level]]. Three follow-up questions matter more than the number. Is it proven, or conjectured from the absence of a known attack? Does it cover the program that actually runs, or a description of it on paper? Has anyone outside the team reviewed it? In late 2025 a conjecture behind the parameters of many proof systems was shown false in its strongest form, and the Ethereum Foundation [warned](https://blog.ethereum.org/2025/12/18/zkevm-security-foundations) that "what was advertised as 100 bits might actually be 80". The proofs still verified: nothing a checker could see had changed. This site prints each publisher's statement in the "Unforgeable" petal. No test of ours can confirm it, and a failed tampering check turns the petal red.
 
 ### 6. Whom else must I trust?
 
-Some systems need a one-time setup whose secrets must be destroyed, a hardware maker's key, or a third party. Others need only the checking program and cryptographic assumptions. The "Only the verifier trusted" petal says which, as the publisher states it. The checking program itself always has to be trusted, so ask who has read it. A scheme that samples traffic also trusts whatever recorded the traffic.
+Some systems need a one-time setup whose secrets must be destroyed, a hardware maker's key, or a third party. Others need only the verifier and cryptographic assumptions. The "Only the verifier trusted" petal says which, as the publisher states it. The verifier itself always has to be trusted, so ask who has read its code. A scheme that samples traffic also trusts whatever recorded the traffic.
 
 ### 7. What does the operator have to show?
 
-The checker sees every prompt and reply it checks, and the model's size and shape. If the weights are a secret, ask what a proof reveals about them, and whether that claim is proven for the program or only expected of it. The "Weights hidden" petal records the publisher's statement. Our [No weight file](/checks#no_weight_file) check shows only that the verifier ran without opening a model file, which is a smaller thing.
+The checker sees every prompt and reply it checks, and the model's size and shape. If the weights are a secret, ask what a proof reveals about them, and whether that claim is proven for the program or only expected of it. The "Weights hidden" petal records the publisher's statement. Our [No weight file](/checks#no_weight_file) check shows only that the verifier ran without opening a model file, which shows less.
 
 ### 8. What does it cost, at the share I need?
 
-Proving every reply costs the full multiple on every reply. Some uses need only a sample. A random sample, drawn after the fact, catches a substitution that is frequent next to the size of the sample: 300 draws catch one swapped reply in 100 about 95 times in 100, and one in 10,000 about 3 times in 100. A use that needs one named reply proved, such as a customer's own, gets nothing from a sample.
+Proving every reply costs the full multiple on every reply. Some uses need only a sample. A random sample, drawn after the fact, catches a substitution that happens often enough for the sample to meet it: 300 draws catch one substituted reply in 100 about 95 times in 100, and one in 10,000 about 3 times in 100. A use that needs one named reply proved, such as a customer's own, gets nothing from a sample.
 
 A sample does not divide the whole cost. A reply can be proved only if the proved copy of the model generated it, and nobody knows in advance which replies will be drawn. So every reply has to be generated by that copy, and only the proving falls with the share. Where a row prints its multiple in two parts, generation is producing the reply with the proved copy's arithmetic, and proving is everything after it.
 

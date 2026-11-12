@@ -6,11 +6,11 @@ Every system that proves inference answers the same questions: how the computati
 
 **In their words.** [EZKL](https://github.com/zkonduit/ezkl/blob/e196b111c1bafaa61b92ae431cd3c3fe9371da05/README.md) is "a library and command-line tool for doing inference for deep learning models and other computational graphs in a zk-snark". [ZKML](https://ddkang.github.io/papers/2024/zkml-eurosys.pdf) is "built on the halo2 proving system".
 
-**What it makes cheap.** Generality, and the size of the proof: a few tens of kilobytes or less. EZKL's README says its proofs can be verified "on-chain (with the Ethereum Virtual Machine), in a browser, or on a device". Check times are not uniformly small: the ZKML authors report between 11.98 and 18.70 seconds to verify their distilled GPT-2.
+**What it gives.** Any model that exports, and a small proof: a few tens of kilobytes or less. EZKL's README says its proofs can be verified "on-chain (with the Ethereum Virtual Machine), in a browser, or on a device". Check times are not uniformly small: the ZKML authors report between 11.98 and 18.70 seconds to verify their distilled GPT-2.
 
 **What it makes expensive.** The prover's time and memory, which grow with every operation of the graph. The ZKML authors report: "The largest model we can prove with under 1TB of RAM is the distilled version of GPT-2".
 
-**What it trusts.** The underlying proof system. In the same paper's words, one commitment scheme "requires a one-time, universal trusted setup", and the transparent alternative "requires larger proofs and higher verification time".
+**What it trusts.** The underlying proof system, and a trusted setup for one of its two commitment schemes. In the same paper's words, one commitment scheme "requires a one-time, universal trusted setup", and the transparent alternative "requires larger proofs and higher verification time".
 
 ## Virtual machines
 
@@ -60,7 +60,7 @@ The price is at the joins. Every value that crosses from one piece to the next h
 
 ## Checks that are not proofs
 
-The [ladder](/) lists some systems as "another kind of check". Most are not proofs. One, VerInf, is a proof of a different sentence, described above. They address the same question, which model produced this reply, by other means, and each answers a narrower one.
+The [ladder](/) lists some systems as "another kind of check". Most are not proofs. One, VerInf, is a proof of a different sentence, described above. They address the same question, which model gives this reply, by other means, and each answers a narrower one.
 
 | Kind | How it works | What it rests on |
 |---|---|---|
@@ -68,7 +68,7 @@ The [ladder](/) lists some systems as "another kind of check". Most are not proo
 | [[Recomputation]] with a referee | Two or more providers run the same work, and a referee settles a disagreement by rerunning one step. [Verde](https://arxiv.org/abs/2502.19405)'s authors state "a guarantee of obtaining the correct result if at least one of them is honest" | One honest provider, bit-for-bit reproducible arithmetic, and a referee who holds the model |
 | Fingerprints and sampled reruns | The provider sends a compact trace of its computation, or nothing beyond the reply, and a checker with the model reruns and compares. [TOPLOC](https://arxiv.org/abs/2501.16007) hashes intermediate activations. [DiFR](https://arxiv.org/abs/2511.20621) compares tokens under a shared random seed | A checker that holds the model and can run it. The guarantee is statistical, and for the fingerprints it is an observed detection rate, not a bound |
 
-None of these hides the weights from the party that checks, except attestation, which moves the trust to hardware. That trade is the subject of [Three ways to check](/three-ways) in the policy track.
+Only attestation hides the weights from the party that checks, and it moves the trust to hardware. That trade is the subject of [Three ways to check](/three-ways) in the policy track.
 
 ## Where each system stands on this site
 
