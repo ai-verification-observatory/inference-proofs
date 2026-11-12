@@ -604,6 +604,13 @@ EOF
   fi
   # the bucket's read speed is not documented: this line measures it, for the spend log
   log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
+  # RFC-0008 C3 and P1: the workload's perturbed commitment, kept beside the stored run in its
+  # folder (<release>/<system>/_controls/), goes beside the copy, where the controls read it;
+  # every part of a suite shares it (SPLIT-4)
+  if [ -d "$(dirname "$STORED")/_controls" ]; then
+    cp -R "$(dirname "$STORED")/_controls" "$(dirname "$RUN")/_controls"
+    log "perturbed commitment: $(dirname "$RUN_PATH")/_controls"
+  fi
   extra=()
   if [ "$NGPU" -gt 0 ]; then  # the binding check passed (above)
     workload=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["workload"]["id"])' "$RUN/run.json")
@@ -613,6 +620,17 @@ EOF
       exit 3
     fi
     extra=(--gpu "$GPU")
+    case ",$IDS," in
+      *,P1,*)  # P1 proves with W', which must be in this host's cache: the adapter's perturb
+        # makes it again (prepare-perturbed into a scratch root, its record not used); P1 is
+        # refused unless its digest is the stored perturbed commitment's model_digest
+        level_id=$(python3 -c 'import json, sys; print((json.load(open(sys.argv[1])).get("level") or {}).get("id", ""))' "$RUN/manifest.json")
+        log "W' for P1: prepare-perturbed $workload into a scratch results root, at most $(left) s"
+        env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" controls --prepare-perturbed "$workload" \
+          --system "$CSYSTEM" --profile "$PROFILE" --hosted --gpu "$GPU" ${level_id:+--level "$level_id"} \
+          --results "$WORK/w-prime" || log "prepare-perturbed failed; P1 is refused below"
+        ;;
+    esac
   fi
   log "controls $IDS, seed $SEED (from controls-seed.json), ${extra[*]:-no GPU}, at most $(left) s"
   # a progress line per control call that returns (control.call): what a rerun's timeout is
