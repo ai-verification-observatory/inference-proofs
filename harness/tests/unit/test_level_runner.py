@@ -652,3 +652,27 @@ def test_reject_made_by_adapter_code_is_void(tmp_path: Path) -> None:
     assert len(trials) == 10
     assert all(x["outcome"] == "void" and x["detail"]["decided_by"] == "adapter" for x in trials)
     assert (record["outcome"], record["passed"]) == ("void", None)
+
+
+def test_c1_part_on_a_verifier_host_mutates_on_the_verifier_cpus(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AD-6: `mutate_reply` takes neither weights nor a GPU, so a verifier host (no prover
+    CPUs) runs C1's split part; it once failed every trial with "binds no prover CPUs"."""
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import VerifierEnvironment, controls_for_run, draw_seed  # noqa: PLC0415
+
+    empty = tmp_path / "no-strace"
+    empty.mkdir()
+    kept = l1_runner(str(empty))
+    kept.keep_io = True
+    run_dir = kept.run(spec(tmp_path / "r", controls=False))
+    draw_seed(REGISTRY, run_dir, control_seed=SEED)
+    host = Host(ROOT / "harness/tests/fixtures/host", run=lambda _: None, hosted=True)
+    verifier_host = l1_runner(str(empty))
+    verifier_host.env = VerifierEnvironment(host, 3)
+    seen = spy_calls(monkeypatch)
+    part = read(run_dir, controls_for_run(verifier_host, run_dir, only=["C1"]).name)
+    c1 = part["controls"][0]
+    assert [t["outcome"] for t in c1["trials"]] == ["rejected"] * 6  # first and last
+    assert sum(sub == "mutate_reply" for sub, _ in seen) == 6
