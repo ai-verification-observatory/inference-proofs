@@ -101,11 +101,14 @@ def split_html(row):
 
     def part(name, f, cls):
         num, unit = number(f["value"], f["unit"])
-        return (f'<span class="part {cls}" title="{e(labels(f))}"><span class="pn">{e(num)}'
-                f'<span class="px">{e(unit)}</span></span><span class="pl">{name}</span></span>')
+        return (
+            f'<span class="part {cls}" title="{e(labels(f))}"><span class="pn">{e(num)}'
+            f'<span class="px">{e(unit)}</span></span><span class="pl">{name}</span></span>'
+        )
 
-    return (f'<span class="split">{bar}{part("proving", p, "pp")}'
-            f'{part("generation", g, "pg")}</span>')
+    return (
+        f'<span class="split">{bar}{part("proving", p, "pp")}{part("generation", g, "pg")}</span>'
+    )
 
 
 def kl_html(row):
