@@ -202,6 +202,22 @@ def sessions_html(row):
     return out
 
 
+def split_parts(figs, n):
+    """CO-7: the proving and generation parts of the multiple and of m, where the system
+    generates in a phase of its own; none otherwise."""
+    split = [figs.get(k) for k in ("proving_multiple", "generation_multiple")]
+    if any(f is None or f["value"] is None for f in split):
+        return []
+    return [
+        ("Of which proving, multiple of serving", fig_html(figs["proving_multiple"], n)),
+        ("Of which generation, multiple of serving", fig_html(figs["generation_multiple"], n)),
+        ("Proving GPU time per further reply",
+         fig_html(figs["steady_proving_gpu_seconds_per_reply"], n)),
+        ("Generation GPU time per further reply",
+         fig_html(figs["steady_generation_gpu_seconds_per_reply"], n)),
+    ]  # fmt: skip
+
+
 def cost_html(row):
     """The cost parts (CO-1 to CO-5), each figure as the board stores it."""
     rung = rung_of(row)
@@ -210,6 +226,7 @@ def cost_html(row):
     price = S.V["price"]
     parts = [
         ("Multiple of serving", fig_html(figs["multiple"], n)),
+        *split_parts(figs, n),
         ("Steady GPU time per further reply", fig_html(figs["steady_gpu_seconds_per_reply"], n)),
         ("Serving GPU time per reply, full load", fig_html(b.get("gpu_seconds_per_reply"))),
         ("Session GPU time per reply", fig_html(figs["session_gpu_seconds_per_reply"], n)),

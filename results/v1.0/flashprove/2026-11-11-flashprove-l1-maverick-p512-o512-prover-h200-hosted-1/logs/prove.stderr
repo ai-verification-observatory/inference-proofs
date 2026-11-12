@@ -1,0 +1,51 @@
+Traceback (most recent call last):
+  File "/opt/flashprove/entrypoint", line 658, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/flashprove/entrypoint", line 651, in main
+    out = handlers[sub](job)
+          ^^^^^^^^^^^^^^^^^^
+  File "/opt/flashprove/entrypoint", line 421, in prove
+    work = workdir(host("/io/state/prove"))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/flashprove/entrypoint", line 147, in workdir
+    private(p)
+  File "/opt/flashprove/entrypoint", line 139, in private
+    path.mkdir(mode=0o700)
+  File "/usr/lib/python3.12/pathlib.py", line 1313, in mkdir
+    os.mkdir(self, mode)
+FileExistsError: [Errno 17] File exists: '/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls-io/prove-P1/state/prove'
+Traceback (most recent call last):
+  File "/opt/flashprove/entrypoint", line 658, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/flashprove/entrypoint", line 651, in main
+    out = handlers[sub](job)
+          ^^^^^^^^^^^^^^^^^^
+  File "/opt/flashprove/entrypoint", line 421, in prove
+    work = workdir(host("/io/state/prove"))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/flashprove/entrypoint", line 147, in workdir
+    private(p)
+  File "/opt/flashprove/entrypoint", line 139, in private
+    path.mkdir(mode=0o700)
+  File "/usr/lib/python3.12/pathlib.py", line 1313, in mkdir
+    os.mkdir(self, mode)
+FileExistsError: [Errno 17] File exists: '/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls-io/prove-P1-1/state/prove'
+Traceback (most recent call last):
+  File "/opt/flashprove/entrypoint", line 658, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/opt/flashprove/entrypoint", line 651, in main
+    out = handlers[sub](job)
+          ^^^^^^^^^^^^^^^^^^
+  File "/opt/flashprove/entrypoint", line 421, in prove
+    work = workdir(host("/io/state/prove"))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/flashprove/entrypoint", line 147, in workdir
+    private(p)
+  File "/opt/flashprove/entrypoint", line 139, in private
+    path.mkdir(mode=0o700)
+  File "/usr/lib/python3.12/pathlib.py", line 1313, in mkdir
+    os.mkdir(self, mode)
+FileExistsError: [Errno 17] File exists: '/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls-io/prove-P1-2/state/prove'

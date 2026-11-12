@@ -358,6 +358,11 @@
             },
             "type": "array"
           },
+          "claimed_tokens": {
+            "$comment": "a serving ladder run: the count of claimed_output's token ids, which are in the run's replies file (iproofs.replies)",
+            "minimum": 0,
+            "type": "integer"
+          },
           "proof_id": {
             "$ref": "../quantity/1.schema.json#/$defs/proofId"
           },
@@ -449,6 +454,34 @@
           "type": "object"
         }
       ]
+    },
+    "replies": {
+      "$comment": "a serving ladder run: the file beside run.json that holds every output's claimed_output, by digest; kept with the run in the bucket, not in git (RFC-0013 SIZE-1)",
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "file": {
+          "const": "replies.jsonl"
+        },
+        "outputs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sha256": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "file",
+        "sha256",
+        "bytes",
+        "outputs"
+      ],
+      "type": "object"
     },
     "run_id": {
       "$ref": "../quantity/1.schema.json#/$defs/runId"

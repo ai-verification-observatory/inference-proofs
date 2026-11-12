@@ -1,0 +1,1041 @@
+{
+  "date": "2026-11-11",
+  "frontier": null,
+  "level": "L1",
+  "level_digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+  "price": {
+    "basis": "h200",
+    "date": "2026-11-08",
+    "reference": "reference/v1.0.yaml",
+    "usd_per_gpu_hour": {
+      "grade": "asserted",
+      "null_reason": null,
+      "scope": null,
+      "source": {
+        "kind": "reference_file",
+        "ref": "reference/v1.0.yaml#/costs/h200"
+      },
+      "tier": "reported",
+      "unit": "USD/gpu_hour",
+      "value": 5.345
+    }
+  },
+  "release": "v1.0",
+  "request": {
+    "decoding": "greedy",
+    "output_tokens": 512,
+    "prompt_tokens": 512
+  },
+  "rungs": [
+    {
+      "baseline": {
+        "cause": null,
+        "concurrency": 512,
+        "gpu_seconds_per_reply": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+              "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices",
+              "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-BASELINE@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "gpu_s/request",
+          "value": 0.19183702853385418
+        },
+        "gpus": 4,
+        "ladder": [
+          {
+            "concurrency": 1,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.05259740307419464
+            }
+          },
+          {
+            "concurrency": 2,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.10337228183601406
+            }
+          },
+          {
+            "concurrency": 4,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.20527179238907148
+            }
+          },
+          {
+            "concurrency": 8,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.4036108353750448
+            }
+          },
+          {
+            "concurrency": 16,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.7490775093617965
+            }
+          },
+          {
+            "concurrency": 32,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 1.2748496021001652
+            }
+          },
+          {
+            "concurrency": 64,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 2.0096807722878713
+            }
+          },
+          {
+            "concurrency": 128,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 2.9277952137198193
+            }
+          },
+          {
+            "concurrency": 256,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 3.911771062711072
+            }
+          },
+          {
+            "concurrency": 512,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 5.212757972966238
+            }
+          },
+          {
+            "concurrency": 1024,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1/manifest.json#/machine/gpu/bound_indices"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 4.267837099130293
+            }
+          }
+        ],
+        "run_id": "2026-11-11-ref-serve-l1-maverick-p512-o512-serving-h200x4-hosted-1",
+        "serving": "llama-4-maverick-17b-128e-instruct-fp8",
+        "usd_per_reply": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply",
+              "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-USD@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": 0.0002848246993092918
+        }
+      },
+      "fidelity": {
+        "bar": null,
+        "cause": "no fidelity.json stored",
+        "controls": [],
+        "path": null
+      },
+      "id": "llama-4-maverick",
+      "model": "Llama 4 Maverick 17B-128E Instruct",
+      "parameters_active": 17000000000,
+      "parameters_total": 400000000000,
+      "publisher": "Meta",
+      "requests_per_session": 120,
+      "rows": [
+        {
+          "checks": {
+            "fidelity": {
+              "cause": "not run",
+              "evidence": [],
+              "note": "no fidelity.json for the rung",
+              "state": "undecided"
+            },
+            "model": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/8",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/2"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "no_weight_file": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/verify-trace/"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "prompt": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/1"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "reply": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/0"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "run": {
+              "cause": "not run",
+              "evidence": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json"
+              ],
+              "note": "no complete session in slot 2, 3",
+              "state": "undecided"
+            }
+          },
+          "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+          "configuration": "exact-match-cp-verify",
+          "fidelity": null,
+          "generation_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/steady_generation_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 1193.6587939444983
+          },
+          "glyph": [
+            {
+              "basis": "statement",
+              "id": "unforgeable",
+              "quotes": [
+                {
+                  "text": "The Lean verifier accepts a proof of a false claim with probability at most about q/2^124 + 2^-101 after q hash queries (about 124 bits per query; not \"128 bits\")",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L70"
+                },
+                {
+                  "text": "Nothing is proved of the C++ verifier that the examples and most users run, of the CUDA prover, or of the committer, and no theorem says that they run the protocol the Lean verifier checks: that rests on tests.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L272-L277"
+                },
+                {
+                  "text": "The C++ programs' printed \"bits\" are their own accounting, not a theorem",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L65-L73"
+                }
+              ],
+              "reason": "A soundness level is proven for the protocol, in Lean, for the Lean verifier; the C++ verifier this row runs is tested, not proved.",
+              "state": "amber"
+            },
+            {
+              "basis": "statement",
+              "id": "weights_hidden",
+              "quotes": [
+                {
+                  "text": "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol, at full size and at the exact-match policy, with fresh random masks. The honest prover in these theorems is a Lean definition, not the CUDA prover.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3-L5"
+                },
+                {
+                  "text": "we expect, rather than know, that the programs hide the weights at the default setting, in honest runs, if the provider keeps its duties",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L9-L27"
+                },
+                {
+                  "text": "At least eleven things are visible",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L5-L21"
+                }
+              ],
+              "reason": "Zero knowledge is proved in Lean for the protocol; for the programs it is expected, not known, and a declared list of values stays visible.",
+              "state": "amber"
+            },
+            {
+              "basis": "test",
+              "id": "faithful_model",
+              "quotes": [],
+              "reason": "no fidelity run stored",
+              "state": "hollow"
+            },
+            {
+              "basis": "run",
+              "id": "any_model",
+              "quotes": [],
+              "reason": "passed on 0 of 3 rungs; a check is still undecided",
+              "state": "hollow"
+            },
+            {
+              "basis": "statement",
+              "id": "no_trusted_party",
+              "quotes": [
+                {
+                  "text": "The random-oracle model for the hash, with a second, fixed hash function, built on BLAKE2b's compression function, assumed independent of it",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L57-L58"
+                }
+              ],
+              "reason": "Soundness is stated in the random-oracle model for the hash, with no setup ceremony, hardware or third party. Public files fixed before the hash, which the documents also name, are shared by every non-interactive proof and do not count against it.",
+              "state": "green"
+            }
+          ],
+          "incomplete_sessions": [],
+          "multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/steady_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 1231.6646749387576
+          },
+          "passed": false,
+          "position": null,
+          "proof_bytes_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": null,
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-BPR@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 18776498.466666665,
+              "mean": 18776498.466666665,
+              "median": 18776498.466666665,
+              "min": 18776498.466666665,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "B/request",
+            "value": 18776498.466666665
+          },
+          "proving_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/steady_proving_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 38.00588099425932
+          },
+          "ranked": false,
+          "security": {
+            "source": "systems/flashprove/claim.yaml#security.level",
+            "stated": true,
+            "words": "For the Lean verifier: a false claim is accepted with probability at most about q/2^124 + 2^-101 after q hash queries. Not claimed for cp_verify, which this row runs: \"The C++ programs' printed bits are their own accounting, not a theorem\"."
+          },
+          "session_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-SESSION@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 252.281558005525,
+              "mean": 252.281558005525,
+              "median": 252.281558005525,
+              "min": 252.281558005525,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 252.281558005525
+          },
+          "session_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/session_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 1315.0827029256448
+          },
+          "session_usd_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/session_gpu_seconds_per_reply",
+                "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-USD@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "USD/request",
+            "value": 0.37456803542764755
+          },
+          "sessions": [
+            {
+              "cause": null,
+              "generation_gpu_seconds_per_reply": 228.98795611361666,
+              "gpus": 1,
+              "groups": [
+                24,
+                24,
+                24,
+                24,
+                24
+              ],
+              "m": 236.27889139036665,
+              "run_id": "2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1",
+              "session": 252.281558005525,
+              "slot": 1,
+              "steady": true
+            }
+          ],
+          "steady_generation_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-GENERATION@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 228.98795611361666,
+              "mean": 228.98795611361666,
+              "median": 228.98795611361666,
+              "min": 228.98795611361666,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 228.98795611361666
+          },
+          "steady_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-STEADY@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 236.27889139036665,
+              "mean": 236.27889139036665,
+              "median": 236.27889139036665,
+              "min": 236.27889139036665,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 236.27889139036665
+          },
+          "steady_proving_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-PROVING@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 7.290935276749991,
+              "mean": 7.290935276749991,
+              "median": 7.290935276749991,
+              "min": 7.290935276749991,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 7.290935276749991
+          },
+          "steady_usd_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/steady_gpu_seconds_per_reply",
+                "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-USD@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "USD/request",
+            "value": 0.35080852068930823
+          },
+          "system": "flashprove",
+          "unranked_reason": null,
+          "verify_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "verify",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-VSPR@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 18.065654139983334,
+              "mean": 18.065654139983334,
+              "median": 18.065654139983334,
+              "min": 18.065654139983334,
+              "n": 1,
+              "n_failed": 0,
+              "stdev": null
+            },
+            "tier": "reported",
+            "unit": "s/request",
+            "value": 18.065654139983334
+          },
+          "workload": "l1-maverick-p512-o512"
+        }
+      ],
+      "systems_run": 1
+    },
+    {
+      "baseline": {
+        "cause": null,
+        "concurrency": 256,
+        "gpu_seconds_per_reply": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+              "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index",
+              "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-BASELINE@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "gpu_s/request",
+          "value": 0.04311149049869792
+        },
+        "gpus": 1,
+        "ladder": [
+          {
+            "concurrency": 1,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.4073596612492216
+            }
+          },
+          {
+            "concurrency": 2,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 0.8081536992996372
+            }
+          },
+          {
+            "concurrency": 4,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 1.5733847587323724
+            }
+          },
+          {
+            "concurrency": 8,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 3.0122430151075075
+            }
+          },
+          {
+            "concurrency": 16,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 5.566915457360635
+            }
+          },
+          {
+            "concurrency": 32,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 9.455807744706052
+            }
+          },
+          {
+            "concurrency": 64,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 14.868624897209488
+            }
+          },
+          {
+            "concurrency": 128,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 20.15193620418891
+            }
+          },
+          {
+            "concurrency": 256,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 23.195672161467083
+            }
+          },
+          {
+            "concurrency": 512,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 24.26946653151282
+            }
+          },
+          {
+            "concurrency": 1024,
+            "replies_per_gpu_second": {
+              "grade": "derived",
+              "null_reason": null,
+              "scope": "prove.steady",
+              "source": {
+                "inputs": [
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/run.json#/proofs",
+                  "results/v1.0/ref-serve/2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1/manifest.json#/machine/gpu/bound_index"
+                ],
+                "kind": "derivation",
+                "ref": "derive:D-L1-BASELINE-RATE@0.1.0.dev0"
+              },
+              "tier": "reported",
+              "unit": "request/gpu_s",
+              "value": 23.11519013962687
+            }
+          }
+        ],
+        "run_id": "2026-11-11-ref-serve-l1-l31-8b-p512-o512-serving-h200x1-hosted-1",
+        "serving": "llama-3.1-8b-instruct-bf16",
+        "usd_per_reply": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply",
+              "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-USD@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": 6.400858797653899e-05
+        }
+      },
+      "fidelity": {
+        "bar": null,
+        "cause": "no fidelity.json stored",
+        "controls": [],
+        "path": null
+      },
+      "id": "llama-3.1-8b",
+      "model": "Llama 3.1 8B Instruct",
+      "parameters_active": 8030261248,
+      "parameters_total": 8030261248,
+      "publisher": "Meta",
+      "requests_per_session": 5,
+      "rows": [],
+      "systems_run": 0
+    },
+    {
+      "baseline": {
+        "cause": "no baseline run stored",
+        "concurrency": null,
+        "gpu_seconds_per_reply": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "levels/L1.yaml#/rungs"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-BASELINE@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "gpu_s/request",
+          "value": null
+        },
+        "gpus": null,
+        "ladder": [],
+        "run_id": null,
+        "serving": "gpt2-fp32",
+        "usd_per_reply": {
+          "grade": "derived",
+          "null_reason": "missing_input",
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "releases/v1.0/board.json#/rungs/2/baseline/gpu_seconds_per_reply",
+              "reference/v1.0.yaml#/costs/h200/price_per_gpu_hour_usd"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-USD@0.1.0.dev0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": null
+        }
+      },
+      "fidelity": {
+        "bar": null,
+        "cause": "no fidelity.json stored",
+        "controls": [],
+        "path": null
+      },
+      "id": "gpt-2",
+      "model": "GPT-2",
+      "parameters_active": 137022720,
+      "parameters_total": 137022720,
+      "publisher": "OpenAI",
+      "requests_per_session": 5,
+      "rows": [],
+      "systems_run": 0
+    }
+  ],
+  "schema": "board/1"
+}

@@ -192,6 +192,9 @@ def test_board_multiple_and_unsteady_rows(tree: Tree, monkeypatch: pytest.Monkey
     steady, unsteady = rung["rows"]
     assert (steady["system"], steady["position"]) == (SYSTEM, 1)
     assert math.isclose(steady["multiple"]["value"], 10.0 / 0.5)
+    # no generation phase: no split (CO-7)
+    assert steady["proving_multiple"]["value"] is None
+    assert steady["steady_generation_gpu_seconds_per_reply"]["null_reason"] == "not_applicable"
     assert (unsteady["system"], unsteady["position"]) == ("other", 2)
     assert unsteady["multiple"]["null_reason"] == "not_applicable"
     assert {s["cause"] for s in unsteady["sessions"]} == {"too few groups"}
@@ -251,3 +254,38 @@ def test_board_session_with_a_generation_phase(tree: Tree) -> None:
     assert {s["generation_gpu_seconds_per_reply"] for s in r["sessions"]} == {20.0}
     assert {s["m"] for s in r["sessions"]} == {40.0}
     assert math.isclose(r["steady_gpu_seconds_per_reply"]["value"], 40.0)
+    # CO-7: the split, 20 of generation and 40 - 20 = 20 of proving
+    assert math.isclose(r["steady_generation_gpu_seconds_per_reply"]["value"], 20.0)
+    assert math.isclose(r["steady_proving_gpu_seconds_per_reply"]["value"], 20.0)
+
+
+def test_board_split_multiples(tree: Tree, monkeypatch: pytest.MonkeyPatch) -> None:
+    """CO-7: m = 40 GPU-seconds per further reply, 20 of them generation (the phase test above),
+    over a baseline of 0.5: multiple 80, proving 40, generation 40, and the two parts sum to m."""
+    three_sessions(tree, gpus=2, generation=(40.0, 90.0))
+    base = {"value": 0.5, "unit": "gpu_s/request", "scope": "prove.steady", "grade": "derived",
+            "tier": "reported", "null_reason": None,
+            "source": {"kind": "derivation", "ref": "derive:D-L1-BASELINE@0.1.0",
+                       "inputs": ["x#/proofs"]}}  # fmt: skip
+
+    class Load:
+        run_id, concurrency, gpus, gpu_seconds_per_reply, ladder = "r", 64, 1, base, ()
+
+    serve = tree.run_dir("ref-serve", "2026-12-04-ref-serve-l1-l31-8b-p512-o512-serving-1")
+    serve.mkdir(parents=True)
+    (serve / "run.json").write_text(json.dumps({"run_id": serve.name, "system": "ref-serve"}))
+    (serve / "manifest.json").write_text(json.dumps({
+        "serving_model": {"id": "llama-3.1-8b-instruct-bf16"},
+        "level": {"digest": tree.digest}}))  # fmt: skip
+    import iproofs.baseline  # noqa: PLC0415
+
+    monkeypatch.setattr(iproofs.baseline, "full_load", lambda run_dir, level: Load())
+    board = build_board(tree.root, RELEASE, tree.level)
+    valid(board)
+    (r,) = board["rungs"][1]["rows"]  # type: ignore[index]
+    assert math.isclose(r["multiple"]["value"], 80.0)
+    assert math.isclose(r["proving_multiple"]["value"], 40.0)
+    assert math.isclose(r["generation_multiple"]["value"], 40.0)
+    assert r["proving_multiple"]["source"]["inputs"][0].endswith(
+        "/steady_proving_gpu_seconds_per_reply"
+    )

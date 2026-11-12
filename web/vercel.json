@@ -65,12 +65,12 @@
   "outputDirectory": "public",
   "redirects": [
     {
-      "destination": "/",
+      "destination": "/flashprove",
       "permanent": false,
       "source": "/system"
     },
     {
-      "destination": "/",
+      "destination": "/flashprove",
       "permanent": false,
       "source": "/system.html"
     },
@@ -83,11 +83,6 @@
       "destination": "/",
       "permanent": false,
       "source": "/deepprove"
-    },
-    {
-      "destination": "/",
-      "permanent": false,
-      "source": "/flashprove"
     },
     {
       "destination": "/",

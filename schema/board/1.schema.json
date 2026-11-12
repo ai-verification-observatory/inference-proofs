@@ -590,6 +590,22 @@
           "$comment": "CO-3: mean m of the counted sessions; null when any counted session has no steady state",
           "$ref": "#/$defs/value"
         },
+        "steady_generation_gpu_seconds_per_reply": {
+          "$comment": "CO-7: the generation phase's part of m, mean of the counted sessions; null when the system has no generation phase of its own or no steady state",
+          "$ref": "#/$defs/value"
+        },
+        "steady_proving_gpu_seconds_per_reply": {
+          "$comment": "CO-7: m less its generation part, mean of the counted sessions; null as the generation part",
+          "$ref": "#/$defs/value"
+        },
+        "generation_multiple": {
+          "$comment": "CO-7: the generation part over the baseline's GPU-seconds per reply",
+          "$ref": "#/$defs/value"
+        },
+        "proving_multiple": {
+          "$comment": "CO-7: the proving part over the baseline's GPU-seconds per reply",
+          "$ref": "#/$defs/value"
+        },
         "steady_usd_per_reply": {
           "$ref": "#/$defs/value"
         },

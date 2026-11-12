@@ -77,13 +77,38 @@ def multiple_html(row):
     figs = row["figures"]
     m = figs["multiple"]
     if m is not None and m["value"] is not None:
-        return fig_html(m, counted(row))
+        return fig_html(m, counted(row)) + split_html(row)
     cold = figs["session_multiple"]
     if cold is not None and cold["value"] is not None:
         n = rung_of(row)["requests_per_session"]
         count = cold["n"] if cold["n"] is not None else counted(row)
         return fig_html(cold, sub=f"cold sessions of {n:,} replies · n\u00a0=\u00a0{count}")
     return fig_html(m)
+
+
+def split_html(row):
+    """CO-7: under the multiple, its proving and generation parts as two figures, with a bar of
+    their shares of m, where the system generates in a phase of its own; nothing otherwise."""
+    figs = row["figures"]
+    p, g = figs.get("proving_multiple"), figs.get("generation_multiple")
+    if not p or not g or p["value"] is None or g["value"] is None:
+        return ""
+    share = 100 * p["value"] / (p["value"] + g["value"])
+    w = max(share, 1.5)  # a sliver stays visible
+    bar = (f'<svg class="sbar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">'
+           f'<rect class="bp" width="{w:.2f}" height="4"/>'
+           f'<rect class="bg" x="{w:.2f}" width="{100 - w:.2f}" height="4"/></svg>')  # fmt: skip
+
+    def part(name, f, cls):
+        num, unit = number(f["value"], f["unit"])
+        return (
+            f'<span class="part {cls}" title="{e(labels(f))}"><span class="pn">{e(num)}'
+            f'<span class="px">{e(unit)}</span></span><span class="pl">{name}</span></span>'
+        )
+
+    return (
+        f'<span class="split">{bar}{part("proving", p, "pp")}{part("generation", g, "pg")}</span>'
+    )
 
 
 def kl_html(row):

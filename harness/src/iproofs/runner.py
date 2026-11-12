@@ -135,6 +135,7 @@ from iproofs.quantity import (
     Unit,
     check_closed_division,
 )
+from iproofs.replies import read_replies, split_replies
 from iproofs.schema import SchemaRegistry
 from iproofs.serialize import write_json, write_jsonl, write_text
 from iproofs.serving import (
@@ -2120,6 +2121,8 @@ class Runner:
         # run.json names the card the manifest records (RFC-0016 OVR-5 reads it)
         claim = manifest.get("claim") if manifest is not None else None
         doc = self._run_doc(job, metrics, claim)
+        if self.load == "ladder":  # the replies go beside run.json (iproofs.replies, SIZE-1)
+            doc = split_replies(job.staging, doc)
         invalid = {"run.json": (doc, self.registry.errors("run/1", doc))}
         if manifest is not None:
             invalid["manifest.json"] = (manifest, self.registry.errors("manifest/1", manifest))
@@ -3196,11 +3199,13 @@ def agreement(
 
 def recorded_claims(run_dir: Path) -> list[list[int]]:
     """The claimed outputs of a completed run, by request index (RFC-0015 RC-1)."""
-    proofs = json.loads((run_dir / "run.json").read_text()).get("proofs", [])
-    claims = {p.get("request_index"): p.get("claimed_output") for p in proofs}
+    doc = json.loads((run_dir / "run.json").read_text())
+    proofs = doc.get("proofs", [])
+    replies = read_replies(run_dir, doc)  # from the entries, or the replies file by digest
+    claims = {p.get("request_index"): replies.get(str(p.get("proof_id"))) for p in proofs}
     if not proofs or None in claims.values() or set(claims) != set(range(len(claims))):
         raise IProofsError(ErrorKind.CONFIG, f"{run_dir}: no claimed outputs in the source run")
-    return [list(claims[i]) for i in range(len(claims))]
+    return [list(claims[i] or ()) for i in range(len(claims))]
 
 
 def _cpu_list(spec: str) -> list[int]:
