@@ -60,7 +60,7 @@ hf-job.sh run flashprove l1-maverick-p512-o512:1:level=L1:session=1
 hf-job.sh run ref-serve l1-l31-8b-p512-o512:1:level=L1:ladder           # serving-h200x1-hosted
 hf-job.sh run ref-serve l1-maverick-p512-o512:1:level=L1:ladder         # serving-h200x4-hosted
 hf-job.sh fidelity llama-3.1-8b                                         # ref-fidelity image
-hf-job.sh fidelity llama-4-maverick                                     # fidelity-h200x8-hosted
+hf-job.sh fidelity llama-4-maverick   # fidelity-h200x8-hosted, IPROOFS_FIDELITY_SLOTS=16
 ```
 
 The verifier-side controls of a kept SASH session run as in `hf-jobs.md` stage 5 (`seed`, `controls`, `merge`); `iproofs controls RUN_DIR` reads the level from the run's manifest.

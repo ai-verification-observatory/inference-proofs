@@ -78,6 +78,9 @@
 #                         IPROOFS_DEV_IMAGE --keep-io` (recorded as local/<that image>,
 #                         digest_kind config; the io directory, with the engine's raw responses,
 #                         stays in the run directory and is uploaded if it holds no weights)
+#   IPROOFS_FIDELITY_SLOTS  fidelity only: llama-server slots, the prompts sent at once (default
+#                         1); each control's replies are made the way the reference's are, and
+#                         the reference rerun (FI-2) shows what batching changes
 #   IPROOFS_STORED_DIR    controls only: a read-only mount of the stored run (`hf jobs run -v
 #                         hf://buckets/<namespace>/<bucket>/RUN_PATH:/stored:ro`)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
@@ -661,9 +664,10 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
     log "fetch-model --serving $record, at most $(left) s"
     timeout --kill-after=60 "$(left)" "$IP" fetch-model --serving "$record" || { log "fetch failed"; exit 3; }
   fi
-  log "fidelity run $RUNG on GPUs ${GPUS:-$GPU}, at most $(left) s"
+  SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
+  log "fidelity run $RUNG on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
   env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
-    --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --hosted \
+    --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
     --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"}
   rc=$?
   log "fidelity run exit $rc"
