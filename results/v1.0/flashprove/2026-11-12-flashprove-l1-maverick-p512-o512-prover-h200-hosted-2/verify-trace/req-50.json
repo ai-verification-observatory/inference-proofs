@@ -1,0 +1,435 @@
+{
+  "failed_opens": 8,
+  "gpu_devices_opened": [],
+  "gpu_visible": false,
+  "mode": "hosted",
+  "model_files_opened": [],
+  "model_files_present": false,
+  "model_files_removed": true,
+  "opened": [
+    {
+      "bytes": 11059,
+      "path": "/etc/ld.so.cache"
+    },
+    {
+      "bytes": 2129424,
+      "path": "/lib/x86_64-linux-gnu/libc.so.6"
+    },
+    {
+      "bytes": 952616,
+      "path": "/lib/x86_64-linux-gnu/libm.so.6"
+    },
+    {
+      "bytes": 113000,
+      "path": "/lib/x86_64-linux-gnu/libz.so.1"
+    },
+    {
+      "bytes": 186624,
+      "path": "/lib/x86_64-linux-gnu/libexpat.so.1"
+    },
+    {
+      "bytes": 360460,
+      "path": "/usr/lib/locale/C.utf8/LC_CTYPE"
+    },
+    {
+      "bytes": 27028,
+      "path": "/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache"
+    },
+    {
+      "bytes": 114,
+      "path": "/etc/localtime"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12"
+    },
+    {
+      "bytes": 5790,
+      "path": "/usr/lib/python3.12/encodings/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/encodings"
+    },
+    {
+      "bytes": 12408,
+      "path": "/usr/lib/python3.12/encodings/__pycache__/aliases.cpython-312.pyc"
+    },
+    {
+      "bytes": 2147,
+      "path": "/usr/lib/python3.12/encodings/__pycache__/utf_8.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/local/lib/python3.12/dist-packages"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3/dist-packages"
+    },
+    {
+      "bytes": 151,
+      "path": "/usr/lib/python3/dist-packages/distutils-precedence.pth"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/lib-dynload"
+    },
+    {
+      "bytes": 9998,
+      "path": "/usr/lib/python3/dist-packages/_distutils_hack/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": 300,
+      "path": "/usr/lib/python3.12/__pycache__/sitecustomize.cpython-312.pyc"
+    },
+    {
+      "bytes": 35657,
+      "path": "/opt/flashprove/entrypoint"
+    },
+    {
+      "bytes": null,
+      "path": "/opt/flashprove"
+    },
+    {
+      "bytes": 8087,
+      "path": "/usr/lib/python3.12/__pycache__/hashlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 64368,
+      "path": "/usr/lib/python3.12/lib-dynload/_hashlib.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 5309400,
+      "path": "/lib/x86_64-linux-gnu/libcrypto.so.3"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/sys/crypto/fips_enabled"
+    },
+    {
+      "bytes": 12324,
+      "path": "/usr/lib/ssl/openssl.cnf"
+    },
+    {
+      "bytes": 13620,
+      "path": "/usr/lib/python3.12/json/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/json"
+    },
+    {
+      "bytes": 13825,
+      "path": "/usr/lib/python3.12/json/__pycache__/decoder.cpython-312.pyc"
+    },
+    {
+      "bytes": 17938,
+      "path": "/usr/lib/python3.12/re/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": 80708,
+      "path": "/usr/lib/python3.12/__pycache__/enum.cpython-312.pyc"
+    },
+    {
+      "bytes": 14939,
+      "path": "/usr/lib/python3.12/__pycache__/types.cpython-312.pyc"
+    },
+    {
+      "bytes": 17364,
+      "path": "/usr/lib/python3.12/__pycache__/operator.cpython-312.pyc"
+    },
+    {
+      "bytes": 40506,
+      "path": "/usr/lib/python3.12/__pycache__/functools.cpython-312.pyc"
+    },
+    {
+      "bytes": 73089,
+      "path": "/usr/lib/python3.12/collections/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": 1041,
+      "path": "/usr/lib/python3.12/__pycache__/keyword.cpython-312.pyc"
+    },
+    {
+      "bytes": 9909,
+      "path": "/usr/lib/python3.12/__pycache__/reprlib.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/re"
+    },
+    {
+      "bytes": 26516,
+      "path": "/usr/lib/python3.12/re/__pycache__/_compiler.cpython-312.pyc"
+    },
+    {
+      "bytes": 42007,
+      "path": "/usr/lib/python3.12/re/__pycache__/_parser.cpython-312.pyc"
+    },
+    {
+      "bytes": 5296,
+      "path": "/usr/lib/python3.12/re/__pycache__/_constants.cpython-312.pyc"
+    },
+    {
+      "bytes": 1816,
+      "path": "/usr/lib/python3.12/re/__pycache__/_casefix.cpython-312.pyc"
+    },
+    {
+      "bytes": 7414,
+      "path": "/usr/lib/python3.12/__pycache__/copyreg.cpython-312.pyc"
+    },
+    {
+      "bytes": 3321,
+      "path": "/usr/lib/python3.12/json/__pycache__/scanner.cpython-312.pyc"
+    },
+    {
+      "bytes": 48952,
+      "path": "/usr/lib/python3.12/lib-dynload/_json.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 15098,
+      "path": "/usr/lib/python3.12/json/__pycache__/encoder.cpython-312.pyc"
+    },
+    {
+      "bytes": 68113,
+      "path": "/usr/lib/python3.12/__pycache__/shutil.cpython-312.pyc"
+    },
+    {
+      "bytes": 6495,
+      "path": "/usr/lib/python3.12/__pycache__/fnmatch.cpython-312.pyc"
+    },
+    {
+      "bytes": 23792,
+      "path": "/usr/lib/python3.12/__pycache__/warnings.cpython-312.pyc"
+    },
+    {
+      "bytes": 15133,
+      "path": "/usr/lib/python3.12/__pycache__/bz2.cpython-312.pyc"
+    },
+    {
+      "bytes": 7497,
+      "path": "/usr/lib/python3.12/__pycache__/_compression.cpython-312.pyc"
+    },
+    {
+      "bytes": 32112,
+      "path": "/usr/lib/python3.12/lib-dynload/_bz2.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 78944,
+      "path": "/lib/x86_64-linux-gnu/libbz2.so.1.0"
+    },
+    {
+      "bytes": 15855,
+      "path": "/usr/lib/python3.12/__pycache__/lzma.cpython-312.pyc"
+    },
+    {
+      "bytes": 49256,
+      "path": "/usr/lib/python3.12/lib-dynload/_lzma.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 202904,
+      "path": "/lib/x86_64-linux-gnu/liblzma.so.5"
+    },
+    {
+      "bytes": 325,
+      "path": "/usr/lib/python3.12/__pycache__/struct.cpython-312.pyc"
+    },
+    {
+      "bytes": 79187,
+      "path": "/usr/lib/python3.12/__pycache__/subprocess.cpython-312.pyc"
+    },
+    {
+      "bytes": 59536,
+      "path": "/usr/lib/python3.12/__pycache__/locale.cpython-312.pyc"
+    },
+    {
+      "bytes": 4448,
+      "path": "/usr/lib/python3.12/__pycache__/signal.cpython-312.pyc"
+    },
+    {
+      "bytes": 65346,
+      "path": "/usr/lib/python3.12/__pycache__/threading.cpython-312.pyc"
+    },
+    {
+      "bytes": 11751,
+      "path": "/usr/lib/python3.12/__pycache__/_weakrefset.cpython-312.pyc"
+    },
+    {
+      "bytes": 30376,
+      "path": "/usr/lib/python3.12/__pycache__/contextlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 26128,
+      "path": "/usr/lib/python3.12/__pycache__/selectors.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/collections"
+    },
+    {
+      "bytes": 249,
+      "path": "/usr/lib/python3.12/collections/__pycache__/abc.cpython-312.pyc"
+    },
+    {
+      "bytes": 124575,
+      "path": "/usr/lib/python3.12/__pycache__/tarfile.cpython-312.pyc"
+    },
+    {
+      "bytes": 9800,
+      "path": "/usr/lib/python3.12/__pycache__/copy.cpython-312.pyc"
+    },
+    {
+      "bytes": 31348,
+      "path": "/usr/lib/python3.12/__pycache__/weakref.cpython-312.pyc"
+    },
+    {
+      "bytes": 47339,
+      "path": "/usr/lib/python3.12/__pycache__/tempfile.cpython-312.pyc"
+    },
+    {
+      "bytes": 33153,
+      "path": "/usr/lib/python3.12/__pycache__/random.cpython-312.pyc"
+    },
+    {
+      "bytes": 3641,
+      "path": "/usr/lib/python3.12/__pycache__/bisect.cpython-312.pyc"
+    },
+    {
+      "bytes": 62098,
+      "path": "/usr/lib/python3.12/__pycache__/pathlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 135,
+      "path": "/usr/lib/python3.12/urllib/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/urllib"
+    },
+    {
+      "bytes": 50619,
+      "path": "/usr/lib/python3.12/urllib/__pycache__/parse.cpython-312.pyc"
+    },
+    {
+      "bytes": 90762,
+      "path": "/usr/lib/python3.12/__pycache__/ipaddress.cpython-312.pyc"
+    },
+    {
+      "bytes": 10688,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/job.json"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/10ocku52"
+    },
+    {
+      "bytes": 2629,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/verifier/policy.txt"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/config/policy.txt"
+    },
+    {
+      "bytes": 2784,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/verifier/KL.bin"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/config/KL.bin"
+    },
+    {
+      "bytes": 224975,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/verifier/layout.txt"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/config/layout.txt"
+    },
+    {
+      "bytes": 3296128,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/verifier/key.bin"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/ivk/key.bin"
+    },
+    {
+      "bytes": 2943968,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/verifier/0.bin"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/ivk/leaf/0.bin"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/request.req"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/token.y"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/stdout"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx/work/stderr"
+    },
+    {
+      "bytes": 2592224,
+      "path": "/lib/x86_64-linux-gnu/libstdc++.so.6"
+    },
+    {
+      "bytes": 183024,
+      "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1"
+    },
+    {
+      "bytes": 578,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/commands.jsonl"
+    },
+    {
+      "bytes": null,
+      "path": "/tmp/flashprove-verify-92br3zmx"
+    },
+    {
+      "bytes": null,
+      "path": "work"
+    },
+    {
+      "bytes": null,
+      "path": "home"
+    },
+    {
+      "bytes": null,
+      "path": "tmp"
+    },
+    {
+      "bytes": null,
+      "path": "config"
+    },
+    {
+      "bytes": null,
+      "path": "ivk"
+    },
+    {
+      "bytes": null,
+      "path": "leaf"
+    },
+    {
+      "bytes": 250,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify/req-50/out.json"
+    }
+  ],
+  "proof_id": "req-50",
+  "run_id": "2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2",
+  "schema": "verify-trace/1",
+  "tool": "strace",
+  "trace": {
+    "bytes": 410702,
+    "digest": "sha256:df7c6042c3428178caad941b68afa513774225b0fb41d6919f8ad11bff82c28f"
+  }
+}

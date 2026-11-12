@@ -1,6 +1,12 @@
 {
   "date": "2026-11-12",
-  "frontier": null,
+  "frontier": {
+    "rows": [
+      "flashprove"
+    ],
+    "rung": "llama-4-maverick",
+    "systems_run": 1
+  },
   "level": "L1",
   "level_digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
   "price": {
@@ -291,10 +297,63 @@
         }
       },
       "fidelity": {
-        "bar": null,
-        "cause": "no fidelity.json stored",
-        "controls": [],
-        "path": null
+        "bar": {
+          "control": "q3_k_s",
+          "mean_prefix": 11.15
+        },
+        "cause": null,
+        "controls": [
+          {
+            "id": "reference-2",
+            "kind": "honest",
+            "kl": null,
+            "mean_prefix": 500.34444444444443,
+            "status": "ok"
+          },
+          {
+            "id": "q8_0",
+            "kind": "honest",
+            "kl": null,
+            "mean_prefix": 65.70833333333333,
+            "status": "ok"
+          },
+          {
+            "id": "q4_k_m",
+            "kind": "honest",
+            "kl": null,
+            "mean_prefix": 30.28611111111111,
+            "status": "ok"
+          },
+          {
+            "id": "q3_k_s",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 11.15,
+            "status": "ok"
+          },
+          {
+            "id": "q2_k",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 5.083333333333333,
+            "status": "ok"
+          },
+          {
+            "id": "drop-every-4th-block",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": null,
+            "status": "failed"
+          },
+          {
+            "id": "smaller-model",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 2.3333333333333335,
+            "status": "ok"
+          }
+        ],
+        "path": "results/v1.0/fidelity/llama-4-maverick/fidelity.json"
       },
       "id": "llama-4-maverick",
       "model": "Llama 4 Maverick 17B-128E Instruct",
@@ -306,10 +365,12 @@
         {
           "checks": {
             "fidelity": {
-              "cause": "not run",
-              "evidence": [],
-              "note": "no fidelity.json for the rung",
-              "state": "undecided"
+              "cause": null,
+              "evidence": [
+                "results/v1.0/fidelity/llama-4-maverick/fidelity.json"
+              ],
+              "note": null,
+              "state": "held"
             },
             "model": {
               "cause": null,
@@ -323,7 +384,9 @@
             "no_weight_file": {
               "cause": null,
               "evidence": [
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/verify-trace/"
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/verify-trace/",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/verify-trace/",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/verify-trace/"
               ],
               "note": null,
               "state": "held"
@@ -340,26 +403,37 @@
               "cause": null,
               "evidence": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json",
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/0"
               ],
               "note": null,
               "state": "held"
             },
             "run": {
-              "cause": "not run",
+              "cause": null,
               "evidence": [
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json"
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json"
               ],
-              "note": "no complete session in slot 2, 3",
-              "state": "undecided"
+              "note": null,
+              "state": "held"
             }
           },
           "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
           "configuration": "exact-match-cp-verify",
-          "fidelity": null,
+          "fidelity": {
+            "kl": null,
+            "kl_note": "not measured: llama.cpp's KL base is the 16-bit file, which the level's llama.cpp pin cannot run on this rung (RFC-0018 FI-9)",
+            "mean_prefix": 29.658333333333335,
+            "n": 360,
+            "p_above_bar": 4.9999750001249995e-06,
+            "p_below_bar": 1.0
+          },
           "generation_multiple": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -371,7 +445,7 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 1193.6587939444983
+            "value": null
           },
           "glyph": [
             {
@@ -418,15 +492,15 @@
               "basis": "test",
               "id": "faithful_model",
               "quotes": [],
-              "reason": "no fidelity run stored",
-              "state": "hollow"
+              "reason": "above the bar; the reference rerun scores above the row (p = 5e-06, alpha 0.05, n = 360)",
+              "state": "amber"
             },
             {
               "basis": "run",
               "id": "any_model",
               "quotes": [],
-              "reason": "passed on 0 of 3 rungs; a check is still undecided",
-              "state": "hollow"
+              "reason": "passed on 1 of 3 rungs",
+              "state": "red"
             },
             {
               "basis": "statement",
@@ -444,7 +518,7 @@
           "incomplete_sessions": [],
           "multiple": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -456,37 +530,39 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 1231.6646749387576
+            "value": null
           },
-          "passed": false,
-          "position": null,
+          "passed": true,
+          "position": 1,
           "proof_bytes_per_reply": {
             "grade": "derived",
             "null_reason": null,
             "scope": null,
             "source": {
               "inputs": [
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request"
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/metrics/proof_bytes_per_request"
               ],
               "kind": "derivation",
               "ref": "derive:D-BPR@0.1.0.dev0"
             },
             "stats": {
               "max": 18776498.466666665,
-              "mean": 18776498.466666665,
-              "median": 18776498.466666665,
-              "min": 18776498.466666665,
-              "n": 1,
+              "mean": 18775626.71111111,
+              "median": 18775701.2,
+              "min": 18774680.466666665,
+              "n": 3,
               "n_failed": 0,
-              "stdev": null
+              "stdev": 911.2861493109615
             },
             "tier": "reported",
             "unit": "B/request",
-            "value": 18776498.466666665
+            "value": 18775626.71111111
           },
           "proving_multiple": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -498,9 +574,9 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 38.00588099425932
+            "value": null
           },
-          "ranked": false,
+          "ranked": true,
           "security": {
             "source": "systems/flashprove/claim.yaml#security.level",
             "stated": true,
@@ -513,23 +589,27 @@
             "source": {
               "inputs": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/events",
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs"
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/events",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-SESSION@0.1.0.dev0"
             },
             "stats": {
-              "max": 252.281558005525,
-              "mean": 252.281558005525,
+              "max": 255.11904222519166,
+              "mean": 252.64563070042223,
               "median": 252.281558005525,
-              "min": 252.281558005525,
-              "n": 1,
+              "min": 250.53629187055,
+              "n": 3,
               "n_failed": 0,
-              "stdev": null
+              "stdev": 2.3129660392274163
             },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 252.281558005525
+            "value": 252.64563070042223
           },
           "session_multiple": {
             "grade": "derived",
@@ -545,7 +625,7 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 1315.0827029256448
+            "value": 1316.9805257687096
           },
           "session_usd_per_reply": {
             "grade": "derived",
@@ -561,7 +641,7 @@
             },
             "tier": "reported",
             "unit": "USD/request",
-            "value": 0.37456803542764755
+            "value": 0.37510858224826577
           },
           "sessions": [
             {
@@ -580,85 +660,103 @@
               "session": 252.281558005525,
               "slot": 1,
               "steady": true
+            },
+            {
+              "cause": "uneven groups",
+              "generation_gpu_seconds_per_reply": 228.221353249925,
+              "gpus": 1,
+              "groups": [
+                24,
+                24,
+                24,
+                24,
+                24
+              ],
+              "m": null,
+              "run_id": "2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1",
+              "session": 250.53629187055,
+              "slot": 2,
+              "steady": false
+            },
+            {
+              "cause": "uneven groups",
+              "generation_gpu_seconds_per_reply": 232.71538880905834,
+              "gpus": 1,
+              "groups": [
+                24,
+                24,
+                24,
+                24,
+                24
+              ],
+              "m": null,
+              "run_id": "2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2",
+              "session": 255.11904222519166,
+              "slot": 3,
+              "steady": false
             }
           ],
           "steady_generation_gpu_seconds_per_reply": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks"
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/marks"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-GENERATION@0.1.0.dev0"
             },
-            "stats": {
-              "max": 228.98795611361666,
-              "mean": 228.98795611361666,
-              "median": 228.98795611361666,
-              "min": 228.98795611361666,
-              "n": 1,
-              "n_failed": 0,
-              "stdev": null
-            },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 228.98795611361666
+            "value": null
           },
           "steady_gpu_seconds_per_reply": {
             "grade": "derived",
-            "null_reason": null,
+            "note": "no steady state: slot 2: uneven groups; slot 3: uneven groups",
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks"
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/marks"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-STEADY@0.1.0.dev0"
             },
-            "stats": {
-              "max": 236.27889139036665,
-              "mean": 236.27889139036665,
-              "median": 236.27889139036665,
-              "min": 236.27889139036665,
-              "n": 1,
-              "n_failed": 0,
-              "stdev": null
-            },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 236.27889139036665
+            "value": null
           },
           "steady_proving_gpu_seconds_per_reply": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks"
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/marks"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-PROVING@0.1.0.dev0"
             },
-            "stats": {
-              "max": 7.290935276749991,
-              "mean": 7.290935276749991,
-              "median": 7.290935276749991,
-              "min": 7.290935276749991,
-              "n": 1,
-              "n_failed": 0,
-              "stdev": null
-            },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 7.290935276749991
+            "value": null
           },
           "steady_usd_per_reply": {
             "grade": "derived",
-            "null_reason": null,
+            "null_reason": "not_applicable",
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -670,7 +768,7 @@
             },
             "tier": "reported",
             "unit": "USD/request",
-            "value": 0.35080852068930823
+            "value": null
           },
           "system": "flashprove",
           "unranked_reason": null,
@@ -680,23 +778,25 @@
             "scope": "verify",
             "source": {
               "inputs": [
-                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request"
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/metrics/verify_seconds_per_request"
               ],
               "kind": "derivation",
               "ref": "derive:D-VSPR@0.1.0.dev0"
             },
             "stats": {
               "max": 18.065654139983334,
-              "mean": 18.065654139983334,
-              "median": 18.065654139983334,
-              "min": 18.065654139983334,
-              "n": 1,
+              "mean": 17.826308880980555,
+              "median": 17.753246856525,
+              "min": 17.660025646433333,
+              "n": 3,
               "n_failed": 0,
-              "stdev": null
+              "stdev": 0.21245508527232054
             },
             "tier": "reported",
             "unit": "s/request",
-            "value": 18.065654139983334
+            "value": 17.826308880980555
           },
           "workload": "l1-maverick-p512-o512"
         }
