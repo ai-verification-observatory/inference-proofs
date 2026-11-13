@@ -41,7 +41,6 @@ from .overview import (
     multiple_html,
     name_of,
     nobreak,
-    position_html,
     request_words,
     serving_words,
     split_html,
@@ -814,8 +813,6 @@ def system_page(row):
     name = name_of(row)
     facts = [("Standing", standing_html(row, "")),
              ("Model", f'<a href="/#{e(rung["id"])}">{nobreak(rung["model"])}</a>')]  # fmt: skip
-    if row["position"] is not None:
-        facts.append(("Position", position_html(row, rung)))
     if sysd["repo"]:  # the publisher's repository, at the commit the row runs
         at = f"/tree/{e(row['commit'])}" if row["commit"] else ""
         facts.append(("Source", f'<a href="https://github.com/{e(sysd["repo"])}{at}">'

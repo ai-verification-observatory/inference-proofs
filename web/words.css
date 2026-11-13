@@ -261,10 +261,6 @@ html:has(.top.s-on) { overflow: hidden; }
 .facts a { text-decoration-thickness: 1px; }
 /* a link on the band, in hand: a block of ground ink, the words in cobalt (as an index line) */
 .facts a:hover, .facts a:active, .facts a:focus-visible { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
-.facts .pos { display: flex; align-items: center; gap: 8px; }
-.facts .pos .pn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; box-shadow: inset 0 0 0 1.5px var(--ground); font: 900 18px/1 var(--disp); font-variant-numeric: tabular-nums; }
-.facts .pos.p1 .pn { background: var(--paper); box-shadow: none; }
-.facts .of { margin: 0; font: inherit; color: inherit; }
 @media print {
   .sbm .sub, .sbm .na { color: var(--paper); }
   .facts { border-color: var(--paper); }
@@ -282,6 +278,14 @@ html:has(.top.s-on) { overflow: hidden; }
   .facts { column-gap: 28px; margin-top: 24px; padding-bottom: 14px; }
   .facts > div { padding-top: 10px; }
   .facts dd { margin-top: 4px; }
+}
+/* a phone: the band says less room. Its facts are a list, a name and its value on one line (a long value takes
+   two), and the multiple's two parts a line each, the name then its figure */
+@media (max-width: 560px) {
+  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: 16px; row-gap: 5px; margin-top: 20px; padding: 12px 0 16px; }
+  .facts > div { display: contents; }
+  .facts dd { margin: 0; }
+  .sbm .sub { white-space: normal; }
 }
 /* a narrow tablet and paper: the name's column would split a long name inside its word, so the figure goes under it */
 @media (max-width: 860px) and (min-width: 761px), print {
@@ -335,6 +339,8 @@ html:not(.js) .shr:not(:has(a)) { display: none; }
 @media (max-width: 760px) {
   .shr { display: none; }
   .fshr { display: block; }
+  /* no card and no way to copy the link: the group has nothing to offer, so its name is not printed */
+  .facts > .fshr:not(:has(a)):has(button[hidden]) { display: none; }
   html:not(.js) .fshr:not(:has(a)) { display: none; }
 }
 @media (hover: none) {
@@ -458,6 +464,11 @@ html.js .row { cursor: pointer; }
 @media (max-width: 760px) {
   .sbm .split { grid-template-columns: max-content; justify-content: start; row-gap: 10px; margin-top: 16px; }
   .sbm .split .part { justify-content: start; justify-items: start; }
+}
+@media (max-width: 560px) {
+  .sbm .split { row-gap: 4px; margin-top: 12px; }
+  .sbm .split .part { grid-template-columns: max-content max-content; column-gap: 10px; align-items: baseline; }
+  .sbm .split .pl { grid-column: auto; }
 }
 @media (max-width: 860px) and (min-width: 761px), print {
   .sbm .split { justify-content: start; }
