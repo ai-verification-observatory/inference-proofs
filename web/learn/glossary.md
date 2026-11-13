@@ -20,7 +20,7 @@ A statement lists what is bound: the weights to the commitment, the prompt and t
 
 ### Check
 
-One of the six tests this benchmark runs on a system before ranking it: Run, Model, Prompt, Reply, No weight file, Fidelity. Each ends held, failed or undecided, and an undecided check names its cause.
+One of the six tests this benchmark runs on a system before ranking it: Run, Model, Prompt, Reply, Verify without weights, Fidelity. Each ends held, failed or undecided, and an undecided check names its cause.
 
 The [checks page](/checks) defines each one. [How we compare](/method) gives the reasons.
 
@@ -58,7 +58,7 @@ The random checks of a proof system need exact arithmetic, which is why provers 
 
 The five-petal figure drawn for each system this benchmark has run. Each petal is one of five properties a prover can have in full: Unforgeable, Weights hidden, Faithful model, Machine-checked, No third party trusted.
 
-A petal's step is green (in full), amber in part, amber in lesser part (its arm drawn cut), red (no) or not decided (hollow). Four petals are read from what the publisher states at the pinned commit and can be lowered by our checks; Faithful model is measured by our fidelity run. A red petal the publisher is silent on is drawn as an outline. The glyph never moves a system's position, and nothing adds its petals up.
+A petal's step is green (in full), amber in part, amber in lesser part (its arm drawn cut), red (no) or undecided (hollow). Four petals are read from what the publisher states at the pinned commit and can be lowered by our checks; Faithful model is measured by our fidelity run. A red petal the publisher is silent on is drawn as an outline. The glyph never moves a system's position, and nothing adds its petals up.
 
 ### Greedy decoding
 

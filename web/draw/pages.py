@@ -213,7 +213,7 @@ def visible_html(visible):
 
 
 def basis_html(p):
-    """What a petal rests on (the From cell): our checks, the publisher's documents, or, when a
+    """What a petal rests on (the From cell): our tests, the publisher's documents, or, when a
     fact the decision read carries a note, the publisher's documents as we read them, linked to
     what that means."""
     if p["basis"] == "statement" and p["reading"]:
@@ -591,8 +591,10 @@ def build_checks():
         f"{rules(FIGURE_RULE[f])}</div>"
         for f in FIGURE_RULE
     )
-    gate = ("A system passes on a model when it holds all six checks there. A failed check "
-            "turns its petals red; a held check never turns a petal green.")  # fmt: skip
+    gate = ("The six checks are tests we run on every system. A system passes on a model when "
+            "all six checks are held there. The five petals grade what the publisher states, and "
+            "Faithful model what our fidelity run measured: a failed check turns its petals red, "
+            "a held check never turns one green.")  # fmt: skip
     # why a petal is red or hollow: one address per cause, which a system page's State cell links
     petal_causes = "".join(
         f'<div id="cause-{e(k)}"><dt>{e(CAUSE_WORD[k])}</dt><dd>{e(v)}</dd></div>'

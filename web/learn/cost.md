@@ -16,7 +16,7 @@ Two quantities in GPU-seconds of the same kind of GPU, and their ratio.
 The rows of the board. Under each figure: what was timed, and over how many sessions.
 :::
 
-A system whose sessions release too few groups, or uneven ones, has no steady state. It gets no multiple. Its row prints the cost of its whole sessions over b, labelled as cold sessions, and is placed below every row that has a multiple.
+A system whose sessions release too few groups, or uneven ones, has no steady state. It gets no multiple. Its row prints the cost of its whole sessions over b, labelled as whole sessions, and is placed below every row that has a multiple.
 
 ## What is inside m
 
@@ -33,7 +33,7 @@ Two published breakdowns of provers built on sumcheck both put more than half of
 
 Where a system generates its replies in a phase of its own, before proving, the harness times that phase apart, and the row prints m in two parts: generation and proving. The bar under a multiple on the [ladder](/) is that split. It answers a question a total cannot: how much of a system's cost is producing the reply, and how much is everything after it. The second part is not only cryptography: it includes the pass that records the witness.
 
-Two costs are outside m. The commitment to the model is made once per session, before any request. It is not printed on its own: it is inside the whole-session cost, which starts when the commit step starts. And checking is the verifier's work, not the prover's: the row gives the check time and the proof size per reply.
+Two costs are outside m. The commitment to the model is made once per session, before any request. It is not printed on its own: it is inside the whole-session cost, which starts when the commit step starts. And checking is the verifier's work, not the prover's: the row gives the verify time and the proof size per reply.
 
 ## Why the multiple is large
 
@@ -79,4 +79,4 @@ For this to work, the choice has to come after the reply. The operator must answ
 
 ## The verifier's side
 
-A relying party pays twice for a proof: it stores or receives the proof, and it runs the check. Both are meant to be small next to the prover's work, and they differ a great deal from one system to another: in published reports a proof is a few hundred bytes or many gigabytes, and a check takes milliseconds or hours. The rows at the top of this page print both. Read them in their own units: the check time is in seconds of an ordinary processor, and m is in GPU-seconds. For a language model the check is not shorter than serving the reply on a GPU. Its worth is that it needs neither the GPU nor the weights. A relying party that checks a sample of a large service's traffic runs the verifier many times a day.
+A relying party pays twice for a proof: it stores or receives the proof, and it runs the check. Both are meant to be small next to the prover's work, and they differ a great deal from one system to another: in published reports a proof is a few hundred bytes or many gigabytes, and a check takes milliseconds or hours. The rows at the top of this page print both. Read them in their own units: the verify time is in seconds of an ordinary processor, and m is in GPU-seconds. For a language model the check is not shorter than serving the reply on a GPU. Its worth is that it needs neither the GPU nor the weights. A relying party that checks a sample of a large service's traffic runs the verifier many times a day.

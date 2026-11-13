@@ -6,7 +6,7 @@ Every system that proves inference answers the same questions: how the computati
 
 **In their words.** [EZKL](https://github.com/zkonduit/ezkl/blob/e196b111c1bafaa61b92ae431cd3c3fe9371da05/README.md) is "a library and command-line tool for doing inference for deep learning models and other computational graphs in a zk-snark". [ZKML](https://ddkang.github.io/papers/2024/zkml-eurosys.pdf) is "built on the halo2 proving system".
 
-**What it gives.** Any model that exports, and a small proof: a few tens of kilobytes or less. EZKL's README says its proofs can be verified "on-chain (with the Ethereum Virtual Machine), in a browser, or on a device". Check times are not uniformly small: the ZKML authors report between 11.98 and 18.70 seconds to verify their distilled GPT-2.
+**What it gives.** Any model that exports, and a small proof: a few tens of kilobytes or less. EZKL's README says its proofs can be verified "on-chain (with the Ethereum Virtual Machine), in a browser, or on a device". Verify times are not uniformly small: the ZKML authors report between 11.98 and 18.70 seconds to verify their distilled GPT-2.
 
 **What it makes expensive.** The prover's time and memory, which grow with every operation of the graph. The ZKML authors report: "The largest model we can prove with under 1TB of RAM is the distilled version of GPT-2".
 

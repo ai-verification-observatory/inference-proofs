@@ -16,7 +16,7 @@ what a reader operates; the state inks stay with the states of a check (words.cs
 
 from . import state as S
 from .overview import baseline_html, counted, fig_html, href, multiple_html, name_of, standing
-from .words import CHECK_NAME, STATE_WORD, e
+from .words import CHECK_NAME, FIGURE_NAME, STATE_WORD, e
 
 FIGURES: dict = {}
 EXPLORERS: dict = {}
@@ -698,7 +698,7 @@ def measured_rows():
     if not found:
         return ('<p class="none">No system has a row yet. The <a href="/">ladder</a> shows each '
                 "one as it is run.</p>")  # fmt: skip
-    heads = ("System", "Standing", "Multiple of serving", "Check time per reply",
+    heads = ("System", "Standing", FIGURE_NAME["multiple"], FIGURE_NAME["check-time"],
              "Proof size per reply")  # fmt: skip
     ths = "".join(f'<th scope="col">{h}</th>' for h in heads)
 
