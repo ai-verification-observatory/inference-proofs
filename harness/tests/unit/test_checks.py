@@ -181,11 +181,16 @@ def test_trace_naming_a_model_file_fails(tree: Tree) -> None:
 
 
 @pytest.mark.parametrize(
-    "doc", [trace(tool=None), trace(gpu=True), trace(present=True)], ids=["tool", "gpu", "files"]
-)
-def test_trace_conditions_unmet_are_not_run(tree: Tree, doc: dict[str, object]) -> None:
+    ("doc", "cause"),
+    [(trace(tool=None), "not run"), (trace(gpu=True), "not resolved"),
+     (trace(present=True), "not resolved")],
+    ids=["tool", "gpu", "files"],
+)  # fmt: skip
+def test_trace_conditions_unmet(tree: Tree, doc: dict[str, object], cause: str) -> None:
+    """CH-4: no trace tool is `not run`; a traced verify with a GPU or a model file in reach ran
+    and decided nothing, `not resolved`."""
     three_sessions(tree, traces=doc)
-    assert states(tree)["no_weight_file"] == ("undecided", "not run")
+    assert states(tree)["no_weight_file"] == ("undecided", cause)
 
 
 def test_missing_trace_is_not_run(tree: Tree) -> None:
@@ -253,7 +258,7 @@ def test_p1_failed_prove_needs_the_provers_reason(tree: Tree) -> None:
             for t in c["trials"]:
                 t["raw_last_line"] = "adapter: prove exited 1"
     three_sessions(tree, control_doc=doc)
-    assert states(tree)["model"] == ("undecided", "not run")
+    assert states(tree)["model"] == ("undecided", "not resolved")
     other = Tree(tree.root / "second")
     doc = controls(p1=("prover_failed",) * 3)
     for c in doc["controls"]:  # type: ignore[attr-defined]
@@ -316,11 +321,11 @@ def test_a_reverify_on_a_gpu_less_host_stands_for_the_sessions_verdicts(tree: Tr
     """CH-4a: every verdict traced with a GPU visible holds once a re-verify of the same run
     (same proof bytes by sha256) traced each proof with none; one of other bytes counts not."""
     runs = three_sessions(tree, traces=trace(gpu=True))
-    assert states(tree)["no_weight_file"] == ("undecided", "not run")
+    assert states(tree)["no_weight_file"] == ("undecided", "not resolved")
     for run_dir in runs[:2]:
         reverify(run_dir)
     reverify(runs[2], digest="sha256:" + "0" * 64)
-    assert states(tree)["no_weight_file"] == ("undecided", "not run")
+    assert states(tree)["no_weight_file"] == ("undecided", "not resolved")
     other = Tree(tree.root / "second")
     for run_dir in three_sessions(other, traces=trace(gpu=True)):
         reverify(run_dir)
@@ -349,5 +354,5 @@ def test_a_gpu_host_session_without_kept_proofs_gives_its_slot_to_a_later_one(tr
     manifest = json.loads((moved / "manifest.json").read_text())
     manifest["system"]["adapter_commit"] = "b" * 40
     (moved / "manifest.json").write_text(json.dumps(manifest))
-    assert states(other)["no_weight_file"] == ("undecided", "not run")
+    assert states(other)["no_weight_file"] == ("undecided", "not resolved")
     assert row_sessions(other.root, RELEASE, other.level, RUNG, SYSTEM).replaced == []

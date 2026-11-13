@@ -367,7 +367,7 @@
               "state": "held"
             },
             "model": {
-              "cause": "not run",
+              "cause": "not resolved",
               "evidence": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/8",
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/2"
@@ -510,7 +510,7 @@
                 }
               ],
               "reading": true,
-              "reason": "stated for batch members handed in together, not for members checked alone; the harness checks each of the row's 24 replies in its own call: q/2^124 + 2^-101",
+              "reason": "the bound is stated for a batch checked together, not for the row's 24 replies checked alone",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -546,7 +546,7 @@
                 }
               ],
               "reading": true,
-              "reason": "proved for the protocol, not the configuration the row runs; programs not stated to hide the weights; visible values fitted to the weights: \"Settings fitted to the weights\", \"That cp_commit's checks passed\", \"Masked sums of the weights, public for good\"",
+              "reason": "zero knowledge proved for the protocol only, not stated for its programs, and 3 visible values fitted to the weights",
               "state": "amber",
               "step": "amber_upper",
               "visible": [
@@ -680,7 +680,7 @@
               "id": "faithful_model",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not shown above T_upper = 48.00 leading tokens (p = 1); alpha 0.05, n = 360",
+              "reason": "not shown above the Q8_0 and Q4_K_M midpoint, 48.00 leading tokens",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -834,7 +834,7 @@
                 }
               ],
               "reading": true,
-              "reason": "no proof build recorded for VerifierAndGoals.AtTheName.sound_of_verify_at; stated reach: the protocol and the model's statement",
+              "reason": "no proof build of the named theorem is recorded yet",
               "state": "hollow",
               "step": null
             },
@@ -874,7 +874,7 @@
                 }
               ],
               "reading": true,
-              "reason": "read as resting on cryptographic assumptions alone; no quoted sentence says in words that no setup produced a secret",
+              "reason": "read as resting on cryptographic assumptions alone, not said in those words",
               "state": "green",
               "step": "green"
             }
@@ -946,6 +946,96 @@
             "source": "systems/flashprove/claim.yaml#security.level",
             "stated": true,
             "words": "For the Lean verifier: a false claim is accepted with probability at most about q/2^124 + 2^-101 after q hash queries. Not claimed for cp_verify, which this row runs: \"The C++ programs' printed bits are their own accounting, not a theorem\"."
+          },
+          "session_commit_and_proving_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/events",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/marks"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-COMMIT-PROVING@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 23.293601891908338,
+              "mean": 22.67073130955556,
+              "median": 22.403653416133324,
+              "min": 22.314938620625014,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 0.54124245999911
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 22.67073130955556
+          },
+          "session_commit_and_proving_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/session_commit_and_proving_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 118.17703538686106
+          },
+          "session_generation_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/flashprove/2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2/run.json#/marks"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-GENERATION@0.1.0.dev0"
+            },
+            "stats": {
+              "max": 232.71538880905834,
+              "mean": 229.97489939086665,
+              "median": 228.98795611361666,
+              "min": 228.221353249925,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 2.404086453534998
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 229.97489939086665
+          },
+          "session_generation_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/0/rows/0/session_generation_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/0/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 1198.8034903818484
           },
           "session_gpu_seconds_per_reply": {
             "grade": "derived",
@@ -1601,7 +1691,7 @@
               "state": "held"
             },
             "no_weight_file": {
-              "cause": "not run",
+              "cause": "not resolved",
               "evidence": [
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/",
@@ -1690,7 +1780,7 @@
                   "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L26"
                 }
               ],
-              "reason": "conjectured: 100 conjectured bits",
+              "reason": "the stated bound is conjectured, not proved",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -1716,7 +1806,7 @@
               "id": "faithful_model",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not shown above T_upper = 55.67 leading tokens (p = 0.8095); alpha 0.05, n = 15",
+              "reason": "not shown above the Q8_0 and Q4_K_M midpoint, 55.67 leading tokens",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -1867,6 +1957,77 @@
             "source": "systems/sash/claim.yaml#security.level",
             "stated": true,
             "words": "100 conjectured bits for each segment proof, by stwo's conjectured-soundness accounting (blowup 2, 100 FRI queries, no grinding). A level for the whole grid of segments is not stated."
+          },
+          "session_commit_and_proving_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "note": "no generation phase of its own: generation, if any, is inside the proving interval",
+            "null_reason": "not_applicable",
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/events",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/events",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-COMMIT-PROVING@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": null
+          },
+          "session_commit_and_proving_multiple": {
+            "grade": "derived",
+            "null_reason": "not_applicable",
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/session_commit_and_proving_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": null
+          },
+          "session_generation_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "note": "no generation phase of its own: generation, if any, is inside the proving interval",
+            "null_reason": "not_applicable",
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-GENERATION@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": null
+          },
+          "session_generation_multiple": {
+            "grade": "derived",
+            "null_reason": "not_applicable",
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "releases/v1.0/board.json#/rungs/1/rows/0/session_generation_gpu_seconds_per_reply",
+                "releases/v1.0/board.json#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0.dev0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": null
           },
           "session_gpu_seconds_per_reply": {
             "grade": "derived",

@@ -149,6 +149,10 @@ def _checks(raw: dict[str, Any]) -> list[dict[str, Any]]:
 ROW_FIGURES = ("multiple", "session_multiple", "steady_gpu_seconds_per_reply",
                "steady_generation_gpu_seconds_per_reply", "steady_proving_gpu_seconds_per_reply",
                "generation_multiple", "proving_multiple",
+               # CO-7 (amended 2026-11-13): the session cost per reply in two parts
+               "session_generation_gpu_seconds_per_reply",
+               "session_commit_and_proving_gpu_seconds_per_reply",
+               "session_generation_multiple", "session_commit_and_proving_multiple",
                "session_gpu_seconds_per_reply", "steady_usd_per_reply", "session_usd_per_reply",
                "verify_seconds_per_reply", "proof_bytes_per_reply")  # fmt: skip
 

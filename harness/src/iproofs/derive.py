@@ -541,6 +541,8 @@ FORMULAS = {
     "(between the AD-4 marks) / N",
     "D-L1-PROVING": "CO-7: mean over counted sessions of m - the generation phase's "
     "GPU-seconds / N",
+    "D-L1-COMMIT-PROVING": "CO-7: mean over counted sessions of the session cost per reply "
+    "(CO-1) - the generation phase's GPU-seconds / N",
     "D-L1-MULTIPLE": "CO-5: row GPU-seconds per reply / baseline GPU-seconds per reply",
     "D-L1-USD": "GPU-seconds per reply * price per GPU-hour / 3600",
 }
