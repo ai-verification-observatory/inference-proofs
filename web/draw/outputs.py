@@ -6,6 +6,7 @@ the preview-card sources and icon in og/, the @font-face block between the marke
 import base64
 import hashlib
 import re
+from urllib.parse import urlsplit
 
 from . import state as S
 from .chrome import (
@@ -15,25 +16,44 @@ from .chrome import (
     HEAD_SCRIPT,
     LEARN_PAGE,
     MANDATE_PAGE,
+    SCALE_PAGE,
+    SITE_URL,
+    counted,
+    credit_words,
     font_faces,
+    lead_figure,
     level_words,
+    parts_of,
+    row_cost,
     rung_of,
+    standing,
 )
 from .hexagon import glyph_svg
 from .inks import COBALT, GROUND, LINE, MUTED, PAPER, ratio
 from .learn import glossary, glossary_entries
 from .mark import lockup_svg, mark_svg, stacked_svg, tile_svg
-from .overview import filled, href, name_of, standing, states
+from .overview import (
+    fig_html,
+    filled,
+    href,
+    lead_fig,
+    name_of,
+    states,
+    sub_line,
+)
+from .scale import DIMS
 from .words import (
     CHECK_HELD,
     CHECK_NAME,
     FIGURE_NAME,
     FIGURE_RULE,
     MANDATE_BELIEF,
+    OF_WHICH,
     PETAL_NAME,
     PETAL_RULE,
     architecture,
     e,
+    sub_words,
 )
 
 # ------------------------------------------------------------------ search
@@ -94,8 +114,15 @@ def search_entries():
         CHECKS_PAGE,
         "The six checks, the figures, the order rule, what is not tested",
         PAGE_MARK,
-        "checks terms proof commitment request ladder figures order rule undecided unranked "
-        "not tested",
+        "checks figures order rule undecided unranked not tested",
+    )
+    add(
+        "page",
+        "Scale",
+        SCALE_PAGE,
+        ", ".join(n for _, n, _ in DIMS),
+        PAGE_MARK,
+        "scale chart log decade axis",
     )
     add(
         "page",
@@ -220,35 +247,139 @@ html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
 .lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;font-weight:400;color:{MUTED}}}
 """
     body = (f'<div class="og-l">{stacked_svg(132, PAPER, COBALT)}</div>'
-            f'<p class="mono url">inferenceproofs.ai</p><p class="mono lvl">{e(level_words())}</p>')  # fmt: skip
+            f'<p class="mono url">{e(card_host())}</p><p class="mono lvl">{e(level_words())}</p>')  # fmt: skip
     return card_page("home", body, css)
 
 
+def card_host():
+    """The site's host as a card prints it, from SITE_URL ("www." left out)."""
+    host = urlsplit(SITE_URL).netloc
+    return host.removeprefix("www.")
+
+
+# Big Shoulders Display 900, each advance in em (measured in Chrome), for sizing a name before
+# it is drawn; og.mjs stops on a name that still runs past its box
+ADV = {
+    "0": 0.507, "1": 0.274, "2": 0.49, "3": 0.504, "4": 0.511, "5": 0.515, "6": 0.499, "7": 0.485,
+    "8": 0.501, "9": 0.499, "A": 0.478, "B": 0.472, "C": 0.49, "D": 0.495, "E": 0.408, "F": 0.406,
+    "G": 0.493, "H": 0.485, "I": 0.23, "J": 0.453, "K": 0.497, "L": 0.402, "M": 0.745, "N": 0.543,
+    "O": 0.497, "P": 0.471, "Q": 0.497, "R": 0.477, "S": 0.474, "T": 0.419, "U": 0.487, "V": 0.494,
+    "W": 0.8, "X": 0.471, "Y": 0.465, "Z": 0.418, "a": 0.476, "b": 0.497, "c": 0.459, "d": 0.497,
+    "e": 0.459, "f": 0.335, "g": 0.502, "h": 0.503, "i": 0.232, "j": 0.233, "k": 0.457, "l": 0.232,
+    "m": 0.769, "n": 0.503, "o": 0.48, "p": 0.497, "q": 0.497, "r": 0.351, "s": 0.438, "t": 0.35,
+    "u": 0.499, "v": 0.445, "w": 0.769, "x": 0.419, "y": 0.447, "z": 0.401, " ": 0.22, "-": 0.446,
+    ".": 0.25,
+}  # fmt: skip
+
+
+def name_em(text):
+    return sum(ADV.get(c, 0.8) for c in text)
+
+
+CARD_NAME_W = 660  # the name's box on a system card, px (left of the band's figure)
+CARD_NAME_ONE = (150, 104)  # one line: the largest size, and the smallest before it takes two
+CARD_NAME_TWO = 74  # two lines: the largest size
+WHY_LONG = 58  # the standing's reason longer than this, in characters, is set small (two lines)
+
+
+def card_name(name):
+    """The name's lines and size: one line as large as fits, or, for a long name, two lines split
+    at the space nearest its middle, never more than CARD_NAME_TWO px."""
+    one = min(CARD_NAME_ONE[0], CARD_NAME_W / name_em(name))
+    spaces = [i for i, c in enumerate(name) if c == " "]
+    if one >= CARD_NAME_ONE[1] or not spaces:
+        return [name], int(one)
+    cut = min(spaces, key=lambda i: abs(name_em(name[:i]) - name_em(name[i + 1 :])))
+    lines = [name[:cut], name[cut + 1 :]]
+    two = min(CARD_NAME_TWO, CARD_NAME_W / max(name_em(t) for t in lines))
+    return (lines, int(two)) if two > one else ([name], int(one))
+
+
 def system_card(pid):
-    """A system page's card: the lockup, the system's name, its model and standing, the level,
-    and its glyph (the five petals in their state inks) on the right."""
+    """A system page's card, the page in brief: the top bar's lockup; a cobalt band with the
+    system's name, its model with its size and, on the right, its one figure labelled for what it
+    is; under it the standing, as large as a name, the cost and check time per reply, and the
+    glyph with its names; at the foot the level, the release and the page's address. Every
+    figure with its unit, scope and n (AGENTS.md rule 2); a figure with no position is set in the
+    light weight, as on the band."""
     row = S.PAGE[pid]
-    name = name_of(row)
-    # the name on one line, at most 220 px, smaller for a long name (Big Shoulders 900 runs under
-    # 0.45 em a letter), in the 672 px left of the glyph
-    size = min(220, int(672 / (0.45 * max(len(name), 1))))
+    rung = rung_of(row)
+    lines, size = card_name(name_of(row))
+    label, lead = lead_fig(row)
+    n = counted(row)
+    _, f, key = lead_figure(row)
+    if parts := parts_of(row, key):  # CO-7: the two parts beside the figure, its scope under all
+        pts = "".join(f'<span class="pt"><span class="pw">{e(OF_WHICH)} {e(w)}</span>'
+                      f'{fig_html(p, sub="")}</span>' for w, p in parts)  # fmt: skip
+        lead = (fig_html(f, sub="") + f'<span class="pts">{pts}</span>'
+                f'<span class="sub">{sub_line(sub_words(f, n))}</span>')  # fmt: skip
+    head, _, why = standing(row).partition(": ")
+    if row["position"] is not None:
+        why = f"position {row['position']} of {rung['systems_run']}"
+    rel = S.V["release"]
+    when = level_words() + (
+        f" · Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "") if rel else ""
+    )
+    weight = 600 if row["position"] is not None else 400
     css = f"""
-html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
-.cl{{position:absolute;left:96px;top:84px}}
-.sn{{position:absolute;left:90px;top:196px;font-size:{size}px;line-height:.8;letter-spacing:-.005em;white-space:nowrap}}
-.sr{{position:absolute;left:96px;top:410px;width:672px;font-size:24px;line-height:1.35;font-weight:400;color:{MUTED}}}
-.lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;color:{MUTED}}}
-.g{{position:absolute;right:96px;top:165px}}
-.g svg{{display:block}}
-.sl.green{{fill:{S.INK["green"]}}}.sl.amber{{fill:{S.INK["amber"]}}}.sl.red{{fill:{S.INK["red"]}}}.sl.hollow{{fill:none;stroke:{MUTED}}}
-.sl.red.open{{fill:none;stroke:{S.INK["red"]}}}
+.top{{position:absolute;left:0;top:0;width:{CARD_W}px;height:72px;padding:0 64px;display:flex;align-items:center;box-shadow:inset 0 -1px 0 {LINE}}}
+.band{{position:absolute;left:0;top:72px;width:{CARD_W}px;height:244px;padding:0 64px 28px;background:{COBALT};color:{GROUND};display:flex;align-items:flex-end;justify-content:space-between;gap:40px}}
+.who{{width:{CARD_NAME_W}px}}
+.name{{font-size:{size}px;line-height:.86;letter-spacing:-.012em;white-space:nowrap}}
+.model{{margin-top:16px;font-size:17px;line-height:23px;font-weight:600}}
+.model span{{display:block;font-weight:400}}
+.lead{{width:340px;text-align:right}}
+.lbl{{display:block;font-size:12px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}}
+.lead .lbl{{margin-bottom:12px;text-wrap:balance}}
+.fig{{display:flex;align-items:baseline;white-space:nowrap}}
+.lead .fig{{justify-content:flex-end}}
+.n{{letter-spacing:-.04em}}
+.lead .n{{font-size:{68 if parts else 84}px;line-height:.84;font-weight:{weight}}}
+.lead .u{{font-size:{36 if parts else 44}px;font-weight:{weight}}}
+.pts{{display:block;margin-top:10px}}
+.pt{{display:flex;justify-content:flex-end;align-items:baseline;gap:8px;font-size:13px;line-height:18px}}
+.lead .pt .n{{font-size:15px;line-height:18px;font-weight:600;letter-spacing:0}}
+.lead .pt .u{{font-size:13px;font-weight:400}}
+.sub{{display:block;margin-top:10px;font-size:14px;line-height:18px}}
+.na{{font-size:28px;line-height:1}}
+.low{{position:absolute;left:64px;top:344px;width:690px}}
+.st{{padding-bottom:18px;border-bottom:1px solid {LINE}}}
+.st .lbl,.cell .lbl{{color:{MUTED}}}
+.sw{{margin-top:8px;font-size:48px;line-height:.9;text-transform:uppercase;letter-spacing:.01em}}
+.why{{margin-top:8px;font-size:18px;line-height:24px}}
+.why.sm{{margin-top:6px;font-size:14px;line-height:18px}}
+.cells{{display:flex}}
+.cell{{flex:1 1 0;min-width:0;padding:16px 20px 0 0}}
+.cell+.cell{{padding-left:20px;border-left:1px solid {LINE}}}
+.cell .lbl{{margin-bottom:10px}}
+.cell .n{{font-size:34px;line-height:1;font-weight:600}}
+.cell .u{{margin-left:6px;font-size:16px}}
+.cell .sub{{color:{MUTED}}}
+.g{{position:absolute;right:64px;top:348px}}
+.foot{{position:absolute;left:64px;right:64px;bottom:24px;display:flex;justify-content:space-between;align-items:baseline;font-size:15px;line-height:20px}}
+.foot .lvl{{color:{MUTED}}}
+.foot .url{{font-size:18px;font-weight:600}}
 .pie-svg{{overflow:visible}}
 """
-    body = (f'<div class="cl">{lockup_svg(26, ink=PAPER, mark=COBALT)}</div>'
-            f'<p class="disp sn">{e(name)}</p>'
-            f'<p class="mono sr">{e(rung_of(row)["model"])}<br>{e(standing(row))}</p>'
-            f'<p class="mono lvl">{e(level_words())}</p>'
-            f'<div class="g">{glyph_svg(6, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])}</div>')  # fmt: skip
+    glyph = glyph_svg(6, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
+    model = (f'{e(rung["model"])}<span>'
+             f'{e(architecture(rung["parameters_total"], rung.get("parameters_active")))}</span>')  # fmt: skip
+    cells = ((FIGURE_NAME["cost"], fig_html(row_cost(row), n)),
+             (FIGURE_NAME["check-time"], fig_html(row["figures"]["verify_seconds_per_reply"], n)))  # fmt: skip
+    small = " sm" if len(why) > WHY_LONG else ""
+    reason = f'<p class="mono why{small}">{e(why)}</p>' if why else ""
+    figs = "".join(f'<div class="cell fit"><span class="lbl">{e(k)}</span>{v}</div>'
+                   for k, v in cells)  # fmt: skip
+    body = (
+        f'<div class="top">{lockup_svg(22, ink=PAPER, mark=COBALT)}</div>'
+        f'<div class="band"><div class="who fit"><p class="disp name fit">'
+        f'{"<br>".join(e(t) for t in lines)}</p><p class="mono model fit">{model}</p></div>'
+        f'<div class="mono lead fit"><span class="lbl">{e(label)}</span>{lead}</div></div>'
+        f'<div class="low"><div class="st fit"><span class="mono lbl">Standing</span>'
+        f'<p class="disp sw">{e(head)}</p>{reason}</div><div class="mono cells">{figs}</div></div>'
+        f'<div class="g">{glyph}</div><div class="mono foot"><span class="lvl">{e(when)}</span>'
+        f'<span class="url">{e(card_host())}/{e(pid)}</span></div>'
+    )
     return card_page(pid, body, css)
 
 
@@ -282,6 +413,42 @@ def write_cards():
     S.WRITE_TEXT(S.OG / "home.html", home_card())
     for pid in S.PAGE:
         S.WRITE_TEXT(S.OG / f"{pid}.html", system_card(pid))
+    if S.V["credit"]["members"]:
+        S.WRITE_TEXT(S.OG / f"{MEMBERS_CARD}.html", members_card())
+
+
+# ------------------------------------------------------------------ the members' banner
+# og/members.html, a picture for posts (no page names it): the lockup, who builds the site, and
+# the members' names as a ruled grid of 1 to 12 cells. Written only once a member is listed.
+MEMBERS_CARD = "members"
+MEMBER_COLS = {1: 1, 2: 2, 3: 3, 4: 2}  # columns by count; 5 to 9 names take 3, 10 to 12 take 4
+
+
+def members_card():
+    names = [m["name"] for m in S.V["credit"]["members"]]
+    n = len(names)
+    cols = MEMBER_COLS.get(n, 3 if n <= 9 else 4)
+    rows = -(-n // cols)
+    # the grid: 1008 px wide between the 96 px margins, 300 px tall over the bottom margin. Every
+    # name on one line when that keeps three quarters of the size two lines allow, else on two,
+    # sized so its longer half fits its cell (Big Shoulders 900 runs under 0.5 em a letter)
+    cw, ch = (1008 - (cols - 1)) / cols - 48, (300 - (rows - 1)) / rows
+    half = max(max(len(x) - len(x) // 2, *map(len, x.split())) for x in names)
+    one, two = (min(96, ch * 0.38, cw / (0.5 * k)) for k in (max(map(len, names)), half))
+    size = int(one if one >= 0.75 * two else two)
+    css = f"""
+html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
+.cl{{position:absolute;left:96px;top:84px}}
+.by{{position:absolute;left:96px;top:150px;width:1008px;font-size:20px;line-height:1.35;color:{MUTED}}}
+.mg{{position:absolute;left:96px;bottom:84px;width:1008px;height:300px;display:grid;grid-template-columns:repeat({cols},1fr);grid-template-rows:repeat({rows},1fr);gap:1px;background:{LINE};border-block:1px solid {LINE}}}
+.mg>div{{display:flex;align-items:center;padding:0 24px;background:{GROUND};font-size:{size}px;line-height:.92;text-wrap:balance}}
+"""
+    cells = "".join(f'<div class="disp">{e(x)}</div>' for x in names)
+    cells += "<div></div>" * (rows * cols - n)
+    body = (f'<div class="cl">{lockup_svg(26, ink=PAPER, mark=COBALT)}</div>'
+            f'<p class="mono by">{credit_words(linked=False)}</p>'
+            f'<div class="mg">{cells}</div>')  # fmt: skip
+    return card_page(MEMBERS_CARD, body, css)
 
 
 def write_font_faces():

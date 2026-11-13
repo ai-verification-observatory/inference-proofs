@@ -225,7 +225,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .bk { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 32px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
 .band-h { margin: 32px 0 0; font: 900 min(var(--title), calc((100vw - 2 * var(--gut)) / 12.8))/.92 var(--disp); letter-spacing: -.012em; white-space: nowrap; }
 .bl { --cp: min(16px, var(--gut)); margin: 28px calc(-1 * var(--cp)) 0; }
-.bx { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 20rem) 5.5rem; grid-template-areas: "k k k k" "p m s c" ". . f f"; align-items: last baseline; column-gap: 24px; padding: 16px var(--cp) 20px; background: var(--ground); color: var(--paper); text-decoration: none; }
+.bx { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 20rem) max-content; grid-template-areas: "k k k k" "p m s c" ". . f f"; align-items: last baseline; column-gap: 24px; padding: 16px var(--cp) 20px; background: var(--ground); color: var(--paper); text-decoration: none; }
 .bx-p { grid-area: p; font: 600 16px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .bx-m { grid-area: m; font: 900 40px/.92 var(--disp); letter-spacing: -.005em; }
 .bx-s { grid-area: s; display: flex; align-items: baseline; column-gap: 10px; min-width: 0; font: 600 14px/18px var(--mono); }
@@ -255,7 +255,7 @@ html:has(.top.s-on) { overflow: hidden; }
 @media (max-width: 1100px) {
   /* the block runs to the window's edges, its words on the gutter */
   .bl { --cp: var(--gut); }
-  .bx { grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 15rem) 4.5rem; column-gap: 20px; }
+  .bx { grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 15rem) max-content; column-gap: 20px; }
   .bx-m { font-size: 32px; }
   .bx-w { font-size: 24px; }
 }
@@ -355,6 +355,29 @@ html:not(.js) .ps-t { display: none; }
 @media (max-width: 760px) {
   .ps { margin-right: 0; padding-right: var(--gut); }
 }
+/* a system page's share group: the card as a download and Copy link (shown by words.js), at the
+   strip's right end out of its scroll; on a phone among the band's facts instead */
+.pnav:has(.shr) { display: flex; }
+.pnav:has(.shr) .ps { flex: 1 1 auto; min-width: 0; margin-right: 0; }
+.shr { flex: none; display: flex; align-items: stretch; margin: 0 var(--gut) 0 12px; }
+.shl { display: flex; align-items: center; padding-right: 4px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--rule); }
+.shr a, .shr button { display: flex; align-items: center; padding: 0 12px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer; }
+.shr a:hover, .shr a:focus-visible, .shr button:hover, .shr button:focus-visible { background: var(--cobalt); color: var(--ground); }
+.shr :focus-visible { outline-offset: -2px; outline-color: var(--paper); }
+.shr [hidden], .fshr [hidden], .fshr { display: none; }
+html:not(.js) .shr:not(:has(a)) { display: none; }
+.fshr dd { display: flex; gap: 20px; }
+.fshr button { text-decoration: underline 1px; text-underline-offset: 2px; }
+.fshr button:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+@media (max-width: 760px) {
+  .shr { display: none; }
+  .fshr { display: block; }
+  html:not(.js) .fshr:not(:has(a)) { display: none; }
+}
+@media (hover: none) {
+  .fshr a, .fshr button { position: relative; }
+  .fshr a:after, .fshr button:after { content: ""; position: absolute; inset: -14px 0; }
+}
 
 /* ---------------------------------------------------------------- the ladder: a section per model under a cobalt rule, its size in a tab */
 .rung { margin-top: 96px; }
@@ -384,6 +407,8 @@ html:not(.js) .ps-t { display: none; }
 .lad col.c1 { width: 88px; } .lad col.c2 { width: 175px; } .lad col.c3 { width: 18%; } .lad col.c4 { width: 16%; } .lad col.c7 { width: 15%; }
 .lad thead th { position: sticky; top: var(--top-h); z-index: 3; background: var(--ground); font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); text-align: left; white-space: nowrap; padding: 14px 16px 12px 0; vertical-align: bottom; box-shadow: inset 0 -1px 0 var(--rule); }
 .lad thead th:first-child { container-type: scroll-state; }
+/* the last head (KL's) may take two lines rather than run past the table's edge */
+.lad thead th:last-child { white-space: normal; padding-right: 0; text-wrap: balance; }
 .hk { display: none; padding: 4px 8px 5px; background: var(--cobalt); color: var(--ground); font: 600 13px/1 var(--mono); letter-spacing: -.01em; }
 @container scroll-state(stuck: top) { .hk { display: inline-block; } }
 /* the same, where words.js marks a stuck head (a browser with no scroll-state query) */
@@ -430,18 +455,29 @@ html.js .row { cursor: pointer; }
 .lad .fig .n { font-size: 24px; }
 .lad .cm .fig .n { font-size: 42px; letter-spacing: -.04em; }
 .lad .cm .fig .u.x { font-size: 24px; }
-.split { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 18px; row-gap: 6px; margin-top: 14px; }
+.split { display: grid; grid-template-columns: minmax(0, max-content); justify-content: start; row-gap: 10px; margin-top: 14px; }
 .split .sbar { grid-column: 1 / -1; width: 100%; max-width: 168px; height: 4px; display: block; }
 .split .bp { fill: var(--paper); }
 .split .bg { fill: var(--rule); }
 .split .nib { stroke: var(--paper); stroke-width: 2px; vector-effect: non-scaling-stroke; }
-.split .part { display: flex; flex-direction: column; row-gap: 3px; }
-.split .pn { font: 600 14px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.split .px { font-weight: 600; margin-left: .1em; }
-.split .pl { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
+/* a part: its name on a line, then its figure with its scope and n beside it */
+.split .part { display: grid; grid-template-columns: max-content max-content; justify-content: start; align-items: baseline; column-gap: 8px; row-gap: 3px; }
+.split .pl { grid-column: 1 / -1; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); white-space: nowrap; }
 .split .pp .pl { color: var(--paper); }
+.split .fig .n, .lad .cm .split .fig .n { font-size: 14px; letter-spacing: -.02em; }
+.split .fig .u.x, .lad .cm .split .fig .u.x { font-size: 12px; margin-left: -.1em; }
+.split .sub, .lad .cm .split .sub { margin: 0; font-size: 11px; line-height: 14px; white-space: nowrap; }
+/* on the band: the parts under its figure, set right with it, in the ground ink, no bar */
+.sbm .split { grid-template-columns: max-content max-content; justify-content: end; column-gap: 28px; margin-top: 18px; }
+.sbm .split .part { justify-content: end; justify-items: end; }
+.sbm .split .pl, .sbm .split .pp .pl { color: var(--ground); }
+@media (max-width: 760px) {
+  .sbm .split { grid-template-columns: max-content; justify-content: start; row-gap: 10px; margin-top: 16px; }
+  .sbm .split .part { justify-content: start; justify-items: start; }
+}
 .sub { display: block; font: 400 12px/16px var(--mono); color: var(--muted); margin-top: 6px; }
 .lad .sub { white-space: nowrap; }
+.lad .st, .scl .st, .fid thead th, .fid td[data-l="Kind"] { text-wrap: balance; }
 .lad .cm .sub { white-space: normal; }
 .na { font: 600 14px/18px var(--mono); color: var(--muted); }
 @media (max-width: 1320px) {
@@ -565,7 +601,12 @@ html.js .row { cursor: pointer; }
   .lad .cc { grid-area: 2 / 1; padding-right: 10px; }
   .lad .ct { grid-area: 2 / 2; }
   .lad .cc, .lad .ct { padding-top: 12px; box-shadow: inset 0 1px 0 var(--line); }
-  .lad .ck, .lad .cm .split, .lad .cm .lbl { display: none; }
+  .lad .ck, .lad .cm .split .sbar, .lad .cm .lbl { display: none; }
+  /* the parts in the figure's column: each label, figure and scope wrap inside it */
+  .lad .cm .split { grid-template-columns: minmax(0, 1fr); row-gap: 8px; margin-top: 10px; }
+  .lad .cm .split .part { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
+  .lad .cm .split .pl { white-space: normal; font-size: 10px; line-height: 12px; letter-spacing: -.01em; }
+  .lad .cm .split .sub { white-space: normal; font-size: 10px; line-height: 13px; }
   /* the second line's figures are named where they stand */
   .lad :is(.cc, .ct) .lbl { display: block; margin-bottom: 6px; font-size: 10px; line-height: 12px; letter-spacing: -.01em; white-space: nowrap; }
   .sname { margin-top: -2px; font-size: 26px; line-height: 24px; }
@@ -620,13 +661,111 @@ html.js .row { cursor: pointer; }
   .rt.stk:not(.fid) .fig .u { flex-basis: 100%; }
 }
 
+/* ---------------------------------------------------------------- the scale page: every row on a decade axis, one figure at a time (scale.py).
+   A section per figure (with script the strip picks the one drawn): one table, its axis once at the head, a
+   group (lane) per model under a cobalt rule, every lane on the one decade grid. A mark carries standing, never a state ink: passed a paper square,
+   not passed a ground square in a muted outline; its sessions' ticks and range in the same ink */
+.scalepage .blk > .sect { margin: 0; padding-bottom: 14px; border-bottom: 1px solid var(--rule); font: 900 28px/1 var(--disp); letter-spacing: 0; text-transform: none; color: var(--paper); }
+html.js .scalepage .scl-panel > .sect { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
+html.js .scalepage .scl-panel { margin-top: 0; }
+.scl .grp > th:first-child { padding: 32px 0 10px; border-bottom: 0; color: var(--paper); }
+.scl .lane:first-of-type .grp > th:first-child { padding-top: 24px; }
+.lh { display: block; border-top: 3px solid var(--cobalt); }
+.ln { display: block; margin: 12px 0 0; font: 900 30px/.95 var(--disp); letter-spacing: -.005em; text-wrap: balance; }
+.lf { display: block; margin: 8px 0 0; font: var(--f-meta); color: var(--muted); }
+.lsv { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-top: 6px; font: var(--f-meta); }
+.lsv .k { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
+.lsv .fig { display: inline-flex; }
+.scl .lsv .fig .n { font-size: 14px; letter-spacing: 0; }
+.lsv .sub { display: inline; margin: 0; color: var(--muted); }
+.scl .nrun > td { padding: 14px 16px 16px; border-top: 1px solid var(--rule); font: 800 22px/1 var(--disp); color: var(--muted); }
+.scl { width: 100%; margin-top: 24px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+.scl th, .scl td { text-align: left; font-weight: 400; padding: 0 16px 0 0; }
+.scl tr > :first-child { padding-left: 16px; }
+.scl .cp { width: 72px; }
+.scl .csys { width: 240px; }
+.scl .cf { width: 208px; padding-left: 16px; }
+.scl .cx { padding: 0 16px; overflow: hidden; }
+.scl thead th { vertical-align: bottom; padding-bottom: 10px; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); box-shadow: inset 0 -1px 0 var(--rule); }
+.scl thead .cx { padding-bottom: 0; overflow: visible; }
+.scl thead .cf { padding-left: 16px; }
+.al { display: block; margin-bottom: 6px; }
+.scl tbody > tr.row > * { vertical-align: middle; padding-block: 14px; border-bottom: 1px solid var(--line); transition: background-color var(--quick), box-shadow var(--quick); }
+.scl tbody > tr.row > .cx { padding-block: 0; }
+.scl .pos .pn { width: 32px; height: 32px; font-size: 24px; }
+.scl .of { margin-top: 4px; font-size: 11px; line-height: 14px; }
+.scl .sname { font-size: 26px; }
+.scl .st { margin-top: 6px; }
+.scl .fig .n { font-size: 20px; }
+.lx, .ax { display: block; overflow: visible; }
+.lx line { stroke-width: 1px; }
+.lx :is(.gd, .tk) { stroke: var(--line); }
+.lx .sv { stroke: var(--muted); stroke-dasharray: 2 2; }
+.lx .rg { stroke: var(--muted); stroke-width: 2px; stroke-linecap: round; }
+.lx .ss { stroke: var(--muted); stroke-width: 1.5px; }
+.lx .mk rect { fill: var(--ground); stroke: var(--paper); stroke-width: 2px; transition: fill var(--quick); }
+.row:is(:hover, :focus-within, .cur) .lx .mk rect { fill: var(--lift); }
+.ok .lx :is(.rg, .ss) { stroke: var(--paper); }
+.ok .lx .mk rect, .row.ok:is(:hover, :focus-within, .cur) .lx .mk rect { fill: var(--paper); stroke: var(--ground); stroke-width: 4px; paint-order: stroke; }
+.ax :is(.mj, .mn) { stroke: var(--rule); stroke-width: 1px; }
+.ax .tl { fill: var(--muted); font: 400 11px/1 var(--mono); font-stretch: 87.5%; font-variant-numeric: tabular-nums; }
+.ax .tl.n { display: none; }
+/* a row on two lines: position, name and figure, then the plot across the content */
+@media (max-width: 1180px) {
+  .scl, .scl thead, .scl tbody { display: block; }
+  .scl tr.grp, .scl tr.nrun, .scl :is(.grp, .nrun) > * { display: block; }
+  .scl tr { display: grid; grid-template-columns: 56px minmax(0, 1fr) fit-content(55%); grid-template-areas: "p s f" "x x x"; align-items: center; }
+  .scl tr > .cp { grid-area: p; } .scl tr > .csys { grid-area: s; } .scl tr > .cf { grid-area: f; } .scl tr > .cx { grid-area: x; }
+  .scl :is(.cp, .csys, .cf) { width: auto; }
+  .scl .cf { padding-left: 12px; text-align: right; }
+  .scl .cx { padding: 0 8px; }
+  .scl thead tr { box-shadow: inset 0 -1px 0 var(--rule); }
+  .scl thead th { box-shadow: none; padding-bottom: 8px; }
+  .scl thead .cx { padding: 4px 8px 0; }
+  .scl tbody > tr.row { border-bottom: 1px solid var(--line); transition: background-color var(--quick), box-shadow var(--quick); }
+  .scl tbody > tr.row > * { border-bottom: 0; padding-block: 14px 6px; background: none; }
+  .scl tbody > tr.row > .cx { padding-bottom: 10px; }
+  /* the row in hand: the whole row lifts, its edge on the row (its first cell is not on every line) */
+  .scl .row > :first-child, .scl .row:is(:hover, :focus-within, .cur, :active) > :first-child { box-shadow: none; }
+  .scl .row:is(:hover, :focus-within, .cur) { background: var(--lift); }
+  .scl .row:hover { box-shadow: inset 3px 0 0 var(--cobalt); }
+  .scl .row:is(:focus-within, .cur) { box-shadow: inset 6px 0 0 var(--cobalt); }
+  .scl .row:active { box-shadow: inset 9px 0 0 var(--cobalt); }
+}
+@media (max-width: 760px) {
+  .ln { font-size: 28px; }
+  .scl .sname { font-size: 24px; }
+}
+/* a phone: the plot's narrower labels; no position square (as the ladder's phone) */
+@media (max-width: 600px) {
+  .ax .tl.w { display: none; }
+  .ax .tl.n { display: inline; }
+}
+@media (max-width: 560px) {
+  .scl tr { grid-template-columns: minmax(0, 1fr) fit-content(55%); grid-template-areas: "s f" "x x"; }
+  .scl tr > .cp { display: none; }
+  .scl tr > .csys { padding-left: 12px; }
+}
+@media print {
+  .scl-panel[hidden] { display: block; }
+  html.js .scalepage .scl-panel > .sect { position: static; width: auto; height: auto; clip-path: none; padding-bottom: 14px; border-bottom: 1px solid var(--rule); }
+}
+@media (forced-colors: active) {
+  .lx, .ax { forced-color-adjust: none; }
+  .lx :is(.gd, .tk), .ax :is(.mj, .mn) { stroke: GrayText; }
+  .lx :is(.sv, .rg, .ss), .lx .mk rect { stroke: CanvasText; }
+  .lx .mk rect { fill: Canvas; }
+  .ok .lx .mk rect, .row.ok:is(:hover, :focus-within, .cur) .lx .mk rect { fill: CanvasText; stroke: Canvas; }
+  .ax .tl { fill: CanvasText; }
+}
+
 /* ---------------------------------------------------------------- a section label: small capitals over a rule */
 .sect { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin: 0; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
 /* a section's heading (the system, checks, mandate and 404 pages, the systems not run): a modest
    display size over its rule (the strip above marks the section); the first one, right under the
    strip, is for screen readers only, so no word is printed twice in a row */
 .nrh, :is(.syspage, .checkspage, .mandatepage, .notfound) .blk > .sect { margin: 0; padding-bottom: 14px; border-bottom: 1px solid var(--rule); font: 900 28px/1 var(--disp); letter-spacing: 0; text-transform: none; color: var(--paper); }
-:is(.syspage, .checkspage) .wrap > .blk:first-child > .sect { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
+:is(.syspage, .checkspage) .wrap > .blk:first-child > .sect, .syspage #glyph > .sect { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
 :is(.syspage, .checkspage) .wrap > .blk:first-child { margin-top: 24px; }
 
 /* ---------------------------------------------------------------- the systems not run, by their reason: each reason once, the names in display type */
@@ -688,11 +827,11 @@ html.js .row { cursor: pointer; }
 .rid { overflow-wrap: anywhere; }
 .rt.stk .rid { overflow-wrap: normal; white-space: nowrap; }
 /* the cost parts: the GPU times drawn on one scale (this system's own), each bar beside its
-   figure; then a sheet of cells, the row's one figure first and larger */
+   figure; then a sheet of cells */
 .cbars { margin-top: 18px; border-top: 1px solid var(--rule); }
 .cl { display: grid; grid-template-columns: 260px minmax(0, 1fr) 220px; grid-template-areas: "k b f" ". s f"; align-items: center; column-gap: 32px; padding: 16px 0 16px 12px; border-bottom: 1px solid var(--line); }
 .cln { grid-area: k; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
-.cl .hb, .hbn { grid-area: b; }
+.cl .hb { grid-area: b; }
 .clf { grid-area: f; }
 .cps { grid-area: s; display: flex; flex-wrap: wrap; gap: 8px 32px; margin-top: 12px; }
 .cpt { display: flex; flex-direction: column; row-gap: 4px; }
@@ -717,9 +856,6 @@ html.js .row { cursor: pointer; }
 .parts > div { flex: 1 1 260px; margin-left: -1px; padding: 14px 16px 16px 17px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); transition: background-color var(--quick); }
 .parts .fig .u { white-space: nowrap; }
 .parts > div:hover { background: var(--lift); }
-.parts > div:first-child { flex: 2 1 520px; }
-.parts > div:first-child .fig .n { font-size: 56px; letter-spacing: -.04em; }
-.parts > div:first-child .fig .u.x { font-size: 32px; }
 /* a label of one or two lines: the figures of a line of cells start on one line */
 .parts dt { display: flex; align-items: flex-end; min-height: 28px; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 8px; }
 .parts dd { margin: 0; }
@@ -763,6 +899,8 @@ html.js .row { cursor: pointer; }
 .ckt.gbig th a.sl.cut:hover:before, .ckt.gbig.lit-on a.sl.cut.lit:before { box-shadow: inset 0 0 0 3px var(--paper); }
 .ckt.gbig th a.sl.red.open:hover, .ckt.gbig.lit-on a.sl.red.open.lit { box-shadow: inset 0 3px 0 var(--red), inset -3px 0 0 var(--red), inset 0 -3px 0 var(--red); }
 .ckt .cst .cw { margin-top: 6px; }
+.ckt .cst a.cc { text-decoration: none; }
+.ckt .cst a.cc:hover .schip, .ckt .cst a.cc:focus-visible .schip { box-shadow: 0 0 0 2px var(--paper); }
 /* Machine-checked's recorded facts and scope card, Weights hidden's visible list: inside the Reason cell, as recorded facts
    (they set no state). The card is a table inside the petals' table: its cells reset every rule of the outer one */
 .ckt .pf { max-width: 70ch; margin: 12px 0 0; }
@@ -793,6 +931,61 @@ html.js .row { cursor: pointer; }
    (still legible), never hide; the state chips stay whole */
 .ckt.dim tbody tr:not(.lit) > :not(:nth-child(2)), .ckt.dim tbody tr:not(.lit) > :not(:nth-child(2)) a:not(.sl) { color: var(--muted); text-decoration-color: var(--line); }
 .anim .ckt tbody tr > * { transition: color var(--quick), background-color var(--quick), box-shadow var(--quick); }
+/* a system page's first screen: its other figures in one ruled row of cells (two columns on a phone), each
+   figure large over its scope and n; fidelity's track against the bar */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 0; overflow: hidden; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.figs > div { min-width: 0; margin: 0 0 -1px -1px; padding: 14px 20px 16px 13px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transition: background-color var(--quick); }
+.figs > div:hover { background: var(--lift); }
+.figs dt { display: flex; align-items: flex-end; min-height: 28px; margin-bottom: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.figs dd { margin: 0; }
+.figs .fig { flex-wrap: wrap; }
+.figs .fig .n { font-size: 30px; letter-spacing: -.03em; }
+.figs .fig .u { font-size: 13px; }
+.fbar { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.fbar .fdt { flex: 1 1 0; min-width: 48px; margin-right: 4px; }
+.fbar .k { font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.figs .fbar .fig .n { font-size: 14px; letter-spacing: 0; }
+.figs .fbar .fig .u { font-size: 12px; }
+.syspage .checks { padding-top: 20px; }
+.syspage .wrap > .blk { margin-top: 32px; }
+/* what a petal or a check holds besides its line (quotes, scope card, visible list, basis; records, a long
+   note): a native disclosure, its summary the count, opened under the line; any number open at once */
+.more > summary { display: block; width: fit-content; padding: 7px 8px 6px; list-style: none; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; white-space: nowrap; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary:after { content: "+" / ""; margin-left: 10px; font: 600 13px/1 var(--mono); }
+.more[open] > summary:after { content: "\2212" / ""; }
+.more > summary:hover, .more[open] > summary { color: var(--paper); box-shadow: inset 0 0 0 1px var(--muted); }
+.more[open] > summary { margin-bottom: 4px; }
+.pfrom { margin: 12px 0 0; color: var(--muted); }
+.pfrom .k { margin-right: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
+.cnone { margin: 0; padding: 12px 0 0 12px; font: var(--f-meta); color: var(--muted); }
+/* on a wide screen a petal's summary (or its basis alone) stands at its row's end, level with the arm, and
+   opens under the reason */
+@media (min-width: 1181px) {
+  .ckt.gbig tbody tr { position: relative; }
+  .ckt.gbig td.prs { padding-right: 200px; }
+  .ckt.gbig td.prs > .bs, .ckt.gbig .more > summary { position: absolute; top: 12px; right: 0; max-width: 184px; }
+  .ckt.gbig .more > summary { white-space: normal; }
+  .ckt.gbig tbody tr:first-child .more > summary, .ckt.gbig tbody tr:first-child td.prs > .bs { top: 0; }
+  .ckt.gbig .more[open] { margin-top: 4px; }
+}
+@media (max-width: 760px) {
+  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .figs > div { padding: 12px 10px 14px 13px; }
+  .figs .fig .n { font-size: 22px; }
+  .figs .fig .u { font-size: 12px; }
+  .fbar { flex-wrap: wrap; row-gap: 8px; }
+  .fbar .fdt { flex-basis: 100%; margin-right: 0; }
+}
+@media (max-width: 1180px) {
+  .ckt.gbig td.prs > .bs { display: block; margin-top: 8px; }
+  .ckt.gbig .more > summary { margin-top: 10px; }
+}
+/* a narrow phone: a figure and its unit on one line in a half-width cell */
+@media (max-width: 380px) {
+  .figs > div { padding-right: 8px; }
+  .figs .fig .n { font-size: 20px; }
+}
 @media (max-width: 1100px) {
   .cl { grid-template-columns: 200px minmax(0, 1fr) 190px; column-gap: 24px; }
   /* the Reason column narrows: the scope card's words wrap (machine-checked at its hyphen) before it scrolls */
@@ -800,12 +993,8 @@ html.js .row { cursor: pointer; }
 }
 @media (max-width: 760px) {
   .parts > div { flex-basis: 150px; }
-  .parts > div:first-child { flex-basis: 100%; }
-  .parts > div:first-child .fig .n { font-size: 44px; }
-  .parts > div:first-child .fig .u.x { font-size: 26px; }
   .parts .fig .n { font-size: 18px; }
   .cl { grid-template-columns: minmax(0, 1fr); grid-template-areas: "k" "f" "b" "s"; row-gap: 8px; padding-left: 0; }
-  .hbn { display: none; }
   .fid .trk { width: auto; grid-column: 1 / -1; padding: 0; }
   .rt.fid.stk tbody th { grid-column: 1; align-self: end; }
   .fid.stk td[data-l="Kind"]:before { display: none; }
@@ -818,9 +1007,6 @@ html.js .row { cursor: pointer; }
   .parts .fig .n { font-size: 16px; }
 }
 /* the mandate: the rule binding a line, named under its words */
-.qsrc { display: block; width: fit-content; margin-top: 6px; font: 400 11px/16px var(--mono); color: var(--muted); text-decoration-color: var(--rule); }
-.qsrc:hover { color: var(--paper); text-decoration-color: currentColor; }
-.cs .qsrc { display: block; margin-top: 6px; }
 /* the checks page: the key (the glyph in cobalt) kept beside the five petals; the petal read lights in it */
 .cwrap { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 56px; padding-top: 32px; align-items: start; }
 .chk { padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line); }
@@ -840,6 +1026,15 @@ html.js .row { cursor: pointer; }
 .blk > .cs > div:hover { background: var(--lift); }
 .cs dt { color: var(--paper); font-weight: 600; }
 .cs dd { margin: 0; max-width: 80ch; color: var(--muted); text-wrap: pretty; }
+/* the mandate: a line's label links the rule that binds it; the members' names in display type,
+   a row of cells whose rules meet (the list starts a rule's width early and clips it, so the
+   first name of each line has none) */
+.cs dt a { text-decoration-color: var(--rule); }
+.cs .mbr dd { max-width: none; }
+.mbl { list-style: none; display: flex; flex-wrap: wrap; row-gap: 8px; margin: 0 0 0 -20px; padding: 0; overflow: hidden; }
+.mbl li { min-width: 0; margin-left: -1px; padding: 0 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
+.mbl a { display: block; font: 800 28px/1.1 var(--disp); color: var(--paper); text-decoration: none; overflow-wrap: anywhere; }
+.mbl a:hover, .mbl a:active { background: var(--cobalt); color: var(--ground); box-shadow: 0 0 0 3px var(--cobalt); }
 .rd { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; text-wrap: pretty; }
 .rd + .rd { margin-top: 10px; }
 .cwrap .hl { padding: 16px 0 0 16px; }
@@ -851,7 +1046,7 @@ html.js .row { cursor: pointer; }
 .lost { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); overflow: hidden; }
 .lost li { display: flex; margin-left: -1px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); }
 .lost a { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; row-gap: 10px; padding: 18px 16px 20px 17px; text-decoration: none; }
-.lost .lp { font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.lost .lp { text-wrap: balance; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
 .lost .ln { font: 900 32px/.95 var(--disp); text-wrap: balance; }
 .lsys a { grid-template-columns: 50px minmax(0, 1fr); column-gap: 16px; row-gap: 6px; align-items: center; }
 .lsys svg { grid-row: 1 / span 2; }
@@ -890,7 +1085,7 @@ main { flex: 1 0 auto; }
 .fcells li { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; margin-left: -1px; padding: 16px 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
 .foot a { color: var(--paper); text-decoration-color: var(--rule); }
 /* a footer link pointed at or pressed: cobalt under ground ink, at once */
-.foot a:hover, .foot a:active, .tsub a:active, .qsrc:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+.foot a:hover, .foot a:active, .tsub a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */
@@ -1149,7 +1344,6 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .tp:active { box-shadow: inset 0 0 0 1px var(--rule), inset 6px 0 0 var(--cobalt); }
 .tx:active { box-shadow: inset 0 0 0 4px var(--cobalt); }
 .tx:focus-visible { outline-offset: 2px; }
-.src { margin-top: 28px; font: 400 12px/19px var(--mono); color: var(--muted); }
 /* the glossary: a letter in the margin, kept in view while its terms pass; each term's name
    beside what it means, in the text column of every Learn page */
 .gli { margin-left: calc(var(--hd) + var(--hg)); max-width: var(--tx); }
@@ -1404,10 +1598,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 }
 @media (hover: none) {
   /* the hit area grows, not the box: a press inverts the words' own line */
-  .qsrc, .foot a { position: relative; }
+  .foot a { position: relative; }
   .foot a { z-index: 1; }
   .foot a:after { content: ""; position: absolute; inset: -14px 0; }
-  .qsrc:after { content: ""; position: absolute; inset: -14px 0; }
   /* a finger's targets: 44 px, the layout unchanged where a negative margin can take the growth */
   .brand .logo { padding-block: 14px; margin-block: -14px; }
   .ckt .ev { padding-block: 7px; }

@@ -168,16 +168,16 @@ A system enters the ranking by passing six checks we run ourselves ([RFC-0018](r
 
 | Check | Held when |
 |---|---|
-| **Run** | three cold sessions, built from the public pin, unpatched, each returned an accepted proof for every request |
+| **Run** | three sessions, each from a cold start on its own prompts, built from the public pin, unpatched, each returned an accepted proof for every request |
 | **Model** | a proof made after changing one committed weight was never accepted, and an honest proof was refused against another commitment |
 | **Prompt** | a proof was refused for a prompt with one token changed |
 | **Reply** | proofs cover all 512 reply tokens, and a changed token at the first, the last and an interior position was refused |
-| **No weight file** | every verdict came from a verify call with no GPU and no model file, under a file-open trace |
-| **Fidelity** | the committed copy's replies follow the publisher's model for longer than a named damaged copy's |
+| **Verify without weights** | every verdict came from a verify call with no GPU and no model file, under a file-open trace |
+| **Fidelity** | the committed copy's replies match the publisher's original weights for more leading tokens than the bar's: a floor, not a measure of closeness |
 
 None of the checks attempts a forged proof: soundness and weight secrecy are not tested.
 
-The glyph then shows how far a system that ran is from a perfect prover ([RFC-0018](rfcs/0018-level-1-ladder.md#the-glyph)). Five petals, each at one step: green (in full), amber in part, amber in lesser part, red (no: not stated, stated not to hold or short of amber, or our check failed) or hollow (not decided yet):
+The glyph then shows how far a system that ran is from a perfect prover ([RFC-0018](rfcs/0018-level-1-ladder.md#the-glyph)). Five petals, each at one step: green (in full), amber in part, amber in lesser part, red (no: not stated, stated not to hold or short of amber, or our check failed) or hollow (undecided):
 
 | Petal | Green means |
 |---|---|

@@ -513,7 +513,7 @@ def _row_tree(
     events = [f"{f.session.path}/run.json#/events" for f in figures]
     session = _stat([f.per_reply for f in figures], Unit.GPU_S_PER_REQUEST, Scope.WHOLE_WALL,
                     "D-L1-SESSION", [*events, *proofs], NullReason.MISSING_INPUT,
-                    f"cold sessions of {n} replies")  # fmt: skip
+                    f"whole sessions of {n} replies")  # fmt: skip
     steady_in = (f"{index}/steady_gpu_seconds_per_reply", steady)
     # CO-7: m = generation + proving where the adapter generates in a phase of its own (AD-4)
     phased = bool(figures) and all(f.generation is not None for f in figures)
@@ -529,6 +529,20 @@ def _row_tree(
     generation_in = (f"{index}/steady_generation_gpu_seconds_per_reply", generation)
     proving_in = (f"{index}/steady_proving_gpu_seconds_per_reply", proving)
     session_in = (f"{index}/session_gpu_seconds_per_reply", session)
+    # CO-7 (amended 2026-11-13): the session cost per reply splits the same way, timed as CO-1
+    unsplit = NullReason.MISSING_INPUT if phased else NullReason.NOT_APPLICABLE
+    session_generation = _stat([f.generation for f in figures], Unit.GPU_S_PER_REQUEST,
+                               Scope.WHOLE_WALL, "D-L1-GENERATION", marks or proofs, unsplit,
+                               no_phase)  # fmt: skip
+    commit_proving = _stat([f.per_reply - f.generation
+                            if f.per_reply is not None and f.generation is not None else None
+                            for f in figures], Unit.GPU_S_PER_REQUEST, Scope.WHOLE_WALL,
+                           "D-L1-COMMIT-PROVING", [*events, *proofs, *marks], unsplit,
+                           no_phase)  # fmt: skip
+    session_generation_in = (f"{index}/session_generation_gpu_seconds_per_reply",
+                             session_generation)  # fmt: skip
+    commit_proving_in = (f"{index}/session_commit_and_proving_gpu_seconds_per_reply",
+                         commit_proving)  # fmt: skip
     first = (row.sessions.counted_in_order() or row.sessions.all)[0]
     commit = first.run.get("manifest", "system", "upstream", "commit")
     configuration = first.run.get("manifest", "claim", "configuration")
@@ -557,6 +571,14 @@ def _row_tree(
             "D-L1-MULTIPLE", Unit.RATIO, Scope.PROVE_STEADY, proving_in, baseline
         ),
         "session_gpu_seconds_per_reply": session,
+        "session_generation_gpu_seconds_per_reply": session_generation,
+        "session_commit_and_proving_gpu_seconds_per_reply": commit_proving,
+        "session_generation_multiple": _ratio(
+            "D-L1-MULTIPLE", Unit.RATIO, Scope.WHOLE_WALL, session_generation_in, baseline
+        ),
+        "session_commit_and_proving_multiple": _ratio(
+            "D-L1-MULTIPLE", Unit.RATIO, Scope.WHOLE_WALL, commit_proving_in, baseline
+        ),
         "steady_usd_per_reply": _usd(Scope.PROVE_STEADY, steady_in, price),
         "session_usd_per_reply": _usd(Scope.WHOLE_WALL, session_in, price),
         "sessions": [f.tree() for f in figures],

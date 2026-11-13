@@ -364,6 +364,20 @@ def test_real_properties_files() -> None:
                                         ("red", "not_stated"), ("red", "not_stated")]  # fmt: skip
 
 
+def test_a_silent_red_carries_its_documents_read() -> None:
+    """GL-1: a `not_stated` red carries the petal's `sources_read`, each linked at the pin; no
+    other petal carries any. SASH's No third party trusted read four files at 4f41667."""
+    props = load_properties(ROOT, "sash")
+    assert props is not None
+    pin = str(props["upstream"]["commit"])  # type: ignore[index]
+    petals = statement_petals(props, HELD, pin, Coverage("part", 1), None)
+    assert "sources_read" not in petals["unforgeable"].tree()
+    got_ = petals["no_trusted_party"].tree()["sources_read"]
+    base = f"https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/{pin}/"
+    docs = ("README.md", "prover/README.md", "docs/statement.md", "prover/src/compose.rs")
+    assert got_ == [{"path": d, "url": base + d} for d in docs]
+
+
 def test_deepprove_without_a_file_is_not_read() -> None:
     """Brief §4: no properties file, every statement petal hollow, not read."""
     petals = statement_petals(None, HELD, PIN, Coverage("request", 1), None)

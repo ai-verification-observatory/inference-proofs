@@ -14,7 +14,7 @@ For the commitment, ask who published the value and what ties it to the model yo
 
 ### 3. Is the proved model the model that is served?
 
-A proof needs arithmetic that repeats bit for bit, so a system proves a quantized copy of a model, decoded greedily, within a fixed length. Ask what the operator has to change to serve exactly that copy, because a proof describes what was served only if that copy served it. Then ask how far the copy is from the original: a copy can be faithful, or degraded until proving it is cheap. Here that is the [Fidelity check](/checks#fidelity) and the "Faithful model" petal of the [[glyph]]: a system's replies are compared with those of the original weights, and have to score above copies that we damaged on purpose. Where a row reads "Fidelity undecided", the comparison has not been run yet.
+A proof needs arithmetic that repeats bit for bit, so a system proves a quantized copy of a model, decoded greedily, within a fixed length. Ask what the operator has to change to serve exactly that copy, because a proof describes what was served only if that copy served it. Then ask how far the copy is from the original: a copy can be faithful, or degraded until proving it is cheap. Here that is the [Fidelity check](/checks#fidelity) and the "Faithful model" petal of the [[glyph]]: a system's replies are compared with those of the original weights, and have to score above copies that we damaged on purpose. Where a row reads "Fidelity check undecided", the comparison has not been run yet.
 
 ### 4. Who has run it, besides its authors?
 
@@ -30,7 +30,7 @@ Some systems need a one-time setup whose secrets must be destroyed, a hardware m
 
 ### 7. What does the operator have to show?
 
-The checker sees every prompt and reply it checks, and the model's size and shape. If the weights are a secret, ask what a proof reveals about them, and whether that claim is proven for the program or only expected of it. The "Weights hidden" petal records the publisher's statement. Our [No weight file](/checks#no_weight_file) check shows only that the verifier ran without opening a model file, which shows less.
+The checker sees every prompt and reply it checks, and the model's size and shape. If the weights are a secret, ask what a proof reveals about them, and whether that claim is proven for the program or only expected of it. The "Weights hidden" petal records the publisher's statement. Our [Verify without weights](/checks#no_weight_file) check shows only that the verifier ran without opening a model file, which shows less.
 
 ### 8. What does it cost, at the share I need?
 
@@ -51,8 +51,8 @@ An operator can decline, fail or run late. A proof system has no answer to that.
 ## Reading a row
 
 - **The standing.** "Passed" means all six [checks](/checks) are held for that system on that model. Otherwise the row names the checks that are not. An undecided check is not a failed one: it names its cause, often that a test has not been run yet.
-- **The position.** Only a system that passed, and whose publisher states a security level, has one, and only among systems on the same model. Nothing is compared across models.
-- **The glyph.** Five petals. Green: holds in full. Amber: in part, or in lesser part (the arm drawn cut). Red: no, stated short of amber, or one of our checks failed; a red the publisher is silent on is drawn as an outline in the red ink. Hollow: not decided yet. Four petals are read from what the publisher states, and Faithful model comes from our fidelity run. The glyph never moves a position.
+- **The position.** Only a system that passed, and whose publisher states a security level, has one, and only among systems on the same model. Nothing is ranked across models.
+- **The glyph.** Five petals. Green: holds in full. Amber: in part, or in lesser part (the arm drawn cut). Red: no, stated short of amber, or one of our checks failed; a red the publisher is silent on is drawn as an outline in the red ink. Hollow: undecided. Four petals are read from what the publisher states, and Faithful model comes from our fidelity run. The glyph never moves a position.
 - **The multiple.** The GPU time of one more proved reply, over the GPU time of serving one, on the same kind of GPU. Generating the reply is inside it. Under it: what was timed, and over how many sessions. A position needs three sessions, so a figure over fewer is provisional.
 
 ## What this benchmark will not tell you
@@ -60,7 +60,7 @@ An operator can decline, fail or run late. A proof system has no answer to that.
 - **Whether a proof can be forged, or leaks.** No check here attempts either. Passing six checks means that a system's verifier refused each change we made to the model, the prompt and the reply, on the request we fixed. It does not mean that a proof is hard to forge.
 - **Anything about secret models.** Level 1 runs open-weights models only.
 - **Whether a deployment keeps a rule.** That needs the other tools described on [the treaty page](/treaty).
-- **What is good enough.** A threshold is yours to set: a maximum multiple, a minimum security level, a longest acceptable check time. If you have one, [tell us](https://github.com/ai-verification-observatory/inference-proofs/issues).
+- **What is good enough.** A threshold is yours to set: a maximum multiple, a minimum security level, a longest acceptable verify time. If you have one, [tell us](https://github.com/ai-verification-observatory/inference-proofs/issues).
 
 ## Words that look alike
 

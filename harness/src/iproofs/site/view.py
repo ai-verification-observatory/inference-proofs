@@ -58,13 +58,17 @@ def figure(q: Any, pointer: str, board: str | None) -> dict[str, Any] | None:
     }
 
 
-def _system(sid: str, facts: Any) -> dict[str, Any]:
+def _system(sid: str, facts: Any, root: Path) -> dict[str, Any]:
     row = facts.rows.get(sid)
+    # the publisher's repository, as the claim card pins it (`upstream.repo`)
+    card = root / "systems" / sid / "claim.yaml"
+    up = inputs.read_yaml(card).get("upstream") if card.is_file() else None
     return {
         "id": sid,
         "name": row.name if row is not None else sid,
         "licence": None if row is None or row.licence is None else
         {"name": row.licence.name, "url": row.licence.url},
+        "repo": str(up["repo"]) if isinstance(up, dict) and up.get("repo") else None,
     }  # fmt: skip
 
 
@@ -127,6 +131,8 @@ def _glyph(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         out.append({"id": pid, "state": state, "step": step, "cause": cause,
                     "basis": p["basis"], "reading": reading, "reason": p["reason"],
                     "quotes": _quotes(p.get("quotes")),
+                    "sources": [{"path": d["path"], "url": d["url"]}
+                                for d in p.get("sources_read") or []],
                     "lowered_by": list(p["lowered_by"]), "form": _form(step, state, cause),
                     "formal": _formal(pid, p.get("formal")),
                     "visible": None if visible is None else
@@ -149,6 +155,10 @@ def _checks(raw: dict[str, Any]) -> list[dict[str, Any]]:
 ROW_FIGURES = ("multiple", "session_multiple", "steady_gpu_seconds_per_reply",
                "steady_generation_gpu_seconds_per_reply", "steady_proving_gpu_seconds_per_reply",
                "generation_multiple", "proving_multiple",
+               # CO-7 (amended 2026-11-13): the session cost per reply in two parts
+               "session_generation_gpu_seconds_per_reply",
+               "session_commit_and_proving_gpu_seconds_per_reply",
+               "session_generation_multiple", "session_commit_and_proving_multiple",
                "session_gpu_seconds_per_reply", "steady_usd_per_reply", "session_usd_per_reply",
                "verify_seconds_per_reply", "proof_bytes_per_reply")  # fmt: skip
 
@@ -270,6 +280,17 @@ def not_run(facts: Any, ran: set[str]) -> list[dict[str, Any]]:
     return sorted(out, key=lambda r: str(r["name"]).lower())
 
 
+def credit(facts: Any) -> dict[str, Any]:
+    """Who builds the site and its members, in the facts file's order (a member is listed once
+    its entry is there)."""
+    c = facts.credit
+    return {
+        "builder": {"name": c.builder.name, "url": c.builder.url},
+        "lead": {"name": c.lead.name, "url": c.lead.url},
+        "members": [{"name": m.name, "url": m.url, "mark": m.mark} for m in c.members],
+    }
+
+
 def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
     """The whole site's data (module docstring). `board`: a board file to render in place of the
     newest release's (a preview)."""
@@ -294,7 +315,7 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
         rungs.append(_rung(lr, found, f"/rungs/{i}", shown))
     _pages(rungs)
     ran = {row["system"] for r in rungs for row in r["rows"]}
-    systems = {sid: _system(sid, facts) for sid in sorted(ran)}
+    systems = {sid: _system(sid, facts, root) for sid in sorted(ran)}
     frontier = None
     if doc is not None and doc["frontier"] is not None:
         f = doc["frontier"]
@@ -308,6 +329,7 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
         "repository": REPOSITORY,
         "link_ref": LINK_REF,
         "licence": facts.site.licence,
+        "credit": credit(facts),
         "level": {
             "id": level["id"],
             "name": level["name"],

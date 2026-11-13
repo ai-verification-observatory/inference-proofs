@@ -1,7 +1,7 @@
 {
   "flashprove": {
-    "png": "30695c2eff7c688482c0dd06937cf3a5b3b3a0e25dd45adfff185328e94211c6",
-    "source": "612a3de457b64a350548fed2720a310c21d91112448f30f7644c9508a7cc90a4"
+    "png": "c98a59118d28935a38c5eb72700200ca2aacec86d90c5037501f31a1207cb796",
+    "source": "4199ce3bd6c3b95a72eb5e6d54f82069e36ffb2f275728b0bbece853bafe5547"
   },
   "home": {
     "png": "61efc3d88c8ad3bf1dbd8ad951fa5eafbd84acb35e1d34b4d0ffc83534bd2646",
@@ -14,5 +14,9 @@
   "icon-32": {
     "png": "0e9dc11029e5a826b6f71035f2bebe89dc496a58cf2022e33e2717e33448bcea",
     "source": "74d8a8175a9b6b5f2a83aeee0d72012d86919fdcedcfbf332d34f0c452a8b25d"
+  },
+  "sash": {
+    "png": "f8af2d114af574c27ec3f063ce7f38cd343a072aa8e7347d834f3baf6a0941db",
+    "source": "15fc176bd24e3b7e71fee84df85da6d6e4fae8e86ec5c1a6dc6561a320213979"
   }
 }

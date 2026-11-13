@@ -442,16 +442,18 @@ def control_state(
 ) -> CheckState:
     """One control at one position: failed when a counted trial was accepted, held when at
     least 3 counted trials (`void` and `error` left out, CH-1) were all refused, else
-    undecided: `not run` when the control is absent or has no counted trial, `not resolved`
-    otherwise."""
+    undecided: `not run` when the control is absent or has no trial here, `not resolved`
+    otherwise (trials ran and none counted, or too few were refused)."""
     mine = [t for t in trials if t.control == control and t.position == position]
     counted = [t for t in mine if t.outcome not in UNCOUNTED]
     evidence = tuple(dict.fromkeys(t.evidence for t in mine))
     where = control if position is None else f"{control} at the {position} position"
     if any(t.outcome == "accepted" for t in counted):
         return CheckState(FAILED, None, evidence, f"{where}: a trial was accepted")
-    if control not in present or not counted:
-        return _undecided(NOT_RUN, evidence, f"{where}: no counted trial stored")
+    if control not in present or not mine:
+        return _undecided(NOT_RUN, evidence, f"{where}: no trial stored")
+    if not counted:  # the trials ran and decided nothing (RFC-0018 §The six checks)
+        return _undecided(NOT_RESOLVED, evidence, f"{where}: no counted trial stored")
     if len(counted) >= COUNTED_TRIALS and all(t.outcome in refused for t in counted):
         return CheckState(HELD, None, evidence)
     held = sum(t.outcome in refused for t in counted)
@@ -600,8 +602,9 @@ def _replace_for_ch4(
 def no_weight_file_state(sessions: RowSessions) -> CheckState:
     """Held when every counted verdict has a trace written by a trace tool, with no GPU
     visible, no model file present and no model file opened, its own or a re-verify's of the same
-    proof (CH-4a); failed when a trace names a model file; else undecided, `not run` (a missing
-    trace, no trace tool, a GPU or a model file in reach)."""
+    proof (CH-4a); failed when a trace names a model file; else undecided: `not run` for a
+    missing trace or no trace tool (CH-4), `not resolved` when every verdict was traced but a GPU
+    or a model file was in reach (the test ran and decided nothing)."""
     if not sessions.counted:
         return _undecided(NOT_RUN, (), "no counted session")
     opened: list[str] = []
@@ -616,7 +619,8 @@ def no_weight_file_state(sessions: RowSessions) -> CheckState:
         return CheckState(FAILED, None, tuple(opened), "a verify call opened a model file")
     if gaps:
         more = f" (and {len(gaps) - 1} more)" if len(gaps) > 1 else ""
-        return _undecided(NOT_RUN, evidence, gaps[0] + more)
+        traced = not any(g.endswith((": no trace", ": no trace tool")) for g in gaps)
+        return _undecided(NOT_RESOLVED if traced else NOT_RUN, evidence, gaps[0] + more)
     return _held(evidence)
 
 

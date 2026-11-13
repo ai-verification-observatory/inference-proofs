@@ -6,7 +6,7 @@ Every system that proves inference answers the same questions: how the computati
 
 **In their words.** [EZKL](https://github.com/zkonduit/ezkl/blob/e196b111c1bafaa61b92ae431cd3c3fe9371da05/README.md) is "a library and command-line tool for doing inference for deep learning models and other computational graphs in a zk-snark". [ZKML](https://ddkang.github.io/papers/2024/zkml-eurosys.pdf) is "built on the halo2 proving system".
 
-**What it gives.** Any model that exports, and a small proof: a few tens of kilobytes or less. EZKL's README says its proofs can be verified "on-chain (with the Ethereum Virtual Machine), in a browser, or on a device". Check times are not uniformly small: the ZKML authors report between 11.98 and 18.70 seconds to verify their distilled GPT-2.
+**What it gives.** Any model that exports, and a small proof: a few tens of kilobytes or less. EZKL's README says its proofs can be verified "on-chain (with the Ethereum Virtual Machine), in a browser, or on a device". Verify times are not uniformly small: the ZKML authors report between 11.98 and 18.70 seconds to verify their distilled GPT-2.
 
 **What it makes expensive.** The prover's time and memory, which grow with every operation of the graph. The ZKML authors report: "The largest model we can prove with under 1TB of RAM is the distilled version of GPT-2".
 
@@ -60,7 +60,7 @@ The price is at the joins. Every value that crosses from one piece to the next h
 
 ## Checks that are not proofs
 
-The [ladder](/) lists some systems as "another kind of check". Most are not proofs. One, VerInf, is a proof of a different sentence, described above. They address the same question, which model gives this reply, by other means, and each answers a narrower one.
+The [ladder](/) lists some systems as "another kind of check". They are not proofs. VerInf, a proof of a different sentence described above, is listed apart, as "a different statement". The others address the same question, which model gives this reply, by other means, and each answers a narrower one.
 
 | Kind | How it works | What it rests on |
 |---|---|---|
@@ -72,4 +72,4 @@ Only attestation hides the weights from the party that checks, and it moves the 
 
 ## Where each system stands on this site
 
-The ladder lists every system we have catalogued, run or not. A system with no row has one stated reason: its licence, no public verifier, no configuration at the benchmark's request, another kind of check, or not yet run. A team that wants its row can [open an issue](https://github.com/ai-verification-observatory/inference-proofs/issues): we run the system unchanged and write its claim card from its own documents.
+The ladder lists every system we have catalogued, run or not. A system with no row has one stated reason: its licence, no public verifier, no configuration at the benchmark's request, another kind of check, a different statement, or not yet run. A team that wants its row can [open an issue](https://github.com/ai-verification-observatory/inference-proofs/issues): we run the system unchanged and write its claim card from its own documents.

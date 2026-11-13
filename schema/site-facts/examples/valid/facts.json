@@ -1,4 +1,21 @@
 {
+  "credit": {
+    "builder": {
+      "name": "Example builder",
+      "url": "https://example.org/"
+    },
+    "lead": {
+      "name": "Example lead",
+      "url": "https://example.org/lead"
+    },
+    "members": [
+      {
+        "mark": "members/example.svg",
+        "name": "Example member",
+        "url": "https://example.org/member"
+      }
+    ]
+  },
   "gpus": {
     "Example GPU 80GB": "Example GPU"
   },

@@ -12,7 +12,7 @@ line wins. Every function here is pure except `load_properties` and `load_proof_
 import json
 import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
@@ -43,7 +43,7 @@ LOWERED_BY: Mapping[str, tuple[str, ...]] = {
     "no_trusted_party": (),
 }
 _CHECK_NAMES = {"model": "Model", "prompt": "Prompt", "reply": "Reply",
-                "no_weight_file": "No weight file", "fidelity": "Fidelity"}  # fmt: skip
+                "no_weight_file": "Verify without weights", "fidelity": "Fidelity"}  # fmt: skip
 _REACH_WORDS = {"part": "a part", "protocol": "the protocol",
                 "protocol_and_statement": "the protocol and the model's statement",
                 "verifier_run": "the verifier program the row runs",
@@ -82,6 +82,7 @@ class Petal:
     formal: Mapping[str, object] | None = None
     visible: Sequence[Mapping[str, object]] | None = None
     reading: bool = False  # a fact the decision read carries a note: the reader's reading (N1)
+    sources: tuple[Mapping[str, str], ...] = ()  # R-SILENT: the documents read, linked at the pin
 
     @property
     def state(self) -> str:
@@ -106,6 +107,8 @@ class Petal:
                  "quotes": [_quote(q) for q in _quotes(i)]} for i in self.visible]  # fmt: skip
         if self.reading:
             out["reading"] = True
+        if self.sources:
+            out["sources_read"] = [dict(s) for s in self.sources]
         return out
 
 
@@ -190,7 +193,7 @@ def read(
     if commit is None:  # U7: the row's commit is not known, so the file is not shown to fit it
         return None, "the row's commit is not recorded"
     if pin != commit:
-        return None, f"properties file read at {pin}, the row runs {commit}"
+        return None, f"properties file read at {pin[:7]}, the row runs {commit[:7]}"
     return _m(props.get("petals")), None
 
 
@@ -217,9 +220,20 @@ def _not_read(pid: str, reason: str) -> Petal:
 
 
 def _silent(petal: Mapping[str, object], props: Mapping[str, object]) -> str:
-    """R-SILENT: the documents read, at the pin."""
-    docs = ", ".join(str(s) for s in petal.get("sources_read") or ())  # type: ignore[attr-defined]
-    return f"not stated in {docs} at {_pin(props)[:7]}"
+    """R-SILENT: silence at the pin; the documents read go with the petal (`_with_sources`)."""
+    return "not stated in the publisher's documents read at the pin"
+
+
+def _with_sources(p: Petal, props: Mapping[str, object] | None) -> Petal:
+    """R-SILENT: a silent red carries the petal's `sources_read`, each linked at the pin."""
+    if p.cause != NOT_STATED or props is None:
+        return p
+    up = _m(props.get("upstream"))
+    docs = _m(_m(props.get("petals")).get(p.id)).get("sources_read")
+    base = f"https://github.com/{up.get('repo')}/blob/{up.get('commit')}/"
+    found = tuple({"path": str(d), "url": base + str(d)}
+                  for d in (docs if isinstance(docs, list) else ()))  # fmt: skip
+    return replace(p, sources=found)
 
 
 def petal_quotes(pid: str, petal: Mapping[str, object]) -> tuple[Quote, ...]:
@@ -250,11 +264,9 @@ def _batch_short(v: _Facts, n: int | None) -> str | None:
     if batch == "each_member":
         return None
     if batch == "together":
-        return (
-            "stated for batch members handed in together, not for members checked alone; "
-            f"the harness checks each of the row's {n} replies in its own call"
-        )
-    return f"no bound said for batch members; the row proves {n} a batch"
+        return f"the bound is stated for a batch checked together, not for the row's {n} replies " \
+            "checked alone"  # fmt: skip
+    return f"no bound stated for batch members, and the row proves {n} replies a batch"
 
 
 def _coverage_short(  # noqa: PLR0911 (one return per condition, in the order of U6)
@@ -263,28 +275,28 @@ def _coverage_short(  # noqa: PLR0911 (one return per condition, in the order of
     """U5, U6: the first condition that keeps a proved bound from covering the run, None when
     it covers it. Each fact is read only when the conditions before it hold."""
     if v("adversary") != "any_prover":
-        return "adversary not said"
+        return "the bound does not say which provers it holds against"
     unit = v("unit")
     if unit in ("part", "round"):
-        return f"stated per {unit}"
+        return f"the bound is stated per {unit}, not per reply"
     if unit not in ("reply", "proof"):
-        return "unit not said"
+        return "the bound does not say what it is stated per"
     if unit == "proof" and not coverage.one_reply:
         if coverage.granularity is None:
-            return "replies per proof not recorded"
-        return "more than one reply per proof"
+            return "replies per proof are not recorded"
+        return "the bound is per proof, and a proof here covers more than one reply"
     short = _batch_short(v, coverage.batch_size)
     if short is not None:
         return short
     parameters = v("parameters")
     if parameters == "other":
-        return "stated for other parameters"
+        return "the bound is stated for other parameters than the row's"
     if parameters != "row":
-        return "parameters not shown to be the row's"
+        return "the bound's parameters are not shown to be the row's"
     if v("conditions_shown") is not True:
-        return "not shown to hold for the row's files"
+        return "the bound is not shown to hold for the row's files"
     if v("program") not in ("proved", "stated"):
-        return "not stated for the verifier program the row runs"
+        return "the bound is not stated for the verifier program the row runs"
     return None
 
 
@@ -310,28 +322,29 @@ def unforgeable(  # noqa: PLR0911 (one return per line of the table)
     if v("stated") is not True or not terms:  # UF-3
         return Petal(pid, RED, NOT_STATED, STATEMENT, _silent(petal, props), quotes,
                      reading=v.noted)  # fmt: skip
-    expr = v("expression")
 
     def decided(step: str, cause: str | None, reason: str) -> Petal:
-        return Petal(pid, step, cause, STATEMENT, f"{reason}: {expr}", quotes, reading=v.noted)
+        return Petal(pid, step, cause, STATEMENT, reason, quotes, reading=v.noted)
 
     least = min(terms)
     if v("adversary") == "weaker":  # UF-4
-        return decided(RED, STATED, "stated against a weaker prover")
+        return decided(RED, STATED, "the bound is stated against a weaker prover")
     if least < 80:  # UF-5
-        return decided(RED, STATED, f"exponent {least} is under 80")
+        return decided(RED, STATED, f"the stated bound has exponent {least}, under 80")
     basis = v("basis")
-    said = "proved" if basis == "proved" else (
-        "conjectured" if basis == "conjectured" else "basis not said")  # fmt: skip
+    said = "the bound is proved" if basis == "proved" else (
+        "the stated bound is conjectured, not proved" if basis == "conjectured"
+        else "the bound does not say whether it is proved")  # fmt: skip
     if basis != "proved" and least < 100:  # UF-6
-        return decided(RED, STATED, f"{said}, exponent {least} under 100")
+        return decided(RED, STATED, f"{said}, and its exponent {least} is under 100")
     short = _coverage_short(v, coverage) if basis == "proved" else said
-    covered = "proved, for one reply as the row runs it"
+    covered = "a proved bound covers each reply as the row runs it"
     if short is None and least >= 128:  # UF-7
         return decided(GREEN, None, f"{covered}, every exponent 128 or more")
     if short is None and least >= 100:  # UF-8
-        return decided(AMBER_UPPER, None, f"{covered}, exponent {least} under 128")
-    return decided(AMBER_LOWER, None, short or f"proved, exponent {least} under 100")  # UF-9
+        return decided(AMBER_UPPER, None, f"{covered}, with exponent {least}, under 128")
+    return decided(AMBER_LOWER, None,
+                   short or f"{said}, but its exponent {least} is under 100")  # UF-9  # fmt: skip
 
 
 # ---------------------------------------------------------------- Machine-checked (MC-1 to MC-6)
@@ -428,8 +441,8 @@ def machine_checked(  # noqa: PLR0911, PLR0912 (one return per line of the table
         status, code = recorded.get("status"), recorded.get("exit_code")
         if status != "built" or code != 0:  # MC-4
             return Petal(pid, RED, CHECK_FAILED, TEST,
-                         f"the proof build of {theorem} at {pin7} has status {status}, "
-                         f"exit code {code}", quotes, ("proof_build",), formal)  # fmt: skip
+                         f"the recorded proof build has status {status}, exit code {code}", quotes,
+                         ("proof_build",), formal)  # fmt: skip
         reported, declared = _axioms(recorded.get("axioms_reported")), _axioms(fm.get("axioms"))
         if reported != declared:  # MC-4
             return Petal(pid, RED, CHECK_FAILED, TEST,
@@ -439,20 +452,20 @@ def machine_checked(  # noqa: PLR0911, PLR0912 (one return per line of the table
     reach = _REACH_WORDS.get(str(r), str(r))
     if not match:  # MC-5
         if at_pin and not pinned:
-            reason = f"the publisher pins no toolchain, so no build matches; stated reach: {reach}"
+            reason = "the publisher pins no toolchain, so no proof build can match"
         elif at_pin:
             reason = (f"the recorded build used {_toolchain(used)}, the publisher pins "
                       f"{_toolchain(pinned)}")  # fmt: skip
         elif build is not None:
-            reason = (f"proof build recorded for {b_name} at {b_commit[:7]}, the row runs "
-                      f"{theorem} at {pin7}")  # fmt: skip
+            reason = (f"the recorded proof build is of {b_name} at {b_commit[:7]}, not the row's "
+                      "theorem at its commit")  # fmt: skip
         elif theorem is None:
-            reason = f"no theorem named, so no proof build recorded; stated reach: {reach}"
+            reason = "no theorem is named, so no proof build is recorded"
         else:
-            reason = f"no proof build recorded for {theorem}; stated reach: {reach}"
+            reason = "no proof build of the named theorem is recorded yet"
         return Petal(pid, None, PROOF_BUILD_NOT_RUN, STATEMENT, reason, quotes, formal=formal,
                      reading=v.noted)  # fmt: skip
-    reason = f"machine-checked for {reach}; build recorded at {pin7}"  # MC-6
+    reason = f"the named theorem builds at {pin7}, stated to reach {reach}"  # MC-6
     if r == "verifier_run" and stated == AMBER_UPPER:
         unverified = v("input_code_unverified")
         but = ("no trusted base listed" if not v("trusted_base")
@@ -499,29 +512,30 @@ def weights_hidden(  # noqa: PLR0911, PLR0912 (one return per line of the table)
         return decided(RED, NOT_STATED, _silent(petal, props))
     proof = v("proof")
     if proof not in ("protocol", "configuration_run"):  # WH-4 (none)
-        return decided(AMBER_LOWER, None, "hiding stated, no zero-knowledge theorem")
+        return decided(AMBER_LOWER, None, "hiding is stated, with no zero-knowledge theorem")
     programs, listed = v("programs"), v("visible_listed") is True
     fitted = [str(i.get("item")) for i in visible if i.get("tag") == "fitted_to_weights"]
     if (proof == "configuration_run" and programs == "stated" and listed and visible
             and not fitted):  # WH-5 (W1: a listed set is copied, not empty)  # fmt: skip
-        return decided(GREEN, None, "zero knowledge proved for the configuration the row runs; "
-                       f"programs stated; {len(visible)} visible values listed, none fitted to "
-                       "the weights")  # fmt: skip
+        return decided(GREEN, None, "zero knowledge proved for the configuration the row runs, "
+                       "with no listed visible value fitted to the weights")  # fmt: skip
     missing = []  # WH-6
     if proof == "protocol":
-        missing.append("proved for the protocol, not the configuration the row runs")
+        missing.append("zero knowledge proved for the protocol only")
     if programs == "expected":
-        missing.append("programs expected, not stated, to hide the weights")
+        missing.append("only expected of its programs")
     elif programs != "stated":
-        missing.append("programs not stated to hide the weights")
+        missing.append("not stated for its programs")
     if not listed:
         missing.append("no list of visible values")
     elif not visible:
         missing.append("visible values listed but none copied")
-    if fitted:  # W2: each name without its own final full stop
-        names = ", ".join(f'"{i.removesuffix(".")}"' for i in fitted)
-        missing.append(f"visible values fitted to the weights: {names}")
-    return decided(AMBER_UPPER, None, "; ".join(missing))
+    if fitted:  # the names are printed in the visible list below the reason
+        missing.append(f"{len(fitted)} visible value{'s' * (len(fitted) != 1)} fitted to the "
+                       "weights")  # fmt: skip
+    if len(missing) > 1:
+        missing[-1] = f"and {missing[-1]}"
+    return decided(AMBER_UPPER, None, ", ".join(missing))
 
 
 # ---------------------------------------------------------------- No third party trusted (NT)
@@ -557,8 +571,8 @@ def no_trusted_party(  # noqa: PLR0911 (one return per line of the table)
         return decided(AMBER_UPPER, None, "soundness rests on an open setup ceremony whose "
                        "secret stays unknown if one participant was honest")  # fmt: skip
     if rests_noted:  # NT-6, N1: no quote says it in words
-        return decided(GREEN, None, "read as resting on cryptographic assumptions alone; no "
-                       "quoted sentence says in words that no setup produced a secret")  # fmt: skip
+        return decided(GREEN, None, "read as resting on cryptographic assumptions alone; no quote "
+                       "says no setup produced a secret")  # fmt: skip
     return decided(GREEN, None, "stated to rest on cryptographic assumptions alone, with no "
                    "setup that produced a secret")  # NT-6  # fmt: skip
 
@@ -571,12 +585,13 @@ def statement_petals(
     build: Mapping[str, object] | None,
 ) -> dict[str, Petal]:
     """The four statement petals, each decided on its own (GL-7)."""
-    return {
+    found = {
         "unforgeable": unforgeable(props, checks, commit, coverage),
         "weights_hidden": weights_hidden(props, checks, commit),
         "machine_checked": machine_checked(props, checks, commit, build),
         "no_trusted_party": no_trusted_party(props, commit),
     }
+    return {k: _with_sources(p, props) for k, p in found.items()}
 
 
 # ---------------------------------------------------------------- Faithful model (FM-1 to FM-7)
@@ -590,6 +605,7 @@ def _scores(found: object) -> list[int] | None:
 
 
 _THRESHOLD_NAMES = (("green", "T_green"), ("upper", "T_upper"))
+_LINE_WORDS = {"green": "rerun and Q8_0", "upper": "Q8_0 and Q4_K_M"}  # whose midpoint each is
 
 
 def recheck(doc: Mapping[str, object]) -> dict[str, int]:
@@ -682,58 +698,58 @@ def faithful_model(  # noqa: PLR0911, PLR0912 (one return per line of the table)
 
     if fidelity_state == "failed":  # FM-1
         return Petal(pid, RED, CHECK_FAILED, TEST,
-                     "the rung's bar scores above the row's replies (FIDELITY failed)",
+                     "the rung's bar scores above the row's replies",
                      lowered_by=("fidelity",))  # fmt: skip
     if doc is None:  # FM-2
-        return petal(None, "no fidelity.json stored", NOT_DECIDED)
+        return petal(None, "no fidelity record stored for the rung", NOT_DECIDED)
     if fidelity_state != "held":
-        return petal(None, f"FIDELITY undecided: {fidelity_cause or 'no cause'}", NOT_DECIDED)
+        return petal(None, f"the Fidelity check is undecided: {fidelity_cause or 'no cause'}",
+                     NOT_DECIDED)  # fmt: skip
     row = _m(_m(doc.get("rows")).get(system))
     scores = _scores(row)
     if scores is None:
-        return petal(None, "no scores for the row in fidelity.json", NOT_DECIDED)
-    n = len(scores)
+        return petal(None, "no fidelity scores stored for the row", NOT_DECIDED)
     totals = recheck(doc)
     if policy != EXACT_MATCH:  # FM-3
         return petal(
             AMBER_LOWER,
             f"the claim's policy is {policy}, not exact match"
             if policy is not None
-            else "no claim card found: the policy is not shown to be exact match",
+            else "no claim card found, so exact match is not shown",
         )
     steps, tests = doc.get("steps"), row.get("step_tests")
     if not isinstance(steps, Mapping) or not isinstance(tests, Mapping):  # FM-4
-        return petal(AMBER_LOWER, "no step tests stored in fidelity.json")
+        return petal(AMBER_LOWER, "no step tests stored for the rung")
     _tie_step_tests(steps, tests, scores, totals, system)
-    for key, name in _THRESHOLD_NAMES:  # FM-4 (F1): a control missing or failed
+    for key, _ in _THRESHOLD_NAMES:  # FM-4 (F1): a control missing or failed
         threshold = _m(steps.get(key))
         if threshold.get("value") is None:
             cause = threshold.get("cause") or "no value stored"
-            return petal(AMBER_LOWER, f"{name} has no value ({cause}): the steps above amber "
-                         "in lesser part need it")  # fmt: skip
+            return petal(AMBER_LOWER, f"the {_LINE_WORDS[key]} midpoint has no value ({cause}), "
+                         "and the steps above need it")  # fmt: skip
     g, u = _m(tests.get("green")), _m(tests.get("upper"))
     if not g or not u:  # FM-4
-        return petal(AMBER_LOWER, "no step tests stored in fidelity.json")
+        return petal(AMBER_LOWER, "no step tests stored for the rung")
     alpha = _alpha(doc, level_alpha)
     pg, vg = float(g["p"]), float(g["value"])  # type: ignore[arg-type]
     pu, vu = float(u["p"]), float(u["value"])  # type: ignore[arg-type]
-    t_green = f"T_green = {vg:.2f} {SCORE_UNIT} (p = {pg:.4g})"
-    t_upper = f"T_upper = {vu:.2f} {SCORE_UNIT} (p = {pu:.4g})"
-    tail = f"alpha {alpha:g}, n = {n}"
+    # FI-3's unit, each threshold named in words (the p values, alpha and n stay in fidelity.json)
+    t_green = f"the {_LINE_WORDS['green']} midpoint, {vg:.2f} {SCORE_UNIT}"
+    t_upper = f"the {_LINE_WORDS['upper']} midpoint, {vu:.2f} {SCORE_UNIT}"
     green_shown, upper_shown = pg < alpha, pu < alpha
     slots = doc.get("slots")
     if green_shown and slots == 1:  # FM-5 (F2)
-        return petal(GREEN, f"shown above {t_green}; {tail}")
-    had = "no slot count stored" if slots is None else f"the fidelity run had {slots} slots"
+        return petal(GREEN, f"shown above {t_green}")
+    had = "no slot count is stored" if slots is None else f"the run had {slots} slots"
     if upper_shown:  # FM-6 (F3)
         if green_shown:
-            return petal(AMBER_UPPER, f"shown above {t_upper} and above {t_green}, but {had} "
-                         f"and green needs 1; {tail}")  # fmt: skip
-        return petal(AMBER_UPPER, f"shown above {t_upper}, not above {t_green}; {tail}")
+            return petal(AMBER_UPPER, f"shown above {t_green}, but {had} and green needs 1")
+        return petal(AMBER_UPPER, f"shown above {t_upper}, but not the {_LINE_WORDS['green']} "
+                     f"one, {vg:.2f} {SCORE_UNIT}")  # fmt: skip
     if green_shown:  # FM-7 (F4)
-        return petal(AMBER_LOWER, f"shown above {t_green} but not above {t_upper}, and {had}; "
-                     f"{tail}")  # fmt: skip
-    return petal(AMBER_LOWER, f"not shown above {t_upper}; {tail}")  # FM-7
+        return petal(AMBER_LOWER, f"shown above {t_green}, not the {_LINE_WORDS['upper']} one, "
+                     f"{vu:.2f} {SCORE_UNIT}, and {had}")  # fmt: skip
+    return petal(AMBER_LOWER, f"not shown above {t_upper}")  # FM-7
 
 
 def glyph(petals: Mapping[str, Petal]) -> list[dict[str, object]]:

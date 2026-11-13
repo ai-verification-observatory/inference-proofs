@@ -279,7 +279,7 @@
 
   // ------------------------------------------------------------ the ladder's rows: the whole row leads to its page, but
   // a tap on one of its figures shows that figure's labels
-  const rows = $$('.lad .row');
+  const rows = $$('.lad .row, .scl .row');
   rows.forEach((tr) => {
     const a = $('.sname', tr);
     if (!a) return;
@@ -357,7 +357,12 @@
     lastY = y;
     if (!pnav) return;
     const edge = pnav.getBoundingClientRect().bottom;
+    const wasStuck = pnav.classList.contains('stuck');
     pnav.classList.toggle('stuck', !!mast && mast.getBoundingClientRect().bottom < pnav.getBoundingClientRect().top - 1);
+    // the title slides into the strip or out of it: the marked label is made whole again once it has (below)
+    if (wasStuck !== pnav.classList.contains('stuck')) requestAnimationFrame(rewhole);
+    // the scale page's strip marks the figure drawn, not the section in view (below)
+    if (panels.length) { petalSpy(); return; }
     let k = -1;
     // a section is in view once its top has passed a third of the window under the strip (48 px at least); of two
     // that have, the earlier while its own top is still under the strip (a short section is not passed over)
@@ -407,6 +412,33 @@
     a.style.setProperty('width', `${Math.ceil(w + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight))}px`);
   };
   addEventListener('resize', () => links.forEach(snug), { passive: true });
+  const rewhole = () => { const on = strip && $('a.on', strip); if (on) whole(on, 'auto'); };
+  const stripTitle = strip && $('.ps-t', strip);
+  if (stripTitle) stripTitle.addEventListener('transitionend', (ev) => { if (ev.propertyName === 'max-width') rewhole(); });
+
+  // ------------------------------------------------------------ the scale page: its strip picks the one figure drawn, and
+  // the address keeps it (no history entry, no scroll); an address naming none draws the first. With no script every
+  // figure is drawn
+  const panels = body.classList.contains('scalepage') ? secs.filter(Boolean) : [];
+  const pick = (id, keep) => {
+    const k = Math.max(0, panels.findIndex((s) => s.id === id));
+    panels.forEach((s, i) => { s.hidden = i !== k; });
+    links.forEach((a, i) => { a.classList.toggle('on', i === k); if (i === k) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); snug(a); });
+    if (links[k]) whole(links[k], 'auto');
+    if (!keep) return;
+    history.replaceState(null, '', `#${panels[k].id}`);
+    // a figure picked further down the page starts at its top, under the strip
+    if (panels[k].getBoundingClientRect().top < pnav.getBoundingClientRect().bottom) panels[k].scrollIntoView({ block: 'start' });
+  };
+  if (panels.length) {
+    pick(decodeURIComponent(location.hash.slice(1)));
+    links.forEach((a) => a.addEventListener('click', (ev) => {
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      pick(decodeURIComponent(a.hash.slice(1)), true);
+    }));
+    addEventListener('hashchange', () => pick(decodeURIComponent(location.hash.slice(1))));
+  }
   if (strip) strip.addEventListener('focusin', (ev) => { const a = ev.target.closest('a'); if (a && a.matches(':focus-visible')) whole(a, 'auto'); });
   // on a phone, a jump within the page first sets the bar as the scroll will leave it (away on the way down, back on
   // the way up), so the scroll padding the browser reads is the one in force when the section lands (words.css)
@@ -499,8 +531,8 @@
   // after the first frame, so a view transition into this page is not held up by layout read here
   requestAnimationFrame(() => requestAnimationFrame(spy));
 
-  // ------------------------------------------------------------ the probe: pointing at a figure (or anything carrying
-  // labels in its title) shows its labels where it is, one per line; a petal of a row's glyph shows its name and state
+  // ------------------------------------------------------------ the probe: pointing at a figure shows its labels where
+  // it is, one per line; a petal of a row's glyph shows its name and state. Any other title is left to the browser
   // The labels are the figure's description for a screen reader while they are shown.
   const probe = document.createElement('div');
   probe.className = 'probe';
@@ -590,7 +622,7 @@
     probe.scrollTop = 0;
     size = [probe.offsetWidth, probe.offsetHeight];
     col = gutters(el, size[0]);
-    near = $$('[title], [data-t]', main).filter((e) => e !== el && !e.contains(el) && !el.contains(e));
+    near = $$(FIG, main).filter((e) => e !== el && !e.contains(el) && !el.contains(e));
     place(el);
   };
   const labelled = (el) => show(el, () => {
@@ -651,14 +683,14 @@
       const els = document.elementsFromPoint(ev.clientX, ev.clientY).filter((e) => !probe.contains(e));
       const pt = els.map((e) => e.closest('.glyph .sl')).find((e) => e && main.contains(e) && e !== at);
       if (pt) { stay(); clearPetal(); petal(pt); return; }
-      const f = els.map((e) => e.closest('[title], [data-t]')).find((e) => e && main.contains(e) && e !== at);
+      const f = els.map((e) => e.closest(FIG)).find((e) => e && main.contains(e) && e !== at);
       if (f) { stay(); clearPetal(); labelled(f); }
     });
     main.addEventListener('pointerover', (ev) => {
       if (ev.pointerType !== 'mouse') return;
       const p = ev.target.closest('.glyph .sl');
       if (p) { stay(); clearPetal(); petal(p); return; }
-      const el = ev.target.closest('[title], [data-t]');
+      const el = ev.target.closest(FIG);
       if (el && main.contains(el)) { stay(); if (el !== at) labelled(el); } else later();
     });
     main.addEventListener('pointerleave', (ev) => { if (mouse(ev)) later(); });
@@ -683,14 +715,14 @@
     });
     main.addEventListener('focusin', (ev) => {
       if (press) return;
-      const el = ev.target.closest('a[title], .fig[title], .na[title], .part[title]');
+      const el = ev.target.closest('.fig[title], .na[title], .part[title]');
       if (el) { labelled(el); byKey = true; place(el, true); }
     });
     main.addEventListener('focusout', (ev) => { if (at && ev.target.contains(at)) hide(); });
     away.push(() => { if (!at) return; if (byKey && at === document.activeElement) place(at); else { clearPetal(); hide(); } });
     // a figure's labels reach the keyboard too: outside the ladder's rows (each row leads to the page that
     // holds the same figures) and outside links, a figure takes focus and shows them
-    $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a, .lad')) el.tabIndex = 0; });
+    $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a, .lad, .scl')) el.tabIndex = 0; });
     // Escape puts the labels away. Labels shown by the keyboard and cut by a short window scroll with the arrows while
     // their figure has focus; at either end the arrow is left to the browser, which scrolls the page
     addEventListener('keydown', (ev) => {
@@ -702,6 +734,28 @@
       probe.scrollBy(0, d * 24);
       if (probe.scrollTop !== before) ev.preventDefault();
     });
+  }
+
+  // ------------------------------------------------------------ a system page's share group: Copy link writes the page's
+  // canonical address to the clipboard and says the page's word for done, on the button for a moment and to a screen
+  // reader. Without script, or with no clipboard, the button stays hidden
+  {
+    const canon = $('link[rel="canonical"]');
+    if (canon && navigator.clipboard) {
+      $$('.cplink').forEach((b) => {
+        const word = b.textContent;
+        let back = 0;
+        b.hidden = false;
+        b.addEventListener('click', () => {
+          navigator.clipboard.writeText(canon.href).then(() => {
+            b.textContent = b.dataset.done;
+            say(b.dataset.done);
+            clearTimeout(back);
+            back = setTimeout(() => { b.textContent = word; }, 2000);
+          }, () => {});
+        });
+      });
+    }
   }
 
   // ------------------------------------------------------------ one page into the next: leaving the ladder for a system's

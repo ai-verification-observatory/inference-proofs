@@ -3,20 +3,20 @@
     {
       "group": "Systems",
       "kind": "system",
-      "meta": "Llama 4 Maverick 17B-128E Instruct · not passed: Model undecided",
+      "meta": "Llama 4 Maverick 17B-128E Instruct · not passed yet: Model check undecided",
       "name": "FlashProve",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><rect class=\"sl s2 amber\" data-step=\"amber_upper\" fill=\"#e49921\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><path class=\"sl s3 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 12H18V17H3ZM20 12H25V17H20Z\"/><path class=\"sl s4 hollow\" data-step=\"none\" data-cause=\"proof_build_not_run\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 green\" data-step=\"green\" fill=\"#6ffeb7\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
-      "terms": "flashprove llama 4 maverick 17b-128e instruct · not passed: model undecided l1-maverick-p512-o512 flashprove",
+      "terms": "flashprove llama 4 maverick 17b-128e instruct · not passed yet: model check undecided l1-maverick-p512-o512 flashprove",
       "tier": 0,
       "url": "/flashprove"
     },
     {
       "group": "Systems",
       "kind": "system",
-      "meta": "Llama 3.1 8B Instruct · not passed: No weight file undecided",
+      "meta": "Llama 3.1 8B Instruct · not passed yet: Verify without weights check undecided",
       "name": "SASH",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><path class=\"sl s2 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 6.5H24.5V10.5H3\"/><path class=\"sl s3 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 12H18V17H3ZM20 12H25V17H20Z\"/><path class=\"sl s4 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><path class=\"sl s5 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 24.5H24.5V28.5H3\"/></svg>",
-      "terms": "sash llama 3.1 8b instruct · not passed: no weight file undecided l1-l31-8b-p512-o512 sash",
+      "terms": "sash llama 3.1 8b instruct · not passed yet: verify without weights check undecided l1-l31-8b-p512-o512 sash",
       "tier": 0,
       "url": "/sash"
     },
@@ -103,10 +103,10 @@
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "Each of the 3 session slots holds a complete session, built from the public pin, unpatched, with no weakening flag.",
+      "meta": "Each of 3 sessions, from a cold start on its own prompts, returned an accepted proof for every request, built from the published code at its pinned commit, unpatched, with no flag that weakens the proof.",
       "name": "Run",
       "pie": "",
-      "terms": "run each of the 3 session slots holds a complete session, built from the public pin, unpatched, with no weakening flag.",
+      "terms": "run each of 3 sessions, from a cold start on its own prompts, returned an accepted proof for every request, built from the published code at its pinned commit, unpatched, with no flag that weakens the proof.",
       "tier": 3,
       "url": "/checks#run"
     },
@@ -133,40 +133,40 @@
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "Every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
+      "meta": "Every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one interior position drawn from a public seed, in 3 of 3 trials each.",
       "name": "Reply",
       "pie": "",
-      "terms": "reply every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
+      "terms": "reply every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one interior position drawn from a public seed, in 3 of 3 trials each.",
       "tier": 3,
       "url": "/checks#reply"
     },
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "Every counted verdict came from a check run with no GPU visible, on a filesystem holding no model file, under a file-open trace that names no model file.",
-      "name": "No weight file",
+      "meta": "Every counted verdict came from a verify call with no GPU visible, on a machine holding no model file, and the trace of the files it opened names no model file.",
+      "name": "Verify without weights",
       "pie": "",
-      "terms": "no weight file every counted verdict came from a check run with no gpu visible, on a filesystem holding no model file, under a file-open trace that names no model file.",
+      "terms": "verify without weights every counted verdict came from a verify call with no gpu visible, on a machine holding no model file, and the trace of the files it opened names no model file.",
       "tier": 3,
       "url": "/checks#no_weight_file"
     },
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "The system's replies score above the model's bar: the damaged copy of the model that every honest copy scores above, scored by the leading tokens each reply shares with the reply of the publisher's original weights.",
+      "meta": "The system's replies match the replies of the publisher's original weights for more leading tokens than the bar's do. The bar is the copy we damaged on purpose that matches most, among those every honest copy scores above. A floor, not a measure of closeness: the Faithful model petal grades closeness.",
       "name": "Fidelity",
       "pie": "",
-      "terms": "fidelity the system's replies score above the model's bar: the damaged copy of the model that every honest copy scores above, scored by the leading tokens each reply shares with the reply of the publisher's original weights.",
+      "terms": "fidelity the system's replies match the replies of the publisher's original weights for more leading tokens than the bar's do. the bar is the copy we damaged on purpose that matches most, among those every honest copy scores above. a floor, not a measure of closeness: the faithful model petal grades closeness.",
       "tier": 3,
       "url": "/checks#fidelity"
     },
     {
       "group": "Figures",
       "kind": "figure",
-      "meta": "m, GPU-seconds per further proved reply. In one session, proofs released within 1 s of the previous release form a group. m is the GPU time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. The mean of 3 sessions, each from a cold start.",
-      "name": "Multiple of serving",
+      "meta": "GPU-seconds per proved reply after the first group. In one session, proofs released within 1 s of the previous release form a group. m is the GPU time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. The mean of 3 sessions, each from a cold start.",
+      "name": "Cost vs serving",
       "pie": "",
-      "terms": "multiple of serving m, gpu-seconds per further proved reply. in one session, proofs released within 1 s of the previous release form a group. m is the gpu time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. the mean of 3 sessions, each from a cold start.",
+      "terms": "cost vs serving gpu-seconds per proved reply after the first group. in one session, proofs released within 1 s of the previous release form a group. m is the gpu time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. the mean of 3 sessions, each from a cold start.",
       "tier": 4,
       "url": "/checks#multiple"
     },
@@ -184,9 +184,9 @@
       "group": "Figures",
       "kind": "figure",
       "meta": "The time the system's verifier takes on a session's proofs, over the session's replies.",
-      "name": "Check time per reply",
+      "name": "Verify time per reply",
       "pie": "",
-      "terms": "check time per reply the time the system's verifier takes on a session's proofs, over the session's replies.",
+      "terms": "verify time per reply the time the system's verifier takes on a session's proofs, over the session's replies.",
       "tier": 4,
       "url": "/checks#check-time"
     },
@@ -194,9 +194,9 @@
       "group": "Figures",
       "kind": "figure",
       "meta": "The mean KL divergence per scored token, in nats, of the file the system commits from the reference: the publisher's original weights, 16-bit for Llama 4 Maverick 17B-128E Instruct and Llama 3.1 8B Instruct, 32-bit for GPT-2.",
-      "name": "KL to the reference",
+      "name": "KL to the original weights",
       "pie": "",
-      "terms": "kl to the reference the mean kl divergence per scored token, in nats, of the file the system commits from the reference: the publisher's original weights, 16-bit for llama 4 maverick 17b-128e instruct and llama 3.1 8b instruct, 32-bit for gpt-2.",
+      "terms": "kl to the original weights the mean kl divergence per scored token, in nats, of the file the system commits from the reference: the publisher's original weights, 16-bit for llama 4 maverick 17b-128e instruct and llama 3.1 8b instruct, 32-bit for gpt-2.",
       "tier": 4,
       "url": "/checks#kl"
     },
@@ -206,9 +206,19 @@
       "meta": "The six checks, the figures, the order rule, what is not tested",
       "name": "Checks",
       "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 26 18\" width=\"26\" height=\"18\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><path fill=\"currentColor\" d=\"M0 0h4v18h-4zM4 6h6v6h-6zM12 6h6v6h-6zM20 6h6v6h-6z\"/></svg>",
-      "terms": "checks the six checks, the figures, the order rule, what is not tested checks terms proof commitment request ladder figures order rule undecided unranked not tested",
+      "terms": "checks the six checks, the figures, the order rule, what is not tested checks figures order rule undecided unranked not tested",
       "tier": 4,
       "url": "/checks"
+    },
+    {
+      "group": "Pages",
+      "kind": "page",
+      "meta": "Cost vs serving, Cost per reply, Verify time per reply, Proof size per reply",
+      "name": "Scale",
+      "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 26 18\" width=\"26\" height=\"18\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><path fill=\"currentColor\" d=\"M0 0h4v18h-4zM4 6h6v6h-6zM12 6h6v6h-6zM20 6h6v6h-6z\"/></svg>",
+      "terms": "scale cost vs serving, cost per reply, verify time per reply, proof size per reply scale chart log decade axis",
+      "tier": 4,
+      "url": "/scale"
     },
     {
       "group": "Pages",
@@ -393,10 +403,10 @@
     {
       "group": "Glossary",
       "kind": "term",
-      "meta": "One of the six tests this benchmark runs on a system before ranking it: Run, Model, Prompt, Reply, No weight file, Fidelity.",
+      "meta": "One of the six tests this benchmark runs on a system before ranking it: Run, Model, Prompt, Reply, Verify without weights, Fidelity.",
       "name": "Check",
       "pie": "",
-      "terms": "check one of the six tests this benchmark runs on a system before ranking it: run, model, prompt, reply, no weight file, fidelity.",
+      "terms": "check one of the six tests this benchmark runs on a system before ranking it: run, model, prompt, reply, verify without weights, fidelity.",
       "tier": 4.2,
       "url": "/glossary#check"
     },
@@ -1013,10 +1023,10 @@
     {
       "group": "Not run",
       "kind": "notrun",
-      "meta": "another kind of check",
+      "meta": "a different statement",
       "name": "VerInf",
       "pie": "",
-      "terms": "verinf another kind of check",
+      "terms": "verinf a different statement",
       "tier": 5,
       "url": "/#nr-verinf"
     },

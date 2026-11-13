@@ -12,7 +12,21 @@ import re
 from . import state as S
 from .inks import GROUND
 from .mark import lockup_svg
-from .words import CAUSE_WORD, PETAL_NAME, STEP_WORD, e
+from .words import (
+    CAUSE_WORD,
+    CHECK_NAME,
+    FIGURE_NAME,
+    OF_WHICH,
+    PART_WORD,
+    PETAL_NAME,
+    SEP,
+    STATE_WORD,
+    STEP_WORD,
+    WHOLE_SESSIONS,
+    e,
+    shown,
+    sub_words,
+)
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
@@ -20,6 +34,7 @@ from .words import CAUSE_WORD, PETAL_NAME, STEP_WORD, e
 MANDATE_PAGE = "/mandate"  # what the site is for, what it does and does not do, who runs it
 CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
 LEARN_PAGE = "/learn"  # the hub of the Learn pages (learn.py), when the tree holds their words
+SCALE_PAGE = "/scale"  # every row on a decade axis, one figure at a time (scale.py)
 
 
 def file_of(path):
@@ -107,13 +122,13 @@ GITHUB_MARK = (
 )
 
 
-TABS = (("/", "Ladder", "home"), (LEARN_PAGE, "Learn", "learn"), (CHECKS_PAGE, "Checks", "checks"),
-        (MANDATE_PAGE, "Mandate", "mandate"))  # fmt: skip
+TABS = (("/", "Ladder", "home"), (SCALE_PAGE, "Scale", "scale"), (LEARN_PAGE, "Learn", "learn"),
+        (CHECKS_PAGE, "Checks", "checks"), (MANDATE_PAGE, "Mandate", "mandate"))  # fmt: skip
 
 
 def header(here, under=False):
     """The top bar: the lockup, the pages as tabs, search and GitHub. here: the page's tab
-    ("home", "learn", "checks", "mandate"), "system" for a system page (under the ladder's tab)
+    ("home", "scale", "learn", "checks", "mandate"), "system" for a system page (under the ladder's tab)
     or None; `under` when the page in view is under that tab's page and not the page itself (a
     Learn article). Learn is a tab only when the tree holds the Learn words. Systems are reached
     from the ladder or by search (one link each would not scale)."""
@@ -184,12 +199,21 @@ def level_words():
     return f"{lv['name']} ({state})"
 
 
+def credit_words(linked=True):
+    """Who builds the site and who leads it, from the facts file (`credit`), as one sentence."""
+    c = S.V["credit"]
+
+    def org(o):
+        return f'<a href="{e(o["url"])}">{e(o["name"])}</a>' if linked else e(o["name"])
+
+    return f"Built by the {org(c['builder'])}, led by {org(c['lead'])}."
+
+
 def footer():
-    """Every page's footer, one strip of cells: the level file and its digest, the release's
-    board file when there is one, the licence and the mandate."""
+    """Every page's footer, one strip of cells: the level file (its digest in the link's title),
+    the release's board file when there is one, the licence and who builds the site."""
     lv, rel = S.V["level"], S.V["release"]
-    parts = [f'<a href="{e(link(lv["path"]))}">{e(level_words())}</a>'
-             f'<code>{e(lv["digest"][:19])}</code>']  # fmt: skip
+    parts = [f'<a href="{e(link(lv["path"]))}" title="{e(lv["digest"])}">{e(level_words())}</a>']
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None
@@ -197,18 +221,18 @@ def footer():
         parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
                      else f'<span class="nw">{e(name)}</span><code>{e(board)}</code>')  # fmt: skip
     parts.append(f"<span>{e(S.V['licence'])}</span>")
-    parts.append(f'<a href="{MANDATE_PAGE}">Mandate</a>')
+    parts.append(f'<span class="fcr">{credit_words()}</span>')
     cells = "".join(f"<li>{p}</li>" for p in parts)
     return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
 
 
-def pnav(title, items):
+def pnav(title, items, end=""):
     """A page's sections as a strip that stays under the top bar (words.js marks the one in
     view): the page's title, shown once the band has scrolled away, then one link per section,
-    items as (id, label)."""
+    items as (id, label); `end` at the strip's right end, out of its scroll."""
     links = "".join(f'<a href="#{sid}">{e(label)}</a>' for sid, label in items)
     return (f'<nav class="pnav" aria-label="Sections"><div class="ps">'
-            f'<span class="ps-t" aria-hidden="true">{e(title)}</span>{links}</div></nav>')  # fmt: skip
+            f'<span class="ps-t" aria-hidden="true">{e(title)}</span>{links}</div>{end}</nav>')  # fmt: skip
 
 
 def full_title(title):
@@ -250,7 +274,8 @@ def page(title, desc, body, cls, path, card):
 # renderer writes each picture's source, og/<card>.html (CARD_W x CARD_H CSS px, the view's own
 # words and pies); og.mjs renders it to og/<card>.png at CARD_SCALE and records both sha256 in
 # og/cards.json. The pages name each picture with its hash, so a new picture is a new URL for link
-# caches; a page whose picture was not rendered yet names the home card, never a missing file.
+# caches; a page whose picture was not rendered, or was rendered from another source than the one
+# this build wrote (card_current), names the home card, never a missing or stale picture.
 SITE_URL = "https://www.inferenceproofs.ai"
 CARD_W, CARD_H, CARD_SCALE = 1200, 630, 2
 
@@ -275,25 +300,119 @@ def cards_record():
 
 
 def card_alt(card):
-    """The picture in words, from the same data the picture draws."""
+    """The picture in words, from the same data the picture draws: the system and its model, the
+    band's figure, the standing, cost and verify time per reply, the petals. Each
+    figure with its unit, scope and n."""
     if card == "home":
         return "Inference proofs."
     row = S.PAGE[card]
+    n = counted(row)
+    label, f, key = lead_figure(row)
+    lead = f"{label}: {fig_words(f, n)}"
+    if parts := parts_of(row, key):  # CO-7
+        lead += "".join(f", {OF_WHICH} {w} {fig_words(p, n)}" for w, p in parts)
+    figs = [(FIGURE_NAME["cost"], row_cost(row)),
+            (FIGURE_NAME["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
+    cells = ". ".join(f"{k}: {fig_words(v, n)}" for k, v in figs)
     states = "; ".join(
         f"{PETAL_NAME[p['id']]}: {STEP_WORD[p['step']]}"
         + (f", {CAUSE_WORD[p['cause']]}" if p["cause"] is not None else "")
         for p in row["glyph"]
     )
-    return f"{S.V['systems'][row['system']]['name']} on {rung_of(row)['model']}. {states}."
+    name = S.V["systems"][row["system"]]["name"]
+    return (f"{name} on {rung_of(row)['model']}. {lead}. Standing: {standing(row)}. {cells}. "
+            f"{states}.")  # fmt: skip
 
 
 def rung_of(row):
     return next(r for r in S.V["rungs"] if r["id"] == row["rung"])
 
 
+# ------------------------------------------------------------------ a row's figures and standing
+# Here, not in overview.py, so the share tags (`card_alt`) say what the pages and the card print.
+def has(f):
+    return f is not None and f["value"] is not None
+
+
+def counted(row):
+    """The counted sessions a row's figures are over."""
+    return len(row["sessions"]) or None
+
+
+def fig_words(f, n=None):
+    """A stored figure in plain words: the number in its unit, its scope and n in brackets."""
+    if not has(f):
+        return "none"
+    line = sub_words(f, n).replace(SEP, ", ").replace("\u00a0", " ")
+    return shown(f["value"], f["unit"]) + (f" ({line})" if line else "")
+
+
+# CO-7: a printed multiple's two parts, where the system generates in a phase of its own, in the
+# order they are drawn (the part that is not generation first)
+SPLITS = {"multiple": (("proving", "proving_multiple"), ("generation", "generation_multiple")),
+          "session_multiple": (("commit_and_proving", "session_commit_and_proving_multiple"),
+                               ("generation", "session_generation_multiple"))}  # fmt: skip
+
+
+def lead_figure(row):
+    """A row's one figure (CO-5): the multiple of serving; with no steady state, the whole
+    sessions' multiple, named so in its label; else the multiple's null. Returns (label, figure,
+    its key in the row's figures)."""
+    figs = row["figures"]
+    if not has(figs["multiple"]) and has(figs["session_multiple"]):
+        n = rung_of(row)["requests_per_session"]
+        return (f"{FIGURE_NAME['multiple']}, {WHOLE_SESSIONS.format(n=n)}",
+                figs["session_multiple"], "session_multiple")  # fmt: skip
+    return FIGURE_NAME["multiple"], figs["multiple"], "multiple"
+
+
+def parts_of(row, key):
+    """The two parts of the row's figure `key` as (name, figure), or none where either part has
+    no value (CO-7)."""
+    parts = [(PART_WORD[w], row["figures"].get(k)) for w, k in SPLITS.get(key, ())]
+    return parts if parts and all(has(f) for _, f in parts) else []
+
+
+def row_cost(row):
+    """The cost per reply at the multiple's own scope: steady when the row has a steady
+    multiple, else its whole sessions, so one row never mixes two scopes."""
+    figs = row["figures"]
+    steady = figs["multiple"].get("value") is not None
+    return figs["steady_usd_per_reply" if steady else "session_usd_per_reply"]
+
+
+def not_passed(row):
+    """The standing of a row that has not passed: "not passed" with a failed check, "not passed
+    yet" while every check not held is undecided (RFC-0018: an undecided check is never worded as
+    a failure)."""
+    failed = any(c["state"] == "failed" for c in row["checks"])
+    return "not passed" if failed else "not passed yet"
+
+
+def standing(row):
+    """Passed (a system on a model, SI-6), passed and unranked with why, or not passed with the
+    checks not held (SI-1), each named as a check."""
+    if row["passed"] and not row["ranked"]:
+        return f"passed, unranked: {row['unranked_reason']}"
+    if row["passed"]:
+        return "passed"
+    missing = [f"{CHECK_NAME[c['id']]} check {STATE_WORD[c['state']]}" for c in row["checks"]
+               if c["state"] != "held"]  # fmt: skip
+    return f"{not_passed(row)}: " + ", ".join(missing) if missing else not_passed(row)
+
+
+def card_current(card):
+    """Whether og/<card>.png was rendered from the source this build wrote (cards.json holds the
+    source's sha256): a picture of an earlier board is never named."""
+    rec, src = cards_record().get(card), S.OG / f"{card}.html"
+    return (
+        bool(rec) and src.exists() and rec["source"] == hashlib.sha256(src.read_bytes()).hexdigest()
+    )
+
+
 def share_meta(title, desc, path, card):
     url = f"{SITE_URL}/{path}"
-    if card not in cards_record():
+    if card != "home" and not card_current(card):
         card = "home"
     rec = cards_record().get(card)
     img = f"{SITE_URL}/og/{card}.png" + (f"?v={rec['png'][:12]}" if rec else "")

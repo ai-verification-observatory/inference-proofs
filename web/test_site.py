@@ -5,6 +5,7 @@ SI-3, SI-5, CH-7). Run from the repository root: uv run pytest web -q
 """
 
 import html
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -135,3 +136,92 @@ def test_every_rung_not_run_without_a_board(empty_site: Path) -> None:
     sections = re.findall(r'<section class="rung" id="([^"]+)"(.*?)</section>', index, re.S)
     assert [s for s, _ in sections] == [r["id"] for r in level["rungs"]]  # type: ignore[index]
     assert all("Not run yet." in body and "<table" not in body for _, body in sections)
+
+
+SCALE_LANE = re.compile(
+    r'<table class="scl" data-lo="(-?\d+)" data-hi="(-?\d+)">(.*?)</table>', re.S
+)
+SCALE_ROW = re.compile(
+    r'<tr class="row (ok|np)" id="scale-(multiple|cost|check-time|proof-size)-([^"]+)">(.*?)</tr>',
+    re.S,
+)
+
+
+def at(lo: int, hi: int, v: float) -> str:
+    return f"{100 * (math.log10(v) - lo) / (hi - lo):.2f}%"
+
+
+def test_scale_positions_are_the_boards(board_site: Any) -> None:
+    """RFC-0018 SI-7: on the scale page, each mark sits where its row's printed figure falls on
+    the figure's one decade grid, its session ticks where the board's sessions fall, serving's
+    line where the rung's baseline falls; a row not passed is an outline; lanes and rows keep the
+    board's order. The extents and two positions are hand-computed for the example board."""
+    board = board_site.board
+    text = pages(board_site.out)["scale.html"]
+    lanes = SCALE_LANE.findall(text)
+    assert len(lanes) == 4  # one table per figure, every lane under its one axis
+    seen: dict[str, list[str]] = {}
+    for lo_s, hi_s, body in lanes:
+        lo, hi = int(lo_s), int(hi_s)
+        for state, dim, _, tr in SCALE_ROW.findall(body):
+            title = FIG.search(tr)
+            assert title, (dim, tr[:80])
+            pointer = re.search(r"record: [^#]+#(/[^;\"]+)", html.unescape(title[1]))
+            assert pointer
+            stored = resolve(board, pointer[1])
+            at_row = pointer[1].rsplit("/", 1)[0]
+            row = resolve(board, at_row)
+            base = resolve(board, at_row.rsplit("/", 2)[0])["baseline"]
+            seen.setdefault(dim, []).append(row["system"])
+            assert state == ("ok" if row["passed"] else "np"), (dim, row["system"])
+            v = stored["value"] * (1e-6 if stored["unit"] == "B/request" else 1)
+            assert re.findall(r'<svg class="mk" x="([^"]+)"', tr) == [at(lo, hi, v)], (
+                dim,
+                row["system"],
+            )
+            steady = row["multiple"]["value"] is not None
+            runs = [s["m" if steady else "session"] for s in row["sessions"]]
+            if dim == "multiple":
+                b = base["gpu_seconds_per_reply"]["value"]
+                ticks, serve = [r / b for r in runs if r is not None], 1.0
+            elif dim == "cost":
+                k = "steady" if steady else "session"
+                price = (
+                    row[f"{k}_usd_per_reply"]["value"] / row[f"{k}_gpu_seconds_per_reply"]["value"]
+                )
+                ticks, serve = (
+                    [r * price for r in runs if r is not None],
+                    base["usd_per_reply"]["value"],
+                )
+            else:
+                ticks, serve = [], None
+            got = re.findall(r'<line class="ss" x1="([^"]+)"', tr)
+            assert got == [at(lo, hi, t) for t in ticks], (dim, row["system"])
+            sv = re.findall(r'<line class="sv" x1="([^"]+)"', tr)
+            assert sv == ([at(lo, hi, serve)] if serve else []), (dim, row["system"])
+    for dim in ("multiple", "cost", "check-time", "proof-size"):
+        assert seen[dim] == [r["system"] for r in rows(board)], dim
+    # hand-computed: the multiple from 1× to 1,000× (sessions up to 612 / 1.408 = 434.6×), the
+    # cost from 10^-4 (serving 0.000894 USD) to 1 USD; FlashProve's 68.31× and 0.06110 USD
+    assert [(lo, hi) for lo, hi, _ in lanes] == [
+        ("0", "3"),
+        ("-4", "0"),
+        ("0", "2"),
+        ("0", "2"),
+    ]
+    assert re.search(r'id="scale-multiple-flashprove">.*?class="mk" x="61.15%"', text, re.S)
+    assert re.search(r'id="scale-cost-flashprove">.*?class="mk" x="69.65%"', text, re.S)
+
+
+def test_session_parts_print_beside_the_whole_sessions_figure(board_site: Any) -> None:
+    """RFC-0018 CO-7: a row with no steady state prints its session figure's two parts. In the
+    example board SASH's session is 604.9 GPU-s per reply, of which 100.0 generation and 504.9
+    commit and proving, so the ladder's share bar gives commit and proving 100 * 504.9 / 604.9 =
+    83.47 % of its length; both parts' figures are on the ladder, the system page and the card."""
+    out = board_site.out
+    at = "/rungs/1/rows/0/session_"
+    for page in ("index.html", "sash.html", "og/sash.html"):
+        text = html.unescape((out / page).read_text())
+        for part in ("generation_multiple", "commit_and_proving_multiple"):
+            assert f"{at}{part}" in text, (page, part)
+    assert '<rect class="bp" width="83.47"' in (out / "index.html").read_text()

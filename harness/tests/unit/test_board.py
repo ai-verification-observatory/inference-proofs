@@ -227,7 +227,7 @@ def test_formula_ids_are_registered() -> None:
     from iproofs.derive import FORMULAS  # noqa: PLC0415
 
     assert {"D-L1-SESSION", "D-L1-STEADY", "D-L1-BASELINE", "D-L1-MULTIPLE",
-            "D-L1-USD"} <= set(FORMULAS)  # fmt: skip
+            "D-L1-USD", "D-L1-GENERATION", "D-L1-COMMIT-PROVING"} <= set(FORMULAS)  # fmt: skip
 
 
 def test_freeze_refuses_another_level_digest(tree: Tree) -> None:
@@ -289,3 +289,58 @@ def test_board_split_multiples(tree: Tree, monkeypatch: pytest.MonkeyPatch) -> N
     assert r["proving_multiple"]["source"]["inputs"][0].endswith(
         "/steady_proving_gpu_seconds_per_reply"
     )
+
+
+def test_board_session_split_without_steady_state(
+    tree: Tree, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CO-7 (amended 2026-11-13): five replies released at 100, 110, 120, 130 and 160 s on two
+    GPUs after a 50 s generation phase; later per-reply times 10, 10, 10 and 30 s are uneven, so
+    no m. Session cost 160 x 2 / 5 = 64, of which generation 50 x 2 / 5 = 20 and commit and
+    proving 64 - 20 = 44; over a baseline of 0.5: 128 = 40 + 88, n = 3, whole-session scope."""
+    groups = ((100, 1), (110, 1), (120, 1), (130, 1), (160, 1))
+    three_sessions(tree, gpus=2, generation=(40.0, 90.0), groups=groups)
+    base = {"value": 0.5, "unit": "gpu_s/request", "scope": "prove.steady", "grade": "derived",
+            "tier": "reported", "null_reason": None,
+            "source": {"kind": "derivation", "ref": "derive:D-L1-BASELINE@0.1.0",
+                       "inputs": ["x#/proofs"]}}  # fmt: skip
+
+    class Load:
+        run_id, concurrency, gpus, gpu_seconds_per_reply, ladder = "r", 64, 1, base, ()
+
+    serve = tree.run_dir("ref-serve", "2026-12-04-ref-serve-l1-l31-8b-p512-o512-serving-1")
+    serve.mkdir(parents=True)
+    (serve / "run.json").write_text(json.dumps({"run_id": serve.name, "system": "ref-serve"}))
+    (serve / "manifest.json").write_text(json.dumps({
+        "serving_model": {"id": "llama-3.1-8b-instruct-bf16"},
+        "level": {"digest": tree.digest}}))  # fmt: skip
+    import iproofs.baseline  # noqa: PLC0415
+
+    monkeypatch.setattr(iproofs.baseline, "full_load", lambda run_dir, level: Load())
+    board = build_board(tree.root, RELEASE, tree.level)
+    valid(board)
+    (r,) = board["rungs"][1]["rows"]  # type: ignore[index]
+    assert {s["cause"] for s in r["sessions"]} == {"uneven groups"}
+    assert r["multiple"]["value"] is None
+    assert r["steady_generation_gpu_seconds_per_reply"]["value"] is None
+    generation = r["session_generation_gpu_seconds_per_reply"]
+    rest = r["session_commit_and_proving_gpu_seconds_per_reply"]
+    assert math.isclose(r["session_gpu_seconds_per_reply"]["value"], 64.0)
+    assert math.isclose(generation["value"], 20.0)
+    assert math.isclose(rest["value"], 44.0)
+    assert (generation["stats"]["n"], rest["stats"]["n"]) == (3, 3)
+    assert math.isclose(r["session_multiple"]["value"], 128.0)
+    assert math.isclose(r["session_generation_multiple"]["value"], 40.0)
+    assert math.isclose(r["session_commit_and_proving_multiple"]["value"], 88.0)
+    multiples = (r["session_generation_multiple"], r["session_commit_and_proving_multiple"])
+    assert {q["scope"] for q in (generation, rest, *multiples)} == {"whole_wall"}
+
+
+def test_board_session_split_needs_a_generation_phase(tree: Tree) -> None:
+    """CO-7: a system with no generation phase of its own has no session split either."""
+    three_sessions(tree)
+    (r,) = build_board(tree.root, RELEASE, tree.level)["rungs"][1]["rows"]  # type: ignore[index]
+    assert math.isclose(r["session_gpu_seconds_per_reply"]["value"], 28.0)
+    for key in ("session_generation_gpu_seconds_per_reply",
+                "session_commit_and_proving_gpu_seconds_per_reply"):  # fmt: skip
+        assert (r[key]["value"], r[key]["null_reason"]) == (None, "not_applicable")

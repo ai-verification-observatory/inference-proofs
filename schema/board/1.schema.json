@@ -593,6 +593,28 @@
           "minLength": 1,
           "type": "string"
         },
+        "sources_read": {
+          "$comment": "R-SILENT: on a red with cause not_stated, the documents read, each linked at the pin; absent otherwise",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "state": {
           "enum": [
             "green",
@@ -941,12 +963,28 @@
             }
           ]
         },
+        "session_commit_and_proving_gpu_seconds_per_reply": {
+          "$comment": "CO-7 (amended 2026-11-13): the session cost per reply less its generation part (commit, the prove call outside its generation phase and the seconds between the two calls), mean of the counted sessions, scope whole_wall; null when the system has no generation phase of its own",
+          "$ref": "#/$defs/value"
+        },
+        "session_commit_and_proving_multiple": {
+          "$comment": "CO-7 (amended 2026-11-13): the commit and proving part over the baseline's GPU-seconds per reply",
+          "$ref": "#/$defs/value"
+        },
+        "session_generation_gpu_seconds_per_reply": {
+          "$comment": "CO-7 (amended 2026-11-13): the generation phase's GPU-seconds over N, mean of the counted sessions, scope whole_wall; null when the system has no generation phase of its own",
+          "$ref": "#/$defs/value"
+        },
+        "session_generation_multiple": {
+          "$comment": "CO-7 (amended 2026-11-13): the session's generation part over the baseline's GPU-seconds per reply",
+          "$ref": "#/$defs/value"
+        },
         "session_gpu_seconds_per_reply": {
           "$comment": "CO-1: GPU-seconds from the start of commit to the release of the last proof, over N; mean of the counted sessions",
           "$ref": "#/$defs/value"
         },
         "session_multiple": {
-          "$comment": "CO-5: session cost per reply over the baseline's GPU-seconds per reply, printed as 'cold sessions of N replies'",
+          "$comment": "CO-5: session cost per reply over the baseline's GPU-seconds per reply, printed as 'whole sessions of N replies'",
           "$ref": "#/$defs/value"
         },
         "session_usd_per_reply": {
