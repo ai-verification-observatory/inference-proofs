@@ -676,3 +676,39 @@ def test_c1_part_on_a_verifier_host_mutates_on_the_verifier_cpus(
     c1 = part["controls"][0]
     assert [t["outcome"] for t in c1["trials"]] == ["rejected"] * 6  # first and last
     assert sum(sub == "mutate_reply" for sub, _ in seen) == 6
+
+
+def test_control_run_proves_one_batch_and_is_marked_control(tmp_path: Path) -> None:
+    """RFC-0018 CH-1b: a control run proves the slot's first prompt at batch 1, records
+    `control: true` in run.json and manifest.json, and runs the control suite."""
+    path = f"{fake_strace(tmp_path / 'bin')}{os.pathsep}{os.environ['PATH']}"
+    runner = level_runner(path)
+    runner.control_run = True
+    run_dir = runner.run(spec(tmp_path / "results"))
+    run, manifest = read(run_dir, "run.json"), read(run_dir, "manifest.json")
+    assert run["status"] == "completed", run["failure"]
+    assert run["control"] is True
+    assert manifest["control"] is True
+    assert sorted({p["request_index"] for p in run["proofs"]}) == [0]
+    assert (run_dir / "controls.json").is_file()
+
+
+def test_control_prove_state_is_what_commit_left(tmp_path: Path) -> None:
+    """A control prove's io/state holds the entries recorded after commit, not what the run's
+    own prove wrote later (FlashProve's adapter refuses an existing work directory)."""
+    from iproofs.runner import STATE_AFTER_COMMIT, copy_state_after_commit  # noqa: PLC0415
+
+    src = tmp_path / "io"
+    (src / "state/commit").mkdir(parents=True)
+    (src / "state/commit/isk").write_text("k")
+    (src / "state/key.tar").write_text("t")
+    (src / STATE_AFTER_COMMIT).write_text(json.dumps(["commit", "key.tar"]))
+    (src / "state/prove/home").mkdir(parents=True)  # the run's own prove, after commit
+    dst = tmp_path / "prove-P1"
+    copy_state_after_commit(src, dst)
+    assert sorted(p.name for p in (dst / "state").iterdir()) == ["commit", "key.tar"]
+    assert (dst / "state/commit/isk").read_text() == "k"
+    (src / STATE_AFTER_COMMIT).unlink()  # a run kept before the record existed: all of it
+    old = tmp_path / "prove-P1-old"
+    copy_state_after_commit(src, old)
+    assert (old / "state/prove/home").is_dir()

@@ -29,6 +29,7 @@ CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")
 COUNTED_TRIALS = 3  # CH-1: 3 counted trials per control (per position for C1)
 C1_POSITIONS = ("first", "last", "interior")
 UNCOUNTED = frozenset({"void", "error"})  # trials that decided nothing (CH-1)
+P1_FROM_CONTROL_RUNS = frozenset({"P1"})  # CH-1b
 # CH-1: a failed control prove counts as the prover's refusal only when the trial names a reason
 # from the prover; the harness's bare "<kind>: <step> exited <code>" names none (the adapter may
 # have failed before the prover ran), so such a trial decides nothing.
@@ -188,6 +189,7 @@ class RowSessions:
     counted: dict[int, Session]
     incomplete: list[Session]
     all: list[Session] = field(default_factory=list)
+    control_runs: list[Session] = field(default_factory=list)  # CH-1b: P1 from these
 
     def counted_in_order(self) -> list[Session]:
         return [self.counted[k] for k in sorted(self.counted)]
@@ -237,11 +239,16 @@ def row_sessions(
     n = int_of(rung_of(level, rung), "requests_per_session", 0)
     digest = digest or level_digest(root, level)
     found = []
+    controls: list[Session] = []
     for path in release_run_dirs(root, release):
         run = RunView.read(path)
-        if (run.run.get("system") != system or run.run.get("control") is True
+        if (run.run.get("system") != system
                 or run.get("manifest", "workload", "id") != workload
                 or run.get("manifest", "level", "digest") != digest):  # fmt: skip
+            continue
+        if run.run.get("control") is True:  # CH-1b: a control run, never a session
+            if run.ok and run.get("manifest", "system", "adapter_dirty") is False:
+                controls.append(Session(run, rel(root, path), None, started_at(run), True, None))
             continue
         slot = run.get("manifest", "session", "slot")
         cause = _incomplete_cause(run, n)
@@ -253,7 +260,17 @@ def row_sessions(
     for s in found:
         if s.complete and s.slot is not None and s.slot not in counted:
             counted[s.slot] = s
-    return RowSessions(counted, [s for s in found if not s.complete], found)
+    pin = {_pin(s) for s in counted.values()}
+    same_pin = [c for c in controls if len(pin) == 1 and _pin(c) in pin]
+    return RowSessions(counted, [s for s in found if not s.complete], found, same_pin)
+
+
+def _pin(s: Session) -> tuple[object, object]:
+    """The image and adapter commit a run was made with (CH-1b: a control run counts only at
+    the pin of the row's counted sessions)."""
+    image = s.run.get("manifest", "system", "image")
+    ref = image.get("ref") if isinstance(image, dict) else image
+    return ref, s.run.get("manifest", "system", "adapter_commit")
 
 
 # ---------------------------------------------------------------- RUN
@@ -364,7 +381,11 @@ def control_trials(sessions: RowSessions, output: int) -> tuple[list[Trial], lis
     trials: list[Trial] = []
     present: list[str] = []
     same_commitment = None
-    for s in sessions.counted_in_order():
+    runs: list[tuple[Session, frozenset[str] | None]] = [
+        (s, None) for s in sessions.counted_in_order()
+    ]
+    runs += [(c, P1_FROM_CONTROL_RUNS) for c in sessions.control_runs]
+    for s, only in runs:
         doc = s.run.controls
         if not isinstance(doc, dict):
             continue
@@ -378,6 +399,8 @@ def control_trials(sessions: RowSessions, output: int) -> tuple[list[Trial], lis
             if not isinstance(c, dict):
                 continue
             cid = str(c.get("id"))
+            if only is not None and cid not in only:
+                continue  # CH-1b: a control run gives P1 only
             present.append(cid)
             for t in _list(c.get("trials")):
                 if not isinstance(t, dict):

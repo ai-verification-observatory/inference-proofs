@@ -417,6 +417,30 @@ class VerifierEnvironment:
         return ",".join(map(str, cpus)), self._mems
 
 
+STATE_AFTER_COMMIT = "state-after-commit.json"  # io/state's top-level entries once commit ended
+
+
+def copy_state_after_commit(src_io: Path, dst_io: Path) -> None:
+    """A control prove's io/state: the entries commit left (RFC-0008 P1: commit W, then prove
+    with W'), not what the run's own prove wrote after it (a work directory an adapter makes
+    anew, a build cache). A run with no record of them (made before it was kept) gives its
+    whole state, as before."""
+    state = src_io / "state"
+    if not state.is_dir():
+        return
+    record = src_io / STATE_AFTER_COMMIT
+    if not record.is_file():
+        shutil.copytree(state, dst_io / "state")
+        return
+    (dst_io / "state").mkdir(parents=True)
+    for name in json.loads(record.read_text()):
+        entry = state / name
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.copytree(entry, dst_io / "state" / name, symlinks=True)
+        elif entry.exists() or entry.is_symlink():
+            shutil.copy2(entry, dst_io / "state" / name, follow_symlinks=False)
+
+
 def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, Path]:
     """INV-RUN-6: the smallest unused n; the staging directory is created atomically."""
     parent = results_root / spec.release / spec.system
@@ -545,6 +569,7 @@ class Runner:
         source_prompt_digest: str | None = None,
         sizing_batches: int | None = None,
         level: LevelRun | None = None,
+        control_run: bool = False,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -571,6 +596,7 @@ class Runner:
         self.sizing_batches = sizing_batches  # RFC-0015 SRV-1: a sizing capture's batch count
         self.readers: CgroupReader = NullCgroupReader()
         self.level = level  # RFC-0018: one run is one session of this slot
+        self.control_run = control_run  # CH-1b: one request of the slot, never a session
 
     # ---------------------------------------------------------------- public
 
@@ -749,10 +775,14 @@ class Runner:
                 f"{job.spec.workload} lists no proving system whose token rule a reference row"
                 " counts by (RFC-0015 REF-3)",
             )
+        if self.control_run:  # CH-1b: one request of the slot, at batch 1
+            job.run_shape = (1, 1)
         batch, batches = _run_shape(job)
         count = batch * batches
         if self.level is not None and self.load == "ladder":
             job.prompts = self._ladder_prompts(job, count)
+        elif self.level is not None and self.control_run:
+            job.prompts = self._level_prompts(job, self.level.requests)[:count]
         elif self.level is not None:
             job.prompts = self._level_prompts(job, count)
         else:
@@ -1298,6 +1328,9 @@ class Runner:
                 copies.append(dst)
             records[kind] = file_records(copies)
         job.commitment_record = records
+        state = job.staging / "io/state"
+        names = sorted(p.name for p in state.iterdir()) if state.is_dir() else []
+        (job.staging / "io" / STATE_AFTER_COMMIT).write_text(json.dumps(names) + "\n")
 
     def _recorded(
         self,
@@ -1729,8 +1762,7 @@ class Runner:
         io = work / (f"prove-{control_id}" + (f"-{trial}" if trial else ""))
         io.mkdir(parents=True)
         shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
-        if (job.staging / "io/state").is_dir():
-            shutil.copytree(job.staging / "io/state", io / "state")
+        copy_state_after_commit(job.staging / "io", io)
         if models is None and job.models_removed:  # hosted level run: fetched again (CH-4)
             job.models = self._models(job.workload, log)
             job.models_removed = False
@@ -1745,7 +1777,7 @@ class Runner:
                     "prover_files": list(job.commit.prover_files or ()),
                     "model_dir": "/models",
                     "prompts_file": "/io/prompts.jsonl",
-                    "batch_size": shape.batch_size,
+                    "batch_size": _run_shape(job)[0],
                     "batches": batches or shape.batches_per_session,
                     "control_flags": list(flags),
                 },
@@ -2288,7 +2320,7 @@ class Runner:
                 "workload": {"id": spec.workload, "version": spec.workload_version},
                 "profile": spec.profile,
                 "repetition": spec.repetition,
-                "control": False,
+                "control": self.control_run,
                 "system_kind": job.system.kind if job.system else "test",
                 "claim": claim,
                 "status": "failed" if job.failure else "completed",
@@ -2363,7 +2395,7 @@ class Runner:
                 "schema": "manifest/1",
                 "run_id": job.run_id,
                 "release": spec.release,
-                "control": False,
+                "control": self.control_run,
                 "harness": {
                     "version": __version__,
                     "git_commit": harness_commit,
