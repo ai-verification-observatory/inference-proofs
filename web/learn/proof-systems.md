@@ -1,6 +1,6 @@
 As a machine learning engineer, you already use lightweight spot-checks in place of expensive computations: checking a SHA-256 hash instead of comparing two multi-gigabyte weight files byte by byte, or checking finite-difference gradients at a few coordinates instead of differentiating a loss by hand. Cryptographic proof systems push that idea to its mathematical limit. In most modern proof systems, checking a proof takes a tiny fraction of the compute needed to generate it, the verifier never sees the model weights, and at a 100-bit security level a false result slips through less than once in 2^100 attempts.
 
-Everything the provers on our ladder do is built from five core ideas. Let's work through the first one by hand and then see how the other four fit on top.
+Everything the provers on our ladder do is built from four core ideas, and one separate property. Let's work through the first idea by hand and then see how the other three fit on top.
 
 ## 1. A random spot-check can verify a matrix product
 
@@ -17,7 +17,7 @@ Two rules from this tiny example apply to every proof system on our site:
 - **The random challenge must be drawn after the claim is fixed.** If a cheating prover knew r ahead of time, it could easily cook up a false matrix C that happens to satisfy A·(B·r) = C·r for that specific vector.
 - **Drawing challenges from a larger field drives down the false-pass rate.** With random bits, a single check misses a lie at most 1 time in 2; modulo 97, at most 1 time in 97; in a 64-bit prime field, less than 1 time in 10^18. Crucially, the arithmetic must take place in a mathematical [[field]] rather than wrapping 64-bit integers (`uint64`), because modulo 2^64 an error divisible by 2^63 is missed by every even challenge.
 
-Of course, Freivalds' algorithm by itself is not yet a proof of inference: the verifier still has to hold all three matrices and do work proportional to their size. The next four ideas eliminate both requirements.
+Of course, Freivalds' algorithm by itself is not yet a proof of inference: the verifier still has to hold all three matrices and do work proportional to their size. The next three ideas remove both requirements.
 
 ## 2. Polynomials turn a local lie into a global difference
 
@@ -27,7 +27,7 @@ Why turn a table of numbers into a polynomial? Because two distinct polynomials 
 
 For the Schwartz-Zippel lemma to hold, arithmetic must be exact, with no floating-point rounding or silent overflow. That is why provers work over a finite [[field]] (integers modulo a prime `p`). Some GPU provers do their bulk arithmetic in a small 31-bit or 64-bit prime field for speed, and then draw their random challenges `r` from a 128-bit extension field so `|S|` is huge.
 
-## 3. Polynomial commitments let the verifier check values without holding the data
+## 3. Polynomial commitments check values without the data
 
 A cryptographic [[commitment]] compresses a large array of data into a short digest that is *binding* (the prover cannot later find a different array with the same digest) and optionally *hiding* (the digest reveals nothing about the underlying data).
 

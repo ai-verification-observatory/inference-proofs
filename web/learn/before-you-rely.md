@@ -8,7 +8,7 @@ Ask for the precise mathematical relation being proved, not a one-line summary. 
 
 ### 2. Where did the prompt, the reply, and the model commitment come from?
 
-A proof only connects a specific prompt and reply to a specific [[commitment]] digest. Always ask who supplied those three inputs. If the operator chose which prompt and reply to prove, the proof only shows that the operator has a model capable of producing that reply, ["not that it necessarily served it earlier"](https://arxiv.org/abs/2402.02675). Spot-checking a sample of live traffic only works if a tamper-resistant boundary log recorded the traffic *before* the sample was drawn, using randomness the operator could not predict.
+A proof only connects a specific prompt and reply to a specific [[commitment]] digest. Always ask who supplied those three inputs. If the operator chose which prompt and reply to prove, the proof only shows that the operator has a model capable of producing that reply, "[not that it necessarily served it earlier](https://arxiv.org/abs/2402.02675)". Spot-checking a sample of live traffic only works if a tamper-resistant boundary log recorded the traffic *before* the sample was drawn, using randomness the operator could not predict.
 
 Similarly, ask who published the model commitment and how you know it corresponds to the model you care about (whether through a developer's signed release, a public model register, or an evaluation report). A valid proof only says *this reply came from the weights behind this commitment digest*; if you let the operator hand you a fresh commitment digest alongside each proof, the check proves nothing about model identity. In our harness, the verifier always reads the commitment from our own stored record, never from files bundled with the proof.
 
@@ -18,14 +18,14 @@ Because cryptographic proof systems require bit-for-bit deterministic arithmetic
 
 ### 4. Who has run the prover besides its own authors?
 
-Performance numbers in a team's launch blog post or paper are naturally measured on the model, hardware, and workload that team chose. Ask whether anyone outside the team has built and run the public code unpatched on a standardized workload. That is the core job of this benchmark: every figure on our site carries its unit, timing scope, and sample size, and links to the raw run record. None of our runs have yet been reproduced by a second benchmark operator, and we label every figure accordingly. Apply the exact same scrutiny to us: our [mandate](/mandate) discloses who runs this benchmark and lists our conflicts of interest.
+Performance numbers in a team's launch blog post or paper are naturally measured on the model, hardware, and workload that team chose. Ask whether anyone outside the team has built and run the public code unpatched on a standardised workload. That is the core job of this benchmark: every figure on our site carries its unit, and a system's page prints what each figure timed, its sample size and links to the run records behind it. None of our runs have yet been reproduced by a second benchmark operator, and we label every figure accordingly. Apply the exact same scrutiny to us: our [mandate](/mandate) discloses who runs this benchmark and lists our conflicts of interest.
 
 ### 5. How hard is it to forge a proof, and on what basis?
 
 When a publisher quotes a [[security level]] (such as 100 bits or 128 bits), three follow-up questions matter more than the headline number:
 
 1. Is that bound mathematically proved, or conjectured from the absence of known attacks?
-2. Does the theorem cover the actual verifier binary that runs on your machine, or only an idealized protocol on paper?
+2. Does the theorem cover the actual verifier binary that runs on your machine, or only an idealised protocol on paper?
 3. Have cryptographers outside the author team reviewed the proof?
 
 In late 2025, a mathematical conjecture used to set parameters in several production proof systems was disproved in its strongest form, prompting the Ethereum Foundation to [warn](https://blog.ethereum.org/2025/12/18/zkevm-security-foundations) that "what was advertised as 100 bits might actually be 80". Existing proofs still verified cleanly; nothing visible to a verifier program changed when the theoretical bound dropped. Our "Unforgeable" petal reports what each publisher's documentation states about its soundness bound, while our tampering checks pull the petal down to red if the verifier accepts a modified model, prompt, or reply.
@@ -58,8 +58,13 @@ No cryptographic protocol can stop an operator from going offline, returning a t
 
 - **Standing.** "Passed" means all six [benchmark checks](/checks) held for that system on that model. If any check did not hold, the row lists which checks failed or remain undecided. An undecided check is not a failure; it usually means a test is still pending or hit a documented system constraint.
 - **Position.** Only systems that passed all six checks *and* whose publishers state a cryptographic security level at the pinned commit receive a numbered position, ordered strictly within that model's table. Nothing is ranked across models.
-- **The glyph.** Five petals summarize what kind of proof the system produces. Green means the property holds in full; amber means it holds in part or in lesser part (drawn with a notched tip); solid red means the property is not met or one of our checks failed; an open red outline means the publisher's documentation at the pinned commit is silent on that property; a hollow dashed outline means the petal is still undecided. Four petals reflect the publisher's documented statements, while Faithful model reflects our fidelity measurements. The glyph never changes a row's ranking position.
-- **Cost multiple.** The GPU-seconds required to produce a proved reply divided by the GPU-seconds required to serve an unproved reply on the same model and hardware, including token generation. A system's page prints each number's timing scope and sample size (`n`). Earning a ranked position requires three completed sessions, so any figure with fewer sessions is provisional.
+- **The glyph.** Five petals summarise what kind of proof the system produces. Green means the property holds in full; amber, that it holds in part, or in lesser part (the arm's end cut off); solid red, its name struck, that the property is not met or one of our checks failed; a red outline, that the publisher's documentation at the pinned commit is silent on that property; a grey outline, that the petal is still undecided. Four petals reflect the publisher's documented statements, while Faithful model reflects our fidelity measurements. The glyph never changes a row's ranking position.
+- **[Cost vs serving](/checks#multiple).** The GPU-seconds required to produce a proved reply, token generation included, divided by the GPU-seconds required to serve an unproved reply on the same model and hardware. Where a system generates its replies in a phase of its own, its two parts are printed under it: generation, and the rest.
+- **[Cost](/checks#cost).** The same GPU time in US dollars per proved reply, at the release's price for one H200 GPU-hour.
+- **[Verify time](/checks#check-time).** The CPU seconds the verifier takes per reply, with no GPU and no weights.
+- **[Fidelity](/checks#fidelity).** The Fidelity check's state in one word: held, failed or undecided. Its measures are on the system's page.
+
+The ladder prints each figure with its unit alone; a system's page prints what each figure timed and its sample size (n). A ranked position needs three completed sessions, so a figure over fewer sessions is provisional.
 
 ## What this benchmark will not tell you
 
@@ -68,11 +73,11 @@ No cryptographic protocol can stop an operator from going offline, returning a t
 - **Whether a real-world facility is complying with a governance rule.** Answering that requires the physical and hardware layers discussed on [A treaty, stage by stage](/treaty).
 - **Which trade-off is acceptable for your application.** Only you can decide your ceiling on cost multiple, verification latency, or trust assumptions. If you have a concrete target workload or threshold in mind, [open an issue and tell us](https://github.com/ai-verification-observatory/inference-proofs/issues).
 
-## Terms that mean different things in policy and cryptography
+## Words that differ in policy and cryptography
 
 | Term | In policy and safeguards | In cryptography |
 |---|---|---|
-| Verification | An overall judgment that a party complied with an agreement | Running a verifier program that outputs accept or refuse on a single proof |
+| Verification | An overall judgement that a party complied with an agreement | Running a verifier program that outputs accept or refuse on a single proof |
 | Verifier | The inspectorate, auditor, or government conducting the check | The software program that checks a proof file |
 | Commitment | A political or legal pledge by a state or company | A short cryptographic digest that locks in data without revealing it |
 | Binding | Legally enforceable | Mathematically locked: a proof generated for one input is rejected if checked against another |
@@ -85,10 +90,10 @@ No cryptographic protocol can stop an operator from going offline, returning a t
 Ordered from accessible policy overviews to technical systems papers, drawing on the sources cited across this track:
 
 :::reading
-- [Verification methods for international AI agreements](https://arxiv.org/abs/2408.16074). Wasil, Reed, Miller, and Barnett, 2024. A concise survey of ten mechanisms for detecting unauthorized training runs or undeclared clusters, along with historical precedents and evasion paths.
+- [Verification methods for international AI agreements](https://arxiv.org/abs/2408.16074). Wasil, Reed, Miller, and Barnett, 2024. A concise survey of ten mechanisms for detecting unauthorised training runs or undeclared clusters, along with historical precedents and evasion paths.
 - [The Math Behind Pacing the Frontier](https://www.aisafety.sg/blog/zkp-intro). Singapore AI Safety Hub, 2026. An accessible introduction to proofs of inference alongside trusted hardware, inspections, and recomputation, written by the team behind SASH.
-- [The Compute Verification Post](https://jasminexli.substack.com/cp/207744145). Hausenloy and Li, 2026. A clear primer on verifying data centre workloads, organized by how little trust you are willing to place in the operator.
-- [How To Make International AI Verification a Reality](https://thefuturesociety.org/international-ai-verification). The Future Society, 2026. A policy memo prioritizing verification R&D for middle powers and arguing for shared technical benchmarks.
+- [The Compute Verification Post](https://jasminexli.substack.com/cp/207744145). Hausenloy and Li, 2026. A clear primer on verifying data centre workloads, organised by how little trust you are willing to place in the operator.
+- [How To Make International AI Verification a Reality](https://thefuturesociety.org/international-ai-verification). The Future Society, 2026. A policy memo prioritising verification R&D for middle powers and arguing for shared technical benchmarks.
 - [Faster AI Diffusion Through Hardware-Based Verification](https://ifp.org/faster-ai-diffusion-through-hardware-based-verification/). Ammann and Dalrymple, 2025. The case for building verification mechanisms directly into AI accelerators, with a proposed R&D roadmap.
 - [AI 2040 Plan A: Verification Plan](https://ai-2040.com/supplements/verification-plan). Dean, 2026. A detailed engineering blueprint for verifying inference-only data centres using perimeter network taps, random sampling, and guarded recomputation.
 - [AI 2040 Plan A: Verification SITREP](https://amododesign.com/ai-verification/plan-a-sitrep/). Amodo Design, 2026. Component-by-component engineering readiness assessment of that blueprint from a verification hardware team.
@@ -101,4 +106,4 @@ Ordered from accessible policy overviews to technical systems papers, drawing on
 - [A zero-knowledge protocol for nuclear warhead verification](https://www.nature.com/articles/nature13457). Glaser, Barak, and Goldston, 2014. The classic arms-control proposal for verifying warhead authenticity without measuring classified design details inside an electronic barrier.
 :::
 
-For a broader literature list, see the [AI Workload Verification Papers](https://github.com/WHodgkins/AI-Verification-Papers) bibliography maintained by Will Hodgkins (building on earlier lists by Mauricio Baker and James Petrie), which catalogs much of the research cited above.
+For a broader literature list, see the [AI Workload Verification Papers](https://github.com/WHodgkins/AI-Verification-Papers) bibliography maintained by Will Hodgkins (building on earlier lists by Mauricio Baker and James Petrie), which catalogues much of the research cited above.

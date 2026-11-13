@@ -1182,6 +1182,11 @@ main { flex: 1 0 auto; }
 .foot a:focus-visible, .cs dt a:focus-visible { outline-color: var(--paper); outline-offset: 5px; }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 
+/* the Learn strip's fading ends (.lpn .ps, below): the fades' widths, tied to the strip's scroll */
+@property --psl { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --psr { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes psends { 0% { --psl: 0px; --psr: 32px; } 4% { --psl: 32px; } 96% { --psr: 32px; } 100% { --psl: 32px; --psr: 0px; } }
+
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */
 /* one grid for every Learn page: the heads column (section titles, term names, letters), the
    text column at a measure of about 72 characters, and the room on the right that drawings and
@@ -1232,7 +1237,7 @@ main { flex: 1 0 auto; }
 .ht { font: 900 30px/30px var(--disp); text-wrap: balance; }
 .hs { font: var(--f-meta); color: var(--muted); margin-top: 8px; max-width: 58ch; text-wrap: pretty; }
 /* every term of the glossary, set as a field of names */
-.lgl { margin-top: 104px; padding-top: 20px; border-top: 2px solid var(--paper); }
+.lgl { margin: 104px calc(-1 * var(--cp)) 0; padding: 20px var(--cp) 0; border-top: 2px solid var(--paper); }
 .lgt { list-style: none; display: flex; flex-wrap: wrap; margin: 28px 0 0 -8px; padding: 0; font: 900 30px/1 var(--disp); }
 .lgt a { display: block; padding: 3px 8px 5px; margin-right: 10px; text-decoration: none; }
 .lgt a:hover, .lgt a:focus-visible { background: var(--cobalt); color: var(--ground); }
@@ -1255,7 +1260,12 @@ main { flex: 1 0 auto; }
 .prose .df { text-decoration-color: var(--muted); }
 .prose .df:hover, .prose .df:focus-visible { text-decoration: underline solid 2px var(--cobalt); }
 .prose strong { font-weight: 600; }
-.prose em { font-style: normal; box-shadow: inset 0 -1px 0 var(--muted); }
+/* emphasis in weight, never an underline (a link's mark) */
+.prose em { font-style: normal; font-weight: 600; }
+.lt td em { color: var(--paper); }
+.prose sup { font-size: .72em; line-height: 0; }
+/* a row's head that links: the prose link's mark at rest */
+.prose .rt tbody th a { text-decoration-line: underline; text-decoration-color: var(--muted); }
 .ah { font: 900 34px/34px var(--disp); letter-spacing: -.005em; margin: 72px 0 0; text-wrap: balance; }
 .lpr > .ah + * { margin-top: 74px; }
 .ah3 { font: 800 24px/24px var(--disp); margin: 36px 0 10px; }
@@ -1274,6 +1284,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .rt.lt tbody th { font: 600 13px/20px var(--mono); min-width: 12ch; }
 .lt td { color: var(--muted); min-width: 16ch; }
 .tr .lt td, .tr .lt tbody th { min-width: 0; }
+.tr .lt tbody th { white-space: nowrap; }
 .lt td strong { color: var(--paper); }
 .note { margin: 28px 0; padding: 14px 18px 18px; box-shadow: inset 0 0 0 1px var(--rule), inset 0 2px 0 var(--paper); }
 .nh { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 8px; }
@@ -1304,7 +1315,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .ph { list-style: none; margin: 12px 0 0; padding: 0; font: 400 13px/20px var(--mono); }
 .ph li { padding: 5px 0; border-top: 1px solid var(--line); }
 .ph .nv { color: var(--muted); }
-.pa { align-self: center; width: 15ch; font: 400 11px/15px var(--mono); }
+/* both arrows on one line across the figure, level with the boxes' first rule */
+.pa { align-self: start; padding-top: 64px; width: 15ch; font: 400 11px/15px var(--mono); }
 .pa ul { list-style: none; margin: 0; padding: 0; }
 .pa li + li { margin-top: 8px; }
 .pa li span { display: block; color: var(--muted); }
@@ -1339,10 +1351,16 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
    (at 7em at least), so the table never outgrows the page */
 .mt th .sub { font: var(--f-meta); }
 .rt.mt:not(.lt) tbody th { overflow-wrap: anywhere; min-width: 7em; }
+/* every model's table of the block on the same columns, so like columns line up */
+.ms .mt { table-layout: fixed; width: 100%; }
+.ms .mt thead th:nth-child(1) { width: 13%; }
+.ms .mt thead th:nth-child(2) { width: 25%; }
+.ms .mt thead th:nth-child(3) { width: 30%; }
 /* a row with no position: its figures in the muted ink, as on the ladder */
 .bl2 { padding: 10px 0 12px; border-top: 1px solid var(--line); }
 .bm { font: 800 20px/22px var(--disp); }
 .bl2 .rb { margin-top: 4px; }
+.bl2 .rb .fig { color: var(--paper); }
 /* an explorer: a drawing a reader operates. Drawn in full by the build; framed in cobalt once script runs it */
 .xpl { padding: 18px; box-shadow: inset 0 0 0 1px var(--rule); }
 .xpl.on { box-shadow: inset 0 0 0 2px var(--cobalt); }
@@ -1417,6 +1435,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 /* the chapter row and the band name the page: its title never slides into the strip, which keeps every label whole */
 .lpn .ps-t { display: none; }
 .lpn.stuck .ps-t + a { margin-left: -12px; }
+/* a strip that scrolls fades at an end where more labels wait, so a cut word reads as more that way
+   (where the browser ties an animation to a scroll; elsewhere the strip is cut as before) */
+@supports (animation-timeline: scroll()) {
+  .lpn .ps { mask-image: linear-gradient(90deg, transparent, #000 var(--psl), #000 calc(100% - var(--psr)), transparent); animation: psends linear both; animation-timeline: scroll(self inline); }
+}
 .lpl { flex: none; display: flex; align-items: stretch; margin: 0 calc(var(--gut) - 12px) 0 12px; box-shadow: inset 1px 0 0 var(--line); font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
 .lpa { display: flex; align-items: center; justify-content: center; width: 44px; color: var(--muted); transition: color var(--quick), background-color var(--quick); }
 .lpa:hover { color: var(--paper); background: var(--lift); }
@@ -1426,8 +1449,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .lpb .lar, .tp .lar { transform: scaleX(-1); }
 .lpo { display: flex; align-items: center; padding: 0 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* under a page: the page before (an outline) and the page after (a cobalt block), then where its text is kept */
-.turn { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; margin-top: 104px; }
-.tn { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 148px; padding: 18px 20px 22px; text-decoration: none; transition: background-color var(--quick), box-shadow var(--quick); }
+.turn { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; margin: 104px calc(-1 * var(--cp)) 0; }
+.tn { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 148px; padding: 18px var(--cp) 22px; text-decoration: none; transition: background-color var(--quick), box-shadow var(--quick); }
 .tl2 { display: flex; align-items: center; gap: 10px; font: var(--f-label); text-transform: uppercase; letter-spacing: var(--track); }
 .tt { display: block; font: 900 36px/.92 var(--disp); text-wrap: balance; }
 .tp { box-shadow: inset 0 0 0 1px var(--rule); }
@@ -1448,6 +1471,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .term { display: grid; grid-template-columns: calc(var(--hd) - 72px) minmax(0, var(--tx)); column-gap: var(--hg); padding: 16px 0 20px; border-bottom: 1px solid var(--line); }
 .term > .ah3 { grid-column: 1; grid-row: 1 / span 9; align-self: start; margin: 0; }
 .term > :not(.ah3) { grid-column: 2; }
+/* a letter's terms end on their text: the next letter's rule alone marks the change */
+.glt > .term:last-child { border-bottom: 0; }
 /* a glossary term pointed at or given focus: its name and first sentence where it is (words.js) */
 .gpk { position: fixed; z-index: 40; left: 0; top: 0; width: max-content; max-width: min(380px, calc(100vw - 2 * var(--gut))); margin: 0; padding: 10px 12px 12px; background: var(--ground); box-shadow: inset 0 0 0 1px var(--rule), inset 0 3px 0 var(--cobalt); }
 .gpk b { display: block; margin: 2px 0 6px; font: 800 20px/1 var(--disp); }
@@ -1466,6 +1491,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .lpr > .ah + * { margin-top: 0; }
   .ah { margin: 64px 0 16px; }
   .lpr > .fg, .lpr > .tw, .lpr > .stage { max-width: none; }
+  /* the text keeps its measure; drawings and tables take the width */
+  .lpr > :not(.fg, .tw, .stage, .ah) { max-width: var(--tx); }
   .lsc { min-height: 0; padding-block: 10px 12px; }
   .lsn { font: 900 26px/1 var(--disp); }
   .lst { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -1490,11 +1517,15 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .mt td, .mt tbody th, .mt tr > :first-child { padding: 0; border: 0; }
   .mt td { margin-top: 12px; }
   .mt td:before, .mt tbody th[data-l]:before { content: attr(data-l); display: block; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 4px; }
+  /* a sumcheck's heads name variables: r and s stay lower case */
+  .tr .mt td:before { text-transform: none; letter-spacing: 0; }
+  /* a text's table: its row's head names the row, with no label over it */
+  .lpr > .tw .mt tbody th:before, .stage > .tw .mt tbody th:before { content: none; }
   .sx.sxw { display: none; }
   .sx.sxn { display: block; }
   /* boxes stack, and the arrows between them point down */
   .pt3, .bd, .xcc { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
-  .pa { width: auto; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 16px; align-items: center; padding-left: 16px; }
+  .pa { width: auto; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 0 0 0 16px; }
   .pa .ar { transform: rotate(90deg); margin: 0 0 0 -12px; }
   .turn { grid-template-columns: minmax(0, 1fr); }
   .tn { min-height: 0; }
@@ -1508,7 +1539,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .lsteps ol, .lways { margin-top: 28px; }
   .lsc { align-items: center; padding-inline: 4px; }
   .lsn { font-size: 24px; }
-  .lway { grid-template-columns: minmax(0, 1fr); grid-template-areas: "n" "c"; row-gap: 10px; padding-block: 12px 14px; }
+  /* the count at the cell's foot, so the two cells' counts share a line whatever the names wrap to */
+  .lway { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "n" "c"; row-gap: 10px; padding-block: 12px 14px; }
+  .lwc { align-self: end; }
   .lwn { font-size: 26px; }
   .prose { font-size: 13px; line-height: 22px; }
   .lpr > p:first-child, .gli > p:first-child { font-size: 14px; line-height: 24px; }
@@ -1524,7 +1557,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
      strip takes two lines, so the one in view is always whole (words.js scrolls it in whole) */
   .lpo { display: none; }
   .lpn .ps a { white-space: nowrap; }
-  .lpn .ps a.on { max-width: calc(100vw - 2 * var(--gut) - 108px); white-space: normal; }
+  .lpn .ps a.on, .lpn .ps a:first-of-type { max-width: calc(100vw - 2 * var(--gut) - 108px); white-space: normal; }
   .rt.lt tbody th { font-size: 12px; line-height: 18px; }
   .prose .rt.lt td, .prose .rt.lt th, .prose .rt.mt td, .prose .rt.mt th { white-space: normal; }
   .xpl { padding: 14px; }
@@ -1532,8 +1565,13 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .xdots { order: -1; flex-basis: 100%; gap: 4px; }
   .xdots > li { flex: 1 1 0; max-width: 48px; }
   .xdot { width: 100%; height: 40px; line-height: 40px; }
-  .op { grid-template-columns: minmax(min-content, 1fr) auto; row-gap: 2px; }
+  /* a name on one line; a long chip takes two at the right */
+  .op { grid-template-columns: max-content minmax(0, 1fr); row-gap: 2px; }
   .o2 { grid-column: 1 / -1; grid-row: 2; }
+  /* the glossary's letters share the strip's width: none is off screen */
+  .lpg .ps a { flex: 1 1 0; min-width: 0; padding-inline: 0; justify-content: center; }
+  .lpg .ps a:after { left: 2px; right: 2px; }
+  .lpg .ps .ps-t + a { margin-left: 0; }
   .gll { grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px; }
   .glh { font-size: 32px; }
 }
@@ -1553,7 +1591,6 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .xdot.on, .lsc.on { forced-color-adjust: none; background: Highlight; color: HighlightText; }
   .lsc.on .lsn { color: HighlightText; }
   .sx text, .sx .bt { fill: CanvasText; }
-  .prose em { text-decoration: underline; }
   .ah:target, .ah3:target, .sth:target, .xh:target { outline: 2px solid Highlight; }
   .xl input[type=number]:focus { outline: 2px solid Highlight; outline-offset: 1px; }
 }
@@ -1567,7 +1604,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .xc { min-height: 44px; }
   .xb { min-height: 44px; }
   .xdot { height: 44px; line-height: 44px; }
+  /* the terms' rows 44 px apart, so their hit bands meet and never overlap */
+  .lgt { row-gap: 12px; }
   .lgt a, .mt th a { position: relative; }
+  /* a board figure a finger taps for its labels: a taller band, the line unmoved */
+  .ms .fig, .bl2 .fig { padding-block: 8px; margin-block: -8px; }
   .mt th a { z-index: 1; }
   .lgt a:after { content: ""; position: absolute; inset: -6px 0; }
   .mt th a:after { content: ""; position: absolute; inset: -15px 0; }
