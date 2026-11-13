@@ -15,22 +15,22 @@ from .mark import lockup_svg
 from .words import (
     CAUSE_WORD,
     CHECK_NAME,
+    FIGURE_HEAD,
     FIGURE_NAME,
     OF_WHICH,
     PART_WORD,
     PETAL_NAME,
-    SEP,
     STATE_WORD,
     STEP_WORD,
     WHOLE_SESSIONS,
     e,
     shown,
-    sub_words,
 )
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
+LEVEL_ANCHOR = "level"  # the mandate's line on the level, where the footer's level cell leads
 MANDATE_PAGE = "/mandate"  # what the site is for, what it does and does not do, who runs it
 CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
 LEARN_PAGE = "/learn"  # the hub of the Learn pages (learn.py), when the tree holds their words
@@ -192,13 +192,6 @@ def link(path):
     return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
 
 
-def level_words():
-    """The level and its state: "Level 1 (frozen 2026-11-11)", or "(draft)"."""
-    lv = S.V["level"]
-    state = f"frozen {lv['frozen']}" if lv["frozen"] else "draft"
-    return f"{lv['name']} ({state})"
-
-
 def credit_words(linked=True):
     """Who builds the site and who leads it, from the facts file (`credit`), as one sentence."""
     c = S.V["credit"]
@@ -209,18 +202,25 @@ def credit_words(linked=True):
     return f"Built by the {org(c['builder'])}, led by {org(c['lead'])}."
 
 
+# the licence the facts file names -> its text in the repository (a licence with no file stops the
+# build)
+LICENCE_FILE = {"CC BY 4.0": "LICENSES/CC-BY-4.0.txt"}
+
+
 def footer():
-    """Every page's footer, one strip of cells: the level file (its digest in the link's title),
-    the release's board file when there is one, the licence and who builds the site."""
-    lv, rel = S.V["level"], S.V["release"]
-    parts = [f'<a href="{e(link(lv["path"]))}" title="{e(lv["digest"])}">{e(level_words())}</a>']
+    """Every page's footer, one strip of cells: the level's name, linked to the mandate's line
+    on it (which holds its freeze date and links the level file), the release's board file when
+    there is one, the licence (linked to its text) and who builds the site."""
+    rel = S.V["release"]
+    parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{e(S.V["level"]["name"])}</a>']
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None
         name = f"Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "")
         parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
                      else f'<span class="nw">{e(name)}</span><code>{e(board)}</code>')  # fmt: skip
-    parts.append(f"<span>{e(S.V['licence'])}</span>")
+    lic = S.V["licence"]
+    parts.append(f'<a class="nw" href="{e(link(LICENCE_FILE[lic]))}">{e(lic)}</a>')
     parts.append(f'<span class="fcr">{credit_words()}</span>')
     cells = "".join(f"<li>{p}</li>" for p in parts)
     return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
@@ -301,26 +301,28 @@ def cards_record():
 
 def card_alt(card):
     """The picture in words, from the same data the picture draws: the system and its model, the
-    band's figure, the standing, cost and verify time per reply, the petals. Each
-    figure with its unit, scope and n."""
+    band's figure, the standing, cost and verify time per reply, the petals. Each figure with its
+    unit, as the picture prints it."""
     if card == "home":
         return "Inference proofs."
     row = S.PAGE[card]
-    n = counted(row)
-    label, f, key = lead_figure(row)
-    lead = f"{label}: {fig_words(f, n)}"
-    if parts := parts_of(row, key):  # CO-7
-        lead += "".join(f", {OF_WHICH} {w} {fig_words(p, n)}" for w, p in parts)
-    figs = [(FIGURE_NAME["cost"], row_cost(row)),
-            (FIGURE_NAME["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
-    cells = ". ".join(f"{k}: {fig_words(v, n)}" for k, v in figs)
+    _, f, key = lead_figure(row)
+    lead = f"{FIGURE_HEAD['multiple']}: {fig_words(f)}"
+    if parts := parts_of(row, key):  # CO-7: "of which" once, before both parts
+        lead += f", {OF_WHICH} " + " and ".join(f"{w} {fig_words(p)}" for w, p in parts)
+    figs = [(FIGURE_HEAD["cost"], row_cost(row)),
+            (FIGURE_HEAD["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
+    cells = ". ".join(f"{k}: {fig_words(v)}" for k, v in figs)
     states = "; ".join(
         f"{PETAL_NAME[p['id']]}: {STEP_WORD[p['step']]}"
         + (f", {CAUSE_WORD[p['cause']]}" if p["cause"] is not None else "")
         for p in row["glyph"]
     )
     name = S.V["systems"][row["system"]]["name"]
-    return (f"{name} on {rung_of(row)['model']}. {lead}. Standing: {standing(row)}. {cells}. "
+    # the standing's own colon (before the checks not held) reads as brackets after "Standing:"
+    head, colon, rest = standing(row).partition(": ")
+    stand = f"{head} ({rest})" if colon else head
+    return (f"{name} on {rung_of(row)['model']}. {lead}. Standing: {stand}. {cells}. "
             f"{states}.")  # fmt: skip
 
 
@@ -339,12 +341,9 @@ def counted(row):
     return len(row["sessions"]) or None
 
 
-def fig_words(f, n=None):
-    """A stored figure in plain words: the number in its unit, its scope and n in brackets."""
-    if not has(f):
-        return "none"
-    line = sub_words(f, n).replace(SEP, ", ").replace("\u00a0", " ")
-    return shown(f["value"], f["unit"]) + (f" ({line})" if line else "")
+def fig_words(f):
+    """A stored figure in plain words: the number in its unit."""
+    return shown(f["value"], f["unit"]) if has(f) else "none"
 
 
 # CO-7: a printed multiple's two parts, where the system generates in a phase of its own, in the

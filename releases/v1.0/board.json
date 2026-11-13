@@ -517,7 +517,7 @@
                 }
               ],
               "reading": true,
-              "reason": "the bound is stated for a batch checked together, not for the row's 24 replies checked alone",
+              "reason": "the bound is stated for a batch checked together, not for a reply checked alone (the row proves 24 replies a batch)",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -1705,7 +1705,7 @@
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/verify-trace/",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/reverify/reverify.json"
               ],
-              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 9 more)",
+              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 9 more requests)",
               "state": "undecided"
             },
             "prompt": {
@@ -1803,7 +1803,7 @@
                   "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L56-L58"
                 }
               ],
-              "reason": "not stated in the publisher's documents read at the pin",
+              "reason": "not stated in the publisher's documents read at the pinned commit",
               "sources_read": [
                 {
                   "path": "README.md",
@@ -1895,7 +1895,7 @@
               "id": "machine_checked",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not stated in the publisher's documents read at the pin",
+              "reason": "not stated in the publisher's documents read at the pinned commit",
               "sources_read": [
                 {
                   "path": "README.md",
@@ -1929,7 +1929,7 @@
                 }
               ],
               "reading": true,
-              "reason": "not stated in the publisher's documents read at the pin",
+              "reason": "not stated in the publisher's documents read at the pinned commit",
               "sources_read": [
                 {
                   "path": "README.md",

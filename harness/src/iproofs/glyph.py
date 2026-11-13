@@ -221,7 +221,7 @@ def _not_read(pid: str, reason: str) -> Petal:
 
 def _silent(petal: Mapping[str, object], props: Mapping[str, object]) -> str:
     """R-SILENT: silence at the pin; the documents read go with the petal (`_with_sources`)."""
-    return "not stated in the publisher's documents read at the pin"
+    return "not stated in the publisher's documents read at the pinned commit"
 
 
 def _with_sources(p: Petal, props: Mapping[str, object] | None) -> Petal:
@@ -264,8 +264,8 @@ def _batch_short(v: _Facts, n: int | None) -> str | None:
     if batch == "each_member":
         return None
     if batch == "together":
-        return f"the bound is stated for a batch checked together, not for the row's {n} replies " \
-            "checked alone"  # fmt: skip
+        return "the bound is stated for a batch checked together, not for a reply checked alone " \
+            f"(the row proves {n} replies a batch)"  # fmt: skip
     return f"no bound stated for batch members, and the row proves {n} replies a batch"
 
 

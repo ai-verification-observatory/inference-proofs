@@ -4,7 +4,8 @@ figure at a time (the multiple of serving, cost, check time and proof size per r
 Each figure is a section; the strip of sections picks the one drawn (words.js), and with no script
 all four are drawn. A section is one table with its axis once at the head and one group (lane) per
 model in the level's order under it, its rows in the board's order (OR-5): position, name and
-standing, the plot, and the stored figure printed by `fig_html` with its labels. Every lane shares
+standing, the plot, and the stored figure printed by `fig_html`, alone: its labels are in its
+title, and in full on the system's page the row links to. Every lane shares
 one decade grid (`extent` over the whole board), so a change of scale between models is seen by
 position; nothing is ranked, divided or ordered across lanes, and no mark joins two lanes.
 
@@ -24,29 +25,29 @@ from .chrome import (
     footer,
     has,
     header,
-    level_words,
     page,
     pnav,
     row_cost,
 )
 from .overview import (
+    BARE,
     fig_html,
     href,
     multiple_html,
     name_of,
     nobreak,
     position_html,
-    request_words,
+    scope_note,
+    serving_missing,
     standing_html,
 )
 from .pages import section, title_band
 from .words import (
-    FIGURE_NAME,
+    FIGURE_HEAD,
     FIGURE_RULE,
-    FULL_LOAD_WORD,
+    SCALE_LEAD,
     SCALE_LOG,
     SCALE_NOT_RUN,
-    SCALE_PROOF_SIZE,
     SCALE_SERVING,
     architecture,
     e,
@@ -56,10 +57,10 @@ from .words import (
 
 # the figures, in the strip's order (the first is drawn when the address names none): the section's
 # id, its name, and the stored unit its axis reads in
-DIMS = (("multiple", FIGURE_NAME["multiple"], "ratio"),
-        ("cost", FIGURE_NAME["cost"], "USD/request"),
-        ("check-time", FIGURE_NAME["check-time"], "s/request"),
-        ("proof-size", SCALE_PROOF_SIZE, "B/request"))  # fmt: skip
+DIMS = (("multiple", FIGURE_HEAD["multiple"], "ratio"),
+        ("cost", FIGURE_HEAD["cost"], "USD/request"),
+        ("check-time", FIGURE_HEAD["check-time"], "s/request"),
+        ("proof-size", FIGURE_HEAD["proof-size"], "B/request"))  # fmt: skip
 # a stored value in the unit `words.number` reads it in (bytes read as MB); 1 for the others
 READING = {"B/request": 1e-6}
 # Martian Mono's advance, in em, at the width the site sets it (87.5 %): every glyph alike,
@@ -223,7 +224,8 @@ def plot_svg(lo, hi, serve, mean=None, ticks=(), span=None):
                    f'x2="{pct(pos(span[1], lo, hi))}" y1="{MID}" y2="{MID}"/>')  # fmt: skip
     for t in ticks:
         x = pct(pos(t, lo, hi))
-        out.append(f'<line class="ss" x1="{x}" x2="{x}" y1="{MID - 12}" y2="{MID + 12}"/>')
+        # as tall as the mark, so sessions under it hide behind it and only a spread one shows
+        out.append(f'<line class="ss" x1="{x}" x2="{x}" y1="{MID - 7}" y2="{MID + 7}"/>')
     if mean is not None:
         out.append(f'<svg class="mk" x="{pct(pos(mean, lo, hi))}" y="{MID}" overflow="visible">'
                    '<rect x="-7" y="-7" width="14" height="14"/></svg>')  # fmt: skip
@@ -235,35 +237,34 @@ def plot_svg(lo, hi, serve, mean=None, ticks=(), span=None):
 def figure_html(row, dim):
     """The row's figure as the ladder prints it, with its two parts where it has them (CO-7)."""
     if dim == "multiple":
-        return multiple_html(row)
-    return fig_html(figure_of(row, dim), counted(row))
+        return multiple_html(row, bare=True)
+    f = figure_of(row, dim)
+    return fig_html(f, counted(row), sub=BARE, note=scope_note(row, f))
 
 
 def serving_html(rung, dim):
     """The stored serving figure a model's head prints: GPU time beside the multiple (its 1x),
-    USD beside the cost, with the full load's concurrency; the cause where the rung has no
-    baseline; nothing for a figure with no serving counterpart."""
+    named "Serving" as on the ladder; USD beside the cost, named "Serving cost", so each head names
+    one quantity; the state where the rung has no baseline; nothing for a figure with no serving
+    counterpart."""
     if dim not in ("multiple", "cost"):
         return ""
     b = rung["baseline"]
     key = "gpu_seconds_per_reply" if dim == "multiple" else "usd_per_reply"
-    if b is None or not has(b[key]):
-        why = (b or {}).get("cause") or "no full load recorded"
-        fig = f'<span class="na">{e(why)}</span>'
-    else:
-        fig = fig_html(b[key], sub=f"{FULL_LOAD_WORD} at {b['concurrency']:,} concurrent requests")
-    return f'<span class="lsv"><span class="k">{e(SCALE_SERVING)}</span>{fig}</span>'
+    fig = serving_missing(b) if b is None or not has(b[key]) else fig_html(b[key], sub=BARE)
+    head = SCALE_SERVING if dim == "multiple" else f"{SCALE_SERVING} {FIGURE_HEAD['cost'].lower()}"
+    return f'<span class="lsv"><span class="k">{e(head)}</span>{fig}</span>'
 
 
 def lane_html(rung, dim, unit, ext):
     """One model under the section's one axis: a group of the table, headed by its size in a tab
-    and its name under a cobalt rule, with its serving figure where the figure has one; then its
-    rows on the section's decade grid (`ext`). A model not run is its head and a line."""
-    size = e(params(rung["parameters_total"]))
-    facts = architecture(rung["parameters_total"], rung.get("parameters_active"))
-    if rung["rows"]:
-        facts += f" · {rung['systems_run']:,} run"
-    serving = serving_html(rung, dim) if rung["rows"] else ""
+    and its name under a cobalt rule, its architecture (the tab says its size: a mixture of
+    experts names its active parameters only), with its serving figure where the figure has one
+    (its state where the model has none, as on the ladder); then its rows on the section's decade grid (`ext`). A model not run is its head and a line."""
+    total, active = rung["parameters_total"], rung.get("parameters_active")
+    size = e(params(total))
+    facts = architecture(total, active, sized=False)
+    serving = serving_html(rung, dim)
     head = (f'<tr class="grp"><th colspan="4" scope="rowgroup" id="{dim}-{e(rung["id"])}">'
             f'<span class="lh"><span class="rk">{size}</span>'
             f'<span class="ln">{nobreak(rung["model"])}</span>'
@@ -295,15 +296,17 @@ def panel_html(dim, name, unit, shared=True):
     whole = extent(values(dim, unit, rungs), unit == "ratio")
     named = (f'<a class="df" href="{CHECKS_PAGE}#{dim}">{e(name)}</a>' if dim in FIGURE_RULE
              else e(name))  # fmt: skip
-    _, words = number(1, unit)
-    words = f"{words} {SCALE_SERVING.lower()}" if unit == "ratio" else words
+    # the unit keeps its own case in the uppercased head ("s/reply", not "S/REPLY")
+    _, sign = number(1, unit)
+    rest = f" {SCALE_SERVING.lower()}" if unit == "ratio" else ""
+    words = f'<span class="u">{e(sign)}</span>{e(rest)}, {e(SCALE_LOG)}'
 
     def table(groups, ext):
         lo, hi = ext if ext is not None else (0, 1)
         axis = axis_svg(lo, hi, unit) if ext is not None else ""
         thead = ('<thead><tr><th scope="col" class="cp"><span class="sr">Position</span></th>'
                  '<th scope="col" class="csys">System</th>'
-                 f'<th scope="col" class="cx"><span class="al">{e(words)}, {e(SCALE_LOG)}</span>'
+                 f'<th scope="col" class="cx"><span class="al">{words}</span>'
                  f"{axis}</th>"
                  f'<th scope="col" class="cf">{named}</th></tr></thead>')  # fmt: skip
         return (f'<table class="scl" data-lo="{lo}" data-hi="{hi}">'
@@ -318,16 +321,15 @@ def panel_html(dim, name, unit, shared=True):
 
 
 def build_scale():
-    sub = f'<p class="tsub">{e(level_words())} · {e(request_words())}</p>'
     panels = "".join(panel_html(d, n, u) for d, n, u in DIMS)
     body = f"""
 {header("scale")}
 <main id="main" class="sys">
-  {title_band("Scale", sub)}
+  {title_band("Scale").replace("</h1>", f'</h1><p class="lt-s">{e(SCALE_LEAD)}.</p>', 1)}
   {pnav("Scale", [(d, n) for d, n, _ in DIMS])}
   <div class="wrap">{panels}</div>
 </main>
 {footer()}"""
-    names = ", ".join(n for _, n, _ in DIMS)
-    desc = f"Every row of the board on a decade axis, one lane per model: {names}."
+    names = [n.lower() for _, n, _ in DIMS]
+    desc = f"{SCALE_LEAD}: {', '.join(names[:-1])} and {names[-1]}."
     return page("Scale", desc, body, "system scalepage", SCALE_PAGE.strip("/"), "home")

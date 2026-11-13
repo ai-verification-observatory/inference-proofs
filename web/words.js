@@ -16,10 +16,11 @@
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
   // only from its first letter on. Order: systems not run after every other match; within
-  // each part, a match in the name before one in the other words only, then the kind of entry, the
-  // page in view, how closely, then the name (models, petals, checks and figures in their own
-  // order, the ladder's for models). It never orders by how good a system is. Each group is listed
-  // once, where its first result falls, and the words that matched are marked.
+  // each part, a name that is the query, then one that starts with it, then a word of the name
+  // that does, then a match in the other words only; then the kind of entry, the page in view, how
+  // closely, then the name (models, petals, checks and figures in their own order, the ladder's
+  // for models). It never orders by how good a system is. Each group is listed once, where its
+  // best result falls, and the words that matched are marked.
   const sbox = $('.search');
   if (sbox) {
     const input = $('#q', sbox);
@@ -81,9 +82,9 @@
     };
     // kinds listed in their own order (the build writes them so: the models largest first), not A to Z
     const ordered = new Set(['model', 'petal', 'check', 'figure', 'learn']);
-    // every match: not run last; a match in the name before one in the other words only; then by group
-    // (systems first, the page in view first), within a group where the words matched (a name that starts
-    // with the query first), then how closely, then its own order or the name; then each group once
+    // every match: not run last; a name that is the query first, then one that starts with it, then a match
+    // inside the name, then one in the other words only; then by group (systems first, the page in view
+    // first), then how closely, then its own order or the name; then each group once, where its best falls
     const results = (q) => {
       const whole = norm(q);
       if (!whole) return entries.filter((x) => x.kind === 'system');
@@ -91,19 +92,22 @@
       // a word some entry has is matched as typed; only a word no entry has gets typo matching
       const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
       const here = (m) => m.x.url.split('#')[0] === location.pathname;
+      // how the name matched: 0 it is the query, 1 it starts with it, 2 a word of it does, 3 the other words only
+      const how = (m) => (m.x.n === whole ? 0 : m.r[0] + 1);
       const sorted = entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
-        .sort((a, b) => (a.x.tier === 5) - (b.x.tier === 5) || (a.r[0] === 2) - (b.r[0] === 2)
-          || a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group) || a.r[0] - b.r[0] || a.r[1] - b.r[1]
+        .sort((a, b) => (a.x.tier === 5) - (b.x.tier === 5) || how(a) - how(b)
+          || a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group) || a.r[1] - b.r[1]
           || (ordered.has(a.x.kind) && a.x.kind === b.x.kind ? a.x.i - b.x.i : a.x.name.localeCompare(b.x.name)))
         .map((m) => m.x);
       const groups = [...new Set(sorted.map((x) => x.group))];
       return groups.flatMap((g) => sorted.filter((x) => x.group === g));
     };
-    // a name with the words that matched marked: the start of a word, as long as the query word
+    // a name with the words that matched marked: the start of a word (each part of a hyphened one), as long as
+    // the query word
     const marked = (text) => {
       const qs = norm(input.value).split(' ').filter(Boolean);
       const out = [];
-      text.split(/(\s+)/).forEach((w) => {
+      text.split(/([\s\-\u2010\u2011]+)/).forEach((w) => {
         const k = norm(w);
         const q = k && qs.find((x) => k.startsWith(x));
         const at = w.search(/[\p{L}\p{N}]/u);
@@ -297,12 +301,15 @@
       a.click();
     });
   });
-  // the band's block leads to its rung the same way: a tap on its figure shows its labels
-  $$('a.bx').forEach((a) => a.addEventListener('click', (ev) => { if (press && !press.mouse && ev.target.closest(FIG)) ev.preventDefault(); }));
-  // back on the ladder from a system's page, its row stays marked as the one in hand until another is taken
+  // on the ladder by a link from a system's page, its row stays marked as the one in hand until another is taken.
+  // A reload and the Back button keep the first load's referrer, so they mark nothing: the reader did not just come
+  // from that page (an older browser with no navigation entry says which by `performance.navigation`: 0 is a link)
   let cur = null;
   try {
-    const from = document.referrer && new URL(document.referrer);
+    const nav = performance.getEntriesByType('navigation')[0];
+    const old = performance.navigation;
+    const byLink = nav ? nav.type === 'navigate' : !old || old.type === 0;
+    const from = byLink && document.referrer && new URL(document.referrer);
     if (from && from.origin === location.origin) cur = document.getElementById(`row-${from.pathname.slice(1)}`);
   } catch (_) { cur = null; }
   if (cur) cur.classList.add('cur');
@@ -373,10 +380,17 @@
     // a section whose top sits right under the strip (where its link or an anchor lands it) is the one in view
     const here = tops.findIndex((t) => t >= -8 && t <= 40);
     if (here >= 0) k = here;
-    // at the page's end, the last section, unless the one the address names (its link, an anchor) is in view
+    // the anchor the address names, inside a section (a paragraph, a rule): where it sits right under the strip,
+    // its section is the one in view
+    const aim = location.hash ? $(':target') : null;
+    const ti = aim ? secs.findIndex((s) => s && s.contains(aim)) : -1;
+    const tt = ti >= 0 ? aim.getBoundingClientRect().top - edge : Infinity;
+    if (ti >= 0 && aim !== secs[ti] && tt >= -8 && tt <= 40) k = ti;
+    // at the page's top, before any section has passed the line, the first
+    if (k < 0) k = secs.findIndex(Boolean);
+    // at the page's end, the last section, unless the one the address names (its link, an anchor in it) is in view
     if (innerHeight + y >= document.documentElement.scrollHeight - 4 && k >= 0) {
-      const t = secs.findIndex((s) => s && s.matches(':target'));
-      k = t >= 0 && tops[t] >= -8 && tops[t] < innerHeight - edge ? t : secs.length - 1;
+      k = ti >= 0 && tt >= -8 && tt < innerHeight - edge ? ti : secs.length - 1;
     }
     if (k !== inView) {
       inView = k;
@@ -387,17 +401,41 @@
   };
   // a strip's label brought into the strip a third of the way along, but always whole: its end in view, and its start
   // before that. The marked label is, and so is a label that takes keyboard focus (not a press: a label that moves
-  // between a press and its release loses the click)
+  // between a press and its release loses the click). The strip then starts on a label's edge, so no label shows
+  // cut at its start (under the page's title, once that has slid in)
   const strip = pnav && $('.ps', pnav);
+  // a Learn page's strip fades at an end where more labels wait (words.css, psends: 32 px), so a label brought to
+  // its start stands that far in, clear of the fade, the fade falling on the end of the label before it
+  const fade = strip && strip.closest('.lpn') && window.CSS && CSS.supports('animation-timeline', 'scroll()') ? 32 : 0;
   const whole = (a, behavior) => {
-    if (!strip || strip.scrollWidth <= strip.clientWidth) return;
+    if (!strip) return;
+    strip.style.removeProperty('padding-right');  // the room past the end given below, taken back first
+    if (strip.scrollWidth <= strip.clientWidth) return;
     const s = strip.getBoundingClientRect();
     // the page's title, once it has slid into the strip, holds the strip's start: a label is whole after it
     const t = $('.ps-t', strip);
     const lead = t ? Math.max(0, t.getBoundingClientRect().right - s.left) : 0;
-    const x = a.getBoundingClientRect().left - s.left + strip.scrollLeft - lead;
-    const aw = a.offsetWidth; const room = strip.clientWidth - lead;
-    strip.scrollTo({ left: aw >= room ? x : Math.min(x, Math.max(x + aw - room, x - room / 3)), behavior });
+    const at = (el) => el.getBoundingClientRect().left - s.left + strip.scrollLeft - lead;
+    const x = at(a);
+    // (a label too wide to clear both fades, a phone's two-line one, stands midway between them)
+    const aw = a.offsetWidth; const avail = strip.clientWidth - lead;
+    const pad = aw + 2 * fade <= avail ? fade : Math.max(0, (avail - aw) / 2);
+    const room = avail - 2 * pad;
+    const left = aw >= room ? x : Math.min(x, Math.max(x + aw - room, x - room / 3));
+    // the first label edge at or after that: the label marked keeps its end in view, as it starts no later than x.
+    // Past the strip's end (where the browser would stop short of it) the last edge before the end that still
+    // shows the marked label whole; where no edge does, the strip takes the room it lacks past its end, so it still
+    // starts on a label's edge and no label shows cut under the title
+    const edges = links.map(at);
+    const max = strip.scrollWidth - strip.clientWidth;
+    const after = edges.filter((v) => v >= left - 0.5);
+    let to = after.length ? Math.min(...after) : left;
+    if (to - pad > max) {
+      const fit = edges.filter((v) => v - pad <= max + 0.5 && v <= x + 0.5 && x + aw - v <= room + pad + 1);
+      if (fit.length) to = Math.max(...fit);
+      else strip.style.setProperty('padding-right', `${to - pad - max + parseFloat(getComputedStyle(strip).paddingRight)}px`);
+    }
+    strip.scrollTo({ left: to > 0.5 ? Math.max(0, to - pad) : 0, behavior });
   };
   // a label in view that takes two lines (a phone's strip, words.css) is as wide as its longer line, so its bar ends
   // with its words
@@ -499,18 +537,23 @@
     const edge = pnav ? pnav.getBoundingClientRect().bottom : 0;
     const mid = edge + (innerHeight - edge) * 0.15;
     let k = -1;
-    if (wrap.top < mid && wrap.bottom > mid) lines.forEach((l, i) => { if (l.getBoundingClientRect().top < mid) k = i; });
+    // only while the key stays beside the rules (a narrow window sets it above them, out of sight once read past)
+    const beside = getComputedStyle(gb).position === 'sticky';
+    if (beside && wrap.top < mid && wrap.bottom > mid) lines.forEach((l, i) => { if (l.getBoundingClientRect().top < mid) k = i; });
     if (k !== read) { read = k; light(); }
   };
   if (gb && lines.length === petals.length) {
     const petalIn = (i) => () => { hand = { p: [i], c: decides.flatMap((d, k) => (d.includes(i) ? [k] : [])) }; light(); };
     const checkIn = (k) => () => { hand = { p: decides[k], c: [k] }; light(); };
     const drop = () => { hand = null; light(); };
+    // the checks page's key: ground parts its arms, and the pointer crossing it keeps the arm it last pointed at
+    // (dropped there, the petal read would light between two arms and the key would blink); leaving the glyph drops it
+    const key = $('svg', gb);
+    if (key && !lines[0].contains(petals[0])) key.addEventListener('pointerleave', drop);
     [petals, names].forEach((set) => set.forEach((p, i) => {
       // a system page's arm heads its own row: the row's handlers light it
       if (lines[i].contains(p)) return;
       p.addEventListener('pointerenter', petalIn(i));
-      p.addEventListener('pointerleave', drop);
       // a petal that is a link (the checks page's key) goes there itself
       if (!p.closest('a')) p.addEventListener('click', () => lines[i].scrollIntoView({ block: 'nearest', behavior: smooth() ? 'smooth' : 'auto' }));
     }));
@@ -526,6 +569,9 @@
   }
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll, { passive: true });
+  // the strip moves up or down with the top bar after the scroll that moved the bar has ended (a page opened
+  // at an anchor on a phone): the section in view is read again once it has settled
+  if (pnav) pnav.addEventListener('transitionend', (ev) => { if (ev.target === pnav && ev.propertyName === 'transform') onScroll(); });
   // a link to a section already in view scrolls nothing, but marks it
   addEventListener('hashchange', onScroll);
   // after the first frame, so a view transition into this page is not held up by layout read here
@@ -543,11 +589,19 @@
   let at = null;
   let size = [0, 0];  // the probe's width and height, measured once when it is filled
   let byKey = false;  // shown by keyboard focus: the labels follow their figure on a scroll; a pointer's or a tap's are put away
-  // the bottom of what is pinned at the top of the window: the top bar, and the strip once it is stuck under it
-  const pinned = () => {
+  // the bottom of what is pinned at the top of the window: the top bar, the strip once it is stuck under it, and over
+  // a figure of the ladder its table's head once that is stuck (it names the model)
+  const pinned = (el) => {
     const t = bar ? Math.max(0, bar.getBoundingClientRect().bottom) : 0;
     const s = pnav && pnav.getBoundingClientRect();
-    return s && s.top <= t + 1 ? Math.max(t, s.bottom) : t;
+    let p = s && s.top <= t + 1 ? Math.max(t, s.bottom) : t;
+    const lad = el && el.closest ? el.closest('.lad') : null;
+    if (lad) {
+      const hd = $('thead', lad);
+      const rs = [hd, $('th', hd)].map((x) => x.getBoundingClientRect()).filter((r) => r.height);
+      if (rs.length && Math.min(...rs.map((r) => r.top)) <= p + 1) p = Math.max(p, ...rs.map((r) => r.bottom));
+    }
+    return p;
   };
   // the page's column: a box over a figure keeps to the gutters, as everything else does (the window's edge when the
   // column is narrower than the box)
@@ -559,13 +613,14 @@
   // the top of what names a figure: its cell's label (a fact's term, a cell, a block), so labels put over the figure
   // cover neither the figure nor its name
   const named = (el, r) => {
-    const cell = el.closest('.meta > div, td, .bx-f, .sb, .parts > div, dd');
+    const cell = el.closest('.meta > div, td, .sb, .parts > div, dd');
     if (!cell) return r.top;
     const t = (cell.matches('dd') && cell.previousElementSibling ? cell.previousElementSibling : cell).getBoundingClientRect().top;
     return t <= r.top && r.top - t < 120 ? t : r.top;
   };
   let col = [12, 12];  // the column's sides, read once when the probe is filled
   let near = [];  // the page's other labelled things, read once when the probe is filled
+  let titles = [];  // the models' names and size tabs (the ladder, the Scale page), read with them
   // under the figure and the line under it, so the probe hides neither; over the figure and its name when the
   // window ends first and there is room under what is pinned. Where that would cover another figure, the first of
   // these places that covers none: under, over its name, over it, beside it on the right, then on the left (so a
@@ -577,7 +632,7 @@
     const box = el.matches('.sl') ? el.closest('svg') : el;
     const next = box.nextElementSibling;
     let r = box.getBoundingClientRect();
-    const top = pinned();
+    const top = pinned(box);
     const [w, h] = size;
     if (bring && innerHeight - top < h + r.height + 24 && Math.abs(r.top - top - 8) > 2) { scrollBy(0, r.top - top - 8); r = box.getBoundingClientRect(); }
     const sub = next && next.classList.contains('sub') ? next.getBoundingClientRect() : null;
@@ -589,12 +644,17 @@
     if (h > below && h <= over) y = head - h - 8;
     else if (h > below && h <= above) y = r.top - h - 8;
     else if (h > below && above > below) y = top + 8;
-    const others = near.map((e) => e.getBoundingClientRect()).filter((o) => o.width && o.bottom > top && o.top < innerHeight);
+    const seen = (els) => els.map((e) => e.getBoundingClientRect()).filter((o) => o.width && o.bottom > top && o.top < innerHeight);
+    const others = seen(near);
     if (sub) others.push(sub);
     const side = Math.max(top + 8, Math.min(r.top - 11, innerHeight - 8 - h));
-    const free = [[x, low + 8], [x, head - h - 8], [x, r.top - h - 8], [r.right + 12, side], [r.left - 12 - w, side]].find(([cx, cy]) =>
-      cx >= col[0] && cx + w <= col[1] && cy >= top + 8 && cy + h <= innerHeight - 8
-      && !others.some((o) => cx < o.right && cx + w > o.left && cy < o.bottom && cy + h > o.top));
+    const spots = [[x, low + 8], [x, head - h - 8], [x, r.top - h - 8], [r.right + 12, side], [r.left - 12 - w, side]];
+    const fits = ([cx, cy]) => cx >= col[0] && cx + w <= col[1] && cy >= top + 8 && cy + h <= innerHeight - 8;
+    const clear = (os) => ([cx, cy]) => !os.some((o) => cx < o.right && cx + w > o.left && cy < o.bottom && cy + h > o.top);
+    // where every place covers something, the first that covers no model's name, the window's top and foot among them
+    const names = seen(titles);
+    const free = spots.find((p) => fits(p) && clear([...others, ...names])(p))
+      || [...spots, [x, top + 8], [x, innerHeight - 8 - h]].find((p) => fits(p) && clear(names)(p));
     let px = x;
     if (free) [px, y] = free;
     probe.style.setProperty('max-height', !free && h > Math.max(below, above) ? `${Math.max(0, below, above)}px` : 'none');
@@ -622,7 +682,12 @@
     probe.scrollTop = 0;
     size = [probe.offsetWidth, probe.offsetHeight];
     col = gutters(el, size[0]);
-    near = $$(FIG, main).filter((e) => e !== el && !e.contains(el) && !el.contains(e));
+    // a model's head (its name) on the ladder and the Scale page is never covered either
+    near = $$(`${FIG}, .rh, .lh`, main).filter((e) => e !== el && !e.contains(el) && !el.contains(e));
+    titles = $$('.rm, .ln, .rk', main);
+    // nor the name and petals of the figure's own row
+    const own = el.closest('.row');
+    if (own) titles.push(...$$('.sname, .cg', own));
     place(el);
   };
   const labelled = (el) => show(el, () => {
@@ -690,8 +755,11 @@
       if (ev.pointerType !== 'mouse') return;
       const p = ev.target.closest('.glyph .sl');
       if (p) { stay(); clearPetal(); petal(p); return; }
+      // on the ground between two petals of a glyph the one last pointed at stays
+      if (at && at.matches('.sl') && ev.target.closest('.glyph') === at.closest('.glyph')) { stay(); return; }
       const el = ev.target.closest(FIG);
-      if (el && main.contains(el)) { stay(); if (el !== at) labelled(el); } else later();
+      // a figure taken from a petal: the petal's edge goes with its labels
+      if (el && main.contains(el)) { stay(); if (el !== at) { clearPetal(); labelled(el); } } else later();
     });
     main.addEventListener('pointerleave', (ev) => { if (mouse(ev)) later(); });
     // A tap on a figure shows its labels, a second tap or a tap elsewhere puts them away. A mouse has pointed at the
@@ -708,7 +776,7 @@
       press = null;
       if (probe.contains(ev.target)) return;  // a press inside the labels (selecting them) keeps them
       const el = ev.target.closest ? ev.target.closest(FIG) : null;
-      // a figure inside a link shows its labels only when the link let the tap pass (the band's block)
+      // a figure inside a link shows its labels only when the link let the tap pass
       if (el && main.contains(el) && (!el.closest('a') || ev.defaultPrevented)) {
         if (p && p.mouse) { if (el !== at) labelled(el); } else if (p && p.open && p.el === el) hide(); else labelled(el);
       } else if (!(ev.target.closest && ev.target.closest('.glyph'))) { clearPetal(); hide(); }
@@ -720,9 +788,9 @@
     });
     main.addEventListener('focusout', (ev) => { if (at && ev.target.contains(at)) hide(); });
     away.push(() => { if (!at) return; if (byKey && at === document.activeElement) place(at); else { clearPetal(); hide(); } });
-    // a figure's labels reach the keyboard too: outside the ladder's rows (each row leads to the page that
-    // holds the same figures) and outside links, a figure takes focus and shows them
-    $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a, .lad, .scl')) el.tabIndex = 0; });
+    // a figure's labels reach the keyboard too: outside links, a figure takes focus and shows them, on the ladder's
+    // and the Scale page's rows as everywhere
+    $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a')) el.tabIndex = 0; });
     // Escape puts the labels away. Labels shown by the keyboard and cut by a short window scroll with the arrows while
     // their figure has focus; at either end the arrow is left to the browser, which scrolls the page
     addEventListener('keydown', (ev) => {
@@ -735,6 +803,12 @@
       if (probe.scrollTop !== before) ev.preventDefault();
     });
   }
+
+  // ------------------------------------------------------------ on paper every disclosure is open, so what its summary
+  // counts prints with it; after printing each is as it was
+  let shut = [];
+  addEventListener('beforeprint', () => { shut = $$('details.more:not([open])'); shut.forEach((d) => { d.open = true; }); });
+  addEventListener('afterprint', () => { shut.forEach((d) => { d.open = false; }); shut = []; });
 
   // ------------------------------------------------------------ a system page's share group: Copy link writes the page's
   // canonical address to the clipboard and says the page's word for done, on the button for a moment and to a screen
@@ -867,7 +941,7 @@
         const d = root.dataset; const p = Number(d.p);
         const A = rows(d.a); const B = rows(d.b); const wrong = rows(d.c); const right = rows(d.ok);
         const mv = (m, v) => m.map((r) => mod(r.reduce((s, x, i) => s + x * v[i], 0), p));
-        const out = $('.xo', root); const shownC = $('.cl', root); const marked = shownC.innerHTML;
+        const out = $('.xo', root); const shownC = $('.xcl', root); const marked = shownC.innerHTML;
         let honest = false; let counts = {};  // one tally per set r is drawn from: the two miss at different rates
         const tally = el('p', 'xf'); const many = Number(d.runs);
         const set = (top) => top === 1 ? d.wSetbits : fill(d.wSetfield, { top });
@@ -881,17 +955,18 @@
         };
         const draw = (top) => {
           const { r, left, got, equal, c } = one(top);
-          const eq = el('div', 'eq'); const lb = (t) => el('span', 'lb', t);
-          eq.append(lb('r'), column(r), lb('A·(B·r)'), column(left), lb('C·r'), column(got));
+          // each matrix with its name as one group (figures.named)
+          const eq = el('div', 'eq'); const named = (t, m) => { const g = el('div', 'mxg'); g.append(el('span', 'lb', t), m); return g; };
+          eq.append(named('r', column(r)), named('A·(B·r)', column(left)), named('C·r', column(got)));
           const box = el('div', 'dr'); box.append(eq, el('p', 'vd', equal ? (honest ? d.wTrue : d.wMiss) : d.wDiff));
           out.replaceChildren(box);
-          tally.textContent = fill(d.wTally, { n: num(c.n), k: num(c.k), set: set(top) });
+          tally.textContent = fill(d.wTally, { n: num(c.n), draws: c.n === 1 ? d.wDraw : d.wDraws, k: num(c.k), set: set(top) });
           say(`${$('.vd', box).textContent} ${tally.textContent}`);
         };
         const batch = (top) => {
           let c; for (let i = 0; i < many; i++) c = one(top).c;
           out.replaceChildren();
-          tally.textContent = fill(d.wTally, { n: num(c.n), k: num(c.k), set: set(top) });
+          tally.textContent = fill(d.wTally, { n: num(c.n), draws: c.n === 1 ? d.wDraw : d.wDraws, k: num(c.k), set: set(top) });
           say(tally.textContent);
         };
         const claim = check(d.wWrong, true, (on) => {
@@ -978,7 +1053,7 @@
           // the share as the page shows it, so a reader who multiplies the numbers shown gets the total shown
           const s = Number((10 ** (Number(share.value) / 100 - 4)).toPrecision(2));
           const g = read(gen); const p = read(prove);
-          const pct = `${Number((s * 100).toPrecision(2))} %`;
+          const pct = `${Number((s * 100).toPrecision(2))}\u202f%`;
           shown.textContent = pct; share.setAttribute('aria-valuetext', pct);
           out.textContent = fill(d.wOut, { share: pct, g: `${num(sig(g), 4)}×`, p: `${num(sig(p), 4)}×`, total: `${num(sig(g + s * p), 4)}×` });
         };

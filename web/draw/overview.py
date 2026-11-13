@@ -1,6 +1,7 @@
-"""The overview (`index.html`): the ladder (RFC-0018 SI-1). The frontier headline, then one section
-per model, largest first: its head (model, publisher, total parameters, the serving
-baseline) and its rows in the board's order (OR-5), then the systems not run (SI-4). Rows sort
+"""The overview (`index.html`): the ladder (RFC-0018 SI-1). The title, then one section per
+model, largest first, the frontier's marked as the largest model proved: its head (model,
+publisher, architecture, the serving baseline) and its rows in the board's order (OR-5), then
+the systems not run (SI-4). Rows sort
 only by the order rule: no column head re-sorts them. Also the figure cells the system pages use.
 """
 
@@ -12,7 +13,6 @@ from .chrome import (
     has,
     header,
     lead_figure,
-    level_words,
     not_passed,
     page,
     parts_of,
@@ -23,22 +23,25 @@ from .hexagon import glyph_svg
 from .words import (
     CAUSE_WORD,
     CHECK_NAME,
-    FIGURE_NAME,
+    FIDELITY_TITLE,
+    FIGURE_HEAD,
+    FRONTIER_WORD,
     FULL_LOAD_WORD,
     NULL_WORD,
     OF_WHICH,
     PETAL_NAME,
     REFERENCE_WORD,
+    SCALE_NOT_RUN,
     SEP,
     STATE_WORD,
     STEP_WORD,
     WHOLE_SESSIONS,
     architecture,
     e,
-    kl_head,
     labels,
     number,
     params,
+    sig,
     sub_words,
 )
 
@@ -50,8 +53,8 @@ NOT_TESTED = (
     "by our test suite."
 )
 ROW_GLYPH = 3  # the row glyph's unit in px: its arms carry their names (159 by 87 px)
-# a phone's row glyph, px a unit, no names (37.5 by 46.5 px): whole device pixels at 2x
-PHONE_GLYPH = 1.5
+# a phone's row glyph, px a unit, no names (62.5 by 77.5 px): whole device pixels at 2x
+PHONE_GLYPH = 2.5
 
 
 def states(row):
@@ -83,10 +86,15 @@ def href(row):
     return f"/{row['page']}"
 
 
-def fig_html(f, n=None, sub=None, why=None):
+BARE = ""  # `fig_html`'s `sub` for a figure with no line under it
+
+
+def fig_html(f, n=None, sub=None, why=None, note=None):
     """One stored figure: the number in a reading unit, its labels in its title, and under it its
-    scope in a word and its sample size (AGENTS.md rule 2). `sub` replaces the line under it; `why`
-    replaces a null figure's reason (NO_STEADY_WORD on a row with no steady state)."""
+    scope in a word and its sample size (AGENTS.md rule 2). `sub` replaces the line under it
+    (`BARE`: no line, as the ladder and the Scale page print a figure; its labels stay in its
+    title, `n` and `note` among them, and stand in full on the system's page); `why` replaces a
+    null figure's reason (NO_STEADY_WORD on a row with no steady state)."""
     if f is None:
         return '<span class="na">not recorded</span>'
     if f["value"] is None:
@@ -97,7 +105,7 @@ def fig_html(f, n=None, sub=None, why=None):
     num, unit = number(f["value"], f["unit"])
     x = " x" if f["unit"] == "ratio" else ""
     line = sub if sub is not None else sub_words(f, n)
-    return (f'<span class="fig" title="{e(labels(f))}"><span class="n">{e(num)}</span>'
+    return (f'<span class="fig" title="{e(labels(f, n, note))}"><span class="n">{e(num)}</span>'
             f'<span class="u{x}">{e(unit)}</span></span>'
             + (f'<span class="sub">{sub_line(line)}</span>' if line else ""))  # fmt: skip
 
@@ -115,30 +123,62 @@ def nobreak(text):
                     for t in str(text).split(" "))  # fmt: skip
 
 
-def lead_fig(row):
+def lead_fig(row, bare=False):
     """A row's one figure, labelled for what it is (CO-5, `chrome.lead_figure`). Returns (label,
-    figure html)."""
+    figure html); `bare` (the overview's band): the figure's plain name and the figure alone,
+    what it is in its title."""
     label, f, _ = lead_figure(row)
+    if bare:
+        return FIGURE_HEAD["multiple"], multiple_html(row, parts=False, bare=True)
     return label, fig_html(f, counted(row))
 
 
-def multiple_html(row, parts=True):
+def whole_note(row, key):
+    """CO-5's label for a figure of the whole sessions, for its title; nothing for a steady one."""
+    if key != "session_multiple":
+        return None
+    return WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"])
+
+
+def scope_note(row, f):
+    """CO-5's label for any figure timed over the whole sessions (a session's cost beside its
+    multiple), so the figures of one row carry the same scope words in their titles."""
+    if f is None or f.get("scope") != "whole_wall":
+        return None
+    return WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"])
+
+
+def serving_missing(b, why="no full load recorded"):
+    """A model's serving figure where the board holds none: "not run yet" with no serving run,
+    "not measured" with one; the stored cause in its title."""
+    word = "not run yet" if b is None or b.get("run_id") is None else "not measured"
+    cause = (b or {}).get("cause") or why
+    return f'<span class="na" title="{e(cause)}">{word}</span>'
+
+
+def multiple_html(row, parts=True, bare=False):
     """CO-5: the multiple; with no steady state, the session cost over serving, labelled as whole
-    sessions. With `parts`, its two parts under it (CO-7, `split_html`)."""
+    sessions. With `parts`, its two parts under it (CO-7, `split_html`). `bare` (the ladder, the
+    Scale page): the figures alone, no line of scope and n under any."""
     _, f, key = lead_figure(row)
-    split = split_html(row, key) if parts else ""
+    split = split_html(row, key, bare=bare) if parts else ""
+    if bare:
+        return fig_html(f, counted(row), sub=BARE, note=whole_note(row, key)) + (
+            split if has(f) else ""
+        )
     if key == "session_multiple":
         n = rung_of(row)["requests_per_session"]
         count = f["n"] if f["n"] is not None else counted(row)
         sub = f"{WHOLE_SESSIONS.format(n=n)}{SEP}n\u00a0=\u00a0{count}"
-        return fig_html(f, sub=sub) + split
+        return fig_html(f, counted(row), sub=sub) + split
     return fig_html(f, counted(row)) + (split if has(f) else "")
 
 
-def split_html(row, key, bar=True, of_which=False):
+def split_html(row, key, bar=True, of_which=False, bare=False):
     """CO-7: under a multiple (`key`: the steady one or the whole sessions'), its two parts, each
-    a figure with its scope and n, after a bar of their shares, where the system generates in a
-    phase of its own; nothing otherwise. The part that is not generation first, in paper."""
+    a figure with its scope and n (`bare`: the figure alone, where the whole above them says both
+    once), after a bar of their shares, where the system generates in a phase of its own; nothing
+    otherwise. The part that is not generation first, in paper."""
     parts = parts_of(row, key)
     if not parts:
         return ""
@@ -152,27 +192,42 @@ def split_html(row, key, bar=True, of_which=False):
                f'<rect class="bp" width="{share:.2f}" height="4"/>'
                f'<rect class="bg" x="{share:.2f}" width="{100 - share:.2f}" height="4"/>{nib}</svg>')  # fmt: skip
     n = counted(row)
-    pre = f"{OF_WHICH} " if of_which else ""  # with no bar, the words tie each part to its whole
-    out = "".join(f'<span class="part {c}"><span class="pl">{e(pre + w)}</span>{fig_html(f, n)}</span>'
+    # with no bar, the words tie each part to its whole (in a span: a phone's band sets the parts
+    # right beside their whole and leaves the words out)
+    pre = f'<span class="ow">{e(OF_WHICH)} </span>' if of_which else ""
+    line, note = (BARE, whole_note(row, key)) if bare else (None, None)
+    out = "".join(f'<span class="part {c}"><span class="pl">{pre}{e(w)}</span>'
+                  f"{fig_html(f, n, sub=line, note=note)}</span>"
                   for c, w, f in (("pp", w1, f1), ("pg", w2, f2)))  # fmt: skip
     return f'<span class="split">{svg}{out}</span>'
 
 
-def kl_html(row):
-    fid = row["fidelity"] or {}
-    kl = fid.get("kl")
-    if kl is not None and kl["value"] is not None:
-        return fig_html(kl)
-    note = fid.get("kl_note") or "not measured"
-    return f'<span class="na" title="{e(note)}">not measured</span>'
+def fidelity_word(row, page=None):
+    """A row's fidelity as the surface prints it: the FIDELITY check's state in a word (held,
+    failed, undecided: FI-6), linked to the Fidelity section of the system's page, which holds
+    what it is read from. Its title carries the stored figures: the replies' mean count of
+    leading tokens equal to the original's (FI-3), the rung's bar (FI-5) and n. The closeness
+    grade is the glyph's Faithful model petal; KL is under Fidelity on the system's page."""
+    check = next(c for c in row["checks"] if c["id"] == "fidelity")
+    mine, bar = row["fidelity"], (rung_of(row)["fidelity"] or {}).get("bar")
+    title = []
+    if mine is not None and mine.get("mean_prefix") is not None:
+        title.append(f"{FIDELITY_TITLE}: {sig(mine['mean_prefix'])} tokens")
+        if bar is not None:
+            title.append(f"bar: {sig(bar['mean_prefix'])} tokens")
+        title += [f"n = {mine['n']:,} replies", f"record: {row['record']}/fidelity"]
+    at = href(row) if page is None else page
+    return (f'<a class="fw {e(check["state"])}" href="{e(at)}#fidelity" '
+            f'title="{e("; ".join(title))}">{e(STATE_WORD[check["state"]])}</a>')  # fmt: skip
 
 
 def position_html(row, rung):
     """A row's position as a square, position 1 solid paper, the others an outline; the count run
     under it. A row with no position keeps the square, a dash in it and no count (the dash is
-    drawn, not read out: the cell is empty to a screen reader), so every row starts alike."""
+    drawn, not read out: a screen reader reads "no position"), so every row starts alike."""
     if row["position"] is None:
-        return '<span class="pos p0"><span class="pn" aria-hidden="true">\u2013</span></span>'
+        return ('<span class="pos p0"><span class="pn" aria-hidden="true">\u2013</span>'
+                '<span class="sr">no position</span></span>')  # fmt: skip
     lead = " p1" if row["position"] == 1 else ""
     return (f'<span class="pos{lead}"><span class="pn">{row["position"]}</span>'
             f'<span class="of">of {rung["systems_run"]}</span></span>')  # fmt: skip
@@ -193,9 +248,14 @@ def standing_html(row, page=None):
     if row["passed"]:
         return defined("passed", "passed")
     at = href(row) if page is None else page
-    missing = [f'<a class="df" href="{e(at)}#ck-{c["id"]}">{e(CHECK_NAME[c["id"]])} check</a> '
-               f"{e(STATE_WORD[c['state']])}" for c in row["checks"] if c["state"] != "held"]  # fmt: skip
-    return f"{not_passed(row)}: " + ", ".join(missing) if missing else not_passed(row)
+    missing = [f'<span class="ckn"><a class="df" href="{e(at)}#ck-{c["id"]}">'
+               f'{e(CHECK_NAME[c["id"]])} check</a> {e(STATE_WORD[c["state"]])}</span>'
+               for c in row["checks"] if c["state"] != "held"]  # fmt: skip
+    state = f'<span class="nw">{e(not_passed(row))}{":" if missing else ""}</span>'
+    # each comma inside the span of the check it follows, so a line never starts with one
+    listed = " ".join(m.replace("</span>", ",</span>") if i < len(missing) - 1 else m
+                      for i, m in enumerate(missing))  # fmt: skip
+    return f"{state} {listed}" if missing else state
 
 
 def reference_words():
@@ -222,28 +282,28 @@ def filled(text):
     )
 
 
-FIGURES = ("multiple", "cost", "check-time", "kl")  # the figure columns, in the row's order
+FIGURES = ("multiple", "cost", "check-time", "fidelity")  # the figure columns, in the row's order
 
 
-def heads(rung):
-    """The figure columns' heads, each linked to its definition; the KL head names the precision
-    of the rung's reference (FI-1)."""
-    names = {**FIGURE_NAME, "kl": kl_head(rung["reference_dtype"])}
-    return [defined(names[f], f) for f in FIGURES]
+def heads():
+    """The figure columns' heads (`FIGURE_HEAD`: no word its unit says), each linked to its
+    definition on the checks page."""
+    return [defined(FIGURE_HEAD[f], f) for f in FIGURES]
 
 
 def row_html(row, rung):
     glyph = glyph_svg(ROW_GLYPH, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
     # the same petals with no names, drawn in place of the first on a phone (words.css shows one)
     glyph += glyph_svg(PHONE_GLYPH, states(row), cls="pie-svg gsh")
+    cost = row_cost(row)
     cells = (
-        ("cm", multiple_html(row)),
-        ("cc", fig_html(row_cost(row), counted(row))),
-        ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row))),
-        ("ck", kl_html(row)),
+        ("cm", multiple_html(row, bare=True)),
+        ("cc", fig_html(cost, counted(row), sub=BARE, note=scope_note(row, cost))),
+        ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row), sub=BARE)),
+        ("ck", fidelity_word(row)),
     )
     figs = "".join(f'<td class="{c}"><span class="lbl">{h}</span>{html}</td>'
-                   for (c, html), h in zip(cells, heads(rung), strict=True))  # fmt: skip
+                   for (c, html), h in zip(cells, heads(), strict=True))  # fmt: skip
     return (
         f'<tr class="row" id="row-{e(row["page"])}">'
         f'<td class="cp">{position_html(row, rung)}</td>'
@@ -270,11 +330,9 @@ def baseline_html(rung):
     """The serving baseline in one line (CO-4): engine, GPUs, concurrency at full load and its
     GPU-seconds per reply."""
     b = rung["baseline"]
-    if b is None:
-        return '<p class="rb"><span class="k">Serving</span> not run yet</p>'
-    if b["gpu_seconds_per_reply"] is None or b["gpu_seconds_per_reply"]["value"] is None:
-        why = b["cause"] or "no full load recorded"
-        return f'<p class="rb"><span class="k">Serving</span> {e(why)}</p>'
+    # no figure: the ladder's state word, the stored cause in its title
+    if b is None or not has(b["gpu_seconds_per_reply"]):
+        return f'<p class="rb"><span class="k">Serving</span> {serving_missing(b)}</p>'
     gpus = f"{b['gpus']} × H200" if b["gpus"] else "GPUs not recorded"
     return (f'<p class="rb"><span class="k">Serving</span> {e(engine_words())}, {e(gpus)}, '
             f"full load at {b['concurrency']:,} concurrent requests: "
@@ -287,41 +345,43 @@ def serving_words(b):
 
 
 def rung_meta(rung):
-    """A model's head as labelled facts: publisher, parameters, the serving baseline (CO-4) and
-    its GPU time per reply, "full load" under it (the Serving fact names the concurrency)."""
+    """A model's head as labelled facts: publisher, architecture (the tab says its size: a
+    mixture of experts names its active parameters only, as the Scale page's head does) and its
+    serving GPU time per reply (CO-4), the figure every multiple under it is over. How it was
+    served (engine, GPUs, concurrency) is on a system's page, under Cost."""
     b = rung["baseline"]
     facts = [("Publisher", e(rung["publisher"])),
-             ("Parameters", nobreak(architecture(rung["parameters_total"],
-                                                 rung.get("parameters_active"))))]  # fmt: skip
-    if b is None:
-        facts.append(("Serving", "not run yet"))
-    elif not has(b["gpu_seconds_per_reply"]):
-        facts.append(("Serving", e(b["cause"] or "no full load recorded")))
+             ("Architecture", nobreak(architecture(rung["parameters_total"],
+                                                   rung.get("parameters_active"), sized=False)))]  # fmt: skip
+    if b is None or not has(b["gpu_seconds_per_reply"]):
+        facts.append(("Serving", serving_missing(b)))
     else:
-        facts.append(("Serving", e(serving_words(b))))
-        facts.append(("Serving GPU time per reply",
-                      fig_html(b["gpu_seconds_per_reply"], sub=FULL_LOAD_WORD)))  # fmt: skip
+        facts.append((FIGURE_HEAD["serving"],
+                      fig_html(b["gpu_seconds_per_reply"], sub=BARE)))  # fmt: skip
     return '<dl class="meta">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>"
                                          for k, v in facts) + "</dl>"  # fmt: skip
 
 
 def rung_html(rung):
     """A model: a cobalt rule with its size in a tab, its name, its facts; then its rows, whose
-    heads stay under the top bar with the size beside them while a long rung scrolls."""
+    heads stay under the top bar with the size beside them while a long rung scrolls. The
+    frontier's rung (OR-6: the largest with a passed row) says so beside its tab."""
     size = e(params(rung["parameters_total"]))
+    front = S.V["frontier"]
+    mark = f'<p class="rf">{e(FRONTIER_WORD)}</p>' if front and front["rung"] == rung["id"] else ""
     head = (
-        f'<header class="rh"><p class="rk">{size}</p>'
+        f'<header class="rh"><p class="rk">{size}</p>{mark}'
         f'<h2 class="rm" id="h-{e(rung["id"])}">{nobreak(rung["model"])}</h2>'
         f"{rung_meta(rung)}</header>"
     )
     if not rung["rows"]:
-        body = '<p class="none">Not run yet.</p>'
+        body = f'<p class="none">{e(SCALE_NOT_RUN)}</p>'
     else:
         first = (f'<th scope="col"><span class="hk" aria-hidden="true">{size}</span>'
                  f'<span class="hm" aria-hidden="true">{nobreak(rung["model"])}</span>'
                  '<span class="sr">Position</span></th>'
                  '<th scope="col"><span class="sr">Petals</span></th>')  # fmt: skip
-        ths = first + "".join(f'<th scope="col">{h}</th>' for h in ("System", *heads(rung)))
+        ths = first + "".join(f'<th scope="col">{h}</th>' for h in ("System", *heads()))
         rows = "".join(row_html(r, rung) for r in rung["rows"])
         cols = ('<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4">'
                 '<col class="c5"><col class="c6"><col class="c7"></colgroup>')  # fmt: skip
@@ -332,49 +392,13 @@ def rung_html(rung):
             f"{head}{body}</section>")  # fmt: skip
 
 
-def lead_words(rung):
-    """Who leads on a model: position 1 (its name in display type), the systems that passed
-    unranked, none passed (yet, while no row has a failed check), or not run yet."""
-    rows = rung["rows"]
-    first = [name_of(r) for r in rows if r["position"] == 1]
-    if first:
-        return f'<span class="bx-n">#1</span><span class="bx-w">{e(", ".join(first))}</span>'
-    passed = [name_of(r) for r in rows if r["passed"]]
-    failed = any(c["state"] == "failed" for r in rows for c in r["checks"])
-    words = ("passed: " + ", ".join(passed) if passed
-             else ("none passed" if failed else "none passed yet") if rows
-             else "not run yet")  # fmt: skip
-    return f'<span class="bx-q">{e(words)}</span>'
-
-
-def frontier_html():
-    """The band: the level and the request, the title on one line, then one block of ground ink
-    for the largest model a system passed on (OR-6), or else the largest tried: its size, its name,
-    who leads there, how many systems ran, and its position 1's multiple, labelled, with its scope
-    and n. The block is a link to that model's rung. No other model is named in the band: the
-    rungs under it are the list."""
-    rungs, front = S.V["rungs"], S.V["frontier"]
-    run = [r for r in rungs if r["rows"]]
-    lead = front["rung"] if front else (run[0]["id"] if run else None)
-    tag = "Largest model proved" if front else "Largest model tried"
-    block = ""
-    for rung in (r for r in rungs if r["id"] == lead):
-        fig = ""
-        if front:
-            for row in (r for r in rung["rows"] if r["position"] == 1):
-                label, f = lead_fig(row)
-                fig += f'<span class="bx-f"><span class="bx-l">{e(label)}</span>{f}</span>'
-        block = (
-            f'<div class="bl"><a class="bx" href="#{e(rung["id"])}">'
-            f'<span class="bx-p">{e(params(rung["parameters_total"]))}</span>'
-            f'<span class="bx-k">{e(tag)}</span>'
-            f'<span class="bx-m">{nobreak(rung["model"])}</span>'
-            f'<span class="bx-s">{lead_words(rung)}</span>'
-            f'<span class="bx-c">{rung["systems_run"]:,} {"system" if rung["systems_run"] == 1 else "systems"} run</span>{fig}</a></div>'
-        )
+def band_html():
+    """The band: the title on one line, and nothing else. The frontier (OR-6) is not named here:
+    its rung, in the ladder under the band, is marked as the largest model proved (`rung_html`),
+    and its rows say who passed there, at what multiple and how many systems ran."""
+    run = any(r["rows"] for r in S.V["rungs"])
     title = "Proved inference, by model size" if run else "No system has run yet."
-    return (f'<p class="bk"><span>{e(level_words())}</span><span>{e(request_words())}</span></p>'
-            f'<h1 class="band-h">{e(title)}</h1>{block}')  # fmt: skip
+    return f'<h1 class="band-h">{e(title)}</h1>'
 
 
 def not_run_html():
@@ -401,11 +425,11 @@ def build_index():
     body = f"""
 {header("home")}
 <main id="main" class="home">
-  <section class="mast"><div class="mast-in">{frontier_html()}</div></section>
+  <section class="mast"><div class="mast-in">{band_html()}</div></section>
   <div class="wrap ladder">{rungs}</div>
   <div class="wrap">{not_run_html()}</div>
 </main>
 {footer()}"""
     models = ", ".join(r["model"] for r in S.V["rungs"])
-    desc = f"{S.V['level']['name']}: provers on {models}, six checks each, cost against serving."
+    desc = f"Provers on {models}: six checks each, and what a proved reply costs against serving."
     return page("Inference proofs", desc, body, "home", "", "home")

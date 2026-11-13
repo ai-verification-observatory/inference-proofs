@@ -22,7 +22,6 @@ from .chrome import (
     credit_words,
     font_faces,
     lead_figure,
-    level_words,
     parts_of,
     row_cost,
     rung_of,
@@ -33,18 +32,20 @@ from .inks import COBALT, GROUND, LINE, MUTED, PAPER, ratio
 from .learn import glossary, glossary_entries
 from .mark import lockup_svg, mark_svg, stacked_svg, tile_svg
 from .overview import (
+    BARE,
     fig_html,
     filled,
     href,
     lead_fig,
     name_of,
     states,
-    sub_line,
 )
 from .scale import DIMS
 from .words import (
     CHECK_HELD,
     CHECK_NAME,
+    CHECKS_DESC,
+    FIGURE_HEAD,
     FIGURE_NAME,
     FIGURE_RULE,
     MANDATE_BELIEF,
@@ -53,7 +54,6 @@ from .words import (
     PETAL_RULE,
     architecture,
     e,
-    sub_words,
 )
 
 # ------------------------------------------------------------------ search
@@ -72,6 +72,13 @@ TIER = {"system": 0, "model": 1, "petal": 2, "check": 3, "figure": 4, "page": 4,
 GROUP = {"system": "Systems", "model": "Models", "petal": "Glyph", "check": "Checks",
          "figure": "Figures", "page": "Pages", "learn": "Learn", "term": "Glossary",
          "notrun": "Not run"}  # fmt: skip
+
+
+def scale_words():
+    """The Scale page in a line: its figures' names in lower case, as words of a sentence."""
+    names = [n.lower() for _, n, _ in DIMS]
+    return (f"Every system on one log scale, model by model: {', '.join(names[:-1])} and "
+            f"{names[-1]}.")  # fmt: skip
 
 
 def search_entries():
@@ -112,7 +119,7 @@ def search_entries():
         "page",
         "Checks",
         CHECKS_PAGE,
-        "The six checks, the figures, the order rule, what is not tested",
+        CHECKS_DESC,
         PAGE_MARK,
         "checks figures order rule undecided unranked not tested",
     )
@@ -120,7 +127,7 @@ def search_entries():
         "page",
         "Scale",
         SCALE_PAGE,
-        ", ".join(n for _, n, _ in DIMS),
+        scale_words(),
         PAGE_MARK,
         "scale chart log decade axis",
     )
@@ -239,15 +246,16 @@ def card_page(card, body, css):
 def home_card():
     """Only what does not change with the systems run, since link previews stay cached: the
     stacked lockup in paper with the mark in cobalt on the ground (as the site's top bar and the
-    system cards), the address and the level."""
+    system cards) and the address."""
     css = f"""
 html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
 .og-l{{position:absolute;left:96px;top:96px}}
-.url{{position:absolute;left:96px;bottom:120px;font-size:26px;line-height:1;font-weight:600}}
-.lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;font-weight:400;color:{MUTED}}}
+.url{{position:absolute;left:96px;bottom:96px;font-size:26px;line-height:1;font-weight:600}}
 """
-    body = (f'<div class="og-l">{stacked_svg(132, PAPER, COBALT)}</div>'
-            f'<p class="mono url">{e(card_host())}</p><p class="mono lvl">{e(level_words())}</p>')  # fmt: skip
+    body = (
+        f'<div class="og-l">{stacked_svg(132, PAPER, COBALT)}</div>'
+        f'<p class="mono url">{e(card_host())}</p>'
+    )
     return card_page("home", body, css)
 
 
@@ -297,29 +305,26 @@ def card_name(name):
 
 def system_card(pid):
     """A system page's card, the page in brief: the top bar's lockup; a cobalt band with the
-    system's name, its model with its size and, on the right, its one figure labelled for what it
-    is; under it the standing, as large as a name, the cost and check time per reply, and the
-    glyph with its names; at the foot the level, the release and the page's address. Every
-    figure with its unit, scope and n (AGENTS.md rule 2); a figure with no position is set in the
-    light weight, as on the band."""
+    system's name, its model with its size and, on the right, its one figure under its plain
+    name; under it the standing, as large as a name, the cost and verify time per reply, and the
+    glyph with its names; at the foot the release and the page's address. A card is shallower
+    than the ladder (web/DEPTH.md): every figure with its unit alone, its scope and n on the page
+    the address names; a figure with no position is set in the light weight, as on the band."""
     row = S.PAGE[pid]
     rung = rung_of(row)
     lines, size = card_name(name_of(row))
-    label, lead = lead_fig(row)
+    label, lead = lead_fig(row, bare=True)
     n = counted(row)
     _, f, key = lead_figure(row)
-    if parts := parts_of(row, key):  # CO-7: the two parts beside the figure, its scope under all
+    if parts := parts_of(row, key):  # CO-7: the two parts beside the figure
         pts = "".join(f'<span class="pt"><span class="pw">{e(OF_WHICH)} {e(w)}</span>'
-                      f'{fig_html(p, sub="")}</span>' for w, p in parts)  # fmt: skip
-        lead = (fig_html(f, sub="") + f'<span class="pts">{pts}</span>'
-                f'<span class="sub">{sub_line(sub_words(f, n))}</span>')  # fmt: skip
+                      f'{fig_html(p, n, sub=BARE)}</span>' for w, p in parts)  # fmt: skip
+        lead = fig_html(f, n, sub=BARE) + f'<span class="pts">{pts}</span>'
     head, _, why = standing(row).partition(": ")
     if row["position"] is not None:
         why = f"position {row['position']} of {rung['systems_run']}"
     rel = S.V["release"]
-    when = level_words() + (
-        f" · Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "") if rel else ""
-    )
+    when = f"Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "") if rel else ""
     weight = 600 if row["position"] is not None else 400
     css = f"""
 .top{{position:absolute;left:0;top:0;width:{CARD_W}px;height:72px;padding:0 64px;display:flex;align-items:center;box-shadow:inset 0 -1px 0 {LINE}}}
@@ -364,8 +369,9 @@ def system_card(pid):
     glyph = glyph_svg(6, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
     model = (f'{e(rung["model"])}<span>'
              f'{e(architecture(rung["parameters_total"], rung.get("parameters_active")))}</span>')  # fmt: skip
-    cells = ((FIGURE_NAME["cost"], fig_html(row_cost(row), n)),
-             (FIGURE_NAME["check-time"], fig_html(row["figures"]["verify_seconds_per_reply"], n)))  # fmt: skip
+    cells = ((FIGURE_HEAD["cost"], fig_html(row_cost(row), n, sub=BARE)),
+             (FIGURE_HEAD["check-time"],
+              fig_html(row["figures"]["verify_seconds_per_reply"], n, sub=BARE)))  # fmt: skip
     small = " sm" if len(why) > WHY_LONG else ""
     reason = f'<p class="mono why{small}">{e(why)}</p>' if why else ""
     figs = "".join(f'<div class="cell fit"><span class="lbl">{e(k)}</span>{v}</div>'

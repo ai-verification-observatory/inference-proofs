@@ -5,14 +5,14 @@ If you work on cryptographic proof systems, you already think in terms of arithm
 A language model takes a sequence of [[token|tokens]] (integer IDs from a fixed vocabulary) and computes a vector of scores (logits) over the entire vocabulary for each position. To generate a reply, the model picks a token from the scores at the final position, appends that token to the sequence, and runs another pass to predict the next token.
 
 :::figure pipeline
-One forward pass through a transformer, grouped by what a prover has to do. Matrix multiplications against the committed model weights are linear operations; everything else either multiplies two dynamic activations together or is non-algebraic.
+One forward pass through a transformer, grouped by what a prover has to do. Matrix multiplications against the committed model weights are linear operations; everything else either multiplies two dynamic activations together or is not arithmetic.
 :::
 
 From a proof system's perspective, the operations inside each layer fall into three buckets:
 
 - **Matrix multiplications against committed weights.** A vector of dynamic activations multiplied by a static weight matrix that the operator committed to before the session. These linear projections account for the vast majority of the raw FLOPs, and as [Proving a forward pass](/forward-pass) explains, they are actually the easiest part to prove.
 - **Products of two dynamic activations.** Self-attention multiplies queries by keys, and then multiplies attention weights by values. Because neither operand is part of the static model commitment, both tensors have to be committed or reduced dynamically during the proof.
-- **Non-linear and non-arithmetic operations.** Layer normalization divides by a square root; softmax exponentiates and normalizes; MLP activations apply curves like SiLU or GELU; greedy decoding takes the argmax across tens of thousands of vocabulary logits; token embedding looks up rows in a table. None of these is a native addition or multiplication over a finite field.
+- **Non-linear and non-arithmetic operations.** Layer normalisation divides by a square root; softmax exponentiates and normalises; MLP activations apply curves like SiLU or GELU; greedy decoding takes the argmax across tens of thousands of vocabulary logits; token embedding looks up rows in a table. None of these is a native addition or multiplication over a finite field.
 
 ## Scale of the circuit
 
@@ -27,7 +27,7 @@ Consequently, the execution trace (the [[witness]]) is massive: thousands of int
 
 ## Floating-point drift versus deterministic arithmetic
 
-Model developers release weights in 8-bit, 16-bit, or 32-bit floating point, and production serving engines execute them using parallel GPU kernels. Because floating-point addition is not associative, summing the same numbers in a different order changes the low-order bits. In a GPU cluster, the reduction order depends on thread scheduling, tensor-parallel sharding, and how many user requests are batched together at that millisecond. As a result, two honest runs of the exact same model on the exact same prompt can diverge in a low bit, flip a close tie between two top logits, and output a different token, after which the rest of the generated reply diverges completely. A 2025 study found that ["changing system configuration, such as evaluation batch size, GPU count, and GPU version, can introduce significant differences in the generated responses"](https://arxiv.org/abs/2506.09501), even under greedy decoding.
+Model developers release weights in 8-bit, 16-bit, or 32-bit floating point, and production serving engines execute them using parallel GPU kernels. Because floating-point addition is not associative, summing the same numbers in a different order changes the low-order bits. In a GPU cluster, the reduction order depends on thread scheduling, tensor-parallel sharding, and how many user requests are batched together at that millisecond. As a result, two honest runs of the exact same model on the exact same prompt can diverge in a low bit, flip a close tie between two top logits, and output a different token, after which the rest of the generated reply diverges completely. A 2025 study found that "[changing system configuration, such as evaluation batch size, GPU count, and GPU version, can introduce significant differences in the generated responses](https://arxiv.org/abs/2506.09501)", even under greedy decoding.
 
 That variation is mostly configuration sensitivity rather than true hardware nondeterminism: if you lock down the exact GPU model, driver version, tensor-parallel degree, and batch size, and avoid atomic reductions whose order depends on thread arrival times, [recent work](https://arxiv.org/abs/2606.00279) shows that standard serving engines can reproduce outputs bit for bit (finding true run-to-run nondeterminism only in certain integer-quantized kernels). However, an external verifier rarely knows the operator's live batching schedule, and in a zero-knowledge setting it does not hold the weights either.
 
@@ -39,7 +39,7 @@ Because a cryptographic proof requires a well-defined mathematical function, *th
 
 ## How models are served in production
 
-Because we express every prover's cost as a multiple of normal serving, it helps to understand how a production serving engine actually runs. When a request arrives, the engine processes the prompt tokens in parallel (the prefill phase), caches the resulting key and value vectors at every layer (the KV cache), and then generates the reply one token at a time against that cache (the decode phase). Crucially, a single GPU node batches dozens or hundreds of concurrent requests together so that reading the model weights from high-bandwidth memory is amortized across many users at once.
+Because we express every prover's cost as a multiple of normal serving, it helps to understand how a production serving engine actually runs. When a request arrives, the engine processes the prompt tokens in parallel (the prefill phase), caches the resulting key and value vectors at every layer (the KV cache), and then generates the reply one token at a time against that cache (the decode phase). Crucially, a single GPU node batches dozens or hundreds of concurrent requests together so that reading the model weights from high-bandwidth memory is amortised across many users at once.
 
 As a result, the GPU cost of serving a single reply depends heavily on concurrency: running one isolated request on an otherwise idle GPU wastes most of the chip's memory bandwidth, whereas running at high concurrency saturates the GPU. To avoid inflating our denominator with an artificially slow baseline, we measure our [[serving baseline]] at full load, stepping up request concurrency until throughput plateaus.
 
@@ -47,7 +47,7 @@ As a result, the GPU cost of serving a single reply depends heavily on concurren
 Serving baselines across our Level 1 model ladder, running each publisher's official release on the minimum number of H200 GPUs required to hold the weights.
 :::
 
-That full-load serving cost per reply (`b`) is the denominator for every cost multiple on this site.
+That full-load serving cost per reply (b) is the denominator for every cost multiple on this site.
 
 ## Choices every inference statement has to pin down
 
@@ -62,7 +62,7 @@ Saying "this model produced this reply" glosses over six concrete specification 
 | Stopping condition | Whether an end-of-sequence token halts generation early (our benchmark disables early stopping so every reply is 512 tokens) |
 | Checked token positions | Whether the proof verifies a single next token or all 512 tokens of the reply |
 
-[The statement](/statement) examines how two systems on our ladder specify the first four choices, while our benchmark [[request]] standardizes tokenization, stopping rules, and full-reply coverage.
+[The statement](/statement) examines how two systems on our ladder specify the first four choices, while our benchmark [[request]] standardises tokenization, stopping rules, and full-reply coverage.
 
 ## Why transformer inference is awkward to prove
 

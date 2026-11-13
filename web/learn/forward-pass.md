@@ -1,4 +1,4 @@
-A transformer's forward pass consists mostly of matrix multiplications, and surprisingly, those matrix multiplications are the cheapest part of the computation to prove. Almost all of the proving cost goes into committing to the execution trace and proving the non-linear steps (activations, normalizations, rescaling, and argmax). Building on the five ideas from [Proof systems, for ML engineers](/proof-systems), let's trace how a single inner product is proved and then scale up to a full layer and a multi-token reply.
+A transformer's forward pass consists mostly of matrix multiplications, and surprisingly, those matrix multiplications are the cheapest part of the computation to prove. Almost all of the proving cost goes into committing to the execution trace and proving the non-linear steps (activations, normalisations, rescaling, and argmax). Building on the ideas from [Proof systems, for ML engineers](/proof-systems), let's trace how a single inner product is proved and then scale up to a full layer and a multi-token reply.
 
 ## Proving a single inner product via sumcheck
 
@@ -12,7 +12,7 @@ The [[sumcheck]] protocol verifies the sum by folding the problem in half each r
 4. After two rounds of halving, a 4-element inner product is reduced to a claim about a single pair of blended scalars `a(r) · b(r)`.
 
 :::explore sumcheck
-Step through a two-round sumcheck for the inner product of four weights and four activations modulo 97. An honest prover always passes. If a cheating prover claims 26 instead of 25, it must send a false polynomial in Round 1, and that lie gets caught at the final check unless a random challenge happens to hit one of at most two root collisions out of 97. Across two rounds, a lie survives 384 times out of 9,409 possible challenge pairs (about 4%), bounded by `rounds × degree / field_size = 4 / 97`. When challenges are drawn from a 128-bit extension field, that false-pass probability drops below 1 in 10^37.
+Step through a two-round sumcheck for the inner product of four weights and four activations modulo 97. An honest prover always passes. If a cheating prover claims 26 instead of 25, it must send a false polynomial in Round 1, and that lie gets caught at the final check unless a random challenge happens to hit one of at most two root collisions out of 97. Across two rounds, a lie survives 384 times out of 9,409 possible challenge pairs (about 4 %), bounded by `rounds × degree / field_size = 4 / 97`. When challenges are drawn from a 128-bit extension field, that false-pass probability drops below 1 in 10^37.
 :::
 
 Three properties of this toy example hold at any scale:
@@ -38,7 +38,7 @@ To prove those non-linear operations, provers rely on [[lookup argument|lookup a
 
 Using lookup tables for non-linearities shapes every inference prover in three ways:
 
-- **Non-linear steps dominate proving time.** Every activation, normalization, and fixed-point rescaling at every layer and token position requires one or more lookups. In published benchmarks on GPT-2, the [zkGPT](https://www.usenix.org/system/files/usenixsecurity25-qu-zkgpt.pdf) authors report that lookup arguments consume 12.1 out of 21.8 seconds of total proving time, while the [DeepProve](https://eprint.iacr.org/2026/1112) authors report that "more than 50% of the prover cost comes from activation functions, Softmax, and requantization".
+- **Non-linear steps dominate proving time.** Every activation, normalisation, and fixed-point rescaling at every layer and token position requires one or more lookups. In published benchmarks on GPT-2, the [zkGPT](https://www.usenix.org/system/files/usenixsecurity25-qu-zkgpt.pdf) authors report that lookup arguments consume 12.1 out of 21.8 seconds of total proving time, while the [DeepProve](https://eprint.iacr.org/2026/1112) authors report that "more than 50% of the prover cost comes from activation functions, Softmax, and requantization".
 - **Higher precision explodes table work.** A lookup table over 16-bit inputs has `2^16 = 65,536` rows. To handle wider integers without gigantic tables, provers slice each number into smaller limbs (say, 8-bit chunks) and perform multiple lookups and range checks per value.
 - **Provers therefore quantize aggressively.** To keep lookup tables small, provers operate on low-bit quantized copies of the model, which is why our [Fidelity check](/method#fidelity-is-the-proved-model-the-publisher-s) is essential to verify that the quantized copy still behaves like the original model.
 
