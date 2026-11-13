@@ -77,13 +77,13 @@ Printed beside the fidelity check, gating nothing. They need the rung's stored `
 | llama.cpp: the quantized controls (Maverick) | `ref-fidelity` | `h200x4` | `IPROOFS_FIDELITY_PART=controls`, `IPROOFS_FIDELITY_GGUF`, `IPROOFS_FIDELITY_SLOTS=16`, `IPROOFS_TF_EACH=q8_0,q4_k_m` for one run per control, in that order |
 | FlashProve's own code (Maverick) | the scoring image, `systems/flashprove/Dockerfile.score` | `h200x2` | `IPROOFS_TF_SYSTEM=flashprove`, `IPROOFS_TF_IMAGE` |
 
-A scoring image is built by the images workflow with `dockerfile: Dockerfile.score`; it is the row's pinned image plus this commit's adapter file, and `system.yaml` keeps its pin. Run one prompt first on a new path (`IPROOFS_TF_LIMIT=1`): such a run is a trial and is not scored. Each job leaves `teacher-forced/` under the rung's fidelity folder of its upload: copy `run-*.json`, `top/`, `status-*.json`, `commands-*.jsonl` and `logs/` into `results/v1.0/fidelity/<rung>/teacher-forced/`, and keep `raw/` (the lists, about 1 MB per prompt and engine) outside the repository. Then, with every job's `raw/` folders merged into one directory:
+A scoring image is built by the images workflow with `dockerfile: Dockerfile.score`; it is the row's pinned image plus this commit's adapter file, and `system.yaml` keeps its pin. Run one prompt first on a new path (`IPROOFS_TF_LIMIT=1`): such a run is a trial and is not scored. Each job leaves `teacher-forced/<rung>/` in the release folder of its upload: copy `run-*.json`, `top/`, `status-*.json`, `commands-*.jsonl` and `logs/` into `results/v1.0/teacher-forced/<rung>/`, and keep `raw/` (the lists, about 1 MB per prompt and engine, and the servers' per-request logs) outside the repository. Then, with every job's `raw/` folders merged into one directory:
 
 ```sh
 uv run iproofs fidelity score --level L1 --rung llama-3.1-8b --release v1.0 --part teacher-forced --raw <the merged raw directory>
 ```
 
-writes `teacher-forced/kl.json` and `teacher-forced.json`. Without `--raw` it reads the stored `kl.json`.
+writes `kl.json` and `teacher-forced.json` in that folder. Without `--raw` it reads the stored `kl.json`.
 
 ## Step 4: release
 

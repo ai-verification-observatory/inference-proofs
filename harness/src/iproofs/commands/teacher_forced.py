@@ -2,7 +2,7 @@
 (RFC-0018 FI-10 to FI-15).
 
 `run` feeds each of the rung's prompts followed by the stored reference reply to one engine and
-stores, under `results/<release>/fidelity/<rung>/teacher-forced/`, the top token at every reply
+stores, under `results/<release>/teacher-forced/<rung>/`, the top token at every reply
 position (`top/<id>.jsonl`), the lists of most probable tokens (`raw/<id>/<prompt>.topk`, which
 stay outside the repository) and its record (`run-<name>.json`). The engine is the reference
 image (the reference itself and the controls it builds, in llama.cpp or vLLM), or with
@@ -11,7 +11,7 @@ image whose upstream commit must be the one the row's counted sessions ran.
 
 `score` runs on a CPU: agreement and the tests from the stored top tokens, KL from the stored
 values (`kl.json`), which `--raw DIR` measures first from the lists. It writes
-`teacher-forced.json` beside `fidelity.json` and never rewrites `fidelity.json` (APP-1).
+`teacher-forced.json` in that folder and never writes `fidelity.json` (APP-1).
 """
 
 import argparse
@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from iproofs.schema import SchemaRegistry
 
 DIR = "teacher-forced"
+LEFT_OUT = "not run: left out of this job (--only)"
 SCORED = "teacher-forced.json"
 KL_VALUES = "kl.json"
 # FI-13: whose computation a row's figures are, printed with them
@@ -43,7 +44,8 @@ COMPUTED_BY = {
 
 
 def tf_dir(results: Path, release: str, rung: str) -> Path:
-    return fid.fidelity_dir(results, release, rung) / DIR
+    """A rung's teacher-forced records, a folder of their own beside `fidelity/`."""
+    return results / release / DIR / rung
 
 
 # ---------------------------------------------------------------- run
@@ -273,8 +275,9 @@ def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
         ids.append(f.stem)
     if (src / DIR / "raw").is_dir():
         shutil.copytree(src / DIR / "raw", out / "raw", dirs_exist_ok=True)
-    logs = out / "logs" / name
     for f in sorted((src / "logs").glob("*")) if (src / "logs").is_dir() else []:
+        # a server's log holds a line per request (megabytes): it stays with the lists
+        logs = out / ("raw/server-logs" if f.name.startswith("server-") else "logs") / name
         logs.mkdir(parents=True, exist_ok=True)
         (logs / f.name).write_text(redact(f.read_text(errors="replace")))
     if (src / "status.json").is_file():
@@ -291,7 +294,7 @@ def _only(calls: list[fid.Call], not_run: dict[str, str], only: set[str] | None)
         chosen = [c for c in controls if c["id"] in only]
         for c in controls:
             if c["id"] not in only:
-                not_run[str(c["id"])] = "left out of this job (--only)"
+                not_run[str(c["id"])] = LEFT_OUT
         if chosen or name == "reference":
             kept.append((name, models, chosen, replies, extra))
     return kept
@@ -452,7 +455,11 @@ def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], r
 
     cause = "not run"
     for name, run in runs:
-        if ident in run.get("not_run", {}):
+        # a run that left the control out says so; a run that leaves it to another part
+        # (FI-9) names that part, which is the cause only while no part's run speaks of it
+        if ident in run.get("not_run", {}) and (
+            cause != LEFT_OUT or name.startswith("run-controls")
+        ):
             cause = str(run["not_run"][ident])
         if ident not in run.get("ids", []):
             status = tf / f"status-{run['name']}.json"
@@ -470,7 +477,7 @@ def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], r
             cause = f"not run on every prompt: {name} ran {run['prompts']} of {run['of']}"
             continue
         tops, causes = _tops(tf / "top" / f"{ident}.jsonl")
-        return Pass(ident, tops, causes), f"{ref}/{DIR}/{name}"
+        return Pass(ident, tops, causes), f"{ref}/{name}"
     return Pass(ident, None, {}, cause), None
 
 
@@ -501,8 +508,8 @@ def score(args: argparse.Namespace) -> int:
     level = load_level(root, args.level, registry=registry)
     rung = level.rung(args.rung)
     base = fid.fidelity_dir(root / "results", args.release, rung.id)
-    tf = base / DIR
-    ref = f"results/{args.release}/fidelity/{rung.id}"
+    tf = tf_dir(root / "results", args.release, rung.id)
+    ref = f"results/{args.release}/{DIR}/{rung.id}"  # how records name it (RFC-0012)
     runs = _runs(tf)
     if not runs:
         raise IProofsError(ErrorKind.CONFIG, f"no run record under {tf}: run `iproofs fidelity "
@@ -538,13 +545,14 @@ def score(args: argparse.Namespace) -> int:
         "n": n,
         "positions": level.request.output_tokens,
         "prompts_digest": stored["prompts_digest"],
-        "reference": {"replies": f"{ref}/reference.jsonl", "digest": reference_digest},
-    }
-    doc = build(header, rule, own, controls, rows, f"{ref}/{DIR}/{KL_VALUES}",
+        "reference": {"replies": f"results/{args.release}/fidelity/{rung.id}/reference.jsonl",
+                      "digest": reference_digest},
+    }  # fmt: skip
+    doc = build(header, rule, own, controls, rows, f"{ref}/{KL_VALUES}",
                 "reference" in kl, COMPUTED_BY)  # fmt: skip
     errors = registry.errors(SCHEMA, doc)
     if errors:
         raise IProofsError(ErrorKind.INTERNAL, f"{SCORED} fails {SCHEMA}: {errors[0]}")
-    write_json(base / SCORED, doc)
-    print(base / SCORED)
+    write_json(tf / SCORED, doc)
+    print(tf / SCORED)
     return 0

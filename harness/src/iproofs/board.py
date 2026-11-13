@@ -432,13 +432,14 @@ def _teacher_forced(root: Path, release: str, rung: str) -> dict[str, object] | 
     from iproofs.teacher_forced import board_block  # noqa: PLC0415
 
     base = fidelity_path(root, release, rung).parent
-    path = base / "teacher-forced.json"
+    folder = root / "results" / release / "teacher-forced" / rung
+    path = folder / "teacher-forced.json"
     if not path.is_file():
         return None
     doc = json.loads(path.read_text())
     reference = [json.loads(x) for x in (base / "reference.jsonl").read_text().splitlines() if x]
-    tops = {p.stem: p for p in (base / "teacher-forced" / "top").glob("*.jsonl")}
-    values = base / "teacher-forced" / "kl.json"
+    tops = {p.stem: p for p in (folder / "top").glob("*.jsonl")}
+    values = folder / "kl.json"
     kl = json.loads(values.read_text()) if values.is_file() else None
     try:
         return board_block(doc, rel(root, path), tops, reference, kl)

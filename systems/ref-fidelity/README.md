@@ -57,6 +57,8 @@ One limit of the server at the pin: it returns no list for a generated token tha
 
 Outputs: `/io/fidelity/teacher-forced/top/<id>.jsonl` and `raw/<id>/<prompt>.topk`. No KL tool runs and no reply file is written in this mode.
 
+Measured on Llama 3.1 8B (1 H200, one slot, `results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json`, n = 1 run): a pass over the 15 prompts (7,680 positions, each with its list of 256) took 73 to 104 s with the control's build and load, about 9 ms per position for the reference; 1 position of 61,440 came back without a list (in the `drop_blocks` control). The reference's own pass gives its stored reply at every position, as does its rerun: at one slot the engine repeats itself.
+
 ## Resources
 
 - Llama 3.1 8B: 16 GB at 16 bits, one H200; a few minutes per control for 15 prompts.

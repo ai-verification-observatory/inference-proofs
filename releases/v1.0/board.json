@@ -2299,7 +2299,318 @@
           "workload": "l1-l31-8b-p512-o512"
         }
       ],
-      "systems_run": 1
+      "systems_run": 1,
+      "teacher_forced": {
+        "alpha": 0.05,
+        "controls": [
+          {
+            "cause": null,
+            "failed": [],
+            "id": "reference-2",
+            "kind": "honest",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7680,
+              "reference_rest_mass": 0.007895729315256053,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/reference-2",
+              "unit": "nat/token",
+              "value": 0.0
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 512.0,
+            "mean_not_failed": 512.0,
+            "median": 512.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "q8_0",
+            "kind": "honest",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7680,
+              "reference_rest_mass": 0.008014450268320948,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q8_0",
+              "unit": "nat/token",
+              "value": 0.001732025552133593
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 503.6,
+            "mean_not_failed": 503.6,
+            "median": 504.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "q4_k_m",
+            "kind": "honest",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7680,
+              "reference_rest_mass": 0.00894205067014141,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q4_k_m",
+              "unit": "nat/token",
+              "value": 0.06918416508684878
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 464.06666666666666,
+            "mean_not_failed": 464.06666666666666,
+            "median": 467.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "q3_k_s",
+            "kind": "damaged",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7680,
+              "reference_rest_mass": 0.012904116667752197,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q3_k_s",
+              "unit": "nat/token",
+              "value": 0.33214928730292337
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 399.8,
+            "mean_not_failed": 399.8,
+            "median": 401.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "q2_k",
+            "kind": "damaged",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7680,
+              "reference_rest_mass": 0.016346138844509254,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q2_k",
+              "unit": "nat/token",
+              "value": 0.5518064489420713
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 369.73333333333335,
+            "mean_not_failed": 369.73333333333335,
+            "median": 374.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "drop-every-4th-block",
+            "kind": "damaged",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7679,
+              "reference_rest_mass": 0.09904039211558478,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/drop-every-4th-block",
+              "unit": "nat/token",
+              "value": 1.946127641276422
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 225.93333333333334,
+            "mean_not_failed": 225.93333333333334,
+            "median": 204.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "smaller-model",
+            "kind": "damaged",
+            "kl": {
+              "n": 15,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 7680,
+              "reference_rest_mass": 0.02280292019911199,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/smaller-model",
+              "unit": "nat/token",
+              "value": 0.6102319076797204
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 363.6,
+            "mean_not_failed": 363.6,
+            "median": 358.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+            "status": "ok"
+          }
+        ],
+        "gating": false,
+        "label": "computed by the system's own code on the reference reply, not by the proved computation",
+        "n": 15,
+        "path": "results/v1.0/teacher-forced/llama-3.1-8b/teacher-forced.json",
+        "positions": 512,
+        "reference_pass": {
+          "cause": null,
+          "mean": 512.0,
+          "median": 512.0,
+          "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+          "status": "ok"
+        },
+        "rows": {
+          "sash": {
+            "cause": null,
+            "computed_by": "SASH's witness extractor (harness.witness.extract --head), the program that writes the prover's input, run on the reference reply; no proof is made of these ids",
+            "failed": [],
+            "kl": {
+              "n": 15,
+              "note": "computed by the system's own code on the reference reply, not by the proved computation",
+              "positions": 7680,
+              "reference_rest_mass": 0.008731812810637386,
+              "source": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/sash",
+              "unit": "nat/token",
+              "value": 0.043721129985556675
+            },
+            "kl_note": "computed by the system's own code on the reference reply, not by the proved computation",
+            "label": "computed by the system's own code on the reference reply, not by the proved computation",
+            "mean": 471.2,
+            "mean_not_failed": 471.2,
+            "median": 471.0,
+            "n": 15,
+            "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json",
+            "status": "ok",
+            "tests": [
+              {
+                "a": "sash",
+                "b": "reference-2",
+                "method": "exact",
+                "n": 15,
+                "p": 1.0,
+                "seed": null
+              },
+              {
+                "a": "reference-2",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 3.0517578125e-05,
+                "seed": null
+              },
+              {
+                "a": "sash",
+                "b": "q8_0",
+                "method": "exact",
+                "n": 15,
+                "p": 1.0,
+                "seed": null
+              },
+              {
+                "a": "q8_0",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 3.0517578125e-05,
+                "seed": null
+              },
+              {
+                "a": "sash",
+                "b": "q4_k_m",
+                "method": "exact",
+                "n": 15,
+                "p": 0.005828857421875,
+                "seed": null
+              },
+              {
+                "a": "q4_k_m",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 0.9949951171875,
+                "seed": null
+              },
+              {
+                "a": "sash",
+                "b": "q3_k_s",
+                "method": "exact",
+                "n": 15,
+                "p": 3.0517578125e-05,
+                "seed": null
+              },
+              {
+                "a": "q3_k_s",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 1.0,
+                "seed": null
+              },
+              {
+                "a": "sash",
+                "b": "q2_k",
+                "method": "exact",
+                "n": 15,
+                "p": 3.0517578125e-05,
+                "seed": null
+              },
+              {
+                "a": "q2_k",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 1.0,
+                "seed": null
+              },
+              {
+                "a": "sash",
+                "b": "drop-every-4th-block",
+                "method": "exact",
+                "n": 15,
+                "p": 3.0517578125e-05,
+                "seed": null
+              },
+              {
+                "a": "drop-every-4th-block",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 1.0,
+                "seed": null
+              },
+              {
+                "a": "sash",
+                "b": "smaller-model",
+                "method": "exact",
+                "n": 15,
+                "p": 3.0517578125e-05,
+                "seed": null
+              },
+              {
+                "a": "smaller-model",
+                "b": "sash",
+                "method": "exact",
+                "n": 15,
+                "p": 1.0,
+                "seed": null
+              }
+            ]
+          }
+        },
+        "top_k": 256,
+        "unit": "agreeing positions"
+      }
     },
     {
       "baseline": {

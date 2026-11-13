@@ -42,7 +42,7 @@ def test_a_pass_is_read_only_from_a_run_of_every_prompt(tmp_path: Path) -> None:
     found, run = cmd._pass_of("sash", tmp_path, [trial, full], "ref", 3, D, D, D)
     assert found.tops == ((1, 2), None, (3, 4))
     assert found.causes == {1: "refused"}
-    assert run == "ref/teacher-forced/run-sash.json"
+    assert run == "ref/run-sash.json"
 
 
 def test_a_run_of_other_prompts_or_another_reference_is_refused(tmp_path: Path) -> None:
@@ -53,10 +53,14 @@ def test_a_run_of_other_prompts_or_another_reference_is_refused(tmp_path: Path) 
 
 
 def test_a_control_not_run_keeps_its_cause(tmp_path: Path) -> None:
-    why = "left out of this job (--only)"
+    why = "not run: left out of this job (--only)"
     left_out = ("run-controls.json", run_record("controls", [], not_run={"q2_k": why}))
     found, _ = cmd._pass_of("q2_k", tmp_path, [left_out], "ref", 3, D, D, D)
-    assert found.cause == "left out of this job (--only)"
+    assert found.cause == why
+    # the vLLM run of the rung leaves it to the controls part; the part's own word stays
+    other = ("run-vllm.json", run_record("vllm", [], not_run={"q2_k": "run in llama.cpp"}))
+    found, _ = cmd._pass_of("q2_k", tmp_path, [left_out, other], "ref", 3, D, D, D)
+    assert found.cause == why
     status = {"controls": {"q8_0": {"status": "failed", "cause": "llama-quantize exited 1"}}}
     (tmp_path / "status-controls.json").write_text(json.dumps(status))
     found, _ = cmd._pass_of("q8_0", tmp_path, [left_out], "ref", 3, D, D, D)
@@ -71,8 +75,7 @@ def test_only_keeps_the_named_controls_and_the_reference_call() -> None:
     not_run: dict[str, str] = {}
     kept = cmd._only(calls, not_run, {"q8_0"})
     assert [(c[0], [x["id"] for x in c[2]]) for c in kept] == [("reference", ["q8_0"])]
-    assert not_run == {"reference-2": "left out of this job (--only)",
-                       "smaller-model": "left out of this job (--only)"}  # fmt: skip
+    assert not_run == {"reference-2": cmd.LEFT_OUT, "smaller-model": cmd.LEFT_OUT}
 
 
 def test_prover_files_must_be_the_ones_the_sessions_record(tmp_path: Path) -> None:

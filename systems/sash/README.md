@@ -219,6 +219,13 @@ python -m harness.witness.extract --tokens 1024 --chunk 512 --layer 16 --spec y-
 
 Whose computation this is: the extractor writes the prover's input, and these are the values a proof of those ids would be handed. No proof is made of them. Not stated upstream at the pin: that `--ids` is meant for ids other than the model's own greedy reply; that the extractor's values equal the proved ones bit for bit (the closest sentence: "A witness and a spec are one object", [common.py L175](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/common.py#L175)); whether the segment proofs accept on such ids, with only the grid's token links failing (not run here).
 
+Measured on Level 1 (Llama 3.1 8B, the 15 prompts, 1 H200, `results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json`, n = 1 run):
+
+- The extractor refused none of the 15 reference replies: no no-wrap or fold assertion fired.
+- 16 head extractions (the system's own reply to prompt 0, then the 15) took 480 s, 30 s each with the model load, measured, n = 1.
+- On the system's own proved reply to prompt 0, `tok_head` was that reply at all 512 positions.
+- On each of the 15 prompts, the first position where `tok_head` differs from the reference token is the matched prefix of the proved reply (FI-3's stored score), so the extraction on given ids and the proved greedy run agree on where they leave the reference.
+
 The scoring image is [`Dockerfile.score`](Dockerfile.score): `system.yaml`'s image, the one the counted sessions ran, plus this directory's `entrypoint`. The `system.yaml` pin does not change.
 
 ### Open items before any Level 1 row is published

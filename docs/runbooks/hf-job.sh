@@ -796,6 +796,15 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
           --teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}" --only "$id" --name "controls-$id" \
           ${IPROOFS_TF_LIMIT:+--limit "$IPROOFS_TF_LIMIT"} || rc=$?
         log "fidelity run ($id) exit $rc"
+        # sent at once, so a job cancelled later keeps this control
+        if [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
+          if hfcli buckets sync "$DEV/$RELEASE/teacher-forced/$RUNG" \
+            "hf://buckets/$IPROOFS_UPLOAD_BUCKET/runs/partial-${IPROOFS_LABEL:-fidelity}/teacher-forced" --quiet; then
+            log "checkpoint: $id sent to runs/partial-${IPROOFS_LABEL:-fidelity}"
+          else
+            log "checkpoint: $id FAILED"
+          fi
+        fi
       done
       exit "$rc"
     fi

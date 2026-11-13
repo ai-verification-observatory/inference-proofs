@@ -15,7 +15,7 @@
         "scope": null,
         "source": {
           "kind": "adapter",
-          "ref": "results/v1.0/fidelity/gpt-2/teacher-forced/kl.json#/engines/q8_0"
+          "ref": "results/v1.0/teacher-forced/gpt-2/kl.json#/engines/q8_0"
         },
         "tier": "reported",
         "unit": "nat/token",
@@ -26,7 +26,7 @@
       "mean_not_failed": 3.3333333333333335,
       "median": 3.0,
       "recipe": "quantize",
-      "run": "results/v1.0/fidelity/gpt-2/teacher-forced/run-llama.cpp.json",
+      "run": "results/v1.0/teacher-forced/gpt-2/run-llama.cpp.json",
       "scores": [
         3,
         4,
@@ -58,7 +58,7 @@
     "rule": "per position, the KL divergence in nats between the reference's and the engine's distributions over: each token both lists of the top_k most probable tokens hold, and one outcome for every other token; at most the KL over the whole vocabulary. A rest mass below rest_floor is left out on the reference's side and taken as rest_floor on the engine's. A prompt's value is the mean over its positions",
     "top_k": 256,
     "unit": "nat/token",
-    "values": "results/v1.0/fidelity/gpt-2/teacher-forced/kl.json"
+    "values": "results/v1.0/teacher-forced/gpt-2/kl.json"
   },
   "level": {
     "digest": "sha256:abababababababababababababababababababababababababababababababab",
@@ -89,7 +89,7 @@
     "mean": 4.0,
     "mean_not_failed": 4.0,
     "median": 4.0,
-    "run": "results/v1.0/fidelity/gpt-2/teacher-forced/run-llama.cpp.json",
+    "run": "results/v1.0/teacher-forced/gpt-2/run-llama.cpp.json",
     "scores": [
       4,
       4,
@@ -117,7 +117,7 @@
         "scope": null,
         "source": {
           "kind": "adapter",
-          "ref": "results/v1.0/fidelity/gpt-2/teacher-forced/kl.json#/engines/sash"
+          "ref": "results/v1.0/teacher-forced/gpt-2/kl.json#/engines/sash"
         },
         "tier": "reported",
         "unit": "nat/token",
@@ -128,7 +128,7 @@
       "mean": 2.0,
       "mean_not_failed": 3.0,
       "median": 2.0,
-      "run": "results/v1.0/fidelity/gpt-2/teacher-forced/run-sash.json",
+      "run": "results/v1.0/teacher-forced/gpt-2/run-sash.json",
       "scores": [
         4,
         0,

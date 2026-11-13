@@ -18,6 +18,8 @@ What v0.32.0 can return, read at the pin: `prompt_logprobs` −1 returns the who
 
 Sequences go in 32 at a time. The `rerun` control sends them in reverse order, as it does for replies.
 
+Measured on Llama 4 Maverick (8 H200, `results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json`, n = 1 run): a pass over the 360 prompts took 40 s after a load of 291 s. The pass is a prefill of the whole sequence, while the stored reply was written by decoding, and in 16 bits the two do not always order near-tied logits alike: the reference's own pass gives its stored reply's token at a mean of 506.8 of 512 positions (median 508, n = 360). Of the positions that differ, a mean of 4.4 per prompt differ in both the pass and its rerun, and 1.6 in one of them only. An honest copy's ceiling on this rung is therefore about 507, not 512.
+
 ## Tests
 
 `tests/test_ref_fidelity_vllm.py` runs both calls, and the teacher-forced pass, on CPU against a stand-in for vLLM.

@@ -1,0 +1,229 @@
+{
+  "controls": {
+    "drop-every-4th-block": {
+      "build": {
+        "architecture": "llama",
+        "arrays_filtered": [],
+        "block_count": 32,
+        "dropped": [
+          3,
+          7,
+          11,
+          15,
+          19,
+          23,
+          27,
+          31
+        ],
+        "every": 4,
+        "group": 1,
+        "new_block_count": 24,
+        "new_tensors": 220,
+        "tensors": 292
+      },
+      "call": "reference",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/drop-every-4th-block.jsonl",
+      "top_k": 256
+    },
+    "q2_k": {
+      "build": {
+        "type": "Q2_K"
+      },
+      "call": "reference",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/q2_k.jsonl",
+      "top_k": 256
+    },
+    "q3_k_s": {
+      "build": {
+        "type": "Q3_K_S"
+      },
+      "call": "reference",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/q3_k_s.jsonl",
+      "top_k": 256
+    },
+    "q4_k_m": {
+      "build": {
+        "type": "Q4_K_M"
+      },
+      "call": "reference",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/q4_k_m.jsonl",
+      "top_k": 256
+    },
+    "q8_0": {
+      "build": {
+        "type": "Q8_0"
+      },
+      "call": "reference",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/q8_0.jsonl",
+      "top_k": 256
+    },
+    "reference-2": {
+      "build": {},
+      "call": "reference",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/reference-2.jsonl",
+      "top_k": 256
+    },
+    "smaller-model": {
+      "build": {},
+      "call": "other_model",
+      "cause": null,
+      "positions_without_list": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "status": "ok",
+      "top": "fidelity/teacher-forced/top/smaller-model.jsonl",
+      "top_k": 256
+    }
+  },
+  "reference": {
+    "cause": null,
+    "positions_without_list": [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "status": "ok",
+    "top": "fidelity/teacher-forced/top/reference.jsonl",
+    "top_k": 256
+  }
+}
