@@ -12,7 +12,7 @@ maintainers: [{handle: "AbdelStark", organisation: "Lucid Computing"}]
 # RFC-0014 B7: the images workflow builds systems/tessera/Dockerfile and writes its digest here.
 image:
   repository: "ghcr.io/ai-verification-observatory/tessera"
-  digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+  digest: "sha256:b8330b6331c16935b0ceb7ca484ca6e3d9000520ae66d55eb4854cfb9f6963dc"
 workloads: ["l31-8b-c1024"]
 profile: "prover-h100"
 deterministic_proofs: false
