@@ -1,6 +1,12 @@
 {
   "date": "2026-11-12",
-  "frontier": null,
+  "frontier": {
+    "rows": [
+      "flashprove"
+    ],
+    "rung": "llama-4-maverick",
+    "systems_run": 1
+  },
   "level": "L1",
   "level_digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
   "price": {
@@ -367,13 +373,14 @@
               "state": "held"
             },
             "model": {
-              "cause": "not resolved",
+              "cause": null,
               "evidence": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/8",
+                "results/v1.0/flashprove/2026-11-13-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/8",
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/2"
               ],
-              "note": "P1: no counted trial stored",
-              "state": "undecided"
+              "note": null,
+              "state": "held"
             },
             "no_weight_file": {
               "cause": null,
@@ -896,8 +903,8 @@
             "unit": "ratio",
             "value": null
           },
-          "passed": false,
-          "position": null,
+          "passed": true,
+          "position": 1,
           "proof_bytes_per_reply": {
             "grade": "derived",
             "null_reason": null,
@@ -940,7 +947,7 @@
             "unit": "ratio",
             "value": null
           },
-          "ranked": false,
+          "ranked": true,
           "replaced_sessions": [],
           "security": {
             "source": "systems/flashprove/claim.yaml#security.level",

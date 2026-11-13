@@ -3,10 +3,10 @@
     {
       "group": "Systems",
       "kind": "system",
-      "meta": "Llama 4 Maverick 17B-128E Instruct · not passed yet: Model check undecided",
+      "meta": "Llama 4 Maverick 17B-128E Instruct · passed",
       "name": "FlashProve",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><rect class=\"sl s2 amber\" data-step=\"amber_upper\" fill=\"#e49921\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><path class=\"sl s3 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 12H18V17H3ZM20 12H25V17H20Z\"/><path class=\"sl s4 hollow\" data-step=\"none\" data-cause=\"proof_build_not_run\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 green\" data-step=\"green\" fill=\"#6ffeb7\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
-      "terms": "flashprove llama 4 maverick 17b-128e instruct · not passed yet: model check undecided l1-maverick-p512-o512 flashprove",
+      "terms": "flashprove llama 4 maverick 17b-128e instruct · passed l1-maverick-p512-o512 flashprove",
       "tier": 0,
       "url": "/flashprove"
     },

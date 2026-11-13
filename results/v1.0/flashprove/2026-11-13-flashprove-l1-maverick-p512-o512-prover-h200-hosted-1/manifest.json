@@ -1,0 +1,1259 @@
+{
+  "claim": {
+    "card_version": 1,
+    "configuration": "exact-match-cp-verify",
+    "system": "flashprove"
+  },
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T15:12:01Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T15:12:01Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "commit",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T15:22:45Z",
+      "step": "commit"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T15:53:04Z",
+      "step": "prove"
+    },
+    {
+      "argv": [
+        "hosted",
+        "strace",
+        "-f",
+        "--seccomp-bpf",
+        "-e",
+        "trace=open,openat,openat2",
+        "-o",
+        "/tmp/iproofs/out/dev-results/v1.0/flashprove/.staging-2026-11-13-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/verify/req-0-trace/strace.txt",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:22:11Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:22:29Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:22:53Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:23:10Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:23:13Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:23:30Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:23:33Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:23:50Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:23:52Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:24:09Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:24:12Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:24:29Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:24:32Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:24:49Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:24:52Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:25:09Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:25:12Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:25:30Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:25:33Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:25:50Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:25:52Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:26:09Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:26:12Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:26:29Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:26:31Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:26:48Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:26:51Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:27:08Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:27:10Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:27:27Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:27:30Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:27:46Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:27:49Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:28:06Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:28:16Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:28:32Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:28:46Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:28:59Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:29:08Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:29:22Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:29:29Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "15,16,17,18,19,20,21,22",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "verify",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "15,16,17,18,19,20,21,22",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:29:45Z",
+      "step": "verify"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 1,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:31:44Z",
+      "step": "prove"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 1,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:43:30Z",
+      "step": "prove"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+        "python3",
+        "/opt/flashprove/entrypoint",
+        "prove",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14",
+      "exit_code": 1,
+      "gpus": "device=0",
+      "mems": "0",
+      "network": "provider",
+      "started_at": "2026-11-13T16:55:25Z",
+      "step": "prove"
+    }
+  ],
+  "commitment": {
+    "commitment_id": "a4a80d33337d7b3a3a8f53cb1f07807ac784095746b42e22a848c2a323a01f4a",
+    "prover_files": [
+      {
+        "bytes": 2153994240,
+        "digest": "sha256:90e8c4cbef5f88a5e48d3476e4ccf507b83816c7a6a6325b9f77800e7214d7f4",
+        "name": "isk.tar"
+      }
+    ],
+    "verifier_files": [
+      {
+        "bytes": 2629,
+        "digest": "sha256:91803480b032dc993722b50d552703024f2e78a991c7a239852855177772ee0d",
+        "name": "policy.txt"
+      },
+      {
+        "bytes": 2784,
+        "digest": "sha256:df29bd823d62431945c3124138ed52e1f677db9224c4196505a91663ac48ab1a",
+        "name": "KL.bin"
+      },
+      {
+        "bytes": 224975,
+        "digest": "sha256:a99b964bbd3648d6e3b4007fc9370b5c70c7e9668848daa039820bc9e03e8f80",
+        "name": "layout.txt"
+      },
+      {
+        "bytes": 3297920,
+        "digest": "sha256:27797ad1376af92367ed3c4bc30453aa6b4b04a0dde8ef326535136b67f680b4",
+        "name": "key.bin"
+      },
+      {
+        "bytes": 2944928,
+        "digest": "sha256:6e69ff041055439fb0b44dbd8ac2a8dda78eefb0e9d4cb9ed4b977ec58900ef2",
+        "name": "0.bin"
+      }
+    ]
+  },
+  "control": true,
+  "harness": {
+    "git_commit": "258891b9e02fcb1ecdc50e73337a2cab9736caeb",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": true,
+    "version": "0.1.0.dev0"
+  },
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted",
+      "shm_bytes": 2144787111936
+    },
+    "cpu": {
+      "bound_prover": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14
+      ],
+      "bound_verifier": [
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22
+      ],
+      "bound_verifier_single": [
+        15
+      ],
+      "cgroup_quota_cpus": 46.0,
+      "logical_cpus": 192,
+      "model": "Intel(R) Xeon(R) Platinum 8488C",
+      "physical_cores": 96,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 28792724586496
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 2,
+      "cuda_driver_api": "13.0",
+      "driver_version": "580.178.04",
+      "memory_total_mib": 143771,
+      "model": "NVIDIA H200",
+      "numa_node": 0,
+      "unbound_samples": [
+        {
+          "compute_processes_max": 0,
+          "index": 1,
+          "memory_used_mib_max": 615,
+          "samples": 1,
+          "util_percent_max": 0.0
+        }
+      ]
+    },
+    "kernel": {
+      "release": "6.12.113-138.209.amzn2023.x86_64"
+    },
+    "memory": {
+      "available_bytes_at_start": 1948105445376,
+      "cgroup_limit_bytes": 512000000000,
+      "total_bytes": 2147443154944
+    },
+    "numa": {
+      "bound_mems": [
+        0
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "Hugging Face Jobs",
+    "verifier_host": "same_as_prover"
+  },
+  "profile": {
+    "prover": "prover-h200-hosted",
+    "reference_digest": "sha256:5efc64f73f37097073813728a545d6037032e125586202b72bfa52acfe7949ee",
+    "reference_file": "reference/v1.0.yaml",
+    "verifier": "verifier-cpu",
+    "verifier_host": "same_as_prover"
+  },
+  "prompts_from": null,
+  "proofs": [
+    {
+      "archive": null,
+      "digest": "sha256:11275fde6e47c1ea9290c5841e7909eba7325458fcce4625f2b79e169c67d150",
+      "parts": [
+        {
+          "bytes": 18756668,
+          "digest": "sha256:ac92dea7a4ae8744025ff9e9a5e560812ededd534a528330b6903d70f65cfaad",
+          "name": "response.proof"
+        },
+        {
+          "bytes": 4,
+          "digest": "sha256:df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119",
+          "name": "response.y"
+        }
+      ],
+      "proof_id": "req-0"
+    }
+  ],
+  "provider": "Hugging Face Jobs",
+  "release": "v1.0",
+  "run_id": "2026-11-13-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "manifest/1",
+  "self_test": {
+    "checks": [
+      {
+        "name": "ST-CLOCK",
+        "passed": true
+      },
+      {
+        "name": "ST-SAMPLER",
+        "passed": true
+      },
+      {
+        "name": "ST-JITTER",
+        "passed": true
+      },
+      {
+        "name": "ST-CGROUP",
+        "passed": true
+      },
+      {
+        "name": "ST-WATCH",
+        "passed": true
+      },
+      {
+        "name": "ST-NVML",
+        "passed": true
+      }
+    ],
+    "passed": true
+  },
+  "session": {
+    "beacon": {
+      "round": 33867489,
+      "seed": "0xf12fe018f4f30a15"
+    },
+    "requests": 120,
+    "rung": "llama-4-maverick",
+    "slot": 1
+  },
+  "system": {
+    "adapter_commit": "aa5f31f97e76eccb77c7a52fcc54cbe9b8109dcb",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:f5ad8a1c1869b1fd416600cc8977ed3aaebed853a2659a4c36fa57e7fd5e136e",
+    "image": {
+      "digest_kind": "manifest",
+      "ref": "ghcr.io/ai-verification-observatory/flashprove@sha256:12611db7e7349ed667599730a7fa77e68459de38b7b2622ea4ac2339c1f656d1"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:b4af4c3070fece9b5264fd02cae3a9a1c27f215c052c783bc949ce7dbab56c48",
+        "name": "FlashProve",
+        "url": "https://github.com/anthropics/FlashProve.git#9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+      },
+      {
+        "digest": "sha256:e83889baabc497075506f91975be5fac0d45c5290b6b20582c8cd1e853d0c9f7",
+        "name": "wikitext-2-raw-v1-train",
+        "url": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/b08601e04326c79dfdd32d625aee71d232d685c3/wikitext-2-raw-v1/train-00000-of-00001.parquet"
+      },
+      {
+        "digest": "sha256:bcd04f0eadf90287bd26e1a183ac487d8a141b09b06aecb7725bbdd343640f2e",
+        "name": "llama2-tokenizer",
+        "url": "https://huggingface.co/TheBloke/Llama-2-7B-Chat-fp16/resolve/4594bf11fd5c66a9021d20f5ae5f3a246ce388a1/tokenizer.json"
+      },
+      {
+        "digest": "sha256:172c9eb4beafc72601690da3ccfcede5c2e6806a8d5ec1fca33e22acea8023a4",
+        "name": "llama4-tokenizer",
+        "url": "https://huggingface.co/unsloth/Llama-4-Maverick-17B-128E-Instruct/resolve/86c5ecb6f2fbddf604c60120125fb202e09f2556/tokenizer.json"
+      }
+    ],
+    "name": "flashprove",
+    "optional_subcommands": [
+      "perturb"
+    ],
+    "system_manifest_digest": "sha256:51ee544c6e84a5ae7da02cae4d7fe5d16e361552de77965667b96e1a4b3fb8b1",
+    "upstream": {
+      "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+      "repo": "anthropics/FlashProve"
+    }
+  },
+  "warnings": [
+    "conformance: PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "corpus_digest": "sha256:cedd5c414e7c70b99348140c4ddfde8754446c3d3085f77d5d29a4e7324f639a",
+    "file_digest": "sha256:7ac6799b4b2ec758a2c0ef64c9855d3e700a36548fdbf719cd4ff88114324893",
+    "id": "l1-maverick-p512-o512",
+    "model": {
+      "digest": "sha256:ae78123488ac58fb15235521566b8733339ccd438237c7b18f8a33ceefeae114",
+      "revision": "41032e5471dd6ea5b349062d978626215d6c5bba",
+      "source": "huggingface:unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF"
+    },
+    "prompt_seed": "0xf12fe018f4f30a15",
+    "prompt_set_digest": "sha256:d1fc453deaa2a5c86b2dd3552f7ae991ca8fbd03a4ea49428ca9f034049e1e31",
+    "steady_rule": "batch-membership",
+    "version": 1
+  }
+}

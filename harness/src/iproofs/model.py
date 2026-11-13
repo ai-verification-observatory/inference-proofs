@@ -472,12 +472,22 @@ DEFAULT_TIMEOUTS_S = {"info": 60.0, "setup": 3600.0, "commit": 14400.0, "prove":
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class FailedAnswer(Document):
+    """RFC-0018 CH-1a: a prove that exits 0 and answers the request "failed", as the system
+    documents it; `match` finds it in a trial's line, its group `requests` the request indices."""
+
+    match: str
+    source: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class P1Refusals(Document):
     """RFC-0018 CH-1a: the prover's stop names that mean "the weights are not the committed
     ones", as the system's documentation at the pinned commit gives them."""
 
     stops: tuple[str, ...]
     source: str
+    failed_answer: FailedAnswer | None = None
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)

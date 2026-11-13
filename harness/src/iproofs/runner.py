@@ -2197,7 +2197,7 @@ class Runner:
         final = Path(spec.results_root) / spec.release / spec.system / job.run_id
         run_json = self._pointer(final / "run.json")
         metrics: dict[str, QuantityTree] = {}
-        if job.failure is None:
+        if job.failure is None and not self.control_run:  # POL-2: a control run measures nothing
             try:
                 metrics = self._metrics(job, run_json)
             except IProofsError as e:

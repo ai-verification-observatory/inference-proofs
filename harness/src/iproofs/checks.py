@@ -279,17 +279,45 @@ def _pin(s: Session) -> tuple[object, object]:
 # ---------------------------------------------------------------- RUN
 
 
-def p1_refusal_stops(root: Path, system: str) -> tuple[str, ...]:
-    """CH-1a: the stops the system's system.yaml lists under `p1_refusals`."""
+@dataclass(frozen=True)
+class P1Refusals:
+    """CH-1a, from the system's system.yaml `p1_refusals`: the prover's stops that mean the
+    weights are not the committed ones, and the pattern of a prove that exited 0 answering every
+    request "failed" (`failed_answer.match`, its group `requests` the failed request indices)."""
+
+    stops: tuple[str, ...] = ()
+    failed_answer: re.Pattern[str] | None = None
+
+
+_EXCEPTION = re.compile(r"\b\w+(Error|Exception): ")
+
+
+def p1_refusals(root: Path, system: str) -> P1Refusals:
     path = root / "systems" / system / "system.yaml"
     doc = load_yaml(path) if path.is_file() else {}
     declared = doc.get("p1_refusals")
-    stops = declared.get("stops") if isinstance(declared, dict) else None
-    return tuple(str(s) for s in _list(stops))
+    if not isinstance(declared, dict):
+        return P1Refusals()
+    answer = declared.get("failed_answer")
+    match = answer.get("match") if isinstance(answer, dict) else None
+    return P1Refusals(tuple(str(s) for s in _list(declared.get("stops"))),
+                      re.compile(str(match)) if match else None)  # fmt: skip
 
 
-def _names_a_refusal(line: str, stops: Sequence[str]) -> bool:
-    return any(re.search(rf"(?<![\w-]){re.escape(s)}(?![\w-])", line) for s in stops)
+def _p1_refused(line: str, declared: P1Refusals, run: RunView) -> bool:
+    """CH-1a: the line names a declared stop; or it is the declared failed answer (a) for
+    requests whose honest proofs in the same run were all accepted (b), with no Python exception
+    in it (c; a layout guard ends the prover non-zero, so it never matches the answer)."""
+    if any(re.search(rf"(?<![\w-]){re.escape(s)}(?![\w-])", line) for s in declared.stops):
+        return True
+    found = declared.failed_answer.search(line) if declared.failed_answer else None
+    if found is None or _EXCEPTION.search(line):
+        return False
+    indices = [int(i) for i in re.findall(r"\d+", found.groupdict().get("requests") or "")]
+    honest = _requests(run)
+    return bool(indices) and all(
+        honest.get(i) and all(p.get("verdict") == "accept" for p in honest[i]) for i in indices
+    )
 
 
 def _forbidden_flags(root: Path, system: str) -> list[str]:
@@ -392,11 +420,12 @@ def _interior_ok(seed: object, trial: Mapping[str, object], output: int) -> bool
 
 
 def control_trials(
-    sessions: RowSessions, output: int, refusal_stops: Sequence[str] = ()
+    sessions: RowSessions, output: int, refusals: P1Refusals | None = None
 ) -> tuple[list[Trial], list[str], str | None]:
     """Every trial of the counted sessions' `controls.json`, with the ids of the controls
     present and the note of a perturbed commitment equal to the honest one (CH-2). A P1
-    `prover_failed` trial whose line names none of `refusal_stops` counts as `error` (CH-1a)."""
+    `prover_failed` trial that is not a declared refusal counts as `error` (CH-1a)."""
+    declared = refusals or P1Refusals()
     trials: list[Trial] = []
     present: list[str] = []
     same_commitment = None
@@ -426,8 +455,8 @@ def control_trials(
                     continue
                 position = _position(t) if cid == "C1" else None
                 outcome = str(t.get("outcome"))
-                if outcome == "prover_failed" and not _names_a_refusal(
-                    str(t.get("raw_last_line") or ""), refusal_stops
+                if outcome == "prover_failed" and not _p1_refused(
+                    str(t.get("raw_last_line") or ""), declared, s.run
                 ):
                     outcome = "error"
                 if (
@@ -700,7 +729,7 @@ def checks_from(
 ) -> dict[str, CheckState]:
     """`row_checks` over sessions already read."""
     output = int_of(field_of(level, "request"), "output_tokens", 0)
-    trials, present, same = control_trials(sessions, output, p1_refusal_stops(root, system))
+    trials, present, same = control_trials(sessions, output, p1_refusals(root, system))
 
     def control(cid: str, refused: frozenset[str], position: str | None = None) -> CheckState:
         return control_state(trials, present, cid, refused, position)

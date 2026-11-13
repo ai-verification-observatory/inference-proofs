@@ -39,3 +39,9 @@ forbidden_flags: ["-public-weights", "-keep-for-the-audit"]
 p1_refusals:
   stops: ["hc-own-node"]
   source: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/prover/docs/ends-in-short.md"
+  # "cp_prove's rule: a failed check on a hidden value neither ends the process nor changes its
+  # status; the request, or its batch, is answered 'failed'" (ends-in-short.md, "What an exit
+  # gives away"): cp_prove exits 0 (p258 end 0) and every request is failed, none unanswered
+  failed_answer:
+    match: "cp_prove exited 0, last line 'p258 end 0'; failed \\[(?P<requests>\\d+(, \\d+)*)\\], unanswered \\[\\]"
+    source: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/prover/docs/ends-in-short.md#what-an-exit-gives-away"
