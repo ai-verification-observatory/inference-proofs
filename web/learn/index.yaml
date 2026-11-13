@@ -20,9 +20,8 @@ tracks:
       - slug: proof-of-inference
         title: What a proof of inference is
         summary: >-
-          A cryptographic receipt that lets anyone check that a pre-committed model produced a
-          specific reply to a specific prompt, without re-running the model or seeing its
-          weights. What an accepted proof tells you, and what it leaves out.
+          A cryptographic receipt that lets anyone check that a committed model gave a specific
+          reply to a prompt, without re-running the model or seeing its weights.
       - slug: three-ways
         title: Three ways to check
         summary: >-
@@ -85,5 +84,5 @@ glossary:
   slug: glossary
   title: Glossary
   summary: >-
-    Plain-English definitions of the technical and policy terms used across these pages, noting
-    where cryptographic usage differs from everyday policy language.
+    Plain-English definitions of the terms used across this site, with their exact technical
+    meaning where the two differ.

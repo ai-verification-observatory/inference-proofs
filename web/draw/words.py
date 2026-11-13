@@ -31,7 +31,7 @@ CHECK_NAME = {"run": "Run", "model": "Model", "prompt": "Prompt", "reply": "Repl
               "no_weight_file": "Verify without weights", "fidelity": "Fidelity"}  # fmt: skip
 # {slots}, {attempts} and {reply_tokens} are the level file's constants (`overview.filled`)
 CHECK_HELD = {
-    "run": "Across all {slots} sessions (each starting cold on its own prompt set), the system "
+    "run": "Across all {slots} sessions (each on its own prompt set), the system "
     "returned an accepted proof for every request, running the published code at its pinned "
     "commit without patches or proof-weakening flags.",
     "model": "When we modified a single model weight and generated a proof, the verifier "
@@ -210,8 +210,8 @@ PETAL_RULE = {
 }
 # the checks page: why a petal is hollow, and that silence is not
 HOLLOW_RULE = (
-    "A petal is drawn as a hollow dashed outline while it is still undecided: either we have "
-    "not yet recorded the system's properties file at the pinned commit, its fidelity run has "
+    "A petal is drawn as a hollow outline in the muted ink while it is still undecided: either "
+    "we have not yet recorded the system's properties file at the pinned commit, its fidelity run has "
     "not finished, or (for Machine-checked) we have not yet run a clean build of the cited "
     "formal proof. Silence in the publisher's documentation never makes a petal hollow: if the "
     "documents at the pinned commit do not state a property, the petal is red with an open "
@@ -248,7 +248,7 @@ FIGURE_RULE = {
          "session, proofs released within {gap} of the previous proof form a release group. We "
          "measure the GPU time from the end of the first group to the final proof of the session "
          "and divide by the number of replies in those later groups (including token generation). "
-         "Reported as the mean across {slots} cold-start sessions."),
+         "Reported as the mean across {slots} sessions."),
         ("serving", "Baseline GPU-seconds per reply (b) for plain unproved serving: we run the "
          "publisher's original model weights under the pinned inference engine on the fewest H200 "
          "GPUs that fit the model, at full load. Full load is the lowest concurrency that reaches "
