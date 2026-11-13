@@ -1,4 +1,15 @@
 {
+  "credit": {
+    "builder": {
+      "name": "AI Verification Observatory",
+      "url": "https://github.com/ai-verification-observatory"
+    },
+    "lead": {
+      "name": "Lucid Computing",
+      "url": "https://lucidcomputing.ai/"
+    },
+    "members": []
+  },
   "gpus": {
     "NVIDIA H100 80GB HBM3": "H100",
     "NVIDIA H200": "H200"
@@ -214,11 +225,11 @@
         "Llama-2-7B"
       ],
       "name": "VerInf",
-      "reason": "another kind of check",
+      "reason": "a different statement",
       "status": {
         "state": "active"
       },
-      "technique": "hash-based IOP (Merkle trees, Fiat-Shamir) over linear-code commitments; may use sumcheck and lookups inside"
+      "technique": "Ligero over hash-based commitments (Merkle trees, sequential Fiat-Shamir); matrix multiplications by Freivalds' check, nonlinearities by LogUp lookups"
     },
     "zkgpt": {
       "code": "open_licence",
