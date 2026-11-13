@@ -1,0 +1,16 @@
+# The scoring image of RFC-0018 FI-14, for the adapter's `score` subcommand (AD-7): the image the
+# row's counted sessions ran, by digest (system.yaml `image`), with this checkout's adapter files
+# in place of the ones it holds. Upstream's source, toolchain and built programs are the
+# sessions' own bytes; no layer below is rebuilt, and /opt/iproofs/inputs.json stays the base's.
+# system.yaml's pin and the Level 1 entries are unchanged: sessions run the base image.
+# Build with the systems/ directory as context (the images workflow, dockerfile Dockerfile.score):
+#   docker build --build-arg IPROOFS_ADAPTER_COMMIT=$(git rev-parse HEAD) \
+#     --build-arg IPROOFS_ADAPTER_DIRTY=$(test -z "$(git status --porcelain)" && echo false || echo true) \
+#     -f systems/flashprove/Dockerfile.score systems
+FROM ghcr.io/ai-verification-observatory/flashprove@sha256:12611db7e7349ed667599730a7fa77e68459de38b7b2622ea4ac2339c1f656d1
+COPY flashprove/entrypoint /opt/flashprove/entrypoint
+ARG IPROOFS_ADAPTER_COMMIT=unknown
+ARG IPROOFS_ADAPTER_DIRTY=true
+ENV IPROOFS_ADAPTER_COMMIT=${IPROOFS_ADAPTER_COMMIT} IPROOFS_ADAPTER_DIRTY=${IPROOFS_ADAPTER_DIRTY}
+USER 10001
+ENTRYPOINT ["python3", "/opt/flashprove/entrypoint"]

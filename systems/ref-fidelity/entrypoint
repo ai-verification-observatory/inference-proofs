@@ -28,6 +28,15 @@ A control that fails is recorded as failed with its cause and the call goes on (
 §Failure modes). /io/fidelity/status.json gathers every call's outcome; /io/commands.jsonl
 logs every command. `commit` and `verify` do not exist for a reference job.
 
+With `teacher_forced` in the job (RFC-0018 FI-10 to FI-13) a call builds the same model files
+and, in place of steps 2 and 3, feeds each prompt followed by the stored reference reply: one
+`/completion` request per reply position, the prompt being the token ids up to that position,
+one token generated, `cache_prompt` on so only the newest token is evaluated. The generated
+token is the model's own top token there; with `top_k`, `n_probs` returns the most probable
+tokens with their log-probabilities. Token ids go in and come out: nothing is detokenized.
+Outputs: /io/fidelity/teacher-forced/top/<id>.jsonl (one list of top tokens per prompt) and
+raw/<id>/<prompt>.topk (the lists).
+
 IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests or a
 hosted job run this file as a process; IPROOFS_LLAMA_BIN and IPROOFS_LLAMA_SRC name the
 llama.cpp binaries and source tree outside the image.
@@ -37,11 +46,13 @@ import concurrent.futures
 import json
 import os
 import socket
+import struct
 import subprocess
 import sys
 import time
 import urllib.error
 import urllib.request
+from array import array
 from pathlib import Path
 
 CONVERT_DEPS = os.environ.get("IPROOFS_CONVERT_DEPS", "/opt/convert-deps")
@@ -367,7 +378,160 @@ def run_control(control: dict, reference: Path | None, job: dict, phases: list) 
     return record
 
 
+# ---------------------------------------------------------------- teacher-forced (FI-10 to FI-13)
+
+TF = "/io/fidelity/teacher-forced"
+
+
+def position_body(prefix: list[int], slot: int, k: int) -> dict[str, object]:
+    """One reply position (tools/server/README.md at the pin): the prompt is the token ids up
+    to the position, so no text is tokenized; one token is generated, greedily as in
+    `completion_body`; `cache_prompt` true "re-use[s] KV cache from a previous request", so the
+    prompt is evaluated once in a batch and each later position evaluates one token, as greedy
+    generation does; `id_slot` keeps a prompt on one slot. With k > 0, `n_probs` returns "the
+    probabilities of top N tokens for each generated token", computed "via a simple softmax of
+    the logits without considering any other sampler settings"."""
+    return {"prompt": prefix, "n_predict": 1, "ignore_eos": False, "temperature": 0.0,
+            "samplers": ["temperature"], "n_probs": k, "cache_prompt": True, "id_slot": slot,
+            "return_tokens": True, "stream": False}  # fmt: skip
+
+
+def listed_row(entries: list[dict], top: int, k: int, where: str) -> tuple[list[int], list[float]]:
+    """`top_logprobs` of one position as k ids, most probable first and lower id first among
+    equal values, with their log-probabilities (a probability the server prints as 0 has none:
+    -inf). The generated token must hold the largest value."""
+    pairs = sorted((-(e["logprob"] if e["logprob"] is not None else float("-inf")), int(e["id"]))
+                   for e in entries)  # fmt: skip
+    if len(pairs) != k:
+        raise ToolFailed(f"llama-server listed {len(pairs)} tokens for n_probs {k} at {where}")
+    if top not in [i for neg, i in pairs if neg == pairs[0][0]]:
+        raise ToolFailed(f"llama-server's token {top} is not its most probable one at {where}")
+    return [i for _, i in pairs], [-neg for neg, _ in pairs]
+
+
+def forced_prompt(server: "LlamaServer", prompt: list[int], reply: list[int], slot: int, k: int,
+                  index: int) -> tuple[list[int], list[tuple[list[int], list[float]] | None]]:  # fmt: skip
+    """The model's top token at each position of `reply` after `prompt`, and with k > 0 its
+    list there. The server returns no list for a token that ends inside a UTF-8 character
+    (tools/server/server-context.cpp L2149 to L2177 at the pin: `add_token` runs only on a
+    complete character): that position's list is None, and its top token is still `tokens`."""
+    top: list[int] = []
+    rows: list[tuple[list[int], list[float]] | None] = []
+    for t in range(len(reply)):
+        doc = server.post("/completion", position_body(prompt + reply[:t], slot, k))
+        tokens = doc.get("tokens") or []
+        if not isinstance(tokens, list) or not tokens:
+            raise ToolFailed(f"llama-server returned no token at prompt {index}, position {t}")
+        top.append(int(tokens[0]))
+        if k > 0:
+            probs = doc.get("completion_probabilities") or []
+            listed = probs[0].get("top_logprobs") if isinstance(probs, list) and probs else None
+            rows.append(listed_row(listed, top[-1], k, f"prompt {index}, position {t}")
+                        if listed else None)  # fmt: skip
+    return top, rows
+
+
+def write_topk(path: Path, rows: list[tuple[list[int], list[float]] | None], k: int) -> None:
+    """RFC-0018 AD-7's file: `TFK1`, the positions and k (uint32), the ids (int32) and the
+    log-probabilities (float32), each positions x k, little-endian; a position without a list
+    holds the id -1 throughout."""
+    ids = array("i", [t for row in rows for t in (row[0] if row else [-1] * k)])
+    lps = array("f", [x for row in rows for x in (row[1] if row else [0.0] * k)])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(b"TFK1" + struct.pack("<II", len(rows), k) + ids.tobytes() + lps.tobytes())
+    os.replace(tmp, path)
+
+
+def teacher_forced(model: Path, ident: str, job: dict) -> dict[str, object]:
+    """One model's pass over every prompt and its reference reply; `slots` prompts at once,
+    each on a slot of its own."""
+    prompts = read_jsonl(host(job["prompts_file"]))
+    replies = read_jsonl(host(job["teacher_forced"]["replies_file"]))
+    if len(replies) != len(prompts):
+        raise ToolFailed(f"{len(replies)} reference replies for {len(prompts)} prompts")
+    k, slots = int(job["teacher_forced"].get("top_k", 0)), max(1, int(job.get("slots", 1)))
+    ctx = max(len(p) for p in prompts) + max(len(r) for r in replies) + CTX_MARGIN
+    server = make_server(model, slots, ctx, host(f"/io/fidelity/logs/server-tf-{ident}.log"))
+
+    def lane(slot: int) -> list[tuple[int, list[int], int]]:
+        done = []
+        for i in range(slot, len(prompts), slots):
+            top, rows = forced_prompt(server, prompts[i], replies[i], slot, k, i)
+            if k > 0:
+                write_topk(host(f"{TF}/raw/{ident}/{i}.topk"), rows, k)
+            done.append((i, top, sum(r is None for r in rows)))
+        return done
+
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=slots) as pool:
+            done = sorted(x for part in pool.map(lane, range(slots)) for x in part)
+    finally:
+        server.stop()
+    write_replies(host(f"{TF}/top/{ident}.jsonl"), [top for _, top, _ in done])
+    return {"top": f"fidelity/teacher-forced/top/{ident}.jsonl", "top_k": k,
+            "positions_without_list": [n for _, _, n in done]}  # fmt: skip
+
+
+def forced_control(control: dict, reference: Path | None, job: dict, phases: list) -> dict:
+    """Build one control and run its pass; a failure becomes its record."""
+    started = time.monotonic()
+    record: dict[str, object] = {"call": job["call"], "status": "failed", "cause": None,
+                                 "build": {}}  # fmt: skip
+    built: Path | None = None
+    try:
+        model, made, info = build(control, reference, job)
+        built = model if made else None
+        record["build"] = info
+        record.update(teacher_forced(model, control["id"], job))
+        record["status"] = "ok"
+    except ToolFailed as e:
+        record["cause"] = str(e)
+    finally:
+        if built is not None:
+            built.unlink(missing_ok=True)
+    phases.append({"name": phase(control["id"]), "seconds": time.monotonic() - started})
+    return record
+
+
+def prove_teacher_forced(job: dict) -> dict:
+    for sub in ("work", "fidelity/logs", "fidelity/teacher-forced/top"):
+        host(f"/io/{sub}").mkdir(parents=True, exist_ok=True)
+    phases: list[dict] = []
+    reference: Path | None = None
+    update: dict = {"controls": {}}
+    call = job["call"]
+    given = job.get("reference_gguf")
+    if call == "controls":
+        if not given or not host(given).is_file():
+            raise SystemExit(f"ref-fidelity: a controls call needs reference_gguf, not {given!r}")
+        reference = host(given)
+    if call == "reference":
+        reference = host("/io/work/reference.gguf")
+        started = time.monotonic()
+        try:
+            convert(host(job["model_dir"]), reference, job["dtype"])
+            phases.append({"name": "convert", "seconds": time.monotonic() - started})
+            started = time.monotonic()
+            update["reference"] = {"status": "ok", "cause": None,
+                                   **teacher_forced(reference, "reference", job)}  # fmt: skip
+        except ToolFailed as e:
+            save_status({"reference": {"status": "failed", "cause": str(e)}})
+            raise SystemExit(f"ref-fidelity: {e}") from e
+        phases.append({"name": "reference", "seconds": time.monotonic() - started})
+    for control in job["controls"]:
+        update["controls"][control["id"]] = forced_control(control, reference, job, phases)
+        save_status({"controls": dict(update["controls"]),
+                     **{k: v for k, v in update.items() if k != "controls"}})  # fmt: skip
+    if reference is not None and call == "reference":
+        reference.unlink(missing_ok=True)
+    save_status(update)
+    return {**base("prove"), "proofs": [], "phases": phases}
+
+
 def prove(job: dict) -> dict:
+    if job.get("teacher_forced"):
+        return prove_teacher_forced(job)
     for sub in ("work", "fidelity/replies", "fidelity/kl", "fidelity/logs"):
         host(f"/io/{sub}").mkdir(parents=True, exist_ok=True)
     phases: list[dict] = []

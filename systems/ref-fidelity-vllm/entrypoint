@@ -17,6 +17,16 @@ put back in prompt order. A recipe this image does not build (`quantize`, `drop_
 recorded failed with its cause; the llama.cpp image builds the quantized controls (FI-9). No KL:
 llama.cpp's KL base needs the 16-bit file in llama.cpp (FI-7).
 
+With `teacher_forced` in the job (RFC-0018 FI-10 to FI-13) a call generates nothing: each
+prompt followed by the stored reference reply goes in as token ids with `prompt_logprobs`, which
+returns, for every position of that sequence, the most probable tokens with their
+log-probabilities (vllm/sampling_params.py at the pin: "Number of log probabilities to return
+per prompt token"). Entry j of a request's `prompt_logprobs` is the distribution after tokens
+0 to j - 1, so the entries from the prompt's length on are the reply's positions. The top token
+of a position is the most probable listed, the lowest id among equal values. Outputs:
+/io/fidelity/teacher-forced/top/<id>.jsonl and raw/<id>/<prompt>.topk, as ref-fidelity writes
+them. The engine then starts with `max_logprobs` at the number listed.
+
 /io/fidelity/status.json has the same form as ref-fidelity's. IPROOFS_IO and IPROOFS_MODELS map
 /io and /models to host directories when the tests or a hosted job run this file as a process;
 IPROOFS_VLLM_FAKE names a module that stands in for vLLM in the CPU tests.
@@ -25,8 +35,10 @@ IPROOFS_VLLM_FAKE names a module that stands in for vLLM in the CPU tests.
 import importlib
 import json
 import os
+import struct
 import sys
 import time
+from array import array
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -89,12 +101,24 @@ def engine_environment() -> None:
 class Engine:
     """One model in vLLM's offline engine."""
 
-    def __init__(self, model: Path, gpus: int, max_len: int) -> None:
+    def __init__(self, model: Path, gpus: int, max_len: int, listed: int = 0) -> None:
         v = vllm()
         self.v = v
+        more = {"max_logprobs": listed} if listed else {}  # the cap on prompt_logprobs
         self.llm = v.LLM(model=str(model), tensor_parallel_size=gpus, dtype="bfloat16",  # type: ignore[attr-defined]
                          max_model_len=max_len, enable_prefix_caching=False, seed=0,
-                         limit_mm_per_prompt={"image": 0}, trust_remote_code=False)  # fmt: skip
+                         limit_mm_per_prompt={"image": 0}, trust_remote_code=False,
+                         **more)  # fmt: skip
+
+    def forced(self, sequences: list[list[int]], listed: int) -> list[object]:
+        """Each sequence's `prompt_logprobs` with `listed` tokens per position; one token is
+        generated and not read. `flat_logprobs` asks for vLLM's flat container (vllm/logprobs.py
+        FlatLogprobs), which `position_rows` reads as it reads a list of dicts."""
+        params = self.v.SamplingParams(temperature=0.0, max_tokens=1, prompt_logprobs=listed,  # type: ignore[attr-defined]
+                                       flat_logprobs=True, detokenize=False)  # fmt: skip
+        outs = self.llm.generate([{"prompt_token_ids": s} for s in sequences], params,
+                                 use_tqdm=False)  # fmt: skip
+        return [o.prompt_logprobs for o in outs]
 
     def replies(self, prompts: list[list[int]], n: int) -> list[list[int]]:
         params = self.v.SamplingParams(temperature=0.0, max_tokens=n, min_tokens=n,  # type: ignore[attr-defined]
@@ -126,7 +150,133 @@ def phase(name: str) -> str:
     return "".join(c if c.isalnum() else "_" for c in name.lower())[:32].strip("_") or "phase"
 
 
+# ---------------------------------------------------------------- teacher-forced (FI-10 to FI-13)
+
+TF = "/io/fidelity/teacher-forced"
+MIN_LISTED = 5  # tokens listed per position when only the top token is wanted: enough to see
+# every token that shares the largest value
+CHUNK = 32  # sequences per generate call, so one call's lists stay small
+
+
+def position_rows(found: object, first: int, count: int) -> list[tuple[list[int], list[float]]]:
+    """Entries first .. first + count - 1 of a request's prompt_logprobs as (ids, values): from
+    vLLM's FlatLogprobs (`start_indices`, `end_indices`, `token_ids`, `logprobs`) or from a list
+    of {token id: Logprob}."""
+    rows = []
+    for j in range(first, first + count):
+        if hasattr(found, "start_indices"):
+            a, b = found.start_indices[j], found.end_indices[j]
+            rows.append((list(found.token_ids[a:b]), list(found.logprobs[a:b])))
+        else:
+            entry = found[j]  # type: ignore[index]
+            rows.append((list(entry), [x.logprob for x in entry.values()]))
+    return rows
+
+
+def ordered(ids: list[int], values: list[float], k: int) -> tuple[list[int], list[float]]:
+    """A position's k most probable tokens, most probable first, lower id first among equal
+    values. vLLM lists the sequence's own token before the most probable ones, so an id can
+    come twice."""
+    pairs = sorted({(-v, int(i)) for i, v in zip(ids, values, strict=True)})[:k]
+    if len(pairs) != k:
+        raise RuntimeError(f"a position lists {len(pairs)} tokens, {k} were asked for")
+    return [i for _, i in pairs], [-v for v, _ in pairs]
+
+
+def write_topk(path: Path, rows: list[tuple[list[int], list[float]]], k: int) -> None:
+    """RFC-0018 AD-7's file: `TFK1`, the positions and k (uint32), the ids (int32) and the
+    log-probabilities (float32), each positions x k, little-endian."""
+    ids = array("i", [t for row in rows for t in row[0][:k]])
+    lps = array("f", [x for row in rows for x in row[1][:k]])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(b"TFK1" + struct.pack("<II", len(rows), k) + ids.tobytes() + lps.tobytes())
+    os.replace(tmp, path)
+
+
+def teacher_forced(engine: Engine, ident: str, prompts: list[list[int]],
+                   replies: list[list[int]], k: int, reverse: bool = False) -> dict:  # fmt: skip
+    """One pass over every prompt and its reference reply, `CHUNK` sequences per call; the
+    rerun sends them in reverse order, so its batches differ from the reference's."""
+    listed = max(k, MIN_LISTED)
+    order = list(range(len(prompts)))[:: -1 if reverse else 1]
+    tops: list[list[int]] = [[] for _ in prompts]
+    for at in range(0, len(order), CHUNK):
+        part = order[at : at + CHUNK]
+        found = engine.forced([prompts[i] + replies[i] for i in part], listed)
+        for i, lists in zip(part, found, strict=True):
+            rows = [ordered(ids, values, listed)
+                    for ids, values in position_rows(lists, len(prompts[i]), len(replies[i]))]
+            tops[i] = [row[0][0] for row in rows]
+            if k > 0:
+                write_topk(host(f"{TF}/raw/{ident}/{i}.topk"), rows, k)
+    write_replies(host(f"{TF}/top/{ident}.jsonl"), tops)
+    return {"top": f"fidelity/teacher-forced/top/{ident}.jsonl", "top_k": k,
+            "positions_without_list": [0] * len(prompts)}  # fmt: skip
+
+
+def prove_teacher_forced(job: dict) -> dict:
+    for sub in ("work", "fidelity/logs", "fidelity/teacher-forced/top"):
+        host(f"/io/{sub}").mkdir(parents=True, exist_ok=True)
+    engine_environment()
+    prompts = read_jsonl(host(job["prompts_file"]))
+    replies = read_jsonl(host(job["teacher_forced"]["replies_file"]))
+    if len(replies) != len(prompts):
+        raise SystemExit(f"ref-fidelity-vllm: {len(replies)} reference replies for "
+                         f"{len(prompts)} prompts")  # fmt: skip
+    k = int(job["teacher_forced"].get("top_k", 0))
+    gpus = len([g for g in os.environ.get("CUDA_VISIBLE_DEVICES", "0").split(",") if g])
+    phases: list[dict] = []
+    update: dict = {"controls": {}}
+    call = job["call"]
+    started = time.monotonic()
+    longest = max(len(p) + len(r) for p, r in zip(prompts, replies, strict=True))
+    try:
+        engine = make_engine(host(job["model_dir"]), gpus, longest + CTX_MARGIN,
+                             max(k, MIN_LISTED))  # fmt: skip
+    except Exception as e:  # noqa: BLE001 (the engine's own error is the cause recorded)
+        cause = f"vLLM did not load the model: {type(e).__name__}: {e}"
+        if call == "reference":
+            save_status({"reference": {"status": "failed", "cause": cause}})
+            raise SystemExit(f"ref-fidelity-vllm: {cause}") from e
+        save_status({"controls": {c["id"]: {"call": call, "status": "failed", "cause": cause,
+                                            "build": {}} for c in job["controls"]}})  # fmt: skip
+        return {**base("prove"), "proofs": [], "phases": phases}
+    phases.append({"name": "load", "seconds": time.monotonic() - started})
+    if call == "reference":
+        started = time.monotonic()
+        try:
+            done = teacher_forced(engine, "reference", prompts, replies, k)
+        except Exception as e:  # noqa: BLE001
+            save_status({"reference": {"status": "failed", "cause": f"{type(e).__name__}: {e}"}})
+            raise SystemExit(f"ref-fidelity-vllm: {e}") from e
+        phases.append({"name": "reference", "seconds": time.monotonic() - started})
+        update["reference"] = {"status": "ok", "cause": None, **done}
+    for control in job["controls"]:
+        started = time.monotonic()
+        record: dict[str, object] = {"call": call, "status": "failed", "cause": None, "build": {}}
+        recipe = control["recipe"]
+        try:
+            if recipe == "rerun" and call == "reference":
+                record.update(teacher_forced(engine, control["id"], prompts, replies, k, True))
+                record["build"] = {"order": "prompts in reverse order"}
+            elif recipe == "other_model" and call == "other_model":
+                record.update(teacher_forced(engine, control["id"], prompts, replies, k))
+            else:
+                raise RuntimeError(f"recipe {recipe!r} is not one this image builds in a "
+                                   f"{call} call")  # fmt: skip
+            record["status"] = "ok"
+        except Exception as e:  # noqa: BLE001 (a failed control is recorded, the call goes on)
+            record["cause"] = f"{type(e).__name__}: {e}"
+        phases.append({"name": phase(control["id"]), "seconds": time.monotonic() - started})
+        update["controls"][control["id"]] = record
+    save_status(update)
+    return {**base("prove"), "proofs": [], "phases": phases}
+
+
 def prove(job: dict) -> dict:
+    if job.get("teacher_forced"):
+        return prove_teacher_forced(job)
     for sub in ("work", "fidelity/replies", "fidelity/logs"):
         host(f"/io/{sub}").mkdir(parents=True, exist_ok=True)
     engine_environment()

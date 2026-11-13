@@ -1,0 +1,374 @@
+{
+  "$id": "https://inference-proofs.org/schema/teacher-forced-run/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "system"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "system",
+          "workload",
+          "sessions",
+          "upstream_commit_equal_to_sessions",
+          "prover_files"
+        ]
+      }
+    }
+  ],
+  "properties": {
+    "adapter": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "adapter_dirty": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "adapter_commit",
+        "adapter_dirty"
+      ],
+      "type": "object"
+    },
+    "calls": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "call": {
+            "type": "string"
+          },
+          "exit_code": {
+            "type": "integer"
+          },
+          "phases": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "seconds": {
+                  "minimum": 0,
+                  "type": "number"
+                }
+              },
+              "required": [
+                "name",
+                "seconds"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "seconds": {
+            "minimum": 0,
+            "type": "number"
+          },
+          "stderr_tail": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "step": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "call",
+          "step",
+          "exit_code",
+          "seconds",
+          "stderr_tail",
+          "phases"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "engine": {
+      "$comment": "the tool that ran, its commit as the image reports it, and the image; for a system, the scoring image (FI-14), not the image of the counted sessions",
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "image": {
+          "type": "string"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "tool": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool",
+        "commit",
+        "image"
+      ],
+      "type": "object"
+    },
+    "failed_prompts": {
+      "$comment": "system: the prompts its own code gave no top tokens for (FI-11)",
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "gpus": {
+      "items": {
+        "minimum": 0,
+        "type": "integer"
+      },
+      "type": "array"
+    },
+    "harness": {
+      "additionalProperties": false,
+      "properties": {
+        "git_commit": {
+          "type": "string"
+        },
+        "git_dirty": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "git_commit",
+        "git_dirty"
+      ],
+      "type": "object"
+    },
+    "ids": {
+      "$comment": "the ids whose top tokens this run stored under top/",
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "kind": {
+      "enum": [
+        "engine",
+        "system"
+      ]
+    },
+    "level": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "lists": {
+      "$comment": "per id, its files of most probable tokens (kept outside the repository) and the digest that names them",
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "digest": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "files": {
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "files",
+          "digest"
+        ],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "model_files": {
+      "$comment": "engine: the reference's files and how they were checked (as fidelity-run/1 `reference`)",
+      "type": "object"
+    },
+    "name": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "not_run": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "type": "object"
+    },
+    "of": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "prompts": {
+      "$comment": "the prompts this run fed; fewer than `of` is a trial, which fidelity score reads no pass from",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "prompts_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "prover_files": {
+      "$comment": "system: the commitment's prover files score used and where they came from; each digest is the one the counted sessions record",
+      "additionalProperties": false,
+      "properties": {
+        "equal_to_sessions": {
+          "const": true
+        },
+        "files": {
+          "additionalProperties": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "from": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "from",
+        "files",
+        "equal_to_sessions"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "reference": {
+      "$comment": "the stored reference replies that were fed (FI-10)",
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "replies": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "replies",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "release": {
+      "type": "string"
+    },
+    "rung": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "teacher-forced-run/1"
+    },
+    "sessions": {
+      "$comment": "system: what the row's counted sessions ran (SE-3)",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "adapter_commit": {
+            "type": "string"
+          },
+          "image": {
+            "type": "string"
+          },
+          "run": {
+            "type": "string"
+          },
+          "slot": {
+            "type": "integer"
+          },
+          "upstream_commit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "slot",
+          "run",
+          "image",
+          "adapter_commit",
+          "upstream_commit"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "slots": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "system": {
+      "type": "string"
+    },
+    "top_k": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "upstream_commit_equal_to_sessions": {
+      "$comment": "system: the scoring image's upstream commit is the counted sessions'; a run where it is not stops before any call",
+      "const": true
+    },
+    "workload": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema",
+    "name",
+    "kind",
+    "level",
+    "rung",
+    "release",
+    "prompts_digest",
+    "prompts",
+    "of",
+    "reference",
+    "harness",
+    "gpus",
+    "slots",
+    "top_k",
+    "engine",
+    "adapter",
+    "ids",
+    "failed_prompts",
+    "not_run",
+    "lists",
+    "calls"
+  ],
+  "title": "teacher-forced-run/1: one engine's teacher-forced pass over a rung's prompts (RFC-0018 FI-14)",
+  "type": "object"
+}

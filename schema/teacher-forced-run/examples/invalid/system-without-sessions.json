@@ -1,0 +1,74 @@
+{
+  "adapter": {
+    "adapter_commit": "1111111111111111111111111111111111111111",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "score",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "score",
+          "seconds": 1790.0
+        }
+      ],
+      "seconds": 1800.5,
+      "stderr_tail": [],
+      "step": "score"
+    }
+  ],
+  "engine": {
+    "commit": "4f41667297430a598165c4a8604258fe37d952ae",
+    "image": "ghcr.io/ai-verification-observatory/sash@sha256:abababababababababababababababababababababababababababababababab",
+    "tool": "sash"
+  },
+  "failed_prompts": [
+    3
+  ],
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "0000000000000000000000000000000000000000",
+    "git_dirty": false
+  },
+  "ids": [
+    "sash"
+  ],
+  "kind": "system",
+  "level": {
+    "digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "id": "L1"
+  },
+  "lists": {
+    "sash": {
+      "digest": "sha256:abababababababababababababababababababababababababababababababab",
+      "files": 14
+    }
+  },
+  "name": "sash",
+  "not_run": {},
+  "of": 15,
+  "prompts": 15,
+  "prompts_digest": "sha256:abababababababababababababababababababababababababababababababab",
+  "prover_files": {
+    "equal_to_sessions": true,
+    "files": {
+      "attn_ranges.json": "sha256:abababababababababababababababababababababababababababababababab"
+    },
+    "from": "a counted session's commitment store"
+  },
+  "reference": {
+    "digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "release": "v1.0",
+  "rung": "llama-3.1-8b",
+  "schema": "teacher-forced-run/1",
+  "slots": 1,
+  "system": "sash",
+  "top_k": 256,
+  "upstream_commit_equal_to_sessions": true,
+  "workload": "l1-l31-8b-p512-o512"
+}

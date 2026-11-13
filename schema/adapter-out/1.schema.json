@@ -99,6 +99,7 @@
           "raw_exit_code": false,
           "raw_last_line": false,
           "ready": false,
+          "scores": false,
           "seconds": false,
           "sizes": false,
           "verdict": false,
@@ -138,6 +139,7 @@
           "prover_files": false,
           "raw_exit_code": false,
           "raw_last_line": false,
+          "scores": false,
           "seconds": false,
           "sizes": false,
           "system": false,
@@ -176,6 +178,7 @@
           "raw_exit_code": false,
           "raw_last_line": false,
           "ready": false,
+          "scores": false,
           "seconds": false,
           "system": false,
           "upstream_commit": false,
@@ -214,6 +217,7 @@
           "raw_exit_code": false,
           "raw_last_line": false,
           "ready": false,
+          "scores": false,
           "seconds": false,
           "sizes": false,
           "system": false,
@@ -250,6 +254,7 @@
           "proofs": false,
           "prover_files": false,
           "ready": false,
+          "scores": false,
           "sizes": false,
           "system": false,
           "upstream_commit": false,
@@ -291,6 +296,7 @@
           "raw_exit_code": false,
           "raw_last_line": false,
           "ready": false,
+          "scores": false,
           "seconds": false,
           "sizes": false,
           "system": false,
@@ -331,6 +337,7 @@
           "raw_exit_code": false,
           "raw_last_line": false,
           "ready": false,
+          "scores": false,
           "seconds": false,
           "sizes": false,
           "system": false,
@@ -371,6 +378,7 @@
           "raw_exit_code": false,
           "raw_last_line": false,
           "ready": false,
+          "scores": false,
           "seconds": false,
           "sizes": false,
           "system": false,
@@ -381,6 +389,47 @@
         },
         "required": [
           "mutated"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "score"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "adapter_commit": false,
+          "adapter_dirty": false,
+          "binding_report": false,
+          "commitment_id": false,
+          "contract_versions": false,
+          "image_inputs": false,
+          "log_files": false,
+          "logprobs_files": false,
+          "mutated": false,
+          "optional_subcommands": false,
+          "perturbation": false,
+          "policy": false,
+          "profile": false,
+          "proofs": false,
+          "prover_files": false,
+          "raw_exit_code": false,
+          "raw_last_line": false,
+          "ready": false,
+          "seconds": false,
+          "sizes": false,
+          "system": false,
+          "upstream_commit": false,
+          "verdict": false,
+          "verifier_files": false,
+          "workloads": false
+        },
+        "required": [
+          "scores"
         ]
       }
     }
@@ -489,7 +538,8 @@
         "enum": [
           "logprobs",
           "perturb",
-          "mutate_reply"
+          "mutate_reply",
+          "score"
         ]
       },
       "type": "array",
@@ -594,6 +644,44 @@
     "schema": {
       "const": "adapter-out/1"
     },
+    "scores": {
+      "$comment": "score (RFC-0018 AD-7): under `dir`, per request i, `<i>.json` ({\"top\": the top token at each reply position} or {\"failed\": the cause the system's own code gave}) and, with top_k > 0, `<i>.topk` (the top_k most probable tokens and their log-probabilities at each position)",
+      "additionalProperties": false,
+      "properties": {
+        "dir": {
+          "pattern": "^/io/[^\\x00]+$",
+          "type": "string"
+        },
+        "failed": {
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "positions": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "requests": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "top_k": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "dir",
+        "requests",
+        "positions",
+        "top_k",
+        "failed"
+      ],
+      "type": "object"
+    },
     "seconds": {
       "minimum": 0,
       "type": "number"
@@ -625,7 +713,8 @@
         "verify",
         "logprobs",
         "perturb",
-        "mutate_reply"
+        "mutate_reply",
+        "score"
       ]
     },
     "system": {

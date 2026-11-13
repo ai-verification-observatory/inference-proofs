@@ -38,6 +38,8 @@ G2_GLOBS = (
     "releases/*/board.json",
     "results/**/fidelity.json",
     "results/**/fidelity/*/fidelity-run.json",
+    "results/**/fidelity/*/teacher-forced.json",
+    "results/**/fidelity/*/teacher-forced/run-*.json",
     "results/**/proof-build/*/proof-build.json",
     "results/**/verify-trace/*.json",
     "targets/**/*.yaml",

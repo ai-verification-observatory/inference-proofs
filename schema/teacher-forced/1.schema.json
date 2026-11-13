@@ -1,0 +1,660 @@
+{
+  "$id": "https://inference-proofs.org/schema/teacher-forced/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "controls": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "failed": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "cause": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "prompt": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "prompt",
+                "cause"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "honest",
+              "damaged"
+            ]
+          },
+          "kl": {
+            "additionalProperties": false,
+            "properties": {
+              "grade": {
+                "const": "measured"
+              },
+              "n": {
+                "$comment": "prompts in the mean",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "note": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "null_reason": {
+                "type": "null"
+              },
+              "positions": {
+                "$comment": "reply positions in the mean, over those prompts",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "reference_rest_mass": {
+                "$comment": "mean probability the reference gives to the tokens pooled into one outcome (FI-12)",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "scope": {
+                "type": "null"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "adapter"
+                  },
+                  "ref": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "ref"
+                ],
+                "type": "object"
+              },
+              "tier": {
+                "const": "reported"
+              },
+              "unit": {
+                "const": "nat/token"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "value",
+              "unit",
+              "scope",
+              "grade",
+              "tier",
+              "source",
+              "null_reason",
+              "note",
+              "n",
+              "positions",
+              "reference_rest_mass"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "kl_note": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "mean": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mean_not_failed": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "median": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "recipe": {
+            "type": "string"
+          },
+          "run": {
+            "$comment": "the run record that holds this pass",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scores": {
+            "$comment": "FI-10: per prompt, the reply positions whose top token is the reference token; a failed prompt scores 0",
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "failed"
+            ]
+          },
+          "type": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "status",
+          "cause",
+          "scores",
+          "failed",
+          "mean",
+          "median",
+          "mean_not_failed",
+          "run",
+          "id",
+          "kind",
+          "recipe",
+          "type",
+          "kl",
+          "kl_note"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "gating": {
+      "$comment": "FI-10: this measure sets no check and no petal",
+      "const": false
+    },
+    "kl": {
+      "additionalProperties": false,
+      "properties": {
+        "rest_floor": {
+          "type": "number"
+        },
+        "rule": {
+          "type": "string"
+        },
+        "top_k": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "unit": {
+          "const": "nat/token"
+        },
+        "values": {
+          "$comment": "the stored per-prompt values (kl.json), null when the reference's pass stored no lists",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "unit",
+        "top_k",
+        "rest_floor",
+        "rule",
+        "values"
+      ],
+      "type": "object"
+    },
+    "level": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "measure": {
+      "additionalProperties": false,
+      "properties": {
+        "alignment": {
+          "type": "string"
+        },
+        "alpha": {
+          "type": "number"
+        },
+        "exact_up_to": {
+          "type": "integer"
+        },
+        "failed_prompt": {
+          "type": "string"
+        },
+        "label": {
+          "const": "computed by the system's own code on the reference reply, not by the proved computation"
+        },
+        "resamples": {
+          "type": "integer"
+        },
+        "score": {
+          "const": "teacher_forced_agreement"
+        },
+        "seed_rule": {
+          "type": "string"
+        },
+        "test": {
+          "const": "paired-sign-flip"
+        },
+        "unit": {
+          "const": "agreeing positions"
+        }
+      },
+      "required": [
+        "score",
+        "unit",
+        "alignment",
+        "label",
+        "test",
+        "alpha",
+        "exact_up_to",
+        "resamples",
+        "seed_rule",
+        "failed_prompt"
+      ],
+      "type": "object"
+    },
+    "n": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "positions": {
+      "minimum": 1,
+      "type": "integer"
+    },
+    "prompts_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "reference": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "replies": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "replies",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "reference_pass": {
+      "$comment": "the reference engine's own pass on its stored replies: how often its top token is the token it wrote",
+      "additionalProperties": false,
+      "properties": {
+        "cause": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failed": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "cause": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "prompt": {
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "prompt",
+              "cause"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "mean": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "mean_not_failed": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "median": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "run": {
+          "$comment": "the run record that holds this pass",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "scores": {
+          "$comment": "FI-10: per prompt, the reply positions whose top token is the reference token; a failed prompt scores 0",
+          "items": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "failed"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "cause",
+        "scores",
+        "failed",
+        "mean",
+        "median",
+        "mean_not_failed",
+        "run"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "rows": {
+      "additionalProperties": {
+        "additionalProperties": false,
+        "properties": {
+          "cause": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "computed_by": {
+            "$comment": "FI-13: whose computation these figures are",
+            "minLength": 1,
+            "type": "string"
+          },
+          "failed": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "cause": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "prompt": {
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "prompt",
+                "cause"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "kl": {
+            "additionalProperties": false,
+            "properties": {
+              "grade": {
+                "const": "measured"
+              },
+              "n": {
+                "$comment": "prompts in the mean",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "note": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "null_reason": {
+                "type": "null"
+              },
+              "positions": {
+                "$comment": "reply positions in the mean, over those prompts",
+                "minimum": 1,
+                "type": "integer"
+              },
+              "reference_rest_mass": {
+                "$comment": "mean probability the reference gives to the tokens pooled into one outcome (FI-12)",
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "scope": {
+                "type": "null"
+              },
+              "source": {
+                "additionalProperties": false,
+                "properties": {
+                  "kind": {
+                    "const": "adapter"
+                  },
+                  "ref": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "ref"
+                ],
+                "type": "object"
+              },
+              "tier": {
+                "const": "reported"
+              },
+              "unit": {
+                "const": "nat/token"
+              },
+              "value": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "value",
+              "unit",
+              "scope",
+              "grade",
+              "tier",
+              "source",
+              "null_reason",
+              "note",
+              "n",
+              "positions",
+              "reference_rest_mass"
+            ],
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "kl_note": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "label": {
+            "const": "computed by the system's own code on the reference reply, not by the proved computation"
+          },
+          "mean": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mean_not_failed": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "median": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "run": {
+            "$comment": "the run record that holds this pass",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scores": {
+            "$comment": "FI-10: per prompt, the reply positions whose top token is the reference token; a failed prompt scores 0",
+            "items": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "failed"
+            ]
+          },
+          "tests": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "a": {
+                  "type": "string"
+                },
+                "b": {
+                  "type": "string"
+                },
+                "method": {
+                  "enum": [
+                    "exact",
+                    "monte-carlo"
+                  ]
+                },
+                "n": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "p": {
+                  "exclusiveMinimum": 0,
+                  "maximum": 1,
+                  "type": "number"
+                },
+                "seed": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "a",
+                "b",
+                "n",
+                "p",
+                "method",
+                "seed"
+              ],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "status",
+          "cause",
+          "scores",
+          "failed",
+          "mean",
+          "median",
+          "mean_not_failed",
+          "run",
+          "computed_by",
+          "label",
+          "kl",
+          "kl_note",
+          "tests"
+        ],
+        "type": "object"
+      },
+      "type": "object"
+    },
+    "rung": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "teacher-forced/1"
+    }
+  },
+  "required": [
+    "schema",
+    "level",
+    "rung",
+    "n",
+    "positions",
+    "prompts_digest",
+    "reference",
+    "gating",
+    "measure",
+    "kl",
+    "reference_pass",
+    "controls",
+    "rows"
+  ],
+  "title": "teacher-forced/1: teacher-forced top-token agreement and KL of a rung, printed beside fidelity.json and gating nothing (RFC-0018 FI-10 to FI-15)",
+  "type": "object"
+}

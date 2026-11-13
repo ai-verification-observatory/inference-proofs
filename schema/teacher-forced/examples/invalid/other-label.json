@@ -1,0 +1,160 @@
+{
+  "controls": [
+    {
+      "cause": null,
+      "failed": [],
+      "id": "q8_0",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "n": 2,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 8,
+        "reference_rest_mass": 0.0015,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/gpt-2/teacher-forced/kl.json#/engines/q8_0"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.015
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 3.3333333333333335,
+      "mean_not_failed": 3.3333333333333335,
+      "median": 3.0,
+      "recipe": "quantize",
+      "run": "results/v1.0/fidelity/gpt-2/teacher-forced/run-llama.cpp.json",
+      "scores": [
+        3,
+        4,
+        3
+      ],
+      "status": "ok",
+      "type": "Q8_0"
+    },
+    {
+      "cause": "not run",
+      "failed": [],
+      "id": "drop-every-4th-block",
+      "kind": "damaged",
+      "kl": null,
+      "kl_note": "not measured: no lists of the most probable tokens are stored for it",
+      "mean": null,
+      "mean_not_failed": null,
+      "median": null,
+      "recipe": "drop_blocks",
+      "run": null,
+      "scores": [],
+      "status": "failed",
+      "type": null
+    }
+  ],
+  "gating": false,
+  "kl": {
+    "rest_floor": 1e-06,
+    "rule": "per position, the KL divergence in nats between the reference's and the engine's distributions over: each token both lists of the top_k most probable tokens hold, and one outcome for every other token; at most the KL over the whole vocabulary. A rest mass below rest_floor is left out on the reference's side and taken as rest_floor on the engine's. A prompt's value is the mean over its positions",
+    "top_k": 256,
+    "unit": "nat/token",
+    "values": "results/v1.0/fidelity/gpt-2/teacher-forced/kl.json"
+  },
+  "level": {
+    "digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "id": "L1"
+  },
+  "measure": {
+    "alignment": "row t is computed after the prompt and the first t tokens of the reference reply and predicts reply token t, t from 0",
+    "alpha": 0.05,
+    "exact_up_to": 20,
+    "failed_prompt": "scores 0 and is listed with its cause",
+    "label": "computed by the system's own code on the reference reply, not by the proved computation",
+    "resamples": 200000,
+    "score": "teacher_forced_agreement",
+    "seed_rule": "FI-4's seed rule over the ids prefixed teacher_forced/: first 8 bytes, big-endian, of sha256(randomness || 0x00 || utf8(teacher_forced/a) || 0x00 || utf8(teacher_forced/b))",
+    "test": "paired-sign-flip",
+    "unit": "agreeing positions"
+  },
+  "n": 3,
+  "positions": 4,
+  "prompts_digest": "sha256:abababababababababababababababababababababababababababababababab",
+  "reference": {
+    "digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "replies": "results/v1.0/fidelity/gpt-2/reference.jsonl"
+  },
+  "reference_pass": {
+    "cause": null,
+    "failed": [],
+    "mean": 4.0,
+    "mean_not_failed": 4.0,
+    "median": 4.0,
+    "run": "results/v1.0/fidelity/gpt-2/teacher-forced/run-llama.cpp.json",
+    "scores": [
+      4,
+      4,
+      4
+    ],
+    "status": "ok"
+  },
+  "rows": {
+    "sash": {
+      "cause": null,
+      "computed_by": "the extractor that writes the prover's input",
+      "failed": [
+        {
+          "cause": "the extractor refused the ids: AssertionError",
+          "prompt": 1
+        }
+      ],
+      "kl": {
+        "grade": "measured",
+        "n": 2,
+        "note": "computed by the system's own code on the reference reply, not by the proved computation",
+        "null_reason": null,
+        "positions": 8,
+        "reference_rest_mass": 0.0015,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/fidelity/gpt-2/teacher-forced/kl.json#/engines/sash"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.015
+      },
+      "kl_note": "computed by the system's own code on the reference reply, not by the proved computation",
+      "label": "computed by the proved computation",
+      "mean": 2.0,
+      "mean_not_failed": 3.0,
+      "median": 2.0,
+      "run": "results/v1.0/fidelity/gpt-2/teacher-forced/run-sash.json",
+      "scores": [
+        4,
+        0,
+        2
+      ],
+      "status": "ok",
+      "tests": [
+        {
+          "a": "sash",
+          "b": "q8_0",
+          "method": "exact",
+          "n": 3,
+          "p": 0.875,
+          "seed": null
+        },
+        {
+          "a": "q8_0",
+          "b": "sash",
+          "method": "exact",
+          "n": 3,
+          "p": 0.375,
+          "seed": null
+        }
+      ]
+    }
+  },
+  "rung": "gpt-2",
+  "schema": "teacher-forced/1"
+}

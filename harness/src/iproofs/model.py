@@ -463,12 +463,13 @@ class AdapterOut(Document):
     logprobs_files: tuple[str, ...] | None = None  # logprobs, RFC-0018 AD-2
     perturbation: Mapping[str, object] | None = None  # perturb, RFC-0018 AD-5
     mutated: Mapping[str, object] | None = None  # mutate_reply, RFC-0018 AD-6
+    scores: Mapping[str, object] | None = None  # score, RFC-0018 AD-7
 
 
 # RFC-0005 §system.yaml default wall limits per step, in seconds (targets, not measurements).
 DEFAULT_TIMEOUTS_S = {"info": 60.0, "setup": 3600.0, "commit": 14400.0, "prove": 43200.0,
                       "verify": 3600.0, "logprobs": 43200.0, "perturb": 14400.0,
-                      "mutate_reply": 3600.0}  # fmt: skip
+                      "mutate_reply": 3600.0, "score": 43200.0}  # fmt: skip
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
@@ -937,6 +938,8 @@ TREES = frozenset(
         "reverify/1",
         "run/1",
         "target/1",
+        "teacher-forced/1",
+        "teacher-forced-run/1",
         "verify-trace/1",
     }
 )
