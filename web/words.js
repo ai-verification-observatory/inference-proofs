@@ -897,7 +897,7 @@
         const d = root.dataset; const p = Number(d.p);
         const A = rows(d.a); const B = rows(d.b); const wrong = rows(d.c); const right = rows(d.ok);
         const mv = (m, v) => m.map((r) => mod(r.reduce((s, x, i) => s + x * v[i], 0), p));
-        const out = $('.xo', root); const shownC = $('.cl', root); const marked = shownC.innerHTML;
+        const out = $('.xo', root); const shownC = $('.xcl', root); const marked = shownC.innerHTML;
         let honest = false; let counts = {};  // one tally per set r is drawn from: the two miss at different rates
         const tally = el('p', 'xf'); const many = Number(d.runs);
         const set = (top) => top === 1 ? d.wSetbits : fill(d.wSetfield, { top });
@@ -1008,7 +1008,7 @@
           // the share as the page shows it, so a reader who multiplies the numbers shown gets the total shown
           const s = Number((10 ** (Number(share.value) / 100 - 4)).toPrecision(2));
           const g = read(gen); const p = read(prove);
-          const pct = `${Number((s * 100).toPrecision(2))} %`;
+          const pct = `${Number((s * 100).toPrecision(2))}\u202f%`;
           shown.textContent = pct; share.setAttribute('aria-valuetext', pct);
           out.textContent = fill(d.wOut, { share: pct, g: `${num(sig(g), 4)}×`, p: `${num(sig(p), 4)}×`, total: `${num(sig(g + s * p), 4)}×` });
         };

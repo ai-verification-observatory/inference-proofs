@@ -631,7 +631,7 @@ def no_weight_file_state(sessions: RowSessions) -> CheckState:
     if opened:
         return CheckState(FAILED, None, tuple(opened), "a verify call opened a model file")
     if gaps:
-        more = f" (and {len(gaps) - 1} more)" if len(gaps) > 1 else ""
+        more = f" (and {len(gaps) - 1} more requests)" if len(gaps) > 1 else ""
         traced = not any(g.endswith((": no trace", ": no trace tool")) for g in gaps)
         return _undecided(NOT_RESOLVED if traced else NOT_RUN, evidence, gaps[0] + more)
     return _held(evidence)

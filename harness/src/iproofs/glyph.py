@@ -221,7 +221,7 @@ def _not_read(pid: str, reason: str) -> Petal:
 
 def _silent(petal: Mapping[str, object], props: Mapping[str, object]) -> str:
     """R-SILENT: silence at the pin; the documents read go with the petal (`_with_sources`)."""
-    return "not stated in the publisher's documents read at the pin"
+    return "not stated in the publisher's documents read at the pinned commit"
 
 
 def _with_sources(p: Petal, props: Mapping[str, object] | None) -> Petal:

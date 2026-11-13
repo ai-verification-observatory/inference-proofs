@@ -329,6 +329,6 @@ def build_scale():
   <div class="wrap">{panels}</div>
 </main>
 {footer()}"""
-    names = ", ".join(n for _, n, _ in DIMS)
-    desc = f"{SCALE_LEAD}: {names}."
+    names = [n.lower() for _, n, _ in DIMS]
+    desc = f"{SCALE_LEAD}: {', '.join(names[:-1])} and {names[-1]}."
     return page("Scale", desc, body, "system scalepage", SCALE_PAGE.strip("/"), "home")

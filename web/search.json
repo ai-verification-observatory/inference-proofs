@@ -53,10 +53,10 @@
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "The publisher states a proved soundness bound against any prover (arbitrary or computationally bounded) showing that a false reply is accepted with probability at most 2^-128 per term (where a term 2^-t or q/2^t has exponent t at least 128). The bound must cover the actual benchmark run: one proof per reply (or a batch bound that holds for each member checked on its own), using the row's parameters, with its preconditions satisfied by the row's files, and with the verifier binary we run proved or stated to implement the verifier the bound analyzes.",
+      "meta": "The publisher states a proved soundness bound against any prover (arbitrary or computationally bounded) showing that a false reply is accepted with probability at most 2^-128 per term (where a term 2^-t or q/2^t has exponent t at least 128). The bound must cover the actual benchmark run: one proof per reply (or a batch bound that holds for each member checked on its own), using the row's parameters, with its preconditions satisfied by the row's files, and with the verifier binary we run proved or stated to implement the verifier the bound analyses.",
       "name": "Unforgeable",
       "pie": "",
-      "terms": "unforgeable the publisher states a proved soundness bound against any prover (arbitrary or computationally bounded) showing that a false reply is accepted with probability at most 2^-128 per term (where a term 2^-t or q/2^t has exponent t at least 128). the bound must cover the actual benchmark run: one proof per reply (or a batch bound that holds for each member checked on its own), using the row's parameters, with its preconditions satisfied by the row's files, and with the verifier binary we run proved or stated to implement the verifier the bound analyzes.",
+      "terms": "unforgeable the publisher states a proved soundness bound against any prover (arbitrary or computationally bounded) showing that a false reply is accepted with probability at most 2^-128 per term (where a term 2^-t or q/2^t has exponent t at least 128). the bound must cover the actual benchmark run: one proof per reply (or a batch bound that holds for each member checked on its own), using the row's parameters, with its preconditions satisfied by the row's files, and with the verifier binary we run proved or stated to implement the verifier the bound analyses.",
       "tier": 2,
       "url": "/checks#unforgeable"
     },
@@ -73,10 +73,10 @@
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "In a single-request-at-a-time fidelity run, the system's proved replies score significantly above the midpoint between a second run of the publisher's unquantized model and its 8-bit quantized copy (Q8_0).",
+      "meta": "In a single-request-at-a-time fidelity run, the system's proved replies score significantly above the midpoint between a second run of the publisher's unquantised model and its 8-bit quantised copy (Q8_0).",
       "name": "Faithful model",
       "pie": "",
-      "terms": "faithful model in a single-request-at-a-time fidelity run, the system's proved replies score significantly above the midpoint between a second run of the publisher's unquantized model and its 8-bit quantized copy (q8_0).",
+      "terms": "faithful model in a single-request-at-a-time fidelity run, the system's proved replies score significantly above the midpoint between a second run of the publisher's unquantised model and its 8-bit quantised copy (q8_0).",
       "tier": 2,
       "url": "/checks#faithful_model"
     },
@@ -103,17 +103,17 @@
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "Across all 3 sessions (each starting cold on its own prompt set), the system returned an accepted proof for every request, running the published code at its pinned commit without patches or proof-weakening flags.",
+      "meta": "Across all 3 sessions (each on its own prompt set), the system returned an accepted proof for every request, running the published code at its pinned commit without patches or proof-weakening flags.",
       "name": "Run",
       "pie": "",
-      "terms": "run across all 3 sessions (each starting cold on its own prompt set), the system returned an accepted proof for every request, running the published code at its pinned commit without patches or proof-weakening flags.",
+      "terms": "run across all 3 sessions (each on its own prompt set), the system returned an accepted proof for every request, running the published code at its pinned commit without patches or proof-weakening flags.",
       "tier": 3,
       "url": "/checks#run"
     },
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "When we modified a single model weight and generated a proof, the verifier rejected it; when we took an honest proof and swapped the weight commitment in the verifier's statement, the verifier rejected that too (3 of 3 trials each).",
+      "meta": "When we modified a single model weight and generated a proof, the verifier rejected it; when we took an honest proof and swapped the weight commitment in the verifier's statement, the verifier rejected that too (3 of 3 trials each).",
       "name": "Model",
       "pie": "",
       "terms": "model when we modified a single model weight and generated a proof, the verifier rejected it; when we took an honest proof and swapped the weight commitment in the verifier's statement, the verifier rejected that too (3 of 3 trials each).",
@@ -123,20 +123,20 @@
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "When we changed a single prompt token in the statement given to the verifier, the verifier rejected the proof in all 3 of 3 trials.",
+      "meta": "When we changed a single prompt token in the statement given to the verifier, the verifier rejected the proof in 3 of 3 trials.",
       "name": "Prompt",
       "pie": "",
-      "terms": "prompt when we changed a single prompt token in the statement given to the verifier, the verifier rejected the proof in all 3 of 3 trials.",
+      "terms": "prompt when we changed a single prompt token in the statement given to the verifier, the verifier rejected the proof in 3 of 3 trials.",
       "tier": 3,
       "url": "/checks#prompt"
     },
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "Every accepted proof covers all 512 reply tokens, and when we altered the first token, the last token, or a randomly chosen interior token in the verifier's statement, the verifier rejected the proof in all 3 of 3 trials each.",
+      "meta": "Every accepted proof covers all 512 reply tokens, and when we altered the first token, the last token, or a randomly chosen interior token in the verifier's statement, the verifier rejected the proof in 3 of 3 trials each.",
       "name": "Reply",
       "pie": "",
-      "terms": "reply every accepted proof covers all 512 reply tokens, and when we altered the first token, the last token, or a randomly chosen interior token in the verifier's statement, the verifier rejected the proof in all 3 of 3 trials each.",
+      "terms": "reply every accepted proof covers all 512 reply tokens, and when we altered the first token, the last token, or a randomly chosen interior token in the verifier's statement, the verifier rejected the proof in 3 of 3 trials each.",
       "tier": 3,
       "url": "/checks#reply"
     },
@@ -153,20 +153,20 @@
     {
       "group": "Checks",
       "kind": "check",
-      "meta": "On our fidelity prompt suite, the system's proved replies matched the publisher's unquantized reference weights for more leading tokens than our calibration bar did. That bar is the highest-scoring intentionally damaged copy of the model (chosen from damaged copies that every honest quantization still outperforms). Passing this check is a minimum floor against broken weights; the Faithful model petal grades how close the replies actually are.",
+      "meta": "On our fidelity prompt suite, the system's proved replies matched the publisher's unquantised reference weights for more leading tokens than our calibration bar did. That bar is the highest-scoring intentionally damaged copy of the model (chosen from damaged copies that every honest quantisation still outperforms). Passing this check is a floor against broken weights; the Faithful model petal grades how close the replies actually are.",
       "name": "Fidelity",
       "pie": "",
-      "terms": "fidelity on our fidelity prompt suite, the system's proved replies matched the publisher's unquantized reference weights for more leading tokens than our calibration bar did. that bar is the highest-scoring intentionally damaged copy of the model (chosen from damaged copies that every honest quantization still outperforms). passing this check is a minimum floor against broken weights; the faithful model petal grades how close the replies actually are.",
+      "terms": "fidelity on our fidelity prompt suite, the system's proved replies matched the publisher's unquantised reference weights for more leading tokens than our calibration bar did. that bar is the highest-scoring intentionally damaged copy of the model (chosen from damaged copies that every honest quantisation still outperforms). passing this check is a floor against broken weights; the faithful model petal grades how close the replies actually are.",
       "tier": 3,
       "url": "/checks#fidelity"
     },
     {
       "group": "Figures",
       "kind": "figure",
-      "meta": "Steady-state GPU-seconds per proved reply after the first release group. Within a session, proofs released within 1 s of the previous proof form a release group. We measure the GPU time from the end of the first group to the final proof of the session and divide by the number of replies in those later groups (including token generation). Reported as the mean across 3 cold-start sessions.",
+      "meta": "Steady-state GPU-seconds per proved reply after the first release group. Within a session, proofs released within 1 s of the previous proof form a release group. We measure the GPU time from the end of the first group to the final proof of the session and divide by the number of replies in those later groups (including token generation). Reported as the mean across 3 sessions.",
       "name": "Cost vs serving",
       "pie": "",
-      "terms": "cost vs serving steady-state gpu-seconds per proved reply after the first release group. within a session, proofs released within 1 s of the previous proof form a release group. we measure the gpu time from the end of the first group to the final proof of the session and divide by the number of replies in those later groups (including token generation). reported as the mean across 3 cold-start sessions.",
+      "terms": "cost vs serving steady-state gpu-seconds per proved reply after the first release group. within a session, proofs released within 1 s of the previous proof form a release group. we measure the gpu time from the end of the first group to the final proof of the session and divide by the number of replies in those later groups (including token generation). reported as the mean across 3 sessions.",
       "tier": 4,
       "url": "/checks#multiple"
     },
@@ -193,30 +193,40 @@
     {
       "group": "Figures",
       "kind": "figure",
-      "meta": "Mean Kullback-Leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original 16-bit for Llama 4 Maverick 17B-128E Instruct and Llama 3.1 8B Instruct, 32-bit for GPT-2 reference weights.",
+      "meta": "Total size of the proofs a session stores (every file of each proof, in bytes as stored), divided by the number of replies in that session. A proof that covers several replies is counted once. Reported as the mean across 3 sessions, in MB (one MB is 1,000,000 bytes).",
+      "name": "Proof size per reply",
+      "pie": "",
+      "terms": "proof size per reply total size of the proofs a session stores (every file of each proof, in bytes as stored), divided by the number of replies in that session. a proof that covers several replies is counted once. reported as the mean across 3 sessions, in mb (one mb is 1,000,000 bytes).",
+      "tier": 4,
+      "url": "/checks#proof-size"
+    },
+    {
+      "group": "Figures",
+      "kind": "figure",
+      "meta": "Mean Kullback-Leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original reference weights (16-bit for Llama 4 Maverick 17B-128E Instruct and Llama 3.1 8B Instruct, 32-bit for GPT-2).",
       "name": "KL to the original weights",
       "pie": "",
-      "terms": "kl to the original weights mean kullback-leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original 16-bit for llama 4 maverick 17b-128e instruct and llama 3.1 8b instruct, 32-bit for gpt-2 reference weights.",
+      "terms": "kl to the original weights mean kullback-leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original reference weights (16-bit for llama 4 maverick 17b-128e instruct and llama 3.1 8b instruct, 32-bit for gpt-2).",
       "tier": 4,
       "url": "/checks#kl"
     },
     {
       "group": "Pages",
       "kind": "page",
-      "meta": "The six checks, the figures, the order rule, what is not tested",
+      "meta": "What the glyph's five petals and the six checks test, how each figure is taken, and how systems are ordered.",
       "name": "Checks",
       "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 26 18\" width=\"26\" height=\"18\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><path fill=\"currentColor\" d=\"M0 0h4v18h-4zM4 6h6v6h-6zM12 6h6v6h-6zM20 6h6v6h-6z\"/></svg>",
-      "terms": "checks the six checks, the figures, the order rule, what is not tested checks figures order rule undecided unranked not tested",
+      "terms": "checks what the glyph's five petals and the six checks test, how each figure is taken, and how systems are ordered. checks figures order rule undecided unranked not tested",
       "tier": 4,
       "url": "/checks"
     },
     {
       "group": "Pages",
       "kind": "page",
-      "meta": "Cost vs serving, Cost, Verify time, Proof size",
+      "meta": "Every system on one log scale, model by model: cost vs serving, cost, verify time and proof size.",
       "name": "Scale",
       "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 26 18\" width=\"26\" height=\"18\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><path fill=\"currentColor\" d=\"M0 0h4v18h-4zM4 6h6v6h-6zM12 6h6v6h-6zM20 6h6v6h-6z\"/></svg>",
-      "terms": "scale cost vs serving, cost, verify time, proof size scale chart log decade axis",
+      "terms": "scale every system on one log scale, model by model: cost vs serving, cost, verify time and proof size. scale chart log decade axis",
       "tier": 4,
       "url": "/scale"
     },
@@ -253,10 +263,10 @@
     {
       "group": "Learn",
       "kind": "learn",
-      "meta": "A cryptographic receipt that lets anyone check that a pre-committed model produced a specific reply to a specific prompt, without re-running the model or seeing its weights. What an accepted proof tells you, and what it leaves out.",
+      "meta": "A cryptographic receipt that lets anyone check that a committed model gave a specific reply to a prompt, without re-running the model or seeing its weights.",
       "name": "What a proof of inference is",
       "pie": "",
-      "terms": "what a proof of inference is a cryptographic receipt that lets anyone check that a pre-committed model produced a specific reply to a specific prompt, without re-running the model or seeing its weights. what an accepted proof tells you, and what it leaves out. for policy readers",
+      "terms": "what a proof of inference is a cryptographic receipt that lets anyone check that a committed model gave a specific reply to a prompt, without re-running the model or seeing its weights. for policy readers",
       "tier": 4.1,
       "url": "/proof-of-inference"
     },
@@ -363,10 +373,10 @@
     {
       "group": "Learn",
       "kind": "learn",
-      "meta": "Plain-English definitions of the technical and policy terms used across these pages, noting where cryptographic usage differs from everyday policy language.",
+      "meta": "Plain-English definitions of the terms used across this site, with their exact technical meaning where the two differ.",
       "name": "Glossary",
       "pie": "",
-      "terms": "glossary plain-english definitions of the technical and policy terms used across these pages, noting where cryptographic usage differs from everyday policy language. terms words definitions",
+      "terms": "glossary plain-english definitions of the terms used across this site, with their exact technical meaning where the two differ. terms words definitions",
       "tier": 4.1,
       "url": "/glossary"
     },
@@ -463,10 +473,10 @@
     {
       "group": "Glossary",
       "kind": "term",
-      "meta": "The five-petal summary figure drawn beside every measured row on the ladder.",
+      "meta": "The five-petal summary figure drawn beside every row on the ladder.",
       "name": "Glyph",
       "pie": "",
-      "terms": "glyph the five-petal summary figure drawn beside every measured row on the ladder.",
+      "terms": "glyph the five-petal summary figure drawn beside every row on the ladder.",
       "tier": 4.2,
       "url": "/glossary#glyph"
     },
@@ -663,10 +673,10 @@
     {
       "group": "Glossary",
       "kind": "term",
-      "meta": "An idealised mathematical model of a cryptographic hash function in which every distinct input produces an uniformly random output.",
+      "meta": "An idealised mathematical model of a cryptographic hash function in which every distinct input produces a uniformly random output.",
       "name": "Random oracle",
       "pie": "",
-      "terms": "random oracle an idealised mathematical model of a cryptographic hash function in which every distinct input produces an uniformly random output.",
+      "terms": "random oracle an idealised mathematical model of a cryptographic hash function in which every distinct input produces a uniformly random output.",
       "tier": 4.2,
       "url": "/glossary#random-oracle"
     },
@@ -723,10 +733,10 @@
     {
       "group": "Glossary",
       "kind": "term",
-      "meta": "One system's entry on one model rung of the ladder, showing its check standing, its five-petal glyph, and its measured cost and verification figures.",
+      "meta": "One system's entry on one model rung of the ladder, showing its check standing, its five-petal glyph, and its cost and verification figures.",
       "name": "Row",
       "pie": "",
-      "terms": "row one system's entry on one model rung of the ladder, showing its check standing, its five-petal glyph, and its measured cost and verification figures.",
+      "terms": "row one system's entry on one model rung of the ladder, showing its check standing, its five-petal glyph, and its cost and verification figures.",
       "tier": 4.2,
       "url": "/glossary#row"
     },

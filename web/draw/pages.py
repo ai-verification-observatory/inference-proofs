@@ -366,17 +366,14 @@ def glyph_html(row):
 
 
 NOTE_SHORT = 48  # a check's note longer than this, in characters, is left to its records
-MORE = re.compile(r"\(and (\d+) more\)$")  # a note's count of the other requests like its first
 
 
 def note_parts(note):
     """A check's note as (the internal id that leads it, "P1" or a run's request, or ""; its
-    words). The words name what a count after a request counts ("and 9 more requests")."""
+    words)."""
     head, sep, tail = note.partition(": ")
     if not (sep and " " not in head):
         return "", note
-    if "/req-" in head:
-        tail = MORE.sub(r"(and \1 more requests)", tail)
     return head, tail
 
 

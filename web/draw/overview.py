@@ -168,7 +168,7 @@ def multiple_html(row, parts=True, bare=False):
         n = rung_of(row)["requests_per_session"]
         count = f["n"] if f["n"] is not None else counted(row)
         sub = f"{WHOLE_SESSIONS.format(n=n)}{SEP}n\u00a0=\u00a0{count}"
-        return fig_html(f, sub=sub) + split
+        return fig_html(f, counted(row), sub=sub) + split
     return fig_html(f, counted(row)) + (split if has(f) else "")
 
 
@@ -198,15 +198,6 @@ def split_html(row, key, bar=True, of_which=False, bare=False):
     return f'<span class="split">{svg}{out}</span>'
 
 
-def kl_html(row):
-    fid = row["fidelity"] or {}
-    kl = fid.get("kl")
-    if kl is not None and kl["value"] is not None:
-        return fig_html(kl)
-    note = fid.get("kl_note") or "not measured"
-    return f'<span class="na" title="{e(note)}">not measured</span>'
-
-
 def fidelity_word(row, page=None):
     """A row's fidelity as the surface prints it: the FIDELITY check's state in a word (held,
     failed, undecided: FI-6), linked to the Fidelity section of the system's page, which holds
@@ -220,7 +211,7 @@ def fidelity_word(row, page=None):
         title.append(f"{FIDELITY_TITLE}: {sig(mine['mean_prefix'])} tokens")
         if bar is not None:
             title.append(f"bar: {sig(bar['mean_prefix'])} tokens")
-        title += [f"n = {mine['n']:,}", f"record: {row['record']}/fidelity"]
+        title += [f"n = {mine['n']:,} replies", f"record: {row['record']}/fidelity"]
     at = href(row) if page is None else page
     return (f'<a class="fw {e(check["state"])}" href="{e(at)}#fidelity" '
             f'title="{e("; ".join(title))}">{e(STATE_WORD[check["state"]])}</a>')  # fmt: skip

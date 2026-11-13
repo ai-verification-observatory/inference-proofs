@@ -415,7 +415,8 @@ CHECK_CAUSE_WORD = {
 # ------------------------------------------------------------------ labels of a stored figure
 SCOPE_SHORT = {None: "", "prove.steady": "steady", "prove.session": "session",
                "whole_wall": "session", "verify": "verify", "commit": "commit",
-               "setup": "setup", "verify.single_thread": "verify, one thread"}  # fmt: skip
+               "setup": "setup", "verify.single_thread": "verify, one thread",
+               "serving": "full load"}  # fmt: skip
 WHOLE_WALL_SPAN = "from commit to the last proof"  # what a whole session's time runs over
 SCOPE_WORD = {
     None: "not a timed number",
