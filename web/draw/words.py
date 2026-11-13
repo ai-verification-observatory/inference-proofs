@@ -114,8 +114,8 @@ READING_RULE = (
 # Machine-checked's scope card: what is machine-checked, for which program (printed, sets no state)
 SCOPE_ROW_WORD = {"soundness": "Soundness", "zero_knowledge": "Zero knowledge",
                   "completeness": "Completeness"}  # fmt: skip
-SCOPE_COL_WORD = {"protocol": "protocol", "verifier_run": "verifier run",
-                  "prover_run": "prover run"}  # fmt: skip
+SCOPE_COL_WORD = {"protocol": "Protocol", "verifier_run": "Verifier run",
+                  "prover_run": "Prover run"}  # fmt: skip
 SCOPE_VALUE_WORD = {"machine_checked": "machine-checked", "paper": "on paper", "tested": "tested",
                     "not_stated": "not stated"}  # fmt: skip
 # Weights hidden: what kind of value a proof leaves visible (only fitted_to_weights sets a step)
@@ -420,6 +420,7 @@ SCOPE_WORD = {
     "verify": "verifying",
     "verify.single_thread": "verifying on one CPU thread",
     "primitive": "one primitive",
+    "serving": "serving at full load, steady state",  # the serving baseline's, in its title (CO-4)
 }
 GRADE_WORD = {
     "measured": "recorded by our harness",
@@ -451,12 +452,15 @@ PART_WORD = {"proving": "proving", "generation": "generation",
              "commit_and_proving": "commit and proving"}  # fmt: skip
 OF_WHICH = "of which"  # before a part's name where it stands under its whole (the Cost section)
 # the GPU time per reply after the first release group, m (CO-1); its column in the sessions table
-M_NAME, M_COL = "GPU time per reply after the first group (m)", "After the first group (m)"
+M_NAME, M_COL = "GPU time per reply after the first group (m)", "After the first group"
 # the line under a whole session's figure, N the level's replies per session (CO-5)
 WHOLE_SESSIONS = "whole sessions of {n:,} replies"
 # the fidelity table (FI-5, FI-6): the replies' figure, a control's id as printed, the p line
 PREFIX = "Leading tokens matching the original, mean"
 CONTROL_NAME = {"reference-2": "original, run again"}
+# a check's record as its link reads, by the file's name (the path stands in the link's title)
+RECORD_WORD = {"run.json": "run record", "controls.json": "controls", "verify-trace": "verify traces",
+               "reverify.json": "re-verify record", "fidelity.json": "fidelity record"}  # fmt: skip
 P_ABOVE = "above the bar: p\u00a0=\u00a0{p}"
 
 
