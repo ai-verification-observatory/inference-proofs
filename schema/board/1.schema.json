@@ -934,6 +934,40 @@
         "ranked": {
           "type": "boolean"
         },
+        "replaced_sessions": {
+          "$comment": "SE-3a: a counted session whose verify ran with a GPU visible and whose proofs were not kept, replaced in its slot by a later session of the same pin; it enters no figure and no check",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "cause": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "replaced_by": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "run_id": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "slot": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "run_id",
+              "slot",
+              "replaced_by",
+              "cause"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "security": {
           "anyOf": [
             {
@@ -1090,40 +1124,6 @@
         },
         "workload": {
           "$ref": "../quantity/1.schema.json#/$defs/workloadId"
-        },
-        "replaced_sessions": {
-          "$comment": "SE-3a: a counted session whose verify ran with a GPU visible and whose proofs were not kept, replaced in its slot by a later session of the same pin; it enters no figure and no check",
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": false,
-            "required": [
-              "run_id",
-              "slot",
-              "replaced_by",
-              "cause"
-            ],
-            "properties": {
-              "run_id": {
-                "type": "string",
-                "minLength": 1
-              },
-              "slot": {
-                "type": [
-                  "integer",
-                  "null"
-                ]
-              },
-              "replaced_by": {
-                "type": "string",
-                "minLength": 1
-              },
-              "cause": {
-                "type": "string",
-                "minLength": 1
-              }
-            }
-          }
         }
       },
       "required": [
@@ -1287,6 +1287,446 @@
         "systems_run": {
           "minimum": 0,
           "type": "integer"
+        },
+        "teacher_forced": {
+          "$comment": "RFC-0018 SI-9: teacher-forced top-token agreement and KL (FI-10 to FI-15) from teacher-forced.json, printed beside fidelity; absent while not scored. No check, petal, position or order reads it",
+          "additionalProperties": false,
+          "properties": {
+            "alpha": {
+              "type": "number"
+            },
+            "controls": {
+              "items": {
+                "additionalProperties": false,
+                "properties": {
+                  "cause": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "failed": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "cause": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "prompt": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "prompt",
+                        "cause"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "id": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "enum": [
+                      "honest",
+                      "damaged"
+                    ]
+                  },
+                  "kl": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "n": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "note": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "positions": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "reference_rest_mass": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "source": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "unit": {
+                            "const": "nat/token"
+                          },
+                          "value": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "unit",
+                          "n",
+                          "positions",
+                          "reference_rest_mass",
+                          "note",
+                          "source"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "kl_note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "mean": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "mean_not_failed": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "median": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "n": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "run": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "failed"
+                    ]
+                  }
+                },
+                "required": [
+                  "status",
+                  "cause",
+                  "n",
+                  "mean",
+                  "median",
+                  "mean_not_failed",
+                  "failed",
+                  "run",
+                  "kl",
+                  "kl_note",
+                  "id",
+                  "kind"
+                ],
+                "type": "object"
+              },
+              "type": "array"
+            },
+            "gating": {
+              "const": false
+            },
+            "label": {
+              "const": "computed by the system's own code on the reference reply, not by the proved computation"
+            },
+            "n": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "path": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "positions": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "reference_pass": {
+              "anyOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "cause": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "mean": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "median": {
+                      "type": [
+                        "number",
+                        "null"
+                      ]
+                    },
+                    "run": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "status": {
+                      "enum": [
+                        "ok",
+                        "failed"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "cause",
+                    "mean",
+                    "median",
+                    "run"
+                  ],
+                  "type": "object"
+                }
+              ]
+            },
+            "rows": {
+              "additionalProperties": {
+                "additionalProperties": false,
+                "properties": {
+                  "cause": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "computed_by": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "failed": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "cause": {
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "prompt": {
+                          "minimum": 0,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "prompt",
+                        "cause"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "kl": {
+                    "anyOf": [
+                      {
+                        "type": "null"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "n": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "note": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "positions": {
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "reference_rest_mass": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "source": {
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "unit": {
+                            "const": "nat/token"
+                          },
+                          "value": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "value",
+                          "unit",
+                          "n",
+                          "positions",
+                          "reference_rest_mass",
+                          "note",
+                          "source"
+                        ],
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "kl_note": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "label": {
+                    "const": "computed by the system's own code on the reference reply, not by the proved computation"
+                  },
+                  "mean": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "mean_not_failed": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "median": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  },
+                  "n": {
+                    "minimum": 0,
+                    "type": "integer"
+                  },
+                  "run": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "status": {
+                    "enum": [
+                      "ok",
+                      "failed"
+                    ]
+                  },
+                  "tests": {
+                    "items": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "a": {
+                          "type": "string"
+                        },
+                        "b": {
+                          "type": "string"
+                        },
+                        "method": {
+                          "enum": [
+                            "exact",
+                            "monte-carlo"
+                          ]
+                        },
+                        "n": {
+                          "minimum": 0,
+                          "type": "integer"
+                        },
+                        "p": {
+                          "exclusiveMinimum": 0,
+                          "maximum": 1,
+                          "type": "number"
+                        },
+                        "seed": {
+                          "type": [
+                            "string",
+                            "null"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "a",
+                        "b",
+                        "n",
+                        "p",
+                        "method",
+                        "seed"
+                      ],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "status",
+                  "cause",
+                  "n",
+                  "mean",
+                  "median",
+                  "mean_not_failed",
+                  "failed",
+                  "run",
+                  "kl",
+                  "kl_note",
+                  "computed_by",
+                  "label",
+                  "tests"
+                ],
+                "type": "object"
+              },
+              "type": "object"
+            },
+            "top_k": {
+              "minimum": 1,
+              "type": "integer"
+            },
+            "unit": {
+              "const": "agreeing positions"
+            }
+          },
+          "required": [
+            "path",
+            "n",
+            "positions",
+            "unit",
+            "label",
+            "gating",
+            "alpha",
+            "top_k",
+            "reference_pass",
+            "controls",
+            "rows"
+          ],
+          "type": "object"
         }
       },
       "required": [

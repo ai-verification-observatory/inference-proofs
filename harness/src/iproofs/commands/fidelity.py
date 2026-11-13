@@ -35,6 +35,9 @@ ENGINE_REPOS = {"vllm": "vllm-project/vllm"}
 RUN_RECORD = "fidelity-run.json"
 PART = "controls"  # FI-9: the quantized controls, run apart from a vLLM reference
 ROW_PREFIX = "row-"  # the id of a row's committed file in the image's status
+# the calls given the job's GPUs: a reference image's prove, and a system's setup, commit and
+# score (RFC-0018 AD-7), which run its own code on the GPU
+GPU_CALLS = ("prove", "setup", "commit", "score")
 
 
 def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command: Command) -> None:
@@ -535,7 +538,7 @@ def _call(
         step,
         io,
         models_dir=models,
-        gpu=",".join(map(str, args.gpus)) if step == "prove" else None,
+        gpu=",".join(map(str, args.gpus)) if step in GPU_CALLS else None,
         cpuset=_cpuset(),
         mems="0",
         memory=None,

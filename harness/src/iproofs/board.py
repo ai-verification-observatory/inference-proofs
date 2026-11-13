@@ -425,6 +425,27 @@ def _fidelity(
     return block, doc if isinstance(doc, dict) else None
 
 
+def _teacher_forced(root: Path, release: str, rung: str) -> dict[str, object] | None:
+    """SI-9: the rung's teacher-forced block from `teacher-forced.json` (FI-10 to FI-15), its
+    scores recomputed from the stored top tokens; None when not stored. It gates nothing and no
+    check, petal or position reads it."""
+    from iproofs.teacher_forced import board_block  # noqa: PLC0415
+
+    base = fidelity_path(root, release, rung).parent
+    path = base / "teacher-forced.json"
+    if not path.is_file():
+        return None
+    doc = json.loads(path.read_text())
+    reference = [json.loads(x) for x in (base / "reference.jsonl").read_text().splitlines() if x]
+    tops = {p.stem: p for p in (base / "teacher-forced" / "top").glob("*.jsonl")}
+    values = base / "teacher-forced" / "kl.json"
+    kl = json.loads(values.read_text()) if values.is_file() else None
+    try:
+        return board_block(doc, rel(root, path), tops, reference, kl)
+    except (ValueError, KeyError) as e:
+        raise IProofsError(ErrorKind.INTEGRITY, str(e)) from e
+
+
 def _row_fidelity(row: object) -> dict[str, object] | None:
     if not isinstance(row, dict):
         return None
@@ -696,6 +717,9 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
                                fidelity_rows, n)
                      for j, (s, p) in enumerate(ordered)],
         })  # fmt: skip
+        teacher_forced = _teacher_forced(root, release, rung_id)
+        if teacher_forced is not None:  # SI-9: printed figures only; absent while not scored
+            rungs_out[-1]["teacher_forced"] = teacher_forced
     request = field_of(level, "request")
     return {
         "schema": "board/1",

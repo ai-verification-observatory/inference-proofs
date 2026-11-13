@@ -49,6 +49,14 @@ In each call:
 
 The image writes under `/io`: `fidelity/replies/<id>.jsonl` (one reply per line, prompt order; `reference.jsonl` for FI-1), `fidelity/kl/<id>.log`, `fidelity/logs/`, `fidelity/status.json` (each call's and control's outcome and each reply's continuation count; a failed control keeps its cause and the call goes on), and `commands.jsonl`. `iproofs fidelity run` copies them to `results/<release>/fidelity/<rung>/` (logs with host paths redacted) and writes `fidelity-run.json` there (schema `fidelity-run/1`): level digest, engine commit and image, adapter and harness commits, prompt digests, GPUs, slots, the reference's files with their sha256, and every call's exit code, last lines and phases.
 
+## Teacher-forced pass (RFC-0018 FI-10 to FI-13)
+
+With `teacher_forced` in the job, a call builds the same model files and generates no reply: each prompt followed by the stored reference reply is scored position by position. llama.cpp at the pin has no tool that prints the logits of given token ids (`llama-perplexity` reads text, and text tokenized again is not the same ids), so the pass uses `llama-server`, as documented in its [README](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/tools/server/README.md): one `/completion` request per reply position, whose `prompt` is the array of token ids up to that position, with `n_predict` 1, the greedy settings of the reply run, `cache_prompt` true and `id_slot` fixed, so the 512-token prompt is evaluated once in a batch and each later position evaluates one token, as greedy generation does. The generated token (`tokens`) is the model's top token at the position. With `n_probs` 256 the response lists "the probabilities of top N tokens for each generated token", computed "via a simple softmax of the logits without considering any other sampler settings".
+
+One limit of the server at the pin: it returns no list for a generated token that ends inside a UTF-8 character ([server-context.cpp L2149-L2177](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/tools/server/server-context.cpp#L2149-L2177), `add_token` runs only on a complete character). The top token is still returned; the position is counted in `positions_without_list` and left out of that engine's KL (FI-12).
+
+Outputs: `/io/fidelity/teacher-forced/top/<id>.jsonl` and `raw/<id>/<prompt>.topk`. No KL tool runs and no reply file is written in this mode.
+
 ## Resources
 
 - Llama 3.1 8B: 16 GB at 16 bits, one H200; a few minutes per control for 15 prompts.

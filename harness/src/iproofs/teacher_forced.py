@@ -27,6 +27,7 @@ log-probabilities.
 """
 
 import hashlib
+import json
 import statistics
 import struct
 from array import array
@@ -391,3 +392,74 @@ def build(
             for r in sorted(rows, key=lambda r: r.scored.id)
         },
     }
+
+
+# ---------------------------------------------------------------- the board's block (SI-9)
+
+
+def board_block(doc: Mapping[str, Any], path: str, tops: Mapping[str, Path],
+                reference: Sequence[Sequence[int]],
+                kl_values: Mapping[str, Any] | None = None) -> dict[str, object]:  # fmt: skip
+    """What the board prints of `teacher-forced.json`, after recomputing every score it holds
+    from the stored top tokens (`tops`: id to its `top/<id>.jsonl`) and the reference replies,
+    every mean and median from the scores, and every KL figure from the stored per-prompt
+    values (`kl_values`, kl.json); a difference stops the board (AGENTS.md rule 3)."""
+
+    def checked(ident: str, entry: Mapping[str, Any], system: bool) -> None:
+        scores = [int(x) for x in entry["scores"]]
+        if entry["status"] == "ok":
+            lines = [json.loads(x) for x in tops[ident].read_text().splitlines() if x.strip()]
+            again = [0 if isinstance(t, dict) else agreement(t, r)
+                     for t, r in zip(lines, reference, strict=True)]  # fmt: skip
+            if again != scores or (not system and any(isinstance(t, dict) for t in lines)):
+                raise ValueError(f"{path}: the scores of {ident} are not the ones its stored "
+                                 "top tokens give")  # fmt: skip
+        mean = sum(scores) / len(scores) if scores else None
+        median = float(statistics.median(scores)) if scores else None
+        if (entry["mean"], entry["median"]) != (mean, median):
+            raise ValueError(f"{path}: the mean or median of {ident} is not its scores'")
+        kl = entry.get("kl")
+        if kl is not None:
+            stored = ((kl_values or {}).get("engines") or {}).get(ident) or {}
+            values = [v for v in stored.get("per_prompt") or [] if v is not None]
+            if not values or kl["value"] != fsum(values) / len(values) or kl["n"] != len(values):
+                raise ValueError(f"{path}: the KL figure of {ident} is not the mean of its "
+                                 "stored per-prompt values")  # fmt: skip
+
+    def figure(entry: Mapping[str, Any]) -> dict[str, object]:
+        kl = entry.get("kl")
+        return {"status": entry["status"], "cause": entry["cause"], "n": len(entry["scores"]),
+                "mean": entry["mean"], "median": entry["median"],
+                "mean_not_failed": entry["mean_not_failed"],
+                "failed": [dict(f) for f in entry["failed"]], "run": entry["run"],
+                "kl": None if kl is None else {k: kl[k] for k in (
+                    "value", "unit", "n", "positions", "reference_rest_mass", "note")}
+                | {"source": kl["source"]["ref"]},
+                "kl_note": entry.get("kl_note")}  # fmt: skip
+
+    controls = []
+    for c in doc["controls"]:
+        checked(str(c["id"]), c, False)
+        controls.append({"id": c["id"], "kind": c["kind"], **figure(c)})
+    rows = {}
+    for system, r in doc["rows"].items():
+        checked(system, r, True)
+        rows[system] = {**figure(r), "computed_by": r["computed_by"], "label": r["label"],
+                        "tests": [dict(t) for t in r["tests"]]}  # fmt: skip
+    own = doc.get("reference_pass")
+    if own is not None:
+        checked("reference", {**own, "kl": None}, False)
+    return {
+        "path": path,
+        "n": doc["n"],
+        "positions": doc["positions"],
+        "unit": doc["measure"]["unit"],
+        "label": doc["measure"]["label"],
+        "gating": False,
+        "alpha": doc["measure"]["alpha"],
+        "top_k": doc["kl"]["top_k"],
+        "reference_pass": None if own is None else {
+            k: own[k] for k in ("status", "cause", "mean", "median", "run")},
+        "controls": controls,
+        "rows": rows,
+    }  # fmt: skip

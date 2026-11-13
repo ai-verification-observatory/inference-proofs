@@ -65,6 +65,26 @@ hf-job.sh fidelity llama-4-maverick   # fidelity-h200x8-hosted, IPROOFS_FIDELITY
 
 The verifier-side controls of a kept SASH session run as in `hf-jobs.md` stage 5 (`seed`, `controls`, `merge`); `iproofs controls RUN_DIR` reads the level from the run's manifest. A session whose verify host showed a GPU (SASH) is verified again on `cpu-xl` with `hf-job.sh reverify SYSTEM RUN_PATH` (RFC-0018 CH-4a); the job adds `reverify/` beside the stored run, and `iproofs results import JOB_RUN --add-to results/<release>/<system>/<run id>` brings it into the imported run.
 
+### Teacher-forced passes (RFC-0018 FI-10 to FI-15)
+
+Printed beside the fidelity check, gating nothing. They need the rung's stored `reference.jsonl`, so they come after its fidelity job, one job per engine, each `hf-job.sh fidelity RUNG` with `IPROOFS_TF=1`:
+
+| Engine | Image | Flavour | Also set |
+|---|---|---|---|
+| llama.cpp: the reference and the controls it builds (8B) | `ref-fidelity` | `h200` | nothing |
+| SASH's own code (8B) | the scoring image, `systems/sash/Dockerfile.score` | `h200` | `IPROOFS_TF_SYSTEM=sash`, `IPROOFS_TF_IMAGE`, `IPROOFS_TF_PROVER_FILES` (a counted session's `commitment/prover` folder in the bucket) |
+| vLLM: the reference, its rerun, the other model (Maverick) | `ref-fidelity-vllm` | `h200x8` | `IPROOFS_FIDELITY_ENGINE=vllm` |
+| llama.cpp: the quantized controls (Maverick) | `ref-fidelity` | `h200x4` | `IPROOFS_FIDELITY_PART=controls`, `IPROOFS_FIDELITY_GGUF`, `IPROOFS_FIDELITY_SLOTS=16`, `IPROOFS_TF_ONLY` to keep some |
+| FlashProve's own code (Maverick) | the scoring image, `systems/flashprove/Dockerfile.score` | `h200x2` | `IPROOFS_TF_SYSTEM=flashprove`, `IPROOFS_TF_IMAGE` |
+
+A scoring image is built by the images workflow with `dockerfile: Dockerfile.score`; it is the row's pinned image plus this commit's adapter file, and `system.yaml` keeps its pin. Run one prompt first on a new path (`IPROOFS_TF_LIMIT=1`): such a run is a trial and is not scored. Each job leaves `teacher-forced/` under the rung's fidelity folder of its upload: copy `run-*.json`, `top/`, `status-*.json`, `commands-*.jsonl` and `logs/` into `results/v1.0/fidelity/<rung>/teacher-forced/`, and keep `raw/` (the lists, about 1 MB per prompt and engine) outside the repository. Then, with every job's `raw/` folders merged into one directory:
+
+```sh
+uv run iproofs fidelity score --level L1 --rung llama-3.1-8b --release v1.0 --part teacher-forced --raw <the merged raw directory>
+```
+
+writes `teacher-forced/kl.json` and `teacher-forced.json`. Without `--raw` it reads the stored `kl.json`.
+
 ## Step 4: release
 
 On the owner's machine, from the downloaded run directories:

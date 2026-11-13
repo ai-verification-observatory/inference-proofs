@@ -10,6 +10,14 @@ vLLM 0.32.0, the image the serving baselines run (`docker.io/vllm/vllm-openai@sh
 
 `iproofs fidelity run --engine vllm` makes three calls: `info`, `prove` with `call: reference` (the publisher's 16-bit safetensors at /models: the reference and the `rerun` control), `prove` with `call: other_model` (the smaller model). A recipe this image does not build is recorded failed with its cause. The `quantize` controls come from `iproofs fidelity run --part controls` in the `ref-fidelity` image. No KL (FI-7 needs llama.cpp's base on the 16-bit file).
 
+## Teacher-forced pass (RFC-0018 FI-10 to FI-13)
+
+With `teacher_forced` in the job, a call generates no reply: each prompt followed by the stored reference reply goes in as token ids with `prompt_logprobs` 256 ("Number of log probabilities to return per prompt token", [sampling_params.py](https://github.com/vllm-project/vllm/blob/5df63a7203cdb9328d824a27b682e77c7b9928be/vllm/sampling_params.py#L347-L349)), `max_tokens` 1 and `flat_logprobs`, and the engine starts with `max_logprobs` 256, its cap on that number (default 20). Entry j of a request's `prompt_logprobs` is the distribution after tokens 0 to j − 1, so entries 512 to 1,023 are the reply's positions. vLLM lists the sequence's own token first, then the most probable ones; the adapter sorts them (lower id first among equal values) and takes the first as the top token.
+
+What v0.32.0 can return, read at the pin: `prompt_logprobs` −1 returns the whole vocabulary ("When set to -1, return all `vocab_size` log probabilities") when `max_logprobs` is −1, which its documentation warns "may cause OOM": 1,024 positions × 202,048 tokens per prompt, built as Python lists. `prompt_logprob_token_ids` returns the log-probabilities of given ids per position as an array. The pass uses neither: FI-12 asks every engine for its own 256 most probable tokens, the same request llama.cpp and the systems answer.
+
+Sequences go in 32 at a time. The `rerun` control sends them in reverse order, as it does for replies.
+
 ## Tests
 
-`tests/test_ref_fidelity_vllm.py` runs both calls on CPU against a stand-in for vLLM.
+`tests/test_ref_fidelity_vllm.py` runs both calls, and the teacher-forced pass, on CPU against a stand-in for vLLM.
