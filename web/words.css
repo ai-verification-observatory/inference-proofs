@@ -110,7 +110,8 @@ p { margin: 0; }
 .lit-on .sl.lit:not(.key) { stroke: var(--paper); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 /* an open red in hand keeps its red edge, thicker, so it never reads as a lit hollow petal */
 .lit-on .sl.red.open.lit { stroke: var(--red); }
-.lit-on .sl.key:not(.lit) { fill: var(--ground); stroke: var(--cobalt); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+/* the outline inside the arm's own box (half of a 4 px line), so every arm keeps its edges and its gaps */
+.lit-on .sl.key:not(.lit) { fill: var(--ground); stroke: var(--cobalt); stroke-width: 4px; vector-effect: non-scaling-stroke; clip-path: inset(0) fill-box; }
 .lit-on .t.key:not(.lit) text { fill: var(--paper); }
 .gbig.linked .sl, .gbig.linked .t { cursor: pointer; }
 /* a petal's name on its arm: 4 units high on an arm 5 units high (hexagon.py NAME, TRACK) */
@@ -163,6 +164,11 @@ p { margin: 0; }
 /* between the phone's two lines and a wide screen, GitHub is its mark alone, so search keeps room */
 @media (max-width: 1000px) and (min-width: 761px) {
   .top .repo > span:not(.sr) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* the bar's gaps and the tabs a step closer, so the field at rest still shows its word whole */
+  .top { column-gap: 20px; }
+  .tab { padding-inline: 10px; }
+  .ti { left: 10px; right: 10px; }
+  .sph { right: 12px; }
   /* the field is narrow here: in use it widens over the tabs to the width of its list, which hangs from
      the field's right end at a width a result reads in */
   .top .search { height: 34px; }
@@ -300,7 +306,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .facts dd { margin: 6px 0 0; font: 600 13px/19px var(--mono); }
 .facts a { text-decoration-thickness: 1px; }
 /* a link on the band, in hand: a block of ground ink, the words in cobalt (as an index line) */
-.facts a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+.facts a:hover, .facts a:active, .facts a:focus-visible { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
 .facts .pos { display: flex; align-items: center; gap: 8px; }
 .facts .pos .pn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; box-shadow: inset 0 0 0 1.5px var(--ground); font: 900 18px/1 var(--disp); font-variant-numeric: tabular-nums; }
 .facts .pos.p1 .pn { background: var(--paper); box-shadow: none; }
@@ -337,7 +343,8 @@ html:has(.top.s-on) { overflow: hidden; }
 .ps { display: flex; align-items: stretch; height: 100%; margin-inline: var(--gut); overflow-x: auto; scrollbar-width: none; }
 .ps-t { position: sticky; left: 0; z-index: 1; flex: none; display: flex; align-items: center; margin-right: 0; max-width: 0; overflow: hidden; white-space: nowrap; background: var(--ground); box-shadow: inset 0 -1px 0 var(--line); font: 900 22px/1 var(--disp); opacity: 0; transition: opacity var(--ease), max-width var(--ease), margin-right var(--ease); }
 html:not(.js) .ps-t { display: none; }
-.pnav.stuck .ps-t { opacity: 1; max-width: 40ch; margin-right: 10px; padding-right: 12px; }
+/* stuck, the title is a cell of its own, ruled on its right: a label scrolled under it passes under that rule */
+.pnav.stuck .ps-t { opacity: 1; max-width: 40ch; margin-right: 10px; padding-right: 12px; box-shadow: inset -1px 0 0 var(--line), inset 0 -1px 0 var(--line); }
 .ps a { position: relative; isolation: isolate; flex: none; display: flex; align-items: center; padding: 0 12px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); text-decoration: none; }
 .ps-t + a { margin-left: -12px; }
 .pnav.stuck .ps-t + a { margin-left: 0; }
@@ -1006,10 +1013,9 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 @media (max-width: 400px) {
   .parts .fig .n { font-size: 16px; }
 }
-/* the mandate: the rule binding a line, named under its words */
 /* the checks page: the key (the glyph in cobalt) kept beside the five petals; the petal read lights in it */
 .cwrap { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 56px; padding-top: 32px; align-items: start; }
-.chk { padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line); }
+.chk { padding: 20px 16px; border-bottom: 1px solid var(--line); }
 .anim .chk { transition: box-shadow var(--quick), background-color var(--quick); }
 .cwrap .chk:first-child { padding-top: 16px; }
 /* the petal in hand or read: lifted with a cobalt edge, as a row of the system page's petals */
@@ -1019,17 +1025,20 @@ html.js .scalepage .scl-panel { margin-top: 0; }
    in a cobalt block that slides in from its left edge */
 .chk:target .cn2, .cs > div:target dt, .checkspage .rd:target { background: var(--cobalt); color: var(--ground); }
 .cs > div:target dt { width: fit-content; height: fit-content; margin-left: -.4em; padding: 0 .4em; }
-.checkspage .rd:target { width: fit-content; margin-left: -12px; padding: 8px 12px; }
+/* a paragraph's block grows around its words (a shadow, not padding), so they keep their place and their lines */
+.checkspage .rd:target { width: fit-content; box-shadow: 0 0 0 8px var(--cobalt), -4px 0 0 8px var(--cobalt), 4px 0 0 8px var(--cobalt); }
+.checkspage .cwrap .hl:target { max-width: calc(90ch - 16px); margin: 16px 0 0 16px; padding: 0; }
 .cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
 .cs > div { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
-.blk > .cs > div { padding: 12px 0 12px 12px; border-bottom: 1px solid var(--line); transition: background-color var(--quick); }
-.blk > .cs > div:hover { background: var(--lift); }
+.blk > .cs > div { padding: 12px 0 12px 16px; border-bottom: 1px solid var(--line); }
 .cs dt { color: var(--paper); font-weight: 600; }
 .cs dd { margin: 0; max-width: 80ch; color: var(--muted); text-wrap: pretty; }
 /* the mandate: a line's label links the rule that binds it; the members' names in display type,
    a row of cells whose rules meet (the list starts a rule's width early and clips it, so the
    first name of each line has none) */
 .cs dt a { text-decoration-color: var(--rule); }
+/* in hand, as a footer link: cobalt under ground ink, at once */
+.cs dt a:hover, .cs dt a:active, .cs dt a:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .cs .mbr dd { max-width: none; }
 .mbl { list-style: none; display: flex; flex-wrap: wrap; row-gap: 8px; margin: 0 0 0 -20px; padding: 0; overflow: hidden; }
 .mbl li { min-width: 0; margin-left: -1px; padding: 0 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
@@ -1038,18 +1047,21 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .rd { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; text-wrap: pretty; }
 .rd + .rd { margin-top: 10px; }
 .cwrap .hl { padding: 16px 0 0 16px; }
+.cwrap .hl + .hl { padding-top: 0; }
 /* the petals' causes, under the hollow rule (#cause-<id>, linked from a system page's State cell) */
 .cwrap .pcause { padding: 12px 0 0 16px; }
 /* a petal's four steps: the widest chip (amber in lesser part, with its notch) keeps clear of its rule */
-@media (min-width: 561px) { .cwrap .chk .cs > div { grid-template-columns: 196px minmax(0, 1fr); } }
+@media (min-width: 561px) { .cwrap .cs > div { grid-template-columns: 196px minmax(0, 1fr); } }
 /* the 404: the models and the systems as cells, rules meeting; each answers as a row does */
 .lost { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); overflow: hidden; }
 .lost li { display: flex; margin-left: -1px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); }
 .lost a { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; row-gap: 10px; padding: 18px 16px 20px 17px; text-decoration: none; }
 .lost .lp { text-wrap: balance; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
 .lost .ln { font: 900 32px/.95 var(--disp); text-wrap: balance; }
-.lsys a { grid-template-columns: 50px minmax(0, 1fr); column-gap: 16px; row-gap: 6px; align-items: center; }
+.lsys a { grid-template-columns: 50px minmax(0, 1fr); column-gap: 16px; row-gap: 6px; align-items: start; }
 .lsys svg { grid-row: 1 / span 2; }
+/* the glyph's top level with the name's line (the scale page's name margin is not this cell's) */
+.lsys .ln { margin-top: 0; }
 .lsys .lp { font: var(--f-meta); letter-spacing: 0; text-transform: none; }
 .lost a:hover { background: var(--lift); box-shadow: inset 3px 0 0 var(--cobalt); }
 .lost a:hover .ln { text-decoration: underline 3px; text-underline-offset: 5px; }
@@ -1084,8 +1096,10 @@ main { flex: 1 0 auto; }
 .fcells { display: flex; flex-wrap: wrap; list-style: none; margin: 0 var(--gut) 0 calc(var(--gut) - 20px); padding: 0 0 48px; overflow: hidden; }
 .fcells li { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; margin-left: -1px; padding: 16px 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
 .foot a { color: var(--paper); text-decoration-color: var(--rule); }
-/* a footer link pointed at or pressed: cobalt under ground ink, at once */
-.foot a:hover, .foot a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+/* a footer link pointed at, pressed or focused: cobalt under ground ink, at once; focused, a paper ring
+   round the block, as a tab's */
+.foot a:hover, .foot a:active, .foot a:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+.foot a:focus-visible, .cs dt a:focus-visible { outline-color: var(--paper); outline-offset: 5px; }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */
@@ -1098,7 +1112,7 @@ main { flex: 1 0 auto; }
 .kick { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 32px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; margin-bottom: 18px; }
 .kick a { text-decoration: none; box-shadow: 0 1px 0 var(--ground); }
 /* in hand: a block of ground ink, the words in cobalt (as a link on the band) */
-.kick a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+.kick a:hover, .kick a:active, .kick a:focus-visible { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
 .learnpage .lt-h { font-size: var(--title); line-height: .92; max-width: 22ch; padding-top: 0; overflow-wrap: normal; text-wrap: balance; }
 .lt-s { font: 400 14px/22px var(--mono); margin-top: 20px; max-width: 70ch; text-wrap: pretty; }
 /* the band's lower edge: the track's pages as cells (rules of ground ink between them), the
@@ -1576,7 +1590,10 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .creed { font-size: 32px; }
   .blk { margin-top: 48px; }
   .cn2 { font-size: 24px; }
-  .chk { padding-left: 12px; }
+  .chk { padding-inline: 12px; }
+  .blk > .cs > div { padding-left: 12px; }
+  .cwrap :is(.hl, .pcause) { padding-left: 12px; }
+  .checkspage .cwrap .hl:target { max-width: calc(90ch - 12px); margin-left: 12px; padding: 0; }
   .rt { font-size: 12px; }
   .rt tbody th { font-size: 18px; line-height: 21px; }
   /* a petal or check: its name and state on one line, then the reason or cause, then the rest */
@@ -1601,6 +1618,12 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .foot a { position: relative; }
   .foot a { z-index: 1; }
   .foot a:after { content: ""; position: absolute; inset: -14px 0; }
+  /* the credit's two links may sit on two lines: each keeps its own band */
+  .fcr { line-height: 28px; }
+  .fcr a:after { inset: -5px 0; }
+  /* a mandate line's label (on a phone alone on its line, the words under it hold no link) */
+  .cs dt a { position: relative; }
+  .cs dt a:after { content: ""; position: absolute; inset: -12px -8px; }
   /* a finger's targets: 44 px, the layout unchanged where a negative margin can take the growth */
   .brand .logo { padding-block: 14px; margin-block: -14px; }
   .ckt .ev { padding-block: 7px; }
@@ -1620,6 +1643,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .lad .st a:after { content: ""; position: absolute; inset: -6px -4px -12px; }
   .ps a { min-width: 44px; justify-content: center; }
   .top .repo { min-width: 44px; height: 44px; justify-content: center; }
+  /* the key's arms answer a finger over half of each gap beside them (an unseen edge) */
+  .gbig.linked:not(.lit-on) .sl.key { stroke: transparent; stroke-width: 6px; vector-effect: non-scaling-stroke; }
 }
 /* a footer line of several cells on a touch screen: lines 44 px apart, so two links one over the other keep their own bands */
 @media (hover: none) and (min-width: 561px) {
