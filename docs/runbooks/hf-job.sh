@@ -81,6 +81,10 @@
 #   IPROOFS_FIDELITY_SLOTS  fidelity only: llama-server slots, the prompts sent at once (default
 #                         1); each control's replies are made the way the reference's are, and
 #                         the reference rerun (FI-2) shows what batching changes
+#   IPROOFS_FIDELITY_ENGINE fidelity only: vllm runs the reference, its rerun and the smaller
+#                         model in the ref-fidelity-vllm image (RFC-0018 FI-9); default llama.cpp
+#   IPROOFS_FIDELITY_PART controls: only the quantized controls, in the ref-fidelity image, from
+#                         the 16-bit GGUF IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN (FI-9)
 #   IPROOFS_STORED_DIR    controls only: a read-only mount of the stored run (`hf jobs run -v
 #                         hf://buckets/<namespace>/<bucket>/RUN_PATH:/stored:ro`)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
@@ -359,6 +363,40 @@ stored_checks() {  # SYSTEM RUN_PATH: a stored run that seed, controls and merge
   fi
 }
 
+copy_stored() {  # the stored run at RUN_PATH (from READ_FROM) onto this disk, as RUN
+  RUN="$WORK/stored/dev-results/${RUN_PATH#*/dev-results/}"
+  mkdir -p "$(dirname "$RUN")"
+  log "copy $RUN_PATH from the bucket ($(du -sh "$READ_FROM" | cut -f1)), at most $(left) s"
+  copy_start=$(date +%s)
+  if ! timeout --kill-after=60 "$(left)" cp -R "$READ_FROM" "$RUN"; then
+    log "the copy failed or reached the deadline; stopping"
+    return 3
+  fi
+  # the bucket's read speed is not documented: this line measures it, for the spend log
+  log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
+  chmod -R u+w "$RUN"  # a copy from the read-only mount keeps its modes; the part writes here
+  # the bucket keeps no file modes: a kept build cache (io/state) would hold build scripts and
+  # binaries cargo finds fresh but cannot run, so a control prove fails for that and reads as
+  # prover_failed. The exec bit goes back on every ELF file and #! script.
+  python3 - "$RUN" <<'PYEOF'
+import os
+import sys
+
+n = 0
+for root, _, files in os.walk(sys.argv[1]):
+    for name in files:
+        path = os.path.join(root, name)
+        if os.path.islink(path):
+            continue
+        with open(path, "rb") as f:
+            head = f.read(4)
+        if head == b"\x7fELF" or head[:2] == b"#!":
+            os.chmod(path, os.stat(path).st_mode | 0o111)
+            n += 1
+print(f"exec bit restored on {n} files")
+PYEOF
+}
+
 record_seed() {  # FILE: the control_seed of a controls-seed.json, with the system python3
   python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["control_seed"])' "$1"
 }
@@ -377,6 +415,31 @@ case "$MODE" in
     fi
     if [ "$MODE" = merge ] && [ ! -f "$STORED/controls-seed.json" ]; then
       log "$RUN_PATH has no controls-seed.json: no part can have run"
+      exit 2
+    fi
+    ;;
+  reverify)  # RFC-0018 CH-4a: every proof of a kept run verified again on a host with no GPU
+    if [ $# -ne 2 ]; then
+      log "usage: hf-job.sh reverify SYSTEM RUN_PATH"
+      exit 2
+    fi
+    CSYSTEM=$1 RUN_PATH=${2%/}
+    case "$RUN_PATH" in
+      runs/*/dev-results/*/"$CSYSTEM"/*) ;;
+      *) log "RUN_PATH must be runs/<folder>/dev-results/<release>/$CSYSTEM/<run id>"; exit 2 ;;
+    esac
+    STORED="$IPROOFS_UPLOAD_DIR/$RUN_PATH"
+    READ_FROM=${IPROOFS_STORED_DIR:-$STORED}
+    if [ ! -f "$IPROOFS_UPLOAD_DIR/${RUN_PATH%%/dev-results/*}/upload.done" ]; then
+      log "the upload of ${RUN_PATH%%/dev-results/*} did not finish (no upload.done)"
+      exit 2
+    fi
+    if [ ! -d "$READ_FROM/io/proofs" ] || [ ! -d "$READ_FROM/commitment" ]; then
+      log "no kept run at $RUN_PATH: it needs io/proofs and commitment/ (a run made with keep-io)"
+      exit 2
+    fi
+    if [ -e "$STORED/reverify" ]; then
+      log "$RUN_PATH already has reverify/: a run is re-verified once"
       exit 2
     fi
     ;;
@@ -530,7 +593,11 @@ NGPU=$("$PY" -c 'import pynvml; pynvml.nvmlInit(); print(pynvml.nvmlDeviceGetCou
 NGPU=${NGPU:-0}
 log "GPUs visible: $NGPU"
 BOUND=0
-if [ "$MODE" = controls ] && [ "$NGPU" -eq 0 ]; then
+if [ "$MODE" = reverify ] && [ "$NGPU" -gt 0 ]; then
+  log "reverify runs on a verifier host with no GPU (CH-4a); this host has $NGPU"
+  exit 2
+fi
+if { [ "$MODE" = controls ] || [ "$MODE" = reverify ]; } && [ "$NGPU" -eq 0 ]; then
   log "a verifier host: no binding check and no self-test; verifier-side ids only"
 else  # a GPU host: the binding check and the self-test, as for run and probe
   log "binding check: the CPUs iproofs run ${GPU_ARGS[*]} binds on $PROFILE"
@@ -590,16 +657,14 @@ EOF
     log "the binding check failed; stopping before the copy and the weights"
     exit 3
   fi
-  RUN="$WORK/stored/dev-results/${RUN_PATH#*/dev-results/}"
-  mkdir -p "$(dirname "$RUN")"
-  log "copy $RUN_PATH from the bucket ($(du -sh "$READ_FROM" | cut -f1)), at most $(left) s"
-  copy_start=$(date +%s)
-  if ! timeout --kill-after=60 "$(left)" cp -R "$READ_FROM" "$RUN"; then
-    log "the copy failed or reached the deadline; stopping"
-    exit 3
+  copy_stored || exit 3
+  # RFC-0008 C3 and P1: the workload's perturbed commitment, kept beside the stored run in its
+  # folder (<release>/<system>/_controls/), goes beside the copy, where the controls read it;
+  # every part of a suite shares it (SPLIT-4)
+  if [ -d "$(dirname "$STORED")/_controls" ]; then
+    cp -R "$(dirname "$STORED")/_controls" "$(dirname "$RUN")/_controls"
+    log "perturbed commitment: $(dirname "$RUN_PATH")/_controls"
   fi
-  # the bucket's read speed is not documented: this line measures it, for the spend log
-  log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
   extra=()
   if [ "$NGPU" -gt 0 ]; then  # the binding check passed (above)
     workload=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["workload"]["id"])' "$RUN/run.json")
@@ -609,6 +674,17 @@ EOF
       exit 3
     fi
     extra=(--gpu "$GPU")
+    case ",$IDS," in
+      *,P1,*)  # P1 proves with W', which must be in this host's cache: the adapter's perturb
+        # makes it again (prepare-perturbed into a scratch root, its record not used); P1 is
+        # refused unless its digest is the stored perturbed commitment's model_digest
+        level_id=$(python3 -c 'import json, sys; print((json.load(open(sys.argv[1])).get("level") or {}).get("id", ""))' "$RUN/manifest.json")
+        log "W' for P1: prepare-perturbed $workload into a scratch results root, at most $(left) s"
+        env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" controls --prepare-perturbed "$workload" \
+          --system "$CSYSTEM" --profile "$PROFILE" --hosted --gpu "$GPU" ${level_id:+--level "$level_id"} \
+          --results "$WORK/w-prime" || log "prepare-perturbed failed; P1 is refused below"
+        ;;
+    esac
   fi
   log "controls $IDS, seed $SEED (from controls-seed.json), ${extra[*]:-no GPU}, at most $(left) s"
   # a progress line per control call that returns (control.call): what a rerun's timeout is
@@ -624,6 +700,23 @@ EOF
   cp -R "$RUN/logs" "$OUT/controls/logs"
   exit "$rc"
 fi
+if [ "$MODE" = reverify ]; then  # RFC-0018 CH-4a, on a copy of the stored run on this disk
+  copy_stored || exit 3
+  log "reverify $RUN_PATH on this host (no GPU), at most $(left) s"
+  env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" reverify "$RUN" --hosted --provider "$PROVIDER"
+  rc=$?
+  log "reverify exit $rc"
+  [ "$rc" -eq 0 ] || exit "$rc"
+  if [ -e "$STORED/reverify" ]; then
+    log "$RUN_PATH has reverify/ now; this one is discarded"
+    exit 2
+  fi
+  mkdir -p "$OUT/reverify" && cp -R "$RUN/reverify/." "$OUT/reverify/"
+  cp -R "$RUN/logs" "$OUT/reverify/logs"
+  cp -R "$RUN/reverify" "$STORED/reverify"
+  log "reverify/ written to $RUN_PATH ($(ls "$STORED/reverify/verify-trace" | wc -l) traces)"
+  exit 0
+fi
 if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in the ref-fidelity image
   if [ $# -ne 1 ] || [ "$BOUND" -ne 0 ]; then
     log "usage: hf-job.sh fidelity RUNG (on a fidelity-* or serving-* profile; binding check must pass)"
@@ -633,6 +726,25 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
   RELEASE=v1.0
   log "level prompts $RUNG (needs levels/L1-beacon.json at this commit)"
   "$IP" level prompts "$RUNG" --out "$WORK/prompts" || { log "level prompts failed"; exit 3; }
+  if [ "${IPROOFS_FIDELITY_PART:-}" = controls ]; then
+    # RFC-0018 FI-9: the quantized controls only, built in llama.cpp from a 16-bit GGUF named by
+    # IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN; its files are hashed into the part's record
+    spec=${IPROOFS_FIDELITY_GGUF:?IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN}
+    src=${spec%%:*}; pattern=${spec#*:}; repo=${src%@*}; rev=${src#*@}
+    log "download the 16-bit GGUF: $repo at $rev ($pattern), at most $(left) s"
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" \
+      uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf download "$repo" --revision "$rev" \
+      --include "$pattern" --local-dir "$WORK/reference-gguf" >/dev/null || { log "download of $repo failed"; exit 3; }
+    SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
+    log "fidelity run $RUNG --part controls on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
+      --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
+      --results "$DEV" --work "$WORK/fidelity-io" --part controls \
+      --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src"
+    rc=$?
+    log "fidelity run exit $rc"
+    exit "$rc"
+  fi
   # the rung's reference and other model, at the revisions levels/L1.yaml pins; their files are
   # hashed into fidelity-run.json by the run (RFC-0018 FI-1, FI-2)
   fetch_args=()
@@ -666,16 +778,17 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
     timeout --kill-after=60 "$(left)" "$IP" fetch-model --serving "$record" || { log "fetch failed"; exit 3; }
   fi
   SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
-  log "fidelity run $RUNG on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+  ENGINE=${IPROOFS_FIDELITY_ENGINE:-llama.cpp}
+  log "fidelity run $RUNG in $ENGINE on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
   env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
     --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
-    --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"}
+    --engine "$ENGINE" --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"}
   rc=$?
   log "fidelity run exit $rc"
   exit "$rc"
 fi
 if [ "$MODE" != run ] || [ $# -lt 2 ]; then
-  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed]..."
+  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed][:control-run]..."
   log "       hf-job.sh seed|merge SYSTEM RUN_PATH | hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
   exit 2
 fi
@@ -732,6 +845,7 @@ for step in "$@"; do
       session=*) extra+=(--session "${flag#session=}") ;;
       ladder) extra+=(--load ladder) ;;
       perturbed) ;;  # handled below: the Model check's W' is committed before the run
+      control-run) extra+=(--control-run) ;;  # RFC-0018 CH-1b: one batch, P1, never a session
       *) log "unknown step field $flag in $step"; exit 2 ;;
     esac
   done

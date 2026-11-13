@@ -1,0 +1,60 @@
+{
+  "schema": "reverify/1",
+  "run_id": "2026-11-12-fake-w-prover-h200-hosted-3",
+  "run_manifest_digest": "sha256:abababababababababababababababababababababababababababababababab",
+  "image": {
+    "ref": "ghcr.io/example/fake@sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "digest_kind": "manifest"
+  },
+  "harness": {
+    "git_commit": "0000000000000000000000000000000000000000",
+    "git_dirty": false
+  },
+  "host": {
+    "machine": {
+      "cpu": {
+        "model": "Example CPU",
+        "logical_cpus": 16,
+        "physical_cores": 8,
+        "sockets": 1,
+        "smt_active": true,
+        "bound_prover": [],
+        "bound_verifier": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "bound_verifier_single": [
+          0
+        ]
+      },
+      "memory": {
+        "total_bytes": 133143986176,
+        "available_bytes_at_start": 128849018880
+      },
+      "numa": {
+        "bound_mems": [
+          0
+        ],
+        "nodes": 1
+      },
+      "provider": "Hugging Face Jobs",
+      "verifier_host": "separate"
+    },
+    "nonconforming": []
+  },
+  "proofs": [
+    {
+      "proof_id": "req-0",
+      "verdict": "accept",
+      "seconds": 981.2,
+      "proof_digest": "sha256:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+      "trace": "reverify/verify-trace/req-0.json"
+    }
+  ]
+}

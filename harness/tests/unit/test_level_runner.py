@@ -652,3 +652,95 @@ def test_reject_made_by_adapter_code_is_void(tmp_path: Path) -> None:
     assert len(trials) == 10
     assert all(x["outcome"] == "void" and x["detail"]["decided_by"] == "adapter" for x in trials)
     assert (record["outcome"], record["passed"]) == ("void", None)
+
+
+def test_c1_part_on_a_verifier_host_mutates_on_the_verifier_cpus(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """AD-6: `mutate_reply` takes neither weights nor a GPU, so a verifier host (no prover
+    CPUs) runs C1's split part; it once failed every trial with "binds no prover CPUs"."""
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import VerifierEnvironment, controls_for_run, draw_seed  # noqa: PLC0415
+
+    empty = tmp_path / "no-strace"
+    empty.mkdir()
+    kept = l1_runner(str(empty))
+    kept.keep_io = True
+    run_dir = kept.run(spec(tmp_path / "r", controls=False))
+    draw_seed(REGISTRY, run_dir, control_seed=SEED)
+    host = Host(ROOT / "harness/tests/fixtures/host", run=lambda _: None, hosted=True)
+    verifier_host = l1_runner(str(empty))
+    verifier_host.env = VerifierEnvironment(host, 3)
+    seen = spy_calls(monkeypatch)
+    part = read(run_dir, controls_for_run(verifier_host, run_dir, only=["C1"]).name)
+    c1 = part["controls"][0]
+    assert [t["outcome"] for t in c1["trials"]] == ["rejected"] * 6  # first and last
+    assert sum(sub == "mutate_reply" for sub, _ in seen) == 6
+
+
+def test_control_run_proves_one_batch_and_is_marked_control(tmp_path: Path) -> None:
+    """RFC-0018 CH-1b: a control run proves the slot's first prompt at batch 1, records
+    `control: true` in run.json and manifest.json, and runs the control suite."""
+    path = f"{fake_strace(tmp_path / 'bin')}{os.pathsep}{os.environ['PATH']}"
+    runner = level_runner(path)
+    runner.control_run = True
+    run_dir = runner.run(spec(tmp_path / "results"))
+    run, manifest = read(run_dir, "run.json"), read(run_dir, "manifest.json")
+    assert run["status"] == "completed", run["failure"]
+    assert run["control"] is True
+    assert manifest["control"] is True
+    assert sorted({p["request_index"] for p in run["proofs"]}) == [0]
+    assert (run_dir / "controls.json").is_file()
+
+
+def test_control_prove_state_is_what_commit_left(tmp_path: Path) -> None:
+    """A control prove's io/state holds the entries recorded after commit, not what the run's
+    own prove wrote later (FlashProve's adapter refuses an existing work directory)."""
+    from iproofs.runner import STATE_AFTER_COMMIT, copy_state_after_commit  # noqa: PLC0415
+
+    src = tmp_path / "io"
+    (src / "state/commit").mkdir(parents=True)
+    (src / "state/commit/isk").write_text("k")
+    (src / "state/key.tar").write_text("t")
+    (src / STATE_AFTER_COMMIT).write_text(json.dumps(["commit", "key.tar"]))
+    (src / "state/prove/home").mkdir(parents=True)  # the run's own prove, after commit
+    dst = tmp_path / "prove-P1"
+    copy_state_after_commit(src, dst)
+    assert sorted(p.name for p in (dst / "state").iterdir()) == ["commit", "key.tar"]
+    assert (dst / "state/commit/isk").read_text() == "k"
+    (src / STATE_AFTER_COMMIT).unlink()  # a run kept before the record existed: all of it
+    old = tmp_path / "prove-P1-old"
+    copy_state_after_commit(src, old)
+    assert (old / "state/prove/home").is_dir()
+
+
+def test_reverify_of_a_kept_session_on_a_verifier_host(tmp_path: Path) -> None:
+    """RFC-0018 CH-4a: `iproofs reverify` verifies every proof of a kept level session again on
+    a verifier host, under the trace, into reverify/ (the session's own traces untouched), once;
+    a GPU host is refused."""
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import VerifierEnvironment, reverify_run  # noqa: PLC0415
+
+    path = f"{fake_strace(tmp_path / 'bin')}{os.pathsep}{os.environ['PATH']}"
+    kept = level_runner(path)
+    kept.keep_io = True
+    run_dir = kept.run(spec(tmp_path / "r", controls=False))
+    own = sorted(p.name for p in (run_dir / "verify-trace").iterdir())
+    with pytest.raises(IProofsError, match="verifier host"):
+        reverify_run(level_runner(path), run_dir)
+    host = Host(ROOT / "harness/tests/fixtures/host", run=lambda _: None, hosted=True)
+    verifier_host = level_runner(path)
+    verifier_host.env = VerifierEnvironment(host, 3)
+    record = read(run_dir, str(reverify_run(verifier_host, run_dir).relative_to(run_dir)))
+    assert REGISTRY.errors("reverify/1", record) == []
+    proofs = read(run_dir, "run.json")["proofs"]
+    assert [p["proof_id"] for p in record["proofs"]] == [p["proof_id"] for p in proofs]
+    assert {p["verdict"] for p in record["proofs"]} == {"accept"}
+    for p in record["proofs"]:
+        trace = read(run_dir, p["trace"])
+        assert trace["tool"] == "strace"
+        assert trace["gpu_visible"] is False
+        assert trace["model_files_present"] is False
+    assert sorted(p.name for p in (run_dir / "verify-trace").iterdir()) == own
+    with pytest.raises(IProofsError, match="re-verified once"):
+        reverify_run(verifier_host, run_dir)

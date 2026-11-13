@@ -32,6 +32,7 @@ from iproofs.adapter import (
 from iproofs.controls import (
     EXPECTED,
     LEVEL_TRIALS,
+    LEVEL_VERIFIER_CONTROLS,
     SEED_RECORD,
     SEED_SCHEMA,
     SHARED_PROVER_CONTROLS,
@@ -296,6 +297,11 @@ class Environment(Protocol):
     def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]: ...
 
 
+# calls that run on the verifier's CPUs with no GPU and no weights: `verify`, and the
+# adapter's `mutate_reply` (RFC-0018 AD-6), which a verifier host runs for C1
+NO_GPU_CALLS = ("verify", "mutate_reply")
+
+
 def bound_gpus(env: "Environment") -> tuple[int, ...]:
     """Every GPU the environment binds (RFC-0006 R6): a serving environment's list, else the
     one bound GPU, else none."""
@@ -409,6 +415,30 @@ class VerifierEnvironment:
             raise IProofsError(ErrorKind.CONFIG, "a verifier host binds no prover CPUs")
         cpus = self._cpus if role == "verifier" else self._cpus[:1]
         return ",".join(map(str, cpus)), self._mems
+
+
+STATE_AFTER_COMMIT = "state-after-commit.json"  # io/state's top-level entries once commit ended
+
+
+def copy_state_after_commit(src_io: Path, dst_io: Path) -> None:
+    """A control prove's io/state: the entries commit left (RFC-0008 P1: commit W, then prove
+    with W'), not what the run's own prove wrote after it (a work directory an adapter makes
+    anew, a build cache). A run with no record of them (made before it was kept) gives its
+    whole state, as before."""
+    state = src_io / "state"
+    if not state.is_dir():
+        return
+    record = src_io / STATE_AFTER_COMMIT
+    if not record.is_file():
+        shutil.copytree(state, dst_io / "state")
+        return
+    (dst_io / "state").mkdir(parents=True)
+    for name in json.loads(record.read_text()):
+        entry = state / name
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.copytree(entry, dst_io / "state" / name, symlinks=True)
+        elif entry.exists() or entry.is_symlink():
+            shutil.copy2(entry, dst_io / "state" / name, follow_symlinks=False)
 
 
 def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, Path]:
@@ -539,6 +569,7 @@ class Runner:
         source_prompt_digest: str | None = None,
         sizing_batches: int | None = None,
         level: LevelRun | None = None,
+        control_run: bool = False,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -565,6 +596,7 @@ class Runner:
         self.sizing_batches = sizing_batches  # RFC-0015 SRV-1: a sizing capture's batch count
         self.readers: CgroupReader = NullCgroupReader()
         self.level = level  # RFC-0018: one run is one session of this slot
+        self.control_run = control_run  # CH-1b: one request of the slot, never a session
 
     # ---------------------------------------------------------------- public
 
@@ -743,10 +775,14 @@ class Runner:
                 f"{job.spec.workload} lists no proving system whose token rule a reference row"
                 " counts by (RFC-0015 REF-3)",
             )
+        if self.control_run:  # CH-1b: one request of the slot, at batch 1
+            job.run_shape = (1, 1)
         batch, batches = _run_shape(job)
         count = batch * batches
         if self.level is not None and self.load == "ladder":
             job.prompts = self._ladder_prompts(job, count)
+        elif self.level is not None and self.control_run:
+            job.prompts = self._level_prompts(job, self.level.requests)[:count]
         elif self.level is not None:
             job.prompts = self._level_prompts(job, count)
         else:
@@ -1135,14 +1171,15 @@ class Runner:
             },
         )
         role: Literal["prover", "verifier", "verifier_1"] = (
-            "prover" if sub != "verify" else ("verifier_1" if extra.get("_single") else "verifier")
-        )
+            "prover" if sub not in NO_GPU_CALLS
+            else ("verifier_1" if extra.get("_single") else "verifier")
+        )  # fmt: skip
         job_json = json.loads((io / "job.json").read_text())
         job_json.pop("_single", None)
         write_json(io / "job.json", job_json)
         cpuset, mems = self.env.cpus(role)
         started_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-        bound = bound_gpus(self.env) if sub != "verify" else ()
+        bound = bound_gpus(self.env) if sub not in NO_GPU_CALLS else ()
         sampler = Sampler(bound or None, self.readers)  # every bound GPU (RFC-0011)
         idle = IdleWatch(self._unbound(job), self.env.host().gpu_usage)  # PC-GPU-IDLE
         cpu0, oom0 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
@@ -1199,7 +1236,7 @@ class Runner:
         assert job.system is not None
         sinks = [job.logs.setdefault(f"{job.log_prefix}{sub}.{s}", Capture())
                  for s in ("stdout", "stderr")]  # fmt: skip
-        models = job.models if sub not in ("verify", "mutate_reply") else None
+        models = job.models if sub not in NO_GPU_CALLS else None
         timeout = job.system.timeout(sub)
         if trace_dir is None:  # the call of every run before RFC-0018
             return self.containers.run(job.image, sub, io, models_dir=models,
@@ -1213,8 +1250,8 @@ class Runner:
 
     def _gpu_arg(self, sub: str) -> int | str | None:
         """The container runner's GPU: the one bound index, or a serving job's list
-        (`CUDA_VISIBLE_DEVICES=0,1,2,3`, RFC-0006 R6); none for `verify`."""
-        bound = bound_gpus(self.env) if sub != "verify" else ()
+        (`CUDA_VISIBLE_DEVICES=0,1,2,3`, RFC-0006 R6); none for `verify` and `mutate_reply`."""
+        bound = bound_gpus(self.env) if sub not in NO_GPU_CALLS else ()
         if not bound:
             return None
         return bound[0] if len(bound) == 1 else ",".join(map(str, bound))
@@ -1291,6 +1328,9 @@ class Runner:
                 copies.append(dst)
             records[kind] = file_records(copies)
         job.commitment_record = records
+        state = job.staging / "io/state"
+        names = sorted(p.name for p in state.iterdir()) if state.is_dir() else []
+        (job.staging / "io" / STATE_AFTER_COMMIT).write_text(json.dumps(names) + "\n")
 
     def _recorded(
         self,
@@ -1722,8 +1762,7 @@ class Runner:
         io = work / (f"prove-{control_id}" + (f"-{trial}" if trial else ""))
         io.mkdir(parents=True)
         shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
-        if (job.staging / "io/state").is_dir():
-            shutil.copytree(job.staging / "io/state", io / "state")
+        copy_state_after_commit(job.staging / "io", io)
         if models is None and job.models_removed:  # hosted level run: fetched again (CH-4)
             job.models = self._models(job.workload, log)
             job.models_removed = False
@@ -1738,7 +1777,7 @@ class Runner:
                     "prover_files": list(job.commit.prover_files or ()),
                     "model_dir": "/models",
                     "prompts_file": "/io/prompts.jsonl",
-                    "batch_size": shape.batch_size,
+                    "batch_size": _run_shape(job)[0],
                     "batches": batches or shape.batches_per_session,
                     "control_flags": list(flags),
                 },
@@ -2073,12 +2112,15 @@ class Runner:
         paths = ["harness", "pyproject.toml", "uv.lock", f"systems/{job.spec.system}", "schema",
                  "reference"]  # fmt: skip
         commit, dirty = git_state(self.root, paths)
+        suite = [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)]
+        if job.level is not None:  # RFC-0018 CH-1: a session's suite is its checks' controls
+            suite = [cid for cid in suite if cid in (*LEVEL_VERIFIER_CONTROLS, "P1")]
         return {
             "run_id": job.run_id,
             "run_manifest_digest": file_digest(job.staging / "manifest.json"),
             "control_seed": seed,
             "seed_record_digest": seed_record_digest,
-            "suite": [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)],
+            "suite": suite,
             "image": job.image,
             "verifier_profile": self._verifier_profile(job),
             "profile": job.spec.profile,
@@ -2278,7 +2320,7 @@ class Runner:
                 "workload": {"id": spec.workload, "version": spec.workload_version},
                 "profile": spec.profile,
                 "repetition": spec.repetition,
-                "control": False,
+                "control": self.control_run,
                 "system_kind": job.system.kind if job.system else "test",
                 "claim": claim,
                 "status": "failed" if job.failure else "completed",
@@ -2353,7 +2395,7 @@ class Runner:
                 "schema": "manifest/1",
                 "run_id": job.run_id,
                 "release": spec.release,
-                "control": False,
+                "control": self.control_run,
                 "harness": {
                     "version": __version__,
                     "git_commit": harness_commit,
@@ -2903,6 +2945,103 @@ def controls_for_run(  # noqa: PLR0915 (one check per refusal)
             return runner._controls(job, log, seed=seed, only=ids, part=part)
     finally:
         shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
+
+
+REVERIFY_DIR = "reverify"  # RFC-0018 CH-4a: <run-dir>/reverify/, added once
+REVERIFY_RECORD = "reverify.json"
+
+
+def _reverify_job(
+    runner: Runner,
+    spec: JobSpec,
+    doc: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    staging: Path,
+) -> Job:
+    """The stored run as a job a verify can run in (CH-4a): its records, never its weights."""
+    io = staging / "io"
+    job = Job(spec, doc["run_id"], staging, log_prefix="reverify-")
+    runner._resolve_inputs(job, models=False)
+    assert job.workload is not None
+    job.image = manifest["system"]["image"]["ref"]
+    job.level = manifest["level"]
+    job.optional_subcommands = tuple(manifest["system"].get("optional_subcommands", ()))
+    job.commitment_record = manifest["commitment"]  # digests rechecked before every verify
+    job.proof_records = manifest["proofs"]  # proof digests rechecked before every verify
+    job.prompts = [json.loads(line) for line in (io / "prompts.jsonl").read_text().splitlines()]
+    for name, attr in (("commit", "commit"), ("prove", "proofs")):
+        out = load(io / f"{name}.out.json", runner.registry)
+        assert isinstance(out, AdapterOut)
+        setattr(job, attr, out)
+    # CH-4 (b): the weights were never fetched here; the trace is matched against the paths
+    # they would have, and their absence is recorded
+    job.models = default_cache() / "models" / job.workload.model.digest.removeprefix("sha256:")
+    job.model_paths = model_paths(job.workload, job.models)
+    job.models_removed = False
+    return job
+
+
+def reverify_run(runner: Runner, run_dir: Path) -> Path:
+    """`iproofs reverify RUN_DIR` (RFC-0018 CH-4a): every proof of a completed run whose proof
+    bytes were kept, verified again on a verifier host with no GPU, each call under the file-open
+    trace of CH-4, the weights never fetched on this host. Writes `reverify/` once: the traces
+    (`reverify/verify-trace/`), the verdicts (`reverify/verifier/`) and `reverify.json`, which
+    names the run by id and manifest digest, the image and this host's machine record."""
+    target = run_dir / REVERIFY_DIR
+    if target.exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{target} exists; a run is re-verified once")
+    if not isinstance(runner.env, VerifierEnvironment):
+        raise IProofsError(ErrorKind.CONFIG, "a re-verify runs on a verifier host with no GPU")
+    io = run_dir / "io"
+    if not (io / "proofs").is_dir() or not (io / "prove.out.json").is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no proofs; rerun with --keep-io")
+    if not (run_dir / COMMITMENT_STORE).is_dir():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no commitment store")
+    doc = _completed_run(run_dir)
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    if not manifest.get("level"):
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} is not a level session (CH-4)")
+    spec = JobSpec(doc["system"], doc["workload"]["id"], doc["workload"]["version"],
+                   doc["profile"], doc["repetition"], True, str(run_dir.parent.parent.parent),
+                   doc["release"])  # fmt: skip
+    staging = run_dir / ".reverify-staging"
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir()
+    (staging / "io").symlink_to(io.resolve(), target_is_directory=True)
+    (staging / COMMITMENT_STORE).symlink_to((run_dir / COMMITMENT_STORE).resolve(),
+                                            target_is_directory=True)  # fmt: skip
+    for sub in ("logs", "verifier", "verify"):
+        (staging / sub).mkdir()
+    try:
+        job = _reverify_job(runner, spec, doc, manifest, staging)
+        assert job.proofs is not None
+        entries = {e.proof_id: e for e in job.proofs.proofs or ()}
+        rows: list[dict[str, object]] = []
+        for p in doc["proofs"]:
+            pid = str(p["proof_id"])
+            seconds, verdict = runner._verify_one(job, pid, entries[pid], single=False)
+            proof = next(r for r in manifest["proofs"] if r.get("proof_id") == pid)
+            rows.append({"proof_id": pid, "verdict": verdict, "seconds": seconds,
+                         "proof_digest": proof.get("digest"),
+                         "trace": f"{REVERIFY_DIR}/{VERIFY_TRACE}/{pid}.json"})  # fmt: skip
+        host = _part_host(runner, job, manifest.get("machine") or {}, False)
+        commit, dirty = git_state(runner.root)
+        record = {"schema": "reverify/1", "run_id": doc["run_id"],
+                  "run_manifest_digest": file_digest(run_dir / "manifest.json"),
+                  "image": manifest["system"]["image"], "harness": {"git_commit": commit,
+                  "git_dirty": dirty}, "host": host, "proofs": rows}  # fmt: skip
+        errors = runner.registry.errors("reverify/1", record)
+        if errors:
+            raise IProofsError(ErrorKind.INTERNAL, f"reverify.json fails reverify/1: {errors[0]}")
+        out_dir = staging / "out"
+        out_dir.mkdir()
+        shutil.move(str(staging / VERIFY_TRACE), str(out_dir / VERIFY_TRACE))
+        shutil.move(str(staging / "verifier"), str(out_dir / "verifier"))
+        write_json(out_dir / REVERIFY_RECORD, record)
+        out_dir.rename(target)
+        return target / REVERIFY_RECORD
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
 
 
 def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:

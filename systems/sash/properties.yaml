@@ -1,12 +1,13 @@
 # Statement facts of SASH's glyph (RFC-0018 GL-1), copied from sg-ai-safety-hub/zk-inference-prover at the pin
 # for the configuration the row runs (claim.yaml, `boundary-grid --verify`). Statements made only in the companion
 # results repository are not used (INV-CLAIM-3). No state is typed. Read by the integrator on 2026-11-13; not
-# reviewed by SASH's maintainers. The quoted files read the same at 4f41667 (README.md, prover/README.md,
-# docs/statement.md and prover/src/util.rs byte for byte; prover/src/compose.rs at L1-L30).
+# reviewed by SASH's maintainers. First read at eb95bfa; the quoted files read the same at the pin, 4f41667
+# (README.md, prover/README.md, docs/statement.md and prover/src/util.rs byte for byte; prover/src/compose.rs at
+# L1-L30).
 schema: "properties/2"
 system: "sash"
 configuration: "sound-defaults"
-upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "eb95bfa887299d1637550228d42086c27cbb2b3b"}
+upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "4f41667297430a598165c4a8604258fe37d952ae"}
 read: "2026-11-13"
 petals:
   unforgeable:
@@ -14,22 +15,22 @@ petals:
     bound:
       stated:
         value: true
-        quotes: [{text: "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L11"}]
+        quotes: [{text: "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L11"}]
       expression:
         value: "100 conjectured bits"
-        quotes: [{text: "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L11"}]
+        quotes: [{text: "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L11"}]
       terms: [100]
       basis:
         value: "conjectured"
-        quotes: [{text: "stwo's own conjectured-soundness accounting is", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L9"}]
+        quotes: [{text: "stwo's own conjectured-soundness accounting is", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L9"}]
       unit:
         value: "part"
-        quotes: [{text: "A proof made by this prover is about one **segment**: one transformer layer", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md#L3"}]
+        quotes: [{text: "A proof made by this prover is about one **segment**: one transformer layer", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L3"}]
       batch: {value: "not_said", quotes: []}
       adversary: {value: "not_said", quotes: []}
       parameters:
         value: "row"
-        quotes: [{text: "assert_eq!(cfg.security_bits(), 100, \"security parameter drifted\");", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L26"}]
+        quotes: [{text: "assert_eq!(cfg.security_bits(), 100, \"security parameter drifted\");", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L26"}]
         note: "the security parameters are constants (util.rs L14-L16) and pcs_config() asserts 100 bits (L26); the row runs the sound defaults"
       conditions_shown: {value: false, quotes: []}
       program:
@@ -66,7 +67,7 @@ petals:
       stated: {value: "not_stated", quotes: []}
       verifier_gets_weights:
         value: false
-        quotes: [{text: "The model root is not derivable -- it is the publisher's commitment to weights the verifier does not hold", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/README.md#L56-L58"}]
+        quotes: [{text: "The model root is not derivable -- it is the publisher's commitment to weights the verifier does not hold", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L56-L58"}]
       proof: {value: "none", quotes: []}
       programs: {value: "not_stated", quotes: []}
       visible_listed: {value: false, quotes: []}
@@ -80,4 +81,4 @@ petals:
         note: "the Fixed statement is \"produced at setup, trusted by the verifier\" (compose.rs L7); who produces it, and what soundness rests on, is not stated"
       publicly_checkable:
         value: true
-        quotes: [{text: "The **verifier** (`verify_composed`) takes those two byte strings and the //! serialized proof, and nothing else", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/compose.rs#L15-L16"}]
+        quotes: [{text: "The **verifier** (`verify_composed`) takes those two byte strings and the //! serialized proof, and nothing else", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/compose.rs#L15-L16"}]

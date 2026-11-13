@@ -5,8 +5,10 @@ Usage: entrypoint <info|prove> /io/job.json /io/out.json
 
 `iproofs fidelity run` writes /io/job.json and calls `prove` once per model source: `reference`
 (the publisher's 16-bit files at /models: the reference and every control built from it),
-`other_model` (the smaller model of the same publisher at /models), and `file` (a row's
-committed GGUF file at /models, KL only). Each call:
+`other_model` (the smaller model of the same publisher at /models), `file` (a row's
+committed GGUF file at /models, KL only), and `controls` (RFC-0018 FI-9: the controls built
+from a 16-bit GGUF the harness names in `reference_gguf`, under /models; no conversion, no
+reference replies, no KL base). Each call:
 
 1. converts the 16-bit release to GGUF with llama.cpp's `convert_hf_to_gguf.py` (`--outtype`
    the level's dtype) into /io/work, the only large writable place;
@@ -372,6 +374,13 @@ def prove(job: dict) -> dict:
     reference: Path | None = None
     update: dict = {"controls": {}}
     call = job["call"]
+    given = job.get("reference_gguf")  # a 16-bit GGUF the harness fetched and hashed
+    if call == "controls":  # RFC-0018 FI-9: the controls only, built from the given GGUF
+        if not given:
+            raise SystemExit("ref-fidelity: a controls call needs reference_gguf")
+        reference = host(given)
+        if not reference.is_file():
+            raise SystemExit(f"ref-fidelity: no {given}")
     if call == "reference":
         reference = host("/io/work/reference.gguf")
         started = time.monotonic()
@@ -399,7 +408,7 @@ def prove(job: dict) -> dict:
         update["controls"][control["id"]] = run_control(control, reference, job, phases)
         save_status({"controls": dict(update["controls"]),
                      **{k: v for k, v in update.items() if k != "controls"}})  # fmt: skip
-    if reference is not None:
+    if reference is not None and call == "reference":
         reference.unlink(missing_ok=True)  # hundreds of GB for Maverick; KL keeps kl-base.kld
     save_status(update)
     return {**base("prove"), "proofs": [], "phases": phases}

@@ -901,6 +901,7 @@ TREES = frozenset(
         "level/1",
         "manifest/1",
         "release-index/1",
+        "reverify/1",
         "run/1",
         "target/1",
         "verify-trace/1",

@@ -5,5 +5,5 @@
 # is upstream's rust-toolchain.toml channel, nightly-2025-07-14, as the standalone tarball with
 # the checksum static.rust-lang.org publishes. Cargo crates (Cargo.lock checksums) and the
 # harness's Python packages (harness/uv.lock hashes) come through upstream's own lockfiles.
-zk-inference-prover	https://github.com/sg-ai-safety-hub/zk-inference-prover.git#eb95bfa887299d1637550228d42086c27cbb2b3b	sha256:80f0f749ef6dc34419dd8f9451ffa7d729a6a84bd17d6334a2b44055185a6f5f
+zk-inference-prover	https://github.com/0xChqrles/zk-inference-prover.git#4f41667297430a598165c4a8604258fe37d952ae	sha256:08eb04abd87a13459175dc4def259c6335d43b7916219c388d7ca08a3e35133c
 rust-nightly-2025-07-14	https://static.rust-lang.org/dist/2025-07-14/rust-nightly-x86_64-unknown-linux-gnu.tar.xz	sha256:ac0a04b2bb6ca1e69c959e9b941ea4362dfaa005b9a9c86444aa434bca396a08

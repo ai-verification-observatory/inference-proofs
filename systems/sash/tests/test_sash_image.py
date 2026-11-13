@@ -17,7 +17,7 @@ HERE = Path(__file__).resolve().parent
 SYSTEM = HERE.parent
 ROOT = SYSTEM.parents[1]
 REGISTRY = SchemaRegistry.from_tree(ROOT / "schema")
-COMMIT = "eb95bfa887299d1637550228d42086c27cbb2b3b"
+COMMIT = "4f41667297430a598165c4a8604258fe37d952ae"
 Step = Callable[..., dict[str, Any]]
 
 

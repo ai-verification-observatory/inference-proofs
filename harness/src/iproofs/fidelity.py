@@ -43,7 +43,7 @@ import struct
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from iproofs.quantity import Unit
 
@@ -346,6 +346,47 @@ def step_tests(
         p = sign_flip_p(diffs, exact_up_to=rule.exact_up_to, resamples=rule.resamples,
                         seed=seed or 0)  # fmt: skip
         out[key] = StepTest(t.name, value, n, p, "exact" if exact else "monte-carlo", seed)
+    return out
+
+
+def with_steps(
+    doc: Mapping[str, object],
+    specs: Sequence[Mapping[str, object]],
+    slots: int | None,
+    randomness_hex: str,
+) -> dict[str, object]:
+    """A stored `fidelity.json` that holds no step thresholds (scored before the amendment of
+    2026-11-13; results are append-only, APP-1), with `slots`, `steps` and each row's
+    `step_tests` computed from its own stored scores, as `build_fidelity` computes them.
+    `specs` are the rung's controls in the level file, `slots` the count in the rung's
+    `fidelity-run.json`. A document that holds `steps` is returned as it is."""
+    out: dict[str, Any] = dict(doc)
+    if "steps" in out:
+        return out
+    by_id = {str(c.get("id")): c for c in specs}
+    pairs: list[tuple[Mapping[str, object], ControlResult]] = []
+    for c in out.get("controls") or ():
+        spec = by_id.get(str(c.get("id")))
+        if spec is None:
+            continue
+        pairs.append((spec, ControlResult(
+            str(c.get("id")), "honest" if c.get("kind") == "honest" else "damaged",
+            str(c.get("recipe")), "ok" if c.get("status") == "ok" else "failed",
+            tuple(int(x) for x in c.get("scores") or ()), c.get("cause"))))  # fmt: skip
+    test: Mapping[str, Any] = out.get("test") or {}
+    rule = SignFlipRule(float(test["alpha"]), int(test["exact_up_to"]),
+                        int(test["resamples"]), randomness_hex)  # fmt: skip
+    steps = thresholds(pairs, int(out["n"]))
+    out["slots"] = slots
+    out["steps"] = {"rule": STEPS_RULE, "seed_rule": STEPS_SEED_RULE,
+                    "green": steps["green"].record(), "upper": steps["upper"].record()}  # fmt: skip
+    rows: dict[str, object] = {}
+    for system, row in (out.get("rows") or {}).items():
+        scores = row.get("scores")
+        tests = step_tests(system, [int(x) for x in scores], steps, rule) if scores else None
+        rows[system] = {**row, "step_tests": None if tests is None else {
+            k: None if t is None else t.record() for k, t in tests.items()}}  # fmt: skip
+    out["rows"] = rows
     return out
 
 

@@ -170,6 +170,7 @@ def _row(raw: dict[str, Any], at: str, board: str | None, rung: dict[str, Any]) 
         "figures": {k: figure(raw.get(k), f"{at}/{k}", board) for k in ROW_FIGURES},
         "sessions": [dict(s) for s in raw["sessions"]],
         "incomplete": [dict(s) for s in raw["incomplete_sessions"]],
+        "replaced": [dict(s) for s in raw.get("replaced_sessions", [])],
         "fidelity": None if fid is None else {
             **{k: fid[k] for k in ("n", "mean_prefix", "p_above_bar", "p_below_bar", "kl_note")},
             "kl": figure(fid.get("kl"), f"{at}/fidelity/kl", board)},

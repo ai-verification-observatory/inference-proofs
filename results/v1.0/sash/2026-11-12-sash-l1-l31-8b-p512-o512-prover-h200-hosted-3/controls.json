@@ -1,0 +1,506 @@
+{
+  "control_seed": "0x39a0b872fe1e124e",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[0]",
+                "B0head.fixed.json tok_out[511]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B0head.fixed.json"
+              ]
+            },
+            "token": 1867
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the chunk proof does not verify: {\"derived\":\"41a5441b62beec5582765c440be56967ad6a2a60176bbb56ad00053a4d9d9667\",\"embed\":true,\"embed_tok\":false,\"error\":null,\"head_binding\":true,\"head_tok\":true,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 936.293256408,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[0]",
+                "B0head.fixed.json tok_out[511]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B0head.fixed.json"
+              ]
+            },
+            "token": 1867
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the chunk proof does not verify: {\"derived\":\"41a5441b62beec5582765c440be56967ad6a2a60176bbb56ad00053a4d9d9667\",\"embed\":true,\"embed_tok\":false,\"error\":null,\"head_binding\":true,\"head_tok\":true,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 923.073233418,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[0]",
+                "B0head.fixed.json tok_out[511]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B0head.fixed.json"
+              ]
+            },
+            "token": 1867
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the chunk proof does not verify: {\"derived\":\"41a5441b62beec5582765c440be56967ad6a2a60176bbb56ad00053a4d9d9667\",\"embed\":true,\"embed_tok\":false,\"error\":null,\"head_binding\":true,\"head_tok\":true,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 930.699415897,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[511]",
+                "B1head.fixed.json tok_out[510]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 540
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1196.278769386,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[511]",
+                "B1head.fixed.json tok_out[510]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 540
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1384.605805759,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[511]",
+                "B1head.fixed.json tok_out[510]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 540
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1043.324879863,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 262,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[262]",
+                "B1head.fixed.json tok_out[261]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 691
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 969.266259714,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 40,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[40]",
+                "B1head.fixed.json tok_out[39]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 6848
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1056.866353882,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 200,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[200]",
+                "B1head.fixed.json tok_out[199]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 840
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1314.857122161,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C2",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 416,
+            "token": 811
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL the id at position 416 is not the one that reaches it: {\"block\":0,\"got\":810,\"kind\":\"prompt\",\"pos\":416,\"t\":416,\"tag\":\"B0L0\",\"want\":811}",
+          "seconds": 982.565902647,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 289,
+            "token": 758
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL the id at position 289 is not the one that reaches it: {\"block\":0,\"got\":757,\"kind\":\"prompt\",\"pos\":289,\"t\":289,\"tag\":\"B0L0\",\"want\":758}",
+          "seconds": 983.867564731,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 224,
+            "token": 2951
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL the id at position 224 is not the one that reaches it: {\"block\":0,\"got\":2950,\"kind\":\"prompt\",\"pos\":224,\"t\":224,\"tag\":\"B0L0\",\"want\":2951}",
+          "seconds": 951.111075515,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C3",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "commitment": "perturbed"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the statement names model 6c7cd96736c6561fce1a1ae21cf58bdb59decb39b6e83d5da35e1b1b9d61c1ab and the model manifest's row for layer 32 was published for b22b8753982fa70360a41c0239762a7d789e2fbe9f2780145c42f905c20d8a1c",
+          "seconds": 945.856043487,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "commitment": "perturbed"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the statement names model 6c7cd96736c6561fce1a1ae21cf58bdb59decb39b6e83d5da35e1b1b9d61c1ab and the model manifest's row for layer 32 was published for b22b8753982fa70360a41c0239762a7d789e2fbe9f2780145c42f905c20d8a1c",
+          "seconds": 929.134522586,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "commitment": "perturbed"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the statement names model 6c7cd96736c6561fce1a1ae21cf58bdb59decb39b6e83d5da35e1b1b9d61c1ab and the model manifest's row for layer 32 was published for b22b8753982fa70360a41c0239762a7d789e2fbe9f2780145c42f905c20d8a1c",
+          "seconds": 1082.551366215,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "prover_failed",
+        "rejected"
+      ],
+      "id": "P1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "prover",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {},
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the statement names model 1a103c4aaa3d72bd7f44ccc4f2df68afc75048386c41139664f632a9f4febd30 and the model manifest's row for layer 0 was published for 729106231f32c111881c4c0279b8de79e7cf6a81cfb6b2fab46fcf3396badebe",
+          "seconds": 912.666327348,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {},
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the statement names model 1a103c4aaa3d72bd7f44ccc4f2df68afc75048386c41139664f632a9f4febd30 and the model manifest's row for layer 0 was published for 729106231f32c111881c4c0279b8de79e7cf6a81cfb6b2fab46fcf3396badebe",
+          "seconds": 885.236368126,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {},
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the statement names model 1a103c4aaa3d72bd7f44ccc4f2df68afc75048386c41139664f632a9f4febd30 and the model manifest's row for layer 0 was published for 729106231f32c111881c4c0279b8de79e7cf6a81cfb6b2fab46fcf3396badebe",
+          "seconds": 893.115636524,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "disclosure_pending": false,
+  "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+  "perturbed_commitment": {
+    "commitment_id": "sha256:140d4f6f91515127fca1af1c1c6600d54ac97addd7b54d2ee1d1157b0c58d0be",
+    "model_digest": "sha256:d49c9b0ff4386170843a37cb76aea1844ccedbdd74ca71ceab47b3be476a475e"
+  },
+  "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+  "schema": "controls/1",
+  "summary": {
+    "accepted": 0,
+    "error": 0,
+    "invalid_call": 0,
+    "no_verdict": 0,
+    "not_applicable": 0,
+    "passed": 4,
+    "prover_failed": 0,
+    "rejected": 4,
+    "run": 4,
+    "void": 0
+  },
+  "verifier_profile": "verifier-cpu"
+}

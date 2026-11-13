@@ -40,6 +40,7 @@ from iproofs.derive import (
     steady_per_reply,
 )
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.fidelity import with_steps as fidelity_with_steps
 from iproofs.glyph import (
     Coverage,
     Petal,
@@ -560,6 +561,10 @@ def _row_tree(
         "session_usd_per_reply": _usd(Scope.WHOLE_WALL, session_in, price),
         "sessions": [f.tree() for f in figures],
         "incomplete_sessions": [s.incomplete_tree() for s in row.sessions.incomplete],
+        "replaced_sessions": [
+            {"run_id": a.run_id, "slot": a.slot, "replaced_by": b.run_id, "cause": why}
+            for a, b, why in row.sessions.replaced
+        ],
         "fidelity": _row_fidelity(fidelity_rows.get(row.system)),
         "security": row.security,
         "verify_seconds_per_reply": _metric_stat(
@@ -572,6 +577,25 @@ def _row_tree(
 
 
 # ---------------------------------------------------------------- the board
+
+
+def _with_steps(
+    root: Path, release: str, level: object, rung: object, doc: dict[str, object] | None
+) -> dict[str, object] | None:
+    """FM-4a: a `fidelity.json` scored before the step tests existed gets them computed from its
+    own stored scores (results are append-only, so the stored file is not written again)."""
+    if doc is None or "steps" in doc:
+        return doc
+    randomness = beacon_randomness(root, level_id(level))
+    if randomness is None:
+        return doc  # no beacon record: FM-4 reads "no step tests stored"
+    run_path = fidelity_path(root, release, str(field_of(rung, "id"))).with_name(
+        "fidelity-run.json"
+    )
+    slots = json.loads(run_path.read_text()).get("slots") if run_path.is_file() else None
+    controls: Sequence[object] = field_of(rung, "controls") or ()  # type: ignore[assignment]
+    specs = [{k: field_of(c, k) for k in ("id", "kind", "recipe", "type")} for c in controls]
+    return fidelity_with_steps(doc, specs, slots if isinstance(slots, int) else None, randomness)
 
 
 def build_board(root: Path, release: str, level: object) -> dict[str, object]:
@@ -596,6 +620,7 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
         baseline_block, baseline, read = _baseline(root, runs, level, rung, digest, base, price)
         dates |= {r.run_id[:10] for r in read}
         fidelity_block, fidelity_doc = _fidelity(root, release, rung_id)
+        fidelity_doc = _with_steps(root, release, level, rung, fidelity_doc)
         fidelity_rows = fidelity_doc.get("rows") if fidelity_doc else None
         fidelity_rows = fidelity_rows if isinstance(fidelity_rows, dict) else {}
         rows = []

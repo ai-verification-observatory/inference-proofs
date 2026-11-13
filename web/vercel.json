@@ -97,11 +97,6 @@
     {
       "destination": "/",
       "permanent": false,
-      "source": "/sash"
-    },
-    {
-      "destination": "/",
-      "permanent": false,
       "source": "/targets"
     },
     {

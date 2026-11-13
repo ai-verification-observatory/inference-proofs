@@ -295,6 +295,13 @@ ctl() {  # FLAVOR TIMEOUT_SECONDS LABEL IDS: one part, reading the stored run th
 
 The jobs only write their own `runs/<UTC>-<label>/` folder; the stored run is read through `/stored:ro`. Jobs documents subfolder mounts for repositories and `:ro` for buckets ([jobs-configuration §Volumes](https://huggingface.co/docs/hub/jobs-configuration#volumes), read 2026-11-09); that a bucket subfolder mounts the same way is an assumption. If the first job refuses the mount, drop `EXTRA` from `ctl`: the script then reads the run through the read-write `/upload` mount and writes nothing to it.
 
+What the parts of one suite must share, learned on SASH Level 1 session 3 (2026-11-12):
+
+- **One `IPROOFS_COMMIT` for every part.** The merge refuses parts whose `harness_commit` differs (SPLIT-4). A part rerun after a harness fix means rerunning every part at the new commit, or rerunning the others at the commit of the part kept.
+- **The perturbed commitment beside the stored run.** C3 and P1 read `<release>/<system>/_controls/<workload>/` next to the run's folder in the bucket; a session made with `:perturbed` writes it into its own upload folder, so copy it beside the run whose proofs were kept. A P1 host makes W' again with the adapter's `perturb` and P1 refuses unless its digest is the record's `model_digest`.
+- **A level session's suite is C1, C2, C3 and P1** (RFC-0018 CH-1): four parts, C1 the longest (three positions, three trials, each with its twin: about 5 h on cpu-xl for SASH 8B).
+- **A void part is moved, not deleted.** The merge reads every `runs/*/controls/controls-part-<seed>-*.json`; a part from a failed attempt goes to a `void-<reason>/` folder beside `controls/` in its job's folder.
+
 1. **The seed, once.** One small job draws it with the harness and writes it into the stored run (SPLIT-1). It refuses a run that already has one, so it cannot be drawn again:
 
    ```sh

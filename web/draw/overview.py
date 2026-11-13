@@ -30,8 +30,7 @@ from .words import (
 NOT_TESTED = ("These checks run each system's own prover and verifier. None attempts a forged "
               "proof: soundness and weight secrecy are not tested.")  # fmt: skip
 ROW_GLYPH = 3  # the row glyph's unit in px: its arms carry their names (159 by 87 px)
-# a phone's row glyph, px a unit, no names (37.5 by 46.5 px, near the position's square): whole
-# device pixels at 2x
+# a phone's row glyph, px a unit, no names (37.5 by 46.5 px): whole device pixels at 2x
 PHONE_GLYPH = 1.5
 
 
