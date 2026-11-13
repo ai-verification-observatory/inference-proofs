@@ -3,85 +3,87 @@
 # web/draw/learn.py reads. A slug is the page's address on the site.
 title: Learn
 lead: >-
-  What a proof of inference is, what it can and cannot tell you, and how this site runs and
-  compares the systems that make such proofs.
+  What a proof of inference actually proves, where its guarantees stop, and how we test and
+  compare the systems that build these proofs.
 tracks:
   - id: policy
     name: For policy readers
     reader: >-
-      For people who decide whether a claim about an AI system can be relied on: analysts,
-      advisers, regulators, auditors. No cryptography needed.
+      Written for analysts, advisers, regulators, and auditors who need to evaluate whether a
+      claim about an AI deployment holds up. No background in cryptography required.
     pages:
       - slug: why-verify
         title: Why verify
         summary: >-
-          What it means to verify a claim about an AI system, why that is hard, and which part
-          of it this site covers.
+          What it means to verify a claim about an AI model, why doing so is difficult in
+          practice, and which slice of the problem this benchmark addresses.
       - slug: proof-of-inference
         title: What a proof of inference is
         summary: >-
-          A file that lets you check that a model fixed in advance gives a certain reply to a
-          certain prompt, without rerunning the model and without seeing it. What a yes means,
-          and what it does not.
+          A cryptographic receipt that lets anyone check that a pre-committed model produced a
+          specific reply to a specific prompt, without re-running the model or seeing its
+          weights. What an accepted proof tells you, and what it leaves out.
       - slug: three-ways
         title: Three ways to check
         summary: >-
-          Rerun the computation, trust the hardware, or check a proof. What each asks you to
-          trust, and what it costs.
+          Re-run the computation, trust the hardware enclave, or check a mathematical proof:
+          what each approach asks you to trust, and what it costs.
       - slug: treaty
         title: A treaty, stage by stage
         summary: >-
-          How proofs of inference fit an agreement between two states that will not show each
-          other their weights, stage by stage.
+          How proofs of inference would fit into an agreement between two states that refuse to
+          share their model weights, walking through what exists today and what does not.
       - slug: before-you-rely
         title: Before you rely on a proof
         summary: >-
-          Nine questions to put to any system that offers a proof, and where this site answers
-          them.
+          Nine practical questions to ask before relying on any inference proof system, and
+          where to find the answers on this site.
   - id: engineering
     name: For engineers
     reader: >-
-      For people who build, run or test these systems: ML engineers new to proof systems, and
-      cryptographers new to inference.
+      Written for engineers building, running, or auditing these systems: machine learning
+      engineers new to cryptographic proofs, and cryptographers new to LLM inference.
     pages:
       - slug: statement
         title: The statement
         summary: >-
-          Which sentence a proof proves, about which model, for which prompt and reply, in two
-          systems' own words.
+          The exact mathematical relation a proof establishes, which copy of the model it
+          covers, and how two published provers state their own guarantees.
       - slug: inference
         title: Inference, for cryptographers
         summary: >-
-          What a language model computes when it answers, how it is served, and why the
-          computation is awkward to prove.
+          What a language model actually computes during a forward pass, how production serving
+          works, and why standard floating-point inference is awkward to prove.
       - slug: proof-systems
         title: Proof systems, for ML engineers
         summary: >-
-          How a short random check can stand in for rerunning a long computation: the ideas the
-          provers on this site are built from.
+          How a short random spot-check over polynomials can replace re-running trillions of
+          operations: the core building blocks behind the provers on this ladder.
       - slug: forward-pass
         title: Proving a forward pass
         summary: >-
-          How a transformer's forward pass becomes something a verifier can check: matrix
-          products by sumcheck, the other steps by lookups, the weights by a commitment.
+          How a transformer layer is translated into constraints a verifier can check: matrix
+          multiplications via sumcheck, non-linearities via lookup tables, and weights via
+          polynomial commitments.
       - slug: architectures
         title: Design families
         summary: >-
-          The ways to write the computation down and to commit to the weights, and the checks
-          that are not proofs: what each makes cheap, what it makes expensive and what it has to
-          trust, in their publishers' own words.
+          How different provers represent the computation and commit to the weights, alongside
+          non-cryptographic alternatives: what each design makes cheap, what it makes expensive,
+          and what it has to trust.
       - slug: cost
         title: Where the cost goes
         summary: >-
-          Why a proved reply costs a multiple of a served one, and how that multiple is computed
-          here.
+          Why proving a reply costs a large multiple of serving it normally, where the GPU time
+          is spent, and how we compute the cost multiple on this benchmark.
       - slug: method
         title: How we compare
         summary: >-
-          One request, six checks, one ranked figure, and the reason for each rule, where one is
-          given.
+          One fixed request per model, six empirical checks, a five-petal glyph, and one cost
+          ratio: the rules of our benchmark and the reasoning behind each choice.
 glossary:
   slug: glossary
   title: Glossary
   summary: >-
-    The terms these pages use, in plain words, with the precise meaning where the two differ.
+    Plain-English definitions of the technical and policy terms used across these pages, noting
+    where cryptographic usage differs from everyday policy language.

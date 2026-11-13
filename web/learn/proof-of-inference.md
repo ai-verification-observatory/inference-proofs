@@ -1,81 +1,85 @@
-A proof of inference is a file. A program reads it and answers yes or no. A yes means one sentence, which each system's publisher states. On this site the sentence asked of every system is: a model that was fixed in advance, run on this prompt, gives exactly this reply. The program reaches its answer without holding the model and without redoing the computation. This page explains how that is possible, in plain words, and spends as long on what a yes does not mean.
+A proof of inference is a file accompanied by a small program called a verifier. The verifier reads the proof alongside a model commitment, a prompt, and a reply, and outputs a simple yes or no. On this benchmark, we ask every system to prove the same core claim: that a specific model committed to in advance, when run on this prompt, produces this exact reply. Crucially, the verifier reaches its verdict without holding the model weights and without re-running the model.
 
 ## Three roles
 
 :::figure parties
-Who holds what. The operator holds everything. The verifier is given four things and never the weights. The relying party acts on the verdict.
+Who holds what in a proof of inference. The operator holds the model weights, runs inference, and generates the proof. The verifier checks the proof against the commitment, prompt, and reply without ever seeing the weights. The relying party decides how to act on the verifier's verdict.
 :::
 
-- **The operator** runs the model and answers requests: a company serving an API, a lab, the operator of a data centre. It makes the proofs, so cryptographers call it the [[prover]].
-- **The [[verifier]]** is a program. Anyone can run it. It reads a proof and accepts or refuses.
-- **The [[relying party]]** is whoever acts on the verdict: a customer, an auditor, a regulator, an inspectorate. Technical standards keep the verifier and the relying party apart. The IETF's architecture for remote attestation, [RFC 9334](https://www.rfc-editor.org/rfc/rfc9334.txt), describes a verifier as producing results "to be used by a Relying Party". The verifier says yes or no. The relying party decides what follows.
+- **The operator** runs the language model and serves replies (for example, an API provider, an AI lab, or a data centre operator). Because the operator also generates the cryptographic proofs, the cryptography literature calls this role the [[prover]].
+- **The [[verifier]]** is a small software program that anyone can run on an ordinary CPU. It reads the public inputs and the proof file, and either accepts or refuses.
+- **The [[relying party]]** is the person or institution deciding what the verifier's answer means in practice: a customer, an auditor, a regulator, or an international inspectorate. Technical standards deliberately separate the verifier from the relying party. In the IETF's remote attestation architecture ([RFC 9334](https://www.rfc-editor.org/rfc/rfc9334.txt)), a verifier produces verification results "to be used by a Relying Party". The verifier checks the math; the relying party decides whether the surrounding system deserves trust.
 
-## The commitment: a short value that fixes a model
+## The commitment: locking in a model before the run
 
-Before any request, the operator computes a [[commitment]] to its model: a short value that fixes the model's [[weights]]. Publishing it does not publish them. A group of auditing researchers [describes it](https://arxiv.org/abs/2601.11699) as "a tamper-evident digital fingerprint". Change one weight and the commitment no longer matches.
+Before serving any requests, the operator computes a cryptographic [[commitment]] to its model: a short digest that locks in all of the model's [[weights]] without revealing what they are. Auditing researchers [describe](https://arxiv.org/abs/2601.11699) a model commitment as "a tamper-evident digital fingerprint". If the operator changes even a single weight later, the commitment will no longer match.
 
-A commitment is often pictured as a seal on a container. The picture is partial, in three ways. A seal protects an object, and a commitment fixes data: it says nothing about which machine later runs the model. An inspector applies a seal to contents the inspector has checked, and here the operator computes the commitment itself, over weights nobody else sees. And a commitment is only a value. It does not say what it is a commitment to. Someone has to publish that this value stands for that model, and stand behind it: the developer, a public register, an auditor. Everything a proof later shows is relative to that value.
+People often compare a cryptographic commitment to a physical tamper-evident seal on a container, but that analogy breaks down in three important ways:
 
-## The proof: costly to make, cheap to check
+1. A physical seal guards a piece of hardware in a room, whereas a commitment only pins down a static array of numbers. It tells you nothing about which machines later run those numbers.
+2. In physical safeguards, an outside inspector examines the container first and then applies the seal. Here, the operator computes the commitment on its own machines over weights nobody else can see.
+3. A commitment by itself is just a string of bytes. Nothing inside that string tells you whether the underlying model is safe, capable, or authentic. For a commitment to mean anything to an outsider, someone has to bind that digest to a known model through a public release, an evaluation report, or an official register. Everything a proof establishes later is only relative to that committed digest.
 
-For a reply that is to be checked, the operator can produce a proof that the committed model, run on the prompt, gives that reply. Making the proof is far more work than computing the reply. Checking it is light by comparison: it runs on an ordinary processor, with no GPU and no weights, and the table below prints how long it took for each system run here.
+## The proof: expensive to generate, cheap to check
 
-A short check can stand in for a long computation by the logic of a spot check. The operator first fixes its answers in a form it cannot change afterwards. The check then picks at random where to look. Unlike an inspector's spot check, each look depends on the whole computation, so one false step anywhere shows up almost everywhere. A false answer passes only if the operator guessed where the check would look, and the numbers are chosen so that a guess succeeds only with the small probability the [[security level]] bounds.
+Whenever a reply needs to be verified, the operator generates a proof showing that the committed model produces that reply on the given prompt. Building that proof takes far more compute than running the model normally. Checking the proof, on the other hand, is lightweight: the verifier runs on a standard CPU without a GPU or the model weights. The table below shows the measured proving overhead and verification time for each system we have run.
 
-The cost is lopsided. The operator pays for the proof, and the checker pays processor time. For a language model that is not less time than serving the reply on a GPU: its worth is that it needs neither the GPU nor the weights.
+How can a short CPU check verify trillions of matrix operations without re-running them? The core mechanism works like an algebraic spot-check. First, the operator encodes every intermediate step of the forward pass into polynomials and commits to them so it cannot change its intermediate values later. Next, random challenges determine where the verifier inspects those polynomials. Unlike a physical spot-check that only inspects one isolated box in a warehouse, evaluating a polynomial at a random point mixes information from the entire computation, so a single forged step almost anywhere corrupts the polynomial almost everywhere. A cheating prover can pass the check only if it gets lucky on the random challenge, and the protocol parameters are chosen so that the chance of a lucky guess is bounded by the [[security level]].
+
+That makes the cost structure heavily lopsided: the operator pays a steep GPU bill to construct the proof, while the checker spends a fraction of a second (or a few seconds) of CPU time. Checking a proof is not necessarily faster than generating a reply on a GPU; its value is that the checker needs neither the GPU cluster nor the secret weights.
 
 :::measured rows
-What this site has run so far. The multiple is the cost of a proved reply as a multiple of an unproved one, on the same model and the same kind of GPU. [How to read a row](/before-you-rely#reading-a-row).
+Systems we have run on the benchmark so far. The cost multiple compares the GPU time of generating a proved reply against serving an unproved reply on the same model and GPU type. See [How to read a row](/before-you-rely#reading-a-row).
 :::
 
-## Three properties
+## Three cryptographic properties
 
-A [reference text](https://docs.zkproof.org/pages/reference/reference.pdf) of the field names three properties. Every such system aims for the first two, and some for the third.
+The [ZKProof Community Reference](https://docs.zkproof.org/pages/reference/reference.pdf) defines three standard properties for proof systems. Every prover on our ladder aims for the first two, and some also aim for the third:
 
-- **Complete.** An honest operator is always believed: "If the statement is true and both prover and verifier follow the protocol; the verifier will accept."
-- **Sound.** A dishonest operator is not: "If the statement is false, and the verifier follows the protocol; the verifier will not be convinced." This holds up to a small probability and under stated mathematical assumptions. The [[security level]] says how small.
-- **Zero-knowledge.** The verifier "will not learn any confidential information from the interaction with the prover but the fact the statement is true". For inference, the confidential information is the weights.
+- **Completeness.** An honest prover can always convince the verifier: "If the statement is true and both prover and verifier follow the protocol; the verifier will accept."
+- **Soundness.** A cheating prover cannot convince the verifier of a false claim: "If the statement is false, and the verifier follows the protocol; the verifier will not be convinced." Soundness holds up to a tiny failure probability (the [[security level]]) under explicit mathematical assumptions.
+- **Zero-knowledge.** The verifier "will not learn any confidential information from the interaction with the prover but the fact the statement is true". In an inference proof, the confidential input being hidden is the model's weights.
 
-The site's [[glyph]] reports what each system's publisher states about the second and third. No test of ours can establish either one, and [How we compare](/method) says why.
+Our five-petal [[glyph]] summarizes what each publisher's documentation states about soundness and zero-knowledge, alongside our own empirical tests. Because no finite test suite can prove that a system is unforgeable or zero-knowledge, we report the publisher's documented claims and quotes rather than certifying them ourselves; [How we compare](/method) explains how each petal is set.
 
-## What a yes does not tell you
+## What an accepted proof does not tell you
 
-Nine things a yes does not mean. Where a system's authors say so themselves, we quote them.
+When a verifier outputs "accept", it is easy to read too much into that verdict. Here are nine things an accepted proof does *not* establish, quoting the prover authors themselves where they make the same point.
 
-:::note A yes is not
-**A sign that the model is safe.** The proof is about a computation, not about behaviour. A model can be faithfully served and still be a poor or dangerous model.
+:::note What a yes does not mean
+**It does not mean the model is safe or aligned.** A proof verifies that a specific mathematical function was evaluated; it says nothing about how the model behaves. A dangerous or poorly trained model can be proved just as faithfully as a benign one.
 
-**Evidence about anything else the machine did.** Anthropic, which publishes FlashProve, [writes](https://www.anthropic.com/research/provable-inference) that a proof "does not establish that the hardware is not, e.g., training on the side".
+**It does not show what else the cluster was doing.** As Anthropic (publisher of FlashProve) [notes](https://www.anthropic.com/research/provable-inference), a proof of inference "does not establish that the hardware is not, e.g., training on the side".
 
-**A statement about training.** How a model was made is a different claim, with its own much less mature techniques.
+**It says nothing about how the model was trained.** Verifying a training run is a completely different problem with much less mature tooling.
 
-**A record of what happened at the time.** A proof made afterwards shows that the committed model gives this reply. In the words of an [early paper](https://arxiv.org/abs/2402.02675), it shows that the provider has a model that can produce it, "not that it necessarily served it earlier".
+**It does not prove the reply was generated live when the user asked.** A proof generated after the fact only shows that the committed model produces this reply for this prompt. As an [early verifiable-inference paper](https://arxiv.org/abs/2402.02675) put it, a proof shows that the provider holds a model that produces the output, "not that it necessarily served it earlier".
 
-**A claim about the model as it is usually run.** Proofs need arithmetic that repeats bit for bit, so today they are about a [[quantization|quantized]] copy of the model, computed in exact arithmetic and decoded greedily. Anthropic [lists it](https://www.anthropic.com/research/provable-inference) among its system's limits: "The proof is about an integer model under greedy decoding."
+**It covers a quantized, deterministic copy of the model rather than standard floating-point serving.** Cryptographic proof systems require exact, bit-reproducible arithmetic, so today's provers operate on an integer or fixed-point [[quantization]] of the weights under greedy decoding. Anthropic [lists this](https://www.anthropic.com/research/provable-inference) explicitly among FlashProve's limitations: "The proof is about an integer model under greedy decoding."
 
-**A claim about the whole product.** The same weights behave differently behind another system prompt, filter or router. A proof speaks about the weights.
+**It does not cover surrounding system prompts, routers, or content filters.** The same model weights can behave very differently behind a hidden system prompt or post-generation filter that sits outside the proved computation.
 
-**A guarantee that nothing was learned.** Where a system has zero knowledge, it hides the weights. The prompt, the reply and the model's size and shape stay visible to the verifier. Whether a given program hides the weights is its publisher's statement, which this site does not test.
+**It does not hide the prompt, the reply, or the model's architecture.** Even when a proof system is zero-knowledge with respect to the weights, the verifier still sees the prompt, the reply, and structural constants like layer dimensions. Moreover, whether a specific implementation actually hides the weights is a statement by its publisher that our benchmark does not test.
 
-**A promise to prove.** An operator can decline to produce a proof, or produce it late. What a missing proof means is for the rule to say, not the mathematics.
+**It cannot force an operator to hand over a proof.** An operator can always refuse to return a proof, claim a server error, or stall. What happens when a proof is missing is a policy or contract question, not a cryptographic one.
 
-**Certainty.** Soundness rests on assumptions and on software being correct. Either can fail.
+**It is not an absolute guarantee.** Every proof system rests on unproven hardness assumptions (or hash-function models) and on the absence of implementation bugs in the verifier.
 :::
 
-One caution applies to this site. Its ladder is made of open-weights models, which anyone with enough hardware could rerun. For those, keeping the weights hidden is not the benefit. The benefit is a check that needs no such hardware. Hiding starts to matter when the same systems are used on closed-weights models.
+One extra caveat applies specifically to this benchmark. Our Level 1 ladder uses open-weights models so that anyone can reproduce our runs and compare outputs against the original weights. Because those weights are already public, weight secrecy is not the reason to use a proof on these specific models; the benefit here is being able to verify a reply on a laptop CPU without renting a multi-GPU node. Weight secrecy becomes critical when the same prover architectures are applied to proprietary models.
 
-## What a verifier has to refuse
+## What a verifier must reject
 
-A proof is only useful if a wrong claim is refused. A verifier must tie its yes to three things: the committed model, the prompt and the reply. If it fails to tie one of them, an operator can change that thing and still be believed.
+A verifier that says "accept" to everything is useless. For a proof to mean anything, the verifier must bind its verdict to three inputs: the committed model, the prompt, and the reply. If the verifier fails to check any one of those bindings, an operator can swap that input and still get a green light.
 
 :::explore tamper
-The three tampering checks this site runs on every system: what is changed, and what a verifier does with it when it ties its yes to that thing and when it does not. A check is held when the verifier refuses the change, and only counts if the same verifier accepts the untouched proof. The table above shows how each system run here stands on them.
+Our three tampering checks: what we modify in the verifier's input record, how a properly bound verifier responds, and what happens when a binding is missing. A check holds only when the verifier accepts the untouched proof and rejects the tampered one.
 :::
 
-These three checks, when held, show that the verifier refused the changes we tried. It does not show that a proof is hard to forge: no check here tries to forge one. That is soundness, which is argued mathematically and reviewed by experts, not tested by a benchmark.
+Passing these three tampering checks confirms that the verifier rejected the specific modifications we tested. It does not prove that a determined adversary could never forge a proof: cryptographic soundness rests on mathematical reductions and code audits, not black-box test cases.
 
-## What has been built so far
+## Where the technology stands today
 
-In 2025 an [Oxford study](https://www.oxfordmartin.ox.ac.uk/publications/verification-for-international-ai-governance) called these proofs "impractical to apply at scale as of this writing", and added in a footnote that with dramatic progress they "might rapidly become the most practical approach for verifying many AI-related questions".
+In 2025, an [Oxford Martin School study](https://www.oxfordmartin.ox.ac.uk/publications/verification-for-international-ai-governance) described cryptographic proofs of inference as "impractical to apply at scale as of this writing", while noting in a footnote that with rapid algorithmic progress they "might rapidly become the most practical approach for verifying many AI-related questions".
 
-Between August and November 2026, three groups reported systems that prove replies of models with billions of weights, each with its own figures, on its own model, under its own rules. None presents itself as a finished product: ["A research artifact: not maintained, not accepting contributions"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md) (FlashProve), ["ZK Inference Prover Measurement Prototype"](https://github.com/sg-ai-safety-hub/zk-inference-prover) (SASH), ["These are alpha results."](https://attestable.com/blog/proving-llms-scale) (Attestable). Before this site's first run we knew of no figure for any of them from anyone but its authors, and none under common rules. What this site has run so far is in the table above, and the [ladder](/) lists the systems it has not run, each with the reason.
+Between August and November 2026, three separate teams released prototypes capable of proving replies from multi-billion-parameter language models, each reporting numbers on its own chosen model under its own measurement rules. All three teams describe their code as early research rather than production software: ["A research artifact: not maintained, not accepting contributions"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md) (FlashProve), ["ZK Inference Prover Measurement Prototype"](https://github.com/sg-ai-safety-hub/zk-inference-prover) (SASH), and ["These are alpha results."](https://attestable.com/blog/proving-llms-scale) (Attestable). Before we launched this benchmark, we could find no third-party measurements of any of these systems, and no comparison running them on the same workload. The table above shows what we have measured so far, and the main [ladder](/) lists every system we track alongside why unrun systems have not yet been run.

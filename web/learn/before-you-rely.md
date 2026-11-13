@@ -1,98 +1,104 @@
-A verifier answers yes or no. The [[relying party]] decides what the yes is worth. This page is for that reader: nine questions to put to any system that offers a proof, where this site answers each, and what it leaves open.
+A cryptographic verifier outputs a simple accept or refuse, but the [[relying party]] still has to decide what an accepted proof is worth in the real world. This page offers a practical checklist of nine questions to ask before relying on any inference proof system, showing where our benchmark answers them and what you still have to verify on your own.
 
-## Nine questions
+## Nine questions to ask
 
-### 1. What does a yes mean, exactly?
+### 1. What exact statement does a passing proof establish?
 
-Ask for the sentence, not the summary. Which positions of a reply are covered: all of them, or one? Must each token be the model's exact choice, or only close to it? Each system's [[claim card]] records its [[statement]] in its publisher's own words, with a link to the line. On this site every system is asked for the same thing: a full reply, every token checked.
+Ask for the precise mathematical relation being proved, not a one-line summary. Does a proof cover every token of the reply, or only a single layer or segment? Does it require each output token to be the exact top-scoring token of the model, or does it allow a numerical tolerance? Each system's [[claim card]] in our repository records its [[statement]] in the publisher's own words, with direct links to the upstream source files. On our benchmark, we hold every system to the same standard: a complete 512-token reply with every output token checked.
 
-### 2. Where do the prompt, the reply and the commitment come from?
+### 2. Where did the prompt, the reply, and the model commitment come from?
 
-A proof speaks about one prompt and one reply, relative to one value, the [[commitment]]. Ask where each came from. If the operator supplied the prompt and the reply, the proof shows that the operator holds a model that gives this reply, ["not that it necessarily served it earlier"](https://arxiv.org/abs/2402.02675). A sample means something only if a record you trust fixed the replies before the draw, and the operator could not predict the draw.
+A proof only connects a specific prompt and reply to a specific [[commitment]] digest. Always ask who supplied those three inputs. If the operator chose which prompt and reply to prove, the proof only shows that the operator has a model capable of producing that reply, ["not that it necessarily served it earlier"](https://arxiv.org/abs/2402.02675). Spot-checking a sample of live traffic only works if a tamper-resistant boundary log recorded the traffic *before* the sample was drawn, using randomness the operator could not predict.
 
-For the commitment, ask who published the value and what ties it to the model you care about: a register, a signed release, an evaluation report. A yes says *the model behind this value*, not whose model that is. If the value arrives with the proof, from the party being checked, the check is worth nothing. We always supply it from our own record.
+Similarly, ask who published the model commitment and how you know it corresponds to the model you care about (whether through a developer's signed release, a public model register, or an evaluation report). A valid proof only says *this reply came from the weights behind this commitment digest*; if you let the operator hand you a fresh commitment digest alongside each proof, the check proves nothing about model identity. In our harness, the verifier always reads the commitment from our own stored record, never from files bundled with the proof.
 
-### 3. Is the proved model the model that is served?
+### 3. How close is the proved model to the model that is normally served?
 
-A proof needs arithmetic that repeats bit for bit, so a system proves a quantized copy of a model, decoded greedily, within a fixed length. Ask what the operator has to change to serve exactly that copy, because a proof describes what was served only if that copy served it. Then ask how far the copy is from the original: a copy can be faithful, or degraded until proving it is cheap. Here that is the [Fidelity check](/checks#fidelity) and the "Faithful model" petal of the [[glyph]]: a system's replies are compared with those of the original weights, and have to score above copies that we damaged on purpose. Where a row reads "Fidelity check undecided", the comparison has not been run yet.
+Because cryptographic proof systems require bit-for-bit deterministic arithmetic, provers operate on a quantized integer or fixed-point copy of the model under greedy decoding, up to a fixed context limit. Ask what changes the operator had to make to serve that exact copy in production, and how closely that copy tracks the original unquantized weights. A sloppy quantization can degrade the model just to make proving cheaper. On this site, our [Fidelity check](/checks#fidelity) and the "Faithful model" petal of the [[glyph]] measure that gap directly: we compare the prover's replies against the publisher's unquantized reference weights and require them to score above intentionally damaged calibration copies. When a row reads "Fidelity check undecided", that comparison has not yet been completed.
 
-### 4. Who has run it, besides its authors?
+### 4. Who has run the prover besides its own authors?
 
-A figure published by a system's own team was obtained on its own model, under its own rules. Ask who else has run the system, from the public code, unchanged. That is what this site does, and it marks every figure with how it was obtained and how many sessions stand behind it. No figure here has yet been reproduced by a second party, and the pages say so. Put the same question to this site: its [mandate](/mandate) names who runs it and lists its conflicts of interest.
+Performance numbers in a team's launch blog post or paper are naturally measured on the model, hardware, and workload that team chose. Ask whether anyone outside the team has built and run the public code unpatched on a standardized workload. That is the core job of this benchmark: every figure on our site carries its unit, timing scope, and sample size, and links to the raw run record. None of our runs have yet been reproduced by a second benchmark operator, and we label every figure accordingly. Apply the exact same scrutiny to us: our [mandate](/mandate) discloses who runs this benchmark and lists our conflicts of interest.
 
-### 5. How hard is it to forge, and who says so?
+### 5. How hard is it to forge a proof, and on what basis?
 
-Ask for the system's [[security level]]. Three follow-up questions matter more than the number. Is it proven, or conjectured from the absence of a known attack? Does it cover the program that actually runs, or a description of it on paper? Has anyone outside the team reviewed it? In late 2025 a conjecture behind the parameters of many proof systems was shown false in its strongest form, and the Ethereum Foundation [warned](https://blog.ethereum.org/2025/12/18/zkevm-security-foundations) that "what was advertised as 100 bits might actually be 80". The proofs still verified: nothing a checker could see had changed. This site prints each publisher's statement in the "Unforgeable" petal. No test of ours can confirm it, and a failed tampering check turns the petal red.
+When a publisher quotes a [[security level]] (such as 100 bits or 128 bits), three follow-up questions matter more than the headline number:
 
-### 6. Whom else must I trust?
+1. Is that bound mathematically proved, or conjectured from the absence of known attacks?
+2. Does the theorem cover the actual verifier binary that runs on your machine, or only an idealized protocol on paper?
+3. Have cryptographers outside the author team reviewed the proof?
 
-Some systems need a one-time setup whose secrets must be destroyed, a hardware maker's key, or a third party. Others need only the verifier and cryptographic assumptions. The "No third party trusted" petal says which, from the publisher's documents; where that is our reading of them, not their words, the system page says so. The verifier itself always has to be trusted, so ask who has read its code. A scheme that samples traffic also trusts whatever recorded the traffic.
+In late 2025, a mathematical conjecture used to set parameters in several production proof systems was disproved in its strongest form, prompting the Ethereum Foundation to [warn](https://blog.ethereum.org/2025/12/18/zkevm-security-foundations) that "what was advertised as 100 bits might actually be 80". Existing proofs still verified cleanly; nothing visible to a verifier program changed when the theoretical bound dropped. Our "Unforgeable" petal reports what each publisher's documentation states about its soundness bound, while our tampering checks pull the petal down to red if the verifier accepts a modified model, prompt, or reply.
 
-### 7. What does the operator have to show?
+### 6. Whom else do I have to trust?
 
-The checker sees every prompt and reply it checks, and the model's size and shape. If the weights are a secret, ask what a proof reveals about them, and whether that claim is proven for the program or only expected of it. The "Weights hidden" petal records the publisher's statement. Our [Verify without weights](/checks#no_weight_file) check shows only that the verifier ran without opening a model file, which shows less.
+Some proof systems rely on a one-time setup ceremony whose secret randomness must be destroyed, a chip vendor's attestation key, or a designated verifier. Others rely only on public randomness (a transparent setup) that anyone can regenerate and check. Our "No third party trusted" petal reports which trust model the publisher documents (and flags whenever the step rests on our reading of their docs rather than an explicit statement). Keep in mind that you always trust the verifier binary itself, so it is worth asking who has audited the verifier code, and in any traffic-sampling scheme you also trust whatever hardware recorded the traffic.
 
-### 8. What does it cost, at the share I need?
+### 7. What does the proof reveal about the model and the traffic?
 
-Proving every reply costs the full multiple on every reply. Some uses need only a sample. A random sample, drawn after the fact, catches a substitution that happens often enough for the sample to meet it: 300 draws catch one substituted reply in 100 about 95 times in 100, and one in 10,000 about 3 times in 100. A use that needs one named reply proved, such as a customer's own, gets nothing from a sample.
+Any verifier sees the prompt and reply being checked, along with architectural constants like layer dimensions. If the model weights are proprietary, ask whether the proof system mathematically hides the weights (zero-knowledge), whether it still exposes parameters fitted to the weights (such as quantization scales), and whether weight hiding is proved for the implementation or merely expected to hold. Our "Weights hidden" petal records the publisher's documented claim, while our [Verify without weights](/checks#no_weight_file) check confirms the narrower empirical fact that the verifier ran on a CPU machine with no weight file on disk.
 
-A sample does not divide the whole cost. A reply can be proved only if the proved copy of the model generated it, and nobody knows in advance which replies will be drawn. So every reply has to be generated by that copy, and only the proving falls with the share. Where a row prints its multiple in two parts, generation is producing the reply with the proved copy's arithmetic, and proving is everything after it.
+### 8. What will proving cost at the sampling rate I need?
+
+Proving every single reply multiplies your serving bill by the system's full cost multiple. If your use case allows random spot-checking after the fact, you can prove only a fraction of replies: for example, drawing 300 random replies catches a 1-in-100 model substitution about 95 times in 100, and catches a 1-in-10,000 substitution about 3 times in 100. (Of course, if a customer wants a receipt for *their specific reply*, sampling across other users does not help.)
+
+Even when you sample, the total cost does not drop all the way to zero. Because a reply can only be proved if it was generated by the prover's deterministic quantized copy of the model, and the operator does not know in advance which replies will be sampled, the operator must run that prover-compatible generation pass on *every* reply; only the cryptographic proving step scales down with the sampling rate. Where a system separates token generation from proof generation, we print both parts of the multiple so you can see the floor.
 
 :::explore cost
-The arithmetic of a sample. Every reply is generated by the proved copy, and a share is also proved.
+Explore how sampling changes the total bill: every reply pays the generation multiple of running the committed model copy, while only the sampled fraction pays the proving multiple.
 :::
 
-Ask also what the check costs you: the time to verify one proof, which the ladder prints per reply, and its size, which each system's page prints.
+Also check what verification costs on your side: our ladder prints the CPU verification time per reply, and each system's page reports the proof size in megabytes.
 
-### 9. What happens when no proof comes?
+### 9. What happens when a proof fails or never arrives?
 
-An operator can decline, fail or run late. A proof system has no answer to that. The rule you are enforcing has to say what a missing proof means, and by when.
+No cryptographic protocol can stop an operator from going offline, returning a timeout, or claiming a hardware fault when challenged. Before deploying or mandating proofs, your contract or governance rule must specify the deadline for returning a proof and the penalty when one is missing.
 
 ## Reading a row
 
-- **The standing.** "Passed" means all six [checks](/checks) are held for that system on that model. Otherwise the row names the checks that are not. An undecided check is not a failed one: it names its cause, often that a test has not been run yet.
-- **The position.** Only a system that passed, and whose publisher states a security level, has one, and only among systems on the same model. Nothing is ranked across models.
-- **The glyph.** Five petals. Green: holds in full. Amber: in part, or in lesser part (the arm drawn cut). Red: no, stated short of amber, or one of our checks failed; a red the publisher is silent on is drawn as an outline in the red ink. Hollow: undecided. Four petals are read from what the publisher states, and Faithful model comes from our fidelity run. The glyph never moves a position.
-- **The multiple.** The GPU time of one more proved reply, over the GPU time of serving one, on the same kind of GPU. Generating the reply is inside it. Under it: what was timed, and over how many sessions. A position needs three sessions, so a figure over fewer is provisional.
+- **Standing.** "Passed" means all six [benchmark checks](/checks) held for that system on that model. If any check did not hold, the row lists which checks failed or remain undecided. An undecided check is not a failure; it usually means a test is still pending or hit a documented system constraint.
+- **Position.** Only systems that passed all six checks *and* whose publishers state a cryptographic security level at the pinned commit receive a numbered position, ordered strictly within that model's table. Nothing is ranked across models.
+- **The glyph.** Five petals summarize what kind of proof the system produces. Green means the property holds in full; amber means it holds in part or in lesser part (drawn with a notched tip); solid red means the property is not met or one of our checks failed; an open red outline means the publisher's documentation at the pinned commit is silent on that property; a hollow dashed outline means the petal is still undecided. Four petals reflect the publisher's documented statements, while Faithful model reflects our fidelity measurements. The glyph never changes a row's ranking position.
+- **Cost multiple.** The GPU-seconds required to produce a proved reply divided by the GPU-seconds required to serve an unproved reply on the same model and hardware, including token generation. Beneath each number we print its timing scope and sample size (`n`). Earning a ranked position requires three completed sessions, so any figure with fewer sessions is provisional.
 
 ## What this benchmark will not tell you
 
-- **Whether a proof can be forged, or leaks.** No check here attempts either. Passing six checks means that a system's verifier refused each change we made to the model, the prompt and the reply, on the request we fixed. It does not mean that a proof is hard to forge.
-- **Anything about secret models.** Level 1 runs open-weights models only.
-- **Whether a deployment keeps a rule.** That needs the other tools described on [the treaty page](/treaty).
-- **What is good enough.** A threshold is yours to set: a maximum multiple, a minimum security level, a longest acceptable verify time. If you have one, [tell us](https://github.com/ai-verification-observatory/inference-proofs/issues).
+- **Whether a proof system is mathematically unforgeable or zero-knowledge.** Our harness does not attempt cryptanalysis or weight extraction. Passing our six checks shows that the verifier rejected the specific tampered inputs we fed it on our fixed workload, not that a sophisticated attacker could never forge a proof.
+- **How these systems perform on closed proprietary models.** Level 1 benchmarks open-weights models exclusively.
+- **Whether a real-world facility is complying with a governance rule.** Answering that requires the physical and hardware layers discussed on [A treaty, stage by stage](/treaty).
+- **Which trade-off is acceptable for your application.** Only you can decide your ceiling on cost multiple, verification latency, or trust assumptions. If you have a concrete target workload or threshold in mind, [open an issue and tell us](https://github.com/ai-verification-observatory/inference-proofs/issues).
 
-## Words that look alike
+## Terms that mean different things in policy and cryptography
 
-| Word | In policy and safeguards | In cryptography |
+| Term | In policy and safeguards | In cryptography |
 |---|---|---|
-| Verification | A judgement that a party kept a rule | Running a program that accepts or refuses one proof |
-| Verifier | The state or body that checks | The program |
-| Commitment | A pledge by a state or a company | A short value that fixes data without showing it |
-| Binding | In force in law | Tied by the mathematics: a proof made for one prompt is refused for another |
-| Completeness | Nothing was left undeclared | An honest proof is always accepted. The two senses are unrelated |
-| Attestation | A signed statement that a requirement is met | A chip's signed report. Not a proof: it is as good as its signer |
-| Proof | Evidence strong enough to act on | A specific file with an exact check |
+| Verification | An overall judgment that a party complied with an agreement | Running a verifier program that outputs accept or refuse on a single proof |
+| Verifier | The inspectorate, auditor, or government conducting the check | The software program that checks a proof file |
+| Commitment | A political or legal pledge by a state or company | A short cryptographic digest that locks in data without revealing it |
+| Binding | Legally enforceable | Mathematically locked: a proof generated for one input is rejected if checked against another |
+| Completeness | A declaration leaves no facilities or workloads out | An honest prover with a true statement always produces an accepted proof (the two meanings are unrelated) |
+| Attestation | A formal declaration that a standard is met | A hardware enclave's cryptographically signed measurement report (relies on the chip vendor's key, unlike a mathematical proof) |
+| Proof | Evidence strong enough to support a conclusion | A mathematical object checked by a verifier algorithm |
 
 ## Reading on
 
-From the most accessible to the most technical. Most are sources these pages cite.
+Ordered from accessible policy overviews to technical systems papers, drawing on the sources cited across this track:
 
 :::reading
-- [Verification methods for international AI agreements](https://arxiv.org/abs/2408.16074). Wasil, Reed, Miller and Barnett, 2024. A short survey of ten ways to detect unauthorised training or data centres, each with its precedents and its ways around.
-- [The Math Behind Pacing the Frontier](https://www.aisafety.sg/blog/zkp-intro). Singapore AI Safety Hub, 2026. A plain explanation of proofs of inference beside trusted hardware, inspections and rerunning, by a group that builds a prover.
-- [The Compute Verification Post](https://jasminexli.substack.com/cp/207744145). Hausenloy and Li, 2026. An informal primer on what can be shown about a data centre, arranged as a ladder of how little you are willing to trust.
-- [How To Make International AI Verification a Reality](https://thefuturesociety.org/international-ai-verification). The Future Society, 2026. A policy memo that ranks verification research for states outside the two largest AI powers, and says governments can test proposals against shared benchmarks.
-- [Faster AI Diffusion Through Hardware-Based Verification](https://ifp.org/faster-ai-diffusion-through-hardware-based-verification/). Ammann and Dalrymple, 2025. The case for building verification into AI chips, with a costed research programme.
-- [AI 2040 Plan A: Verification Plan](https://ai-2040.com/supplements/verification-plan). Dean, 2026. A step-by-step design for data centres that only serve models: network taps, a rerun of sampled work, and the arithmetic of sampling.
-- [AI 2040 Plan A: Verification SITREP](https://amododesign.com/ai-verification/plan-a-sitrep/). Amodo Design, 2026. A status report on that design, piece by piece, by a company that builds verification hardware.
-- [Pacing AI Requires Proof](https://attestable.com/blog/pacing-ai-requires-proof). Attestable. A vendor's account of what proofs give an agreement, useful for its section on what cryptography does not solve.
-- [Verifying International Agreements on AI](https://arxiv.org/abs/2507.15916). Baker, Kulp, Marks, Brundage and Heim, RAND, 2025. A framework of four subgoals and six layers of verification.
-- [Verification for International AI Governance](https://www.oxfordmartin.ox.ac.uk/publications/verification-for-international-ai-governance). Harack and others, 2025. A long study of which agreements can be verified under pessimistic assumptions. It has a section on "proof of inference".
-- [Frontier AI Auditing](https://arxiv.org/abs/2601.11699). Brundage and others, 2026. Four levels of assurance for audits of AI developers, the highest of which is meant to give "treaty-grade" confirmation.
-- [What does it take to catch a Chinchilla?](https://arxiv.org/abs/2303.11341). Shavit, 2023. The paper that set out the Prover and Verifier design for rules on training.
-- [Progress on provable inference for large language models](https://www.anthropic.com/research/provable-inference). Anthropic, 2026. One system's figures and a list of what its prototype does not prove. With the [research note](https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note) of the Singapore AI Safety Hub, the publishers' own reports on the first two systems this benchmark set out to run.
-- [A zero-knowledge protocol for nuclear warhead verification](https://www.nature.com/articles/nature13457). Glaser, Barak and Goldston, 2014. The arms control proposal for confirming a property while learning nothing else.
+- [Verification methods for international AI agreements](https://arxiv.org/abs/2408.16074). Wasil, Reed, Miller, and Barnett, 2024. A concise survey of ten mechanisms for detecting unauthorized training runs or undeclared clusters, along with historical precedents and evasion paths.
+- [The Math Behind Pacing the Frontier](https://www.aisafety.sg/blog/zkp-intro). Singapore AI Safety Hub, 2026. An accessible introduction to proofs of inference alongside trusted hardware, inspections, and recomputation, written by the team behind SASH.
+- [The Compute Verification Post](https://jasminexli.substack.com/cp/207744145). Hausenloy and Li, 2026. A clear primer on verifying data centre workloads, organized by how little trust you are willing to place in the operator.
+- [How To Make International AI Verification a Reality](https://thefuturesociety.org/international-ai-verification). The Future Society, 2026. A policy memo prioritizing verification R&D for middle powers and arguing for shared technical benchmarks.
+- [Faster AI Diffusion Through Hardware-Based Verification](https://ifp.org/faster-ai-diffusion-through-hardware-based-verification/). Ammann and Dalrymple, 2025. The case for building verification mechanisms directly into AI accelerators, with a proposed R&D roadmap.
+- [AI 2040 Plan A: Verification Plan](https://ai-2040.com/supplements/verification-plan). Dean, 2026. A detailed engineering blueprint for verifying inference-only data centres using perimeter network taps, random sampling, and guarded recomputation.
+- [AI 2040 Plan A: Verification SITREP](https://amododesign.com/ai-verification/plan-a-sitrep/). Amodo Design, 2026. Component-by-component engineering readiness assessment of that blueprint from a verification hardware team.
+- [Pacing AI Requires Proof](https://attestable.com/blog/pacing-ai-requires-proof). Attestable. A prover team's perspective on where cryptographic proofs fit into AI governance and what problems cryptography cannot solve.
+- [Verifying International Agreements on AI](https://arxiv.org/abs/2507.15916). Baker, Kulp, Marks, Brundage, and Heim, RAND, 2025. A comprehensive framework breaking AI treaty verification into four subgoals and six technical layers.
+- [Verification for International AI Governance](https://www.oxfordmartin.ox.ac.uk/publications/verification-for-international-ai-governance). Harack and others, 2025. An in-depth study of what international AI agreements can verify under adversarial assumptions, including a section on proofs of inference.
+- [Frontier AI Auditing](https://arxiv.org/abs/2601.11699). Brundage and others, 2026. Proposes four assurance levels for auditing frontier AI labs, culminating in "treaty-grade" verification.
+- [What does it take to catch a Chinchilla?](https://arxiv.org/abs/2303.11341). Shavit, 2023. The foundational paper introducing the Prover-Verifier framing for verifying compute governance rules.
+- [Progress on provable inference for large language models](https://www.anthropic.com/research/provable-inference). Anthropic, 2026. FlashProve's technical overview and a candid list of what the prototype does and does not prove. Together with the Singapore AI Safety Hub's [research note](https://www.aisafety.sg/research/what-proving-llm-inference-actually-costs-research-note), these are the primary author reports on the first two systems our benchmark set out to test.
+- [A zero-knowledge protocol for nuclear warhead verification](https://www.nature.com/articles/nature13457). Glaser, Barak, and Goldston, 2014. The classic arms-control proposal for verifying warhead authenticity without measuring classified design details inside an electronic barrier.
 :::
 
-For everything else there is the [AI Workload Verification Papers](https://github.com/WHodgkins/AI-Verification-Papers) bibliography, built on a reading list by Will Hodgkins and earlier lists by Mauricio Baker and James Petrie. It covers more of the field, and several entries above were found through it.
+For a broader literature list, see the [AI Workload Verification Papers](https://github.com/WHodgkins/AI-Verification-Papers) bibliography maintained by Will Hodgkins (building on earlier lists by Mauricio Baker and James Petrie), which catalogs much of the research cited above.
