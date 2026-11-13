@@ -556,6 +556,25 @@ class Series:
     adapter_reject_void: bool = False  # RFC-0018 AD-6: a reject upstream did not make is void
 
 
+_FRAME = re.compile(r'File "([^"]+)"')
+
+
+def prove_failure(e: IProofsError) -> tuple[str, str]:
+    """(outcome, last line) of a control prove that failed (RFC-0008 §Outcomes, RFC-0018 CH-1).
+    `error` when the adapter itself raised: its stderr ends in a Python traceback whose last
+    frame is the adapter's entrypoint, our code and not the prover. Else `prover_failed`, with
+    the prover's last line, so a stored trial names the reason the prover gave."""
+    lines = [line for line in e.last_lines if line.strip()]
+    frames = [_FRAME.search(line) for line in lines]
+    files = [m.group(1) for m in frames if m]
+    traced = any(line.startswith("Traceback (most recent call last)") for line in lines)
+    if traced and files and files[-1].endswith("/entrypoint"):
+        return "error", f"adapter raised: {lines[-1].strip()}"[:4096]
+    tail = lines[-1].strip() if lines else ""
+    line = f"{e.kind}: {e.message}" + (f": {tail}" if tail and tail not in e.message else "")
+    return "prover_failed", line[:4096]
+
+
 def _worst(results: Sequence[VerifyResult], expected: Collection[str]) -> VerifyResult:
     """The result a trial of several verify calls (P1's proofs) records: an accepted one, else
     the first outside the expected set, else the first."""
@@ -580,8 +599,7 @@ def _level_trial(  # noqa: PLR0911 (one return per way a trial ends)
     try:
         calls = series.build(k)
     except IProofsError as e:  # a control prove that fails, or a harness failure
-        failed = "prover_failed" if side == "prover" else "error"
-        message = e.message if failed == "error" else f"{e.kind}: {e.message}"
+        failed, message = prove_failure(e) if side == "prover" else ("error", e.message)
         trial |= {"outcome": failed, "raw_exit_code": e.exit_code, "raw_last_line": message[:4096]}
         return trial, None
     if calls:
@@ -1108,8 +1126,9 @@ def prover_side_record(
     except NotApplicable as e:
         return {**base, "note": str(e)}
     except IProofsError as e:
-        return {**base, "outcome": "prover_failed", "passed": "prover_failed" in expected,
-                "note": f"{e.kind}: {e.message}"[:4096]}  # fmt: skip
+        outcome, line = prove_failure(e)
+        passed = None if outcome == "error" else outcome in expected
+        return {**base, "outcome": outcome, "passed": passed, "note": line}
     return control_record(control_id, lambda: calls, twins, verify, side=side, source=source,
                           expected=expected)  # fmt: skip
 

@@ -1,12 +1,6 @@
 {
   "date": "2026-11-12",
-  "frontier": {
-    "rows": [
-      "flashprove"
-    ],
-    "rung": "llama-4-maverick",
-    "systems_run": 1
-  },
+  "frontier": null,
   "level": "L1",
   "level_digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
   "price": {
@@ -373,13 +367,13 @@
               "state": "held"
             },
             "model": {
-              "cause": null,
+              "cause": "not run",
               "evidence": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/8",
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/2"
               ],
-              "note": null,
-              "state": "held"
+              "note": "P1: no counted trial stored",
+              "state": "undecided"
             },
             "no_weight_file": {
               "cause": null,
@@ -499,8 +493,8 @@
               "basis": "run",
               "id": "any_model",
               "quotes": [],
-              "reason": "passed on 1 of 3 rungs",
-              "state": "red"
+              "reason": "passed on 0 of 3 rungs; a check is still undecided",
+              "state": "hollow"
             },
             {
               "basis": "statement",
@@ -532,8 +526,8 @@
             "unit": "ratio",
             "value": null
           },
-          "passed": true,
-          "position": 1,
+          "passed": false,
+          "position": null,
           "proof_bytes_per_reply": {
             "grade": "derived",
             "null_reason": null,
@@ -576,7 +570,7 @@
             "unit": "ratio",
             "value": null
           },
-          "ranked": true,
+          "ranked": false,
           "security": {
             "source": "systems/flashprove/claim.yaml#security.level",
             "stated": true,
