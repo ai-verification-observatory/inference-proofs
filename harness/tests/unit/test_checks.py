@@ -366,4 +366,4 @@ def test_p1_line_with_a_python_exception_decides_nothing(tree: Tree) -> None:
             for t in c["trials"]:
                 t["raw_last_line"] = "adapter: prove exited 1: FileNotFoundError: [Errno 2] x"
     three_sessions(tree, control_doc=doc)
-    assert states(tree)["model"] == ("undecided", "not run")
+    assert states(tree)["model"] == ("undecided", "not resolved")
