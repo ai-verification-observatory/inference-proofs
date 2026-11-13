@@ -314,7 +314,7 @@ MANDATE = (
     )),
     ("How to check us", (
         ("Sources", "rule 2", "AGENTS.md", "Every figure has its unit, what was timed, its "
-         "sample size and the source it came from. A system's page prints them."),
+         "sample size and the record it came from. A system's page gives them."),
         ("Open code", "Licence", "README.md", "The rules, the code we use to run each system "
          "and the measuring code are public."),
     )),
@@ -443,12 +443,16 @@ def architecture(total, active):
     return f"Dense, {params(total)}"
 
 
-def labels(f):
-    """A figure's labels in words, for its title: scope, grade, evidence, sample size, record."""
-    parts = [f"scope: {SCOPE_WORD[f['scope']]}", f"grade: {GRADE_WORD[f['grade']]}",
-             f"evidence: {TIER_WORD[f['tier']]}"]  # fmt: skip
-    if f["n"] is not None:
-        parts.append(f"n = {f['n']}")
+def labels(f, n=None, note=None):
+    """A figure's labels in words, for its title: scope, grade, evidence, sample size, record.
+    `n` stands where the figure stores no sample size (the row's counted sessions); `note` opens
+    the title (CO-5's "whole sessions of N replies")."""
+    parts = [note] if note else []
+    parts += [f"scope: {SCOPE_WORD[f['scope']]}", f"grade: {GRADE_WORD[f['grade']]}",
+              f"evidence: {TIER_WORD[f['tier']]}"]  # fmt: skip
+    count = f["n"] if f["n"] is not None else n
+    if count is not None:
+        parts.append(f"n = {count}")
     parts.append(f"record: {f['source']}")
     return "; ".join(parts)
 

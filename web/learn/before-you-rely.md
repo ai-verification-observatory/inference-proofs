@@ -53,7 +53,7 @@ An operator can decline, fail or run late. A proof system has no answer to that.
 - **The standing.** "Passed" means all six [checks](/checks) are held for that system on that model. Otherwise the row names the checks that are not. An undecided check is not a failed one: it names its cause, often that a test has not been run yet.
 - **The position.** Only a system that passed, and whose publisher states a security level, has one, and only among systems on the same model. Nothing is ranked across models.
 - **The glyph.** Five petals. Green: holds in full. Amber: in part, or in lesser part (the arm drawn cut). Red: no, stated short of amber, or one of our checks failed; a red the publisher is silent on is drawn as an outline in the red ink. Hollow: undecided. Four petals are read from what the publisher states, and Faithful model comes from our fidelity run. The glyph never moves a position.
-- **The multiple.** The GPU time of one more proved reply, over the GPU time of serving one, on the same kind of GPU. Generating the reply is inside it. Under it: what was timed, and over how many sessions. A position needs three sessions, so a figure over fewer is provisional.
+- **The multiple.** The GPU time of one more proved reply, over the GPU time of serving one, on the same kind of GPU. Generating the reply is inside it. What was timed, and over how many sessions, is on the system's page. A position needs three sessions, so a figure over fewer is provisional.
 
 ## What this benchmark will not tell you
 

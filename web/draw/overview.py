@@ -81,12 +81,12 @@ def href(row):
 BARE = ""  # `fig_html`'s `sub` for a figure with no line under it
 
 
-def fig_html(f, n=None, sub=None, why=None):
+def fig_html(f, n=None, sub=None, why=None, note=None):
     """One stored figure: the number in a reading unit, its labels in its title, and under it its
     scope in a word and its sample size (AGENTS.md rule 2). `sub` replaces the line under it
     (`BARE`: no line, as the ladder and the Scale page print a figure; its labels stay in its
-    title and stand in full on the system's page); `why` replaces a null figure's reason
-    (NO_STEADY_WORD on a row with no steady state)."""
+    title, `n` and `note` among them, and stand in full on the system's page); `why` replaces a
+    null figure's reason (NO_STEADY_WORD on a row with no steady state)."""
     if f is None:
         return '<span class="na">not recorded</span>'
     if f["value"] is None:
@@ -97,7 +97,7 @@ def fig_html(f, n=None, sub=None, why=None):
     num, unit = number(f["value"], f["unit"])
     x = " x" if f["unit"] == "ratio" else ""
     line = sub if sub is not None else sub_words(f, n)
-    return (f'<span class="fig" title="{e(labels(f))}"><span class="n">{e(num)}</span>'
+    return (f'<span class="fig" title="{e(labels(f, n, note))}"><span class="n">{e(num)}</span>'
             f'<span class="u{x}">{e(unit)}</span></span>'
             + (f'<span class="sub">{sub_line(line)}</span>' if line else ""))  # fmt: skip
 
@@ -117,9 +117,19 @@ def nobreak(text):
 
 def lead_fig(row, bare=False):
     """A row's one figure, labelled for what it is (CO-5, `chrome.lead_figure`). Returns (label,
-    figure html); `bare`: the figure with no line under it."""
+    figure html); `bare` (the overview's band): the figure's plain name and the figure alone,
+    what it is in its title."""
     label, f, _ = lead_figure(row)
-    return label, fig_html(f, counted(row), sub=BARE if bare else None)
+    if bare:
+        return FIGURE_NAME["multiple"], multiple_html(row, parts=False, bare=True)
+    return label, fig_html(f, counted(row))
+
+
+def whole_note(row, key):
+    """CO-5's label for a figure of the whole sessions, for its title; nothing for a steady one."""
+    if key != "session_multiple":
+        return None
+    return WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"])
 
 
 def multiple_html(row, parts=True, bare=False):
@@ -129,7 +139,9 @@ def multiple_html(row, parts=True, bare=False):
     _, f, key = lead_figure(row)
     split = split_html(row, key, bare=bare) if parts else ""
     if bare:
-        return fig_html(f, sub=BARE) + (split if has(f) else "")
+        return fig_html(f, counted(row), sub=BARE, note=whole_note(row, key)) + (
+            split if has(f) else ""
+        )
     if key == "session_multiple":
         n = rung_of(row)["requests_per_session"]
         count = f["n"] if f["n"] is not None else counted(row)
@@ -157,9 +169,9 @@ def split_html(row, key, bar=True, of_which=False, bare=False):
                f'<rect class="bg" x="{share:.2f}" width="{100 - share:.2f}" height="4"/>{nib}</svg>')  # fmt: skip
     n = counted(row)
     pre = f"{OF_WHICH} " if of_which else ""  # with no bar, the words tie each part to its whole
-    line = BARE if bare else None
+    line, note = (BARE, whole_note(row, key)) if bare else (None, None)
     out = "".join(f'<span class="part {c}"><span class="pl">{e(pre + w)}</span>'
-                  f"{fig_html(f, n, sub=line)}</span>"
+                  f"{fig_html(f, n, sub=line, note=note)}</span>"
                   for c, w, f in (("pp", w1, f1), ("pg", w2, f2)))  # fmt: skip
     return f'<span class="split">{svg}{out}</span>'
 
@@ -244,8 +256,8 @@ def row_html(row, rung):
     glyph += glyph_svg(PHONE_GLYPH, states(row), cls="pie-svg gsh")
     cells = (
         ("cm", multiple_html(row, bare=True)),
-        ("cc", fig_html(row_cost(row), sub=BARE)),
-        ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], sub=BARE)),
+        ("cc", fig_html(row_cost(row), counted(row), sub=BARE)),
+        ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row), sub=BARE)),
         ("ck", kl_html(row, bare=True)),
     )
     figs = "".join(f'<td class="{c}"><span class="lbl">{h}</span>{html}</td>'
@@ -412,5 +424,5 @@ def build_index():
 </main>
 {footer()}"""
     models = ", ".join(r["model"] for r in S.V["rungs"])
-    desc = f"{S.V['level']['name']}: provers on {models}, six checks each, cost against serving."
+    desc = f"Provers on {models}: six checks each, and what a proved reply costs against serving."
     return page("Inference proofs", desc, body, "home", "", "home")

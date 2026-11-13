@@ -300,7 +300,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .facts dd { margin: 6px 0 0; font: 600 13px/19px var(--mono); }
 .facts a { text-decoration-thickness: 1px; }
 /* a link on the band, in hand: a block of ground ink, the words in cobalt (as an index line) */
-.facts a:hover, .tsub a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+.facts a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
 .facts .pos { display: flex; align-items: center; gap: 8px; }
 .facts .pos .pn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; box-shadow: inset 0 0 0 1.5px var(--ground); font: 900 18px/1 var(--disp); font-variant-numeric: tabular-nums; }
 .facts .pos.p1 .pn { background: var(--paper); box-shadow: none; }
@@ -327,12 +327,9 @@ html:has(.top.s-on) { overflow: hidden; }
 .mast-t .mast-in { padding: 48px 0; }
 .ttl { margin: 0; font: 900 var(--title)/.92 var(--disp); letter-spacing: -.01em; overflow-wrap: normal; }
 .creed { max-width: 30ch; text-wrap: balance; }
-.tsub { margin-top: 18px; font: var(--f-meta); }
-.tsub a { text-decoration-thickness: 1px; }
 .lead { margin-top: 48px; }
 @media (max-width: 760px) {
   .mast-t .mast-in { padding: 32px 0 30px; }
-  .tsub { margin-top: 14px; }
 }
 
 /* ---------------------------------------------------------------- a page's sections: a strip that stays under the top bar */
@@ -1082,7 +1079,7 @@ main { flex: 1 0 auto; }
 .fcells li { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; margin-left: -1px; padding: 16px 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
 .foot a { color: var(--paper); text-decoration-color: var(--rule); }
 /* a footer link pointed at or pressed: cobalt under ground ink, at once */
-.foot a:hover, .foot a:active, .tsub a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+.foot a:hover, .foot a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */

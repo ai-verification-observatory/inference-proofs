@@ -239,15 +239,16 @@ def card_page(card, body, css):
 def home_card():
     """Only what does not change with the systems run, since link previews stay cached: the
     stacked lockup in paper with the mark in cobalt on the ground (as the site's top bar and the
-    system cards), the address and the level."""
+    system cards) and the address."""
     css = f"""
 html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
 .og-l{{position:absolute;left:96px;top:96px}}
-.url{{position:absolute;left:96px;bottom:120px;font-size:26px;line-height:1;font-weight:600}}
-.lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;font-weight:400;color:{MUTED}}}
+.url{{position:absolute;left:96px;bottom:96px;font-size:26px;line-height:1;font-weight:600}}
 """
-    body = (f'<div class="og-l">{stacked_svg(132, PAPER, COBALT)}</div>'
-            f'<p class="mono url">{e(card_host())}</p><p class="mono lvl">{e(level_words())}</p>')  # fmt: skip
+    body = (
+        f'<div class="og-l">{stacked_svg(132, PAPER, COBALT)}</div>'
+        f'<p class="mono url">{e(card_host())}</p>'
+    )
     return card_page("home", body, css)
 
 

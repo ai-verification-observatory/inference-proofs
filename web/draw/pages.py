@@ -40,6 +40,7 @@ from .overview import (
     name_of,
     nobreak,
     position_html,
+    request_words,
     serving_words,
     split_html,
     standing_html,
@@ -665,7 +666,7 @@ def system_page(row):
     if lkey == "session_multiple" and has(lf):  # the label names the scope: under it, n alone
         count = lf["n"] if lf["n"] is not None else counted(row)
         lead = fig_html(lf, sub=f"n\u00a0=\u00a0{count}")
-    lead += split_html(row, lead_figure(row)[2], bar=False, of_which=True, bare=True)
+    lead += split_html(row, lkey, bar=False, of_which=True, bare=True)
     unranked = "" if row["position"] is not None else " unr"
     band_ = (
         f'<section class="mast mast-sys sysb" aria-labelledby="h-name"><div class="mast-in">'
@@ -716,11 +717,11 @@ def rules(lines, ids=()):
     ) + "</dl>"  # fmt: skip
 
 
-def title_band(title, sub="", cls="ttl"):
+def title_band(title, cls="ttl"):
     """The band of a page that is not a system's (the checks, the mandate, the 404): its title
-    at the home title's size, and a line under it."""
+    at the home title's size."""
     return (f'<div class="mast mast-t"><div class="mast-in"><h1 id="h-name" class="{cls}">'
-            f"{e(title)}</h1>{sub}</div></div>")  # fmt: skip
+            f"{e(title)}</h1></div></div>")  # fmt: skip
 
 
 def build_checks():
@@ -752,7 +753,8 @@ def build_checks():
         f"{rules(FIGURE_RULE[f])}</div>"
         for f in FIGURE_RULE
     )
-    gate = ("The six checks are tests we run on every system. A system passes on a model when "
+    gate = ("The six checks are tests we run on every system, on the same request "
+            f"({request_words()}). A system passes on a model when "
             "all six checks are held there. The five petals grade what the publisher states, and "
             "Faithful model what our fidelity run measured: a failed check turns its petals red, "
             "a held check never turns one green.")  # fmt: skip

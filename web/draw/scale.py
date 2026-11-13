@@ -21,6 +21,7 @@ from . import state as S
 from .chrome import (
     CHECKS_PAGE,
     SCALE_PAGE,
+    counted,
     footer,
     has,
     header,
@@ -234,7 +235,7 @@ def figure_html(row, dim):
     """The row's figure as the ladder prints it, with its two parts where it has them (CO-7)."""
     if dim == "multiple":
         return multiple_html(row, bare=True)
-    return fig_html(figure_of(row, dim), sub=BARE)
+    return fig_html(figure_of(row, dim), counted(row), sub=BARE)
 
 
 def serving_html(rung, dim):
@@ -260,7 +261,9 @@ def lane_html(rung, dim, unit, ext):
     size = e(params(rung["parameters_total"]))
     facts = architecture(rung["parameters_total"], rung.get("parameters_active"))
     if rung["rows"]:
-        facts += f" · {rung['systems_run']:,} run"
+        facts += (
+            f" · {rung['systems_run']:,} {'system' if rung['systems_run'] == 1 else 'systems'} run"
+        )
     serving = serving_html(rung, dim) if rung["rows"] else ""
     head = (f'<tr class="grp"><th colspan="4" scope="rowgroup" id="{dim}-{e(rung["id"])}">'
             f'<span class="lh"><span class="rk">{size}</span>'
@@ -326,5 +329,5 @@ def build_scale():
 </main>
 {footer()}"""
     names = ", ".join(n for _, n, _ in DIMS)
-    desc = f"Every row of the board on a decade axis, one lane per model: {names}."
+    desc = f"Every system on one log scale, model by model: {names}."
     return page("Scale", desc, body, "system scalepage", SCALE_PAGE.strip("/"), "home")
