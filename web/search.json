@@ -203,10 +203,10 @@
     {
       "group": "Figures",
       "kind": "figure",
-      "meta": "Mean Kullback-Leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original reference weights (16-bit for Llama 4 Maverick 17B-128E Instruct and Llama 3.1 8B Instruct, 32-bit for GPT-2).",
+      "meta": "Mean Kullback-Leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original reference weights (16‑bit for Llama 4 Maverick 17B-128E Instruct and Llama 3.1 8B Instruct, 32‑bit for GPT-2).",
       "name": "KL to the original weights",
       "pie": "",
-      "terms": "kl to the original weights mean kullback-leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original reference weights (16-bit for llama 4 maverick 17b-128e instruct and llama 3.1 8b instruct, 32-bit for gpt-2).",
+      "terms": "kl to the original weights mean kullback-leibler divergence per scored token (in nats) between the model file the system commits to and the publisher's original reference weights (16‑bit for llama 4 maverick 17b-128e instruct and llama 3.1 8b instruct, 32‑bit for gpt-2).",
       "tier": 4,
       "url": "/checks#kl"
     },

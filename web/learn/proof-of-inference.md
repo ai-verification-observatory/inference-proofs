@@ -68,7 +68,7 @@ When a verifier outputs "accept", it is easy to read too much into that verdict.
 
 One extra caveat applies specifically to this benchmark. Our Level 1 ladder uses open-weights models so that anyone can reproduce our runs and compare outputs against the original weights. Because those weights are already public, weight secrecy is not the reason to use a proof on these specific models; the benefit here is being able to verify a reply on a laptop CPU without renting a multi-GPU node. Weight secrecy becomes critical when the same prover architectures are applied to proprietary models.
 
-## What a verifier must reject
+## What a verifier must refuse
 
 A verifier that says "accept" to everything is useless. For a proof to mean anything, the verifier must bind its verdict to three inputs: the committed model, the prompt, and the reply. If the verifier fails to check any one of those bindings, an operator can swap that input and still get a green light.
 

@@ -158,10 +158,11 @@ def record_words(path, ptrs=()):
     return f"{run}: {word}" if run else word
 
 
-def evidence_html(paths):
+def evidence_links(paths):
     """A check's records, one link per file, labelled in words (`record_words`), the file's path
     and the entries a JSON Pointer names in its title; a directory's files (a trace per proof
-    makes many) as one link to the directory with their count."""
+    makes many) as one link to the directory with their count. A list: its length is the count
+    the check's summary prints."""
     files: dict[str, list[str]] = {}
     for p in paths:
         path, _, ptr = p.partition("#")
@@ -184,7 +185,7 @@ def evidence_html(paths):
             title = path + (" #/" + ", /".join(ptrs) if ptrs else "")
             out.append(f'<a class="ev" href="{e(href)}" title="{e(title)}">'
                        f"{e(record_words(path, ptrs))}</a>")  # fmt: skip
-    return "".join(out)
+    return out
 
 
 def chip(state, word, form=""):
@@ -403,10 +404,11 @@ def checks_html(row):
             cause += f'<span class="cn"{at}>{quoted(gist)}</span>'
         # in full with the records, only when too long for the cause
         full = f'<p class="cn"{at}>{quoted(note_parts(note)[1])}</p>' if note and not gist else ""
-        recs = counted_words(len(c["evidence"]), "record") if c["evidence"] else "note"
+        links = evidence_links(c["evidence"])  # counted as printed: a file's entries are one link
+        recs = counted_words(len(links), "record") if links else "note"
         owner = f'<span class="sr">, {e(CHECK_NAME[c["id"]])}</span>'
         more = (f'<details class="more"><summary>{e(recs)}{owner}</summary>{full}'
-                f"{evidence_html(c['evidence'])}</details>"
+                f"{''.join(links)}</details>"
                 if c["evidence"] or full else "")  # fmt: skip
         to = petals_of(c["id"])
         to = f' data-to="{to}"' if to else ""
@@ -500,6 +502,15 @@ def of_which(word):
     return f"{OF_WHICH} {PART_WORD[word]}"
 
 
+def kept(*pieces):
+    """A line's pieces (markup), each kept whole: a line too long breaks between two, the dot that
+    parts them opening the next line, never left at a line's end."""
+    head, *rest = pieces
+    return f'<span class="nw">{head}</span>' + "".join(
+        f' <span class="nw">\u00b7\u00a0{p}</span>' for p in rest
+    )
+
+
 # CO-7: a GPU time's two parts, where the system generates in a phase of its own, drawn in this
 # order (the part that is not generation first, in paper)
 GPU_PARTS = {
@@ -511,14 +522,15 @@ GPU_PARTS = {
 }  # fmt: skip
 
 
-def cost_sub(f, n):
+def cost_sub(f, n, head=""):
     """The line under a Cost figure, where the block's Proving line says the whole sessions and
     their n once (`n`, the counted sessions): nothing for a figure that shares both, else what
-    differs (a steady or a verify scope, another n). None (the figure's own line) with no n."""
+    differs (a steady or a verify scope, another n), a scope its `head` already names left out
+    ("Verify time" over no "verify"). None (the figure's own line) with no n."""
     if n is None or not has(f):
         return None
     short = SCOPE_SHORT[f["scope"]]
-    said = [short] if short not in ("", "session") else []
+    said = [short] if short not in ("", "session") and short not in head.lower() else []
     if f["n"] is not None and f["n"] != n:
         said.append(f"n\u00a0=\u00a0{f['n']}")
     return SEP.join(said)
@@ -623,17 +635,17 @@ def cost_html(row):
     base = rung["baseline"]
     line = bool(base) and has(base["gpu_seconds_per_reply"])
     rows = [(k, serving_fig(f, line) if count is None and k.startswith("Serving")
-             else fig_html(f, count, sub=cost_sub(f, n))) for k, f, count in sheet if has(f)]  # fmt: skip
+             else fig_html(f, count, sub=cost_sub(f, n, k))) for k, f, count in sheet if has(f)]  # fmt: skip
     if price and has(price["usd_per_gpu_hour"]):  # the head says what, the unit per what
         rows.append(("H200 price", fig_html(price["usd_per_gpu_hour"], sub=price["date"],
                                             note=f"basis: {price['basis']}")))  # fmt: skip
     else:
         missing.setdefault("not recorded", []).append("Price of one H200 GPU-hour")
     cells = "".join(f"<div><dt>{e(beside_unit(k))}</dt><dd>{v}</dd></div>" for k, v in rows)
-    serving = (f'<p class="rb"><span class="k">Serving</span> {e(serving_words(base))}</p>'
+    serving = (f'<p class="rb"><span class="k">Serving</span> <span>{e(serving_words(base))}</span></p>'
                if line else "")  # fmt: skip
-    over = f"{whole}{SEP}n\u00a0=\u00a0{n}"
-    proving = f'<p class="rb"><span class="k">Proving</span> {e(over)}</p>' if n else ""
+    over = kept(e(whole), f"n\u00a0=\u00a0{n}")
+    proving = f'<p class="rb"><span class="k">Proving</span> <span>{over}</span></p>' if n else ""
     missing.pop(NO_STEADY_WORD, None)  # the sessions table prints each session's none and why
     return (f'{serving}{proving}{cost_bars(row)}<dl class="parts">{cells}</dl>'
             f"{missing_html(missing)}")  # fmt: skip
@@ -697,12 +709,11 @@ def fidelity_html(row):
     if mine is not None:
         prefix = plain(mine["mean_prefix"], "tokens", row["record"] + "/fidelity/mean_prefix",
                        f"n = {mine['n']:,} replies")  # fmt: skip
-        sub = e(
-            f"n\u00a0=\u00a0{mine['n']:,} replies"
-        )  # replies, where the Cost's n counts sessions
+        # n in replies, where the Cost's n counts sessions
+        said = [e(f"n\u00a0=\u00a0{mine['n']:,} replies")]
         if mine["p_above_bar"] is not None:
-            p = p_html(mine["p_above_bar"])
-            sub += " · " + e(P_ABOVE.format(p="\0")).replace("\0", p)
+            said.append(e(P_ABOVE.format(p="\0")).replace("\0", p_html(mine["p_above_bar"])))
+        sub = kept(*said)
         out.append(f'<tr class="me"><th scope="row">{e(name_of(row))}</th>'
                    + tds("this system", (mine["mean_prefix"], "me"),
                          f'{prefix}<span class="sub">{sub}</span>', kl_cell(row))
@@ -813,7 +824,7 @@ def system_page(row):
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
     # the figure's plain name, the figure, and under it, once, what was counted and n (CO-5)
     label, lead = FIGURE_HEAD["multiple"], band_figure(row)
-    lead_label, lead_f, lkey = lead_figure(row)
+    _, lead_f, lkey = lead_figure(row)
     lead += split_html(row, lkey, bar=False, of_which=True, bare=True)
     unranked = "" if row["position"] is not None else " unr"
     band_ = (
@@ -845,8 +856,9 @@ def system_page(row):
   </div>
 </main>
 {footer()}"""
-    # depth 0: where the system stands and its one figure, with its unit (as the card's alt says)
-    desc = f"{name} on {rung['model']}, {standing(row)}. {lead_label}: {fig_words(lead_f)}."
+    # depth 0: where the system stands and its one figure, with its unit (as the card's alt says);
+    # what was counted is a step down, under the band's figure
+    desc = f"{name} on {rung['model']}, {standing(row)}. {FIGURE_HEAD['multiple']}: {fig_words(lead_f)}."
     return page(name, desc, body, "system syspage", row["page"], row["page"])
 
 

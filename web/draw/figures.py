@@ -435,7 +435,9 @@ RC_WORDS = {
     "diff": "different: the claimed product is refused",
     "miss": "equal: this draw misses the change",
     "true": "equal, as it must be: this claimed product is the true one",
-    "tally": "{n} draws from {set} so far, {k} of them refused the claimed product.",
+    "tally": "{n} {draws} from {set} so far, {k} of them refused the claimed product.",
+    "draw": "draw",  # {draws} after a count of one
+    "draws": "draws",
     "bits": "Draw r from 0 and 1",
     "field": "Draw r from 0 to {top}",
     "many": "Draw {n} times from 0 to {top}",
@@ -493,6 +495,11 @@ def column(v, cls="mx"):
     return grid(tuple((x,) for x in v), cls=cls)
 
 
+def named(label, matrix):
+    """A matrix and its name as one group: a line that wraps never leaves a name without it."""
+    return f'<div class="mxg"><span class="lb">{e(label)}</span>{matrix}</div>'
+
+
 def flat(m):
     """A matrix as the script reads it: its rows, entries separated by spaces, rows by commas."""
     return ",".join(" ".join(str(v) for v in row) for row in m)
@@ -507,18 +514,18 @@ def random_check_html():
     def draw(r):
         got = random_check(r)
         verdict = RC_WORDS["miss"] if got["equal"] else RC_WORDS["diff"]
-        return (f'<div class="dr"><div class="eq"><span class="lb">r</span>{column(got["r"])}'
-                f'<span class="lb">A·(B·r)</span>{column(got["left"])}'
-                f'<span class="lb">C·r</span>{column(got["right"])}</div>'
+        return (f'<div class="dr"><div class="eq">{named("r", column(got["r"]))}'
+                f'{named("A·(B·r)", column(got["left"]))}{named("C·r", column(got["right"]))}</div>'
                 f'<p class="vd">{e(verdict)}</p></div>')  # fmt: skip
 
     data = (f'data-a="{flat(FA)}" data-b="{flat(FB)}" data-c="{flat(claimed(False))}" '
             f'data-ok="{flat(claimed(True))}" data-p="{P}" data-runs="{RC_RUNS}" '
             f"{data_words(RC_WORDS)}")  # fmt: skip
+    shown_c = f'<div class="xcl">{grid(claimed(False), mark=(i, j))}</div>'
     return (
         f'<div class="xpl" data-x="random-check" {data}>'
-        f'<div class="eq mm"><span class="lb">A</span>{grid(FA)}<span class="lb">B</span>{grid(FB)}'
-        f'<span class="lb">claimed C</span><div class="xcl">{grid(claimed(False), mark=(i, j))}</div>'
+        f'<div class="eq mm">{named("A", grid(FA))}{named("B", grid(FB))}'
+        f"{named('claimed C', shown_c)}"
         f'<span class="lv">arithmetic modulo {P}</span></div>'
         f'<div class="xo">{draw((1, 0, 1))}{draw((1, 1, 0))}</div></div>'
     )
@@ -588,7 +595,7 @@ def sumcheck(challenges=CHALLENGES, lie=0):
 
 def transcript(run, who):
     # a variable stays on the line of the words it ends
-    heads = ("Running claim", "Prover sends s(0), s(1), s(2)", "Verifier checks",
+    heads = ("Running claim", "Prover sends s(0),\u00a0s(1),\u00a0s(2)", "Verifier checks",
              "Verifier draws\u00a0r", "New claim\u00a0s(r)")  # fmt: skip
     rows = ""
     for k, rd in enumerate(run["rounds"], start=1):

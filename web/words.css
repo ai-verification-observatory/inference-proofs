@@ -358,7 +358,8 @@ html:not(.js) .ps-t { display: none; }
 .ps a:after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; background: var(--cobalt); transform: scaleX(0); transform-origin: left; transition: transform var(--ease); }
 .ps a.on { color: var(--paper); }
 .ps a.on:after { transform: none; }
-/* on a narrow screen the strip runs to the screen's edge, so a link cut there shows it scrolls */
+/* on a narrow screen the strip runs to the screen's edge, so a link cut there shows it scrolls (at its start
+   words.js keeps a label's edge, so none shows cut there) */
 @media (max-width: 760px) {
   .ps { margin-right: 0; padding-right: var(--gut); }
 }
@@ -427,8 +428,9 @@ html:not(.js) .shr:not(:has(a)) { display: none; }
 /* a wide window: the stuck head names the model beside its size, over the glyph's empty head, its tab on the rule's edge */
 @media (min-width: 1181px) {
   .lad thead th:first-child { z-index: 4; padding-left: 0; }
-  @container scroll-state(stuck: top) { .lad thead .hm { display: inline-block; vertical-align: bottom; max-width: 170px; margin-left: 10px; } }
-  .lad th.stuck .hm { display: inline-block; vertical-align: bottom; max-width: 170px; margin-left: 10px; }
+  /* a long name takes two lines rather than lose its end, the second level with the tab, the first in the head's top room */
+  @container scroll-state(stuck: top) { .lad thead .hm { display: inline-block; vertical-align: bottom; width: max-content; max-width: 190px; margin: -14px 0 0 10px; white-space: normal; line-height: 1; } }
+  .lad th.stuck .hm { display: inline-block; vertical-align: bottom; width: max-content; max-width: 190px; margin: -14px 0 0 10px; white-space: normal; line-height: 1; }
 }
 /* the model's name beside its size, in the head that sticks over a stacked ladder (below) */
 .hm { display: none; min-width: 0; font: 900 18px/1 var(--disp); letter-spacing: 0; text-transform: none; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -670,6 +672,7 @@ html.js .row { cursor: pointer; }
   /* serving, the figure every multiple under it is over, on a line of its own, named */
   .meta > div:nth-child(3) { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .6em; margin-top: 4px; }
   .meta > div:nth-child(3) > dt { margin: 0; }
+  .meta > div:nth-child(3) dd .fig { color: var(--paper); }
   .meta > div:nth-child(n+4) { display: none; }
   .lad { margin-top: 6px; }
   .rung > .none { margin-top: 12px; font-size: 24px; }
@@ -785,6 +788,8 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 }
 @media (max-width: 560px) {
   .scl tr { grid-template-columns: minmax(0, 1fr) fit-content(55%); grid-template-areas: "s f" "x x"; }
+  /* a standing as the ladder's phone prints it */
+  .scl .st { font-size: 11px; line-height: 15px; }
   .scl tr > .cp { display: none; }
   .scl tr > .csys { padding-left: 12px; }
   .scl .nrun > td { padding-left: 12px; }
@@ -919,7 +924,8 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .fid tr.me .fdt .ft { stroke: var(--ground); stroke-width: 5px; }
 .fid tr.me .fdt .fz, .fid tr.me .fdt .tk { fill: var(--muted); }
 .flead { font: var(--f-meta); color: var(--muted); margin-block: 12px; padding-left: 12px; }
-.syspage .blk > .rb { padding-left: 12px; }
+.syspage .blk > .rb { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; padding-left: 12px; }
+.syspage .blk > .rb .k { margin-right: 0; }
 .syspage .blk > .rb + .rb { padding-top: 4px; }
 .syspage .blk > .none { padding: 14px 0 16px 12px; border-bottom: 1px solid var(--line); }
 /* a petal's or a check's name leads to its definition: the dotted cue of a defined word */
@@ -967,7 +973,9 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .rt.ckt .scard tbody td.not_stated { color: var(--muted); }
 .ckt .pvh { margin: 12px 0 2px; color: var(--muted); }
 .ckt .pvis { margin: 0; padding: 0; list-style: none; max-width: 70ch; }
-.ckt .pvis .vt { color: var(--muted); }
+/* each item's kind on a line of its own under it, set in, so a kind never reads as another item */
+.ckt .pvis li + li { margin-top: 4px; }
+.ckt .pvis .vt { display: block; padding-left: 2ch; color: var(--muted); }
 .ckt .pvis a { color: var(--muted); text-decoration-color: var(--rule); }
 .ckt .pvis a:hover { color: var(--paper); }
 /* the petal in hand: its card keeps its own inks while the other rows dim */
@@ -1023,15 +1031,10 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .pfrom a.df, .ckt .pvis .vt, .ckt .bs { white-space: nowrap; }
 .ckt .bs a { color: inherit; }
 .cnone { margin: 0; padding: 12px 0 0 12px; font: var(--f-meta); color: var(--muted); }
-/* on a wide screen a petal's summary (or its basis alone) stands at its row's end, level with the arm, and
-   opens under the reason */
-@media (min-width: 1181px) {
-  .ckt.gbig tbody tr { position: relative; }
-  .ckt.gbig td.prs { padding-right: 280px; }
-  .ckt.gbig td.prs > .bs, .ckt.gbig .more > summary { position: absolute; top: 12px; right: 0; }
-  .ckt.gbig tbody tr:first-child .more > summary, .ckt.gbig tbody tr:first-child td.prs > .bs { top: 0; }
-  .ckt.gbig .more[open] { margin-top: 4px; }
-}
+/* a petal's summary (or its basis alone) under its reason, so the reason keeps its whole measure and what the
+   summary opens takes the row's width */
+.ckt.gbig td.prs > .bs { display: block; margin-top: 8px; }
+.ckt.gbig .more > summary { margin-top: 10px; }
 @media (max-width: 760px) {
   .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .figs > div { padding: 12px 10px 14px 13px; }
@@ -1039,10 +1042,6 @@ html.js .scalepage .scl-panel { margin-top: 0; }
   .figs .fig .u { font-size: 12px; }
   .fbar { flex-wrap: wrap; row-gap: 8px; }
   .fbar .fdt { flex-basis: 100%; margin-right: 0; }
-}
-@media (max-width: 1180px) {
-  .ckt.gbig td.prs > .bs { display: block; margin-top: 8px; }
-  .ckt.gbig .more > summary { margin-top: 10px; }
 }
 /* a narrow phone: a figure and its unit on one line in a half-width cell */
 @media (max-width: 380px) {
@@ -1059,10 +1058,20 @@ html.js .scalepage .scl-panel { margin-top: 0; }
   .parts > div:last-child:nth-child(3n+2) { grid-column: span 2; }
   .parts > div:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
 }
-/* the fidelity rows keep a name and a kind on one line; the track gives up the width */
+/* the fidelity rows keep a name and a kind on one line (a reason under a figure takes lines instead); below 1100 px
+   the track gives up the width */
+@media (min-width: 761px) {
+  .fid td .na + .sub { max-width: 26ch; }
+}
+@media (min-width: 861px) {
+  .fid tbody th, .fid td[data-l="Kind"] { white-space: nowrap; }
+}
+/* stacked: the p line under the system's figure wraps inside its cell (its dot is tied to the word after it) */
+@media (max-width: 760px) {
+  .fid .sub .nw { white-space: normal; }
+}
 @media (max-width: 1100px) and (min-width: 761px) {
   .fid .trk { width: 16%; }
-  .fid tbody th, .fid td[data-l="Kind"] { white-space: nowrap; }
 }
 /* the figures row in two columns once four cells cannot hold a figure and its unit on one line */
 @media (max-width: 1000px) {
@@ -1073,14 +1082,16 @@ html.js .scalepage .scl-panel { margin-top: 0; }
   .parts > div:last-child:nth-child(3n+2), .parts > div:last-child:nth-child(3n+1) { grid-column: auto; }
   .parts > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .parts .fig .n { font-size: 18px; }
+  /* a figure wider than its half of the sheet: the unit under the number, never cut at the cell's edge */
+  .parts .fig { flex-wrap: wrap; }
   .cl { grid-template-columns: minmax(0, 1fr); grid-template-areas: "k" "f" "b" "s"; row-gap: 8px; }
   .fid .trk { width: auto; grid-column: 1 / -1; padding: 0; }
   /* a column's label once, on the first card (the system's own) */
   .fid.stk tbody tr:not(:first-child) td[data-l]:before { display: none; }
   .syspage .rt.stk tr { padding-right: 12px; }
   /* a finger's targets: 40 px */
-  .more > summary { padding: 13px 10px 12px; }
-  .syspage .ckt .ev { padding-block: 9px; }
+  .more > summary { padding: 13px 10px; }
+  .syspage .ckt .ev { padding-block: 11px; }
   .rt.stk .rid { display: inline-block; padding-block: 13px; margin-block: -13px; }
   .ckt .cst a.cc { display: inline-block; margin-top: 6px; }
   .rt.fid.stk tbody th { grid-column: 1; align-self: end; }
@@ -1109,7 +1120,8 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .checkspage .rd:target { width: fit-content; box-shadow: 0 0 0 8px var(--cobalt), -4px 0 0 8px var(--cobalt), 4px 0 0 8px var(--cobalt); }
 .checkspage .cwrap .hl:target { max-width: calc(90ch - 16px); margin: 16px 0 0 16px; padding: 0; }
 .cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
-.cs > div { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
+/* one term column for every list of rules (the petals' four steps need its width), so like lists in one column align */
+.cs > div { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
 .blk > .cs > div { padding: 12px 0 12px 16px; border-bottom: 1px solid var(--line); }
 .cs dt { color: var(--paper); font-weight: 600; }
 .cs dd { margin: 0; max-width: 80ch; color: var(--muted); text-wrap: pretty; }
@@ -1281,6 +1293,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .tw { margin: 24px 0; overflow-x: auto; }
 .lt { font: 400 13px/20px var(--mono); }
 .lt thead th { border-bottom: 1px solid var(--rule); }
+.lpr .rt thead th, .lpr .rt tbody th { text-wrap: balance; }
 .rt.lt tbody th { font: 600 13px/20px var(--mono); min-width: 12ch; }
 .lt td { color: var(--muted); min-width: 16ch; }
 .tr .lt td, .tr .lt tbody th { min-width: 0; }
@@ -1350,6 +1363,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 /* figures of the board inside a page; a system's name longer than its column breaks inside the word
    (at 7em at least), so the table never outgrows the page */
 .mt th .sub { font: var(--f-meta); }
+.ms .mt .sub { text-wrap: balance; }
 .rt.mt:not(.lt) tbody th { overflow-wrap: anywhere; min-width: 7em; }
 /* every model's table of the block on the same columns, so like columns line up */
 .ms .mt { table-layout: fixed; width: 100%; }
@@ -1393,10 +1407,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .xc { display: inline-flex; align-items: center; gap: 8px; font: 400 13px/20px var(--mono); cursor: pointer; }
 .xc input { width: 16px; height: 16px; margin: 0; accent-color: var(--cobalt); }
 .xv { margin: 4px 0 12px; padding: 14px 16px; box-shadow: inset 0 0 0 1px var(--rule); }
-.xv b { font-weight: 600; box-shadow: inset 0 -2px 0 var(--cobalt); }
+.xv b { font-weight: 600; }
 .xv p + p { margin-top: 0; }
 .xk { display: flex; flex-wrap: wrap; gap: 6px 22px; list-style: none; margin: 0; padding: 0; font: 400 13px/20px var(--mono); }
 .eq { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.mxg { display: inline-flex; align-items: center; gap: 8px; }
 .mm { margin-bottom: 16px; }
 .lb { font: var(--f-label); color: var(--muted); letter-spacing: var(--track); }
 .tr .rt thead th { text-transform: none; }
@@ -1640,20 +1655,25 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 @media (max-width: 1100px) {
   .cwrap { grid-template-columns: 265px minmax(0, 1fr); column-gap: 32px; }
 }
-@media (max-width: 900px) {
-  .cwrap { grid-template-columns: minmax(0, 1fr); row-gap: 24px; padding-top: 28px; }
-  /* a system's petals stack from here down: the stem is the table's own left edge, each arm on its own line, its state, reason and source under it, set in from the stem as far as the arm's name */
+/* a system's petals stack from here down: the stem is the table's own left edge, each arm on its own line, its state,
+   reason and source under it, set in from the stem as far as the arm's name, so what a petal opens takes the row's
+   width */
+@media (max-width: 1180px) {
   .ckt.gbig thead { display: none; }
   .ckt.gbig, .ckt.gbig tbody { display: block; }
   .ckt.gbig { border-left: 9px solid var(--cobalt); }
-  .ckt.gbig tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .ckt.gbig tr:first-child { padding-top: 0; }
-  .ckt.gbig tr > *, .ckt.gbig tbody tr:first-child > * { padding: 0; border: 0; }
-  .ckt.gbig tbody th { width: auto; padding: 0; border-left: 0; }
-  .ckt.gbig tbody tr > :nth-child(n+2) { grid-column: 1; margin-top: 8px; padding-left: 8px; }
-  .ckt.gbig td:empty { display: none; }
+  /* (the petals' own rows only: a scope card inside a reason keeps its own) */
+  .ckt.gbig > tbody > tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .ckt.gbig > tbody > tr:first-child { padding-top: 0; }
+  .ckt.gbig > tbody > tr > * { padding: 0; border: 0; }
+  .ckt.gbig > tbody > tr > th { width: auto; padding: 0; border-left: 0; }
+  .ckt.gbig > tbody > tr > :nth-child(n+2) { grid-column: 1; margin-top: 8px; padding-left: 8px; }
+  .ckt.gbig > tbody > tr > td:empty { display: none; }
   .ckt.gbig .bs { max-width: none; }
-  .ckt.gbig tr.lit > *, .ckt.gbig tr.lit, .ckt.gbig tr:target { background: none; box-shadow: none; }
+  .ckt.gbig > tbody > tr.lit > *, .ckt.gbig > tbody > tr.lit, .ckt.gbig > tbody > tr:target { background: none; box-shadow: none; }
+}
+@media (max-width: 900px) {
+  .cwrap { grid-template-columns: minmax(0, 1fr); row-gap: 24px; padding-top: 28px; }
   .ckt.gbig th a.sl { width: 250px; height: 25px; padding: 0 8px; font-size: 20px; line-height: 25px; }
   .ckt.gbig th a.sl.cut { width: 220px; max-width: calc(100% - 30px); }
   .ckt.gbig th a.sl.cut:before { left: calc(100% + 5px); width: 25px; }
@@ -1727,9 +1747,14 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .ckt tr.lit > *, .cks tr:target > * { background: none; }
   .ckt tr.lit, .cks tr:target { background: var(--lift); box-shadow: inset 4px 0 0 var(--cobalt); }
   .ckt tr.lit > :first-child, .cks tr:target > :first-child { box-shadow: none; }
-  /* the scope card on a phone: its heads wrap, a state word stays whole (the card scrolls in its cell) */
-  .rt.ckt .scard tr > :is(th, td) { padding-right: 8px; }
-  .rt.ckt .scard :is(thead th, tbody th) { white-space: normal; }
+  /* the scope card on a phone: each row's head on a line of its own over its three cells, the three columns under
+     their heads as wide as their words, so every column shows; a state word stays whole (the card scrolls in its
+     cell only where even that is too wide) */
+  .rt.ckt .scard { display: grid; grid-template-columns: repeat(3, max-content); }
+  .rt.ckt .scard :is(thead, tbody, tr) { display: contents; }
+  .rt.ckt .scard tr > :is(th, td) { grid-column: auto; margin-top: 0; padding-right: 12px; }
+  .rt.ckt .scard thead td { display: none; }
+  .rt.ckt .scard tbody th { grid-column: 1 / -1; padding-top: 8px; }
   .ckt .pf > div { grid-template-columns: 96px minmax(0, 1fr); }
   .lost .ln { font-size: 28px; }
   .fcells li { flex-basis: 100%; padding-top: 12px; }
@@ -1739,40 +1764,47 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .foot a { position: relative; }
   .foot a { z-index: 1; }
   .foot a:after { content: ""; position: absolute; inset: -14px 0; }
-  /* the credit's two links may sit on two lines: each keeps its own band */
-  .fcr { line-height: 28px; }
-  .fcr a:after { inset: -5px 0; }
+  /* the credit's two links may sit on two lines, 44 px apart: each keeps its own band of 44 px */
+  .fcr { line-height: 44px; }
   /* a mandate line's label (on a phone alone on its line, the words under it hold no link) */
   .cs dt a { position: relative; }
   .cs dt a:after { content: ""; position: absolute; inset: -12px -8px; }
   /* a finger's targets: 44 px, the layout unchanged where a negative margin can take the growth */
   .brand .logo { padding-block: 14px; margin-block: -14px; }
   .ckt .ev { padding-block: 7px; }
-  .ckt th a { position: relative; z-index: 1; display: inline-block; padding-block: 12px; margin-block: -12px; }
+  /* (a check's name reaches less far down: the summary under it on a phone starts 6 px below) */
+  .ckt th a { position: relative; z-index: 1; display: inline-block; padding-block: 13px 6px; margin-block: -13px -6px; }
   .ckt.gbig th a.sl { display: flex; padding-block: 0; margin-block: 0; }
   .ckt.gbig th a.sl:after { content: ""; position: absolute; inset: -10px 0; }
   .ckt.gbig th a.sl.cut:after { right: -36px; }
-  .figs dt a, .ckt .cst a.cc { position: relative; display: inline-block; }
-  .figs dt a:after, .ckt .cst a.cc:after { content: ""; position: absolute; inset: -13px -4px; }
+  .figs dt a, .ckt .cst a.cc, .ckt .bs a { position: relative; display: inline-block; }
+  .figs dt a:after, .ckt .cst a.cc:after, .ckt .bs a:after { content: ""; position: absolute; inset: -13px -4px; }
   .ckt td :is(a.qt, a.cw) { position: relative; }
   .ckt td :is(a.qt, a.cw):after { content: ""; position: absolute; inset: -13px 0; }
   /* two quotes one under the other share the gap between them */
   .ckt td a.qt + a.qt:after { top: -4px; }
   .ckt td a.qt:has(+ a.qt):after { bottom: -4px; }
-  .rid, .facts dd a, :is(.lad, .scl) .st a, :is(.lad, .scl) :is(thead, .lbl) a.df { position: relative; }
+  .rid, .facts dd a, :is(.lad, .scl) .st a, :is(.lad, .scl) :is(thead, .lbl) a.df, .lad .ck .fw { position: relative; }
   .facts dd a:after { content: ""; position: absolute; inset: -14px 0; }
   .rid:after { content: ""; position: absolute; inset: -15px 0; }
-  /* a row's standing: its band reaches down and aside, not up over the name (which leads to the page) */
-  :is(.lad, .scl) .st a:after { content: ""; position: absolute; inset: -6px -4px -12px; }
-  /* a figure's head: its band reaches up and down, so a near miss does not open the row */
-  :is(.lad, .scl) :is(thead, .lbl) a.df:after { content: ""; position: absolute; inset: -14px -4px -6px; }
+  /* a row's standing: its band (40 px) reaches down and aside, little up toward the name (which leads to the page) */
+  :is(.lad, .scl) .st a:after { content: ""; position: absolute; inset: -10px -4px -16px; }
+  /* a figure's head: its band (40 px) reaches up and down, so a near miss does not open the row; a label in a
+     cell reaches up into the cell's top room rather than down over its figure */
+  :is(.lad, .scl) thead a.df:after { content: ""; position: absolute; inset: -14px -4px; }
+  .lad .lbl a.df:after { content: ""; position: absolute; inset: -20px -4px -8px; }
+  /* the fidelity word: its own band, so a near miss does not open the row; it and its label 6 px over it share
+     that gap, each band 40 px */
+  .lad .ck .fw:after { content: ""; position: absolute; inset: -3px -8px -18px; }
+  .lad .ck .lbl a.df:after { inset: -25px -4px -3px; }
   .ps a { min-width: 44px; justify-content: center; }
   .top .repo { min-width: 44px; height: 44px; justify-content: center; }
   /* the key's arms answer a finger over half of each gap beside them (an unseen edge) */
   .gbig.linked:not(.lit-on) .sl.key { stroke: transparent; stroke-width: 6px; vector-effect: non-scaling-stroke; }
 }
-/* a footer line of several cells on a touch screen: lines 44 px apart, so two links one over the other keep their own bands */
-@media (hover: none) and (min-width: 561px) {
+/* a footer's cells on a touch screen, in a line or one under another: lines 44 px apart, so two links one over the
+   other keep their own bands */
+@media (hover: none) {
   .fcells li { padding-top: 26px; }
 }
 /* a field a finger types in: 44 px tall, its words at 16 px so the phone does not zoom on focus */

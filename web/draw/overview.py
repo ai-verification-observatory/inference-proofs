@@ -323,11 +323,9 @@ def baseline_html(rung):
     """The serving baseline in one line (CO-4): engine, GPUs, concurrency at full load and its
     GPU-seconds per reply."""
     b = rung["baseline"]
-    if b is None:
-        return '<p class="rb"><span class="k">Serving</span> not run yet</p>'
-    if b["gpu_seconds_per_reply"] is None or b["gpu_seconds_per_reply"]["value"] is None:
-        why = b["cause"] or "no full load recorded"
-        return f'<p class="rb"><span class="k">Serving</span> {e(why)}</p>'
+    # no figure: the ladder's state word, the stored cause in its title
+    if b is None or not has(b["gpu_seconds_per_reply"]):
+        return f'<p class="rb"><span class="k">Serving</span> {serving_missing(b)}</p>'
     gpus = f"{b['gpus']} × H200" if b["gpus"] else "GPUs not recorded"
     return (f'<p class="rb"><span class="k">Serving</span> {e(engine_words())}, {e(gpus)}, '
             f"full load at {b['concurrency']:,} concurrent requests: "
@@ -340,13 +338,14 @@ def serving_words(b):
 
 
 def rung_meta(rung):
-    """A model's head as labelled facts: publisher, parameters and its serving GPU time per
-    reply (CO-4), the figure every multiple under it is over. How it was served (engine, GPUs,
-    concurrency) is on a system's page, under Cost."""
+    """A model's head as labelled facts: publisher, architecture (the tab says its size: a
+    mixture of experts names its active parameters only, as the Scale page's head does) and its
+    serving GPU time per reply (CO-4), the figure every multiple under it is over. How it was
+    served (engine, GPUs, concurrency) is on a system's page, under Cost."""
     b = rung["baseline"]
     facts = [("Publisher", e(rung["publisher"])),
-             ("Parameters", nobreak(architecture(rung["parameters_total"],
-                                                 rung.get("parameters_active"))))]  # fmt: skip
+             ("Architecture", nobreak(architecture(rung["parameters_total"],
+                                                   rung.get("parameters_active"), sized=False)))]  # fmt: skip
     if b is None or not has(b["gpu_seconds_per_reply"]):
         facts.append(("Serving", serving_missing(b)))
     else:

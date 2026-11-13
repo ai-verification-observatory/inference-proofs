@@ -308,8 +308,8 @@ def card_alt(card):
     row = S.PAGE[card]
     _, f, key = lead_figure(row)
     lead = f"{FIGURE_HEAD['multiple']}: {fig_words(f)}"
-    if parts := parts_of(row, key):  # CO-7
-        lead += "".join(f", {OF_WHICH} {w} {fig_words(p)}" for w, p in parts)
+    if parts := parts_of(row, key):  # CO-7: "of which" once, before both parts
+        lead += f", {OF_WHICH} " + " and ".join(f"{w} {fig_words(p)}" for w, p in parts)
     figs = [(FIGURE_HEAD["cost"], row_cost(row)),
             (FIGURE_HEAD["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
     cells = ". ".join(f"{k}: {fig_words(v)}" for k, v in figs)

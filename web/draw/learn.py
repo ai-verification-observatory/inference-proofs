@@ -60,18 +60,27 @@ def address(url, where):
 
 
 HYPHENED = re.compile(r"[^\s<>]+-[^\s<>]+")  # a token that holds a hyphen ("512-token")
+ISO_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")  # a date, which never breaks at its hyphens
+# the spaces a source line wraps at (str.split would eat a no-break one)
+LINE_SPACE = re.compile(r"[ \t\n]+")
+
+
+def squeeze(text):
+    """Lines of the source as one line: its own wrapping spaces joined, a no-break space kept."""
+    return LINE_SPACE.sub(" ", text).strip()
 
 
 def inline(text, ctx, keep=False):
     """A line of the subset as markup; `keep` (a heading, a table's row head): a short token that
-    holds a hyphen stays on one line, so a head never ends on "512-" or "zero-"."""
+    holds a hyphen stays on one line, so a head never ends on "512-" or "zero-". A date stays on
+    one line everywhere."""
     out, pos = [], 0
 
     def plain(words):
         if m := STRAY.search(words):
             raise Halt(f"{ctx['where']}: {m[0]!r} is not read as a mark here: {words.strip()!r}")
         if not keep:
-            return e(words)
+            return ISO_DATE.sub(lambda t: f'<span class="nw">{t[0]}</span>', e(words))
         return HYPHENED.sub(lambda t: f'<span class="nw">{t[0]}</span>' if len(t[0]) <= 16 else t[0],
                             e(words))  # fmt: skip
 
@@ -182,9 +191,7 @@ def block(name, arg, body, ctx):
     drawn = {"figure": FIGURES, "explore": EXPLORERS, "measured": MEASURED}.get(name)
     if drawn is None or arg not in drawn:
         raise Halt(f"{where}: no block `:::{name} {arg}`")
-    caption = (
-        f"<figcaption>{inline(' '.join(body.split()), ctx)}</figcaption>" if body.strip() else ""
-    )
+    caption = f"<figcaption>{inline(squeeze(body), ctx)}</figcaption>" if body.strip() else ""
     cls = {"figure": "fg", "explore": "fg xp", "measured": "fg ms"}[name]
     fid = ctx["own"](f"{name[:3]}-{arg}")
     return f'<figure class="{cls}" id="{fid}">{drawn[arg]()}{caption}</figure>'
@@ -318,7 +325,7 @@ def plain(text):
 def glossary_entries():
     """Each glossary term: its name, its id and the first sentence under it."""
     found = re.finditer(r"^### (.+)\n+((?:.+\n?)+)", glossary()["text"], re.M)
-    return [(m[1], slug(m[1]), plain(" ".join(m[2].split())).split(". ")[0].rstrip(".") + ".")
+    return [(m[1], slug(m[1]), plain(squeeze(m[2])).split(". ")[0].rstrip(".") + ".")
             for m in found]  # fmt: skip
 
 
@@ -351,21 +358,29 @@ def steps(track, here):
     return f'<nav class="lsteps" aria-label="{e(track["name"])}"><ol>{cells}</ol></nav>'
 
 
+def next_track(track):
+    """The track a track's last page leads to: the first other one, or none with one track."""
+    return next((t for t in tracks() if t is not track), None)
+
+
 def neighbours(track, k):
-    """The page before this one and the page after it, each (address, label, title): before a
-    track's first page the hub; after its last page the first page of the other track (or the
-    glossary, with one track). Previous and Next at both ends: the band of the page reached
-    names its track."""
+    """The page before this one and the page after it, each (address, label, title): after a
+    track's last page the first page of the next track (or the glossary, with one track); before
+    a track's first page the page whose Next led there (the last page of the track before it, or
+    the hub), so Next then Previous returns to the page left. Previous and Next at both ends: the
+    band of the page reached names its track."""
     pages = track["pages"]
     if k:
         before = (f"/{pages[k - 1]['slug']}", "Previous", pages[k - 1]["title"])
     else:
-        before = (LEARN_PAGE, "Previous", S.V["learn"]["title"])
+        into = next((t for t in tracks() if t is not track and next_track(t) is track), None)
+        last = into["pages"][-1] if into else None
+        before = ((f"/{last['slug']}", "Previous", last["title"]) if last
+                  else (LEARN_PAGE, "Previous", S.V["learn"]["title"]))  # fmt: skip
     if k + 1 < len(pages):
         return before, (f"/{pages[k + 1]['slug']}", "Next", pages[k + 1]["title"])
-    other = [t for t in tracks() if t is not track]
-    if other:
-        return before, (f"/{other[0]['pages'][0]['slug']}", "Next", other[0]["pages"][0]["title"])
+    if other := next_track(track):
+        return before, (f"/{other['pages'][0]['slug']}", "Next", other["pages"][0]["title"])
     return before, (f"/{glossary()['slug']}", "Next", glossary()["title"])
 
 

@@ -290,7 +290,8 @@ FIGURE_RULE = {
     ),
 }  # fmt: skip
 # a rung's fidelity reference, by its stored precision (FI-1)
-REFERENCE_WORD = {"bf16": "16-bit", "f16": "16-bit", "f32": "32-bit"}
+# (a no-break hyphen: the precision never splits from its number at a line's end)
+REFERENCE_WORD = {"bf16": "16\u2011bit", "f16": "16\u2011bit", "f32": "32\u2011bit"}
 
 
 def kl_head(dtype):
@@ -518,12 +519,14 @@ def params(n):
     return f"{text}B" if n >= 1e9 else f"{text}M"
 
 
-def architecture(total, active):
+def architecture(total, active, sized=True):
     """ "MoE, 400B total, 17B active" or "Dense, 8.03B": a mixture of experts reads fewer
-    parameters per token than it holds."""
+    parameters per token than it holds. Beside a size that says the total (a model's tab:
+    `sized` False), the rest only: "MoE, 17B active" or "Dense"."""
     if active and active < total:
-        return f"MoE, {params(total)} total, {params(active)} active"
-    return f"Dense, {params(total)}"
+        return (f"MoE, {params(total)} total, {params(active)} active" if sized
+                else f"MoE, {params(active)} active")  # fmt: skip
+    return f"Dense, {params(total)}" if sized else "Dense"
 
 
 def labels(f, n=None, note=None):

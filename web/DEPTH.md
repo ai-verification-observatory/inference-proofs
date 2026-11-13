@@ -93,5 +93,3 @@ Places that do not yet follow the map, found by reading the built pages on 2026-
 
 - A ladder figure's head links to its definition (depth 4) and the figure itself links nowhere; the figure should lead to its section of the system's page (depth 3).
 - The "Systems not run" reasons on the ladder ("no configuration at the request", "a different statement") use the method's words. RFC-0018 SI-4 fixes the list and its place, so moving it needs that rule amended.
-- The surface's labels are in a figure's title, shown to a pointer or a tap (law 3 is met through the system's page); a keyboard cannot reach the title of a ladder or Scale page figure: a row's links take focus, its figures do not.
-- A model's head on the ladder repeats the size its tab says ("400B" in the tab, "MoE, 400B total, 17B active" under Parameters); the Scale page's head already prints the architecture without it.

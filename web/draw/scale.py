@@ -49,6 +49,7 @@ from .words import (
     SCALE_LOG,
     SCALE_NOT_RUN,
     SCALE_SERVING,
+    architecture,
     e,
     number,
     params,
@@ -258,12 +259,12 @@ def serving_html(rung, dim):
 def lane_html(rung, dim, unit, ext):
     """One model under the section's one axis: a group of the table, headed by its size in a tab
     and its name under a cobalt rule, its architecture (the tab says its size: a mixture of
-    experts names its active parameters only), with its serving figure where the figure has one;
-    then its rows on the section's decade grid (`ext`). A model not run is its head and a line."""
+    experts names its active parameters only), with its serving figure where the figure has one
+    (its state where the model has none, as on the ladder); then its rows on the section's decade grid (`ext`). A model not run is its head and a line."""
     total, active = rung["parameters_total"], rung.get("parameters_active")
     size = e(params(total))
-    facts = f"MoE, {params(active)} active" if active and active < total else "Dense"
-    serving = serving_html(rung, dim) if rung["rows"] else ""
+    facts = architecture(total, active, sized=False)
+    serving = serving_html(rung, dim)
     head = (f'<tr class="grp"><th colspan="4" scope="rowgroup" id="{dim}-{e(rung["id"])}">'
             f'<span class="lh"><span class="rk">{size}</span>'
             f'<span class="ln">{nobreak(rung["model"])}</span>'
