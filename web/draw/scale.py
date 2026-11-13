@@ -24,7 +24,7 @@ from .chrome import (
     footer,
     has,
     header,
-    level_words,
+    level_link,
     page,
     pnav,
     row_cost,
@@ -318,7 +318,7 @@ def panel_html(dim, name, unit, shared=True):
 
 
 def build_scale():
-    sub = f'<p class="tsub">{e(level_words())} · {e(request_words())}</p>'
+    sub = f'<p class="tsub">{level_link()} · {e(request_words())}</p>'
     panels = "".join(panel_html(d, n, u) for d, n, u in DIMS)
     body = f"""
 {header("scale")}

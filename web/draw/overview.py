@@ -12,7 +12,7 @@ from .chrome import (
     has,
     header,
     lead_figure,
-    level_words,
+    level_link,
     not_passed,
     page,
     parts_of,
@@ -369,7 +369,7 @@ def frontier_html():
             f'<span class="bx-c">{rung["systems_run"]:,} {"system" if rung["systems_run"] == 1 else "systems"} run</span>{fig}</a></div>'
         )
     title = "Proved inference, by model size" if run else "No system has run yet."
-    return (f'<p class="bk"><span>{e(level_words())}</span><span>{e(request_words())}</span></p>'
+    return (f'<p class="bk"><span>{level_link()}</span><span>{e(request_words())}</span></p>'
             f'<h1 class="band-h">{e(title)}</h1>{block}')  # fmt: skip
 
 

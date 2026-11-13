@@ -199,6 +199,11 @@ def level_words():
     return f"{lv['name']} ({state})"
 
 
+def level_link():
+    """The level and its state as a link to the mandate, where the frozen rules are stated."""
+    return f'<a href="{MANDATE_PAGE}#what-we-do">{e(level_words())}</a>'
+
+
 def credit_words(linked=True):
     """Who builds the site and who leads it, from the facts file (`credit`), as one sentence."""
     c = S.V["credit"]
