@@ -3026,13 +3026,21 @@ def _reverify_job(
     return job
 
 
-def reverify_run(runner: Runner, run_dir: Path) -> Path:
+def reverify_part_name(ids: Sequence[str]) -> str:
+    return "reverify-part-" + "-".join(ids)
+
+
+def reverify_run(  # noqa: PLR0912, PLR0915 (one refusal per missing record)
+    runner: Runner, run_dir: Path, only: Sequence[str] | None = None
+) -> Path:
     """`iproofs reverify RUN_DIR` (RFC-0018 CH-4a): every proof of a completed run whose proof
     bytes were kept, verified again on a verifier host with no GPU, each call under the file-open
     trace of CH-4, the weights never fetched on this host. Writes `reverify/` once: the traces
     (`reverify/verify-trace/`), the verdicts (`reverify/verifier/`) and `reverify.json`, which
-    names the run by id and manifest digest, the image and this host's machine record."""
-    target = run_dir / REVERIFY_DIR
+    names the run by id and manifest digest, the image and this host's machine record (each
+    proof row names it too). With `only`, those proofs alone, into `reverify-part-<ids>/`
+    laid out the same way, for `merge_reverify` (one job per proof)."""
+    target = run_dir / (REVERIFY_DIR if only is None else reverify_part_name(only))
     if target.exists():
         raise IProofsError(ErrorKind.CONFIG, f"{target} exists; a run is re-verified once")
     if not isinstance(runner.env, VerifierEnvironment):
@@ -3062,8 +3070,15 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
         assert job.proofs is not None
         entries = {e.proof_id: e for e in job.proofs.proofs or ()}
         rows: list[dict[str, object]] = []
+        known = [str(p["proof_id"]) for p in doc["proofs"]]
+        unknown = sorted(set(only or ()) - set(known))
+        if unknown:
+            raise IProofsError(ErrorKind.CONFIG, f"{run_dir} has no proof {', '.join(unknown)}")
+        host = _part_host(runner, job, manifest.get("machine") or {}, False)
         for p in doc["proofs"]:
             pid = str(p["proof_id"])
+            if only is not None and pid not in only:
+                continue
             if runner.progress is not None:  # one line per call: a stopped job says how far
                 print(f"reverify {pid}: verify started", file=runner.progress, flush=True)
             seconds, verdict = runner._verify_one(job, pid, entries[pid], single=False)
@@ -3072,9 +3087,8 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
                       flush=True)  # fmt: skip
             proof = next(r for r in manifest["proofs"] if r.get("proof_id") == pid)
             rows.append({"proof_id": pid, "verdict": verdict, "seconds": seconds,
-                         "proof_digest": proof.get("digest"),
+                         "proof_digest": proof.get("digest"), "host": host,
                          "trace": f"{REVERIFY_DIR}/{VERIFY_TRACE}/{pid}.json"})  # fmt: skip
-        host = _part_host(runner, job, manifest.get("machine") or {}, False)
         commit, dirty = git_state(runner.root)
         record = {"schema": "reverify/1", "run_id": doc["run_id"],
                   "run_manifest_digest": file_digest(run_dir / "manifest.json"),
@@ -3092,6 +3106,58 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
     except BaseException:
         raise  # the staging dir stays for the job's logs; a new re-verify starts afresh
     shutil.rmtree(staging, ignore_errors=True)
+    return target / REVERIFY_RECORD
+
+
+def merge_reverify(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:
+    """`iproofs reverify RUN_DIR --merge PART...` (CH-4a): `reverify/` from the parts of one
+    re-verify split by proof. Every part names this run (its run id and manifest digest), the
+    same image and harness commit; their proofs are disjoint and together every proof of the
+    run, each with the sha256 the manifest records. Rows keep the host that verified them; the
+    record's own host is the first part's. Written once."""
+    target = run_dir / REVERIFY_DIR
+    if target.exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{target} exists; a run is re-verified once")
+    run = json.loads((run_dir / "run.json").read_text())
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    digest = file_digest(run_dir / "manifest.json")
+    recorded = {str(p["proof_id"]): p.get("digest") for p in manifest["proofs"]}
+    docs = []
+    for part in parts:
+        doc = json.loads((part / REVERIFY_RECORD).read_text())
+        errors = registry.errors("reverify/1", doc)
+        if errors:
+            raise IProofsError(ErrorKind.CONFIG, f"{part} fails reverify/1: {errors[0]}")
+        if (doc["run_id"], doc["run_manifest_digest"]) != (run["run_id"], digest):
+            raise IProofsError(ErrorKind.CONFIG, f"{part} was not made against {run_dir}")
+        docs.append(doc)
+    for key in ("image", "harness"):
+        if any(d[key] != docs[0][key] for d in docs):
+            raise IProofsError(ErrorKind.CONFIG, f"the parts differ in {key}")
+    rows = [r for d in docs for r in d["proofs"]]
+    ids = [str(r["proof_id"]) for r in rows]
+    if len(set(ids)) != len(ids) or sorted(ids) != sorted(recorded):
+        raise IProofsError(ErrorKind.CONFIG, f"the parts cover {sorted(ids)}, not the run's "
+                           f"proofs {sorted(recorded)} once each")  # fmt: skip
+    if any(r["proof_digest"] != recorded[str(r["proof_id"])] for r in rows):
+        raise IProofsError(ErrorKind.CONFIG, "a part verified other bytes than the manifest's")
+    order = {pid: i for i, pid in enumerate(str(p["proof_id"]) for p in run["proofs"])}
+    rows.sort(key=lambda r: order.get(str(r["proof_id"]), len(order)))
+    merged = {**docs[0], "proofs": rows}
+    staging = run_dir / ".reverify-merge"
+    shutil.rmtree(staging, ignore_errors=True)
+    for sub in (VERIFY_TRACE, "verifier"):
+        (staging / sub).mkdir(parents=True)
+        for part in parts:
+            for f in sorted((part / sub).glob("*.json")):
+                shutil.copyfile(f, staging / sub / f.name)
+    errors = registry.errors("reverify/1", merged)
+    if errors:
+        raise IProofsError(
+            ErrorKind.INTERNAL, f"merged reverify.json fails reverify/1: {errors[0]}"
+        )
+    write_json(staging / REVERIFY_RECORD, merged)
+    staging.rename(target)
     return target / REVERIFY_RECORD
 
 
