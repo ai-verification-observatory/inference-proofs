@@ -35,6 +35,7 @@ DIR = "teacher-forced"
 LEFT_OUT = "not run: left out of this job (--only)"
 SCORED = "teacher-forced.json"
 KL_VALUES = "kl.json"
+NOT_STORED = "not-stored.json"
 # FI-13: whose computation a row's figures are, printed with them
 COMPUTED_BY = {
     "sash": "SASH's witness extractor (harness.witness.extract --head), the program that "
@@ -312,10 +313,14 @@ def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
             (out / "raw" / system).mkdir(parents=True, exist_ok=True)
             shutil.copyfile(lists, out / "raw" / system / f"{i}.topk")
     (out / "top" / f"{system}.jsonl").write_text("".join(x + "\n" for x in lines))
+    from iproofs.serialize import write_json  # noqa: PLC0415
+
     seconds = [json.loads((io / "score" / f"{i}.json").read_text()).get("seconds")
                for i in range(n + 1)]  # fmt: skip
     if any(x is not None for x in seconds):
-        (out / f"seconds-{system}.json").write_text(json.dumps(seconds) + "\n")
+        write_json(out / f"seconds-{system}.json", {
+            "unit": "s", "what": "the adapter's own time for each score request, in order; "
+            "request 0 is the system's own proved reply to prompt 0", "requests": seconds})  # fmt: skip
 
 
 def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
@@ -532,7 +537,7 @@ def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], r
     file is refused; a run of fewer than all the prompts (a trial) is not a pass."""
     from iproofs.teacher_forced import Pass  # noqa: PLC0415
 
-    cause = "not run"
+    cause, failed = "not run", False
     for name, run in runs:
         # a run that left the control out says so; a run that leaves it to another part
         # (FI-9) names that part, which is the cause only while no part's run speaks of it
@@ -546,7 +551,7 @@ def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], r
             found = st.get("controls", {}).get(ident) or (st.get(ident) if ident == "reference"
                                                          else None)  # fmt: skip
             if isinstance(found, dict) and found.get("cause"):
-                cause = str(found["cause"])
+                cause, failed = str(found["cause"]), True  # the run tried it and it failed
             continue
         if (run["level"]["digest"], run["prompts_digest"], run["reference"]["digest"]) != (
                 level_digest, prompts_digest, reference_digest):  # fmt: skip
@@ -557,6 +562,14 @@ def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], r
             continue
         tops, causes = _tops(tf / "top" / f"{ident}.jsonl")
         return Pass(ident, tops, causes), f"{ref}/{name}"
+    # a run that stored nothing (stopped before its record was written) is listed by hand, with
+    # its exit code and last lines (AGENTS.md rule 5), in not-stored.json
+    listed = tf / NOT_STORED
+    for entry in json.loads(listed.read_text())["runs"] if listed.is_file() else []:
+        if ident in entry["ids"]:
+            cause = f"not run: {entry['cause']} ({ref}/{NOT_STORED})"
+    if not failed and not cause.startswith("not run"):  # a run's word that the id is not its own
+        cause = f"not run: no pass of it is stored; {cause}"
     return Pass(ident, None, {}, cause), None
 
 

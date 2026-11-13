@@ -1256,7 +1256,198 @@
           "workload": "l1-maverick-p512-o512"
         }
       ],
-      "systems_run": 1
+      "systems_run": 1,
+      "teacher_forced": {
+        "alpha": 0.05,
+        "controls": [
+          {
+            "cause": null,
+            "failed": [],
+            "id": "reference-2",
+            "kind": "honest",
+            "kl": {
+              "n": 360,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 184320,
+              "reference_rest_mass": 0.00033660924149098105,
+              "source": "results/v1.0/teacher-forced/llama-4-maverick/kl.json#/engines/reference-2",
+              "unit": "nat/token",
+              "value": 0.0020270104577434045
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 506.7527777777778,
+            "mean_not_failed": 506.7527777777778,
+            "median": 508.0,
+            "n": 360,
+            "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
+            "status": "ok"
+          },
+          {
+            "cause": "not run: no pass of it is stored; run in llama.cpp by the controls part (fidelity-run-controls.json), built from the 16-bit GGUF (RFC-0018 FI-9)",
+            "failed": [],
+            "id": "q8_0",
+            "kind": "honest",
+            "kl": null,
+            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
+            "mean": null,
+            "mean_not_failed": null,
+            "median": null,
+            "n": 0,
+            "run": null,
+            "status": "failed"
+          },
+          {
+            "cause": "not run: its pass was stopped by the job's deadline 2,706 s into the controls call (the build, the load and part of the pass at 16 slots) and stored nothing; our run's failure, not a result of the control (results/v1.0/teacher-forced/llama-4-maverick/not-stored.json)",
+            "failed": [],
+            "id": "q4_k_m",
+            "kind": "honest",
+            "kl": null,
+            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
+            "mean": null,
+            "mean_not_failed": null,
+            "median": null,
+            "n": 0,
+            "run": null,
+            "status": "failed"
+          },
+          {
+            "cause": "not run: no pass of it is stored; run in llama.cpp by the controls part (fidelity-run-controls.json), built from the 16-bit GGUF (RFC-0018 FI-9)",
+            "failed": [],
+            "id": "q3_k_s",
+            "kind": "damaged",
+            "kl": null,
+            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
+            "mean": null,
+            "mean_not_failed": null,
+            "median": null,
+            "n": 0,
+            "run": null,
+            "status": "failed"
+          },
+          {
+            "cause": "not run: no pass of it is stored; run in llama.cpp by the controls part (fidelity-run-controls.json), built from the 16-bit GGUF (RFC-0018 FI-9)",
+            "failed": [],
+            "id": "q2_k",
+            "kind": "damaged",
+            "kl": null,
+            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
+            "mean": null,
+            "mean_not_failed": null,
+            "median": null,
+            "n": 0,
+            "run": null,
+            "status": "failed"
+          },
+          {
+            "cause": "not run: the copy would be the 16-bit file in llama.cpp, which the level's llama.cpp pin cannot run on this rung (RFC-0018 FI-9)",
+            "failed": [],
+            "id": "drop-every-4th-block",
+            "kind": "damaged",
+            "kl": null,
+            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
+            "mean": null,
+            "mean_not_failed": null,
+            "median": null,
+            "n": 0,
+            "run": null,
+            "status": "failed"
+          },
+          {
+            "cause": null,
+            "failed": [],
+            "id": "smaller-model",
+            "kind": "damaged",
+            "kl": {
+              "n": 360,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 184320,
+              "reference_rest_mass": 0.026853040694231403,
+              "source": "results/v1.0/teacher-forced/llama-4-maverick/kl.json#/engines/smaller-model",
+              "unit": "nat/token",
+              "value": 1.6188023930650424
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 264.61944444444447,
+            "mean_not_failed": 264.61944444444447,
+            "median": 248.0,
+            "n": 360,
+            "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
+            "status": "ok"
+          }
+        ],
+        "gating": false,
+        "label": "computed by the system's own code on the reference reply, not by the proved computation",
+        "n": 360,
+        "path": "results/v1.0/teacher-forced/llama-4-maverick/teacher-forced.json",
+        "positions": 512,
+        "reference_pass": {
+          "cause": null,
+          "mean": 506.7916666666667,
+          "median": 508.0,
+          "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
+          "status": "ok"
+        },
+        "rows": {
+          "flashprove": {
+            "cause": null,
+            "computed_by": "the publisher's integer-model package (IntegerModel.extend), which the publisher says is \"by design\" the function the prover proves; that it equals cp_prove value by value at full size is not stated",
+            "failed": [],
+            "kl": {
+              "n": 360,
+              "note": "computed by the system's own code on the reference reply, not by the proved computation",
+              "positions": 184320,
+              "reference_rest_mass": 0.0008235795389679204,
+              "source": "results/v1.0/teacher-forced/llama-4-maverick/kl.json#/engines/flashprove",
+              "unit": "nat/token",
+              "value": 0.18291272781772874
+            },
+            "kl_note": "computed by the system's own code on the reference reply, not by the proved computation",
+            "label": "computed by the system's own code on the reference reply, not by the proved computation",
+            "mean": 442.3888888888889,
+            "mean_not_failed": 442.3888888888889,
+            "median": 437.0,
+            "n": 360,
+            "run": "results/v1.0/teacher-forced/llama-4-maverick/run-flashprove.json",
+            "status": "ok",
+            "tests": [
+              {
+                "a": "flashprove",
+                "b": "reference-2",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 1.0,
+                "seed": "0x71b2048451bb06c2"
+              },
+              {
+                "a": "reference-2",
+                "b": "flashprove",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 4.9999750001249995e-06,
+                "seed": "0xffaa4f222decc1f9"
+              },
+              {
+                "a": "flashprove",
+                "b": "smaller-model",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 4.9999750001249995e-06,
+                "seed": "0x24fc7675e9099330"
+              },
+              {
+                "a": "smaller-model",
+                "b": "flashprove",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 1.0,
+                "seed": "0x68ec0a0652c2858e"
+              }
+            ]
+          }
+        },
+        "top_k": 256,
+        "unit": "agreeing positions"
+      }
     },
     {
       "baseline": {

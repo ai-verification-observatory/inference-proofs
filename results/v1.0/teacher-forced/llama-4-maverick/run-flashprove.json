@@ -1,0 +1,115 @@
+{
+  "adapter": {
+    "adapter_commit": "fb54cdd6e6b555238d2e4833cbf2b4fe36238295",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "info",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.06716467600199394,
+      "stderr_tail": [],
+      "step": "info"
+    },
+    {
+      "call": "setup",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 355.99366509201354,
+      "stderr_tail": [],
+      "step": "setup"
+    },
+    {
+      "call": "score",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "float64_check",
+          "seconds": 43.302296768990345
+        },
+        {
+          "name": "score",
+          "seconds": 7081.747200492013
+        }
+      ],
+      "seconds": 7125.180368471018,
+      "stderr_tail": [],
+      "step": "score"
+    }
+  ],
+  "engine": {
+    "commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c",
+    "image": "ghcr.io/ai-verification-observatory/flashprove@sha256:aeedac04806335423c91f7cb22757a9da01795bbc171818284f7329c8c97b0c0",
+    "tool": "flashprove"
+  },
+  "failed_prompts": [],
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "be220729ec1677fe177fdedf8e72fbcc398a9500",
+    "git_dirty": false
+  },
+  "ids": [
+    "flashprove"
+  ],
+  "kind": "system",
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "lists": {
+    "flashprove": {
+      "digest": "sha256:4192c27797fec0e1044c283eefb95c3b5d17dff2e7c46ea15b881af6a06e6aea",
+      "files": 360
+    }
+  },
+  "name": "flashprove",
+  "not_run": {},
+  "of": 360,
+  "own_reply_check": {
+    "agreeing": 512,
+    "positions": 512,
+    "prompt": 0,
+    "session": "2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1"
+  },
+  "prompts": 360,
+  "prompts_digest": "sha256:9c97c72fa4e091141d3092953641db1dcfc4e79e23cf9b493864e29d70e829ec",
+  "prover_files": null,
+  "reference": {
+    "digest": "sha256:3996895f702b9eb8572112935b503e68a827a88820812c70e3c85ca78e81d58f",
+    "replies": "results/v1.0/fidelity/llama-4-maverick/reference.jsonl"
+  },
+  "release": "v1.0",
+  "rung": "llama-4-maverick",
+  "schema": "teacher-forced-run/1",
+  "sessions": [
+    {
+      "adapter_commit": "aa5f31f97e76eccb77c7a52fcc54cbe9b8109dcb",
+      "image": "ghcr.io/ai-verification-observatory/flashprove@sha256:12611db7e7349ed667599730a7fa77e68459de38b7b2622ea4ac2339c1f656d1",
+      "run": "2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1",
+      "slot": 1,
+      "upstream_commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+    },
+    {
+      "adapter_commit": "aa5f31f97e76eccb77c7a52fcc54cbe9b8109dcb",
+      "image": "ghcr.io/ai-verification-observatory/flashprove@sha256:12611db7e7349ed667599730a7fa77e68459de38b7b2622ea4ac2339c1f656d1",
+      "run": "2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1",
+      "slot": 2,
+      "upstream_commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+    },
+    {
+      "adapter_commit": "aa5f31f97e76eccb77c7a52fcc54cbe9b8109dcb",
+      "image": "ghcr.io/ai-verification-observatory/flashprove@sha256:12611db7e7349ed667599730a7fa77e68459de38b7b2622ea4ac2339c1f656d1",
+      "run": "2026-11-12-flashprove-l1-maverick-p512-o512-prover-h200-hosted-2",
+      "slot": 3,
+      "upstream_commit": "9e2bdd8ff5bf9c62f18263d7dac189b0400b260c"
+    }
+  ],
+  "slots": 1,
+  "system": "flashprove",
+  "top_k": 256,
+  "upstream_commit_equal_to_sessions": true,
+  "workload": "l1-maverick-p512-o512"
+}

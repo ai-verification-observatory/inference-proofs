@@ -218,6 +218,13 @@ choices, gaps = model.extend(sequence, [prompt[-1], *reply[:-1]], gap_for=reply,
 
 Whose computation this is: the publisher's package, of which it says "By design, this is the function that the repository's prover proves" ([model.py L159-L160](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/integrations/vllm/integer_model/integer_model/model.py#L159-L160)). Not stated at the pin: that the package equals `cp_prove` value by value at full size. "What was compared with the prover is proof or no proof, and greedy choices" ([OPERATING.md L593-L594](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/integrations/vllm/integer_model/OPERATING.md#L593-L594)), and value by value "nothing was compared at full size" ([L585](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/integrations/vllm/integer_model/OPERATING.md#L585)). The counted sessions add this much: every reply the package wrote was proved by `cp_prove` under exact match, at those positions. A position where the package's choice differs from the reference token has no such confirmation.
 
+Measured on Level 1 (Llama 4 Maverick, the 360 prompts, 1 H200 bound on `h200x2`, `results/v1.0/teacher-forced/llama-4-maverick/run-flashprove.json`, n = 1 run):
+
+- `extend` raised `RangeConditionFailed` on none of the 360 reference replies.
+- A request took 16.1 s (mean; 14.3 to 17.9 s, n = 361 with the system's own reply), with `record` and the lists. The `score` call took 7,125 s: 43 s for the float64 check, then the load with every tensor checked and the 361 requests. `setup` took 356 s. GPU memory was not recorded.
+- On the system's own proved reply to prompt 0, the package's choices were that reply at all 512 positions.
+- On each of the 360 prompts, the first position where the package's choice differs from the reference token is the matched prefix of the proved reply (FI-3's stored score).
+
 The scoring image is [`Dockerfile.score`](Dockerfile.score): `system.yaml`'s image, the one the counted sessions ran, plus this directory's `entrypoint`. The `system.yaml` pin does not change.
 
 ### The MODEL check's weight change, read at the pin
