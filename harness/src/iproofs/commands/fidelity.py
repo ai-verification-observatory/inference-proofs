@@ -442,7 +442,12 @@ def _controls(rung: "Rung", base: Path, ref: str, record: Mapping[str, object]) 
     skipped: Mapping[str, str] = not_run if isinstance(not_run, dict) else {}
     out: list[Scored] = []
     for c in rung.controls:
-        spec: dict[str, object] = {"id": c.id, "kind": c.kind, "recipe": c.recipe}
+        spec: dict[str, object] = {
+            "id": c.id,
+            "kind": c.kind,
+            "recipe": c.recipe,
+            "type": getattr(c, "type", None),
+        }  # the steps name Q8_0 and Q4_K_M by type
         st = by_id.get(c.id)
         replies_file = base / "replies" / f"{c.id}.jsonl"
         if st is not None and st.get("status") == "ok" and replies_file.is_file():
@@ -525,7 +530,8 @@ def fidelity_score(args: argparse.Namespace) -> int:
     engine = dict(record["engine"])
     header = Header(level.id, digest, rung.id, str(record["prompts_digest"]),
                     {k: engine.get(k) for k in ("tool", "repo", "commit", "image")},
-                    f"{ref}/reference.jsonl", file_digest(reference_path))  # fmt: skip
+                    f"{ref}/reference.jsonl", file_digest(reference_path),
+                    int(record["slots"]))  # fmt: skip
     doc = build_fidelity(header, rule, reference, controls, rows, row_kl)
     errors = registry.errors("fidelity/1", doc)
     if errors:

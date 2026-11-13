@@ -1,0 +1,162 @@
+{
+  "$id": "https://inference-proofs.org/schema/proof-build/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "a built theorem exited 0; a failed build keeps its last lines (AGENTS.md rule 5)",
+      "else": {
+        "properties": {
+          "last_lines": {
+            "minItems": 1
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "built"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "exit_code": {
+            "const": 0
+          }
+        }
+      }
+    }
+  ],
+  "description": "results/<release>/proof-build/<system>/proof-build.json: one build of the theorem a system's properties/2 file names, at the pin with the pinned toolchain, and the axioms the build reports. Machine-checked reads it: a failed build or an axiom not declared sets the petal red; no matching record keeps it hollow.",
+  "properties": {
+    "argv": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "axioms_reported": {
+      "$comment": "the axioms the build reports the theorem depends on (for Lean, #print axioms)",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "exit_code": {
+      "type": "integer"
+    },
+    "last_lines": {
+      "$comment": "the build's last output lines",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "schema": {
+      "const": "proof-build/1"
+    },
+    "seconds": {
+      "minimum": 0,
+      "type": "number"
+    },
+    "started_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "built",
+        "failed"
+      ]
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "theorem": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$comment": "the theorem's full name, as in formal.theorem of properties/2",
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "url"
+      ],
+      "type": "object"
+    },
+    "toolchain": {
+      "additionalProperties": false,
+      "properties": {
+        "image": {
+          "$comment": "the container image digest the build ran in (AGENTS.md rule 11); a build outside a digested image is not recorded",
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "name": {
+          "$comment": "spelled exactly as formal.toolchain.value.name of properties/2, which copies the publisher's toolchain file (for example leanprover/lean4)",
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "$comment": "spelled exactly as formal.toolchain.value.version of properties/2 (for example v4.29.1)",
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "image"
+      ],
+      "type": "object"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "system",
+    "upstream",
+    "theorem",
+    "toolchain",
+    "argv",
+    "started_at",
+    "seconds",
+    "exit_code",
+    "status",
+    "last_lines",
+    "axioms_reported"
+  ],
+  "title": "Proof build of a publisher's machine-checked theorem (RFC-0018 MC-4, MC-5)",
+  "type": "object"
+}

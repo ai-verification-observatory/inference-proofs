@@ -8,10 +8,11 @@ import pytest
 import yaml
 
 from fixtures.release_tree import build, commit
-from iproofs import cli
+from iproofs import cli, release
 from iproofs.errors import IProofsError
 from iproofs.release import RunView, _Late, _rel, _statistics
 from iproofs.schema import SchemaRegistry
+from iproofs.serialize import write_json
 from iproofs.workloads import asserted_inputs, load_workload
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -145,6 +146,34 @@ def test_gate_failure_stops_freeze(
     monkeypatch.chdir(tmp_path)
     assert cli.main(["release", "freeze", "v0.1"]) == 1
     assert "gates failed: G3" in capsys.readouterr().err
+
+
+def test_freeze_reads_the_properties_files_not_a_board(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """RFC-0018 GL-9 (G1): under a level, with no board.json stored, a listed run whose
+    properties file was read at another commit stops the freeze; read at the run's commit, the
+    freeze goes on."""
+    build(tmp_path)
+    level = tmp_path / "levels/L9.yaml"  # a level whose one rung runs the fake system
+    level.parent.mkdir()
+    rung = {"id": "r", "workloads": {"fake": "fake-tiny-ci"}}
+    level.write_text(yaml.safe_dump({"rungs": [rung]}))
+    monkeypatch.setattr(release, "_require_level", lambda *_: level)
+    pin = "c" * 40  # the runs' upstream commit
+    for path in (tmp_path / "results").rglob("manifest.json"):
+        m = json.loads(path.read_text())
+        m["system"]["upstream"] = {"repo": "example/fake-prover", "commit": pin}
+        write_json(path, m)
+    props = tmp_path / "systems/fake/properties.yaml"
+    props.write_text(yaml.safe_dump({"schema": "properties/2", "upstream": {"commit": "b" * 40}}))
+    commit(tmp_path, "properties at another commit")
+    assert not (tmp_path / "releases/v0.1/board.json").exists()
+    assert freeze(tmp_path, monkeypatch, capsys) == 1
+    assert not (tmp_path / "releases/v0.1/index.json").exists()
+    props.write_text(yaml.safe_dump({"schema": "properties/2", "upstream": {"commit": pin}}))
+    commit(tmp_path, "properties at the pin")
+    assert freeze(tmp_path, monkeypatch, capsys) == 0
 
 
 # ---------------------------------------------------------------- RFC-0004 Q3, RFC-0003 WB-4

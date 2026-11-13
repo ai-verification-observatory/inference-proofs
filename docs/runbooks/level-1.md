@@ -77,4 +77,6 @@ uv run iproofs release board v1.0
 uv run iproofs site build
 ```
 
+`release freeze` refuses the release when a statement petal of a listed run is not read (RFC-0018 GL-9). It reads the properties files and the listed runs' commits, not `board.json`, which `release board` writes after it.
+
 Then preview on port 4440, send each team its records, and deploy once the owner approves.

@@ -1,167 +1,123 @@
-"""The glyph's geometry: the asterisk of n triangles as SVG (`glyph_svg`: five petals for a row,
-RFC-0018 §The glyph), and the names set in its triangles. The site's logo is the turnstile (mark.py).
+"""The glyph's geometry: the proof lines as SVG (`glyph_svg`: five arms for a row, RFC-0018 §The
+glyph). The turnstile with one arm per petal: a cobalt stem, and each arm the petal's name in
+ground ink on the ink of its state. The site's logo is the turnstile itself (mark.py).
 """
 
-import math
-
+from . import state as S
+from .inks import COBALT, GROUND, MUTED
 from .words import e
 
-# ------------------------------------------------------------------ the glyph: an asterisk of triangles
-# n triangles make a point-top polygon, clockwise from twelve: segment i spans the side from vertex
-# step*i to vertex step*(i+1) (step = 360/n). The cuts between them widen toward the centre, so the
-# ground they leave draws an asterisk, the footnote mark. A row's glyph has five petals: green,
-# amber and red filled, hollow an outline only, drawn inside its cuts (GL-3); `mono` draws
-# n slots in one colour. Drawn in device pixels (viewBox 0 0 size size): every gap and line
-# is sized for the size it is shown at (a page draws one copy per size it shows); up to 128 px the
-# hex's centre and flat sides sit on the pixel grid.
-C30 = math.cos(math.radians(30))
+# ------------------------------------------------------------------ the glyph: a stem and its arms
+# Drawn on the mark's own units (mark.py: stem 3, cell 5, gap 1): the stem 3 units wide, an arm 5
+# high, 1 unit of ground between arms, each arm joined to the stem as the mark's first cell is.
+# Every arm has the same length in every state, so the outline never changes and nothing adds up.
+# A state is the arm's ink (green, amber, red); a red arm's name is struck, so the name cannot be
+# read as a warning about the property; hollow is an outline, open toward the stem, its name in the
+# muted ink. Two steps also change the drawing (§The glyph, Q7): amber in lesser part is the amber arm with
+# its end cell cut off (a gap of ground, then a cell 5 units long, as the mark's cells are), and a
+# red the publisher's silence set is the hollow outline drawn in the red ink, its name red and not
+# struck. With names an arm is 50 units long and the names are set 4 units high; without (under
+# 3 px a unit, where the names could not be read) it is 22 long and the stem stands 1 unit proud.
+# The viewBox is in units, so every edge sits on a whole pixel at a whole-pixel unit.
+STEM, ARM, GAP = 3, 5, 1
+LONG, SHORT = 50, 22
+NAME, PAD, TRACK = 4.0, 1.6, 0.04  # the name's size, its inset in units, its tracking in em
+STRIKE = 0.5  # a red name's strike, in units
+# Big Shoulders Display 800, capitals: each advance in em (measured in the face, kerning off). A
+# struck name is set to this width (textLength), so the strike and the name always end together.
+CAPS = {
+    "A": 0.443, "B": 0.441, "C": 0.455, "D": 0.461, "E": 0.381, "F": 0.378, "G": 0.457, "H": 0.455,
+    "I": 0.215, "J": 0.422, "K": 0.459, "L": 0.374, "M": 0.691, "N": 0.508, "O": 0.462, "P": 0.437,
+    "Q": 0.462, "R": 0.445, "S": 0.441, "T": 0.384, "U": 0.453, "V": 0.456, "W": 0.733, "X": 0.436,
+    "Y": 0.43, "Z": 0.388, "0": 0.473, "1": 0.255, "2": 0.457, "3": 0.47, "4": 0.48, "5": 0.48,
+    "6": 0.465, "7": 0.447, "8": 0.467, "9": 0.466, " ": 0.217, "-": 0.414, ".": 0.239,
+}  # fmt: skip
 
 
-def pt(r, deg):
-    a = math.radians(deg)
-    return r * math.sin(a), -r * math.cos(a)
+def name_units(name):
+    """A name's width in units, set in capitals at NAME with TRACK after each letter but the last."""
+    caps = name.upper()
+    return (sum(CAPS.get(c, 0.45) for c in caps) + TRACK * (len(caps) - 1)) * NAME
 
 
-def _add(p, q, k=1.0):
-    return p[0] + k * q[0], p[1] + k * q[1]
+def _n(x):
+    return f"{x:.3f}".rstrip("0").rstrip(".")
 
 
-def _cross(p1, p2, p3, p4):
-    d1, d2 = (p2[0] - p1[0], p2[1] - p1[1]), (p4[0] - p3[0], p4[1] - p3[1])
-    den = d1[0] * d2[1] - d1[1] * d2[0]
-    t = ((p3[0] - p1[0]) * d2[1] - (p3[1] - p1[1]) * d2[0]) / den
-    return p1[0] + t * d1[0], p1[1] + t * d1[1]
+def _ink(state, form=""):
+    """An arm's ink as presentation attributes, so the glyph reads with no stylesheet (words.css
+    sets the same inks and wins over these)."""
+    if state == "hollow":
+        return f'fill="none" stroke="{MUTED}"'
+    if form == "open":
+        return f'fill="none" stroke="{S.INK.get("red", MUTED)}"'
+    return f'fill="{COBALT if state == "key" else S.INK.get(state, MUTED)}"'
 
 
-def _seg(i, n, R, wr, wc, inset=0.0):
-    """Segment i of n around the origin, with cut half-widths wr/2 at the rim and wc/2 at the
-    centre, every edge moved inward by inset."""
-    step = 360 / n
-    a0, a1 = step * i, step * (i + 1)
-    v0, v1 = pt(R, a0), pt(R, a1)
-    n0, n1 = pt(1, a0 + 90), pt(1, a1 - 90)  # inward normals of the two cuts
-    e0 = (_add(v0, n0, wr / 2 + inset), _add((0, 0), n0, wc / 2 + inset))
-    e1 = (_add(v1, n1, wr / 2 + inset), _add((0, 0), n1, wc / 2 + inset))
-    m = pt(1, a0 + step / 2)  # outward normal of the side
-    s0, s1 = _add(v0, m, -inset), _add(v1, m, -inset)
-    return [_cross(*e0, s0, s1), _cross(*e1, s0, s1), _cross(*e0, *e1)]
+def _arm(arm):
+    """An arm as (state, form, its class and data attributes): a petal as the view gives it, or a
+    bare state word (the checks page's key)."""
+    if isinstance(arm, str):
+        return arm, "", ""
+    form = arm.get("form") or ""
+    data = f' data-step="{e(arm["step"] or "none")}"'
+    if arm["cause"] is not None:
+        data += f' data-cause="{e(arm["cause"])}"'
+    return arm["state"], form, data
 
 
-def _frame(size, n, snap=True):
-    """Centre and circumradius in px. The hex, snapped (up to 40 px, and up to 128 px in state
-    inks), has its centre on a pixel centre and its upright sides on pixel edges. Another polygon
-    fits the box by its width, its centre moved down so it sits in the middle of the box."""
-    if n == 6:
-        if snap:
-            half = math.floor(size * 0.5 * C30 - 0.5) + 0.5
-            return (size / 2 + 0.5, size / 2), half / C30
-        return (size / 2, size / 2), size / 2 * 0.985
-    step = 360 / n
-    width = 2 * max(abs(pt(1, step * k)[0]) for k in range(n))
-    bottom = max(pt(1, step * k)[1] for k in range(n))
-    R = size * 0.985 / max(width, 1 + bottom)
-    return (size / 2, size / 2 + R * (1 - bottom) / 2), R
-
-
-def _d(poly, c):
-    return "M" + "L".join(f"{x + c[0]:.2f} {y + c[1]:.2f}" for x, y in poly) + "Z"
-
-
-# A name set in its own triangle (the system and checks pages): condensed capitals, in ground ink
-# on a filled triangle and in paper on an outline, in user units of the glyph's viewBox. A side
-# that leans carries its name along it, the longer line nearer the side; a steep side (within 30
-# degrees of upright), level, against it.
-NAME_PX, NAME_CAP, NAME_GAP, NAME_INSET = 10.5, 7.45, 10.29, 4.7
-
-
-def _name_lines(name, outer_first):
-    """Two lines at most. Along a side: the line nearer the side (the wider part of the
-    triangle) is the longer, and as short as that allows. Level: the most even split."""
-    w = name.upper().split()
-    if len(w) == 1:
-        return w
-    cuts = [(" ".join(w[:k]), " ".join(w[k:])) for k in range(1, len(w))]
-    if outer_first is None:
-        return list(min(cuts, key=lambda ab: max(len(ab[0]), len(ab[1]))))
-    fits = [
-        ab for ab in cuts if len(ab[0 if outer_first else 1]) >= len(ab[1 if outer_first else 0])
-    ]
-    return list(min(fits or cuts, key=lambda ab: len(ab[0 if outer_first else 1])))
-
-
-def _names_svg(names, c, R, states=None):
+def glyph_svg(unit, arms, names=None, cls="pie-svg", hrefs=None):
+    """The glyph: a stem and one arm per petal, top to bottom. unit: px per unit (3 on the board,
+    1 in the search list). arms: each arm's petal as the view gives it (its state, step, cause and
+    form: green, amber and red filled, amber in lesser part cut, a silent red open, hollow an
+    outline), or a bare state (key: the checks page's cobalt). names: each arm's name set in it
+    (then the arms are long). hrefs: each arm (and its name) a link there, out of the tab order
+    (the svg is hidden from assistive tech; the page's own text holds the same links and words)."""
+    n = len(arms)
+    long = bool(names)
+    over = 0 if long else GAP
+    w, h = STEM + (LONG if long else SHORT), n * ARM + (n - 1) * GAP
+    px = 1 / unit
+    # amber in lesser part: the ground gap never under 2 px, the cut cell never under 3 px
+    gap, cell = max(1, 2 / unit), max(5, 3 / unit)
     out = []
-    n = len(names)
-    step = 360 / n
-    apothem = R * math.cos(math.radians(step / 2))
-    for i, name in enumerate(names):
-        mid = step * i + step / 2
-        mx, my = pt(apothem, mid)
-        if 60 < mid % 180 < 120:  # a steep side: level, against it, centred on its middle
-            lines = _name_lines(name, None)
-            right = mid < 180
-            lean = abs(math.cos(math.radians(mid))) * NAME_GAP * len(lines)  # room for its slope
-            x = c[0] + mx + (-1 if right else 1) * (NAME_INSET + lean)
-            y0 = c[1] + my - (NAME_CAP + NAME_GAP * (len(lines) - 1)) / 2 + NAME_CAP
-            anchor = "end" if right else "start"
-            body = "".join(
-                f'<text x="{x:.2f}" y="{y0 + k * NAME_GAP:.2f}" text-anchor="{anchor}">{e(t)}</text>'
-                for k, t in enumerate(lines)
-            )
-        else:  # along the side, inward from its midpoint
-            top = mid < 90 or mid > 270
-            lines = _name_lines(name, top)
-            rot = mid if top else mid - 180
-            rot = rot - 360 if rot > 180 else rot
-            if top:
-                ys = [NAME_INSET + NAME_CAP + k * NAME_GAP for k in range(len(lines))]
-            else:
-                ys = [-NAME_INSET - (len(lines) - 1 - k) * NAME_GAP for k in range(len(lines))]
-            body = (
-                f'<g transform="translate({mx + c[0]:.2f} {my + c[1]:.2f}) rotate({rot:g})">'
-                + "".join(
-                    f'<text x="0" y="{y:.2f}" text-anchor="middle">{e(t)}</text>'
-                    for t, y in zip(lines, ys, strict=True)
-                )
-                + "</g>"
-            )
-        state = f" {states[i]}" if states else ""
-        out.append(f'<g class="t s{i + 1}{state}">{body}</g>')
-    return f'<g class="tx">{"".join(out)}</g>'
-
-
-def glyph_svg(size, states=None, mono=False, cls="pie-svg", names=None, n=None):
-    """The glyph: one triangle per state (five petals for a row). states: each petal's state
-    (green, amber and red filled, hollow an outline inside its cuts; words.css inks them). mono:
-    n slots in currentColor (the logo). names: each slot's name set in it."""
-    n = n or len(states)
-    c, R = _frame(size, n, size <= 40 or (size <= 128 and not mono))
-    wr, wc = (
-        (max(1.0, size * 0.016), max(3.0, size * 0.10))
-        if mono
-        else (max(1.0, size * 0.012), max(1.8, size * 0.05))
-    )
-    line = max(1.0, round(size / 48, 1))  # an outline's width, in px
-    parts = []
-    for i in range(n):
-        if mono:
-            parts.append(f'<path d="{_d(_seg(i, n, R, wr, wc, 0.0), c)}"/>')
-        elif states[i] == "hollow":
-            d = _d(_seg(i, n, R, wr, wc, line / 2), c)
-            parts.append(f'<path class="sl s{i + 1} hollow" stroke-width="{line:g}" d="{d}"/>')
+    for i, raw in enumerate(arms):
+        state, form, data = _arm(raw)
+        y = i * (ARM + GAP)
+        tok = f"{state} {form}".strip()
+        klass = f'class="sl s{i + 1} {tok}"{data}'
+        if state == "hollow" or form == "open":
+            d = f"M{STEM} {_n(y + px / 2)}H{_n(w - px / 2)}V{_n(y + ARM - px / 2)}H{STEM}"
+            arm = f'<path {klass} {_ink(state, form)} stroke-width="{_n(px)}" d="{d}"/>'
+        elif form == "cut":
+            d = (f"M{STEM} {y}H{_n(w - gap - cell)}V{y + ARM}H{STEM}Z"
+                 f"M{_n(w - cell)} {y}H{w}V{y + ARM}H{_n(w - cell)}Z")  # fmt: skip
+            arm = f'<path {klass} {_ink(state)} d="{d}"/>'
         else:
-            d = _d(_seg(i, n, R, wr, wc, 0.0), c)
-            parts.append(f'<path class="sl s{i + 1} {states[i]}" d="{d}"/>')
-    if names:
-        parts.append(_names_svg(names, c, R, states))
-    return (
-        f'<svg class="{cls}" viewBox="0 0 {size} {size}" width="{size}" height="{size}" '
-        f'aria-hidden="true" focusable="false">{"".join(parts)}</svg>'
+            arm = f'<rect {klass} {_ink(state)} x="{STEM}" y="{y}" width="{w - STEM}" height="{ARM}"/>'
+        if long:
+            x, base = STEM + PAD, y + (ARM + NAME * 0.8) / 2
+            ink = (MUTED if state == "hollow" else S.INK.get("red", MUTED) if form == "open"
+                   else GROUND)  # fmt: skip
+            style = (f'font-family="Big Shoulders Display,system-ui,sans-serif" font-weight="800" '
+                     f'font-size="{_n(NAME)}" letter-spacing="{_n(NAME * TRACK)}" fill="{ink}"')  # fmt: skip
+            caps = e(names[i].upper())
+            if state == "red" and form != "open":
+                tw = name_units(names[i])
+                text = (f'<text x="{_n(x)}" y="{_n(base)}" textLength="{_n(tw)}" {style}>{caps}</text>'
+                        f'<rect x="{_n(x - 0.5)}" y="{_n(y + (ARM - STRIKE) / 2)}" '
+                        f'width="{_n(tw + 1)}" height="{STRIKE}" fill="{GROUND}"/>')  # fmt: skip
+            else:
+                text = f'<text x="{_n(x)}" y="{_n(base)}" {style}>{caps}</text>'
+            arm += f'<g class="t s{i + 1} {tok}">{text}</g>'
+        if hrefs:
+            arm = f'<a href="{e(hrefs[i])}" tabindex="-1">{arm}</a>'
+        out.append(arm)
+    stem = (
+        f'<rect class="stem" fill="{COBALT}" y="{-over}" width="{STEM}" height="{h + 2 * over}"/>'
     )
-
-
-def sized(draw, sizes):
-    """One copy of a glyph per size a page shows it at, each marked with its size (`w<size>`):
-    words.css shows the copy for the width in use, so its cuts and sides sit on the pixel grid
-    instead of being scaled between pixels. draw: size -> svg."""
-    return "".join(draw(s).replace('<svg class="', f'<svg class="w{s} ', 1) for s in sizes)
+    return (
+        f'<svg class="{cls}" viewBox="0 {-over} {w} {h + 2 * over}" width="{_n(w * unit)}" '
+        f'height="{_n((h + 2 * over) * unit)}" shape-rendering="crispEdges" aria-hidden="true" '
+        f'focusable="false">{stem}{"".join(out)}</svg>'
+    )

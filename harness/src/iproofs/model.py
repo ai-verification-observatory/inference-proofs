@@ -889,6 +889,8 @@ TREES = frozenset(
         "beacon/1",
         "fidelity-run/1",
         "properties/1",
+        "properties/2",
+        "proof-build/1",
         "board/1",
         "controls/1",
         "controls-part/1",

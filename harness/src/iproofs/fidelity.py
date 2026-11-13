@@ -23,10 +23,18 @@ those records and the rows' counted sessions into `fidelity.json` (schema `fidel
   file. No honest control ran, or no damaged control qualifies: no bar.
 - FI-6: a row is `held` when it beats the bar, `failed` when the bar beats it, else
   `undecided`, cause `not resolved` (also with no bar).
+- Faithful model's steps (RFC-0018 FM-4 to FM-7): T_green is the midpoint of the reference
+  rerun's and Q8_0's mean scores, T_upper of Q8_0's and Q4_K_M's. A row is shown above a
+  threshold T = (S_a + S_b) / (2n), S the two controls' score sums over the n prompts, when the
+  FI-4 test on d_i = 2n s_i - (S_a + S_b) gives p < alpha. Multiplying s_i - T by 2n > 0 keeps
+  the order of every sign vector and makes the differences integers, so the exact count is the
+  same subset-sum count, with no float rounding. Seeds: `pair_seed(randomness, system,
+  "T_green" or "T_upper")`.
 - FI-7: KL figures are `quantity/1` values in nats per token, measured by llama.cpp
   (`Mean    KLD:` of `llama-perplexity --kl-divergence`), never gating.
 """
 
+import dataclasses
 import hashlib
 import math
 import random
@@ -48,6 +56,13 @@ SEED_RULE = (
     "first 8 bytes, big-endian, of sha256(randomness || 0x00 || utf8(a) || 0x00 || utf8(b)), "
     "randomness the beacon round's 32 bytes, a beats b being tested"
 )
+STEP_SEED_IDS = ("T_green", "T_upper")
+STEPS_RULE = (
+    "T_green = (mean(rerun) + mean(Q8_0)) / 2 and T_upper = (mean(Q8_0) + mean(Q4_K_M)) / 2 "
+    "over the same n prompts; a row is shown above T when the FI-4 sign-flip test on "
+    "d_i = 2n*s_i - (S_a + S_b) gives p < alpha"
+)
+STEPS_SEED_RULE = 'SEED_RULE with a = the row\'s system id and b = "T_green" or "T_upper"'
 # llama.cpp tools/perplexity/perplexity.cpp L1926 at cd959bae: `Mean    KLD: %10.6lf ± %10.6lf`
 _KLD = re.compile(r"^Mean\s+KLD:\s+([-+0-9.eE]+|nan|inf)\s+±", re.M)
 
@@ -226,6 +241,115 @@ def choose_bar(
 
 
 @dataclass(frozen=True, slots=True)
+class Threshold:
+    """One step threshold (FM-5, FM-6): the two controls it is the midpoint of, the sum S_a +
+    S_b of their scores over the `n` prompts, or the cause it has none."""
+
+    name: str  # T_green or T_upper
+    controls: tuple[str, ...]
+    n: int
+    total: int | None
+    cause: str | None
+
+    @property
+    def value(self) -> float | None:
+        return None if self.total is None else self.total / (2 * self.n)
+
+    def record(self) -> dict[str, object]:
+        return {"controls": list(self.controls), "value": self.value, "cause": self.cause}
+
+
+def _honest(
+    controls: Sequence[tuple[Mapping[str, object], ControlResult]],
+    recipe: str,
+    type_: str | None,
+) -> ControlResult | None:
+    """The first honest control of the level file with this recipe (and quantization type)."""
+    for spec, result in controls:
+        if spec.get("kind") == "honest" and spec.get("recipe") == recipe and (
+                type_ is None or spec.get("type") == type_):  # fmt: skip
+            return result
+    return None
+
+
+def _threshold(name: str, named: Sequence[tuple[ControlResult | None, str]], n: int) -> Threshold:
+    ids = tuple(c.id for c, _ in named if c is not None)
+    cause = None
+    for found, label in named:  # the first control, in order, that cannot give a mean
+        if found is None:
+            cause = f"no {label} control on this rung"
+        elif found.status != "ok":
+            cause = f"{found.id} failed"
+        elif len(found.scores) != n:
+            cause = f"{found.id} has {len(found.scores)} scores for {n} prompts"
+        if cause:
+            break
+    if cause is not None:
+        return Threshold(name, ids, n, None, cause)
+    total = sum(sum(c.scores) for c, _ in named if c is not None)
+    return Threshold(name, ids, n, total, None)
+
+
+def thresholds(
+    controls: Sequence[tuple[Mapping[str, object], ControlResult]], n: int
+) -> dict[str, Threshold]:
+    """T_green and T_upper from the level file's honest controls (`controls` pairs each spec
+    with its result): rerun = recipe rerun, Q8_0 and Q4_K_M = recipe quantize of that type."""
+    rerun = _honest(controls, "rerun", None)
+    q8 = _honest(controls, "quantize", "Q8_0")
+    q4 = _honest(controls, "quantize", "Q4_K_M")
+    return {
+        "green": _threshold("T_green", ((rerun, "rerun"), (q8, "Q8_0")), n),
+        "upper": _threshold("T_upper", ((q8, "Q8_0"), (q4, "Q4_K_M")), n),
+    }
+
+
+@dataclass(frozen=True, slots=True)
+class StepTest:
+    """The FI-4 test "the row is shown above the threshold" on d_i = 2n s_i - (S_a + S_b)."""
+
+    threshold: str
+    value: float
+    n: int
+    p: float
+    method: Literal["exact", "monte-carlo"]
+    seed: int | None
+
+    def record(self) -> dict[str, object]:
+        return {
+            "threshold": self.threshold,
+            "value": self.value,
+            "n": self.n,
+            "p": self.p,
+            "method": self.method,
+            "seed": None if self.seed is None else f"0x{self.seed:016x}",
+        }
+
+
+def step_tests(
+    system: str,
+    scores: Sequence[int],
+    steps: Mapping[str, Threshold],
+    rule: SignFlipRule,
+) -> dict[str, StepTest | None]:
+    """The row's test over each threshold; None where the threshold has no value."""
+    out: dict[str, StepTest | None] = {}
+    for key, t in steps.items():
+        n = len(scores)
+        value = t.value
+        if t.total is None or value is None or n != t.n:
+            out[key] = None
+            continue
+        diffs = [2 * n * s - t.total for s in scores]
+        exact = n <= rule.exact_up_to
+        seed = None if exact else pair_seed(rule.randomness_hex, system, t.name)
+        p = sign_flip_p(diffs, exact_up_to=rule.exact_up_to, resamples=rule.resamples,
+                        seed=seed or 0)  # fmt: skip
+        out[key] = StepTest(t.name, value, n, p, "exact" if exact else "monte-carlo", seed)
+    return out
+
+
+@dataclass(frozen=True, slots=True)
 class RowResult:
     system: str
     state: State
@@ -236,6 +360,7 @@ class RowResult:
     kl: Mapping[str, object] | None = None
     kl_note: str = ""
     tests: tuple[PairTest, ...] = field(default=())
+    step_tests: Mapping[str, StepTest | None] | None = None  # None: the row has no scores
 
     @property
     def mean_prefix(self) -> float | None:
@@ -252,7 +377,9 @@ class RowResult:
             "kl": dict(self.kl) if self.kl else None,
             "kl_note": self.kl_note,
             "tests": [t.record() for t in self.tests],
-        }
+            "step_tests": None if self.step_tests is None else {
+                k: None if t is None else t.record() for k, t in self.step_tests.items()},
+        }  # fmt: skip
 
 
 def score_row(
@@ -494,6 +621,7 @@ class Header:
     engine: Mapping[str, object]
     reference_replies: str  # repository path of reference.jsonl
     reference_digest: str
+    slots: int  # FI-1: the fidelity run's llama-server slots, from fidelity-run.json
 
 
 def fidelity_document(
@@ -504,6 +632,7 @@ def fidelity_document(
     rows: Sequence[RowResult],
     bar: Bar | None,
     tests: Sequence[PairTest],
+    steps: Mapping[str, Threshold],
 ) -> dict[str, object]:
     """`fidelity.json` (schema `fidelity/1`) from the scored controls and rows."""
     return {
@@ -521,6 +650,13 @@ def fidelity_document(
             "exact_up_to": rule.exact_up_to,
             "resamples": rule.resamples,
             "seed_rule": SEED_RULE,
+        },
+        "slots": header.slots,
+        "steps": {
+            "rule": STEPS_RULE,
+            "seed_rule": STEPS_SEED_RULE,
+            "green": steps["green"].record(),
+            "upper": steps["upper"].record(),
         },
         "controls": [c.record() for c in controls],
         "bar_tests": [t.record() for t in tests],
@@ -548,12 +684,14 @@ def build_fidelity(
     """FI-3 to FI-6 for one rung: `controls` are (level-file spec, replies or None, cause or
     None, KL quantity or None) in level-file order; `rows` the rows' replies in prompt order
     (None for a row without its counted sessions); `row_kl` each row's KL quantity and note.
-    Returns the `fidelity/1` document."""
+    Returns the `fidelity/1` document, with the step thresholds and each row's step tests."""
     scored = [
         score_control(spec, replies, reference, cause=cause, kl=kl)
         for spec, replies, cause, kl in controls
     ]
     bar, tests = choose_bar(scored, rule)
+    steps = thresholds([(spec, c) for (spec, *_), c in zip(controls, scored, strict=True)],
+                       len(reference))  # fmt: skip
     kls = row_kl or {}
     results = [
         score_row(
@@ -568,4 +706,9 @@ def build_fidelity(
         )
         for system, replies in rows.items()
     ]
-    return fidelity_document(header, rule, reference, scored, results, bar, tests)
+    results = [
+        dataclasses.replace(r, step_tests=step_tests(r.system, r.scores, steps, rule))
+        if r.scores else r
+        for r in results
+    ]  # fmt: skip
+    return fidelity_document(header, rule, reference, scored, results, bar, tests, steps)

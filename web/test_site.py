@@ -1,5 +1,6 @@
 """The site against the board file it is built from: every printed figure is a value the board
-stores, every glyph draws the board's check states, and no v0.1 figure is printed (RFC-0018 SI-1,
+stores, every glyph draws the board's petal steps and causes and its check states, and no v0.1
+figure is printed (RFC-0018 SI-1,
 SI-3, SI-5, CH-7). Run from the repository root: uv run pytest web -q
 """
 
@@ -12,11 +13,17 @@ FIG = re.compile(
     r'<span class="fig" title="([^"]*)"><span class="n">([^<]*)</span>'
     r'<span class="u(?: x)?">([^<]*)</span></span>'
 )
-SLICE = re.compile(r'class="sl s(\d) (green|amber|red|hollow)"')
-CHECK_ROW = re.compile(
-    r'<tr class="ck (held|failed|undecided)"><th scope="row"><a href="/checks#([a-z_]+)"'
+SLICE = re.compile(
+    r'class="sl s(\d) (green|amber|red|hollow)(?: (cut|open))?" data-step="([a-z_]+)"'
+    r'(?: data-cause="([a-z_]+)")?'
 )
-PETALS = ("unforgeable", "weights_hidden", "faithful_model", "any_model", "no_trusted_party")
+CHECK_ROW = re.compile(
+    r'<tr class="ck (held|failed|undecided)"(?: id="ck-[a-z_]+")?><th scope="row">'
+    r'<a href="/checks#([a-z_]+)"'
+)
+PETALS = ("unforgeable", "weights_hidden", "faithful_model", "machine_checked", "no_trusted_party")
+STEP_STATE = {"green": "green", "amber_upper": "amber", "amber_lower": "amber", "red": "red",
+              "none": "hollow"}  # fmt: skip
 CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")
 
 
@@ -56,24 +63,43 @@ def test_every_printed_figure_is_a_board_value(board_site: Any) -> None:
     assert seen > 40
 
 
+def arm(p: dict[str, Any]) -> tuple[str, str, str, str, str]:
+    """A board petal as its arm must be drawn: (state, form, step, cause). The form is the rule's
+    (§The glyph, Q7): cut for amber in lesser part, open for a red the publisher's silence set."""
+    step = p["step"] or "none"
+    form = "cut" if step == "amber_lower" else "open" if (
+        p["state"] == "red" and p["cause"] == "not_stated") else ""  # fmt: skip
+    return p["id"], p["state"], form, step, p["cause"] or ""
+
+
+def drawn(found: list[tuple[str, ...]]) -> list[tuple[str, str, str, str, str]]:
+    return [(PETALS[int(n) - 1], s, f, st, c) for n, s, f, st, c in found]
+
+
 def test_glyphs_draw_the_board_states(board_site: Any) -> None:
-    """GL-5: every glyph of a row, on the overview and on its page, draws its five petals in
-    order with the board's states; the page's checks table prints the board's check states."""
+    """GL-5, §The glyph (Q7): every glyph of a row, on the overview and on its page, draws its
+    five petals in order, one arm each, with the board's state, step and cause, in the form its
+    step and cause give; a petal the board marks as our reading says so on the page; the page's
+    checks table prints the board's check states."""
     text = pages(board_site.out)
     index = text["index.html"]
     for row in rows(board_site.board):
         assert [p["id"] for p in row["glyph"]] == list(PETALS)
-        want = [p["state"] for p in row["glyph"]]
+        want = [arm(p) for p in row["glyph"]]
+        assert all(STEP_STATE[step] == state for _, state, _, step, _ in want), row["system"]
         tr = re.search(rf'<tr class="row" id="row-{row["system"]}">(.*?)</tr>', index, re.S)
         assert tr, row["system"]
-        drawn = SLICE.findall(tr[1])
-        assert drawn
-        assert len(drawn) % 5 == 0
-        for k in range(0, len(drawn), 5):
-            assert [int(n) for n, _ in drawn[k : k + 5]] == [1, 2, 3, 4, 5]
-            assert [s for _, s in drawn[k : k + 5]] == want, row["system"]
+        found = drawn(SLICE.findall(tr[1]))
+        assert found
+        assert tr[1].count('class="sl ') == len(found)
+        assert len(found) % 5 == 0
+        for k in range(0, len(found), 5):
+            assert found[k : k + 5] == want, row["system"]
         page = text[f"{row['system']}.html"]
-        assert [s for _, s in SLICE.findall(page)] == want, row["system"]
+        assert page.count('class="sl ') == 5, row["system"]
+        assert drawn(SLICE.findall(page)) == want, row["system"]
+        read = [p.get("reading", False) and p["basis"] == "statement" for p in row["glyph"]]
+        assert page.count('href="/checks#reading"') == sum(read), row["system"]
         checks = [(c, s) for s, c in CHECK_ROW.findall(page)]
         assert checks == [(c, row["checks"][c]["state"]) for c in CHECKS], row["system"]
 

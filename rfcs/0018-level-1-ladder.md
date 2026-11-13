@@ -2,7 +2,7 @@
 
 - Authors: 0xchqrles
 - Created: 2026-11-10
-- Requires: RFC-0003, RFC-0004, RFC-0005, RFC-0006, RFC-0008, RFC-0009, RFC-0010, RFC-0012, RFC-0014, RFC-0015, RFC-0017
+- Requires: RFC-0002, RFC-0003, RFC-0004, RFC-0005, RFC-0006, RFC-0008, RFC-0009, RFC-0010, RFC-0012, RFC-0014, RFC-0015, RFC-0016, RFC-0017
 
 Write "None." where a section has no content. Normative text uses MUST, SHOULD and MAY as defined in RFC 2119.
 
@@ -24,7 +24,7 @@ Level 1 replaces, for everything it publishes, the six documentation properties 
 ## Goals
 
 - One page that ranks what can fairly be ranked and states the rest as fact.
-- Every state on the page is the outcome of a test we ran, recomputable from stored records.
+- Every check state on the page is the outcome of a test we ran. Every petal step is computed from stored records: our runs, and the facts a reviewer copies from the publisher's documents at the pin.
 - One request for the whole level, so a multiple means the same thing on every rung.
 - A cost figure that a hostile expert cannot move by choosing a window, a batch or a baseline.
 - A fidelity gate that stops a copy quantized far from the original, and a KL figure printed beside it.
@@ -33,7 +33,8 @@ Level 1 replaces, for everything it publishes, the six documentation properties 
 ## Non-Goals
 
 - Testing soundness or weight secrecy. No check attempts a forged proof. The page says so.
-- Recomputing a publisher's security level. It is printed as stated (Level 2 draft, below).
+- Recomputing a publisher's security level. It is printed as stated (Level 2 draft, below). Unforgeable reads the exponents of the bound the publisher states and computes no bits figure (Q9).
+- Building a publisher's machine-checked proof: Level 1 reads a proof-build record and does not make one (MC-5).
 - Closed-weights models, lab-run submissions, outside reruns and sealed provers at Level 1.
 - Ranking across rungs, or any figure that divides one rung's cost by another's.
 - Disclosure wording (About, operator line). The owner sets it before launch.
@@ -139,21 +140,144 @@ Each check ends `held`, `failed` or `undecided`. An undecided check names its ca
 
 ### The glyph
 
-The glyph shows how close a row is to a perfect prover: one that cannot be fooled, hides the weights, proves the publisher's own model, runs on any model, and asks the user to trust only the verifier. A fully green glyph means all five hold in full. Passing the checks is the bare minimum; the glyph is the distance from there to perfect (owner decision, 2026-11-10).
+The glyph shows how close a row is to a perfect prover. It asks five questions, one per petal: what bound the publisher states on a false reply being accepted, whether that bound is proved and whether it covers what the row runs; what the publisher states and proves about a proof showing nothing of the weights' values; how close the proved replies stay to the model publisher's own release, against the rung's controls; how far a machine-checked proof of soundness reaches toward the verifier program the row runs; and what soundness rests on besides cryptographic assumptions. A fully green glyph means all five hold in full. Passing the checks is the bare minimum; the glyph is the distance from there to perfect (owner decision, 2026-11-10; petals amended 2026-11-13, Q6).
 
-| Petal | Id | Basis | Green | Amber | Red |
-|---|---|---|---|---|---|
-| Unforgeable | `unforgeable` | statement, lowered by tests | a soundness level of at least 128 bits, proven, for the verifier code the row runs (a proof or formal verification that covers that code, not only the protocol) | a level that is conjectured, below 128 bits, stated per part only, or proven for the protocol but not for the code run | no level stated; or our Model, Prompt or Reply check failed (the verifier accepted a false statement) |
-| Weights hidden | `weights_hidden` | statement, lowered by tests | zero knowledge proven for the program run, with no leak beyond public sizes | hidden with leaks the publisher lists, or proven for the protocol but not for the program run | the checker receives the weights, hiding is off or not stated; or our No weight file check failed |
-| Faithful model | `faithful_model` | our fidelity run | the row's replies are not shown below a second run of the reference (FI-4 test, reference rerun above the row: p ≥ alpha) | the row scores above the bar (FIDELITY held) and the reference rerun scores above the row | FIDELITY failed |
-| Any model | `any_model` | our runs | the system passed on every rung of the level | it passed on more than one rung, not all | it passed on one rung or none |
-| Only the verifier trusted | `no_trusted_party` | statement | soundness rests on cryptographic assumptions alone, as the publisher states them (for example a random oracle): no setup ceremony, hardware maker's key or third party. Public files fixed before the hash do not count against it: every non-interactive proof shares them | one honest party among several, or a setup the publisher says anyone can reproduce | a trusted setup, hardware attestation, or a trusted key; or not stated |
+| Petal | Id | Basis | Lowered by | Question |
+|---|---|---|---|---|
+| Unforgeable | `unforgeable` | statement | Model, Prompt, Reply | The bound the system's publisher states on a false reply being accepted: whether it is proved, and whether it covers what the row runs. |
+| Weights hidden | `weights_hidden` | statement | No weight file | What the publisher states and proves about a proof showing nothing of the weights' values. |
+| Faithful model | `faithful_model` | test (our fidelity run) | Fidelity | How close the proved replies stay to the model publisher's own release, against the rung's controls. |
+| Machine-checked | `machine_checked` | statement | Model, Prompt, Reply (only where it is green); a recorded proof build | How far a machine-checked proof of soundness reaches toward the verifier program the row runs. |
+| No third party trusted | `no_trusted_party` | statement | nothing | What soundness rests on besides cryptographic assumptions. |
 
-- GL-1. A petal based on a statement is read from the publisher's documents at the row's pin, recorded in `systems/<name>/properties.yaml` (schema `properties/1`) with the deciding quotes, their links and the date read. A reviewer sets it; CI checks the file against its schema. Silence is red, printed as "not stated in <documents read> at <commit>" (owner decision, 2026-11-10: a guarantee nobody states is one nobody can rely on).
-- GL-2. Tests only lower: a failed check sets its petals red whatever the statement says; a held check never raises a statement.
-- GL-3. A measured petal not yet decided (FIDELITY undecided, no completed attempt on a rung) is drawn hollow, with its cause.
-- GL-4. The glyph is drawn only for rows we ran. It never moves a position: the order is cost among passed rows (OR-1 to OR-6), and the page says so.
-- GL-5. `iproofs.glyph` computes every petal from the properties file and the stored records; the board file carries each petal's state, basis, reason and quotes.
+The rows are in drawing order. A petal set red by a failed check or a failed proof build has basis `test`.
+
+Each petal is at one step. The board stores the step as a word (`step`) and the ink it is drawn in (`state`):
+
+| Step (`step`) | Ink (`state`) | Printed |
+|---|---|---|
+| `green` | `green` | green · in full |
+| `amber_upper` | `amber` | amber · in part |
+| `amber_lower` | `amber` | amber · in lesser part |
+| `red` | `red` | red · no |
+| null | `hollow` | not decided |
+
+A red petal carries a `cause`: `not_stated` (the documents read are silent), `stated` (the publisher states that the property does not hold, or the stated facts do not reach amber) or `check_failed` (a check or a recorded proof build lowered it, GL-2). A hollow petal carries a `cause`: `not_read`, `not_decided` or `proof_build_not_run` (GL-3). A green or amber petal has no cause. The site draws amber in lesser part as the arm with its end cell cut off, and a red petal with cause `not_stated` as an outline in the red ink, its name not struck: it is still red (GL-1). Every other red is solid, its name struck (Q7).
+
+- GL-1 (amended 2026-11-13). A statement petal (Unforgeable, Weights hidden, Machine-checked, No third party trusted) is computed by `iproofs.glyph` from facts a reviewer copies from the publisher's documents at the row's pin into `systems/<name>/properties.yaml` (schema `properties/2`). Each fact holds its value, the deciding quotes with their links at the pin, and a `note` where the value is the reviewer's reading rather than the publisher's words. A quote is a substring of the linked file at the pin once each run of whitespace in both is collapsed to one space; markup and comment markers are kept. No state, step or reason is typed. CI checks the file against its schema and `iproofs validate` checks what it can offline (the pin, the links, the expression and its terms, the trusted base); whether each quote is in the linked file is a review rule, since validate fetches nothing. Silence is red, printed as "not stated in <documents read> at <commit>" (owner decision, 2026-11-10: a guarantee nobody states is one nobody can rely on).
+- GL-2 (amended 2026-11-13). Tests only lower. A failed check sets red, cause `check_failed`, basis `test`, the petals whose claim it contradicts, whatever the statement says: Model, Prompt or Reply sets Unforgeable red, and Machine-checked red where it is green; No weight file sets Weights hidden red; Fidelity sets Faithful model red. A matching proof build that failed or exited other than 0, or that reports a set of axioms other than the declared one, sets Machine-checked red (MC-4). The petal's `lowered_by` names what lowered it. An undecided check lowers nothing. A held check never raises a statement: a refused control shows that one attack was refused, nothing more ([RFC-0008 §Non-Goals](0008-negative-controls.md)).
+- GL-3 (amended 2026-11-13). A petal not decided is drawn hollow, with its cause: `not_read` (a statement petal whose properties file is missing, is not `properties/2`, or was read at a commit other than the one the row runs, or whose row has no recorded commit), `not_decided` (Faithful model with FIDELITY undecided, no `fidelity.json`, or no scores for the row) or `proof_build_not_run` (Machine-checked stated above red with no proof-build record that matches the row). Not read is not silent: a file nobody read is hollow, never red.
+- GL-4. The glyph is drawn only for rows we ran. It never moves a position: the order is cost among passed rows (OR-1 to OR-6), and the page says so. The glyph is not part of the level file (§Terms), so a change to its rules amends this RFC and needs no new level (LV-1).
+- GL-5 (amended 2026-11-13). `iproofs.glyph` computes every petal from the properties file and the stored records. The board file carries, for each petal, `id`, `state`, `step`, `cause`, `basis`, `reason`, `quotes` and `lowered_by`; Machine-checked also carries `formal` (its stated step, reach, tool, theorem and link, trusted base, input code and scope card) and Weights hidden `visible` (the visible values with their tags and quotes). Both are null on a petal not read. A fact with a note is the reader's reading, and the petal says so: it carries `reading: true` when a fact its decision read carries a `note` (absent means false). A petal with basis `test` carries no `reading`: a check or a proof build decided it, not the publisher's words. A petal carries no number of its own.
+- GL-6. One fact, one petal ([RFC-0016](0016-glyph-properties-and-states.md) ST-5, brought back): each stated fact sets one petal. Whether the bound is proved or conjectured, and its exponents, set Unforgeable; how far a machine-checked proof reaches sets Machine-checked only. Unforgeable asks whether the publisher states or proves that the program the row runs implements what the bound is about (`bound.program`), and counts the two alike; whether that program is machine-checked is Machine-checked's question. Weights hidden does not ask whether the code run is proved.
+- GL-7. Each petal alone: a petal is decided as if the other four were green. No line of the tables below reads another petal.
+- GL-8. Nothing to add up ([RFC-0016](0016-glyph-properties-and-states.md) INV-GLYPH-1): no total, count, average, sort or filter over petals, on the site or in `board.json`. `step` is a word, never an integer.
+- GL-9. `iproofs release freeze` refuses a release in which a statement petal of a listed run is not read (GL-3). It computes this from the properties files and the listed runs' commits, never from a stored `board.json`. `iproofs validate` refuses the board of a frozen release that holds a petal with cause `not_read`.
+
+#### Reading the tables
+
+Each table below is read top to bottom; the first matching line decides. On any doubt the lower step wins. "Under" is strict: an exponent of exactly 80 or 100 is not under it. A statement petal is **not read** in the cases GL-3 names; the commit the row runs is the first counted session's manifest `system.upstream.commit`. A **silent** value is `false`, `not_said`, `not_stated`, null or an empty list. The reason of a `not_stated` red lists the petal's `sources_read` (GL-1).
+
+#### Unforgeable (`unforgeable`)
+
+Facts (`bound`):
+- `stated`: whether a bound is stated.
+- `expression`: the bound, verbatim, a substring of one of its quotes.
+- `terms`: the integer exponent of each error term in the expression, for example [124, 101] for q/2^124 + 2^-101. `iproofs validate` reads the exponents the expression writes (each t of `2^-t`, `2^(-t)` or `/2^t`) and requires them to equal the terms, as sets. When the expression writes no such power (SASH: "100 conjectured bits"), each term must be a whole number written in the expression, not part of a longer one.
+- `basis`: `proved`, `conjectured` or `not_said`.
+- `unit`: what one stated bound covers: `reply`, `proof`, `part`, `round` or `not_said`.
+- `adversary`: `any_prover` (the bound holds against a prover that controls its own machine, with no hardware or third-party condition), `weaker` or `not_said`.
+- `parameters`: `row` (the bound is stated for the parameters of the configuration the row runs), `other` or `not_said`.
+- `batch`: how the publisher states the bound for members of a batch: `each_member` (for each member checked alone), `together` (only for members or proofs handed in together, for example N times the error of one) or `not_said`.
+- `program`: `proved`, `stated` or `not_stated`: whether the program the row runs to verify is proved, or stated, to implement the protocol or verifier the bound is about. A publisher sentence that the bound is not claimed for that program records `not_stated`, with that sentence as its quote.
+- `conditions_shown`: true when the publisher's or the harness's records show that the theorem's stated conditions hold for the row's files; false otherwise, including when the publisher says it is not known.
+
+The bound covers one reply of the row when `unit` is `reply`, or `unit` is `proof` and `proofs.granularity` in `systems/<name>/system.yaml` is `request` (one proof per request). It covers the row's batch when the workload's `shape.batch_size` is 1 or `batch` is `each_member`; a batch size that is not recorded counts as not covered. Replies per proof and the batch size come from these two stored records, never from the reviewer and never from `run.json`. The bound covers the run when `adversary` is `any_prover`, `parameters` is `row`, `conditions_shown` is true, the bound covers one reply and the row's batch, and `program` is `proved` or `stated`.
+
+- UF-1. A Model, Prompt or Reply check failed: red, `check_failed`, basis `test`.
+- UF-2. Not read: hollow, `not_read`.
+- UF-3. `stated` is false, or no term is recorded: red, `not_stated`.
+- UF-4. `adversary` is `weaker`: red, `stated`.
+- UF-5. A term is under 80: red, `stated`.
+- UF-6. `basis` is `conjectured` or `not_said`, and a term is under 100: red, `stated`.
+- UF-7. `basis` is `proved`, the bound covers the run, and every term is 128 or more: green.
+- UF-8. `basis` is `proved`, the bound covers the run, and every term is 100 or more: amber in part.
+- UF-9. Otherwise: amber in lesser part. The reason names the first condition that fails, then the expression, in this order: the basis (conjectured, or basis not said); adversary not said; the unit (stated per part, stated per round, unit not said, more than one reply per proof, or replies per proof not recorded when `system.yaml` records no granularity); the batch (stated for batch members handed in together, not for members checked alone, while the harness checks each of the row's N replies in its own call; no bound said for batch members while the row proves N a batch; or the batch size not recorded); the parameters (stated for other parameters, or not shown to be the row's); the conditions (not shown to hold for the row's files); the program (not stated for the verifier program the row runs); then an exponent under 100.
+
+Every reason prints the publisher's expression as a quote. An error term 2^-t has exponent t. The cut points read the exponents the publisher states and compute nothing: no bits figure is computed or printed (Q9). 128 and 100 are the Ethereum Foundation's zkEVM security milestones (100-bit provable security by the end of May 2026, 128-bit by the end of 2026), which ethproofs draws as its two soundness colours; 80 is the security strength NIST SP 800-57 Part 1 Rev. 5 no longer holds adequate (§References). A bound proved for the protocol counts here when it covers the row's parameters, unit, batch and adversary, and the publisher states or proves that the program the row runs implements that protocol (`program`); how far a machine-checked proof reaches toward that program is Machine-checked's question (GL-6, Q8).
+
+#### Machine-checked (`machine_checked`)
+
+Facts (`formal`):
+- `reach`: `none` (the publisher states that nothing is machine-checked); `part` (some component, the constraints against a specification, or a sub-protocol is machine-checked, with the publisher's coverage count); `protocol` (soundness of the whole protocol is machine-checked but not the relation that encodes the model, or the reverse: exactly one of the two); `protocol_and_statement` (soundness is machine-checked for the whole protocol and for the relation that encodes the model's computation, the theorem stated against a reference definition of the model, but not for the verifier program the row runs); `verifier_run` (a machine-checked soundness theorem covers the verifier program the row runs, from the bytes it reads to its verdict); or `not_stated`.
+- `tool`; `theorem` (its full name, as the tool prints it) and `theorem_url` (at the pin).
+- `toolchain`: `{name, version}`, copied with its quote from the toolchain file or sentence at the pin and spelled as it writes them; null when the documents name none.
+- `trusted_base`: the publisher's list, verbatim items. `axioms`: the declared axioms a build must report, each in the trusted base.
+- `input_code_unverified`: true when named code that reads inputs sits outside the proof.
+- `scope_card`: for soundness, zero knowledge and completeness, each against the protocol, the verifier run and the prover run, one of `machine_checked`, `paper`, `tested` or `not_stated`, with a quote each.
+
+Stated step: `none` or `not_stated`, red; `part` or `protocol`, amber in lesser part; `protocol_and_statement`, amber in part; `verifier_run` with a non-empty trusted base and `input_code_unverified` false, green; `verifier_run` otherwise, amber in part.
+
+The proof build: `results/<release>/proof-build/<system>/proof-build.json` (schema `proof-build/1`) records one build of the named theorem at the pin: the upstream repository and commit, the theorem's name and link, the toolchain (its name and version, spelled as `toolchain` spells them, and the sha256 digest of the image the build ran in, required), the command, its start and duration, the exit code, the status (`built` or `failed`), the last lines and the axioms the build reports. A record matches the row when its repository and commit are the properties file's pin, its theorem is `theorem`, and its toolchain name and version equal `toolchain`. With `toolchain` null, no record matches. Any other record counts as none, and the reason names it; a record at the pin for the theorem under another toolchain prints "the recorded build used {name} {version}, the publisher pins {name} {version}". Level 1 reads this record and does not make one.
+
+- MC-1. Not read: hollow, `not_read`.
+- MC-2. The stated step is red: red, `not_stated` when `reach` is `not_stated`, `stated` when it is `none`.
+- MC-3. A Model, Prompt or Reply check failed and the stated step is green: red, `check_failed`, basis `test`.
+- MC-4. A matching record has a status other than `built` or an exit code other than 0, or reports a set of axioms other than `axioms`: red, `check_failed`, basis `test`, lowered by the proof build. The reason prints the status and the exit code, or both lists of axioms.
+- MC-5. No matching record (including when `toolchain` is null): hollow, `proof_build_not_run`. The petal is not drawn from the publisher's words alone (Q10).
+- MC-6. Otherwise: the stated step.
+
+The petal grades soundness only: zero knowledge and completeness are claims about the prover, and they appear on the scope card. The scope card is printed on the system page as recorded facts and sets no state. Every outcome but MC-1 carries the stated step and the facts above in the board's `formal`.
+
+#### Weights hidden (`weights_hidden`)
+
+Facts (`hiding`):
+- `stated`: true, false or `not_stated`.
+- `verifier_gets_weights`: whether the verifier receives the weights.
+- `proof`: `none`; `protocol` (a zero-knowledge theorem exists for the protocol only); or `configuration_run` (its stated parameters include the configuration the row runs, batch size included).
+- `programs`: what the publisher says of its programs implementing the proved hiding: `stated`, `expected` or `not_stated`.
+- `visible_listed`: whether a list of visible values is published. When it is true, `visible` holds at least one item: the schema refuses an empty list.
+- `visible`: that list, each item with a quote and a tag: `statement_io` (prompt, reply, served or refused), `shape` (architecture and sizes), `side_channel` (time, lengths, failures, volume) or `fitted_to_weights` (only when the item's own quote says the value depends on or is fitted to the weights).
+
+- WH-1. The No weight file check failed: red, `check_failed`, basis `test`.
+- WH-2. Not read: hollow, `not_read`.
+- WH-3. `verifier_gets_weights` is true, or `stated` is false: red, `stated`. `stated` is `not_stated`: red, `not_stated`.
+- WH-4. `proof` is `none`: amber in lesser part.
+- WH-5. `proof` is `configuration_run`, `programs` is `stated`, `visible_listed` is true, `visible` is not empty and no item is tagged `fitted_to_weights`: green.
+- WH-6. Otherwise: amber in part; the reason names each condition that is missing.
+
+Items tagged `statement_io`, `shape` or `side_channel` are printed and never set a state.
+
+#### Faithful model (`faithful_model`)
+
+Measured from the rung's `fidelity.json`, basis `test` on every line. Two thresholds per rung come from the honest controls' scores over the same n prompts: T_green = (mean(rerun) + mean(Q8_0)) / 2 and T_upper = (mean(Q8_0) + mean(Q4_K_M)) / 2. The rerun is the honest control with recipe `rerun`; Q8_0 and Q4_K_M are the honest `quantize` controls of those types. A threshold is null, with its cause, when one of its controls is missing, failed, or holds a score count other than n.
+
+A row is **shown above** T when FI-4's sign-flip test on d_i = 2n·s_i − (S_a + S_b) gives p < `fidelity.alpha`, where s_i is the row's score on prompt i and S_a, S_b are the two controls' score sums over the n prompts. Since d_i = 2n·(s_i − T), a positive factor, the test is FI-4's test of the row against T, and the integers keep FI-4's exact count. The test is exact for n ≤ 20; above, its seed follows FI-4 with A the row's system id and B `T_green` or `T_upper`. `iproofs fidelity score` writes the thresholds (`steps`), each row's two tests (`step_tests`) and the fidelity run's slot count (`slots`, copied from `fidelity-run.json`) into `fidelity.json`. The glyph reads the stored tests and runs none; it recomputes each threshold from the stored controls' scores and stops on a difference (AGENTS.md rule 3). It also ties each non-null stored test `step_tests.<k>` to its threshold and stops on a mismatch: `threshold` is `T_green` for green and `T_upper` for upper, `value` equals `steps.<k>.value`, `n` equals the row's score count, and an exact test's p equals the one FI-4's sign-flip count gives again. alpha is `fidelity.json`'s `test.alpha`, which must equal the level's `fidelity.alpha` when the level is at hand; there is no default. Reasons print each threshold with its unit, FI-3's score: "T_green = 283.03 leading tokens".
+
+- FM-1. FIDELITY failed: red, `check_failed`.
+- FM-2. No `fidelity.json`, FIDELITY undecided, or no scores for the row: hollow, `not_decided`, with the cause.
+- FM-3. The policy on the claim card of the row's configuration is not exact match, or no claim card is found: amber in lesser part (the claim accepts tokens other than the proved model's own top token).
+- FM-4. No step tests are stored, or T_green or T_upper is null (the rerun, Q8_0 or Q4_K_M control is missing or failed): amber in lesser part; the reason names the control and its cause.
+- FM-5. Shown above T_green, and `slots` is 1: green.
+- FM-6. Shown above T_upper: amber in part. When the row is also shown above T_green and `slots` is not 1 or not stored, the reason says that the slot count kept green out of reach.
+- FM-7. Otherwise (FIDELITY held): amber in lesser part. This includes a row shown above T_green but not above T_upper.
+
+Green needs a fidelity run of one request at a time (`slots` 1), so the rerun that anchors T_green is not moved by batching. Every Level 1 rung names a rerun, a Q8_0 and a Q4_K_M honest control (`levels/L1.yaml`), GPT-2's F32 rung included. A rung without a Q4_K_M control has no T_upper, so its rows stay at amber in lesser part (FM-4).
+
+#### No third party trusted (`no_trusted_party`)
+
+Facts (`trust`):
+- `rests_on`: `transparent` (soundness rests on cryptographic assumptions alone and no setup ever produced a secret, as the quotes say or as the reader reads them, with a note, GL-1; public files fixed before the hash, or derived deterministically from public inputs, do not count against it: every non-interactive proof shares them); `open_ceremony` (a setup produced a secret in an open ceremony with a public transcript, whose secret stays unknown if one participant was honest); `fixed_parties` (one honest party among a fixed set, or a challenger in a challenge window); `single_party_setup`; `hardware_key`; `trusted_key`; or `not_stated`.
+- `publicly_checkable`: true, false or `not_said`: whether anyone can check a proof file, as opposed to an interactive or designated-verifier check.
+
+- NT-1. Not read: hollow, `not_read`.
+- NT-2. `rests_on` is `not_stated`: red, `not_stated`.
+- NT-3. `rests_on` is `single_party_setup`, `hardware_key` or `trusted_key`: red, `stated`.
+- NT-4. `rests_on` is `fixed_parties`, or `publicly_checkable` is false: amber in lesser part.
+- NT-5. `rests_on` is `open_ceremony`: amber in part.
+- NT-6. Otherwise (`transparent`, and publicly checkable or not said): green. With no note on `rests_on`, the reason reads "stated to rest on cryptographic assumptions alone, with no setup that produced a secret"; with a note, "read as resting on cryptographic assumptions alone; no quoted sentence says in words that no setup produced a secret".
+
+No reason says that the publisher states something its quotes do not say. No check lowers this petal. Which model a commitment names is not graded here (Q12, RFC-0016 ST-6).
 
 ### Order
 
@@ -166,7 +290,7 @@ The glyph shows how close a row is to a perfect prover: one that cannot be foole
 
 ### The board file
 
-`iproofs release board` writes `releases/<release>/board.json` (schema `board/1`) from the release index, the counted sessions' records and the rungs' `fidelity.json`. The site reads only this file and the claim cards. Shape:
+`iproofs release board` writes `releases/<release>/board.json` (schema `board/1`) from the runs `releases/<release>/release.yaml` lists (less its superseded runs; every run under `results/<release>/` while no `release.yaml` exists), the counted sessions' records, the properties files, any proof-build records and the rungs' `fidelity.json`. The site reads only this file and the claim cards. Shape:
 
 ```json
 {
@@ -191,19 +315,34 @@ The glyph shows how close a row is to a perfect prover: one that cannot be foole
       "incomplete_sessions": [{"run_id": "...", "exit_code": 1, "cause": "..."}],
       "fidelity": {"mean_prefix": 0.0, "p_above_bar": 0.0, "p_below_bar": 0.0, "kl": "<quantity or null>", "kl_note": "..."},
       "security": {"words": "...", "source": "<url>"},
-      "verify_seconds_per_reply": "<quantity>", "proof_bytes_per_reply": "<quantity>"
+      "verify_seconds_per_reply": "<quantity>", "proof_bytes_per_reply": "<quantity>",
+      "glyph": [
+        {"id": "unforgeable", "state": "amber", "step": "amber_lower", "cause": null, "basis": "statement",
+         "reason": "...", "quotes": [{"text": "...", "url": "<link at the pin>"}], "lowered_by": []},
+        {"id": "weights_hidden", "state": "amber", "step": "amber_upper", "cause": null, "basis": "statement",
+         "reason": "...", "quotes": [], "lowered_by": [], "visible": [{"item": "...", "tag": "side_channel", "quotes": [{"text": "...", "url": "<link at the pin>"}]}]},
+        {"id": "faithful_model", "state": "hollow", "step": null, "cause": "not_decided", "basis": "test",
+         "reason": "...", "quotes": [], "lowered_by": []},
+        {"id": "machine_checked", "state": "hollow", "step": null, "cause": "proof_build_not_run", "basis": "statement",
+         "reason": "...", "quotes": [], "lowered_by": [],
+         "formal": {"stated_step": "amber_upper", "reach": "protocol_and_statement", "tool": "...", "theorem": "...",
+                    "theorem_url": "<link at the pin>", "trusted_base": ["..."], "input_code_unverified": true,
+                    "scope_card": {"soundness": {"protocol": {"value": "machine_checked", "quotes": [{"text": "...", "url": "..."}]}}}}},
+        {"id": "no_trusted_party", "state": "green", "step": "green", "cause": null, "basis": "statement",
+         "reason": "...", "quotes": [{"text": "...", "url": "<link at the pin>"}], "lowered_by": [], "reading": true}
+      ]
     }]
   }]
 }
 ```
 
-Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). Rungs are in the level file's order (largest first). A rung no system has run yet is present with `rows: []`.
+Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). Rungs are in the level file's order (largest first). A rung no system has run yet is present with `rows: []`. `glyph` holds the five petals in drawing order (GL-5); no field sums them (GL-8). The example's values show the shape only; the scope card holds all nine cells, and `reading` appears only where a fact the decision read carries a note (GL-5).
 
 ### Site
 
 - SI-1. The overview is the ladder: the frontier headline, then one section per rung, largest first. A rung section has its head (model, publisher, total parameters, request, baseline line) and its rows in OR-5 order: position, glyph, system name, status (passed, or the checks not held), multiple, session cost per reply in USD, check time per reply, KL. Rows sort only by the order rule; column heads do not re-sort across positions.
 - SI-2. Withdrawn (owner decision, 2026-11-12): the overview prints no line on how its rows are ranked. The order rule, and that the glyph never moves a position, are stated on the checks page.
-- SI-3. The system page: the glyph with each petal's state, basis, reason and quotes; the six checks with state, cause and evidence links; the sessions; the cost parts; fidelity beside the rung's controls.
+- SI-3. The system page: the glyph with each petal's step in words, cause, basis, reason and quotes, Machine-checked's scope card as recorded facts (it sets no state) and Weights hidden's list of visible values; the six checks with state, cause and evidence links; the sessions; the cost parts; fidelity beside the rung's controls.
 - SI-4. Systems not run are listed after the ladder, alphabetical, each with one fixed reason (`licence`, `no public verifier`, `no configuration at the request`, `another kind of check`, `not yet run`) from `web/_data/facts.json`.
 - SI-5. No figure of v0.1 is printed. The v0.1 release stays in the repository as a record.
 - SI-6. Words: measurement vocabulary only. "Passed" is said of a system on a model ("FlashProve passed on Llama 4 Maverick"), never of a model. No "secure", "best", "neutral" or "independent".
@@ -234,6 +373,9 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 | The baseline ladder fails at a concurrency | that rung of the ladder is recorded failed; full load is chosen among the rest; with none, the rung has no multiple |
 | A fidelity control fails to run | it is absent from the bar choice and printed as failed |
 | A trace file is missing for a counted verdict | NO WEIGHT FILE `undecided`, `not run` |
+| A statement petal's properties file is missing, is not `properties/2`, or was read at another commit, or the row's commit is not recorded | the petal is hollow, `not_read` (GL-3); `release freeze` refuses the release (GL-9) |
+| Machine-checked is stated above red and no proof build matching the row is recorded (another commit, theorem or toolchain, or no pinned toolchain stated) | hollow, `proof_build_not_run` (MC-5) |
+| A recorded proof build failed or exited other than 0, or reports a set of axioms other than the declared one | Machine-checked red, `check_failed` (MC-4) |
 | The beacon relays disagree | `level beacon` fails; no prompt set is written |
 
 ## Alternatives Considered
@@ -243,7 +385,10 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 - **Keep the documentation glyph.** Rejected by the owner, 2026-11-10: a reader takes colour for a test result.
 - **A request per rung** (512 + 64 on Maverick). Kept as the fallback if a probe shows 512 + 512 cannot run; it would be printed in the rung head and change the multiple's meaning across rungs.
 - **KL as a gate.** Rejected for Level 1: the figure comes from a program that is not the proved computation, so it may remove nothing and earn nothing. It is printed. Level 2 binds it.
-- **A security floor now.** Rejected for Level 1: tests cannot tell 60 bits from 128, and the levels publishers state are not comparable without recomputation. OR-2 requires a stated level; Level 2 announces the floor.
+- **A security floor now.** Rejected for Level 1: tests cannot tell 60 bits from 128, and the levels publishers state are not comparable without recomputation. OR-2 requires a stated level; Level 2 announces the floor. Unforgeable's cut points (UF-5 to UF-8) are not that floor: they read the exponents the publisher states, compute no figure, and set a petal step that never moves a position (GL-4).
+- **Keep Any model.** Rejected (Q6): it counted the rungs a system passed on, and the system page already says which rung a row runs on.
+- **Compute a bits figure.** Rejected (Q9): a security level the benchmark assigns is the benchmark interpreting security proofs, which RFC-0002 rejects (INV-CLAIM-2; §Alternatives, benchmark-assigned security levels), and the conventions differ by tens of bits (the least exponent, or the bound at a fixed query budget). The publisher's expression is printed as a quote.
+- **Draw Machine-checked from the publisher's words.** Rejected (Q10): the only system that fills it today is published by the maker of the model that drafted these rules. The petal stays hollow until a build of the named theorem is recorded (MC-5).
 
 ## Drawbacks
 
@@ -251,6 +396,9 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 - The fidelity gate is coarse at 15 replies on the 8B rung; it stops gross damage, and KL carries the finer reading.
 - Tests cannot tell a proof from a signature. The page says what is not tested.
 - The request 512 + 512 has not run on either system at its pin (RISK below).
+- A statement petal's step rests on facts one reviewer copies, so a misread fact moves a step. Each fact carries its quote and link at the pin, and a reading carries a note, so anyone can check it.
+- Machine-checked is hollow on every row until a proof build is recorded, and today only one system states a machine-checked proof, so the petal says little at launch.
+- The Maverick fidelity run uses 16 slots (docs/runbooks/level-1.md), so no Maverick row reaches green on Faithful model (FM-5) until that rung's fidelity run is made one request at a time.
 
 RISK: FlashProve's window is 1,024 tokens and its exact-match whole-reply runs at the pin were scripted, not on the released programs (`integrations/LIMITS.md` L110 to L119). SASH has never run at 512 + 512. Plan: the probes of `docs/runbooks/level-1.md` run first; if either system cannot run the request, the fallback above is put to the owner before any counted run.
 
@@ -259,6 +407,7 @@ RISK: FlashProve's window is 1,024 tokens and its exact-match whole-reply runs a
 - New: `levels/L1.yaml`, `schema/level/1.schema.json`, `schema/board/1.schema.json`, `iproofs.level`, `iproofs.checks`, `iproofs.board`, `iproofs.fidelity`, `systems/ref-fidelity/`, the workloads `l1-maverick-p512-o512` and `l1-l31-8b-p512-o512`, the prompt generator `beacon-window/1`, `docs/runbooks/level-1.md`.
 - Changed: the steady rule (CO-2, CO-3) replaces RFC-0004 INV-SCOPE-5 for Level 1 runs; v0.1's stored figures are not recomputed in place. RFC-0016's properties and `web/_data/criteria.json` no longer drive the site. RFC-0017 Part B is replaced by this RFC. The serving baseline at a matched batch (RFC-0015 SRV-1) is replaced by the ladder (CO-4) for Level 1.
 - AGENTS.md, README, PRD: the project ranks inside a rung by the order rule; the no-ranking rule now forbids ranking across rungs and by any other figure.
+- Amendment of 2026-11-13 (petals): `properties/2` replaces `properties/1` (a new major; /1 stays in the tree). `board/1` is changed in place (any_model removed, step, cause and lowered_by required, basis run removed): no release is frozen and the one stored board, releases/v1.0/board.json, is recomputed by `iproofs release board` in the same change (RFC-0012 amendment of 2026-11-13). `fidelity/1` gains optional `slots`, `steps` and `step_tests`. `proof-build/1` is new; its `toolchain.image` is a required sha256 digest. Review fixes of the same day, in place: `properties/2` gains `bound.batch`, `bound.program` and `formal.toolchain`, and refuses `visible_listed` true with an empty `visible`; the board petal gains the optional `reading`. No RFC-0002 amendment is needed: `properties/2` holds `formal` (RFC-0016 L189).
 
 ## Testing Strategy
 
@@ -267,20 +416,48 @@ RISK: FlashProve's window is 1,024 tokens and its exact-match whole-reply runs a
 - `test_fidelity.py`: the exact sign-flip test on n = 15 against a hand count; the bar rule with no qualifying control; the seeded Monte Carlo is deterministic.
 - `test_board.py`: the order rule on hand-built rows (margin, spread, ties, unranked, no steady state).
 - `test_level.py`: the level file validates; the beacon seed from a stored round.
+- `test_glyph.py`: one case per line of each decision table (UF-1 to UF-9, MC-1 to MC-6, WH-1 to WH-6, FM-1 to FM-7, NT-1 to NT-6) on facts built in the test, the strict `<` at 80 and 100 included; replies per proof read from `system.yaml` and the batch size from the workload; the offline check of the expression against its terms (an omitted term, a term that is only part of a number); a proof build under another toolchain; a row with no recorded commit; a stored threshold that its controls do not give, or a stored test not tied to its threshold, stops the board; and the real `systems/flashprove` and `systems/sash` properties files read through the decision functions, one (step, cause) per petal.
+- `test_fidelity.py`: the step test against a hand count (n = 3), the Monte Carlo seed above `exact_up_to`, and the thresholds computed from the controls' scores.
+- `test_freeze.py`: `release freeze` refuses a release with a listed run whose properties file is at another commit, with no `board.json` present, and `validate` refuses a board with a `not_read` petal in a frozen release (GL-9).
+- Schema examples, `board/1` changed in place: invalid examples for a step that does not match its state, a red petal without a cause, a hollow petal with a step, an integer step, a petal id outside the five, `formal` on another petal and `check_failed` without `lowered_by`; for `properties/2`, a typed `state`, an unknown petal, a decided fact without quotes and `visible_listed` true with an empty `visible`; for `proof-build/1`, a built record with a nonzero exit code, a failed one without last lines and a null image.
 
 ## Conflicts of Interest
 
 This text was drafted with an AI agent, Claude, made by Anthropic, which publishes FlashProve. The rules that most affect FlashProve are the request size (CO-1 counts generation, which FlashProve does in a plug-in), the baseline (CO-4) and OR-2 (FlashProve's card states its levels for the Lean verifier, not for `cp_verify`, which the row runs).
 
+Amendment of 2026-11-13 (§The glyph). These rules were drafted with Claude, made by Anthropic, which publishes FlashProve. On Machine-checked, FlashProve is the only listed system that can be above red today. The proof-build rule keeps it hollow until a build of the named theorem has been recorded at the pin with the pinned toolchain (MC-5). The research report also asked that someone with no tie to a listed system sign off Machine-checked's step table before the petal is drawn. That sign-off is not in the rule (Q10), and leaving it out favours FlashProve.
+
+These readings favour FlashProve and are taken:
+- A bound proved for the protocol counts for Unforgeable (Q8). The report marks this as the reading more favourable to FlashProve. The rule also asks that the publisher state or prove that the program the row runs implements the protocol (`bound.program`). FlashProve writes that neither of its figures is claimed for the C++ programs, which the row runs, so its `program` is `not_stated` and the reading does not raise its step today.
+- Which model a commitment names is not graded (Q12). The report notes that not grading it keeps FlashProve green on No third party trusted.
+- FlashProve's `trust.rests_on: transparent` is a reading, with its quotes: the theorems hold at every public setup of three public files, whatever the committer and the prover, and the soundness theorem has no hypothesis beyond its statement. No sentence at the pin says in words that no setup produced a secret, so the fact carries a note, the petal carries `reading`, and the green reason says "read as" (NT-6). A reviewer who reads it as `not_stated` turns No third party trusted red (NT-2). The definition of `transparent` does not count public files fixed before the hash. FlashProve writes that no file shows its public files were fixed before the provider could tune them to the hash function, and that the reader grants it. The same carve-out applies to SASH's public statement file, so it does not separate the two systems today.
+- FlashProve's `formal.reach: protocol_and_statement`: the model statement is the publisher's own Lean integer model, and the publisher writes that no theorem describes its constant look-up tables and that what a scale file switches off was worked out by hand, not proved. Read as `protocol`, the stated step would be amber in lesser part, not amber in part. The petal is hollow today (MC-5), so the reading shows only once a build is recorded.
+
+The other values the integrator read rather than copied also carry a `note`, and the board marks each petal that read one (`reading`, GL-5). On Unforgeable, the batch is the first condition FlashProve's row fails (UF-9); its `conditions_shown` and `program` fail too. FlashProve states that N proofs handed in at once under one commitment, or N members of a batch, cost N times the error of one, and that for proofs checked one after another, or members checked in separate sessions, no bound is stated (`bound.batch: together`). The row proves its replies in batches of 24 and the harness checks each reply in its own verify call, so the bound does not cover the run.
+
+Besides the settings fitted to the weights, two of FlashProve's visible values, that the checks of `cp_commit` passed and the masked sums of the weights, are tagged `fitted_to_weights` by the literal rule, because their quotes say the value depends on the weights. The step does not change: a zero-knowledge proof for the protocol only already sets amber in part (WH-6).
+
 ## Decisions
 
 - Q1. Ladder, ranked inside a rung (owner, 2026-11-10).
-- Q2. The glyph is the six checks (owner, 2026-11-10); this reverses the documentation glyph and "Not stated drawn as No".
+- Q2. The glyph is the six checks (owner, 2026-11-10); this reverses the documentation glyph and "Not stated drawn as No". Correction (2026-11-13): superseded by the owner's decisions of 2026-11-10 recorded in §The glyph: the glyph is the distance from passing the checks to a perfect prover, the six checks are the entry gate and not the glyph (CH-7), and silence is drawn red (GL-1). The glyph is the five petals of §The glyph.
 - Q3. Both rungs are run before anything is announced (owner, 2026-11-10).
 - Q4. Disclosure wording is set by the owner before launch.
 - Q5. No separate correction release: the project is updated, the Level 1 runs are made, then the site is deployed.
+- Q6. The petals are Unforgeable, Weights hidden, Faithful model, Machine-checked and No third party trusted, in that drawing order, each at one of four steps or not decided. Any model is removed: the system page already says which rung a row runs on. Only the verifier trusted is printed as No third party trusted, since the treaty language makes the Verifier a party; its id `no_trusted_party` is kept (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's recommendation in its section 1, Machine-checked in the slot of Any model, and its recommended answer to open question 6, the names; not decided by the owner).
+- Q7. A property not stated stays red (GL-1) and is drawn as an outline in the red ink, its name not struck; a red that is stated or set by a failed check stays solid, its name struck, its cause in words. Amber in lesser part is drawn as the arm with its end cell cut off (adopted 2026-11-13 under the owner's request to update the criteria from the research: the glyph proposal of 2026-11-12, which the owner accepted, draws amber in lesser part with its end cell cut off and, after its blind readings, proposes the red outline for silence; the research report's answer to its open question 3 was one solid red with the cause in words; not decided by the owner).
+- Q8. A bound proved for the protocol counts for Unforgeable when it covers the row's parameters, unit, batch and adversary and the publisher states or proves that the program the row runs implements that protocol (`bound.program`); how far a machine-checked proof reaches toward that program is Machine-checked's (GL-6). Proved comes before magnitude: a conjectured bound reaches amber in lesser part at most. The cut points are 128, 100 and 80 on stated exponents (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's recommended answer to its open question 1, narrowed, and its section 2 on grading Unforgeable. The narrowing: the report counts a program the publisher states is meant to implement the protocol; `bound.program` records `not_stated` when the publisher also says the bound is not claimed for that program. This is the reading less favourable to FlashProve, and it moves no step today. Not decided by the owner).
+- Q9. The benchmark computes and prints no bits figure: the board prints the publisher's bound as a quote, with its terms, and compares each stated exponent with 80, 100 and 128 (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's recommended answer to its open question 2; not decided by the owner).
+- Q10. Machine-checked is hollow until a build of the named theorem is recorded at the row's commit, with the pinned toolchain and the declared axioms (MC-5); the scope card is printed in the meantime (adopted 2026-11-13 under the owner's request to update the criteria from the research: the first half of the research report's recommended answer to its open question 5, a recorded build; the second half, a sign-off of Machine-checked's step table by a reviewer with no tie to a listed system, is not adopted and is open to the owner; not decided by the owner).
+- Q11. Faithful model's steps are two thresholds from the rung's honest controls: the midpoint between the rerun and Q8_0 for green, the midpoint between Q8_0 and Q4_K_M for amber in part, each shown by FI-4's test; green also needs a fidelity run of one request at a time, and a control a step needs that did not run sets amber in lesser part, FM-4 (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's recommended answer to its open question 7 and its Faithful model table. That green needs a fidelity run of one request at a time (`slots` 1) is the criteria brief's of 2026-11-13: the report notes that the rerun runs one request at a time and calls a green threshold from a run of 16 at a time provisional. Where that table draws the petal hollow when a control a step needs did not run, the criteria brief of 2026-11-13 sets amber in lesser part; not decided by the owner).
+- Q12. Which model a commitment names is not graded on No third party trusted (RFC-0016 ST-6). It is to be decided before a closed-weights level (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's recommended answer to its open question 4, do not grade it yet; the disclosure line the report recommends is left out of this amendment by the criteria brief; not decided by the owner).
+- Q13. Architecture hiding is not a petal and not a step (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's section 2, architecture hiding stays out of the glyph; the disclosure list the report recommends is left out of this amendment by the criteria brief; not decided by the owner).
+- Q14. `board/1` is changed in place, not given a new major: no release is frozen, and the one stored board is recomputed in the same change, as §Migration and RFC-0012's amendment of 2026-11-13 say (adopted 2026-11-13 under the owner's request to update the criteria from the research: decided by the implementation spec of 2026-11-13, not by the report; not decided by the owner).
 
 ## References
 
 - [RFC-0004](0004-metrics-timing-grades.md) INV-SCOPE-5; [RFC-0008](0008-negative-controls.md) C1 to C3, P1; [RFC-0015](0015-reference-rows.md) SRV-6; [RFC-0017](0017-requests-tasks-and-tested-states.md) INV-REQ-2, TASK-2, TASK-3.
 - drand quicknet: <https://docs.drand.love/> (read 2026-11-10).
+- [RFC-0002](0002-claim-card.md) INV-CLAIM-2 and §Alternatives Considered; [RFC-0016](0016-glyph-properties-and-states.md) ST-5, ST-6, INV-GLYPH-1.
+- Ethereum Foundation, zkEVM security foundations: <https://blog.ethereum.org/2025/12/18/zkevm-security-foundations> (read 2026-11-12); ethproofs, soundness colours: <https://github.com/ethproofs/ethproofs/blob/dev/components/zkvms-table/zkvm-pie-chart.tsx> (read 2026-11-12).
+- NIST SP 800-57 Part 1 Rev. 5, Recommendation for Key Management: <https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-57pt1r5.pdf> (read 2026-11-12).

@@ -376,69 +376,439 @@
           "glyph": [
             {
               "basis": "statement",
+              "cause": null,
               "id": "unforgeable",
+              "lowered_by": [],
               "quotes": [
                 {
                   "text": "The Lean verifier accepts a proof of a false claim with probability at most about q/2^124 + 2^-101 after q hash queries (about 124 bits per query; not \"128 bits\")",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L70"
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L47"
                 },
                 {
-                  "text": "Nothing is proved of the C++ verifier that the examples and most users run, of the CUDA prover, or of the committer, and no theorem says that they run the protocol the Lean verifier checks: that rests on tests.",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L272-L277"
+                  "text": "Lean's kernel has checked the proof.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L51"
+                },
+                {
+                  "text": "The bound is for one commitment, one prompt, one output, one proof and one call of `verify`.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L150-L151"
+                },
+                {
+                  "text": "**One proof.** N proofs handed in at once under one commitment, or N members of a batch, cost N times that error, taken at the whole list's hash queries; for proofs checked one after another, or members checked in separate sessions, no bound is stated.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L66-L68"
+                },
+                {
+                  "text": "for separate sessions no theorem states it.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L373"
+                },
+                {
+                  "text": "against a committer and a prover who may both cheat",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L142"
+                },
+                {
+                  "text": "so nothing is claimed against a quantum adversary",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L394-L395"
+                },
+                {
+                  "text": "**One proof format and model size:** full size, not the small examples",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L62"
+                },
+                {
+                  "text": "Neither figure, 124 bits per query or 128 bits per round, is claimed for the C++ programs.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L70"
+                },
+                {
+                  "text": "At all other files in scope nothing is known, so there the theorem may hold only because `verify` rejects everything.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L314-L315"
+                },
+                {
+                  "text": "The proofs from the runs on real weights were checked by `cp_verify` alone; none has been put to the Lean verifier",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L227-L228"
+                },
+                {
+                  "text": "public files that are fixed before the hash function is sampled (a provider that tunes them to the real hash function is outside the statement)",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L149-L150"
+                },
+                {
+                  "text": "No file shows that they were fixed before the provider could tune them to the hash function: that you grant.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L288-L289"
+                },
+                {
+                  "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L7-L8"
                 },
                 {
                   "text": "The C++ programs' printed \"bits\" are their own accounting, not a theorem",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L65-L73"
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L65-L66"
                 }
               ],
-              "reason": "A soundness level is proven for the protocol, in Lean, for the Lean verifier; the C++ verifier this row runs is tested, not proved.",
-              "state": "amber"
+              "reading": true,
+              "reason": "stated for batch members handed in together, not for members checked alone; the harness checks each of the row's 24 replies in its own call: q/2^124 + 2^-101",
+              "state": "amber",
+              "step": "amber_lower"
             },
             {
               "basis": "statement",
+              "cause": null,
               "id": "weights_hidden",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol, at full size and at the exact-match policy, with fresh random masks. The honest prover in these theorems is a Lean definition, not the CUDA prover.",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3-L5"
+                  "text": "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol, at [full size](terms.md) and at the exact-match policy, with fresh random masks.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3"
                 },
                 {
-                  "text": "we expect, rather than know, that the programs hide the weights at the default setting, in honest runs, if the provider keeps its duties",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L9-L27"
+                  "text": "Anyone can check the proof on an ordinary CPU in seconds with `cp_verify`, without the weights.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L15-L16"
+                },
+                {
+                  "text": "batches, which are what the programs serve, are not covered",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L5"
+                },
+                {
+                  "text": "we expect, rather than know, that the programs hide the weights at the default setting, in honest runs, if the provider keeps its duties (this does not reach any real model's weights, or the parameter file and scales fitted to them",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3"
+                },
+                {
+                  "text": "Anything else is outside it, and so is any real model, the example's too, because it needs a parameter file fitted to it",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L37"
                 },
                 {
                   "text": "At least eleven things are visible",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L5-L21"
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L5"
                 }
               ],
-              "reason": "Zero knowledge is proved in Lean for the protocol; for the programs it is expected, not known, and a declared list of values stays visible.",
-              "state": "amber"
+              "reading": true,
+              "reason": "proved for the protocol, not the configuration the row runs; programs not stated to hide the weights; visible values fitted to the weights: \"Settings fitted to the weights\", \"That cp_commit's checks passed\", \"Masked sums of the weights, public for good\"",
+              "state": "amber",
+              "step": "amber_upper",
+              "visible": [
+                {
+                  "item": "Each reply.",
+                  "quotes": [
+                    {
+                      "text": "**Each reply.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L53"
+                    }
+                  ],
+                  "tag": "statement_io"
+                },
+                {
+                  "item": "Whether a request was served or failed.",
+                  "quotes": [
+                    {
+                      "text": "**Whether a request was served or failed.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L58"
+                    }
+                  ],
+                  "tag": "statement_io"
+                },
+                {
+                  "item": "Time.",
+                  "quotes": [
+                    {
+                      "text": "**Time.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L64"
+                    }
+                  ],
+                  "tag": "side_channel"
+                },
+                {
+                  "item": "The architecture and every size.",
+                  "quotes": [
+                    {
+                      "text": "**The architecture and every size.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L72"
+                    }
+                  ],
+                  "tag": "shape"
+                },
+                {
+                  "item": "Settings fitted to the weights.",
+                  "quotes": [
+                    {
+                      "text": "**Settings fitted to the weights.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L74"
+                    },
+                    {
+                      "text": "Two sets of public values are computed from the weights and a calibration set.",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L74"
+                    }
+                  ],
+                  "tag": "fitted_to_weights"
+                },
+                {
+                  "item": "That cp_commit's checks passed.",
+                  "quotes": [
+                    {
+                      "text": "**That `cp_commit`'s checks passed.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L80"
+                    },
+                    {
+                      "text": "So it says that every weight outside the embedding lies in its declared range",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L80"
+                    }
+                  ],
+                  "tag": "fitted_to_weights"
+                },
+                {
+                  "item": "That a batch failed or the service stopped.",
+                  "quotes": [
+                    {
+                      "text": "**That a batch failed or the service stopped.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L84"
+                    }
+                  ],
+                  "tag": "side_channel"
+                },
+                {
+                  "item": "How much a provider has served, and when.",
+                  "quotes": [
+                    {
+                      "text": "**How much a provider has served, and when.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L92"
+                    }
+                  ],
+                  "tag": "side_channel"
+                },
+                {
+                  "item": "Who shared a batch, and how many.",
+                  "quotes": [
+                    {
+                      "text": "**Who shared a batch, and how many.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L97"
+                    }
+                  ],
+                  "tag": "side_channel"
+                },
+                {
+                  "item": "Lengths, places in the batch and nonces.",
+                  "quotes": [
+                    {
+                      "text": "**Lengths, places in the batch and nonces.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L99"
+                    }
+                  ],
+                  "tag": "side_channel"
+                },
+                {
+                  "item": "Masked sums of the weights, public for good.",
+                  "quotes": [
+                    {
+                      "text": "**Masked sums of the weights, public for good.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L102"
+                    },
+                    {
+                      "text": "`cp_commit` publishes, for each row of each weight table, a sum of the row's weights with public factors.",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L102"
+                    }
+                  ],
+                  "tag": "fitted_to_weights"
+                }
+              ]
             },
             {
               "basis": "test",
+              "cause": "not_decided",
               "id": "faithful_model",
+              "lowered_by": [],
               "quotes": [],
-              "reason": "no fidelity run stored",
-              "state": "hollow"
-            },
-            {
-              "basis": "run",
-              "id": "any_model",
-              "quotes": [],
-              "reason": "passed on 0 of 3 rungs; a check is still undecided",
-              "state": "hollow"
+              "reason": "no fidelity.json stored",
+              "state": "hollow",
+              "step": null
             },
             {
               "basis": "statement",
-              "id": "no_trusted_party",
+              "cause": "proof_build_not_run",
+              "formal": {
+                "input_code_unverified": true,
+                "reach": "protocol_and_statement",
+                "scope_card": {
+                  "completeness": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "In one line: proved in Lean for the protocol, on served requests, at the exact-match policy",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L149"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "In the code both are tested, not verified",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L24"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [
+                        {
+                          "text": "In the code both are tested, not verified",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L24"
+                        }
+                      ],
+                      "value": "tested"
+                    }
+                  },
+                  "soundness": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "**Soundness** is proved, in Lean, for the verifier written in Lean",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L3"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L7-L8"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [
+                        {
+                          "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L7-L8"
+                        }
+                      ],
+                      "value": "tested"
+                    }
+                  },
+                  "zero_knowledge": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "| The C++ and CUDA programs | nothing: not proved; tested |",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L21"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  }
+                },
+                "stated_step": "amber_upper",
+                "theorem": "VerifierAndGoals.AtTheName.sound_of_verify_at",
+                "theorem_url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/Johnson/Goal/Skeleton/SoundOfVerifyAt.lean#L69",
+                "tool": "Lean 4, kernel 4.29.1",
+                "trusted_base": [
+                  "Lean's kernel",
+                  "propext",
+                  "Classical.choice",
+                  "Quot.sound"
+                ]
+              },
+              "id": "machine_checked",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "The random-oracle model for the hash, with a second, fixed hash function, built on BLAKE2b's compression function, assumed independent of it",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L57-L58"
+                  "text": "**Soundness** is proved, in Lean, for the verifier written in Lean",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L3"
+                },
+                {
+                  "text": "At each position it is the greedy next token after the prompt and the output's own earlier tokens, as an integer program computes it, not the floating-point model.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L231-L233"
+                },
+                {
+                  "text": "That this interactive oracle proof is the protocol of the C++ programs is not proved",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L267-L268"
+                },
+                {
+                  "text": "Scale files in scope can switch off any of the model's blocks, up to all of them (worked out by hand, not proved).",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L229-L231"
+                },
+                {
+                  "text": "No theorem describes the five constant look-up tables in the Lean text (cosine, sine, the exponential, SiLU and the sigmoid).",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L242-L243"
+                },
+                {
+                  "text": "the kernel checks proofs, not what a definition means",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L83"
+                },
+                {
+                  "text": "The protocol's soundness is proved in Lean 4.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L26"
+                },
+                {
+                  "text": "the pinned version, 4.29.1, is older than fixes of publicly known soundness bugs in it",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L382-L383"
+                },
+                {
+                  "text": "leanprover/lean4:v4.29.1",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/lean-toolchain#L1"
+                },
+                {
+                  "text": "**Lean's kernel and three standard axioms:** `propext`, `Classical.choice`, `Quot.sound`.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L381"
+                },
+                {
+                  "text": "Five of the files that this function takes come from a parser outside Lean, of which nothing is proved",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L64-L65"
                 }
               ],
-              "reason": "Soundness is stated in the random-oracle model for the hash, with no setup ceremony, hardware or third party. Public files fixed before the hash, which the documents also name, are shared by every non-interactive proof and do not count against it.",
-              "state": "green"
+              "reading": true,
+              "reason": "no proof build recorded for VerifierAndGoals.AtTheName.sound_of_verify_at; stated reach: the protocol and the model's statement",
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": null,
+              "id": "no_trusted_party",
+              "lowered_by": [],
+              "quotes": [
+                {
+                  "text": "Six theorems are proved in Lean of one committer, prover and verifier, `compile (flashProve setup)`, at every public setup `setup` (`PublicSetup`: three public files, what the reader returns at them, and `FilesInUse`).",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L3-L5"
+                },
+                {
+                  "text": "`Sound` says that there is one extractor such that, whatever the committer and the prover, `verify` accepts a false claim with probability at most the bound at q = a + b.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L276-L277"
+                },
+                {
+                  "text": "public files that are fixed before the hash function is sampled (a provider that tunes them to the real hash function is outside the statement)",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L149-L150"
+                },
+                {
+                  "text": "the soundness theorem on `verify` has no hypothesis beyond those in its statement, so nothing more is assumed by that road.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L413-L414"
+                },
+                {
+                  "text": "**The random-oracle model** for the hash, with a second, fixed hash function, built on BLAKE2b's compression function, assumed independent of it, against classical adversaries.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L57-L58"
+                },
+                {
+                  "text": "the random oracle and the second hash function belong to the statement, not to the proof's axioms.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L159-L160"
+                },
+                {
+                  "text": "Anyone can check the proof on an ordinary CPU in seconds with `cp_verify`, without the weights.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L15-L16"
+                }
+              ],
+              "reading": true,
+              "reason": "read as resting on cryptographic assumptions alone; no quoted sentence says in words that no setup produced a secret",
+              "state": "green",
+              "step": "green"
             }
           ],
           "incomplete_sessions": [],

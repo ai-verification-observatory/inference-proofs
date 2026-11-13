@@ -1,0 +1,978 @@
+{
+  "$defs": {
+    "fact": {
+      "$comment": "one fact the glyph is computed from: its value and the publisher's deciding passages",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "GL-1: a fact that says something carries its deciding quotes; a silent value (false, not_said, not_stated, null, an empty list) may carry none",
+          "else": {
+            "properties": {
+              "quotes": {
+                "minItems": 1
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "value": {
+                "enum": [
+                  false,
+                  "not_said",
+                  "not_stated",
+                  null,
+                  []
+                ]
+              }
+            },
+            "required": [
+              "value"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "note": {
+          "$comment": "the reviewer's reading when the value is read rather than said in words; printed nowhere (RFC-0018 §Conflicts of Interest)",
+          "minLength": 1,
+          "type": "string"
+        },
+        "quotes": {
+          "$ref": "#/$defs/quotes"
+        },
+        "value": true
+      },
+      "required": [
+        "value",
+        "quotes"
+      ],
+      "type": "object"
+    },
+    "fact_open": {
+      "$comment": "a fact without the silent-value quote rule, for hiding.proof, whose value `none` may carry no quote",
+      "additionalProperties": false,
+      "properties": {
+        "note": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "quotes": {
+          "$ref": "#/$defs/quotes"
+        },
+        "value": true
+      },
+      "required": [
+        "value",
+        "quotes"
+      ],
+      "type": "object"
+    },
+    "quote": {
+      "$comment": "a deciding passage: `text` is a substring of the file at `url`, read at the pin, after each run of whitespace in both is collapsed to one space; markup and comment markers are kept (RFC-0018 GL-1). The pin and the substring are checked outside the schema.",
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "url": {
+          "format": "uri",
+          "minLength": 1,
+          "pattern": "^https://",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "url"
+      ],
+      "type": "object"
+    },
+    "quotes": {
+      "items": {
+        "$ref": "#/$defs/quote"
+      },
+      "type": "array"
+    },
+    "scope_cell": {
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "quotes": {
+                "minItems": 1
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "value": {
+                "const": "not_stated"
+              }
+            },
+            "required": [
+              "value"
+            ]
+          }
+        }
+      ],
+      "properties": {
+        "quotes": {
+          "$ref": "#/$defs/quotes"
+        },
+        "value": {
+          "enum": [
+            "machine_checked",
+            "paper",
+            "tested",
+            "not_stated"
+          ]
+        }
+      },
+      "required": [
+        "quotes",
+        "value"
+      ],
+      "type": "object"
+    },
+    "sources_read": {
+      "$comment": "the publisher's files read at the pin, paths in the upstream repository; required non-empty where the deciding fact is silent",
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "visible_item": {
+      "additionalProperties": false,
+      "properties": {
+        "item": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "quotes": {
+          "items": {
+            "$ref": "#/$defs/quote"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "tag": {
+          "$comment": "fitted_to_weights only when the item's own quote says the value depends on or is fitted to the weights; the others are printed and set no state",
+          "enum": [
+            "statement_io",
+            "shape",
+            "side_channel",
+            "fitted_to_weights"
+          ]
+        }
+      },
+      "required": [
+        "item",
+        "quotes",
+        "tag"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/properties/2.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "systems/<name>/properties.yaml: the facts each statement petal of the glyph is computed from, copied by a reviewer from the publisher's documents at the pin with their deciding quotes (RFC-0018 §The glyph, GL-1). No state, step or reason is typed: iproofs.glyph computes them. Faithful model is measured and has no entry here.",
+  "properties": {
+    "configuration": {
+      "$ref": "../quantity/1.schema.json#/$defs/configurationId"
+    },
+    "petals": {
+      "additionalProperties": false,
+      "properties": {
+        "machine_checked": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "$comment": "silence names the documents read",
+              "if": {
+                "properties": {
+                  "formal": {
+                    "properties": {
+                      "reach": {
+                        "properties": {
+                          "value": {
+                            "const": "not_stated"
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "reach"
+                    ]
+                  }
+                },
+                "required": [
+                  "formal"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "sources_read": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "formal": {
+              "additionalProperties": false,
+              "properties": {
+                "axioms": {
+                  "$comment": "the declared axioms a proof build must report; each is also an item of trusted_base",
+                  "items": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "input_code_unverified": {
+                  "$comment": "true when named code that reads inputs sits outside the proof",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "reach": {
+                  "$comment": "how far a machine-checked proof of soundness reaches toward the verifier program the row runs; none needs a quote (the publisher says nothing is machine-checked)",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "none",
+                        "part",
+                        "protocol",
+                        "protocol_and_statement",
+                        "verifier_run",
+                        "not_stated"
+                      ]
+                    }
+                  }
+                },
+                "scope_card": {
+                  "$comment": "recorded facts printed on the system page; they set no state",
+                  "additionalProperties": false,
+                  "properties": {
+                    "completeness": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "protocol": {
+                          "$ref": "#/$defs/scope_cell"
+                        },
+                        "prover_run": {
+                          "$ref": "#/$defs/scope_cell"
+                        },
+                        "verifier_run": {
+                          "$ref": "#/$defs/scope_cell"
+                        }
+                      },
+                      "required": [
+                        "protocol",
+                        "verifier_run",
+                        "prover_run"
+                      ],
+                      "type": "object"
+                    },
+                    "soundness": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "protocol": {
+                          "$ref": "#/$defs/scope_cell"
+                        },
+                        "prover_run": {
+                          "$ref": "#/$defs/scope_cell"
+                        },
+                        "verifier_run": {
+                          "$ref": "#/$defs/scope_cell"
+                        }
+                      },
+                      "required": [
+                        "protocol",
+                        "verifier_run",
+                        "prover_run"
+                      ],
+                      "type": "object"
+                    },
+                    "zero_knowledge": {
+                      "additionalProperties": false,
+                      "properties": {
+                        "protocol": {
+                          "$ref": "#/$defs/scope_cell"
+                        },
+                        "prover_run": {
+                          "$ref": "#/$defs/scope_cell"
+                        },
+                        "verifier_run": {
+                          "$ref": "#/$defs/scope_cell"
+                        }
+                      },
+                      "required": [
+                        "protocol",
+                        "verifier_run",
+                        "prover_run"
+                      ],
+                      "type": "object"
+                    }
+                  },
+                  "required": [
+                    "soundness",
+                    "zero_knowledge",
+                    "completeness"
+                  ],
+                  "type": "object"
+                },
+                "theorem": {
+                  "$comment": "the theorem's full name, as the tool prints it",
+                  "minLength": 1,
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "theorem_url": {
+                  "$comment": "the theorem at the pin",
+                  "format": "uri",
+                  "minLength": 1,
+                  "pattern": "^https://",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "tool": {
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "minLength": 1,
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "toolchain": {
+                  "$comment": "the toolchain the publisher pins for the proof, name and version copied exactly as its toolchain file (or sentence) at the pin writes them; null when none is pinned. A proof-build record matches only with the same name and version",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "anyOf": [
+                        {
+                          "type": "null"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "name": {
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "version": {
+                              "minLength": 1,
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "name",
+                            "version"
+                          ],
+                          "type": "object"
+                        }
+                      ]
+                    }
+                  }
+                },
+                "trusted_base": {
+                  "$comment": "the publisher's list, verbatim items",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "items": {
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "type": "array"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "reach",
+                "tool",
+                "toolchain",
+                "theorem",
+                "theorem_url",
+                "trusted_base",
+                "axioms",
+                "input_code_unverified",
+                "scope_card"
+              ],
+              "type": "object"
+            },
+            "sources_read": {
+              "$ref": "#/$defs/sources_read"
+            }
+          },
+          "required": [
+            "sources_read",
+            "formal"
+          ],
+          "type": "object"
+        },
+        "no_trusted_party": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "$comment": "silence names the documents read",
+              "if": {
+                "properties": {
+                  "trust": {
+                    "properties": {
+                      "rests_on": {
+                        "properties": {
+                          "value": {
+                            "const": "not_stated"
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "rests_on"
+                    ]
+                  }
+                },
+                "required": [
+                  "trust"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "sources_read": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "sources_read": {
+              "$ref": "#/$defs/sources_read"
+            },
+            "trust": {
+              "additionalProperties": false,
+              "properties": {
+                "publicly_checkable": {
+                  "$comment": "anyone can check a proof file, as opposed to an interactive or designated-verifier check",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        true,
+                        false,
+                        "not_said"
+                      ]
+                    }
+                  }
+                },
+                "rests_on": {
+                  "$comment": "what soundness rests on besides cryptographic assumptions; transparent: no setup ever produced a secret (public files fixed before the hash do not count)",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "transparent",
+                        "open_ceremony",
+                        "fixed_parties",
+                        "single_party_setup",
+                        "hardware_key",
+                        "trusted_key",
+                        "not_stated"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "rests_on",
+                "publicly_checkable"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "sources_read",
+            "trust"
+          ],
+          "type": "object"
+        },
+        "unforgeable": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "$comment": "silence names the documents read",
+              "if": {
+                "properties": {
+                  "bound": {
+                    "properties": {
+                      "stated": {
+                        "properties": {
+                          "value": {
+                            "const": false
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "stated"
+                    ]
+                  }
+                },
+                "required": [
+                  "bound"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "sources_read": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "bound": {
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "$comment": "a stated bound has its expression and at least one term; an unstated one has neither",
+                  "else": {
+                    "properties": {
+                      "expression": {
+                        "properties": {
+                          "value": {
+                            "type": "null"
+                          }
+                        }
+                      },
+                      "terms": {
+                        "maxItems": 0
+                      }
+                    }
+                  },
+                  "if": {
+                    "properties": {
+                      "stated": {
+                        "properties": {
+                          "value": {
+                            "const": true
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "stated"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "expression": {
+                        "properties": {
+                          "value": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "terms": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                }
+              ],
+              "properties": {
+                "adversary": {
+                  "$comment": "any_prover: the bound holds against a prover that controls its own machine, with no hardware or third-party condition",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "any_prover",
+                        "weaker",
+                        "not_said"
+                      ]
+                    }
+                  }
+                },
+                "basis": {
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "proved",
+                        "conjectured",
+                        "not_said"
+                      ]
+                    }
+                  }
+                },
+                "batch": {
+                  "$comment": "how the publisher states the bound for members of a batch: each_member, stated for each member checked alone; together, stated only for members or proofs handed in together (for example N times the error); not_said",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "each_member",
+                        "together",
+                        "not_said"
+                      ]
+                    }
+                  }
+                },
+                "conditions_shown": {
+                  "$comment": "the publisher's or the harness's records show the theorem's stated conditions hold for the row's files; false otherwise, including when the publisher says it is not known",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "expression": {
+                  "$comment": "the bound, verbatim, a substring of one of its quotes; null iff stated is false",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "minLength": 1,
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  }
+                },
+                "parameters": {
+                  "$comment": "row: the bound is stated for the parameters of the configuration the row runs",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "row",
+                        "other",
+                        "not_said"
+                      ]
+                    }
+                  }
+                },
+                "program": {
+                  "$comment": "whether the verifier program the row runs is proved, or stated, to implement the protocol or verifier the bound is about; a publisher sentence that the bound is not claimed for that program is not_stated, with that quote",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "proved",
+                        "stated",
+                        "not_stated"
+                      ]
+                    }
+                  }
+                },
+                "stated": {
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "terms": {
+                  "$comment": "the integer exponents of each error term in the expression, for example [124, 101] for q/2^124 + 2^-101; a plain list, not a fact",
+                  "items": {
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "unit": {
+                  "$comment": "what one stated bound covers",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "reply",
+                        "proof",
+                        "part",
+                        "round",
+                        "not_said"
+                      ]
+                    }
+                  }
+                }
+              },
+              "required": [
+                "stated",
+                "expression",
+                "terms",
+                "basis",
+                "unit",
+                "batch",
+                "adversary",
+                "parameters",
+                "conditions_shown",
+                "program"
+              ],
+              "type": "object"
+            },
+            "sources_read": {
+              "$ref": "#/$defs/sources_read"
+            }
+          },
+          "required": [
+            "sources_read",
+            "bound"
+          ],
+          "type": "object"
+        },
+        "weights_hidden": {
+          "additionalProperties": false,
+          "allOf": [
+            {
+              "$comment": "silence names the documents read",
+              "if": {
+                "properties": {
+                  "hiding": {
+                    "properties": {
+                      "stated": {
+                        "properties": {
+                          "value": {
+                            "const": "not_stated"
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "stated"
+                    ]
+                  }
+                },
+                "required": [
+                  "hiding"
+                ]
+              },
+              "then": {
+                "properties": {
+                  "sources_read": {
+                    "minItems": 1
+                  }
+                }
+              }
+            }
+          ],
+          "properties": {
+            "hiding": {
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "$comment": "a published list of visible values is copied: visible_listed true needs at least one item",
+                  "if": {
+                    "properties": {
+                      "visible_listed": {
+                        "properties": {
+                          "value": {
+                            "const": true
+                          }
+                        },
+                        "required": [
+                          "value"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "visible_listed"
+                    ]
+                  },
+                  "then": {
+                    "properties": {
+                      "visible": {
+                        "minItems": 1
+                      }
+                    }
+                  }
+                }
+              ],
+              "properties": {
+                "programs": {
+                  "$comment": "what the publisher says of its programs implementing the proved hiding",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "stated",
+                        "expected",
+                        "not_stated"
+                      ]
+                    }
+                  }
+                },
+                "proof": {
+                  "$comment": "a zero-knowledge theorem: none, for the protocol only, or with stated parameters that include the configuration the row runs, batch size included; none may carry no quote",
+                  "$ref": "#/$defs/fact_open",
+                  "else": {
+                    "properties": {
+                      "quotes": {
+                        "minItems": 1
+                      }
+                    }
+                  },
+                  "if": {
+                    "properties": {
+                      "value": {
+                        "const": "none"
+                      }
+                    },
+                    "required": [
+                      "value"
+                    ]
+                  },
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        "none",
+                        "protocol",
+                        "configuration_run"
+                      ]
+                    }
+                  }
+                },
+                "stated": {
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "enum": [
+                        true,
+                        false,
+                        "not_stated"
+                      ]
+                    }
+                  }
+                },
+                "verifier_gets_weights": {
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "type": "boolean"
+                    }
+                  }
+                },
+                "visible": {
+                  "items": {
+                    "$ref": "#/$defs/visible_item"
+                  },
+                  "type": "array"
+                },
+                "visible_listed": {
+                  "$comment": "a list of visible values is published",
+                  "$ref": "#/$defs/fact",
+                  "properties": {
+                    "value": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              },
+              "required": [
+                "stated",
+                "verifier_gets_weights",
+                "proof",
+                "programs",
+                "visible_listed",
+                "visible"
+              ],
+              "type": "object"
+            },
+            "sources_read": {
+              "$ref": "#/$defs/sources_read"
+            }
+          },
+          "required": [
+            "sources_read",
+            "hiding"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "unforgeable",
+        "machine_checked",
+        "weights_hidden",
+        "no_trusted_party"
+      ],
+      "type": "object"
+    },
+    "read": {
+      "format": "date",
+      "type": "string"
+    },
+    "schema": {
+      "const": "properties/2"
+    },
+    "system": {
+      "$ref": "../quantity/1.schema.json#/$defs/systemId"
+    },
+    "upstream": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../quantity/1.schema.json#/$defs/commit"
+        },
+        "repo": {
+          "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "repo",
+        "commit"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schema",
+    "system",
+    "configuration",
+    "upstream",
+    "read",
+    "petals"
+  ],
+  "title": "Glyph facts (RFC-0018 §The glyph)",
+  "type": "object"
+}

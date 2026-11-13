@@ -1,18 +1,16 @@
 {
   "entries": [
     {
-      "found": [],
       "group": "Systems",
       "kind": "system",
       "meta": "Llama 4 Maverick 17B-128E Instruct · not passed: Run undecided, Fidelity undecided",
       "name": "FlashProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 0 28 28\" width=\"28\" height=\"28\" aria-hidden=\"true\" focusable=\"false\"><path class=\"sl s1 amber\" d=\"M14.51 1.26L27.28 10.53L14.87 14.19Z\"/><path class=\"sl s2 amber\" d=\"M27.60 11.50L22.72 26.52L15.40 15.84Z\"/><path class=\"sl s3 hollow\" stroke-width=\"1\" d=\"M20.88 26.62L7.12 26.62L14.00 17.68Z\"/><path class=\"sl s4 hollow\" stroke-width=\"1\" d=\"M5.44 25.40L1.19 12.32L11.82 16.09Z\"/><path class=\"sl s5 green\" d=\"M0.72 10.53L13.49 1.26L13.13 14.19Z\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><rect class=\"sl s2 amber\" data-step=\"amber_upper\" fill=\"#e49921\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><path class=\"sl s3 hollow\" data-step=\"none\" data-cause=\"not_decided\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 12.5H24.5V16.5H3\"/><path class=\"sl s4 hollow\" data-step=\"none\" data-cause=\"proof_build_not_run\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 green\" data-step=\"green\" fill=\"#6ffeb7\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
       "terms": "flashprove llama 4 maverick 17b-128e instruct · not passed: run undecided, fidelity undecided l1-maverick-p512-o512 flashprove",
       "tier": 0,
       "url": "/flashprove"
     },
     {
-      "found": [],
       "group": "Models",
       "kind": "model",
       "meta": "Meta · MoE, 400B total, 17B active",
@@ -23,7 +21,6 @@
       "url": "/#llama-4-maverick"
     },
     {
-      "found": [],
       "group": "Models",
       "kind": "model",
       "meta": "Meta · Dense, 8.03B",
@@ -34,7 +31,6 @@
       "url": "/#llama-3.1-8b"
     },
     {
-      "found": [],
       "group": "Models",
       "kind": "model",
       "meta": "OpenAI · Dense, 137M",
@@ -45,62 +41,56 @@
       "url": "/#gpt-2"
     },
     {
-      "found": [],
       "group": "Glyph",
       "kind": "petal",
-      "meta": "A soundness level of 128 bits or more, proven for the verifier code the system runs.",
+      "meta": "A bound on a false reply being accepted, proved, against any prover, that covers the run: one reply a proof, each member of a batch checked alone, the row's parameters, its conditions shown to hold for the row's files, and the verifier program the row runs proved or stated to implement what the bound is about. Every exponent in the stated bound 128 or more; a term 2^-t or q/2^t has exponent t.",
       "name": "Unforgeable",
       "pie": "",
-      "terms": "unforgeable a soundness level of 128 bits or more, proven for the verifier code the system runs.",
+      "terms": "unforgeable a bound on a false reply being accepted, proved, against any prover, that covers the run: one reply a proof, each member of a batch checked alone, the row's parameters, its conditions shown to hold for the row's files, and the verifier program the row runs proved or stated to implement what the bound is about. every exponent in the stated bound 128 or more; a term 2^-t or q/2^t has exponent t.",
       "tier": 2,
       "url": "/checks#unforgeable"
     },
     {
-      "found": [],
       "group": "Glyph",
       "kind": "petal",
-      "meta": "Zero knowledge proven for the program run, with no leak beyond public sizes.",
+      "meta": "Zero knowledge proved for the configuration the row runs, the programs stated to implement it, and a published list of what stays visible with nothing fitted to the weights.",
       "name": "Weights hidden",
       "pie": "",
-      "terms": "weights hidden zero knowledge proven for the program run, with no leak beyond public sizes.",
+      "terms": "weights hidden zero knowledge proved for the configuration the row runs, the programs stated to implement it, and a published list of what stays visible with nothing fitted to the weights.",
       "tier": 2,
       "url": "/checks#weights_hidden"
     },
     {
-      "found": [],
       "group": "Glyph",
       "kind": "petal",
-      "meta": "The replies are not shown below a second run of the publisher's original weights.",
+      "meta": "The proved replies are shown above the midpoint between a second run of the publisher's model and its Q8_0 copy, in a fidelity run of one request at a time.",
       "name": "Faithful model",
       "pie": "",
-      "terms": "faithful model the replies are not shown below a second run of the publisher's original weights.",
+      "terms": "faithful model the proved replies are shown above the midpoint between a second run of the publisher's model and its q8_0 copy, in a fidelity run of one request at a time.",
       "tier": 2,
       "url": "/checks#faithful_model"
     },
     {
-      "found": [],
       "group": "Glyph",
       "kind": "petal",
-      "meta": "The system passed on every model of the level.",
-      "name": "Any model",
+      "meta": "A machine-checked soundness theorem covers the verifier program the row runs, from the bytes it reads to its verdict, with its trusted base listed and no input code outside it, and a build of it at the pinned commit, with the toolchain the publisher pins, is recorded.",
+      "name": "Machine-checked",
       "pie": "",
-      "terms": "any model the system passed on every model of the level.",
+      "terms": "machine-checked a machine-checked soundness theorem covers the verifier program the row runs, from the bytes it reads to its verdict, with its trusted base listed and no input code outside it, and a build of it at the pinned commit, with the toolchain the publisher pins, is recorded.",
       "tier": 2,
-      "url": "/checks#any_model"
+      "url": "/checks#machine_checked"
     },
     {
-      "found": [],
       "group": "Glyph",
       "kind": "petal",
-      "meta": "Soundness rests on cryptographic assumptions alone (for example a random oracle): no setup ceremony, hardware maker's key or third party. Public files fixed before the hash do not count: every non-interactive proof has them.",
-      "name": "Only the verifier trusted",
+      "meta": "The publisher's documents show soundness resting on cryptographic assumptions alone: no setup ever produced a secret. Public files fixed before the hash, or derived from public inputs, do not count.",
+      "name": "No third party trusted",
       "pie": "",
-      "terms": "only the verifier trusted soundness rests on cryptographic assumptions alone (for example a random oracle): no setup ceremony, hardware maker's key or third party. public files fixed before the hash do not count: every non-interactive proof has them.",
+      "terms": "no third party trusted the publisher's documents show soundness resting on cryptographic assumptions alone: no setup ever produced a secret. public files fixed before the hash, or derived from public inputs, do not count.",
       "tier": 2,
       "url": "/checks#no_trusted_party"
     },
     {
-      "found": [],
       "group": "Checks",
       "kind": "check",
       "meta": "Each of the 3 session slots holds a complete session, built from the public pin, unpatched, with no weakening flag.",
@@ -111,7 +101,6 @@
       "url": "/checks#run"
     },
     {
-      "found": [],
       "group": "Checks",
       "kind": "check",
       "meta": "A proof made after one weight was changed is not accepted, and an honest proof checked against the changed weights' commitment is refused, in 3 of 3 trials each.",
@@ -122,7 +111,6 @@
       "url": "/checks#model"
     },
     {
-      "found": [],
       "group": "Checks",
       "kind": "check",
       "meta": "A proof checked with one prompt token changed is refused, in 3 of 3 trials.",
@@ -133,7 +121,6 @@
       "url": "/checks#prompt"
     },
     {
-      "found": [],
       "group": "Checks",
       "kind": "check",
       "meta": "Every accepted proof covers all 512 reply tokens, and a changed reply token is refused at the first, the last and one seeded interior position, in 3 of 3 trials each.",
@@ -144,7 +131,6 @@
       "url": "/checks#reply"
     },
     {
-      "found": [],
       "group": "Checks",
       "kind": "check",
       "meta": "Every counted verdict came from a check run with no GPU visible, on a filesystem holding no model file, under a file-open trace that names no model file.",
@@ -155,7 +141,6 @@
       "url": "/checks#no_weight_file"
     },
     {
-      "found": [],
       "group": "Checks",
       "kind": "check",
       "meta": "The system's replies score above the model's bar: the damaged copy of the model that every honest copy scores above, scored by the leading tokens each reply shares with the reply of the publisher's original weights.",
@@ -166,7 +151,6 @@
       "url": "/checks#fidelity"
     },
     {
-      "found": [],
       "group": "Figures",
       "kind": "figure",
       "meta": "m, GPU-seconds per further proved reply. In one session, proofs released within 1 s of the previous release form a group. m is the GPU time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. The mean of 3 sessions, each from a cold start.",
@@ -177,7 +161,6 @@
       "url": "/checks#multiple"
     },
     {
-      "found": [],
       "group": "Figures",
       "kind": "figure",
       "meta": "m in USD, at the release's price of one H200 GPU-hour.",
@@ -188,7 +171,6 @@
       "url": "/checks#cost"
     },
     {
-      "found": [],
       "group": "Figures",
       "kind": "figure",
       "meta": "The time the system's verifier takes on a session's proofs, over the session's replies.",
@@ -199,7 +181,6 @@
       "url": "/checks#check-time"
     },
     {
-      "found": [],
       "group": "Figures",
       "kind": "figure",
       "meta": "The mean KL divergence per scored token, in nats, of the file the system commits from the reference: the publisher's original weights, 16-bit for Llama 4 Maverick 17B-128E Instruct and Llama 3.1 8B Instruct, 32-bit for GPT-2.",
@@ -210,7 +191,6 @@
       "url": "/checks#kl"
     },
     {
-      "found": [],
       "group": "Pages",
       "kind": "page",
       "meta": "The six checks, the figures, the order rule, what is not tested",
@@ -221,7 +201,6 @@
       "url": "/checks"
     },
     {
-      "found": [],
       "group": "Pages",
       "kind": "page",
       "meta": "We believe a claim about which AI model answered should come with evidence anyone can afford to check.",
@@ -232,7 +211,6 @@
       "url": "/mandate"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "What a proof of inference is, what it can and cannot tell you, and how this site runs and compares the systems that make such proofs.",
@@ -243,7 +221,6 @@
       "url": "/learn"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "What it means to verify a claim about an AI system, why that is hard, and which part of it this site covers.",
@@ -254,7 +231,6 @@
       "url": "/why-verify"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "A file that lets you check that a model fixed in advance gives a certain reply to a certain prompt, without rerunning the model and without seeing it. What a yes means, and what it does not.",
@@ -265,7 +241,6 @@
       "url": "/proof-of-inference"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "Rerun the computation, trust the hardware, or check a proof. What each asks you to trust, and what it costs.",
@@ -276,7 +251,6 @@
       "url": "/three-ways"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "How proofs of inference fit an agreement between two states that will not show each other their weights, stage by stage.",
@@ -287,7 +261,6 @@
       "url": "/treaty"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "Nine questions to put to any system that offers a proof, and where this site answers them.",
@@ -298,7 +271,6 @@
       "url": "/before-you-rely"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "Which sentence a proof proves, about which model, for which prompt and reply, in two systems' own words.",
@@ -309,7 +281,6 @@
       "url": "/statement"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "What a language model computes when it answers, how it is served, and why the computation is awkward to prove.",
@@ -320,7 +291,6 @@
       "url": "/inference"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "How a short random check can stand in for rerunning a long computation: the ideas the provers on this site are built from.",
@@ -331,7 +301,6 @@
       "url": "/proof-systems"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "How a transformer's forward pass becomes something a verifier can check: matrix products by sumcheck, the other steps by lookups, the weights by a commitment.",
@@ -342,7 +311,6 @@
       "url": "/forward-pass"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "The ways to write the computation down and to commit to the weights, and the checks that are not proofs: what each makes cheap, what it makes expensive and what it has to trust, in their publishers' own words.",
@@ -353,7 +321,6 @@
       "url": "/architectures"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "Why a proved reply costs a multiple of a served one, and how that multiple is computed here.",
@@ -364,7 +331,6 @@
       "url": "/cost"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "One request, six checks, one ranked figure, and the reason for each rule, where one is given.",
@@ -375,7 +341,6 @@
       "url": "/method"
     },
     {
-      "found": [],
       "group": "Learn",
       "kind": "learn",
       "meta": "The terms these pages use, in plain words, with the precise meaning where the two differ.",
@@ -386,7 +351,6 @@
       "url": "/glossary"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The thin wrapper through which this benchmark runs a system.",
@@ -397,7 +361,6 @@
       "url": "/glossary#adapter"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A signed statement by a piece of hardware, or by a party, that something is the case: for example a chip reporting which software it started.",
@@ -408,7 +371,6 @@
       "url": "/glossary#attestation"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Said of a part of a computation that the verifier's acceptance constrains.",
@@ -419,7 +381,6 @@
       "url": "/glossary#bound"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "One of the six tests this benchmark runs on a system before ranking it: Run, Model, Prompt, Reply, No weight file, Fidelity.",
@@ -430,7 +391,6 @@
       "url": "/glossary#check"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The written record, for one system in one configuration, of what its accepted proofs establish: the statement, the security level and its assumptions, what is bound, and what a dishonest prover could still do.",
@@ -441,7 +401,6 @@
       "url": "/glossary#claim-card"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A short value computed from a model's weights that fixes them.",
@@ -452,7 +411,6 @@
       "url": "/glossary#commitment"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A deliberate tampering with what a verifier or a prover is given, to see whether the change is refused.",
@@ -463,7 +421,6 @@
       "url": "/glossary#control"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "How closely the model a system proves follows the model its publisher released.",
@@ -474,7 +431,6 @@
       "url": "/glossary#fidelity"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A set of numbers in which addition, subtraction, multiplication and division are all exact.",
@@ -485,7 +441,6 @@
       "url": "/glossary#field"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The five-petal figure drawn for each system this benchmark has run.",
@@ -496,7 +451,6 @@
       "url": "/glossary#glyph"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Choosing, at every step of a reply, the token the model scores highest.",
@@ -507,7 +461,6 @@
       "url": "/glossary#greedy-decoding"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The untouched proof that is checked next to a tampered one.",
@@ -518,7 +471,6 @@
       "url": "/glossary#honest-twin"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Running a trained model on an input to get an output.",
@@ -529,7 +481,6 @@
       "url": "/glossary#inference"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The front page of this site: one section per model, with the systems run on it and what each cost.",
@@ -540,7 +491,6 @@
       "url": "/glossary#ladder"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A frozen definition of the benchmark: the models, the request, the checks, the order rule and every constant.",
@@ -551,7 +501,6 @@
       "url": "/glossary#level"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A way to prove that every value in a long list appears in a fixed public table, without checking the values one by one.",
@@ -562,7 +511,6 @@
       "url": "/glossary#lookup-argument"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The one polynomial that agrees with a list of numbers at the corners of a cube and is linear in each of its variables.",
@@ -573,7 +521,6 @@
       "url": "/glossary#multilinear-extension"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The cost of a proved reply as a multiple of the cost of serving the same reply without a proof, on one model.",
@@ -584,7 +531,6 @@
       "url": "/glossary#multiple"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Whoever runs the model and answers requests: a company serving an API, a lab, the company behind a state's declared data centre.",
@@ -595,7 +541,6 @@
       "url": "/glossary#operator"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Said of a system on a model when all six checks are held there.",
@@ -606,18 +551,16 @@
       "url": "/glossary#passed"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
-      "meta": "One of the five parts of the glyph: a property a prover can have in full, in part or not at all.",
+      "meta": "One of the five parts of the glyph: a property a prover can have in full, in part, in lesser part or not at all.",
       "name": "Petal",
       "pie": "",
-      "terms": "petal one of the five parts of the glyph: a property a prover can have in full, in part or not at all.",
+      "terms": "petal one of the five parts of the glyph: a property a prover can have in full, in part, in lesser part or not at all.",
       "tier": 4.2,
       "url": "/glossary#petal"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A commitment to a polynomial that can later be opened at one point: the prover shows the polynomial's value there, and the verifier checks it against the commitment alone.",
@@ -628,7 +571,6 @@
       "url": "/glossary#polynomial-commitment"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A system's place among the systems that passed on one model: one plus the number of systems placed above it.",
@@ -639,7 +581,6 @@
       "url": "/glossary#position"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The input of a request: the tokens the model is given.",
@@ -650,7 +591,6 @@
       "url": "/glossary#prompt"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A file, or a set of files, that lets a program check that a given reply is what a given model gives for a given prompt, without running the model.",
@@ -661,7 +601,6 @@
       "url": "/glossary#proof-of-inference"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Said of a statement that a sound verifier's acceptance establishes, under stated assumptions.",
@@ -672,7 +611,6 @@
       "url": "/glossary#proved"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The program that produces a proof, and by extension whoever runs it.",
@@ -683,7 +621,6 @@
       "url": "/glossary#prover"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Whoever releases a system and its documents, or a model and its weights.",
@@ -694,7 +631,6 @@
       "url": "/glossary#publisher"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Storing a model's weights, and sometimes its intermediate values, with fewer bits: 8-bit or 4-bit integers in place of 16-bit floating point.",
@@ -705,7 +641,6 @@
       "url": "/glossary#quantization"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "An idealised hash function: one that answers every new question with a fresh random value.",
@@ -716,7 +651,6 @@
       "url": "/glossary#random-oracle"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Checking a result by running the computation again.",
@@ -727,7 +661,6 @@
       "url": "/glossary#recomputation"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Whoever acts on a proof: a customer, an auditor, a regulator, an inspectorate.",
@@ -738,7 +671,6 @@
       "url": "/glossary#relying-party"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The output of a request: the tokens the model produces.",
@@ -749,7 +681,6 @@
       "url": "/glossary#reply"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "One prompt and the reply the verifier is given for it.",
@@ -760,7 +691,6 @@
       "url": "/glossary#request"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "What a dishonest prover can still do while passing verification.",
@@ -771,7 +701,6 @@
       "url": "/glossary#residual"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "One system on one model, as the ladder prints it: its standing, its glyph and its figures.",
@@ -782,7 +711,6 @@
       "url": "/glossary#row"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "One open-weights model of a level, with its serving baseline.",
@@ -793,7 +721,6 @@
       "url": "/glossary#rung"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Said of a guarantee that comes from checking a random part of the work: some of the replies, or some steps of one computation.",
@@ -804,7 +731,6 @@
       "url": "/glossary#sampled"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "How hard it is to get a false statement accepted, as a number of bits.",
@@ -815,7 +741,6 @@
       "url": "/glossary#security-level"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "What it costs to answer the request with no proof: the publisher's own release of the model, served by a standard engine at full load.",
@@ -826,7 +751,6 @@
       "url": "/glossary#serving-baseline"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "One run of a system from a cold start: it commits to the model, then answers and proves a fixed set of requests.",
@@ -837,7 +761,6 @@
       "url": "/glossary#session"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The property that a false statement is not accepted.",
@@ -848,7 +771,6 @@
       "url": "/glossary#soundness"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The sentence a proof proves.",
@@ -859,7 +781,6 @@
       "url": "/glossary#statement"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A protocol by which a prover convinces a verifier that a very large sum has a given value, while the verifier does a small amount of work.",
@@ -870,7 +791,6 @@
       "url": "/glossary#sumcheck"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The unit of text a language model reads and writes: a word, a piece of a word or a punctuation mark, as a number.",
@@ -881,7 +801,6 @@
       "url": "/glossary#token"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "A processor feature designed to run code in an enclave the machine's owner cannot read or alter, and to sign a report of what was started.",
@@ -892,7 +811,6 @@
       "url": "/glossary#trusted-execution-environment"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Public parameters that some proof systems need, generated from secret numbers that must then be destroyed.",
@@ -903,7 +821,6 @@
       "url": "/glossary#trusted-setup"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "Checking a claim against evidence that holds up even if the claimant is not trusted.",
@@ -914,7 +831,6 @@
       "url": "/glossary#verification"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The program that checks a proof and answers accept or refuse.",
@@ -925,7 +841,6 @@
       "url": "/glossary#verifier"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The numbers that make up a trained model: billions of them for the models on this site.",
@@ -936,7 +851,6 @@
       "url": "/glossary#weights"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "What the prover knows and the verifier does not.",
@@ -947,7 +861,6 @@
       "url": "/glossary#witness"
     },
     {
-      "found": [],
       "group": "Glossary",
       "kind": "term",
       "meta": "The property that a proof reveals nothing beyond the truth of its statement.",
@@ -958,7 +871,6 @@
       "url": "/glossary#zero-knowledge"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no public verifier",
@@ -969,7 +881,6 @@
       "url": "/#nr-attestable"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "licence",
@@ -980,7 +891,6 @@
       "url": "/#nr-deepprove"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "licence",
@@ -991,7 +901,6 @@
       "url": "/#nr-ezkl"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "licence",
@@ -1002,7 +911,6 @@
       "url": "/#nr-jolt-atlas"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "licence",
@@ -1013,7 +921,6 @@
       "url": "/#nr-jstprove"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no configuration at the request",
@@ -1024,7 +931,6 @@
       "url": "/#nr-luminair"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no public verifier",
@@ -1035,7 +941,6 @@
       "url": "/#nr-nanozk"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "another kind of check",
@@ -1046,7 +951,6 @@
       "url": "/#nr-opml"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "another kind of check",
@@ -1057,7 +961,6 @@
       "url": "/#nr-private-ml-sdk"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no configuration at the request",
@@ -1068,7 +971,6 @@
       "url": "/#nr-remainder"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "not yet run",
@@ -1079,7 +981,6 @@
       "url": "/#nr-sash"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "another kind of check",
@@ -1090,7 +991,6 @@
       "url": "/#nr-tinfoil"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "another kind of check",
@@ -1101,7 +1001,6 @@
       "url": "/#nr-toploc"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "another kind of check",
@@ -1112,7 +1011,6 @@
       "url": "/#nr-verde"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "another kind of check",
@@ -1123,7 +1021,6 @@
       "url": "/#nr-verinf"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no configuration at the request",
@@ -1134,7 +1031,6 @@
       "url": "/#nr-zkgpt"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no configuration at the request",
@@ -1145,7 +1041,6 @@
       "url": "/#nr-zkllm"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no configuration at the request",
@@ -1156,7 +1051,6 @@
       "url": "/#nr-zkml"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no public verifier",
@@ -1167,7 +1061,6 @@
       "url": "/#nr-zkpytorch"
     },
     {
-      "found": [],
       "group": "Not run",
       "kind": "notrun",
       "meta": "no configuration at the request",

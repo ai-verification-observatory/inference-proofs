@@ -15,6 +15,7 @@ from iproofs.fidelity import (
     ControlResult,
     Header,
     SignFlipRule,
+    Threshold,
     build_fidelity,
     choose_bar,
     kl_quantity,
@@ -29,6 +30,8 @@ from iproofs.fidelity import (
     scored_texts,
     session_replies,
     sign_flip_p,
+    step_tests,
+    thresholds,
 )
 from iproofs.schema import SchemaRegistry
 
@@ -179,10 +182,67 @@ def test_parse_kl_reads_llama_perplexity_mean() -> None:
     assert parse_kl("Mean    KLD:        nan ±        nan\n") is None
 
 
+def test_step_test_scaling_hand_counted() -> None:
+    """Controls summing S_a + S_b = 18 over n = 3 prompts: T = 18 / 6 = 3. Scores [3, 4, 2]
+    give d = 6 s - 18 = [0, 6, -6], observed 0; the sums of 0 +-6 +-6 are 12, 0, 0, -12, three
+    reach 0 and the zero doubles each vector: p = 6 / 8. Scores [5, 6, 7] give d = [12, 18, 24]:
+    only the observed vector reaches 54, p = 1 / 8."""
+    t = {"green": Threshold("T_green", ("a", "b"), 3, 18, None)}
+    found = step_tests("sash", [3, 4, 2], t, RULE)["green"]
+    assert found is not None
+    assert (found.value, found.p, found.method, found.seed) == (3.0, 0.75, "exact", None)
+    above = step_tests("sash", [5, 6, 7], t, RULE)["green"]
+    assert above is not None
+    assert above.p == 1 / 8
+    assert step_tests("sash", [5, 6, 7], {"green": Threshold("T_green", (), 3, None, "x")},
+                      RULE) == {"green": None}  # fmt: skip
+
+
+def test_step_test_monte_carlo_seed() -> None:
+    """n = 25 > exact_up_to: the draws are seeded by pair_seed(randomness, system, T_...)."""
+    t = {"green": Threshold("T_green", ("a", "b"), 25, 500, None),
+         "upper": Threshold("T_upper", ("b", "c"), 25, 400, None)}  # fmt: skip
+    found = step_tests("flashprove", [10] * 25, t, RULE)
+    green, upper = found["green"], found["upper"]
+    assert green is not None
+    assert upper is not None
+    assert green.method == "monte-carlo"
+    assert green.seed == pair_seed(RANDOMNESS, "flashprove", "T_green")
+    assert upper.seed == pair_seed(RANDOMNESS, "flashprove", "T_upper")
+
+
+def test_thresholds_name_the_level_controls() -> None:
+    """The rerun by recipe, Q8_0 and Q4_K_M by recipe quantize and their type: T_green =
+    (15 * 512 + 15 * 480) / 30 = 496, T_upper = (15 * 480 + 15 * 400) / 30 = 440. A failed
+    Q8_0 leaves both without a value."""
+    specs = [
+        {"id": "q4_k_m", "kind": "honest", "recipe": "quantize", "type": "Q4_K_M"},
+        {"id": "reference-2", "kind": "honest", "recipe": "rerun"},
+        {"id": "q8_0", "kind": "honest", "recipe": "quantize", "type": "Q8_0"},
+        {"id": "q3_k_s", "kind": "damaged", "recipe": "quantize", "type": "Q3_K_S"},
+    ]
+    prefixes = {"q4_k_m": [400] * N, "reference-2": [512] * N, "q8_0": [480] * N,
+                "q3_k_s": [100] * N}  # fmt: skip
+    pairs = [(s, scored(s, prefixes[s["id"]])) for s in specs]
+    found = thresholds(pairs, N)
+    assert (found["green"].controls, found["green"].value) == (("reference-2", "q8_0"), 496.0)
+    assert (found["upper"].controls, found["upper"].value) == (("q8_0", "q4_k_m"), 440.0)
+    pairs[2] = (specs[2], scored(specs[2], None, "llama-server exited 1"))
+    failed = thresholds(pairs, N)
+    assert (failed["green"].value, failed["green"].cause) == (None, "q8_0 failed")
+    assert (failed["upper"].value, failed["upper"].cause) == (None, "q8_0 failed")
+    none = thresholds(pairs[:2], N)  # no Q8_0 named by the level
+    assert none["green"].controls == ("reference-2",)
+    assert none["green"].value is None
+
+
 def test_document_validates_and_carries_the_states() -> None:
     specs = [
         ({"id": "reference-2", "kind": "honest", "recipe": "rerun"}, replies([512] * N)),
-        ({"id": "q8_0", "kind": "honest", "recipe": "quantize"}, replies([480] * N)),
+        (
+            {"id": "q8_0", "kind": "honest", "recipe": "quantize", "type": "Q8_0"},
+            replies([480] * N),
+        ),
         ({"id": "q2_k", "kind": "damaged", "recipe": "quantize"}, replies([10] * N)),
         ({"id": "smaller-model", "kind": "damaged", "recipe": "other_model"}, None),
     ]
@@ -199,6 +259,7 @@ def test_document_validates_and_carries_the_states() -> None:
         },
         "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl",
         "sha256:" + "4" * 64,
+        1,
     )
     doc = build_fidelity(
         header,
@@ -217,6 +278,13 @@ def test_document_validates_and_carries_the_states() -> None:
     controls = doc["controls"]
     assert isinstance(controls, list)
     assert [c["status"] for c in controls] == ["ok", "ok", "ok", "failed"]
+    # T_green = (15 * 512 + 15 * 480) / 30 = 496; no Q4_K_M on this rung: no T_upper
+    assert doc["slots"] == 1
+    assert doc["steps"]["green"]["value"] == 496.0  # type: ignore[index]
+    assert doc["steps"]["upper"]["value"] is None  # type: ignore[index]
+    tests = rows["sash"]["step_tests"]
+    assert (tests["green"]["p"], tests["upper"]) == (1 / 2**15, None)  # d = 480 on every prompt
+    assert rows["flashprove"]["step_tests"] is None
 
 
 def test_kl_quantity_labels() -> None:

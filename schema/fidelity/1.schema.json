@@ -217,6 +217,42 @@
             "undecided"
           ]
         },
+        "step_tests": {
+          "$comment": "the row's tests over the two thresholds; an entry is null when its threshold's value is null, the key null when the row has no scores",
+          "additionalProperties": false,
+          "properties": {
+            "green": {
+              "else": {
+                "type": "null"
+              },
+              "if": {
+                "type": "object"
+              },
+              "then": {
+                "$ref": "#/$defs/step_test"
+              }
+            },
+            "upper": {
+              "else": {
+                "type": "null"
+              },
+              "if": {
+                "type": "object"
+              },
+              "then": {
+                "$ref": "#/$defs/step_test"
+              }
+            }
+          },
+          "required": [
+            "green",
+            "upper"
+          ],
+          "type": [
+            "object",
+            "null"
+          ]
+        },
         "tests": {
           "$comment": "the two tests of FI-6: the row over the bar, then the bar over the row",
           "items": {
@@ -246,6 +282,50 @@
         "type": "integer"
       },
       "type": "array"
+    },
+    "step_test": {
+      "$comment": "FM-5, FM-6: the FI-4 one-sided sign-flip test of the row's per-prompt scores over the constant threshold `value`, run on d_i = 2n*s_i - (S_a + S_b)",
+      "additionalProperties": false,
+      "properties": {
+        "method": {
+          "enum": [
+            "exact",
+            "monte-carlo"
+          ]
+        },
+        "n": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "p": {
+          "$ref": "#/$defs/p"
+        },
+        "seed": {
+          "pattern": "^0x[0-9a-f]{16}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "threshold": {
+          "enum": [
+            "T_green",
+            "T_upper"
+          ]
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "threshold",
+        "value",
+        "n",
+        "p",
+        "method",
+        "seed"
+      ],
+      "type": "object"
     },
     "test": {
       "$comment": "FI-4: one paired one-sided sign-flip test of a over b",
@@ -287,6 +367,40 @@
         "p",
         "method",
         "seed"
+      ],
+      "type": "object"
+    },
+    "threshold": {
+      "$comment": "one step threshold: (S_a + S_b) / (2n) over the two named controls' scores; null with a cause when a control is missing, failed or has another score count",
+      "additionalProperties": false,
+      "properties": {
+        "cause": {
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "controls": {
+          "items": {
+            "pattern": "^[a-z0-9][a-z0-9_.-]{0,63}$",
+            "type": "string"
+          },
+          "maxItems": 2,
+          "minItems": 0,
+          "type": "array"
+        },
+        "value": {
+          "type": [
+            "number",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "controls",
+        "value",
+        "cause"
       ],
       "type": "object"
     }
@@ -420,6 +534,38 @@
     },
     "schema": {
       "const": "fidelity/1"
+    },
+    "slots": {
+      "$comment": "FI-1: the fidelity run's slot count, copied from fidelity-run.json; green needs 1 (FM-5)",
+      "minimum": 1,
+      "type": "integer"
+    },
+    "steps": {
+      "$comment": "Faithful model's step thresholds from the rung's honest controls: green from the rerun and Q8_0, upper from Q8_0 and Q4_K_M",
+      "additionalProperties": false,
+      "properties": {
+        "green": {
+          "$ref": "#/$defs/threshold"
+        },
+        "rule": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "seed_rule": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "upper": {
+          "$ref": "#/$defs/threshold"
+        }
+      },
+      "required": [
+        "rule",
+        "seed_rule",
+        "green",
+        "upper"
+      ],
+      "type": "object"
     },
     "test": {
       "additionalProperties": false,

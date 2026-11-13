@@ -3,7 +3,7 @@
 - Authors: 0xchqrles
 - Created: 2026-11-07
 - Requires: RFC-0002, RFC-0008, RFC-0009, RFC-0012, RFC-0013, RFC-0015
-- Superseded for Level 1 by RFC-0018 (2026-11-10): the glyph draws six checks the benchmark runs; this RFC's properties and states no longer drive the site, and `web/_data/criteria.json` is kept as the v0.1 record.
+- Superseded for Level 1 by RFC-0018 (2026-11-10): this RFC's properties and states no longer drive the site, and `web/_data/criteria.json` is kept as the v0.1 record. The Level 1 glyph is RFC-0018's five petals, computed from facts copied into `systems/<name>/properties.yaml` and lowered by the failed checks RFC-0018 GL-2 names; the six checks are the entry gate, not the glyph; RFC-0018 brings back ST-5 (one fact, one petal) and INV-GLYPH-1 (nothing to add up) as GL-6 and GL-8 (amendment of 2026-11-13).
 
 ## Summary
 

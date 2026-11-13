@@ -79,9 +79,12 @@ A system is placed above another when its multiple is at least 10 % lower and it
 
 ## The glyph: stated, then lowered by tests
 
-Passing the checks is the entry gate. The [[glyph]] shows the distance from there to a prover that has all five properties in full: five petals, each green, amber, red or hollow. Three of them (Unforgeable, Weights hidden, Only the verifier trusted) are read from what the publisher states at the pinned commit, quoted and linked.
+Passing the checks is the entry gate. The [[glyph]] shows the distance from there to a prover that has all five properties in full: five petals, each green, amber in part, amber in lesser part, red or hollow. Four of them (Unforgeable, Weights hidden, Machine-checked, No third party trusted) are computed from facts a reviewer copies from the publisher's documents at the pinned commit, each with its quote and link; no state is typed. Faithful model is measured against the rung's controls.
 
-- **Silence is red**, since "a guarantee nobody states is one nobody can rely on".
+- **One fact, one petal.** Whether a bound is proved or conjectured, and its exponents, set Unforgeable; how far a machine-checked proof reaches sets Machine-checked only.
+- **Each petal alone.** A petal is decided as if the others were green, and nothing adds them up.
+
+- **Silence is red**, since "a guarantee nobody states is one nobody can rely on". It is drawn as an outline in the red ink. Not read is not silent: a petal whose documents are not read yet is hollow.
 - **Tests only lower.** A failed check turns its petals red. A held check never turns one green. RFC-0018 gives no reason. The earlier [RFC-0016](repo:rfcs/0016-glyph-properties-and-states.md) did: a passed control shows that one change was refused, and "reading more into it would turn a test into a certificate".
 - **The glyph never moves a position.** The order is cost among the systems that passed.
 
@@ -93,7 +96,7 @@ Some constants have no derivation in the text. They were fixed before the runs a
 - the 5 % tolerances of the steady state and of full load;
 - three trials per control;
 - the 0.05 level of the fidelity test;
-- 128 bits for a green Unforgeable petal.
+- the exponents 128, 100 and 80 that bound Unforgeable's steps (cut points cited from the Ethereum Foundation's zkEVM milestones and NIST SP 800-57, not derived).
 
 If one looks wrong to you, that is an [issue](https://github.com/ai-verification-observatory/inference-proofs/issues) we want.
 
@@ -101,7 +104,7 @@ The same goes for what Level 1 leaves out: closed-weights models, runs made by a
 
 ## Who wrote the rules, and how they changed
 
-The [mandate](/mandate) names who runs this benchmark. RFC-0018 carries a conflict-of-interest note, repeated here because it bears on the rules above. The text "was drafted with an AI agent, Claude, made by Anthropic, which publishes FlashProve". The note names the rules that most affect FlashProve: that generation is counted inside m, how the baseline is chosen, and the order rule's need for a stated security level. FlashProve's documents state one for its Lean verifier and not for the C++ verifier the row runs.
+The [mandate](/mandate) names who runs this benchmark. RFC-0018 carries a conflict-of-interest note, repeated here because it bears on the rules above. The text "was drafted with an AI agent, Claude, made by Anthropic, which publishes FlashProve". The note names the rules that most affect FlashProve: that generation is counted inside m, how the baseline is chosen, and the order rule's need for a stated security level. FlashProve's documents state one for its Lean verifier and not for the C++ verifier the row runs. The note on the glyph adds that, on Machine-checked, FlashProve is the only listed system that can be above red today, and that the proof-build rule keeps it hollow until a build has been recorded. It also names the readings taken that favour FlashProve: a bound proved for the protocol counts for Unforgeable, which model a commitment names is not graded, and FlashProve's No third party trusted and Machine-checked facts are our readings of its words, marked as such on its page.
 
 A rule changes only through a public [RFC](repo:rfcs/README.md), and a frozen level is meant never to change: a new rule is a new level. The record of Level 1 differs in two ways. The level file was frozen three times on 2026-11-11, each time with a new beacon round: a rung was added, then the serving ladder was extended after a first serving run on the largest model had not reached full load. And two rules were added to the RFC after the last freeze: SE-5, on a refusal by a system's own code, and CO-7, the split of m into generation and proving, written after the first FlashProve session was stored. Neither changes a constant, m or the order rule.
 

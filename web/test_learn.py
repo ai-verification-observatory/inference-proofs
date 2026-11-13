@@ -54,9 +54,9 @@ def test_markdown_subset(board_site: Any) -> None:
     assert md(b, "- a\n- b\n  c") == '<ul class="ls"><li>a</li><li>b c</li></ul>'
     assert md(b, "1. a\n2. b") == '<ol class="ls"><li>a</li><li>b</li></ol>'
     assert md(b, "| A | B |\n|---|---|\n| 1 | 2 |") == (
-        '<div class="tw"><table class="rt lt"><thead><tr><th scope="col">A</th>'
-        '<th scope="col">B</th></tr></thead><tbody><tr><th scope="row">1</th><td>2</td></tr>'
-        "</tbody></table></div>"
+        '<div class="tw"><table class="rt lt mt"><thead><tr><th scope="col">A</th>'
+        '<th scope="col">B</th></tr></thead><tbody><tr><th scope="row" data-l="A">1</th>'
+        '<td data-l="B">2</td></tr></tbody></table></div>'
     )
     assert md(b, "```\na < b\n```") == '<pre class="code">a &lt; b</pre>'
     assert md(b, ":::note Mind\nthis\n:::") == (
@@ -248,15 +248,20 @@ def test_learn_styles_touch_no_other_page() -> None:
     """words.css names its classes in two or three letters, so a new rule can restyle an old
     page by accident (a rule for `.tl` once moved every page's header). Every selector of the
     Learn section holds a class that no rule outside the section uses."""
-    css = re.sub(r"/\*.*?\*/", "", (LEARN.parent / "words.css").read_text(), flags=re.S)
-    css = re.sub(r"@font-face\{[^}]*\}", "", css)
-    start = css.index(".kick {")
-    end = css.index(".foot {")
-    learn, rest = css[start:end], css[:start] + css[end:]
-    used_elsewhere = set(
-        re.findall(r"\.([a-zA-Z][\w-]*)", "".join(re.findall(r"([^{}]+)\{", rest)))
-    )
-    for block in re.findall(r"([^{}]+)\{", learn):
+    raw = (LEARN.parent / "words.css").read_text()
+    # the section runs from its heading comment to the next section's. Cut the raw text: both
+    # markers sit inside comments, so the cut reopens the first and closes the joined second
+    start = raw.index("the Learn pages:")
+    end = raw.index("motion: one page into the next")
+
+    def blocks(css: str) -> list[str]:
+        css = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+        return re.findall(r"([^{}]+)\{", re.sub(r"@font-face\{[^}]*\}", "", css))
+
+    learn, rest = blocks("/*" + raw[start:end] + "*/"), blocks(raw[:start] + raw[end:])
+    assert len(learn) > 100, f"the Learn section holds {len(learn)} rules: its markers moved"
+    used_elsewhere = set(re.findall(r"\.([a-zA-Z][\w-]*)", "".join(rest)))
+    for block in learn:
         for selector in (part.strip() for part in block.split(",")):
             if not selector or selector.startswith("@"):
                 continue
