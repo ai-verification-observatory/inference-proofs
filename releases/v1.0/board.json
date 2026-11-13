@@ -367,7 +367,7 @@
               "state": "held"
             },
             "model": {
-              "cause": "not run",
+              "cause": "not resolved",
               "evidence": [
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/8",
                 "results/v1.0/flashprove/2026-11-11-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1/controls.json#/controls/2"
@@ -1691,7 +1691,7 @@
               "state": "held"
             },
             "no_weight_file": {
-              "cause": "not run",
+              "cause": "not resolved",
               "evidence": [
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/",
