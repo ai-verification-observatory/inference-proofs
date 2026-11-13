@@ -119,7 +119,9 @@ def check_stale():
     stale = sorted(q.name for q in set(S.HERE.glob("*.html")) - pages)
     if stale:
         raise RuntimeError(f"pages the build no longer writes: {stale}")
-    cards = sorted({q.stem for q in S.OG.glob("*.html")} - {"icon", "icon-32", "home", *S.PAGE})
+    members = [draw.outputs.MEMBERS_CARD] if S.V["credit"]["members"] else []
+    cards = sorted({q.stem for q in S.OG.glob("*.html")}
+                   - {"icon", "icon-32", "home", *S.PAGE, *members})  # fmt: skip
     if cards:
         raise RuntimeError(f"card sources the build no longer writes, in og/: {cards}")
     return pages

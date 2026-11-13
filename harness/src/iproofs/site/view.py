@@ -274,6 +274,17 @@ def not_run(facts: Any, ran: set[str]) -> list[dict[str, Any]]:
     return sorted(out, key=lambda r: str(r["name"]).lower())
 
 
+def credit(facts: Any) -> dict[str, Any]:
+    """Who builds the site and its members, in the facts file's order (a member is listed once
+    its entry is there)."""
+    c = facts.credit
+    return {
+        "builder": {"name": c.builder.name, "url": c.builder.url},
+        "lead": {"name": c.lead.name, "url": c.lead.url},
+        "members": [{"name": m.name, "url": m.url, "mark": m.mark} for m in c.members],
+    }
+
+
 def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
     """The whole site's data (module docstring). `board`: a board file to render in place of the
     newest release's (a preview)."""
@@ -312,6 +323,7 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
         "repository": REPOSITORY,
         "link_ref": LINK_REF,
         "licence": facts.site.licence,
+        "credit": credit(facts),
         "level": {
             "id": level["id"],
             "name": level["name"],

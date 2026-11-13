@@ -184,12 +184,21 @@ def level_words():
     return f"{lv['name']} ({state})"
 
 
+def credit_words(linked=True):
+    """Who builds the site and who leads it, from the facts file (`credit`), as one sentence."""
+    c = S.V["credit"]
+
+    def org(o):
+        return f'<a href="{e(o["url"])}">{e(o["name"])}</a>' if linked else e(o["name"])
+
+    return f"Built by the {org(c['builder'])}, led by {org(c['lead'])}."
+
+
 def footer():
-    """Every page's footer, one strip of cells: the level file and its digest, the release's
-    board file when there is one, the licence and the mandate."""
+    """Every page's footer, one strip of cells: the level file (its digest in the link's title),
+    the release's board file when there is one, the licence and who builds the site."""
     lv, rel = S.V["level"], S.V["release"]
-    parts = [f'<a href="{e(link(lv["path"]))}">{e(level_words())}</a>'
-             f'<code>{e(lv["digest"][:19])}</code>']  # fmt: skip
+    parts = [f'<a href="{e(link(lv["path"]))}" title="{e(lv["digest"])}">{e(level_words())}</a>']
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None
@@ -197,7 +206,7 @@ def footer():
         parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
                      else f'<span class="nw">{e(name)}</span><code>{e(board)}</code>')  # fmt: skip
     parts.append(f"<span>{e(S.V['licence'])}</span>")
-    parts.append(f'<a href="{MANDATE_PAGE}">Mandate</a>')
+    parts.append(f'<span class="fcr">{credit_words()}</span>')
     cells = "".join(f"<li>{p}</li>" for p in parts)
     return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
 

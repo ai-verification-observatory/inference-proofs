@@ -4,6 +4,27 @@
       "format": "date",
       "type": "string"
     },
+    "member": {
+      "additionalProperties": false,
+      "properties": {
+        "mark": {
+          "description": "the organisation's own mark, a file under web/ given with its permission; the pages print the name until a mark is drawn",
+          "pattern": "^[a-z0-9][a-z0-9/_.-]*\\.(svg|png)$",
+          "type": "string"
+        },
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "url": {
+          "$ref": "#/$defs/url"
+        }
+      },
+      "required": [
+        "name",
+        "url"
+      ],
+      "type": "object"
+    },
     "model": {
       "additionalProperties": false,
       "properties": {
@@ -21,6 +42,22 @@
       },
       "required": [
         "name"
+      ],
+      "type": "object"
+    },
+    "organisation": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/text"
+        },
+        "url": {
+          "$ref": "#/$defs/url"
+        }
+      },
+      "required": [
+        "name",
+        "url"
       ],
       "type": "object"
     },
@@ -74,6 +111,7 @@
         "reason": {
           "description": "RFC-0018 SI-4: the one fixed reason a system has no row on the board",
           "enum": [
+            "a different statement",
             "licence",
             "no public verifier",
             "no configuration at the request",
@@ -141,6 +179,34 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "credit": {
+      "additionalProperties": false,
+      "description": "who builds the site, printed in every page's footer, and its members, each listed once it has given its agreement",
+      "properties": {
+        "builder": {
+          "$ref": "#/$defs/organisation",
+          "description": "the group that builds the site"
+        },
+        "lead": {
+          "$ref": "#/$defs/organisation",
+          "description": "the organisation that leads it"
+        },
+        "members": {
+          "description": "the member organisations, in the order printed",
+          "items": {
+            "$ref": "#/$defs/member"
+          },
+          "maxItems": 12,
+          "type": "array"
+        }
+      },
+      "required": [
+        "builder",
+        "lead",
+        "members"
+      ],
+      "type": "object"
+    },
     "gpus": {
       "additionalProperties": {
         "$ref": "#/$defs/text"
@@ -190,6 +256,7 @@
   "required": [
     "schema",
     "site",
+    "credit",
     "gpus",
     "models",
     "rows"

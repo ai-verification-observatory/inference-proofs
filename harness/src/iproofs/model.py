@@ -786,11 +786,34 @@ class RowFacts(Document):
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Organisation(Document):
+    name: str
+    url: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Member(Document):
+    name: str
+    url: str
+    mark: str | None = None  # a file under web/, given with the organisation's permission
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class Credit(Document):
+    """Who builds the site (every page's footer) and its members, each once it has agreed."""
+
+    builder: Organisation
+    lead: Organisation
+    members: tuple[Member, ...]
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class SiteFacts(Document):
     """`site-facts/1`, the display facts no harness record holds (`web/_data/facts.json`)."""
 
     schema: str
     site: SiteInfo
+    credit: Credit
     gpus: Mapping[str, str]
     models: Mapping[str, ModelFacts]
     rows: Mapping[str, RowFacts]
@@ -981,6 +1004,9 @@ MODELS: dict[tuple[str, str], type[Any]] = {
     ("perturbed-commitment/1", "#"): PerturbedCommitmentRecord,
     ("site-facts/1", "#"): SiteFacts,
     ("site-facts/1", "#/properties/site"): SiteInfo,
+    ("site-facts/1", "#/properties/credit"): Credit,
+    ("site-facts/1", "#/$defs/organisation"): Organisation,
+    ("site-facts/1", "#/$defs/member"): Member,
     ("site-facts/1", "#/$defs/model"): ModelFacts,
     ("site-facts/1", "#/$defs/row"): RowFacts,
     ("site-facts/1", "#/$defs/row/properties/licence"): LicenceFacts,

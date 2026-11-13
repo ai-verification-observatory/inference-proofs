@@ -24,7 +24,7 @@ LEARN = "web/learn"  # the Learn pages' words: index.yaml and one Markdown file 
 SLUG = re.compile(r"^[a-z][a-z0-9-]{1,31}$")  # a Learn page's address, as a system's name is
 # RFC-0018 SI-4: the one fixed reason a system not run is listed with
 REASONS = ("licence", "no public verifier", "no configuration at the request",
-           "another kind of check", "not yet run")  # fmt: skip
+           "another kind of check", "a different statement", "not yet run")  # fmt: skip
 RELEASE = re.compile(r"^v1\.(0|[1-9]\d*)$")  # Level 1 releases (RFC-0018 §Terms)
 
 

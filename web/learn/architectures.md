@@ -60,7 +60,7 @@ The price is at the joins. Every value that crosses from one piece to the next h
 
 ## Checks that are not proofs
 
-The [ladder](/) lists some systems as "another kind of check". Most are not proofs. One, VerInf, is a proof of a different sentence, described above. They address the same question, which model gives this reply, by other means, and each answers a narrower one.
+The [ladder](/) lists some systems as "another kind of check". They are not proofs. VerInf, a proof of a different sentence described above, is listed apart, as "a different statement". The others address the same question, which model gives this reply, by other means, and each answers a narrower one.
 
 | Kind | How it works | What it rests on |
 |---|---|---|
@@ -72,4 +72,4 @@ Only attestation hides the weights from the party that checks, and it moves the 
 
 ## Where each system stands on this site
 
-The ladder lists every system we have catalogued, run or not. A system with no row has one stated reason: its licence, no public verifier, no configuration at the benchmark's request, another kind of check, or not yet run. A team that wants its row can [open an issue](https://github.com/ai-verification-observatory/inference-proofs/issues): we run the system unchanged and write its claim card from its own documents.
+The ladder lists every system we have catalogued, run or not. A system with no row has one stated reason: its licence, no public verifier, no configuration at the benchmark's request, another kind of check, a different statement, or not yet run. A team that wants its row can [open an issue](https://github.com/ai-verification-observatory/inference-proofs/issues): we run the system unchanged and write its claim card from its own documents.

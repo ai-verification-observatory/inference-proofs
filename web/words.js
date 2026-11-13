@@ -499,8 +499,8 @@
   // after the first frame, so a view transition into this page is not held up by layout read here
   requestAnimationFrame(() => requestAnimationFrame(spy));
 
-  // ------------------------------------------------------------ the probe: pointing at a figure (or anything carrying
-  // labels in its title) shows its labels where it is, one per line; a petal of a row's glyph shows its name and state
+  // ------------------------------------------------------------ the probe: pointing at a figure shows its labels where
+  // it is, one per line; a petal of a row's glyph shows its name and state. Any other title is left to the browser
   // The labels are the figure's description for a screen reader while they are shown.
   const probe = document.createElement('div');
   probe.className = 'probe';
@@ -590,7 +590,7 @@
     probe.scrollTop = 0;
     size = [probe.offsetWidth, probe.offsetHeight];
     col = gutters(el, size[0]);
-    near = $$('[title], [data-t]', main).filter((e) => e !== el && !e.contains(el) && !el.contains(e));
+    near = $$(FIG, main).filter((e) => e !== el && !e.contains(el) && !el.contains(e));
     place(el);
   };
   const labelled = (el) => show(el, () => {
@@ -651,14 +651,14 @@
       const els = document.elementsFromPoint(ev.clientX, ev.clientY).filter((e) => !probe.contains(e));
       const pt = els.map((e) => e.closest('.glyph .sl')).find((e) => e && main.contains(e) && e !== at);
       if (pt) { stay(); clearPetal(); petal(pt); return; }
-      const f = els.map((e) => e.closest('[title], [data-t]')).find((e) => e && main.contains(e) && e !== at);
+      const f = els.map((e) => e.closest(FIG)).find((e) => e && main.contains(e) && e !== at);
       if (f) { stay(); clearPetal(); labelled(f); }
     });
     main.addEventListener('pointerover', (ev) => {
       if (ev.pointerType !== 'mouse') return;
       const p = ev.target.closest('.glyph .sl');
       if (p) { stay(); clearPetal(); petal(p); return; }
-      const el = ev.target.closest('[title], [data-t]');
+      const el = ev.target.closest(FIG);
       if (el && main.contains(el)) { stay(); if (el !== at) labelled(el); } else later();
     });
     main.addEventListener('pointerleave', (ev) => { if (mouse(ev)) later(); });
@@ -683,7 +683,7 @@
     });
     main.addEventListener('focusin', (ev) => {
       if (press) return;
-      const el = ev.target.closest('a[title], .fig[title], .na[title], .part[title]');
+      const el = ev.target.closest('.fig[title], .na[title], .part[title]');
       if (el) { labelled(el); byKey = true; place(el, true); }
     });
     main.addEventListener('focusout', (ev) => { if (at && ev.target.contains(at)) hide(); });

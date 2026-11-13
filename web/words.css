@@ -840,6 +840,15 @@ html.js .row { cursor: pointer; }
 .blk > .cs > div:hover { background: var(--lift); }
 .cs dt { color: var(--paper); font-weight: 600; }
 .cs dd { margin: 0; max-width: 80ch; color: var(--muted); text-wrap: pretty; }
+/* the mandate: a line's label links the rule that binds it; the members' names in display type,
+   a row of cells whose rules meet (the list starts a rule's width early and clips it, so the
+   first name of each line has none) */
+.cs dt a { text-decoration-color: var(--rule); }
+.cs .mbr dd { max-width: none; }
+.mbl { list-style: none; display: flex; flex-wrap: wrap; row-gap: 8px; margin: 0 0 0 -20px; padding: 0; overflow: hidden; }
+.mbl li { min-width: 0; margin-left: -1px; padding: 0 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
+.mbl a { display: block; font: 800 28px/1.1 var(--disp); color: var(--paper); text-decoration: none; overflow-wrap: anywhere; }
+.mbl a:hover, .mbl a:active { background: var(--cobalt); color: var(--ground); box-shadow: 0 0 0 3px var(--cobalt); }
 .rd { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; text-wrap: pretty; }
 .rd + .rd { margin-top: 10px; }
 .cwrap .hl { padding: 16px 0 0 16px; }
