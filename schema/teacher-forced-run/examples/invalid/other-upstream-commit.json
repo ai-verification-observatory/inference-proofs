@@ -50,6 +50,12 @@
   "name": "sash",
   "not_run": {},
   "of": 15,
+  "own_reply_check": {
+    "agreeing": 512,
+    "positions": 512,
+    "prompt": 0,
+    "session": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1"
+  },
   "prompts": 15,
   "prompts_digest": "sha256:abababababababababababababababababababababababababababababababab",
   "prover_files": {

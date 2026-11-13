@@ -65,6 +65,7 @@ def _sessions_pin(root: Path, args: argparse.Namespace, level: "Level", rung: "R
                   system: str, digest: str) -> dict[str, Any]:  # fmt: skip
     """What the row's counted sessions ran, and the prover files their commitments record."""
     from iproofs.checks import row_sessions  # noqa: PLC0415
+    from iproofs.fidelity import session_replies  # noqa: PLC0415
 
     sessions = row_sessions(root, args.release, level, rung.id, system, digest)
     runs = []
@@ -79,7 +80,13 @@ def _sessions_pin(root: Path, args: argparse.Namespace, level: "Level", rung: "R
     if not runs:
         raise IProofsError(ErrorKind.CONFIG, f"{system} has no counted session on {rung.id} in "
                            f"{args.release}: nothing names the commit to score")  # fmt: skip
-    return {"sessions": runs, "prover_files": {k: sorted(v) for k, v in sorted(files.items())}}
+    # FI-14: the system's own proved reply to prompt 0 (slot 1's first request), which the
+    # scoring path must reproduce token for token before any reference reply is scored
+    first = sessions.counted.get(1)
+    own = session_replies(first.run.run) if first is not None else None
+    return {"sessions": runs, "prover_files": {k: sorted(v) for k, v in sorted(files.items())},
+            "own_reply": None if not own else {"run": first.run_id if first else None,
+                                               "reply": own[0]}}  # fmt: skip
 
 
 def _place_prover_files(
@@ -196,7 +203,14 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
                 raise IProofsError(ErrorKind.INTEGRITY, f"this job's commit kept {found}; the "
                                    f"counted sessions record {pin['prover_files']}")  # fmt: skip
     failed: list[int] = []
+    own = pin.pop("own_reply")
+    if own is None or len(own["reply"]) != len(requests[0]["reply"]):  # type: ignore[arg-type]
+        raise IProofsError(ErrorKind.CONFIG, f"{system}: no proved reply to prompt 0 in a "
+                           "counted session of slot 1, which the run scores first")  # fmt: skip
+    check: dict[str, Any] | None = None
     if ok:
+        # request 0 is the system's own proved reply to prompt 0; the rest follow it
+        requests = [{"prompt": requests[0]["prompt"], "reply": own["reply"]}, *requests]
         write_jsonl(io / "score-requests.jsonl", list(requests))
         shutil.rmtree(io / "score", ignore_errors=True)
         job = {**base, "subcommand": "score", "model_dir": "/models",
@@ -207,26 +221,42 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
         records.append(record)
         ok = record["exit_code"] == 0
         if ok:
-            failed = list(json.loads((io / "out.json").read_text())["scores"]["failed"])
+            first = json.loads((io / "score" / "0.json").read_text())
+            agreeing = sum(a == b for a, b in zip(first.get("top", []), own["reply"],
+                                                  strict=False))  # fmt: skip
+            check = {"prompt": 0, "session": own["run"], "positions": len(own["reply"]),
+                     "agreeing": agreeing}  # fmt: skip
+            if agreeing != len(own["reply"]):
+                why = first.get("failed") or f"{agreeing} of {len(own['reply'])} positions agree"
+                raise IProofsError(ErrorKind.INTEGRITY, f"{system}: the scoring path does not "
+                                   f"reproduce the system's own proved reply to prompt 0 "
+                                   f"({why}); nothing is stored")  # fmt: skip
+            failed = [i - 1 for i in json.loads((io / "out.json").read_text())["scores"]["failed"]]
     write_json(io / "sessions-pin.json", pin)
     return {"image": image, "said": said, "records": records, "ok": ok, "failed": failed,
-            "pin": pin, "prover_files": provenance, "workload": wl.id}  # fmt: skip
+            "pin": pin, "prover_files": provenance, "workload": wl.id,
+            "own_reply_check": check}  # fmt: skip
 
 
 def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
     """The adapter's per-request files into `top/<system>.jsonl` (a list of top tokens, or
-    {"failed": cause}, per prompt) and `raw/<system>/<prompt>.topk`."""
+    {"failed": cause}, per prompt) and `raw/<system>/<prompt>.topk`. Also the per-request
+    seconds where the adapter records them, as `seconds-<system>.json`."""
     (out / "top").mkdir(parents=True, exist_ok=True)
     lines = []
-    for i in range(n):
-        doc = json.loads((io / "score" / f"{i}.json").read_text())
+    for i in range(n):  # request i + 1: request 0 is the system's own reply (FI-14)
+        doc = json.loads((io / "score" / f"{i + 1}.json").read_text())
         lines.append(json.dumps({"failed": doc["failed"]} if "failed" in doc else doc["top"],
                                 separators=(",", ":")))  # fmt: skip
-        lists = io / "score" / f"{i}.topk"
+        lists = io / "score" / f"{i + 1}.topk"
         if lists.is_file():
             (out / "raw" / system).mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(lists, out / "raw" / system / lists.name)
+            shutil.copyfile(lists, out / "raw" / system / f"{i}.topk")
     (out / "top" / f"{system}.jsonl").write_text("".join(x + "\n" for x in lines))
+    seconds = [json.loads((io / "score" / f"{i}.json").read_text()).get("seconds")
+               for i in range(n + 1)]  # fmt: skip
+    if any(x is not None for x in seconds):
+        (out / f"seconds-{system}.json").write_text(json.dumps(seconds) + "\n")
 
 
 def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
@@ -332,6 +362,7 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
             "sessions": done["pin"]["sessions"],
             "upstream_commit_equal_to_sessions": True,
             "prover_files": done["prover_files"],
+            "own_reply_check": done["own_reply_check"],
             "ids": [args.system] if done["ok"] else [],
             "failed_prompts": done["failed"],
             "not_run": {},

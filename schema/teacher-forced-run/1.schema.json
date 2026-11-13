@@ -17,7 +17,8 @@
           "workload",
           "sessions",
           "upstream_commit_equal_to_sessions",
-          "prover_files"
+          "prover_files",
+          "own_reply_check"
         ]
       }
     }
@@ -229,6 +230,39 @@
     "of": {
       "minimum": 1,
       "type": "integer"
+    },
+    "own_reply_check": {
+      "$comment": "system (FI-14): before the reference replies, the run scores the system's own proved reply to prompt 0; its top tokens must be that reply at every position, or the run stops and stores nothing",
+      "additionalProperties": false,
+      "properties": {
+        "agreeing": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "positions": {
+          "minimum": 1,
+          "type": "integer"
+        },
+        "prompt": {
+          "const": 0
+        },
+        "session": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "prompt",
+        "session",
+        "positions",
+        "agreeing"
+      ],
+      "type": [
+        "object",
+        "null"
+      ]
     },
     "prompts": {
       "$comment": "the prompts this run fed; fewer than `of` is a trial, which fidelity score reads no pass from",
