@@ -301,12 +301,15 @@
       a.click();
     });
   });
-  // the band's block leads to its rung the same way: a tap on its figure shows its labels
-  $$('a.bx').forEach((a) => a.addEventListener('click', (ev) => { if (press && !press.mouse && ev.target.closest(FIG)) ev.preventDefault(); }));
-  // back on the ladder from a system's page, its row stays marked as the one in hand until another is taken
+  // on the ladder by a link from a system's page, its row stays marked as the one in hand until another is taken.
+  // A reload and the Back button keep the first load's referrer, so they mark nothing: the reader did not just come
+  // from that page (an older browser with no navigation entry says which by `performance.navigation`: 0 is a link)
   let cur = null;
   try {
-    const from = document.referrer && new URL(document.referrer);
+    const nav = performance.getEntriesByType('navigation')[0];
+    const old = performance.navigation;
+    const byLink = nav ? nav.type === 'navigate' : !old || old.type === 0;
+    const from = byLink && document.referrer && new URL(document.referrer);
     if (from && from.origin === location.origin) cur = document.getElementById(`row-${from.pathname.slice(1)}`);
   } catch (_) { cur = null; }
   if (cur) cur.classList.add('cur');
@@ -543,11 +546,14 @@
     const petalIn = (i) => () => { hand = { p: [i], c: decides.flatMap((d, k) => (d.includes(i) ? [k] : [])) }; light(); };
     const checkIn = (k) => () => { hand = { p: decides[k], c: [k] }; light(); };
     const drop = () => { hand = null; light(); };
+    // the checks page's key: ground parts its arms, and the pointer crossing it keeps the arm it last pointed at
+    // (dropped there, the petal read would light between two arms and the key would blink); leaving the glyph drops it
+    const key = $('svg', gb);
+    if (key && !lines[0].contains(petals[0])) key.addEventListener('pointerleave', drop);
     [petals, names].forEach((set) => set.forEach((p, i) => {
       // a system page's arm heads its own row: the row's handlers light it
       if (lines[i].contains(p)) return;
       p.addEventListener('pointerenter', petalIn(i));
-      p.addEventListener('pointerleave', drop);
       // a petal that is a link (the checks page's key) goes there itself
       if (!p.closest('a')) p.addEventListener('click', () => lines[i].scrollIntoView({ block: 'nearest', behavior: smooth() ? 'smooth' : 'auto' }));
     }));
@@ -607,7 +613,7 @@
   // the top of what names a figure: its cell's label (a fact's term, a cell, a block), so labels put over the figure
   // cover neither the figure nor its name
   const named = (el, r) => {
-    const cell = el.closest('.meta > div, td, .bx-f, .sb, .parts > div, dd');
+    const cell = el.closest('.meta > div, td, .sb, .parts > div, dd');
     if (!cell) return r.top;
     const t = (cell.matches('dd') && cell.previousElementSibling ? cell.previousElementSibling : cell).getBoundingClientRect().top;
     return t <= r.top && r.top - t < 120 ? t : r.top;
@@ -749,8 +755,11 @@
       if (ev.pointerType !== 'mouse') return;
       const p = ev.target.closest('.glyph .sl');
       if (p) { stay(); clearPetal(); petal(p); return; }
+      // on the ground between two petals of a glyph the one last pointed at stays
+      if (at && at.matches('.sl') && ev.target.closest('.glyph') === at.closest('.glyph')) { stay(); return; }
       const el = ev.target.closest(FIG);
-      if (el && main.contains(el)) { stay(); if (el !== at) labelled(el); } else later();
+      // a figure taken from a petal: the petal's edge goes with its labels
+      if (el && main.contains(el)) { stay(); if (el !== at) { clearPetal(); labelled(el); } } else later();
     });
     main.addEventListener('pointerleave', (ev) => { if (mouse(ev)) later(); });
     // A tap on a figure shows its labels, a second tap or a tap elsewhere puts them away. A mouse has pointed at the
@@ -767,7 +776,7 @@
       press = null;
       if (probe.contains(ev.target)) return;  // a press inside the labels (selecting them) keeps them
       const el = ev.target.closest ? ev.target.closest(FIG) : null;
-      // a figure inside a link shows its labels only when the link let the tap pass (the band's block)
+      // a figure inside a link shows its labels only when the link let the tap pass
       if (el && main.contains(el) && (!el.closest('a') || ev.defaultPrevented)) {
         if (p && p.mouse) { if (el !== at) labelled(el); } else if (p && p.open && p.el === el) hide(); else labelled(el);
       } else if (!(ev.target.closest && ev.target.closest('.glyph'))) { clearPetal(); hide(); }
@@ -779,8 +788,8 @@
     });
     main.addEventListener('focusout', (ev) => { if (at && ev.target.contains(at)) hide(); });
     away.push(() => { if (!at) return; if (byKey && at === document.activeElement) place(at); else { clearPetal(); hide(); } });
-    // a figure's labels reach the keyboard too: outside links (the band's block; its rung holds the same figure), a
-    // figure takes focus and shows them, on the ladder's and the Scale page's rows as everywhere
+    // a figure's labels reach the keyboard too: outside links, a figure takes focus and shows them, on the ladder's
+    // and the Scale page's rows as everywhere
     $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a')) el.tabIndex = 0; });
     // Escape puts the labels away. Labels shown by the keyboard and cut by a short window scroll with the arrows while
     // their figure has focus; at either end the arrow is left to the browser, which scrolls the page

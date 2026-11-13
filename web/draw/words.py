@@ -329,6 +329,8 @@ SCALE_SERVING = "Serving"  # a lane's foot: serving's line and its stored figure
 SCALE_NOT_RUN = "not run yet"  # a model no system has run on (the ladder, the scale page)
 # the scale page's line under its title, and the start of its description
 SCALE_LEAD = "Every system run, model by model, on one log scale"
+# beside the size tab of the frontier's rung on the ladder (OR-6: the largest with a passed row)
+FRONTIER_WORD = "Largest model proved"
 # ------------------------------------------------------------------ the mandate page
 # The headline, what the site is for, then what we do, what we do not do, who runs it and how to
 # check us: each line (a plain label, the rule that binds it, the file that rule is in, the

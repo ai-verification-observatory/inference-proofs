@@ -1,6 +1,7 @@
-"""The overview (`index.html`): the ladder (RFC-0018 SI-1). The frontier headline, then one section
-per model, largest first: its head (model, publisher, total parameters, the serving
-baseline) and its rows in the board's order (OR-5), then the systems not run (SI-4). Rows sort
+"""The overview (`index.html`): the ladder (RFC-0018 SI-1). The title, then one section per
+model, largest first, the frontier's marked as the largest model proved: its head (model,
+publisher, architecture, the serving baseline) and its rows in the board's order (OR-5), then
+the systems not run (SI-4). Rows sort
 only by the order rule: no column head re-sorts them. Also the figure cells the system pages use.
 """
 
@@ -24,6 +25,7 @@ from .words import (
     CHECK_NAME,
     FIDELITY_TITLE,
     FIGURE_HEAD,
+    FRONTIER_WORD,
     FULL_LOAD_WORD,
     NULL_WORD,
     OF_WHICH,
@@ -248,7 +250,10 @@ def standing_html(row, page=None):
                f'{e(CHECK_NAME[c["id"]])} check</a> {e(STATE_WORD[c["state"]])}</span>'
                for c in row["checks"] if c["state"] != "held"]  # fmt: skip
     state = f'<span class="nw">{e(not_passed(row))}{":" if missing else ""}</span>'
-    return f"{state} " + ", ".join(missing) if missing else state
+    # each comma inside the span of the check it follows, so a line never starts with one
+    listed = " ".join(m.replace("</span>", ",</span>") if i < len(missing) - 1 else m
+                      for i, m in enumerate(missing))  # fmt: skip
+    return f"{state} {listed}" if missing else state
 
 
 def reference_words():
@@ -299,7 +304,9 @@ def row_html(row, rung):
                    for (c, html), h in zip(cells, heads(), strict=True))  # fmt: skip
     return (
         f'<tr class="row" id="row-{e(row["page"])}">'
-        f'<td class="cp">{position_html(row, rung)}</td>'
+        # the cell's name where a phone lists it as a line (the head names it for a screen reader)
+        f'<td class="cp"><span class="lbl" aria-hidden="true">Position</span>'
+        f"{position_html(row, rung)}</td>"
         f'<td class="cg"><span class="sr pw">{states_words(row)}</span>'
         f'<a class="glyph" href="{e(href(row))}" tabindex="-1" aria-hidden="true">{glyph}</a></td>'
         f'<th class="csys" scope="row"><a class="sname" href="{e(href(row))}">{e(name_of(row))}</a>'
@@ -357,10 +364,13 @@ def rung_meta(rung):
 
 def rung_html(rung):
     """A model: a cobalt rule with its size in a tab, its name, its facts; then its rows, whose
-    heads stay under the top bar with the size beside them while a long rung scrolls."""
+    heads stay under the top bar with the size beside them while a long rung scrolls. The
+    frontier's rung (OR-6: the largest with a passed row) says so beside its tab."""
     size = e(params(rung["parameters_total"]))
+    front = S.V["frontier"]
+    mark = f'<p class="rf">{e(FRONTIER_WORD)}</p>' if front and front["rung"] == rung["id"] else ""
     head = (
-        f'<header class="rh"><p class="rk">{size}</p>'
+        f'<header class="rh"><p class="rk">{size}</p>{mark}'
         f'<h2 class="rm" id="h-{e(rung["id"])}">{nobreak(rung["model"])}</h2>'
         f"{rung_meta(rung)}</header>"
     )
@@ -382,48 +392,13 @@ def rung_html(rung):
             f"{head}{body}</section>")  # fmt: skip
 
 
-def lead_words(rung):
-    """Who leads on a model: position 1 (its name in display type), the systems that passed
-    unranked, none passed (yet, while no row has a failed check), or not run yet."""
-    rows = rung["rows"]
-    first = [name_of(r) for r in rows if r["position"] == 1]
-    if first:
-        return f'<span class="bx-n">#1</span><span class="bx-w">{e(", ".join(first))}</span>'
-    passed = [name_of(r) for r in rows if r["passed"]]
-    failed = any(c["state"] == "failed" for r in rows for c in r["checks"])
-    words = ("passed: " + ", ".join(passed) if passed
-             else ("none passed" if failed else "none passed yet") if rows
-             else "not run yet")  # fmt: skip
-    return f'<span class="bx-q">{e(words)}</span>'
-
-
-def frontier_html():
-    """The band: the title on one line, then one block of ground ink for the largest model a
-    system passed on (OR-6), or else the largest tried: its size, its name, who leads there, how
-    many systems ran, and its position 1's multiple, labelled. The block is a link to that model's
-    rung. No other model is named in the band: the rungs under it are the list. The level, the
-    request and each figure's scope and n are a step down (a system's page, the footer)."""
-    rungs, front = S.V["rungs"], S.V["frontier"]
-    run = [r for r in rungs if r["rows"]]
-    lead = front["rung"] if front else (run[0]["id"] if run else None)
-    tag = "Largest model proved" if front else "Largest model tried"
-    block = ""
-    for rung in (r for r in rungs if r["id"] == lead):
-        fig = ""
-        if front:
-            for row in (r for r in rung["rows"] if r["position"] == 1):
-                label, f = lead_fig(row, bare=True)
-                fig += f'<span class="bx-f"><span class="bx-l">{e(label)}</span>{f}</span>'
-        block = (
-            f'<div class="bl"><a class="bx" href="#{e(rung["id"])}">'
-            f'<span class="bx-p">{e(params(rung["parameters_total"]))}</span>'
-            f'<span class="bx-k">{e(tag)}</span>'
-            f'<span class="bx-m">{nobreak(rung["model"])}</span>'
-            f'<span class="bx-s">{lead_words(rung)}</span>'
-            f'<span class="bx-c">{rung["systems_run"]:,} {"system" if rung["systems_run"] == 1 else "systems"} run</span>{fig}</a></div>'
-        )
+def band_html():
+    """The band: the title on one line, and nothing else. The frontier (OR-6) is not named here:
+    its rung, in the ladder under the band, is marked as the largest model proved (`rung_html`),
+    and its rows say who passed there, at what multiple and how many systems ran."""
+    run = any(r["rows"] for r in S.V["rungs"])
     title = "Proved inference, by model size" if run else "No system has run yet."
-    return f'<h1 class="band-h">{e(title)}</h1>{block}'
+    return f'<h1 class="band-h">{e(title)}</h1>'
 
 
 def not_run_html():
@@ -450,7 +425,7 @@ def build_index():
     body = f"""
 {header("home")}
 <main id="main" class="home">
-  <section class="mast"><div class="mast-in">{frontier_html()}</div></section>
+  <section class="mast"><div class="mast-in">{band_html()}</div></section>
   <div class="wrap ladder">{rungs}</div>
   <div class="wrap">{not_run_html()}</div>
 </main>

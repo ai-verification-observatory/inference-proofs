@@ -54,7 +54,7 @@ The site's Learn glossary ([`web/learn/glossary.md`](../../web/learn/glossary.md
 
 <a id="forbidden-flag"></a>**Forbidden flag.** A command-line option listed in `system.yaml` `forbidden_flags` because it weakens the system's statement (for example SASH's `--unsound-skip-*` family). Allowed only in control jobs; CI fails any measured run that used one. [RFC-0005](../../rfcs/0005-adapter-contract.md), [RFC-0013](../../rfcs/0013-validation-and-ci.md).
 
-<a id="frontier"></a>**Frontier.** The largest rung, by total parameters, on which at least one row passed; the site's headline. [RFC-0018](../../rfcs/0018-level-1-ladder.md).
+<a id="frontier"></a>**Frontier.** The largest rung, by total parameters, on which at least one row passed; the ladder marks its rung as the largest model proved. [RFC-0018](../../rfcs/0018-level-1-ladder.md).
 
 <a id="glyph"></a>**Glyph.** The five-petal figure the site draws for a row we ran: how close the system is to a perfect prover, one [glyph property](#glyph-property) per petal, each at one [glyph state](#glyph-state). Nothing adds the petals up, and the glyph never moves a position. From Level 1, [RFC-0018](../../rfcs/0018-level-1-ladder.md#the-glyph); before it, six documentation properties ([RFC-0016](../../rfcs/0016-glyph-properties-and-states.md)).
 
