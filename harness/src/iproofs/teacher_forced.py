@@ -321,6 +321,7 @@ class Entry:
     scored: Scored
     run: str | None  # the run record that holds its pass
     kl: Mapping[str, object] | None  # its stored KL values (`measure_kl`)
+    runs: tuple[str, ...] = ()  # every run record of the pass, where shards made it
 
 
 def _kl_block(entry: Entry, has_reference: bool, ref: str, note: str) -> dict[str, object]:
@@ -370,12 +371,17 @@ def build(
         },
         "reference_pass": None
         if reference_pass is None
-        else {**reference_pass.scored.record(), "run": reference_pass.run},
+        else {
+            **reference_pass.scored.record(),
+            "run": reference_pass.run,
+            "runs": list(reference_pass.runs),
+        },
         "controls": [
             {
                 **{k: c.spec.get(k) for k in ("id", "kind", "recipe", "type")},
                 **c.scored.record(),
                 "run": c.run,
+                "runs": list(c.runs),
                 **_kl_block(c, has_reference_lists, kl_ref, ENGINE_NOTE),
             }
             for c in controls
@@ -384,6 +390,7 @@ def build(
             r.scored.id: {
                 **r.scored.record(),
                 "run": r.run,
+                "runs": list(r.runs),
                 "computed_by": computed_by.get(r.scored.id, ""),
                 "label": LABEL,
                 **_kl_block(r, has_reference_lists, kl_ref, LABEL),

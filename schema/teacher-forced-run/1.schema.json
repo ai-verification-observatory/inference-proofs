@@ -231,6 +231,11 @@
       "minimum": 1,
       "type": "integer"
     },
+    "offset": {
+      "$comment": "the first prompt this run fed (0 where absent); runs of one id that together cover every prompt once make one pass (FI-14)",
+      "minimum": 0,
+      "type": "integer"
+    },
     "own_reply_check": {
       "$comment": "system (FI-14): before the reference replies, the run scores the system's own proved reply to prompt 0; its top tokens must be that reply at every position, or the run stops and stores nothing",
       "additionalProperties": false,

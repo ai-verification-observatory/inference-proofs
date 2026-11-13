@@ -36,14 +36,41 @@ def test_a_pass_is_read_only_from_a_run_of_every_prompt(tmp_path: Path) -> None:
     (tmp_path / "top/sash.jsonl").write_text('[1,2]\n{"failed":"refused"}\n[3,4]\n')
     trial = ("run-trial.json", run_record("trial", ["sash"], prompts=1))
     full = ("run-sash.json", run_record("sash", ["sash"]))
-    found, run = cmd._pass_of("sash", tmp_path, [trial], "ref", 3, D, D, D)
+    found, made = cmd._pass_of("sash", tmp_path, [trial], "ref", 3, D, D, D)
     assert found.tops is None
-    assert found.cause == "not run on every prompt: run-trial.json ran 1 of 3"
-    assert run is None
-    found, run = cmd._pass_of("sash", tmp_path, [trial, full], "ref", 3, D, D, D)
+    assert found.cause == (
+        "not run on every prompt: of 3, the stored runs cover run-trial.json prompts 0 to 0"
+    )
+    assert made == ()
+    found, made = cmd._pass_of("sash", tmp_path, [trial, full], "ref", 3, D, D, D)
     assert found.tops == ((1, 2), None, (3, 4))
     assert found.causes == {1: "refused"}
-    assert run == "ref/run-sash.json"
+    assert made == ("ref/run-sash.json",)
+
+
+def test_shards_that_cover_every_prompt_once_make_one_pass(tmp_path: Path) -> None:
+    """Three runs of prompts 0, 1 and 2 (a control split across jobs): their top tokens are
+    joined in prompt order; with one shard missing, or one prompt covered twice, no pass."""
+    (tmp_path / "top").mkdir()
+    for lo, top in ((0, [1, 2]), (1, [3, 4]), (2, [5, 6])):
+        (tmp_path / "top" / f"q8_0@{lo}.jsonl").write_text(json.dumps(top) + "\n")
+    shard = [
+        (f"run-controls-q8_0-{lo}.json",
+         run_record(f"controls-q8_0-{lo}", ["q8_0"], prompts=1, offset=lo))
+        for lo in (2, 0, 1)
+    ]  # fmt: skip
+    found, made = cmd._pass_of("q8_0", tmp_path, shard, "ref", 3, D, D, D)
+    assert found.tops == ((1, 2), (3, 4), (5, 6))
+    assert made == tuple(f"ref/run-controls-q8_0-{lo}.json" for lo in (0, 1, 2))
+    joined = (tmp_path / "top" / "q8_0.jsonl").read_text().splitlines()
+    assert [json.loads(x) for x in joined] == [[1, 2], [3, 4], [5, 6]]
+    (tmp_path / "top" / "q8_0.jsonl").unlink()
+    found, made = cmd._pass_of("q8_0", tmp_path, shard[:2], "ref", 3, D, D, D)  # prompt 1 missing
+    assert (found.tops, made) == (None, ())
+    assert found.cause.startswith("not run on every prompt: of 3, the stored runs cover")
+    twice = [*shard, ("run-again.json", run_record("again", ["q8_0"], prompts=1, offset=1))]
+    found, _ = cmd._pass_of("q8_0", tmp_path, twice, "ref", 3, D, D, D)
+    assert found.tops is None
 
 
 def test_a_run_of_other_prompts_or_another_reference_is_refused(tmp_path: Path) -> None:
@@ -160,7 +187,7 @@ def test_a_stopped_system_run_keeps_the_prompts_that_finished(tmp_path: Path) ->
     assert (record["ids"], record["failed_prompts"]) == (["sys"], [1])
     assert record["own_reply_check"] == {"prompt": 0, "session": "session-1", "positions": 3,
                                          "agreeing": 3}  # fmt: skip
-    lines = (out / "top" / "sys.jsonl").read_text().splitlines()
+    lines = (out / "top" / "sys@0.jsonl").read_text().splitlines()  # a part: <id>@<first prompt>
     assert [json.loads(x) for x in lines] == [[1, 2, 3], {"failed": "RangeConditionFailed"}]
     assert (out / "raw" / "sys" / "0.topk").read_bytes() == b"lists"
     calls: list[dict[str, object]] = record["calls"]  # type: ignore[assignment]

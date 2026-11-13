@@ -148,7 +148,7 @@ def _system_runner(root: Path, args: argparse.Namespace, registry: "SchemaRegist
 def _system_calls(  # noqa: PLR0913, PLR0915, PLR0917 (one adapter flow, read top to bottom)
     args: argparse.Namespace, root: Path, registry: "SchemaRegistry", level: "Level",
     rung: "Rung", io: Path, digest: str, requests: Sequence[Mapping[str, object]],
-    part: dict[str, Any],
+    part: dict[str, Any], first_prompt: Sequence[int],
 ) -> None:  # fmt: skip
     """AD-7: `info`, the steps `score` needs (`--before`), then `score`. Fills `part` with the
     record's parts as each becomes known, so a run stopped during `score` can still store the
@@ -222,7 +222,7 @@ def _system_calls(  # noqa: PLR0913, PLR0915, PLR0917 (one adapter flow, read to
     write_json(io / "sessions-pin.json", pin)
     if ok:
         # request 0 is the system's own proved reply to prompt 0; the rest follow it
-        requests = [{"prompt": requests[0]["prompt"], "reply": own["reply"]}, *requests]
+        requests = [{"prompt": list(first_prompt), "reply": own["reply"]}, *requests]
         write_jsonl(io / "score-requests.jsonl", list(requests))
         shutil.rmtree(io / "score", ignore_errors=True)
         job = {**base, "subcommand": "score", "model_dir": "/models",
@@ -247,8 +247,10 @@ def _finished(io: Path) -> int:
         k += 1
 
 
-def _system_record(args: argparse.Namespace, record: dict[str, Any], part: Mapping[str, Any],
-                   io: Path, out: Path, n: int, stopped: str | None) -> bool:  # fmt: skip
+def _system_record(  # noqa: PLR0913, PLR0917 (the record's parts, as the caller has them)
+    args: argparse.Namespace, record: dict[str, Any], part: Mapping[str, Any], io: Path,
+    out: Path, n: int, stopped: str | None, lo: int = 0, whole: bool = True,
+) -> bool:  # fmt: skip
     """The record of a system's run and its stored outputs. A run that ended keeps its n
     prompts; a run stopped during `score` (`stopped`: why) keeps the prompts whose requests
     finished, so no finished work is lost, and its record says how many (`prompts`), which makes
@@ -268,8 +270,9 @@ def _system_record(args: argparse.Namespace, record: dict[str, Any], part: Mappi
                                f"reproduce the system's own proved reply to prompt 0 ({why}); "
                                "nothing is stored")  # fmt: skip
     done = min(max(0, k - 1), n)
-    if done:
-        _collect_system(io, out, args.system, done)
+    if done:  # a part of the prompts (a shard, or a stopped run) is stored as <id>@<lo>
+        suffix = "" if whole and not stopped else f"@{lo}"
+        _collect_system(io, out, args.system, done, lo, suffix)
     failed = [i for i in range(done)
               if "failed" in json.loads((io / "score" / f"{i + 1}.json").read_text())]  # fmt: skip
     said = part.get("said") or {}
@@ -298,7 +301,8 @@ def _system_record(args: argparse.Namespace, record: dict[str, Any], part: Mappi
     return bool(part.get("ok")) and done == n and not stopped
 
 
-def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
+def _collect_system(io: Path, out: Path, system: str, n: int, lo: int = 0,
+                    suffix: str = "") -> None:  # fmt: skip
     """The adapter's per-request files into `top/<system>.jsonl` (a list of top tokens, or
     {"failed": cause}, per prompt) and `raw/<system>/<prompt>.topk`. Also the per-request
     seconds where the adapter records them, as `seconds-<system>.json`."""
@@ -311,8 +315,8 @@ def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
         lists = io / "score" / f"{i + 1}.topk"
         if lists.is_file():
             (out / "raw" / system).mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(lists, out / "raw" / system / f"{i}.topk")
-    (out / "top" / f"{system}.jsonl").write_text("".join(x + "\n" for x in lines))
+            shutil.copyfile(lists, out / "raw" / system / f"{lo + i}.topk")
+    (out / "top" / f"{system}{suffix}.jsonl").write_text("".join(x + "\n" for x in lines))
     from iproofs.serialize import write_json  # noqa: PLC0415
 
     seconds = [json.loads((io / "score" / f"{i}.json").read_text()).get("seconds")
@@ -326,9 +330,11 @@ def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
                                                      "requests": seconds})  # fmt: skip
 
 
-def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
+def _collect_engine(io: Path, out: Path, name: str, lo: int = 0, suffix: str = "") -> list[str]:
     """The reference image's outputs: top tokens, lists, status and logs (host paths redacted,
-    AGENTS.md rule 7). Returns the ids that have top tokens."""
+    AGENTS.md rule 7). Returns the ids that have top tokens. A run of a part of the prompts
+    (from prompt `lo`) stores its top tokens as `<id>@<lo>.jsonl` and its lists under each
+    prompt's own index."""
     from iproofs.log.redact import Redactor  # noqa: PLC0415
 
     redact = Redactor.from_host()
@@ -336,10 +342,12 @@ def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
     ids = []
     (out / "top").mkdir(parents=True, exist_ok=True)
     for f in sorted((src / DIR / "top").glob("*.jsonl")) if (src / DIR / "top").is_dir() else []:
-        shutil.copyfile(f, out / "top" / f.name)
+        shutil.copyfile(f, out / "top" / f"{f.stem}{suffix}.jsonl")
         ids.append(f.stem)
-    if (src / DIR / "raw").is_dir():
-        shutil.copytree(src / DIR / "raw", out / "raw", dirs_exist_ok=True)
+    for f in sorted((src / DIR / "raw").glob("*/*.topk")) if (src / DIR / "raw").is_dir() else []:
+        target = out / "raw" / f.parent.name
+        target.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(f, target / f"{lo + int(f.stem)}.topk")
     if (src / DIR / "partial").is_dir():  # the prompts a pass finished before a stop
         shutil.copytree(src / DIR / "partial", out / "raw" / "partial", dirs_exist_ok=True)
     for f in sorted((src / "logs").glob("*")) if (src / "logs").is_dir() else []:
@@ -392,12 +400,18 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
     if stored["prompts_digest"] != prompts_digest:
         raise IProofsError(ErrorKind.INTEGRITY, "these prompts are not the ones the stored "
                            "reference replies answer")  # fmt: skip
-    n = min(args.limit, len(prompts)) if args.limit else len(prompts)
-    write_jsonl(io / "prompts.jsonl", prompts[:n])
-    write_jsonl(io / "reference.jsonl", replies[:n])
+    lo = args.offset or 0
+    if not 0 <= lo < len(prompts):
+        raise IProofsError(ErrorKind.CONFIG, f"--offset {lo} is outside {len(prompts)} prompts")
+    n = min(args.limit, len(prompts) - lo) if args.limit else len(prompts) - lo
+    whole = lo == 0 and n == len(prompts)
+    suffix = "" if whole else f"@{lo}"  # a shard's top tokens: top/<id>@<lo>.jsonl
+    prompts_run, replies_run = prompts[lo : lo + n], replies[lo : lo + n]
+    write_jsonl(io / "prompts.jsonl", prompts_run)
+    write_jsonl(io / "reference.jsonl", replies_run)
     out = tf_dir(args.results or root / "results", args.release, rung.id)
     out.mkdir(parents=True, exist_ok=True)
-    name = args.name or args.system or (args.part or args.engine)
+    name = args.name or (args.system or args.part or args.engine) + ("" if whole else f"-{lo}")
     commit_sha, dirty = git_state(root)
     record: dict[str, Any] = {
         "schema": RUN_SCHEMA,
@@ -408,6 +422,7 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
         "prompts_digest": prompts_digest,
         "prompts": n,
         "of": len(prompts),
+        "offset": lo,
         "reference": {"replies": f"results/{args.release}/fidelity/{rung.id}/reference.jsonl",
                       "digest": file_digest(reference_path)},
         "harness": {"git_commit": commit_sha, "git_dirty": dirty},
@@ -437,11 +452,11 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
         if args.system:
             if "pin" not in part:
                 return 4  # stopped before any call: nothing to store
-            ok = _system_record(args, record, part, io, out, n, stopped)
+            ok = _system_record(args, record, part, io, out, n, stopped, lo, whole)
             return write(ok) if record["ids"] or not stopped else 4
         if "said" not in part:
             return 4
-        ids = _collect_engine(io, out, name)
+        ids = _collect_engine(io, out, name, lo, suffix)
         said, not_run = part["said"], dict(part["not_run"])
         if stopped:
             wanted = [str(c["id"]) for call in part["calls"] for c in call[2]]
@@ -479,7 +494,8 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
     if args.system:
         _system_calls(args, root, registry, level, rung, io, digest,
                       [{"prompt": p, "reply": r} for p, r in
-                       zip(prompts[:n], replies[:n], strict=True)], part)  # fmt: skip
+                       zip(prompts_run, replies_run, strict=True)], part,
+                      prompts[0])  # fmt: skip
         return finish()
     system = fid.SYSTEMS[args.engine]
     containers, image = fid._containers(root, args, registry, system)
@@ -532,15 +548,19 @@ def _tops(path: Path) -> tuple[tuple[tuple[int, ...] | None, ...], dict[int, str
     return tuple(tops), causes
 
 
-def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], ref: str,
-             n: int, level_digest: str, prompts_digest: str, reference_digest: str
-             ) -> tuple[Any, str | None]:  # fmt: skip
-    """The stored pass of one id (its top tokens and the record of the run that made them), or
-    the cause it has none. A run of other prompts, another level or another reference reply
-    file is refused; a run of fewer than all the prompts (a trial) is not a pass."""
+def _pass_of(  # noqa: PLR0912 (each way a pass can be stored, in order)
+    ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], ref: str, n: int,
+    level_digest: str, prompts_digest: str, reference_digest: str,
+) -> tuple[Any, tuple[str, ...]]:  # fmt: skip
+    """The stored pass of one id (its top tokens and the records of the runs that made them),
+    or the cause it has none. A pass is one run of every prompt, or several runs (shards, or a
+    stopped run and the run that finished it) that together cover every prompt once, in which
+    case their top tokens are joined into `top/<id>.jsonl`. A run of other prompts, another
+    level or another reference reply file is refused; runs that leave prompts out are trials."""
     from iproofs.teacher_forced import Pass  # noqa: PLC0415
 
     cause, failed = "not run", False
+    parts: list[tuple[int, int, str]] = []  # offset, prompts, record name
     for name, run in runs:
         # a run that left the control out says so; a run that leaves it to another part
         # (FI-9) names that part, which is the cause only while no part's run speaks of it
@@ -551,29 +571,53 @@ def _pass_of(ident: str, tf: Path, runs: Sequence[tuple[str, dict[str, Any]]], r
         if ident not in run.get("ids", []):
             status = tf / f"status-{run['name']}.json"
             st = json.loads(status.read_text()) if status.is_file() else {}
-            found = st.get("controls", {}).get(ident) or (st.get(ident) if ident == "reference"
-                                                         else None)  # fmt: skip
+            found = st.get("controls", {}).get(ident) or (
+                st.get(ident) if ident == "reference" else None
+            )
             if isinstance(found, dict) and found.get("cause"):
                 cause, failed = str(found["cause"]), True  # the run tried it and it failed
             continue
         if (run["level"]["digest"], run["prompts_digest"], run["reference"]["digest"]) != (
-                level_digest, prompts_digest, reference_digest):  # fmt: skip
+            level_digest,
+            prompts_digest,
+            reference_digest,
+        ):
             raise IProofsError(ErrorKind.INTEGRITY, f"{name}: another level, other prompts or "
                                "other reference replies than this rung's")  # fmt: skip
-        if run["prompts"] != n:
-            cause = f"not run on every prompt: {name} ran {run['prompts']} of {run['of']}"
-            continue
+        parts.append((int(run.get("offset", 0)), int(run["prompts"]), name))
+    whole = [name for lo, count, name in parts if lo == 0 and count == n]
+    if whole:
         tops, causes = _tops(tf / "top" / f"{ident}.jsonl")
-        return Pass(ident, tops, causes), f"{ref}/{name}"
+        return Pass(ident, tops, causes), (f"{ref}/{whole[0]}",)
+    parts.sort()
+    covered = 0
+    for lo, count, _ in parts:
+        if lo != covered:
+            break
+        covered += count
+    if parts and covered == n and len({lo for lo, _, _ in parts}) == len(parts):
+        joined: list[tuple[int, ...] | None] = []
+        causes = {}
+        for lo, _, _ in parts:
+            tops, found_causes = _tops(tf / "top" / f"{ident}@{lo}.jsonl")
+            causes |= {lo + i: c for i, c in found_causes.items()}
+            joined += list(tops)
+        lines = [json.dumps({"failed": causes[i]} if t is None else list(t),
+                            separators=(",", ":")) for i, t in enumerate(joined)]  # fmt: skip
+        (tf / "top" / f"{ident}.jsonl").write_text("".join(x + "\n" for x in lines))
+        return Pass(ident, tuple(joined), causes), tuple(f"{ref}/{name}" for _, _, name in parts)
+    if parts:
+        said = ", ".join(f"{name} prompts {lo} to {lo + count - 1}" for lo, count, name in parts)
+        cause = f"not run on every prompt: of {n}, the stored runs cover {said}"
     # a run that stored nothing (stopped before its record was written) is listed by hand, with
     # its exit code and last lines (AGENTS.md rule 5), in not-stored.json
     listed = tf / NOT_STORED
-    for entry in json.loads(listed.read_text())["runs"] if listed.is_file() else []:
+    for entry in json.loads(listed.read_text())["runs"] if listed.is_file() and not parts else []:
         if ident in entry["ids"]:
             cause = f"not run: {entry['cause']} ({ref}/{NOT_STORED})"
     if not failed and not cause.startswith("not run"):  # a run's word that the id is not its own
         cause = f"not run: no pass of it is stored; {cause}"
-    return Pass(ident, None, {}, cause), None
+    return Pass(ident, None, {}, cause), ()
 
 
 def _measure(tf: Path, raw: Path, ids: Sequence[str], n: int) -> dict[str, Any]:
@@ -621,10 +665,10 @@ def score(args: argparse.Namespace) -> int:
         else {"engines": {}}  # fmt: skip
 
     def entry(ident: str, spec: Mapping[str, object], system: bool) -> Entry:
-        found, run = _pass_of(ident, tf, runs, ref, n, digest, str(stored["prompts_digest"]),
-                              reference_digest)  # fmt: skip
-        return Entry(spec, score_pass(found, reference, system=system), run,
-                     kl["engines"].get(ident))  # fmt: skip
+        found, made = _pass_of(ident, tf, runs, ref, n, digest, str(stored["prompts_digest"]),
+                               reference_digest)  # fmt: skip
+        return Entry(spec, score_pass(found, reference, system=system),
+                     made[0] if made else None, kl["engines"].get(ident), made)  # fmt: skip
 
     beacon = load_beacon(root, level, registry=registry)
     rule = SignFlipRule(level.fidelity.alpha, level.fidelity.exact_up_to,

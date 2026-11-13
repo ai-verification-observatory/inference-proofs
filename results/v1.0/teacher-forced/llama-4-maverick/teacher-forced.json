@@ -27,6 +27,9 @@
       "median": 508.0,
       "recipe": "rerun",
       "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json"
+      ],
       "scores": [
         503,
         508,
@@ -404,6 +407,7 @@
       "median": null,
       "recipe": "quantize",
       "run": null,
+      "runs": [],
       "scores": [],
       "status": "failed",
       "type": "Q8_0"
@@ -420,6 +424,7 @@
       "median": null,
       "recipe": "quantize",
       "run": null,
+      "runs": [],
       "scores": [],
       "status": "failed",
       "type": "Q4_K_M"
@@ -436,6 +441,7 @@
       "median": null,
       "recipe": "quantize",
       "run": null,
+      "runs": [],
       "scores": [],
       "status": "failed",
       "type": "Q3_K_S"
@@ -452,6 +458,7 @@
       "median": null,
       "recipe": "quantize",
       "run": null,
+      "runs": [],
       "scores": [],
       "status": "failed",
       "type": "Q2_K"
@@ -468,6 +475,7 @@
       "median": null,
       "recipe": "drop_blocks",
       "run": null,
+      "runs": [],
       "scores": [],
       "status": "failed",
       "type": null
@@ -499,6 +507,9 @@
       "median": 248.0,
       "recipe": "other_model",
       "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json"
+      ],
       "scores": [
         253,
         420,
@@ -903,6 +914,9 @@
     "mean_not_failed": 506.7916666666667,
     "median": 508.0,
     "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
+    "runs": [
+      "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json"
+    ],
     "scores": [
       495,
       510,
@@ -1294,6 +1308,9 @@
       "mean_not_failed": 442.3888888888889,
       "median": 437.0,
       "run": "results/v1.0/teacher-forced/llama-4-maverick/run-flashprove.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-4-maverick/run-flashprove.json"
+      ],
       "scores": [
         442,
         494,

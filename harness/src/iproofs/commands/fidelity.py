@@ -142,6 +142,13 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
         "such run)",
     )
     p.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="with --teacher-forced: start at this prompt (with --limit, one shard of the "
+        "prompts; runs that together cover every prompt once make one pass)",
+    )
+    p.add_argument(
         "--top-k",
         type=int,
         default=256,

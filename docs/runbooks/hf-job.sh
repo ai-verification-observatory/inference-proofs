@@ -91,6 +91,8 @@
 #                         `fidelity run --teacher-forced`) in place of replies and KL, with the
 #                         engine, part and slots of the variables above. IPROOFS_TF_ONLY=ID[,ID]
 #                         keeps those controls, IPROOFS_TF_LIMIT=N the first N prompts (a trial),
+#                         IPROOFS_TF_OFFSET=K with it prompts K to K + N - 1 (a shard: runs that
+#                         together cover every prompt once make one pass),
 #                         IPROOFS_TF_NAME names the record, IPROOFS_TF_TOP_K the tokens listed per
 #                         position (default 256), IPROOFS_FIDELITY_NO_OTHER=1 skips the other model
 #   IPROOFS_TF_EACH       with IPROOFS_TF and the controls part: ID[,ID], one run per control in
@@ -803,6 +805,7 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
     tf_args=(--teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}")
     [ -n "${IPROOFS_TF_ONLY:-}" ] && tf_args+=(--only "$IPROOFS_TF_ONLY")
     [ -n "${IPROOFS_TF_LIMIT:-}" ] && tf_args+=(--limit "$IPROOFS_TF_LIMIT")
+    [ -n "${IPROOFS_TF_OFFSET:-}" ] && tf_args+=(--offset "$IPROOFS_TF_OFFSET")
     [ -n "${IPROOFS_TF_NAME:-}" ] && tf_args+=(--name "$IPROOFS_TF_NAME")
   fi
   if [ -n "${IPROOFS_TF_SYSTEM:-}" ]; then
@@ -845,7 +848,9 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
           --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
           --results "$DEV" --work "$WORK/fidelity-io" --part controls \
           --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src" \
-          --teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}" --only "$id" --name "controls-$id" \
+          --teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}" --only "$id" \
+          --name "controls-$id${IPROOFS_TF_OFFSET:+-$IPROOFS_TF_OFFSET}" \
+          ${IPROOFS_TF_OFFSET:+--offset "$IPROOFS_TF_OFFSET"} \
           ${IPROOFS_TF_LIMIT:+--limit "$IPROOFS_TF_LIMIT"} || rc=$?
         log "fidelity run ($id) exit $rc"
         # sent at once, so a job cancelled later keeps this control

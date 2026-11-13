@@ -27,6 +27,9 @@
       "median": 512.0,
       "recipe": "rerun",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         512,
         512,
@@ -74,6 +77,9 @@
       "median": 504.0,
       "recipe": "quantize",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         508,
         504,
@@ -121,6 +127,9 @@
       "median": 467.0,
       "recipe": "quantize",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         486,
         456,
@@ -168,6 +177,9 @@
       "median": 401.0,
       "recipe": "quantize",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         448,
         396,
@@ -215,6 +227,9 @@
       "median": 374.0,
       "recipe": "quantize",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         438,
         374,
@@ -262,6 +277,9 @@
       "median": 204.0,
       "recipe": "drop_blocks",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         322,
         218,
@@ -309,6 +327,9 @@
       "median": 358.0,
       "recipe": "other_model",
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
       "scores": [
         426,
         361,
@@ -368,6 +389,9 @@
     "mean_not_failed": 512.0,
     "median": 512.0,
     "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+    "runs": [
+      "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+    ],
     "scores": [
       512,
       512,
@@ -414,6 +438,9 @@
       "mean_not_failed": 471.2,
       "median": 471.0,
       "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json"
+      ],
       "scores": [
         495,
         467,

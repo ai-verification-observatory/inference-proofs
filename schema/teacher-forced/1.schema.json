@@ -152,6 +152,13 @@
               "null"
             ]
           },
+          "runs": {
+            "$comment": "every run record of the pass, where several runs (shards) made it",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "scores": {
             "$comment": "FI-10: per prompt, the reply positions whose top token is the reference token; a failed prompt scores 0",
             "items": {
@@ -380,6 +387,13 @@
             "null"
           ]
         },
+        "runs": {
+          "$comment": "every run record of the pass, where several runs (shards) made it",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
         "scores": {
           "$comment": "FI-10: per prompt, the reply positions whose top token is the reference token; a failed prompt scores 0",
           "items": {
@@ -554,6 +568,13 @@
               "string",
               "null"
             ]
+          },
+          "runs": {
+            "$comment": "every run record of the pass, where several runs (shards) made it",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "scores": {
             "$comment": "FI-10: per prompt, the reply positions whose top token is the reference token; a failed prompt scores 0",
