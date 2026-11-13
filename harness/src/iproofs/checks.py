@@ -33,7 +33,9 @@ P1_FROM_CONTROL_RUNS = frozenset({"P1"})  # CH-1b
 # CH-1: a failed control prove counts as the prover's refusal only when the trial names a reason
 # from the prover; the harness's bare "<kind>: <step> exited <code>" names none (the adapter may
 # have failed before the prover ran), so such a trial decides nothing.
-_BARE_EXIT = re.compile(r"\w+: \w+ exited -?\d+")
+# A line that goes on with a Python exception (`...: FileNotFoundError: ...`) is the adapter's
+# own failure as well.
+_BARE_EXIT = re.compile(r"\w+: \w+ exited -?\d+(: \w*(Error|Exception)\b.*)?")
 # When parts of a check disagree, the first state here decides (a failure stands over a gap).
 _CAUSE_ORDER = (SYSTEM_LIMIT, NOT_REPRODUCED, NOT_RUN, NOT_RESOLVED)
 

@@ -417,23 +417,32 @@ class VerifierEnvironment:
         return ",".join(map(str, cpus)), self._mems
 
 
-STATE_AFTER_COMMIT = "state-after-commit.json"  # io/state's top-level entries once commit ended
+STATE_AFTER_COMMIT = "state-after-commit.json"  # what io held once commit ended
+_NOT_SETUP = frozenset({"state", "proofs"})  # io directories that are not setup's or commit's
 
 
 def copy_state_after_commit(src_io: Path, dst_io: Path) -> None:
-    """A control prove's io/state: the entries commit left (RFC-0008 P1: commit W, then prove
-    with W'), not what the run's own prove wrote after it (a work directory an adapter makes
-    anew, a build cache). A run with no record of them (made before it was kept) gives its
-    whole state, as before."""
+    """A control prove's io as setup and commit left it (RFC-0008 P1: commit W, then prove with
+    W'), not what the run's own prove wrote after it (a work directory an adapter makes anew, a
+    build cache). io/state's recorded entries are copied. Every other directory setup or commit
+    left in io (FlashProve's /io/fit, the weights cp_commit recorded) is linked file by file:
+    no second copy of the weights; a control prove that rewrites a linked file (P1 writes W'
+    there) rewrites the run's, which nothing reads once the run's prove and verify ended. A run
+    with no record (made before it was kept) gives its whole state, as before."""
+    record = src_io / STATE_AFTER_COMMIT
+    doc = json.loads(record.read_text()) if record.is_file() else None
+    names = doc.get("state", []) if isinstance(doc, dict) else doc
+    for name in doc.get("dirs", []) if isinstance(doc, dict) else []:
+        if name not in _NOT_SETUP and (src_io / name).is_dir():
+            shutil.copytree(src_io / name, dst_io / name, symlinks=True, copy_function=os.link)
     state = src_io / "state"
     if not state.is_dir():
         return
-    record = src_io / STATE_AFTER_COMMIT
-    if not record.is_file():
+    if names is None:
         shutil.copytree(state, dst_io / "state")
         return
     (dst_io / "state").mkdir(parents=True)
-    for name in json.loads(record.read_text()):
+    for name in names:
         entry = state / name
         if entry.is_dir() and not entry.is_symlink():
             shutil.copytree(entry, dst_io / "state" / name, symlinks=True)
@@ -1328,9 +1337,13 @@ class Runner:
                 copies.append(dst)
             records[kind] = file_records(copies)
         job.commitment_record = records
-        state = job.staging / "io/state"
+        io_dir = job.staging / "io"
+        state = io_dir / "state"
         names = sorted(p.name for p in state.iterdir()) if state.is_dir() else []
-        (job.staging / "io" / STATE_AFTER_COMMIT).write_text(json.dumps(names) + "\n")
+        dirs = sorted(p.name for p in io_dir.iterdir() if p.is_dir() and not p.is_symlink())
+        (io_dir / STATE_AFTER_COMMIT).write_text(
+            json.dumps({"state": names, "dirs": [d for d in dirs if d not in _NOT_SETUP]}) + "\n"
+        )
 
     def _recorded(
         self,
@@ -3019,7 +3032,12 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
         rows: list[dict[str, object]] = []
         for p in doc["proofs"]:
             pid = str(p["proof_id"])
+            if runner.progress is not None:  # one line per call: a stopped job says how far
+                print(f"reverify {pid}: verify started", file=runner.progress, flush=True)
             seconds, verdict = runner._verify_one(job, pid, entries[pid], single=False)
+            if runner.progress is not None:
+                print(f"reverify {pid}: {verdict} in {seconds:.0f} s", file=runner.progress,
+                      flush=True)  # fmt: skip
             proof = next(r for r in manifest["proofs"] if r.get("proof_id") == pid)
             rows.append({"proof_id": pid, "verdict": verdict, "seconds": seconds,
                          "proof_digest": proof.get("digest"),
@@ -3039,9 +3057,10 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
         shutil.move(str(staging / "verifier"), str(out_dir / "verifier"))
         write_json(out_dir / REVERIFY_RECORD, record)
         out_dir.rename(target)
-        return target / REVERIFY_RECORD
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
+    except BaseException:
+        raise  # the staging dir stays for the job's logs; a new re-verify starts afresh
+    shutil.rmtree(staging, ignore_errors=True)
+    return target / REVERIFY_RECORD
 
 
 def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:

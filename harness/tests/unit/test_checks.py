@@ -356,3 +356,14 @@ def test_a_gpu_host_session_without_kept_proofs_gives_its_slot_to_a_later_one(tr
     (moved / "manifest.json").write_text(json.dumps(manifest))
     assert states(other)["no_weight_file"] == ("undecided", "not resolved")
     assert row_sessions(other.root, RELEASE, other.level, RUNG, SYSTEM).replaced == []
+
+
+def test_p1_line_with_a_python_exception_decides_nothing(tree: Tree) -> None:
+    """CH-1a: "prove exited 1: FileNotFoundError: ..." is the adapter's failure, not a refusal."""
+    doc = controls(p1=("prover_failed",) * 3)
+    for c in doc["controls"]:  # type: ignore[attr-defined]
+        if c["id"] == "P1":
+            for t in c["trials"]:
+                t["raw_last_line"] = "adapter: prove exited 1: FileNotFoundError: [Errno 2] x"
+    three_sessions(tree, control_doc=doc)
+    assert states(tree)["model"] == ("undecided", "not run")
