@@ -18,7 +18,8 @@ This module is the entry point: it reads the view into the build's state (`setup
 `out` holds no page or card source the build no longer writes (`check_stale`) and writes the
 files (`render`). The drawing is in the package draw/ beside it, in this order of imports:
 state (what `setup` reads), words (fixed words, numbers as shown), inks (contrast checks), hexagon
-(the glyph's geometry), mark (the turnstile, the lockup, the token cells), chrome (header, footer, page frame, fonts, share tags), overview (the
+(the glyph's geometry), mark (the turnstile, the lockup, the token cells), plots (a system
+page's bars and fidelity tracks), chrome (header, footer, page frame, fonts, share tags), overview (the
 ladder), pages (system pages, checks, 404), figures and learn (the Learn pages: what they draw,
 then their text) and outputs (search.json, vercel.json, og/ sources, the fonts block, the README
 table). Every name of those modules reads as `build.<name>` too.
@@ -30,8 +31,8 @@ import pathlib
 import sys
 import types
 
-PARTS = ("state", "words", "inks", "hexagon", "mark", "chrome", "overview", "pages", "figures",
-         "learn", "outputs")  # fmt: skip
+PARTS = ("state", "words", "inks", "hexagon", "mark", "plots", "chrome", "overview", "pages",
+         "figures", "learn", "outputs")  # fmt: skip
 
 
 def _load_draw():

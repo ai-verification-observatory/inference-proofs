@@ -18,7 +18,7 @@ from iproofs.site.inputs import REPOSITORY
 CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")
 STATES = ("held", "failed", "undecided")
 LINK_REF = "main"
-# RFC-0018 §The glyph: the five petals, clockwise from twelve
+# RFC-0018 §The glyph: the five petals, in the glyph's order (top to bottom)
 PETALS = ("unforgeable", "weights_hidden", "faithful_model", "any_model", "no_trusted_party")
 PETAL_STATES = ("green", "amber", "red", "hollow")
 BASES = ("statement", "test", "run")

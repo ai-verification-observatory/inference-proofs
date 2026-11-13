@@ -47,14 +47,17 @@ def load_faces():
     S.FACES.sort(key=lambda f: f["subset"] == "arrows")
 
 
-def font_faces(base):
-    """The @font-face rules, with file URLs under base ("/fonts/" on the site, "../fonts/" for cards)."""
+def font_faces(base, site=False):
+    """The @font-face rules, with file URLs under base ("/fonts/" on the site, "../fonts/" for cards).
+    On the site the figures' face (Martian Mono) shows a system monospace after 100 ms rather than
+    hiding text while it loads; the display face and the cards wait for their own font."""
     out = []
     for f in S.FACES:
         stretch = f"font-stretch:{f['stretch']};" if f.get("stretch") else ""
+        display = "fallback" if site and f["fam"] == "Martian Mono" else "block"
         out.append(
             f'@font-face{{font-family:"{f["fam"]}";font-style:normal;font-weight:{f["wt"]};{stretch}'
-            f'font-display:block;src:url({base}{f["file"]}) format("woff2");unicode-range:{f["range"]}}}'
+            f'font-display:{display};src:url({base}{f["file"]}) format("woff2");unicode-range:{f["range"]}}}'
         )
     return "\n".join(out)
 
@@ -73,11 +76,22 @@ def version(name):
     return f"/{name}?v={hashlib.sha256((S.HERE / name).read_bytes()).hexdigest()[:12]}"
 
 
-# The one inline script: it marks that script runs (html.js) and that motion is welcome (html.anim)
-# before the first paint. vercel.json allows exactly this script by its hash.
+# The one inline script, before the first paint: it marks that script runs (html.js) and that
+# motion is welcome (html.anim). On a page reached by a view transition (none under reduced
+# motion), it also names the row the reader came back from (its name morphs back into
+# it) and sets every morph to 200 ms on a quick ease-out. vercel.json allows exactly this script
+# by its hash; README.md (Design) says what it does.
 HEAD_SCRIPT = (
-    'document.documentElement.classList.add("js");'
-    'try{if(!matchMedia("(prefers-reduced-motion: reduce)").matches)document.documentElement.classList.add("anim")}catch(_){}'
+    '(function(){var d=document.documentElement;d.classList.add("js");'
+    'try{if(!matchMedia("(prefers-reduced-motion: reduce)").matches)d.classList.add("anim")}catch(_){}'
+    'addEventListener("pagereveal",function(e){var t=e.viewTransition;if(!t)return;try{'
+    'var f=navigation.activation.from,r=f&&document.getElementById("row-"+new URL(f.url).pathname.slice(1)),'
+    's=r?[[".sname","sysname"]].map(function(x){var el=r.querySelector(x[0]);'
+    'el&&el.style.setProperty("view-transition-name",x[1]);return el}):[];'
+    "t.ready.then(function(){d.getAnimations({subtree:true}).forEach(function(a){var k=a.effect;"
+    'if(k&&/view-transition/.test(k.pseudoElement||""))k.updateTiming({duration:200,easing:"cubic-bezier(.2,.7,.2,1)"})})},function(){});'
+    't.finished.finally(function(){s.forEach(function(el){el&&el.style.removeProperty("view-transition-name")})})'
+    "}catch(_){}})})()"
 )
 
 # GitHub's mark (Octicons mark-github, 16 px, MIT licence)
@@ -93,25 +107,33 @@ GITHUB_MARK = (
 )
 
 
+TABS = (("/", "Ladder", "home"), (LEARN_PAGE, "Learn", "learn"), (CHECKS_PAGE, "Checks", "checks"),
+        (MANDATE_PAGE, "Mandate", "mandate"))  # fmt: skip
+
+
 def header(here, under=False):
-    """`here` names the nav link to mark; `under` when the page in view is under that link's
-    page and not the page itself."""
+    """The top bar: the lockup, the pages as tabs, search and GitHub. here: the page's tab
+    ("home", "learn", "checks", "mandate"), "system" for a system page (under the ladder's tab)
+    or None; `under` when the page in view is under that tab's page and not the page itself (a
+    Learn article). Learn is a tab only when the tree holds the Learn words. Systems are reached
+    from the ladder or by search (one link each would not scale)."""
+    home = here == "home" and not under
+    if here == "system":
+        here, under = "home", True
 
-    def a(href, label, key):
-        mark = f" aria-current={'true' if under else 'page'}" if here == key else ""
-        return f'<a href="{href}"{mark}>{label}</a>'
+    def tab(href, label, key):
+        on = here == key
+        attr = f" aria-current={'true' if under else 'page'}" if on else ""
+        bar = '<i class="ti" aria-hidden="true"></i>' if on else ""
+        return f'<a class="tab{" on" if on else ""}" href="{href}"{attr}>{label}{bar}</a>'
 
-    # The lockup leads to the overview; the nav holds the other pages; systems are reached by
-    # search (one link each would not scale) or from the overview.
-    nav = a(CHECKS_PAGE, "Checks", "checks")
-    if S.V.get("learn"):
-        nav = a(LEARN_PAGE, "Learn", "learn") + nav
+    nav = "".join(tab(*t) for t in TABS if t[2] != "learn" or S.V.get("learn"))
     logo = lockup_svg(LOGO_CAP)
-    current = " aria-current=page" if here == "home" else ""
+    current = " aria-current=page" if home else ""
     return (
         '<a class="skip" href="#main">Skip to content</a>'
-        f'<header class="top"><div class="tl"><p class="brand"><a class="logo" href="/"{current}>{logo}</a></p>'
-        f'<nav aria-label="Site">{nav}</nav></div>'
+        f'<header class="top"><p class="brand"><a class="logo" href="/"{current}>{logo}</a></p>'
+        f'<nav class="tabs" aria-label="Site">{nav}</nav>'
         f"{search_box(here)}"
         f'<a class="repo" href="{e(S.REPO_URL)}">{GITHUB_MARK}<span>GitHub</span></a>'
         "</header>"
@@ -131,19 +153,21 @@ SEARCH_MARK = (
 
 def search_box(here):
     """The search field: a combobox over search.json (words.js fills the list). With script only;
-    on phones a button opens it over the top bar. The current system page's name is not needed."""
+    on phones a button opens it over the top bar. The word in the empty field is a span in the
+    muted ink (a placeholder's own ink cannot be set with a one-colon selector); the input keeps a
+    blank placeholder so :placeholder-shown says when the field is empty."""
     return (
         '<div class="search" role="search">'
         f'<button type="button" class="sopen" aria-label="Search" aria-expanded="false">{SEARCH_MARK}</button>'
         f'<label class="sr" for="q">Search systems, models, checks and pages</label>'
         f'<span class="sfield">{SEARCH_MARK}'
-        '<input id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="none" '
-        'enterkeyhint="go" spellcheck="false" placeholder="Search" '
+        '<input id="q" type="text" autocomplete="off" autocorrect="off" autocapitalize="none" '
+        'enterkeyhint="go" spellcheck="false" placeholder=" " '
         'role="combobox" aria-expanded="false" aria-controls="q-list" aria-autocomplete="list" '
-        'aria-keyshortcuts="/ Control+K Meta+K">'
-        '<kbd class="skey" aria-hidden="true">/</kbd>'
+        'aria-keyshortcuts="Control+K Meta+K">'
+        '<span class="sph" aria-hidden="true">Search</span>'
         '<button type="button" class="sclose" aria-label="Close search">×</button></span>'
-        f'<ul id="q-list" class="slist" role="listbox" aria-label="Results" hidden data-index="{version("search.json")}"></ul>'
+        f'<ul id="q-list" class="slist" role="listbox" aria-label="Results" tabindex="-1" hidden data-index="{version("search.json")}"></ul>'
         "</div>"
     )
 
@@ -161,20 +185,30 @@ def level_words():
 
 
 def footer():
-    """Every page's footer, one line: the level file and its digest, the release's board file
-    when there is one, and the licence."""
+    """Every page's footer, one strip of cells: the level file and its digest, the release's
+    board file when there is one, the licence and the mandate."""
     lv, rel = S.V["level"], S.V["release"]
-    parts = [f'<a class="nw" href="{e(link(lv["path"]))}">{e(level_words())}</a>'
-             f' <code class="nw">{e(lv["digest"][:19])}</code>']  # fmt: skip
+    parts = [f'<a href="{e(link(lv["path"]))}">{e(level_words())}</a>'
+             f'<code>{e(lv["digest"][:19])}</code>']  # fmt: skip
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None
         name = f"Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "")
         parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
-                     else f'<span>{e(name)} ({e(board)})</span>')  # fmt: skip
-    parts.append(e(str(S.V["licence"]).replace(" ", "\u00a0")))
-    parts.append(f'<a class="nw" href="{MANDATE_PAGE}">Mandate</a>')
-    return f'<footer class="foot"><p>{"\u00a0\u00b7 ".join(parts)}</p></footer>'
+                     else f'<span class="nw">{e(name)}</span><code>{e(board)}</code>')  # fmt: skip
+    parts.append(f"<span>{e(S.V['licence'])}</span>")
+    parts.append(f'<a href="{MANDATE_PAGE}">Mandate</a>')
+    cells = "".join(f"<li>{p}</li>" for p in parts)
+    return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
+
+
+def pnav(title, items):
+    """A page's sections as a strip that stays under the top bar (words.js marks the one in
+    view): the page's title, shown once the band has scrolled away, then one link per section,
+    items as (id, label)."""
+    links = "".join(f'<a href="#{sid}">{e(label)}</a>' for sid, label in items)
+    return (f'<nav class="pnav" aria-label="Sections"><div class="ps">'
+            f'<span class="ps-t" aria-hidden="true">{e(title)}</span>{links}</div></nav>')  # fmt: skip
 
 
 def full_title(title):
@@ -182,12 +216,15 @@ def full_title(title):
 
 
 # A link to another site (every site link is root-relative) opens in a new tab, with no opener and
-# no referrer: the reader keeps the page they were reading.
-EXTERNAL_A = re.compile(r'<a (?![^>]*\btarget=)([^>]*\bhref="https?://[^"]*"[^>]*)>')
+# no referrer: the reader keeps the page they were reading. A screen reader hears that it does.
+EXTERNAL_A = re.compile(r'<a (?![^>]*\btarget=)([^>]*\bhref="https?://[^"]*"[^>]*)>(.*?)</a>', re.S)
 
 
 def new_tab(html):
-    return EXTERNAL_A.sub(r'<a \1 target="_blank" rel="noopener noreferrer">', html)
+    return EXTERNAL_A.sub(
+        r'<a \1 target="_blank" rel="noopener noreferrer">\2<span class="sr"> (new tab)</span></a>',
+        html,
+    )
 
 
 def page(title, desc, body, cls, path, card):
@@ -196,11 +233,13 @@ def page(title, desc, body, cls, path, card):
     meta = share_meta(title, desc, path, card) if card else '<meta name="robots" content="noindex">'
     return (
         f'<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">'
+        # the stylesheet before the inline script: its @view-transition rule is then known when the
+        # page is revealed, so a transition into it is not skipped
+        f'{preloads()}<link rel="stylesheet" href="{version("words.css")}">'
         f"<script>{HEAD_SCRIPT}</script>"
         f'<title>{e(full_title(title))}</title><meta name="description" content="{e(desc)}">'
         f'<meta name="color-scheme" content="dark"><meta name="theme-color" content="{GROUND}">'
-        f"{meta}{icon_links()}{preloads()}"
-        f'<link rel="stylesheet" href="{version("words.css")}"></head><body class="{cls}">{new_tab(body)}'
+        f'{meta}{icon_links()}</head><body class="{cls}">{new_tab(body)}'
         f'<p class="sr" aria-live="polite" id="live"></p><script src="{version("words.js")}" defer></script>'
         f'<script defer src="https://cdn.vercel-insights.com/v1/script.js"></script></body></html>'
     )
@@ -211,7 +250,7 @@ def page(title, desc, body, cls, path, card):
 # renderer writes each picture's source, og/<card>.html (CARD_W x CARD_H CSS px, the view's own
 # words and pies); og.mjs renders it to og/<card>.png at CARD_SCALE and records both sha256 in
 # og/cards.json. The pages name each picture with its hash, so a new picture is a new URL for link
-# caches, and test_cards.py fails when a committed picture was not rendered from its committed source.
+# caches; a page whose picture was not rendered yet names the home card, never a missing file.
 SITE_URL = "https://www.inferenceproofs.ai"
 CARD_W, CARD_H, CARD_SCALE = 1200, 630, 2
 
@@ -250,6 +289,8 @@ def rung_of(row):
 
 def share_meta(title, desc, path, card):
     url = f"{SITE_URL}/{path}"
+    if card not in cards_record():
+        card = "home"
     rec = cards_record().get(card)
     img = f"{SITE_URL}/og/{card}.png" + (f"?v={rec['png'][:12]}" if rec else "")
     full = full_title(title)

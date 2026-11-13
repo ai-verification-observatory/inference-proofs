@@ -49,36 +49,41 @@ def arrow(cls="ar"):
             'stroke-width="2"/></svg>')  # fmt: skip
 
 
-def items(words, cls=""):
-    return "".join(f"<li{f' class={c}' if (c := cls) else ''}>{e(w)}</li>" for w in words)
-
-
 # ------------------------------------------------------------------ figures
 @drawn(FIGURES, "parties")
 def parties():
-    """Who holds what: the operator, the verifier and the relying party (a proof of inference)."""
+    """Who holds what: the operator, the verifier and the relying party (a proof of inference).
+    Each thing held or passed carries a key (`data-k`): pointing at one lights it wherever it is
+    held or passed (words.js), so a reader sees what the verifier never holds."""
 
-    def card(name, role, held, never=()):
+    def held(words, cls=""):
+        return "".join(f'<li{f" class={cls}" if cls else ""}{f" data-k={k}" if k else ""}>'
+                       f"{e(w)}</li>" for w, k in words)  # fmt: skip
+
+    def card(name, role, holds, never=()):
         return (f'<div class="pc"><p class="pk">{e(name)}</p><p class="pd">{e(role)}</p>'
-                f'<ul class="ph">{items(held)}{items(never, "nv")}</ul></div>')  # fmt: skip
+                f'<ul class="ph">{held(holds)}{held(never, "nv")}</ul></div>')  # fmt: skip
 
     def passes(*lines):
         return (f'<div class="pa">{arrow()}<ul>'
-                + "".join(f"<li>{e(a)}<span>{e(b)}</span></li>" for a, b in lines)
+                + "".join(f"<li{f' data-k={k}' if k else ''}>{e(a)}<span>{e(b)}</span></li>"
+                          for a, b, k in lines)
                 + "</ul></div>")  # fmt: skip
 
     return (
         '<div class="pt3">'
         + card("The operator", "runs the model, makes the proof",
-               ("the model's weights", "the prompt", "the reply"))
-        + passes(("the commitment", "once, before any request"),
-                 ("a proof", "for each reply to be checked"))
+               (("the model's weights", "w"), ("the prompt", "p"), ("the reply", "r")))
+        + passes(("the commitment", "once, before any request", "c"),
+                 ("a proof", "for each reply to be checked", "f"))
         + card("The verifier", "a program anyone can run",
-               ("the commitment and its public settings", "the prompt", "the reply", "the proof"),
-               never=("never the weights",))
-        + passes(("accepts or refuses", "with no GPU and no weights"))
+               (("the commitment and its public settings", "c"), ("the prompt", "p"),
+                ("the reply", "r"), ("the proof", "f")),
+               never=(("never the weights", "w"),))
+        + passes(("accepts or refuses", "with no GPU and no weights", "v"))
         + card("The relying party", "acts on the verdict",
-               ("the verdict", "the statement it stands for", "the assumptions it rests on"))
+               (("the verdict", "v"), ("the statement it stands for", ""),
+                ("the assumptions it rests on", "")))
         + "</div>"
     )  # fmt: skip
 
@@ -115,40 +120,75 @@ def pipeline():
             "per layer. Every step repeats for every position of the prompt and of the reply.</p>")  # fmt: skip
 
 
+SESSION_SAID = (
+    "A session on a time axis: the commit step, then a generation phase where a system has one, "
+    "then four groups of proofs released one after another. The steady interval runs from the "
+    "release of the first group to the release of the last. The generation phase counts in m as "
+    "well. The whole session starts with the commit step."
+)
+SESSION_GROUPS = ("group 1", "group 2", "group 3", "group 4")
+
+
+def session_svg(cls, w, h, at, said):
+    """One layout of the session drawing: `at` places each mark (x of commit, generation and
+    each group's release; y of the brackets, the boxes, and the labels of the four groups, commit
+    and generation), `said` its words by line."""
+    c0, c1, g0, g1 = at["commit"] + at["gen"]
+    rel, y = at["groups"], at["y"]
+    box = f'y="{y["box"]}" height="36"'
+    ticks = "".join(
+        f'<g class="grp{" g1" if k == 0 else ""}"><rect x="{x - at["gw"]}" {box} '
+        f'width="{at["gw"]}"/><text x="{x - at["gw"] / 2:g}" y="{y["lab"][k]}" '
+        f'text-anchor="middle">{label}</text></g>'
+        for k, (x, label) in enumerate(zip(rel, SESSION_GROUPS, strict=True))
+    )
+
+    def lines(cls, x, ys, words):
+        return "".join(f'<text class="{cls}" x="{x:g}" y="{yy}" text-anchor="middle">{t}</text>'
+                       for yy, t in zip(ys, words, strict=True))  # fmt: skip
+
+    top, base, low = y["br"], y["box"] + 36, y["low"]
+    return (
+        f'<svg class="sx {cls}" viewBox="0 0 {w} {h}" role="img" aria-label="{SESSION_SAID}">'
+        f'<line class="ax" x1="{c0}" y1="{base}" x2="{w - c0}" y2="{base}"/>'
+        f'<rect class="scm" x="{c0}" {box} width="{c1 - c0}"/>'
+        f'<text x="{(c0 + c1) / 2:g}" y="{y["lab"][4]}" text-anchor="middle">commit</text>'
+        f'<rect class="sgn" x="{g0}" {box} width="{g1 - g0}"/>'
+        f'<text x="{(g0 + g1) / 2:g}" y="{y["lab"][5]}" text-anchor="middle">generation</text>'
+        f"{ticks}"
+        f'<path class="br" d="M{g0} {top}v-10H{g1}v10"/>'
+        + lines("bt", (g0 + g1) / 2, y["m"], said["m"])
+        + f'<path class="br" d="M{rel[0]} {top}v-10H{rel[-1]}v10"/>'
+        + lines("bt", (rel[0] + rel[-1]) / 2, y["steady"], said["steady"])
+        + f'<path class="br2" d="M{c0} {low}v10H{rel[-1]}v-10"/>'
+        + lines("bt2", (c0 + rel[-1]) / 2, y["whole"], said["whole"])
+        + "</svg>"
+    )
+
+
 @drawn(FIGURES, "session")
 def session():
     """One session on a time axis: commit, a generation phase where a system has one, the first
-    release group and the later groups, and the GPU time that makes m (RFC-0018 CO-1 to CO-3)."""
-    w, h = 720, 190
-    groups = (320, 420, 520, 620)  # the release time of each group, in drawing units
-    ticks = "".join(
-        f'<g class="grp{" g1" if k == 0 else ""}"><rect x="{x - 26}" y="72" width="26" height="36"/>'
-        f'<text x="{x - 13}" y="130" text-anchor="middle">{label}</text></g>'
-        for k, (x, label) in enumerate(zip(groups, ("group 1", "group 2", "group 3", "group 4"),
-                                           strict=True))
+    release group and the later groups, and the GPU time that makes m (RFC-0018 CO-1 to CO-3).
+    Two layouts of one drawing: a wide one, and on a phone a narrow one at its own size, its
+    long words on two lines and the names under the axis on two rows, in turn."""
+    wide = session_svg(
+        "sxw", 720, 190,
+        {"commit": (20, 120), "gen": (132, 242), "groups": (320, 420, 520, 620), "gw": 26,
+         "y": {"br": 52, "box": 72, "lab": (130,) * 6, "low": 150, "m": (30,),
+               "steady": (30,), "whole": (180,)}},
+        {"m": ("in m too",), "steady": ("steady interval: the GPU time behind m",),
+         "whole": ("whole session: from the start of the commit step",)},
     )  # fmt: skip
-    return (
-        f'<div class="tw"><svg class="sx" viewBox="0 0 {w} {h}" role="img" aria-label="A session on a time axis: '
-        "the commit step, then a generation phase where a system has one, then four groups of "
-        "proofs released one after another. The steady interval runs from the release of the "
-        "first group to the release of the last. The generation phase counts in m as well. The "
-        'whole session starts with the commit step.">'
-        f'<line class="ax" x1="20" y1="108" x2="{w - 20}" y2="108"/>'
-        '<rect class="scm" x="20" y="72" width="100" height="36"/>'
-        '<text x="70" y="130" text-anchor="middle">commit</text>'
-        '<rect class="sgn" x="132" y="72" width="110" height="36"/>'
-        '<text x="187" y="130" text-anchor="middle">generation</text>'
-        f"{ticks}"
-        '<path class="br" d="M132 52v-10H242v10"/>'
-        '<text class="bt" x="187" y="30" text-anchor="middle">in m too</text>'
-        f'<path class="br" d="M{groups[0]} 52v-10H{groups[-1]}v10"/>'
-        f'<text class="bt" x="{(groups[0] + groups[-1]) / 2}" y="30" text-anchor="middle">'
-        "steady interval: the GPU time behind m</text>"
-        f'<path class="br2" d="M20 150v10H{groups[-1]}v-10"/>'
-        f'<text class="bt2" x="{(20 + groups[-1]) / 2}" y="180" text-anchor="middle">'
-        "whole session: from the start of the commit step</text>"
-        "</svg></div>"
-    )
+    narrow = session_svg(
+        "sxn", 328, 206,
+        {"commit": (4, 54), "gen": (62, 122), "groups": (160, 206, 252, 298), "gw": 18,
+         "y": {"br": 52, "box": 64, "lab": (120, 138, 120, 138, 120, 138), "low": 150,
+               "m": (30,), "steady": (14, 30), "whole": (178, 194)}},
+        {"m": ("in m too",), "steady": ("steady interval:", "the GPU time behind m"),
+         "whole": ("whole session: from the start", "of the commit step")},
+    )  # fmt: skip
+    return f'<div class="tw">{wide}{narrow}</div>'
 
 
 # ------------------------------------------------------------------ explorers
@@ -278,7 +318,7 @@ def treaty():
     steps = ""
     for k, s in enumerate(TREATY_STEPS, start=1):
         cols = "".join(
-            f'<div class="bc"><p class="pk">{e(name)}</p><ul class="ph">'
+            f'<div class="lcd"><p class="pk">{e(name)}</p><ul class="ph">'
             + "".join(f'<li{" class=nw3" if h.startswith("+ ") else ""}>{e(h.removeprefix("+ "))}</li>'
                       for h in held)
             + ("" if held else '<li class="nv">nothing yet</li>')
@@ -318,7 +358,7 @@ def tamper():
         "Our check",
     )
     rows = "".join(
-        f'<tr><th scope="row">{e(what.capitalize())}</th>'
+        f'<tr><th scope="row" data-l="{heads[0]}">{e(what.capitalize())}</th>'
         f'<td data-l="{heads[1]}"><i class="sw held" aria-hidden="true"></i>refuses</td>'
         f'<td data-l="{heads[2]}"><i class="sw failed" aria-hidden="true"></i>accepts a '
         "statement that is false</td>"
@@ -327,7 +367,7 @@ def tamper():
     )
     ths = "".join(f'<th scope="col">{h}</th>' for h in heads)
     table = (f'<table class="rt lt mt"><thead><tr>{ths}</tr></thead><tbody>{rows}'
-             '<tr><th scope="row">Nothing</th><td colspan="2" data-l="Any verifier">'
+             f'<tr><th scope="row" data-l="{heads[0]}">Nothing</th><td colspan="2" data-l="Any verifier">'
              '<i class="sw held" aria-hidden="true"></i>accepts: a refusal means something only '
              "if the same verifier accepts the untouched proof</td>"
              f'<td data-l="{heads[3]}">run beside every change</td></tr>'
@@ -528,23 +568,24 @@ def sumcheck(challenges=CHALLENGES, lie=0):
 
 
 def transcript(run, who):
+    heads = ("Running claim", "Prover sends s(0), s(1), s(2)", "Verifier checks",
+             "Verifier draws r", "New claim s(r)")  # fmt: skip
     rows = ""
     for k, rd in enumerate(run["rounds"], start=1):
         s0, s1, s2 = rd["s"]
+        tds = (rd["claim"], e(fill(SC_WORDS["sent"], s0=s0, s1=s1, s2=s2)),
+               e(fill(SC_WORDS["check"], s0=s0, s1=s1, sum=(s0 + s1) % P)), rd["r"], rd["next"])  # fmt: skip
         rows += (f'<tr><th scope="row">{e(fill(SC_WORDS["round"], k=k))}</th>'
-                 f"<td>{rd['claim']}</td><td>{e(fill(SC_WORDS['sent'], s0=s0, s1=s1, s2=s2))}</td>"
-                 f"<td>{e(fill(SC_WORDS['check'], s0=s0, s1=s1, sum=(s0 + s1) % P))}</td>"
-                 f"<td>{rd['r']}</td><td>{rd['next']}</td></tr>")  # fmt: skip
+                 + "".join(f'<td data-l="{e(h)}">{v}</td>' for h, v in zip(heads, tds, strict=True))
+                 + "</tr>")  # fmt: skip
     last = fill(SC_WORDS["last"], a=run["a"], b=run["b"], final=run["final"],
                 last=run["rounds"][-1]["next"],
                 verdict=SC_WORDS["accepted" if run["accepted"] else "refused"])  # fmt: skip
     return (
         f'<div class="tr"><p class="vd">{e(fill(SC_WORDS[who], claim=run["claim"]))}</p>'
-        '<div class="tw"><table class="rt lt"><thead><tr><th scope="col"></th>'
-        '<th scope="col">Running claim</th><th scope="col">Prover sends s(0), s(1), s(2)</th>'
-        '<th scope="col">Verifier checks</th><th scope="col">Verifier draws r</th>'
-        '<th scope="col">New claim s(r)</th></tr></thead>'
-        f'<tbody>{rows}</tbody></table></div><p class="vl">{e(last)}</p></div>'
+        '<div class="tw"><table class="rt lt mt"><thead><tr><td></td>'
+        + "".join(f'<th scope="col">{e(h)}</th>' for h in heads)
+        + f'</tr></thead><tbody>{rows}</tbody></table></div><p class="vl">{e(last)}</p></div>'
     )
 
 
@@ -594,10 +635,12 @@ def cost():
     """A table for three example pairs of parts and three shares, and the board's rows that print
     their multiple in two parts (CO-7). With script: a slider for the share and a field for each
     part, which a row of the board fills in when pressed."""
-    head = "".join(f'<th scope="col">generation {g:,}×, proving {p:,}×</th>' for g, p in PARTS)
+    names = [f"generation {g:,}×, proving {p:,}×" for g, p in PARTS]
+    head = "".join(f'<th scope="col">{n}</th>' for n in names)
     body = "".join(
-        f'<tr><th scope="row">{e(label)}</th>'
-        + "".join(f"<td>{times(bill(share, g, p))}</td>" for g, p in PARTS) + "</tr>"
+        f'<tr><th scope="row" data-l="{COST_WORDS["share"]}">{e(label)}</th>'
+        + "".join(f'<td data-l="{n}">{times(bill(share, g, p))}</td>'
+                  for n, (g, p) in zip(names, PARTS, strict=True)) + "</tr>"
         for share, label in SHARES
     )  # fmt: skip
     presets = ""
@@ -616,7 +659,7 @@ def cost():
     return (
         f'<div class="xpl" data-x="cost" data-g="{PARTS[0][0]}" data-p="{PARTS[0][1]}" '
         f"{data_words(COST_WORDS)}>{measured}"
-        '<div class="tw"><table class="rt lt"><thead><tr><th scope="col">Share of replies proved'
+        f'<div class="tw"><table class="rt lt mt"><thead><tr><th scope="col">{COST_WORDS["share"]}'
         f"</th>{head}</tr></thead><tbody>{body}</tbody></table></div>"
         '<p class="xf">Total bill = serving bill × (generation part + share proved × proving '
         "part). Every reply is generated by the committed copy of the model, and a share of them "
@@ -649,7 +692,8 @@ def rows_words(found):
 @drawn(MEASURED, "rows")
 def measured_rows():
     """Every row of the board, one table per model (nothing is set side by side across models):
-    system, standing, multiple of serving, check time and proof size per reply."""
+    system, standing, multiple of serving, check time and proof size per reply. A row with no
+    position is set in the muted ink, as on the ladder."""
     found = [(rung, row) for rung in S.V["rungs"] for row in rung["rows"]]
     if not found:
         return ('<p class="none">No system has a row yet. The <a href="/">ladder</a> shows each '
@@ -660,7 +704,8 @@ def measured_rows():
 
     def tr(row):
         return (
-            f'<tr><th scope="row"><a href="{e(href(row))}">{e(name_of(row))}</a></th>'
+            "<tr>"
+            f'<th scope="row" data-l="{heads[0]}"><a href="{e(href(row))}">{e(name_of(row))}</a></th>'
             f'<td data-l="{heads[1]}">{e(standing(row))}</td>'
             f'<td data-l="{heads[2]}">{multiple_html(row)}</td>'
             f'<td data-l="{heads[3]}">'

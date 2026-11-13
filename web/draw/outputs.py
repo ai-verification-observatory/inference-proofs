@@ -61,7 +61,7 @@ def search_entries():
         words = " ".join([name, meta, terms])
         out.append({"kind": kind, "tier": TIER[kind], "group": GROUP[kind], "name": name,
                     "url": url, "meta": meta, "pie": pie,
-                    "terms": " ".join(words.lower().split()), "found": []})  # fmt: skip
+                    "terms": " ".join(words.lower().split())})  # fmt: skip
 
     for row in S.ROWS:
         add(
@@ -69,7 +69,7 @@ def search_entries():
             name_of(row),
             href(row),
             f"{rung_of(row)['model']} · {standing(row)}",
-            glyph_svg(28, states(row)),
+            glyph_svg(1, states(row)),
             f"{row['workload']} {row['system']}",
         )
     for rung in S.V["rungs"]:
@@ -151,7 +151,8 @@ def vercel_json():
         "cleanUrls": True,
         "trailingSlash": False,
         "framework": None,
-        "ignoreCommand": "git diff --quiet HEAD^ HEAD -- .",
+        # every commit of the push, not only its last one
+        "ignoreCommand": "git diff --quiet ${VERCEL_GIT_PREVIOUS_SHA:-HEAD^} HEAD -- .",
         "outputDirectory": "public",
         "redirects": [
             {"source": "/system", "destination": first, "permanent": False},
@@ -210,14 +211,15 @@ def card_page(card, body, css):
 
 def home_card():
     """Only what does not change with the systems run, since link previews stay cached: the
-    stacked lockup on paper, the address and the level."""
+    stacked lockup in paper with the mark in cobalt on the ground (as the site's top bar and the
+    system cards), the address and the level."""
     css = f"""
-html,body{{background:{PAPER};color:{GROUND}}}
+html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
 .og-l{{position:absolute;left:96px;top:96px}}
 .url{{position:absolute;left:96px;bottom:120px;font-size:26px;line-height:1;font-weight:600}}
-.lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;font-weight:400}}
+.lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;font-weight:400;color:{MUTED}}}
 """
-    body = (f'<div class="og-l">{stacked_svg(132, GROUND, COBALT)}</div>'
+    body = (f'<div class="og-l">{stacked_svg(132, PAPER, COBALT)}</div>'
             f'<p class="mono url">inferenceproofs.ai</p><p class="mono lvl">{e(level_words())}</p>')  # fmt: skip
     return card_page("home", body, css)
 
@@ -237,7 +239,7 @@ html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
 .sr{{position:absolute;left:96px;top:410px;width:672px;font-size:24px;line-height:1.35;font-weight:400;color:{MUTED}}}
 .lvl{{position:absolute;left:96px;bottom:84px;font-size:22px;line-height:1;color:{MUTED}}}
 .g{{position:absolute;right:96px;top:165px}}
-.g svg{{width:300px;height:300px}}
+.g svg{{display:block}}
 .sl.green{{fill:{S.INK["green"]}}}.sl.amber{{fill:{S.INK["amber"]}}}.sl.red{{fill:{S.INK["red"]}}}.sl.hollow{{fill:none;stroke:{MUTED}}}
 .pie-svg{{overflow:visible}}
 """
@@ -245,7 +247,7 @@ html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
             f'<p class="disp sn">{e(name)}</p>'
             f'<p class="mono sr">{e(rung_of(row)["model"])}<br>{e(standing(row))}</p>'
             f'<p class="mono lvl">{e(level_words())}</p>'
-            f'<div class="g">{glyph_svg(200, states(row))}</div>')  # fmt: skip
+            f'<div class="g">{glyph_svg(6, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])}</div>')  # fmt: skip
     return card_page(pid, body, css)
 
 
@@ -284,7 +286,9 @@ def write_cards():
 def write_font_faces():
     """The @font-face block in words.css, between its markers, from fonts/faces.json."""
     css = (S.HERE / "words.css").read_text()
-    block = "/* fonts: written by build.py */\n" + font_faces("/fonts/") + "\n/* /fonts */"
+    block = (
+        "/* fonts: written by build.py */\n" + font_faces("/fonts/", site=True) + "\n/* /fonts */"
+    )
     new = re.sub(
         r"/\* fonts: written by build.py \*/.*?/\* /fonts \*/", lambda _: block, css, flags=re.S
     )
