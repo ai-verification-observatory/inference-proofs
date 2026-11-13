@@ -135,7 +135,7 @@ def test_every_rung_not_run_without_a_board(empty_site: Path) -> None:
     index = (empty_site / "index.html").read_text()
     sections = re.findall(r'<section class="rung" id="([^"]+)"(.*?)</section>', index, re.S)
     assert [s for s, _ in sections] == [r["id"] for r in level["rungs"]]  # type: ignore[index]
-    assert all("Not run yet." in body and "<table" not in body for _, body in sections)
+    assert all("not run yet" in body and "<table" not in body for _, body in sections)
 
 
 SCALE_LANE = re.compile(
