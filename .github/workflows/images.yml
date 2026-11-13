@@ -13,11 +13,11 @@ on:
         type: choice
         options: [ref-serve, ref-recompute, ref-fidelity, ref-fidelity-vllm, sash, flashprove, deepprove]
       dockerfile:
-        description: "Dockerfile.score: the scoring image of RFC-0018 FI-14 (the pinned image plus this commit's adapter)"
+        description: "Dockerfile.score, Dockerfile.adapter: the pinned image plus this commit's adapter file (RFC-0018 FI-14)"
         required: false
         default: Dockerfile
         type: choice
-        options: [Dockerfile, Dockerfile.score]
+        options: [Dockerfile, Dockerfile.score, Dockerfile.adapter]
 
 permissions:
   contents: read
