@@ -236,6 +236,30 @@
     "name": {
       "$ref": "../quantity/1.schema.json#/$defs/systemId"
     },
+    "p1_refusals": {
+      "description": "RFC-0018 CH-1a: the prover's stop names that mean the weights are not the committed ones; a P1 prover_failed trial counts as refused only when its line names one",
+      "additionalProperties": false,
+      "properties": {
+        "stops": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array",
+          "uniqueItems": true
+        },
+        "source": {
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stops",
+        "source"
+      ],
+      "type": "object"
+    },
     "profile": {
       "$ref": "../quantity/1.schema.json#/$defs/profileId"
     },

@@ -746,9 +746,11 @@ def test_reverify_of_a_kept_session_on_a_verifier_host(tmp_path: Path) -> None:
         reverify_run(verifier_host, run_dir)
 
 
-def test_control_prove_gets_setups_directories_linked(tmp_path: Path) -> None:
-    """FlashProve's P1 writes W' into /io/fit/weights, which setup made outside io/state: a
-    control prove's io holds every directory setup and commit left, linked, never proofs/."""
+def test_control_prove_gets_real_copies_of_setups_directories(tmp_path: Path) -> None:
+    """FlashProve's P1 writes W' into /io/fit/weights, which setup made outside io/state, and
+    cp_prove refuses a weight file with a second name (st_nlink != 1, cp-weights-files): a
+    control prove's io holds a real copy of every directory setup and commit left, never
+    proofs/, and the copies are returned for removal after the prove."""
     from iproofs.runner import STATE_AFTER_COMMIT, copy_state_after_commit  # noqa: PLC0415
 
     src = tmp_path / "io"
@@ -759,7 +761,29 @@ def test_control_prove_gets_setups_directories_linked(tmp_path: Path) -> None:
     (src / "proofs/req-0").mkdir(parents=True)
     (src / STATE_AFTER_COMMIT).write_text(json.dumps({"state": ["isk.tar"], "dirs": ["fit"]}))
     dst = tmp_path / "prove-P1"
-    copy_state_after_commit(src, dst)
-    assert (dst / "fit/weights/w.gguf").stat().st_ino == (src / "fit/weights/w.gguf").stat().st_ino
-    assert (dst / "state/isk.tar").read_text() == "k"
+    made = copy_state_after_commit(src, dst)
+    files = [f for f in dst.rglob("*") if f.is_file()]
+    assert files
+    assert all(f.stat().st_nlink == 1 for f in files)
+    assert (src / "fit/weights/w.gguf").stat().st_nlink == 1
+    assert (dst / "fit/weights/w.gguf").read_text() == "W"
+    assert sorted(made) == [dst / "fit", dst / "state"]
     assert not (dst / "proofs").exists()
+
+
+def test_a_failed_control_prove_keeps_the_provers_log_line(tmp_path: Path) -> None:
+    """CH-1a: the newest log's last lines go into the trial's line, marked `[log]`."""
+    from iproofs.controls import prove_failure  # noqa: PLC0415
+    from iproofs.errors import ErrorKind, IProofsError  # noqa: PLC0415
+    from iproofs.runner import log_tail  # noqa: PLC0415
+
+    (tmp_path / "state/prove").mkdir(parents=True)
+    (tmp_path / "state/prove/cp_prove.log").write_text(
+        "start\nhc: node 7 differs\np258 end 1 hc-own-node\n"
+    )
+    tail = log_tail(tmp_path, lines=2)
+    e = IProofsError(ErrorKind.ADAPTER, "prove exited 1", exit_code=1,
+                     last_lines=("flashprove: cp_prove exited 1", *tail))  # fmt: skip
+    outcome, line = prove_failure(e)
+    assert outcome == "prover_failed"
+    assert line.endswith("| log: hc: node 7 differs / p258 end 1 hc-own-node")

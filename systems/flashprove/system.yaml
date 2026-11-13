@@ -32,3 +32,10 @@ proofs:
       - part: "response.y"
         reason: "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
 forbidden_flags: ["-public-weights", "-keep-for-the-audit"]
+# RFC-0018 CH-1a: cp_prove's stop when a tree node computed again from the weights and the seed
+# differs from the stored one, "the weights or the seed are not the committed ones"
+# (prover/docs/ends-in-short.md at the pin). cp-weights-files is how the files are laid out, not
+# which weights they hold, so it is not here.
+p1_refusals:
+  stops: ["hc-own-node"]
+  source: "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/prover/docs/ends-in-short.md"

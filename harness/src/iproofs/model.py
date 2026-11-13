@@ -472,6 +472,15 @@ DEFAULT_TIMEOUTS_S = {"info": 60.0, "setup": 3600.0, "commit": 14400.0, "prove":
 
 
 @dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
+class P1Refusals(Document):
+    """RFC-0018 CH-1a: the prover's stop names that mean "the weights are not the committed
+    ones", as the system's documentation at the pinned commit gives them."""
+
+    stops: tuple[str, ...]
+    source: str
+
+
+@dataclasses.dataclass(frozen=True, slots=True, kw_only=True)
 class UpstreamSpec(Document):
     repo: str
     url: str
@@ -559,6 +568,7 @@ class System(Document):
     deterministic_proofs: bool
     incremental_proofs: bool
     forbidden_flags: tuple[str, ...]
+    p1_refusals: P1Refusals | None = None
     upstream: UpstreamSpec | None = None
     image: ImageSpec | None = None
     reference_role: str | None = None
