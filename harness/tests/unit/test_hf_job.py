@@ -524,7 +524,7 @@ def test_every_job_uploads_through_the_bucket_api(tmp_path: Path, profile: str) 
     bucket = tmp_path / "bucket"
     bucket.mkdir()
     done = job(repo, "run", "ref-serve", "fp-maverick-w1024-b24:1", IPROOFS_COMMIT=head,
-               IPROOFS_JOB_BUDGET_S="5000", IPROOFS_PROFILE=profile,
+               IPROOFS_JOB_BUDGET_S="2000", IPROOFS_PROFILE=profile,
                IPROOFS_UPLOAD_BUCKET="ns/b", IPROOFS_UPLOAD_DIR=str(bucket),
                IPROOFS_LABEL="serving-x", **env)  # fmt: skip
     log = log_of(repo, "upload: FAILED or incomplete")
@@ -555,3 +555,30 @@ def test_runbook_helpers_upload_alike() -> None:
     assert '"sash-l31-8b-c1024:1:sizing=50:from=$SASH_RUN"' in text  # RFC-0015 SRV-1, Q10
     assert '"sash-l31-8b-c1024:3:from=$SASH_RUN"' in text
     assert '["workload"].get("steady_rule")' in text
+
+
+def test_keep_io_sends_each_released_proof_and_retries_a_failed_upload(tmp_path: Path) -> None:
+    """keep-io through the bucket API: a released proof (io/proofs/<id>) goes up on its own,
+    under the run id, while one not yet released (.tmp-<id>) does not; a failed upload is tried
+    again every IPROOFS_UPLOAD_RETRY_S until IPROOFS_UPLOAD_RETRY_STOP_S before the budget ends
+    (10 min and 30 min in a job; seconds here)."""
+    repo, head, env = stubbed(tmp_path)
+    del env["IPROOFS_DEV_IMAGE"]
+    staging = repo.parent / "out/dev-results/v0.1/sash/.staging-r-1/io/proofs"
+    (staging / "req-0").mkdir(parents=True)
+    (staging / "req-0/part.bin").write_bytes(b"p")
+    (staging / ".tmp-req-1").mkdir()
+    done = job(repo, "run", "sash", "sash-l31-8b-c1024:1:keep-io", IPROOFS_COMMIT=head,
+               IPROOFS_JOB_BUDGET_S="4300", IPROOFS_UPLOAD_BUCKET="ns/b",
+               IPROOFS_UPLOAD_RETRY_S="1", IPROOFS_UPLOAD_RETRY_STOP_S="4296",
+               IPROOFS_LABEL="kept", **env)  # fmt: skip
+    log = log_of(repo, "upload: FAILED or incomplete")
+    assert done.returncode == 0, log
+    syncs = [c for c in calls(tmp_path) if " hf buckets sync " in c]
+    proof = [c for c in syncs if "/io/proofs/" in c]
+    assert len(proof) == 1, proof
+    assert proof[0].split()[-2].endswith("/dev-results/v0.1/sash/r-1/io/proofs/req-0")
+    assert "-kept/dev-results/" in proof[0]
+    assert "upload: proof r-1/req-0 sent" in log
+    assert "upload: large files FAILED; next try in 1 s" in log  # the stub bucket lists nothing
+    assert "upload: large files FAILED; no time left for another try" in log
