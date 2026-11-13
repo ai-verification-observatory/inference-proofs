@@ -53,8 +53,8 @@ NOT_TESTED = (
     "by our test suite."
 )
 ROW_GLYPH = 3  # the row glyph's unit in px: its arms carry their names (159 by 87 px)
-# a phone's row glyph, px a unit, no names (37.5 by 46.5 px): whole device pixels at 2x
-PHONE_GLYPH = 1.5
+# a phone's row glyph, px a unit, no names (62.5 by 77.5 px): whole device pixels at 2x
+PHONE_GLYPH = 2.5
 
 
 def states(row):
