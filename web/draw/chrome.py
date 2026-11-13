@@ -192,13 +192,6 @@ def link(path):
     return f"{S.REPO_URL}/blob/{S.LINK_REF}/{path}"
 
 
-def level_words():
-    """The level and its state: "Level 1 (frozen 2026-11-11)", or "(draft)"."""
-    lv = S.V["level"]
-    state = f"frozen {lv['frozen']}" if lv["frozen"] else "draft"
-    return f"{lv['name']} ({state})"
-
-
 def credit_words(linked=True):
     """Who builds the site and who leads it, from the facts file (`credit`), as one sentence."""
     c = S.V["credit"]
@@ -209,10 +202,15 @@ def credit_words(linked=True):
     return f"Built by the {org(c['builder'])}, led by {org(c['lead'])}."
 
 
+# the licence the facts file names -> its text in the repository (a licence with no file stops the
+# build)
+LICENCE_FILE = {"CC BY 4.0": "LICENSES/CC-BY-4.0.txt"}
+
+
 def footer():
     """Every page's footer, one strip of cells: the level's name, linked to the mandate's line
     on it (which holds its freeze date and links the level file), the release's board file when
-    there is one, the licence and who builds the site."""
+    there is one, the licence (linked to its text) and who builds the site."""
     rel = S.V["release"]
     parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{e(S.V["level"]["name"])}</a>']
     if rel is not None:
@@ -221,7 +219,8 @@ def footer():
         name = f"Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "")
         parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
                      else f'<span class="nw">{e(name)}</span><code>{e(board)}</code>')  # fmt: skip
-    parts.append(f"<span>{e(S.V['licence'])}</span>")
+    lic = S.V["licence"]
+    parts.append(f'<a class="nw" href="{e(link(LICENCE_FILE[lic]))}">{e(lic)}</a>')
     parts.append(f'<span class="fcr">{credit_words()}</span>')
     cells = "".join(f"<li>{p}</li>" for p in parts)
     return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
@@ -320,7 +319,10 @@ def card_alt(card):
         for p in row["glyph"]
     )
     name = S.V["systems"][row["system"]]["name"]
-    return (f"{name} on {rung_of(row)['model']}. {lead}. Standing: {standing(row)}. {cells}. "
+    # the standing's own colon (before the checks not held) reads as brackets after "Standing:"
+    head, colon, rest = standing(row).partition(": ")
+    stand = f"{head} ({rest})" if colon else head
+    return (f"{name} on {rung_of(row)['model']}. {lead}. Standing: {stand}. {cells}. "
             f"{states}.")  # fmt: skip
 
 

@@ -44,6 +44,7 @@ from .scale import DIMS
 from .words import (
     CHECK_HELD,
     CHECK_NAME,
+    CHECKS_DESC,
     FIGURE_HEAD,
     FIGURE_NAME,
     FIGURE_RULE,
@@ -71,6 +72,13 @@ TIER = {"system": 0, "model": 1, "petal": 2, "check": 3, "figure": 4, "page": 4,
 GROUP = {"system": "Systems", "model": "Models", "petal": "Glyph", "check": "Checks",
          "figure": "Figures", "page": "Pages", "learn": "Learn", "term": "Glossary",
          "notrun": "Not run"}  # fmt: skip
+
+
+def scale_words():
+    """The Scale page in a line: its figures' names in lower case, as words of a sentence."""
+    names = [n.lower() for _, n, _ in DIMS]
+    return (f"Every system on one log scale, model by model: {', '.join(names[:-1])} and "
+            f"{names[-1]}.")  # fmt: skip
 
 
 def search_entries():
@@ -111,7 +119,7 @@ def search_entries():
         "page",
         "Checks",
         CHECKS_PAGE,
-        "The six checks, the figures, the order rule, what is not tested",
+        CHECKS_DESC,
         PAGE_MARK,
         "checks figures order rule undecided unranked not tested",
     )
@@ -119,7 +127,7 @@ def search_entries():
         "page",
         "Scale",
         SCALE_PAGE,
-        ", ".join(n for _, n, _ in DIMS),
+        scale_words(),
         PAGE_MARK,
         "scale chart log decade axis",
     )
