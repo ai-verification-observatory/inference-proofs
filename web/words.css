@@ -765,7 +765,7 @@ html.js .scalepage .scl-panel { margin-top: 0; }
    display size over its rule (the strip above marks the section); the first one, right under the
    strip, is for screen readers only, so no word is printed twice in a row */
 .nrh, :is(.syspage, .checkspage, .mandatepage, .notfound) .blk > .sect { margin: 0; padding-bottom: 14px; border-bottom: 1px solid var(--rule); font: 900 28px/1 var(--disp); letter-spacing: 0; text-transform: none; color: var(--paper); }
-:is(.syspage, .checkspage) .wrap > .blk:first-child > .sect { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
+:is(.syspage, .checkspage) .wrap > .blk:first-child > .sect, .syspage #glyph > .sect { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; padding: 0; border: 0; }
 :is(.syspage, .checkspage) .wrap > .blk:first-child { margin-top: 24px; }
 
 /* ---------------------------------------------------------------- the systems not run, by their reason: each reason once, the names in display type */

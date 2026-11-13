@@ -667,7 +667,7 @@ def system_page(row):
     # the share group at the strip's end on a wide screen, among the band's facts on a phone
     share_strip = (f'<div class="shr" role="group" aria-label="{e(SHARE[0])}">'
                    f'<span class="shl" aria-hidden="true">{e(SHARE[0])}</span>{share}</div>')  # fmt: skip
-    parts = (("glyph", "Glyph"), ("figures", "Figures"), ("checks", "Checks"), ("cost", "Cost"),
+    parts = (("figures", "Figures"), ("glyph", "Glyph"), ("checks", "Checks"), ("cost", "Cost"),
              ("fidelity", "Fidelity"), ("sessions", "Sessions"))  # fmt: skip
     body = f"""
 {header("system")}
@@ -675,8 +675,8 @@ def system_page(row):
   {band_}
   {pnav(name, parts, share_strip)}
   <div class="wrap">
-    {section("glyph", "Glyph", glyph_html(row))}
     {section("figures", "Figures", figures_html(row))}
+    {section("glyph", "Glyph", glyph_html(row))}
     {section("checks", "Checks", checks_html(row))}
     {section("cost", "Cost", cost_html(row))}
     {section("fidelity", "Fidelity", fidelity_html(row))}
