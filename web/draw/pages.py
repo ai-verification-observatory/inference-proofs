@@ -12,6 +12,8 @@ from . import state as S
 from .chrome import (
     CHECKS_PAGE,
     MANDATE_PAGE,
+    card_current,
+    cards_record,
     footer,
     header,
     learn_page,
@@ -575,6 +577,20 @@ def figures_html(row):
 
 
 NAME_SIZES = (6, 12, 20)  # a system's name on its band: one size per length up to these
+SHARE = ("Share", "Card", "Copy link", "Copied")  # the share group: its name, its two actions, done
+
+
+def share_html(row):
+    """The share group's actions: the page's card as a download, while its picture is the one
+    this build's source was rendered to (none otherwise), and Copy link, which words.js shows and
+    runs (it copies the page's canonical address and says so)."""
+    pid = row["page"]
+    card = ""
+    if card_current(pid):
+        v = cards_record()[pid]["png"][:12]
+        card = f'<a href="/og/{e(pid)}.png?v={e(v)}" download="{e(pid)}.png">{e(SHARE[1])}</a>'
+    return (card + f'<button type="button" class="cplink" data-done="{e(SHARE[3])}" hidden>'
+            f"{e(SHARE[2])}</button>")  # fmt: skip
 
 
 def system_page(row):
@@ -593,6 +609,7 @@ def system_page(row):
         facts.append(("Pinned at", f"<code>{e(row['commit'][:8])}</code>"))
     if sysd["licence"]:
         facts.append(("Licence", nobreak(sysd["licence"]["name"])))
+    share = share_html(row)
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
     label, lead = lead_fig(row)
     unranked = "" if row["position"] is not None else " unr"
@@ -602,15 +619,19 @@ def system_page(row):
         f'<p class="sbm{unranked}"><span class="sbl">{e(label)}</span>{lead}</p></div>'
         '<dl class="facts">'
         + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in facts)
+        + f'<div class="fshr"><dt>{e(SHARE[0])}</dt><dd>{share}</dd></div>'
         + "</dl></div></section>"
     )
+    # the share group at the strip's end on a wide screen, among the band's facts on a phone
+    share_strip = (f'<div class="shr" role="group" aria-label="{e(SHARE[0])}">'
+                   f'<span class="shl" aria-hidden="true">{e(SHARE[0])}</span>{share}</div>')  # fmt: skip
     parts = (("figures", "Figures"), ("glyph", "Glyph"), ("checks", "Checks"), ("cost", "Cost"),
              ("fidelity", "Fidelity"), ("sessions", "Sessions"))  # fmt: skip
     body = f"""
 {header("system")}
 <main id="main" class="sys">
   {band_}
-  {pnav(name, parts)}
+  {pnav(name, parts, share_strip)}
   <div class="wrap">
     {section("figures", "Figures", figures_html(row))}
     {section("glyph", "Glyph", glyph_html(row))}

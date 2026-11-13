@@ -355,6 +355,29 @@ html:not(.js) .ps-t { display: none; }
 @media (max-width: 760px) {
   .ps { margin-right: 0; padding-right: var(--gut); }
 }
+/* a system page's share group: the card as a download and Copy link (shown by words.js), at the
+   strip's right end out of its scroll; on a phone among the band's facts instead */
+.pnav:has(.shr) { display: flex; }
+.pnav:has(.shr) .ps { flex: 1 1 auto; min-width: 0; margin-right: 0; }
+.shr { flex: none; display: flex; align-items: stretch; margin: 0 var(--gut) 0 12px; }
+.shl { display: flex; align-items: center; padding-right: 4px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--rule); }
+.shr a, .shr button { display: flex; align-items: center; padding: 0 12px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer; }
+.shr a:hover, .shr a:focus-visible, .shr button:hover, .shr button:focus-visible { background: var(--cobalt); color: var(--ground); }
+.shr :focus-visible { outline-offset: -2px; outline-color: var(--paper); }
+.shr [hidden], .fshr [hidden], .fshr { display: none; }
+html:not(.js) .shr:not(:has(a)) { display: none; }
+.fshr dd { display: flex; gap: 20px; }
+.fshr button { text-decoration: underline 1px; text-underline-offset: 2px; }
+.fshr button:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+@media (max-width: 760px) {
+  .shr { display: none; }
+  .fshr { display: block; }
+  html:not(.js) .fshr:not(:has(a)) { display: none; }
+}
+@media (hover: none) {
+  .fshr button { position: relative; }
+  .fshr button:after { content: ""; position: absolute; inset: -14px 0; }
+}
 
 /* ---------------------------------------------------------------- the ladder: a section per model under a cobalt rule, its size in a tab */
 .rung { margin-top: 96px; }

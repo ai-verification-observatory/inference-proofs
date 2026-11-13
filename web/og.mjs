@@ -3,7 +3,8 @@
 // (README §Build and check). Renders each og/<card>.html that the build wrote to og/<card>.png and
 // records the sha256 of both in og/cards.json; the build then names each picture in the pages. A card is 1200 x 630 CSS px at 2x
 // unless its <html> sets data-w, data-h and data-scale (the 180 px touch icon). A page whose card
-// is not in the record names the home card. Fonts load from ../fonts/, so it needs no network.
+// is not in the record, or was rendered from another source, names the home card. Fonts load from
+// ../fonts/, so it needs no network.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -37,22 +38,27 @@ for (const card of cards) {
       if (!fonts.includes(want)) throw new Error(`${card}: font ${want} did not load (loaded: ${fonts.join(', ') || 'none'})`);
     }
   }
-  // nothing may spill past the card's edges (the system name is cut at the band's bottom on purpose,
-  // so inside the band only its left and right count), and the name must clear the band's corner text
+  // nothing may spill past the card's edges, a box marked fit (a name, a figure) is as wide as its words, the
+  // card's blocks overlap nothing, and what stands on the band starts inside it
   const bad = await p.evaluate(([W, H]) => {
     const out = [];
+    const cls = (n) => n.className.baseVal ?? n.className;
     for (const n of document.querySelectorAll('body *')) {
       const r = n.getBoundingClientRect();
       if (!r.width) continue;
-      const inBand = !!n.closest('.band');
-      if (r.left < -0.5 || r.right > W + 0.5 || (!inBand && (r.top < -0.5 || r.bottom > H + 0.5))) out.push(`past the edge: ${n.className.baseVal ?? n.className}`);
+      if (r.left < -0.5 || r.right > W + 0.5 || r.top < -0.5 || r.bottom > H + 0.5) out.push(`past the edge: ${cls(n)}`);
     }
-    const name = document.querySelector('.band .name');
-    const meta = document.querySelector('.band .meta');
-    if (name && meta) {
-      const a = name.getBoundingClientRect();
-      const m = meta.getBoundingClientRect();
-      if (a.right > m.left - 24) out.push(`the name runs into the corner text (${Math.round(a.right)} > ${Math.round(m.left - 24)})`);
+    for (const n of document.querySelectorAll('.fit')) {
+      if (n.scrollWidth > n.clientWidth + 1) out.push(`runs past its box: ${cls(n)}`);
+    }
+    const blocks = [...document.body.children].map((n) => [n, n.getBoundingClientRect()]);
+    blocks.forEach(([a, r], i) => blocks.slice(i + 1).forEach(([b, s]) => {
+      if (r.left < s.right && s.left < r.right && r.top < s.bottom && s.top < r.bottom) out.push(`${cls(a)} overlaps ${cls(b)}`);
+    }));
+    const band = document.querySelector('.band');
+    if (band) {
+      const top = band.getBoundingClientRect().top + 16;
+      for (const n of band.children) if (n.getBoundingClientRect().top < top) out.push(`too tall for the band: ${cls(n)}`);
     }
     return out;
   }, [W, H]);
