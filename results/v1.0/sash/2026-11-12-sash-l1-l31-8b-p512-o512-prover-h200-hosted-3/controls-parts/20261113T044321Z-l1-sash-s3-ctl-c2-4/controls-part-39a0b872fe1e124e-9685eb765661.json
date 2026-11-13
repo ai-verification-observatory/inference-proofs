@@ -1,0 +1,151 @@
+{
+  "control_seed": "0x39a0b872fe1e124e",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C2",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 416,
+            "token": 811
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL the id at position 416 is not the one that reaches it: {\"block\":0,\"got\":810,\"kind\":\"prompt\",\"pos\":416,\"t\":416,\"tag\":\"B0L0\",\"want\":811}",
+          "seconds": 982.565902647,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 289,
+            "token": 758
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL the id at position 289 is not the one that reaches it: {\"block\":0,\"got\":757,\"kind\":\"prompt\",\"pos\":289,\"t\":289,\"tag\":\"B0L0\",\"want\":758}",
+          "seconds": 983.867564731,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 224,
+            "token": 2951
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL the id at position 224 is not the one that reaches it: {\"block\":0,\"got\":2950,\"kind\":\"prompt\",\"pos\":224,\"t\":224,\"tag\":\"B0L0\",\"want\":2951}",
+          "seconds": 951.111075515,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "harness_commit": "23971ea9582d8d7ae931aa1ec181e12e857926e4",
+  "harness_dirty": false,
+  "harness_version": "0.1.0.dev0",
+  "host": {
+    "machine": {
+      "container": {
+        "cgroup_version": "2",
+        "execution": "hosted"
+      },
+      "cpu": {
+        "bound_prover": [],
+        "bound_verifier": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "bound_verifier_single": [
+          0
+        ],
+        "cgroup_quota_cpus": 16.0,
+        "logical_cpus": 64,
+        "model": "AMD EPYC 7R13 Processor",
+        "physical_cores": 32,
+        "smt_active": true,
+        "sockets": 1
+      },
+      "disk": {
+        "free_bytes_at_start": 1401197219840
+      },
+      "kernel": {
+        "release": "6.12.113-138.209.amzn2023.x86_64"
+      },
+      "memory": {
+        "available_bytes_at_start": 481475858432,
+        "cgroup_limit_bytes": 133999996928,
+        "total_bytes": 529681707008
+      },
+      "numa": {
+        "bound_mems": [
+          0
+        ],
+        "nodes": 2
+      },
+      "os": {},
+      "provider": "Hugging Face Jobs",
+      "verifier_host": "separate"
+    },
+    "nonconforming": []
+  },
+  "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+  "only": [
+    "C2"
+  ],
+  "perturbed_commitment": {
+    "commitment_id": "sha256:140d4f6f91515127fca1af1c1c6600d54ac97addd7b54d2ee1d1157b0c58d0be",
+    "model_digest": "sha256:d49c9b0ff4386170843a37cb76aea1844ccedbdd74ca71ceab47b3be476a475e"
+  },
+  "profile": "prover-h200-hosted",
+  "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+  "run_manifest_digest": "sha256:b041225bd87c4cd7e4bc588443b5e812bdfdcf922f67d04b552ba99038a12521",
+  "schema": "controls-part/1",
+  "seed_record_digest": "sha256:f21c21b37b9e8a5ed47645b0867a22baf0892617f91463cdcdfe2e7c7cd98800",
+  "suite": [
+    "C1",
+    "C2",
+    "C3",
+    "P1"
+  ],
+  "verifier_cpus": 8,
+  "verifier_profile": "verifier-cpu"
+}

@@ -1227,10 +1227,13 @@
               "state": "held"
             },
             "model": {
-              "cause": "not run",
-              "evidence": [],
-              "note": "P1: no counted trial stored; C3: no counted trial stored",
-              "state": "undecided"
+              "cause": null,
+              "evidence": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/controls.json#/controls/3",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/controls.json#/controls/2"
+              ],
+              "note": null,
+              "state": "held"
             },
             "no_weight_file": {
               "cause": "not run",
@@ -1243,20 +1246,23 @@
               "state": "undecided"
             },
             "prompt": {
-              "cause": "not run",
-              "evidence": [],
-              "note": "C2: no counted trial stored",
-              "state": "undecided"
+              "cause": null,
+              "evidence": [
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/controls.json#/controls/1"
+              ],
+              "note": null,
+              "state": "held"
             },
             "reply": {
-              "cause": "not run",
+              "cause": null,
               "evidence": [
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/controls.json#/controls/0"
               ],
-              "note": "C1 at the first position: no counted trial stored; C1 at the last position: no counted trial stored; C1 at the interior position: no counted trial stored",
-              "state": "undecided"
+              "note": null,
+              "state": "held"
             },
             "run": {
               "cause": null,

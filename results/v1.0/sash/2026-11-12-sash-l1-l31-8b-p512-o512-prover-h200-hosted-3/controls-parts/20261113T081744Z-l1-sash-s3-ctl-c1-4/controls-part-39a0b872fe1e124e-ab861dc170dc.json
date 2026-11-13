@@ -1,0 +1,358 @@
+{
+  "control_seed": "0x39a0b872fe1e124e",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[0]",
+                "B0head.fixed.json tok_out[511]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B0head.fixed.json"
+              ]
+            },
+            "token": 1867
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the chunk proof does not verify: {\"derived\":\"41a5441b62beec5582765c440be56967ad6a2a60176bbb56ad00053a4d9d9667\",\"embed\":true,\"embed_tok\":false,\"error\":null,\"head_binding\":true,\"head_tok\":true,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 936.293256408,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[0]",
+                "B0head.fixed.json tok_out[511]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B0head.fixed.json"
+              ]
+            },
+            "token": 1867
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the chunk proof does not verify: {\"derived\":\"41a5441b62beec5582765c440be56967ad6a2a60176bbb56ad00053a4d9d9667\",\"embed\":true,\"embed_tok\":false,\"error\":null,\"head_binding\":true,\"head_tok\":true,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 923.073233418,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[0]",
+                "B0head.fixed.json tok_out[511]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B0head.fixed.json"
+              ]
+            },
+            "token": 1867
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the chunk proof does not verify: {\"derived\":\"41a5441b62beec5582765c440be56967ad6a2a60176bbb56ad00053a4d9d9667\",\"embed\":true,\"embed_tok\":false,\"error\":null,\"head_binding\":true,\"head_tok\":true,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 930.699415897,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[511]",
+                "B1head.fixed.json tok_out[510]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 540
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1196.278769386,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[511]",
+                "B1head.fixed.json tok_out[510]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 540
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1384.605805759,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[511]",
+                "B1head.fixed.json tok_out[510]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 540
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1043.324879863,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 262,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[262]",
+                "B1head.fixed.json tok_out[261]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 691
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 969.266259714,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 40,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[40]",
+                "B1head.fixed.json tok_out[39]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 6848
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1056.866353882,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 200,
+            "mutated": {
+              "fields": [
+                "B1L0.fixed.json tok_in[200]",
+                "B1head.fixed.json tok_out[199]"
+              ],
+              "parts": [
+                "B1L0.fixed.json",
+                "B1head.fixed.json"
+              ]
+            },
+            "token": 840
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1head: the chunk proof does not verify: {\"derived\":\"7c49056e496cf43ee1ddf4112d3de0612fba9f332bdbca06b1645a1c125c9258\",\"embed\":true,\"embed_tok\":true,\"error\":null,\"head_binding\":true,\"head_tok\":false,\"root\":true,\"shape_root\":true,\"stark\":true,\"sums\":true}",
+          "seconds": 1314.857122161,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "harness_commit": "23971ea9582d8d7ae931aa1ec181e12e857926e4",
+  "harness_dirty": false,
+  "harness_version": "0.1.0.dev0",
+  "host": {
+    "machine": {
+      "container": {
+        "cgroup_version": "2",
+        "execution": "hosted"
+      },
+      "cpu": {
+        "bound_prover": [],
+        "bound_verifier": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "bound_verifier_single": [
+          0
+        ],
+        "cgroup_quota_cpus": 16.0,
+        "logical_cpus": 64,
+        "model": "AMD EPYC 7R13 Processor",
+        "physical_cores": 32,
+        "smt_active": true,
+        "sockets": 1
+      },
+      "disk": {
+        "free_bytes_at_start": 1186595422208
+      },
+      "kernel": {
+        "release": "6.12.113-138.209.amzn2023.x86_64"
+      },
+      "memory": {
+        "available_bytes_at_start": 499102838784,
+        "cgroup_limit_bytes": 133999996928,
+        "total_bytes": 529681702912
+      },
+      "numa": {
+        "bound_mems": [
+          0
+        ],
+        "nodes": 2
+      },
+      "os": {},
+      "provider": "Hugging Face Jobs",
+      "verifier_host": "separate"
+    },
+    "nonconforming": []
+  },
+  "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+  "only": [
+    "C1"
+  ],
+  "perturbed_commitment": {
+    "commitment_id": "sha256:140d4f6f91515127fca1af1c1c6600d54ac97addd7b54d2ee1d1157b0c58d0be",
+    "model_digest": "sha256:d49c9b0ff4386170843a37cb76aea1844ccedbdd74ca71ceab47b3be476a475e"
+  },
+  "profile": "prover-h200-hosted",
+  "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+  "run_manifest_digest": "sha256:b041225bd87c4cd7e4bc588443b5e812bdfdcf922f67d04b552ba99038a12521",
+  "schema": "controls-part/1",
+  "seed_record_digest": "sha256:f21c21b37b9e8a5ed47645b0867a22baf0892617f91463cdcdfe2e7c7cd98800",
+  "suite": [
+    "C1",
+    "C2",
+    "C3",
+    "P1"
+  ],
+  "verifier_cpus": 8,
+  "verifier_profile": "verifier-cpu"
+}

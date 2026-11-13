@@ -1,0 +1,171 @@
+{
+  "control_seed": "0x39a0b872fe1e124e",
+  "controls": [
+    {
+      "expected": [
+        "prover_failed",
+        "rejected"
+      ],
+      "id": "P1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "prover",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {},
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the statement names model 1a103c4aaa3d72bd7f44ccc4f2df68afc75048386c41139664f632a9f4febd30 and the model manifest's row for layer 0 was published for 729106231f32c111881c4c0279b8de79e7cf6a81cfb6b2fab46fcf3396badebe",
+          "seconds": 912.666327348,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {},
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the statement names model 1a103c4aaa3d72bd7f44ccc4f2df68afc75048386c41139664f632a9f4febd30 and the model manifest's row for layer 0 was published for 729106231f32c111881c4c0279b8de79e7cf6a81cfb6b2fab46fcf3396badebe",
+          "seconds": 885.236368126,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {},
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "grid: FAIL B1L0: the statement names model 1a103c4aaa3d72bd7f44ccc4f2df68afc75048386c41139664f632a9f4febd30 and the model manifest's row for layer 0 was published for 729106231f32c111881c4c0279b8de79e7cf6a81cfb6b2fab46fcf3396badebe",
+          "seconds": 893.115636524,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    }
+  ],
+  "harness_commit": "23971ea9582d8d7ae931aa1ec181e12e857926e4",
+  "harness_dirty": false,
+  "harness_version": "0.1.0.dev0",
+  "host": {
+    "machine": {
+      "container": {
+        "cgroup_version": "2",
+        "execution": "hosted",
+        "shm_bytes": 2144787132416
+      },
+      "cpu": {
+        "bound_prover": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14
+        ],
+        "bound_verifier": [
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22
+        ],
+        "bound_verifier_single": [
+          15
+        ],
+        "cgroup_quota_cpus": 23.0,
+        "logical_cpus": 192,
+        "model": "Intel(R) Xeon(R) Platinum 8488C",
+        "physical_cores": 96,
+        "smt_active": true,
+        "sockets": 2
+      },
+      "disk": {
+        "free_bytes_at_start": 29720400080896
+      },
+      "gpu": {
+        "bound_index": 0,
+        "count_visible": 1,
+        "cuda_driver_api": "13.0",
+        "driver_version": "580.178.04",
+        "memory_total_mib": 143771,
+        "model": "NVIDIA H200",
+        "numa_node": 0
+      },
+      "kernel": {
+        "release": "6.12.113-138.209.amzn2023.x86_64"
+      },
+      "memory": {
+        "available_bytes_at_start": 2104789168128,
+        "cgroup_limit_bytes": 256000000000,
+        "total_bytes": 2147443175424
+      },
+      "numa": {
+        "bound_mems": [
+          0
+        ],
+        "nodes": 2
+      },
+      "os": {},
+      "provider": "Hugging Face Jobs",
+      "verifier_host": "same_as_prover"
+    },
+    "nonconforming": [
+      "PC-DRIVER: driver '580.178.04', the profile pins 'unpinned'"
+    ]
+  },
+  "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+  "only": [
+    "P1"
+  ],
+  "perturbed_commitment": {
+    "commitment_id": "sha256:140d4f6f91515127fca1af1c1c6600d54ac97addd7b54d2ee1d1157b0c58d0be",
+    "model_digest": "sha256:d49c9b0ff4386170843a37cb76aea1844ccedbdd74ca71ceab47b3be476a475e"
+  },
+  "profile": "prover-h200-hosted",
+  "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+  "run_manifest_digest": "sha256:b041225bd87c4cd7e4bc588443b5e812bdfdcf922f67d04b552ba99038a12521",
+  "schema": "controls-part/1",
+  "seed_record_digest": "sha256:f21c21b37b9e8a5ed47645b0867a22baf0892617f91463cdcdfe2e7c7cd98800",
+  "suite": [
+    "C1",
+    "C2",
+    "C3",
+    "P1"
+  ],
+  "verifier_cpus": 8,
+  "verifier_profile": "verifier-cpu"
+}
