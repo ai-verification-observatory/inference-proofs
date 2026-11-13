@@ -225,53 +225,217 @@
           "glyph": [
             {
               "basis": "statement",
+              "cause": null,
               "id": "unforgeable",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "Neither figure, 124 bits per query or 128 bits per round, is claimed for the C++ programs.",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L65-L73"
+                  "text": "The Lean verifier accepts a proof of a false claim with probability at most about q/2^124 + 2^-101 after q hash queries (about 124 bits per query; not \"128 bits\")",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L47"
                 }
               ],
-              "reason": "A level is proven for the Lean verifier; none is claimed for cp_verify, which the row runs.",
-              "state": "amber"
+              "reason": "per proof inside a batch of 24: q/2^124 + 2^-101",
+              "state": "amber",
+              "step": "amber_lower"
             },
             {
               "basis": "statement",
+              "cause": null,
               "id": "weights_hidden",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "At least eleven things are visible",
-                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L5-L21"
+                  "text": "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol, at [full size](terms.md) and at the exact-match policy, with fresh random masks.",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3"
                 }
               ],
-              "reason": "Zero knowledge is proven for the protocol, not for the programs run; the publisher lists what is visible.",
-              "state": "amber"
+              "reason": "proved for the protocol, not the configuration the row runs; programs expected, not stated, to hide the weights; visible values fitted to the weights: Settings fitted to the weights.",
+              "state": "amber",
+              "step": "amber_upper",
+              "visible": [
+                {
+                  "item": "Each reply.",
+                  "quotes": [
+                    {
+                      "text": "**Each reply.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L53"
+                    }
+                  ],
+                  "tag": "statement_io"
+                },
+                {
+                  "item": "Time.",
+                  "quotes": [
+                    {
+                      "text": "**Time.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L64"
+                    }
+                  ],
+                  "tag": "side_channel"
+                },
+                {
+                  "item": "The architecture and every size.",
+                  "quotes": [
+                    {
+                      "text": "**The architecture and every size.**",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L72"
+                    }
+                  ],
+                  "tag": "shape"
+                },
+                {
+                  "item": "Settings fitted to the weights.",
+                  "quotes": [
+                    {
+                      "text": "**Settings fitted to the weights.** Two sets of public values are computed from the weights and a calibration set.",
+                      "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/docs/what-is-not-hidden.md#L74"
+                    }
+                  ],
+                  "tag": "fitted_to_weights"
+                }
+              ]
             },
             {
-              "basis": "run",
+              "basis": "test",
+              "cause": "not_decided",
               "id": "faithful_model",
+              "lowered_by": [],
               "quotes": [],
-              "reason": "The replies score above the bar (Q3_K_S); a second run of the 16-bit model scores above the replies.",
-              "state": "amber"
-            },
-            {
-              "basis": "run",
-              "id": "any_model",
-              "quotes": [],
-              "reason": "Passed on one model of two.",
-              "state": "red"
+              "reason": "no fidelity.json stored",
+              "state": "hollow",
+              "step": null
             },
             {
               "basis": "statement",
-              "id": "no_trusted_party",
+              "cause": "proof_build_not_run",
+              "formal": {
+                "input_code_unverified": true,
+                "reach": "protocol_and_statement",
+                "scope_card": {
+                  "completeness": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "In one line: proved in Lean for the protocol, on served requests, at the exact-match policy",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L149"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "In the code both are tested, not verified",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L24"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [
+                        {
+                          "text": "In the code both are tested, not verified",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L24"
+                        }
+                      ],
+                      "value": "tested"
+                    }
+                  },
+                  "soundness": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "**Soundness** is proved, in Lean, for the verifier written in Lean",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L3"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L7-L8"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [
+                        {
+                          "text": "The C++ verifier and the CUDA prover are written to follow the same protocol and are tested against it, not themselves proved.",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L7-L8"
+                        }
+                      ],
+                      "value": "tested"
+                    }
+                  },
+                  "zero_knowledge": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "Zero knowledge, Lean's form of weight hiding, is proved in Lean for the protocol",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L3"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "| The C++ and CUDA programs | nothing: not proved; tested |",
+                          "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/weight-hiding.md#L21"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  }
+                },
+                "stated_step": "amber_upper",
+                "theorem": "VerifierAndGoals.AtTheName.sound_of_verify_at",
+                "theorem_url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/Johnson/Goal/Skeleton/SoundOfVerifyAt.lean#L69",
+                "tool": "Lean 4, kernel 4.29.1",
+                "trusted_base": [
+                  "Lean's kernel",
+                  "propext",
+                  "Classical.choice",
+                  "Quot.sound"
+                ]
+              },
+              "id": "machine_checked",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "The random-oracle model for the hash, with a second, fixed hash function, built on BLAKE2b's compression function, assumed independent of it",
+                  "text": "**Soundness** is proved, in Lean, for the verifier written in Lean",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L3"
+                },
+                {
+                  "text": "That this interactive oracle proof is the protocol of the C++ programs is not proved",
+                  "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/lean/THEOREM.md#L267-L268"
+                }
+              ],
+              "reason": "no proof build recorded for VerifierAndGoals.AtTheName.sound_of_verify_at; stated reach: the protocol and the model's statement",
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": null,
+              "id": "no_trusted_party",
+              "lowered_by": [],
+              "quotes": [
+                {
+                  "text": "**The random-oracle model** for the hash, with a second, fixed hash function, built on BLAKE2b's compression function, assumed independent of it, against classical adversaries.",
                   "url": "https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L57-L58"
                 }
               ],
-              "reason": "Soundness is stated in the random-oracle model for the hash, with no setup ceremony, hardware or third party.",
-              "state": "green"
+              "reason": "soundness is stated to rest on cryptographic assumptions alone, with no setup that produced a secret",
+              "state": "green",
+              "step": "green"
             }
           ],
           "incomplete_sessions": [
@@ -650,8 +814,8 @@
                 "results/v1.0/sash/2026-12-03-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/proof-000.json",
                 "results/v1.0/sash/2026-12-03-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/verify-trace/proof-000.json"
               ],
-              "note": null,
-              "state": "held"
+              "note": "invented example: the trace names a model file",
+              "state": "failed"
             },
             "prompt": {
               "cause": null,
@@ -700,43 +864,118 @@
           "glyph": [
             {
               "basis": "statement",
+              "cause": null,
               "id": "unforgeable",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "A level for the whole grid of segments is not stated.",
-                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L7-L28"
+                  "text": "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L11"
+                },
+                {
+                  "text": "stwo's own conjectured-soundness accounting is",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L9"
                 }
               ],
-              "reason": "100 conjectured bits for each segment proof; no level for the whole grid.",
-              "state": "amber"
+              "reason": "conjectured: 100 conjectured bits",
+              "state": "amber",
+              "step": "amber_lower"
             },
             {
-              "basis": "statement",
+              "basis": "test",
+              "cause": "check_failed",
               "id": "weights_hidden",
+              "lowered_by": [
+                "no_weight_file"
+              ],
               "quotes": [],
-              "reason": "Not stated in the README and docs/statement.md at eb95bfa8.",
-              "state": "red"
+              "reason": "our No weight file check failed",
+              "state": "red",
+              "step": "red",
+              "visible": []
             },
             {
-              "basis": "run",
+              "basis": "test",
+              "cause": null,
               "id": "faithful_model",
+              "lowered_by": [],
               "quotes": [],
-              "reason": "The replies score above the bar (Q2_K); a second run of the 16-bit model scores above the replies.",
-              "state": "amber"
-            },
-            {
-              "basis": "run",
-              "id": "any_model",
-              "quotes": [],
-              "reason": "Passed on no model.",
-              "state": "red"
+              "reason": "shown above T_upper = 386.91 (p = 0.0017), not above T_green = 483.65 (p = 0.64); alpha 0.05, n = 15",
+              "state": "amber",
+              "step": "amber_upper"
             },
             {
               "basis": "statement",
+              "cause": "not_stated",
+              "formal": {
+                "input_code_unverified": null,
+                "reach": "not_stated",
+                "scope_card": {
+                  "completeness": {
+                    "protocol": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "prover_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  },
+                  "soundness": {
+                    "protocol": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "prover_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  },
+                  "zero_knowledge": {
+                    "protocol": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "prover_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  }
+                },
+                "stated_step": "red",
+                "theorem": null,
+                "theorem_url": null,
+                "tool": null,
+                "trusted_base": []
+              },
+              "id": "machine_checked",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/util.rs at eb95bfa887299d1637550228d42086c27cbb2b3b",
+              "state": "red",
+              "step": "red"
+            },
+            {
+              "basis": "statement",
+              "cause": "not_stated",
               "id": "no_trusted_party",
+              "lowered_by": [],
               "quotes": [],
               "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/compose.rs at eb95bfa887299d1637550228d42086c27cbb2b3b",
-              "state": "red"
+              "state": "red",
+              "step": "red"
             }
           ],
           "incomplete_sessions": [],
@@ -951,6 +1190,456 @@
             "value": 11.933333333333332
           },
           "workload": "l1-l31-8b-p512-o512"
+        }
+      ],
+      "systems_run": 1
+    },
+    {
+      "baseline": {
+        "cause": null,
+        "concurrency": 64,
+        "gpu_seconds_per_reply": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "results/v1.0/ref-serve/2026-12-03-ref-serve-l1-gpt2-p512-o512-serving-h200x1-hosted-1/run.json#/ladder"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-BASELINE@0.1.0"
+          },
+          "tier": "reported",
+          "unit": "gpu_s/request",
+          "value": 1.4084507042253522
+        },
+        "gpus": 1,
+        "ladder": [],
+        "run_id": "2026-12-03-ref-serve-l1-gpt2-p512-o512-serving-h200x1-hosted-1",
+        "serving": "gpt2-fp32",
+        "usd_per_reply": {
+          "grade": "derived",
+          "null_reason": null,
+          "scope": "prove.steady",
+          "source": {
+            "inputs": [
+              "#/rungs/2/baseline/gpu_seconds_per_reply",
+              "#/price/usd_per_gpu_hour"
+            ],
+            "kind": "derivation",
+            "ref": "derive:D-L1-USD@0.1.0"
+          },
+          "tier": "reported",
+          "unit": "USD/request",
+          "value": 0.0020911580594679185
+        }
+      },
+      "fidelity": {
+        "bar": {
+          "control": "q2_k",
+          "mean_prefix": 142.0
+        },
+        "cause": null,
+        "controls": [
+          {
+            "id": "reference-2",
+            "kind": "honest",
+            "kl": null,
+            "mean_prefix": 512.0,
+            "status": "ok"
+          },
+          {
+            "id": "q8_0",
+            "kind": "honest",
+            "kl": null,
+            "mean_prefix": 455.3,
+            "status": "ok"
+          },
+          {
+            "id": "q4_k_m",
+            "kind": "honest",
+            "kl": null,
+            "mean_prefix": 318.9,
+            "status": "ok"
+          },
+          {
+            "id": "q3_k_s",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 201.7,
+            "status": "ok"
+          },
+          {
+            "id": "q2_k",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 142.0,
+            "status": "ok"
+          },
+          {
+            "id": "drop-every-4th-block",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 0.4,
+            "status": "ok"
+          },
+          {
+            "id": "smaller-model",
+            "kind": "damaged",
+            "kl": null,
+            "mean_prefix": 12.6,
+            "status": "ok"
+          }
+        ],
+        "path": "results/v1.0/fidelity/gpt-2/fidelity.json"
+      },
+      "id": "gpt-2",
+      "model": "GPT-2",
+      "parameters_active": 137022720,
+      "parameters_total": 137022720,
+      "publisher": "OpenAI",
+      "requests_per_session": 5,
+      "rows": [
+        {
+          "checks": {
+            "fidelity": {
+              "cause": "not run",
+              "evidence": [
+                "results/v1.0/fidelity/llama-3.1-8b/fidelity.json"
+              ],
+              "note": null,
+              "state": "undecided"
+            },
+            "model": {
+              "cause": "not run",
+              "evidence": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/controls.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/controls.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/controls.json"
+              ],
+              "note": "invented example: the weight change has not been shown to survive quantization",
+              "state": "undecided"
+            },
+            "no_weight_file": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/verify-trace/proof-000.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/verify-trace/proof-000.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/verify-trace/proof-000.json"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "prompt": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/controls.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/controls.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/controls.json"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "reply": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/run.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/run.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/controls.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/controls.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/controls.json"
+              ],
+              "note": null,
+              "state": "held"
+            },
+            "run": {
+              "cause": null,
+              "evidence": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/run.json",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/run.json"
+              ],
+              "note": null,
+              "state": "held"
+            }
+          },
+          "commit": "9d1a53e2ef49ffa2c902b8689cd3c58057a4e662",
+          "configuration": "default",
+          "fidelity": {
+            "kl": null,
+            "kl_note": "not measured: the committed copy is not a file llama.cpp loads",
+            "mean_prefix": 233.4,
+            "n": 15,
+            "p_above_bar": 0.012,
+            "p_below_bar": 0.99
+          },
+          "glyph": [
+            {
+              "basis": "statement",
+              "cause": "not_read",
+              "id": "unforgeable",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "no properties file",
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": "not_read",
+              "id": "weights_hidden",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "no properties file",
+              "state": "hollow",
+              "step": null,
+              "visible": null
+            },
+            {
+              "basis": "test",
+              "cause": "not_decided",
+              "id": "faithful_model",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "FIDELITY undecided: not run",
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": "not_read",
+              "formal": null,
+              "id": "machine_checked",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "no properties file",
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": "not_read",
+              "id": "no_trusted_party",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "no properties file",
+              "state": "hollow",
+              "step": null
+            }
+          ],
+          "incomplete_sessions": [],
+          "multiple": {
+            "grade": "derived",
+            "null_reason": "not_applicable",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "#/rungs/2/rows/0/steady_gpu_seconds_per_reply",
+                "#/rungs/2/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": null
+          },
+          "passed": false,
+          "position": null,
+          "proof_bytes_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": null,
+            "source": {
+              "inputs": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/run.json#/metrics/proof_bytes_per_request"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-BPR@0.1.0"
+            },
+            "stats": {
+              "max": 9415000,
+              "mean": 9412000.0,
+              "median": 9412000,
+              "min": 9409000,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 3000.0
+            },
+            "tier": "reported",
+            "unit": "B/request",
+            "value": 9412000.0
+          },
+          "ranked": false,
+          "security": {
+            "source": "systems/deepprove/claim.yaml#security.level",
+            "stated": false,
+            "words": "an invented example of a publisher's words"
+          },
+          "session_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-SESSION@0.1.0"
+            },
+            "stats": {
+              "max": 612.0,
+              "mean": 604.9,
+              "median": 604.2,
+              "min": 598.5,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 6.777167549942968
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 604.9
+          },
+          "session_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "#/rungs/2/rows/0/session_gpu_seconds_per_reply",
+                "#/rungs/2/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 429.4789999999999
+          },
+          "session_usd_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "#/rungs/2/rows/0/session_gpu_seconds_per_reply",
+                "#/price/usd_per_gpu_hour"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-USD@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "USD/request",
+            "value": 0.8981084722222221
+          },
+          "sessions": [
+            {
+              "cause": "too few groups",
+              "gpus": 1,
+              "groups": [
+                1,
+                1
+              ],
+              "m": null,
+              "run_id": "2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1",
+              "session": 612.0,
+              "slot": 1,
+              "steady": false
+            },
+            {
+              "cause": "too few groups",
+              "gpus": 1,
+              "groups": [
+                1,
+                1
+              ],
+              "m": null,
+              "run_id": "2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2",
+              "session": 598.5,
+              "slot": 2,
+              "steady": false
+            },
+            {
+              "cause": "too few groups",
+              "gpus": 1,
+              "groups": [
+                1,
+                1
+              ],
+              "m": null,
+              "run_id": "2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3",
+              "session": 604.2,
+              "slot": 3,
+              "steady": false
+            }
+          ],
+          "steady_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": "not_applicable",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/run.json#/proofs"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-STEADY@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": null
+          },
+          "steady_usd_per_reply": {
+            "grade": "derived",
+            "null_reason": "missing_input",
+            "scope": "prove.steady",
+            "source": {
+              "inputs": [
+                "#/rungs/2/rows/0/steady_gpu_seconds_per_reply",
+                "#/price/usd_per_gpu_hour"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-USD@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "USD/request",
+            "value": null
+          },
+          "system": "deepprove",
+          "unranked_reason": null,
+          "verify_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "verify",
+            "source": {
+              "inputs": [
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-2/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/deepprove/2026-12-03-deepprove-l1-gpt2-p512-o512-prover-h200-hosted-3/run.json#/metrics/verify_seconds_per_request"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-VSPR@0.1.0"
+            },
+            "stats": {
+              "max": 12.1,
+              "mean": 11.933333333333332,
+              "median": 11.9,
+              "min": 11.8,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 0.15275252316519414
+            },
+            "tier": "reported",
+            "unit": "s/request",
+            "value": 11.933333333333332
+          },
+          "workload": "l1-gpt2-p512-o512"
         }
       ],
       "systems_run": 1

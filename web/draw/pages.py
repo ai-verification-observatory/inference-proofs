@@ -39,24 +39,33 @@ from .overview import (
 )
 from .plots import fid_svg, hbar
 from .words import (
+    BASIS_READING,
     BASIS_WORD,
     CAUSE_WORD,
+    CHECK_CAUSE_WORD,
     CHECK_EVIDENCE,
     CHECK_FAILED,
     CHECK_HELD,
     CHECK_NAME,
     FIGURE_NAME,
     FIGURE_RULE,
+    HOLLOW_RULE,
     MANDATE,
     MANDATE_BELIEF,
     MANDATE_WHAT,
     ORDER_RULE,
+    PETAL_CAUSE_RULE,
     PETAL_CHECKS,
     PETAL_NAME,
     PETAL_RULE,
-    PETAL_WORD,
+    READING_RULE,
+    SCOPE_COL_WORD,
+    SCOPE_ROW_WORD,
+    SCOPE_VALUE_WORD,
     STATE_WORD,
+    STEP_WORD,
     TERMS,
+    VISIBLE_TAG_WORD,
     e,
     kl_head,
     number,
@@ -127,9 +136,11 @@ def evidence_html(paths):
     return "".join(out)
 
 
-def chip(state, word):
-    """A state as a chip: ground ink on its state's ink, an outline when undecided or hollow."""
-    return f'<span class="schip {state}">{e(word)}</span>'
+def chip(state, word, form=""):
+    """A state as a chip: ground ink on its state's ink, an outline when undecided or hollow; amber
+    in lesser part notched (cut), a silent red an outline in the red ink (open)."""
+    tok = f"{state} {form}".strip()
+    return f'<span class="schip {tok}">{e(word)}</span>'
 
 
 def stacked(heads, rows):
@@ -149,22 +160,91 @@ def petals_of(check):
     return " ".join(f"p{i + 1}" for i, p in enumerate(S.V["petals"]) if check in PETAL_CHECKS[p])
 
 
+def quote_links(quotes):
+    return "".join(f'<a class="qt" href="{e(q["url"])}">\u201c{quoted(q["text"])}\u201d</a>'
+                   for q in quotes)  # fmt: skip
+
+
+def scope_card_html(formal):
+    """Machine-checked's recorded facts, inside its Reason cell: the tool, the theorem (linked at
+    the pin) and the trusted base as the publisher lists it, then the scope card: for soundness,
+    zero knowledge and completeness, what the publisher states of the protocol, the verifier run
+    and the prover run, each word linked to its first quote. It sets no state."""
+    if formal is None:
+        return ""
+    theorem = formal["theorem"]
+    if theorem and formal["theorem_url"]:
+        theorem = f'<a href="{e(formal["theorem_url"])}"><code>{e(theorem)}</code></a>'
+    elif theorem:
+        theorem = f"<code>{e(theorem)}</code>"
+    lines = (("tool", e(formal["tool"]) if formal["tool"] else None), ("theorem", theorem),
+             ("trusted base", e(", ".join(formal["trusted_base"])) if formal["trusted_base"]
+              else None))  # fmt: skip
+    facts = "".join(f"<div><dt>{e(k)}</dt><dd>{v or e(SCOPE_VALUE_WORD['not_stated'])}</dd></div>"
+                    for k, v in lines)  # fmt: skip
+
+    def cell(c):
+        word = e(SCOPE_VALUE_WORD[c["value"]])
+        if c["quotes"]:
+            word = f'<a class="sv" href="{e(c["quotes"][0]["url"])}">{word}</a>'
+        return f'<td class="{e(c["value"])}">{word}</td>'
+
+    card = formal["scope_card"]
+    heads = "".join(f'<th scope="col">{e(w)}</th>' for w in SCOPE_COL_WORD.values())
+    body = "".join(
+        f'<tr><th scope="row">{e(SCOPE_ROW_WORD[r])}</th>'
+        + "".join(cell(card[r][c]) for c in SCOPE_COL_WORD) + "</tr>"
+        for r in SCOPE_ROW_WORD
+    )  # fmt: skip
+    return (f'<dl class="pf">{facts}</dl><table class="scard"><caption>Scope card</caption>'
+            f'<thead><tr><td><span class="sr">What</span></td>{heads}</tr></thead>'
+            f"<tbody>{body}</tbody></table>")  # fmt: skip
+
+
+def visible_html(visible):
+    """Weights hidden: what the publisher lists as visible to a proof's reader, each item linked
+    to its quote, with its kind (only a value fitted to the weights sets the step)."""
+    if not visible:
+        return ""
+    items = "".join(f'<li><a href="{e(v["quotes"][0]["url"])}">{e(v["item"])}</a> '
+                    f'<span class="vt">{e(VISIBLE_TAG_WORD[v["tag"]])}</span></li>'
+                    for v in visible)  # fmt: skip
+    return f'<p class="pvh">Visible, as listed</p><ul class="pvis">{items}</ul>'
+
+
+def basis_html(p):
+    """What a petal rests on (the From cell): our checks, the publisher's documents, or, when a
+    fact the decision read carries a note, the publisher's documents as we read them, linked to
+    what that means."""
+    if p["basis"] == "statement" and p["reading"]:
+        docs, ours = BASIS_READING
+        return f'{e(docs)}, <a class="df" href="{CHECKS_PAGE}#reading">{e(ours)}</a>'
+    return e(BASIS_WORD[p["basis"]])
+
+
 def glyph_html(row):
     """The glyph once, large, as the heads of the petals' table: each arm is its petal's name on
     the ink of its state (never its state word: the ink says it, and the chip beside it), on one
-    stem, then the state, the reason with the publisher's quotes linked, and what it rests on
-    (SI-3). An arm, its row and the checks its red names light together."""
+    stem, then the step in words with the cause of a red or hollow petal, the reason with the
+    publisher's quotes linked (and Machine-checked's scope card, Weights hidden's visible list),
+    and what it rests on (SI-3). An arm, its row and the checks its red names light together."""
     trs = []
     for i, p in enumerate(row["glyph"]):
-        quotes = "".join(f'<a class="qt" href="{e(q["url"])}">\u201c{quoted(q["text"])}\u201d</a>'
-                         for q in p["quotes"])  # fmt: skip
+        tok = f"{p['state']} {p['form']}".strip()
+        data = f' data-step="{e(p["step"] or "none")}"'
+        cause = ""
+        if p["cause"] is not None:
+            data += f' data-cause="{e(p["cause"])}"'
+            cause = (f'<a class="cw df" href="{CHECKS_PAGE}#cause-{e(p["cause"])}">'
+                     f"{e(CAUSE_WORD[p['cause']])}</a>")  # fmt: skip
+        extra = scope_card_html(p["formal"]) + visible_html(p["visible"])
         trs.append(
-            f'<tr class="pt {p["state"]}"><th scope="row">'
-            f'<a class="sl s{i + 1} {p["state"]}" href="{CHECKS_PAGE}#{p["id"]}" data-k="p{i + 1}">'
+            f'<tr class="pt {tok}"><th scope="row">'
+            f'<a class="sl s{i + 1} {tok}"{data} href="{CHECKS_PAGE}#{p["id"]}" data-k="p{i + 1}">'
             f"<span>{e(PETAL_NAME[p['id']])}</span></a></th>"
-            f'<td class="cst">{chip(p["state"], PETAL_WORD[p["state"]])}</td>'
-            f'<td><span class="rs">{e(p["reason"])}</span>{quotes}</td>'
-            f'<td class="bs">{e(BASIS_WORD[p["basis"]])}</td></tr>'
+            f'<td class="cst">{chip(p["state"], STEP_WORD[p["step"]], p["form"])}{cause}</td>'
+            f'<td><span class="rs">{e(p["reason"])}</span>{quote_links(p["quotes"])}{extra}</td>'
+            f'<td class="bs">{basis_html(p)}</td></tr>'
         )
     return ('<div class="checks"><table class="rt ckt gbig"><thead><tr><th scope="col">Petal</th>'
             '<th scope="col">State</th><th scope="col">Reason</th><th scope="col">From</th></tr>'
@@ -180,7 +260,7 @@ def checks_html(row):
         cause = ""
         if c["cause"]:
             cause = (f'<a class="cw df" href="{CHECKS_PAGE}#undecided" '
-                     f'title="{e(CAUSE_WORD[c["cause"]])}">{e(c["cause"])}</a>')  # fmt: skip
+                     f'title="{e(CHECK_CAUSE_WORD[c["cause"]])}">{e(c["cause"])}</a>')  # fmt: skip
         if c.get("note"):
             cause += f'<span class="cn">{quoted(c["note"])}</span>'
         to = petals_of(c["id"])
@@ -489,10 +569,13 @@ def build_checks():
     names = [PETAL_NAME[p] for p in ids]
     glyph = glyph_svg(GLYPH, ["key"] * len(names), names=names, cls="pie-svg big",
                       hrefs=[f"#{p}" for p in ids])  # fmt: skip
+    # the four decided steps, each as the chip a system page prints (STEP_WORD), beside its rule
+    keys = (("green", "", "green"), ("amber", "", "amber_upper"), ("amber", "cut", "amber_lower"),
+            ("red", "", "red"))  # fmt: skip
     petals = "".join(
         f'<div class="chk" id="{p}"><h3 class="cn2">{e(PETAL_NAME[p])}</h3><dl class="cs">'
-        + "".join(f"<div><dt>{chip(k, k)}</dt><dd>{e(rule)}</dd></div>"
-                  for k, rule in zip(("green", "amber", "red"), PETAL_RULE[p], strict=True))
+        + "".join(f"<div><dt>{chip(state, STEP_WORD[step], form)}</dt><dd>{e(rule)}</dd></div>"
+                  for (state, form, step), rule in zip(keys, PETAL_RULE[p], strict=True))
         + "</dl></div>"
         for p in ids
     )  # fmt: skip
@@ -510,17 +593,21 @@ def build_checks():
     )
     gate = ("A system passes on a model when it holds all six checks there. A failed check "
             "turns its petals red; a held check never turns a petal green.")  # fmt: skip
-    hollow = ("A hollow petal is not decided yet: a measured petal with no result, its cause "
-              "beside it. A petal read from the publisher's documents is red where they are "
-              "silent.")  # fmt: skip
+    # why a petal is red or hollow: one address per cause, which a system page's State cell links
+    petal_causes = "".join(
+        f'<div id="cause-{e(k)}"><dt>{e(CAUSE_WORD[k])}</dt><dd>{e(v)}</dd></div>'
+        for k, v in PETAL_CAUSE_RULE.items()
+    )  # fmt: skip
     causes = "".join(f'<div id="cause-{e(k.replace(" ", "-"))}"><dt>{e(k)}</dt><dd>{e(v)}</dd></div>'
-                     for k, v in CAUSE_WORD.items())  # fmt: skip
+                     for k, v in CHECK_CAUSE_WORD.items())  # fmt: skip
     passed = (f'<p class="rd" id="passed">{e(gate)}</p>'
               f'<p class="rd" id="not-tested">{e(NOT_TESTED)}</p>')  # fmt: skip
     parts = (("glyph", "Glyph"), ("checks", "The six checks"), ("undecided", "Undecided"),
              ("figures", "Figures"), ("order", "Order"), ("terms", "Terms"))  # fmt: skip
     key = (f'<div class="cwrap"><div class="gbig">{glyph}</div><div class="clist">{petals}'
-           f'<p class="rd hl">{e(hollow)}</p></div></div>')  # fmt: skip
+           f'<p class="rd hl">{e(HOLLOW_RULE)}</p><dl class="cs pcause">{petal_causes}</dl>'
+           f'<p class="rd hl" id="reading">{e(READING_RULE)}</p>'
+           "</div></div>")  # fmt: skip
     lead = explained("The reason for each rule on this page:", "method", cls="tsub")
     body = f"""
 {header("checks")}

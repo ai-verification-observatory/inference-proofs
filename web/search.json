@@ -5,7 +5,7 @@
       "kind": "system",
       "meta": "Llama 4 Maverick 17B-128E Instruct · not passed: Model undecided",
       "name": "FlashProve",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><rect class=\"sl s1 amber\" fill=\"#e49921\" x=\"3\" y=\"0\" width=\"22\" height=\"5\"/><rect class=\"sl s2 amber\" fill=\"#e49921\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><rect class=\"sl s3 amber\" fill=\"#e49921\" x=\"3\" y=\"12\" width=\"22\" height=\"5\"/><path class=\"sl s4 hollow\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 green\" fill=\"#6ffeb7\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><rect class=\"sl s2 amber\" data-step=\"amber_upper\" fill=\"#e49921\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><path class=\"sl s3 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 12H18V17H3ZM20 12H25V17H20Z\"/><path class=\"sl s4 hollow\" data-step=\"none\" data-cause=\"proof_build_not_run\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 green\" data-step=\"green\" fill=\"#6ffeb7\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
       "terms": "flashprove llama 4 maverick 17b-128e instruct · not passed: model undecided l1-maverick-p512-o512 flashprove",
       "tier": 0,
       "url": "/flashprove"
@@ -15,7 +15,7 @@
       "kind": "system",
       "meta": "Llama 3.1 8B Instruct · not passed: No weight file undecided",
       "name": "SASH",
-      "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><rect class=\"sl s1 amber\" fill=\"#e49921\" x=\"3\" y=\"0\" width=\"22\" height=\"5\"/><rect class=\"sl s2 red\" fill=\"#e03c44\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><rect class=\"sl s3 amber\" fill=\"#e49921\" x=\"3\" y=\"12\" width=\"22\" height=\"5\"/><path class=\"sl s4 hollow\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 red\" fill=\"#e03c44\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
+      "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><path class=\"sl s2 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 6.5H24.5V10.5H3\"/><path class=\"sl s3 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 12H18V17H3ZM20 12H25V17H20Z\"/><path class=\"sl s4 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><path class=\"sl s5 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 24.5H24.5V28.5H3\"/></svg>",
       "terms": "sash llama 3.1 8b instruct · not passed: no weight file undecided l1-l31-8b-p512-o512 sash",
       "tier": 0,
       "url": "/sash"
@@ -53,50 +53,50 @@
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "A soundness level of 128 bits or more, proven for the verifier code the system runs.",
+      "meta": "A bound on a false reply being accepted, proved, against any prover, that covers the run: one reply a proof, each member of a batch checked alone, the row's parameters, its conditions shown to hold for the row's files, and the verifier program the row runs proved or stated to implement what the bound is about. Every exponent in the stated bound 128 or more; a term 2^-t or q/2^t has exponent t.",
       "name": "Unforgeable",
       "pie": "",
-      "terms": "unforgeable a soundness level of 128 bits or more, proven for the verifier code the system runs.",
+      "terms": "unforgeable a bound on a false reply being accepted, proved, against any prover, that covers the run: one reply a proof, each member of a batch checked alone, the row's parameters, its conditions shown to hold for the row's files, and the verifier program the row runs proved or stated to implement what the bound is about. every exponent in the stated bound 128 or more; a term 2^-t or q/2^t has exponent t.",
       "tier": 2,
       "url": "/checks#unforgeable"
     },
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "Zero knowledge proven for the program run, with no leak beyond public sizes.",
+      "meta": "Zero knowledge proved for the configuration the row runs, the programs stated to implement it, and a published list of what stays visible with nothing fitted to the weights.",
       "name": "Weights hidden",
       "pie": "",
-      "terms": "weights hidden zero knowledge proven for the program run, with no leak beyond public sizes.",
+      "terms": "weights hidden zero knowledge proved for the configuration the row runs, the programs stated to implement it, and a published list of what stays visible with nothing fitted to the weights.",
       "tier": 2,
       "url": "/checks#weights_hidden"
     },
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "The replies are not shown below a second run of the publisher's original weights.",
+      "meta": "The proved replies are shown above the midpoint between a second run of the publisher's model and its Q8_0 copy, in a fidelity run of one request at a time.",
       "name": "Faithful model",
       "pie": "",
-      "terms": "faithful model the replies are not shown below a second run of the publisher's original weights.",
+      "terms": "faithful model the proved replies are shown above the midpoint between a second run of the publisher's model and its q8_0 copy, in a fidelity run of one request at a time.",
       "tier": 2,
       "url": "/checks#faithful_model"
     },
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "The system passed on every model of the level.",
-      "name": "Any model",
+      "meta": "A machine-checked soundness theorem covers the verifier program the row runs, from the bytes it reads to its verdict, with its trusted base listed and no input code outside it, and a build of it at the pinned commit, with the toolchain the publisher pins, is recorded.",
+      "name": "Machine-checked",
       "pie": "",
-      "terms": "any model the system passed on every model of the level.",
+      "terms": "machine-checked a machine-checked soundness theorem covers the verifier program the row runs, from the bytes it reads to its verdict, with its trusted base listed and no input code outside it, and a build of it at the pinned commit, with the toolchain the publisher pins, is recorded.",
       "tier": 2,
-      "url": "/checks#any_model"
+      "url": "/checks#machine_checked"
     },
     {
       "group": "Glyph",
       "kind": "petal",
-      "meta": "Soundness rests on cryptographic assumptions alone (for example a random oracle): no setup ceremony, hardware maker's key or third party. Public files fixed before the hash do not count: every non-interactive proof has them.",
-      "name": "Only the verifier trusted",
+      "meta": "The publisher's documents show soundness resting on cryptographic assumptions alone: no setup ever produced a secret. Public files fixed before the hash, or derived from public inputs, do not count.",
+      "name": "No third party trusted",
       "pie": "",
-      "terms": "only the verifier trusted soundness rests on cryptographic assumptions alone (for example a random oracle): no setup ceremony, hardware maker's key or third party. public files fixed before the hash do not count: every non-interactive proof has them.",
+      "terms": "no third party trusted the publisher's documents show soundness resting on cryptographic assumptions alone: no setup ever produced a secret. public files fixed before the hash, or derived from public inputs, do not count.",
       "tier": 2,
       "url": "/checks#no_trusted_party"
     },
@@ -563,10 +563,10 @@
     {
       "group": "Glossary",
       "kind": "term",
-      "meta": "One of the five parts of the glyph: a property a prover can have in full, in part or not at all.",
+      "meta": "One of the five parts of the glyph: a property a prover can have in full, in part, in lesser part or not at all.",
       "name": "Petal",
       "pie": "",
-      "terms": "petal one of the five parts of the glyph: a property a prover can have in full, in part or not at all.",
+      "terms": "petal one of the five parts of the glyph: a property a prover can have in full, in part, in lesser part or not at all.",
       "tier": 4.2,
       "url": "/glossary#petal"
     },

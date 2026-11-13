@@ -3,6 +3,8 @@
    in hand, focus; never a value or a state.
    green / amber / red = a petal's or a check's state, only in the glyph's arms and the state
    chips; a hollow petal or an undecided check is an outline in muted ink, never a fourth fill.
+   Two steps change the drawing, not the ink: amber in lesser part is cut (its end cell parted by
+   ground), a red the publisher's silence set is open (an outline in the red ink, its name not struck).
    Everything else is paper, muted, rule or line on the ground (lift: the ground under a row in
    hand). Flat inks only: no gradient, glow or drop shadow (an inset line is a border).
    Type: Big Shoulders Display (800, 900) for names, titles and positions; Martian Mono (400 to
@@ -90,33 +92,44 @@ p { margin: 0; }
 .anim :is(.rung:target .rm, .nrl li:target .nn, .chk:target .cn2, .cs > div:target dt, .checkspage .rd:target) { animation: wipe 240ms cubic-bezier(.2, .8, .1, 1) both; }
 
 /* ---------------------------------------------------------------- the glyph: a cobalt stem and five arms, each a petal's name on the ink of its state
-   (green, amber, red, its name struck; hollow an outline, its name in the muted ink). Its viewBox is in units, so 1px here is one unit */
+   (green, amber, red, its name struck; hollow an outline, its name in the muted ink). Amber in lesser part is cut: one
+   path, the arm and its end cell (hexagon.py). A silent red is open: the hollow outline in the red ink, its name red and
+   not struck. Its viewBox is in units, so 1px here is one unit */
 .pie-svg { display: block; overflow: visible; }
 .sl.green { fill: var(--green); }
 .sl.amber { fill: var(--amber); }
 .sl.red { fill: var(--red); }
 .sl.hollow { fill: none; stroke: var(--muted); }
+.sl.red.open { fill: none; stroke: var(--red); }
 /* an outline answers the pointer over its whole area, as a filled petal does */
-.lad .glyph .sl.hollow { pointer-events: all; }
+.lad .glyph :is(.sl.hollow, .sl.open) { pointer-events: all; }
 .sl.key { fill: var(--cobalt); }
 /* one petal in hand (words.js), or the key's petal read. A state petal keeps its fill (an outline is
    the hollow state, never shown for a decided one): the one in hand takes a hard paper edge. The
    key's petals carry no state: the others turn to cobalt outlines, their names in paper */
 .lit-on .sl.lit:not(.key) { stroke: var(--paper); stroke-width: 3px; vector-effect: non-scaling-stroke; }
+/* an open red in hand keeps its red edge, thicker, so it never reads as a lit hollow petal */
+.lit-on .sl.red.open.lit { stroke: var(--red); }
 .lit-on .sl.key:not(.lit) { fill: var(--ground); stroke: var(--cobalt); stroke-width: 2px; vector-effect: non-scaling-stroke; }
 .lit-on .t.key:not(.lit) text { fill: var(--paper); }
 .gbig.linked .sl, .gbig.linked .t { cursor: pointer; }
 /* a petal's name on its arm: 4 units high on an arm 5 units high (hexagon.py NAME, TRACK) */
 .t text { fill: var(--ground); font: 800 4px/1 var(--disp); letter-spacing: .04em; }
 .t.hollow text { fill: var(--muted); }
+.t.red.open text { fill: var(--red); }
+/* red on the lifted row is under 4.5:1 (inks.py): the open name takes paper there, its outline stays red */
+.row:hover .t.red.open text, .row:focus-within .t.red.open text, .row.cur .t.red.open text { fill: var(--paper); }
 .t { pointer-events: none; }
 .gbig.linked a .t { pointer-events: auto; }
-/* a state as a chip: ground ink on its state's ink; undecided and hollow an outline */
+/* a state as a chip: ground ink on its state's ink; undecided and hollow an outline; amber in lesser part notched at its
+   end (a 2 px ground gap, then a 6 px cell), a silent red an outline in the red ink */
 .schip { display: inline-block; padding: 4px 7px 3px; font: 600 11px/14px var(--mono); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; color: var(--ground); }
 .schip.held, .schip.green { background: var(--green); }
 .schip.amber { background: var(--amber); }
 .schip.failed, .schip.red { background: var(--red); }
 .schip.undecided, .schip.hollow { color: var(--paper); box-shadow: inset 0 0 0 1px var(--muted); }
+.schip.amber.cut { padding-right: 16px; box-shadow: inset -6px 0 0 var(--amber), inset -8px 0 0 var(--ground); }
+.schip.red.open { background: none; color: var(--paper); box-shadow: inset 0 0 0 1px var(--red); }
 /* a state as a square swatch inside a line of text (the Learn pages' drawings) */
 .sw { display: inline-block; width: .72em; height: .72em; margin-right: .5em; vertical-align: baseline; }
 .sw.held, .sw.green { background: var(--green); } .sw.amber { background: var(--amber); }
@@ -739,7 +752,40 @@ html.js .row { cursor: pointer; }
 .ckt.gbig a.sl.green { background: var(--green); } .ckt.gbig a.sl.amber { background: var(--amber); } .ckt.gbig a.sl.red { background: var(--red); }
 .ckt.gbig a.sl.red span { text-decoration: line-through 3px; }
 .ckt.gbig a.sl.hollow { color: var(--muted); box-shadow: inset -1px 0 0 var(--muted), inset 0 1px 0 var(--muted), inset 0 -1px 0 var(--muted); }
+/* a silent red: the hollow outline in the red ink, its name red and not struck (24 px, 800: large text, 4.17:1 on lift) */
+.ckt.gbig a.sl.red.open { background: none; color: var(--red); box-shadow: inset -1px 0 0 var(--red), inset 0 1px 0 var(--red), inset 0 -1px 0 var(--red); }
+.ckt.gbig a.sl.red.open span { text-decoration: none; }
+/* amber in lesser part: the arm 6 units short (one unit of ground, then a cell 5 units long, 6 px a unit), the cell drawn
+   before it (the arm's :after is a phone's touch target) */
+.ckt.gbig th a.sl.cut { position: relative; width: 264px; max-width: calc(100% - 36px); }
+.ckt.gbig th a.sl.cut:before { content: ""; position: absolute; top: 0; left: calc(100% + 6px); width: 30px; height: 100%; background: var(--amber); }
 .ckt.gbig th a.sl:hover, .ckt.gbig.lit-on a.sl.lit { text-decoration: none; box-shadow: inset 0 3px 0 var(--paper), inset -3px 0 0 var(--paper), inset 0 -3px 0 var(--paper); }
+.ckt.gbig th a.sl.cut:hover:before, .ckt.gbig.lit-on a.sl.cut.lit:before { box-shadow: inset 0 0 0 3px var(--paper); }
+.ckt.gbig th a.sl.red.open:hover, .ckt.gbig.lit-on a.sl.red.open.lit { box-shadow: inset 0 3px 0 var(--red), inset -3px 0 0 var(--red), inset 0 -3px 0 var(--red); }
+.ckt .cst .cw { margin-top: 6px; }
+/* Machine-checked's recorded facts and scope card, Weights hidden's visible list: inside the Reason cell, as recorded facts
+   (they set no state). The card is a table inside the petals' table: its cells reset every rule of the outer one */
+.ckt .pf { max-width: 70ch; margin: 12px 0 0; }
+.ckt .pf > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 1px 0; }
+.ckt .pf dt { color: var(--muted); }
+.ckt .pf dd { margin: 0; overflow-wrap: anywhere; }
+/* the scope card scrolls inside its own cell (width 0, then the cell's width), so its whole cells never set how
+   narrow the Reason column can get; position: relative keeps the links' (new tab) spans inside the scroller */
+.rt.ckt .scard { display: block; position: relative; width: 0; min-width: 100%; max-width: 70ch; overflow-x: auto; margin-top: 12px; border-collapse: collapse; font: inherit; }
+.rt.ckt .scard caption { caption-side: top; text-align: left; padding-bottom: 4px; color: var(--muted); }
+.rt.ckt .scard thead { display: table-header-group; }
+.rt.ckt .scard tbody { display: table-row-group; }
+.rt.ckt .scard tr { display: table-row; padding: 0; border: 0; background: none; box-shadow: none; }
+.rt.ckt .scard tr > :is(th, td) { display: table-cell; width: auto; margin: 0; padding: 3px 16px 3px 0; border: 0; box-shadow: none; background: none; font: inherit; vertical-align: top; overflow-wrap: normal; white-space: nowrap; }
+.rt.ckt .scard thead :is(th, td) { color: var(--muted); text-transform: none; letter-spacing: 0; border-bottom: 1px solid var(--line); }
+.rt.ckt .scard tbody th { color: var(--muted); }
+.rt.ckt .scard tbody td.not_stated { color: var(--muted); }
+.ckt .pvh { margin: 12px 0 2px; color: var(--muted); }
+.ckt .pvis { margin: 0; padding: 0; list-style: none; max-width: 70ch; }
+.ckt .pvis .vt { color: var(--muted); }
+/* the petal in hand: its card keeps its own inks while the other rows dim */
+.ckt.dim tbody tr.lit .scard tr > * { color: var(--muted); }
+.ckt.dim tbody tr.lit .scard tr > * a.sv, .ckt.dim tbody tr.lit .scard tbody td:not(.not_stated) { color: var(--paper); }
 .ckt.gbig tr.lit > :first-child { box-shadow: none; }
 /* a check's records, one per line on every screen, each a whole line to tap */
 .ckt .ev { display: block; width: fit-content; padding-block: 2px; margin-block: 0; }
@@ -749,6 +795,8 @@ html.js .row { cursor: pointer; }
 .anim .ckt tbody tr > * { transition: color var(--quick), background-color var(--quick), box-shadow var(--quick); }
 @media (max-width: 1100px) {
   .cl { grid-template-columns: 200px minmax(0, 1fr) 190px; column-gap: 24px; }
+  /* the Reason column narrows: the scope card's words wrap (machine-checked at its hyphen) before it scrolls */
+  .rt.ckt .scard tr > :is(th, td) { padding-right: 8px; white-space: normal; }
 }
 @media (max-width: 760px) {
   .parts > div { flex-basis: 150px; }
@@ -787,7 +835,7 @@ html.js .row { cursor: pointer; }
 .cs > div:target dt { width: fit-content; height: fit-content; margin-left: -.4em; padding: 0 .4em; }
 .checkspage .rd:target { width: fit-content; margin-left: -12px; padding: 8px 12px; }
 .cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
-.cs > div { display: grid; grid-template-columns: 136px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
+.cs > div { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
 .blk > .cs > div { padding: 12px 0 12px 12px; border-bottom: 1px solid var(--line); transition: background-color var(--quick); }
 .blk > .cs > div:hover { background: var(--lift); }
 .cs dt { color: var(--paper); font-weight: 600; }
@@ -795,6 +843,10 @@ html.js .row { cursor: pointer; }
 .rd { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; text-wrap: pretty; }
 .rd + .rd { margin-top: 10px; }
 .cwrap .hl { padding: 16px 0 0 16px; }
+/* the petals' causes, under the hollow rule (#cause-<id>, linked from a system page's State cell) */
+.cwrap .pcause { padding: 12px 0 0 16px; }
+/* a petal's four steps: the widest chip (amber in lesser part, with its notch) keeps clear of its rule */
+@media (min-width: 561px) { .cwrap .chk .cs > div { grid-template-columns: 196px minmax(0, 1fr); } }
 /* the 404: the models and the systems as cells, rules meeting; each answers as a row does */
 .lost { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); overflow: hidden; }
 .lost li { display: flex; margin-left: -1px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); }
@@ -819,6 +871,7 @@ html.js .row { cursor: pointer; }
 .probe dt { color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
 .probe dd { margin: 0; overflow-wrap: break-word; }
 .probe .prk { display: flex; align-items: center; gap: 10px; font: 800 18px/1 var(--disp); }
+.probe .prc { font: 400 11px/16px var(--mono); color: var(--muted); }
 .anim .probe { animation: probe var(--quick) both; }
 /* it appears where it stands, with no travel (its place is its transform, set by words.js) */
 @keyframes probe { from { opacity: 0; } }
@@ -1262,6 +1315,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .cwrap { grid-template-columns: minmax(0, 1fr); row-gap: 24px; padding-top: 28px; }
   .ckt.gbig tbody th { width: 271px; padding-right: 12px; }
   .ckt.gbig th a.sl { width: 250px; height: 25px; padding: 0 8px; font-size: 20px; line-height: 25px; }
+  .ckt.gbig th a.sl.cut { width: 220px; max-width: calc(100% - 30px); }
+  .ckt.gbig th a.sl.cut:before { left: calc(100% + 5px); width: 25px; }
+  .ckt.gbig th a.sl.cut:after { right: -30px; }
   .checks { padding-top: 28px; }
   .cwrap .gbig { justify-self: start; width: min(318px, 100%); position: static; }
 }
@@ -1340,6 +1396,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .ckt tr.lit > *, .cks tr:target > * { background: none; }
   .ckt tr.lit, .cks tr:target { background: var(--lift); box-shadow: inset 4px 0 0 var(--cobalt); }
   .ckt tr.lit > :first-child, .cks tr:target > :first-child { box-shadow: none; }
+  /* the scope card fits the phone's width: its words wrap, the hyphen of machine-checked included */
+  .rt.ckt .scard tr > :is(th, td) { padding-right: 8px; white-space: normal; }
+  .ckt .pf > div { grid-template-columns: 96px minmax(0, 1fr); }
   .lost .ln { font-size: 28px; }
   .fcells li { flex-basis: 100%; padding-top: 12px; }
 }
@@ -1355,6 +1414,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .ckt th a { position: relative; z-index: 1; display: inline-block; padding-block: 12px; margin-block: -12px; }
   .ckt.gbig th a.sl { display: flex; padding-block: 0; margin-block: 0; }
   .ckt.gbig th a.sl:after { content: ""; position: absolute; inset: -10px 0; }
+  .ckt.gbig th a.sl.cut:after { right: -36px; }
   .ckt td :is(a.qt, a.cw) { position: relative; }
   .ckt td :is(a.qt, a.cw):after { content: ""; position: absolute; inset: -13px 0; }
   /* two quotes one under the other share the gap between them */
@@ -1397,7 +1457,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .mast { background: none; color: var(--paper); border-block: 2px solid var(--cobalt); }
   .top { box-shadow: none; }
   /* every fill that carries words in ground ink prints, so those words never print white on white */
-  .schip, .sw, .sl, .rk, .pos.p1 .pn, .fid tr.me, .fid tr.me > * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .schip, .sw, .sl, .sl.cut:before, .rk, .pos.p1 .pn, .fid tr.me, .fid tr.me > * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   /* a size tab's words dark on its cobalt; the frontier's label (cobalt on its block) in paper on white */
   .rk { color: #0b0b0c; }
   .bx-k { color: var(--paper); }
@@ -1405,6 +1465,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .t text, .schip { fill: #0b0b0c; color: #0b0b0c; }
   .ckt.gbig a.sl:not(.hollow) { color: #0b0b0c; }
   .t.hollow text, .schip.undecided, .schip.hollow { fill: var(--paper); color: var(--paper); }
+  /* a silent red on paper: its name in the text ink (red on white is under 4.5:1), its outline red */
+  .t.red.open text, .schip.red.open, .ckt.gbig a.sl.red.open { fill: var(--paper); color: var(--paper); }
+  /* and a heavier red frame, so it stays apart from a hollow outline once the page prints in grey */
+  .sl.red.open { stroke-width: 2px; vector-effect: non-scaling-stroke; }
+  .ckt.gbig a.sl.red.open { box-shadow: inset -3px 0 0 var(--red), inset 0 3px 0 var(--red), inset 0 -3px 0 var(--red); }
   .chk:target .cn2, .cs > div:target dt, .checkspage .rd:target, .rung:target .rm, .nrl li:target .nn { background: none; color: inherit; box-shadow: none; }
 }
 @media (forced-colors: active) {
@@ -1417,6 +1482,13 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .t.hollow text { fill: CanvasText; }
   .ckt.gbig a.sl:not(.hollow) { outline: 1px solid CanvasText; outline-offset: -1px; }
   .ckt.gbig a.sl.hollow { color: CanvasText; box-shadow: inset -1px 0 0 CanvasText, inset 0 1px 0 CanvasText, inset 0 -1px 0 CanvasText; }
+  /* a silent red keeps its red outline, open toward the stem (so it never reads as hollow); a cut arm's cell is edged too */
+  .ckt.gbig a.sl.red.open { outline: none; color: CanvasText; box-shadow: inset -3px 0 0 var(--red), inset 0 3px 0 var(--red), inset 0 -3px 0 var(--red); }
+  /* its frame heavier than a hollow one's, its name in the text colour (red is under 4.5:1 on a light canvas) */
+  .sl.red.open { stroke-width: 2px; }
+  .t.red.open text, .row:is(:hover, :focus-within, .cur) .t.red.open text { fill: CanvasText; }
+  .ckt.gbig th a.sl.cut:before { outline: 1px solid CanvasText; outline-offset: -1px; }
+  .schip.red.open { color: CanvasText; }
   .sw { outline: 1px solid CanvasText; }
   /* the tab and section in view, and an arrival, marked by a line (forced colours drop the fills) */
   .tab.on, .ps a.on { text-decoration: underline 3px; text-underline-offset: 6px; }

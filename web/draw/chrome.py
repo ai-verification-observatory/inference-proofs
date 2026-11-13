@@ -12,7 +12,7 @@ import re
 from . import state as S
 from .inks import GROUND
 from .mark import lockup_svg
-from .words import PETAL_NAME, PETAL_WORD, e
+from .words import CAUSE_WORD, PETAL_NAME, STEP_WORD, e
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
@@ -279,7 +279,11 @@ def card_alt(card):
     if card == "home":
         return "Inference proofs."
     row = S.PAGE[card]
-    states = "; ".join(f"{PETAL_NAME[p['id']]}: {PETAL_WORD[p['state']]}" for p in row["glyph"])
+    states = "; ".join(
+        f"{PETAL_NAME[p['id']]}: {STEP_WORD[p['step']]}"
+        + (f", {CAUSE_WORD[p['cause']]}" if p["cause"] is not None else "")
+        for p in row["glyph"]
+    )
     return f"{S.V['systems'][row['system']]['name']} on {rung_of(row)['model']}. {states}."
 
 

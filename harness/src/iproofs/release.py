@@ -22,6 +22,8 @@ from iproofs.derive import (
     statistic,
 )
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.glyph import load_properties
+from iproofs.glyph import read as read_properties
 from iproofs.model import ReferenceFile, Release, ServingModel, ServingProfile, Workload, load
 from iproofs.provenance import file_digest
 from iproofs.quantity import (
@@ -213,6 +215,10 @@ def freeze(
     failing = gates([*release.runs, path.relative_to(root).as_posix()])  # step 2
     if failing:
         raise _fail(f"gates failed: {failing[0]}")
+    if level is not None:  # RFC-0018 GL-9 (G1): computed from the sources, not a stored board
+        not_read = not_read_runs(root, level, runs.values())
+        if not_read:
+            raise _fail(f"{not_read[0]} (RFC-0018 GL-9)")
     excluded = _excluded(release, runs, root, registry)
     late = _Late(root, registry, release.release, (reference, release.reference_file))
     configurations, controls, contexts = _configurations(runs, excluded, late)
@@ -264,6 +270,29 @@ def level_mismatches(runs: Mapping[str, RunView], digest: str) -> list[str]:
         named = run.get("manifest", "level", "digest")
         if named != digest:
             out.append(f"{run_id} names level digest {named!r}, not {digest}")
+    return out
+
+
+def not_read_runs(root: Path, level: Path, runs: Iterable[RunView]) -> list[str]:
+    """RFC-0018 GL-9: each listed run of a system on a rung of `level` whose properties file the
+    glyph would not read at the run's commit (missing, another schema, another commit, or no
+    commit recorded). It reads the sources, as the board does, never a stored board."""
+    import yaml  # noqa: PLC0415
+
+    doc = yaml.safe_load(level.read_text())
+    rungs = doc.get("rungs") if isinstance(doc, dict) else None
+    systems = {str(s) for r in rungs or () if isinstance(r, dict)
+               for s in (r.get("workloads") or {})}  # fmt: skip
+    out = []
+    for run in runs:
+        system = run.run.get("system")
+        if system not in systems or run.run.get("control") is True:
+            continue
+        commit = run.get("manifest", "system", "upstream", "commit")
+        _, why = read_properties(load_properties(root, str(system)),
+                                 commit if isinstance(commit, str) else None)  # fmt: skip
+        if why is not None:
+            out.append(f"{run.run_id}: {system} properties not read: {why}")
     return out
 
 

@@ -9,7 +9,7 @@ builds a `controls.json` whose C1, C2, C3 and P1 trials the test chooses.
 
 import json
 import shutil
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 import yaml
@@ -207,7 +207,17 @@ def three_sessions(tree: Tree, **kw: object) -> list[Path]:
             for s in (1, 2, 3)]  # fmt: skip
 
 
-def fidelity(tree: Tree, rows: dict[str, dict[str, object]], bar: bool = True) -> Path:
+def fidelity(
+    tree: Tree,
+    rows: dict[str, dict[str, object]],
+    bar: bool = True,
+    *,
+    controls: Sequence[Mapping[str, object]] | None = None,
+    steps: Mapping[str, object] | None = None,
+    slots: int | None = None,
+) -> Path:
+    """The rung's fidelity.json; `controls`, `steps` and `slots` replace or add those fields
+    (the default keeps the two controls with no scores and writes no steps or slots)."""
     path = tree.root / "results" / RELEASE / "fidelity" / RUNG / "fidelity.json"
     path.parent.mkdir(parents=True, exist_ok=True)
     doc: dict[str, object] = {
@@ -217,7 +227,14 @@ def fidelity(tree: Tree, rows: dict[str, dict[str, object]], bar: bool = True) -
                         {"id": "q3_k_s", "kind": "damaged", "mean_prefix": 200.0, "status": "ok",
                          "scores": [], "kl": None}],
            "bar": {"control": "q3_k_s", "mean_prefix": 200.0} if bar else None,
+           "test": {"alpha": 0.05, "exact_up_to": 20, "resamples": 1000},
            "rows": rows}  # fmt: skip
+    if controls is not None:
+        doc["controls"] = [dict(c) for c in controls]
+    if steps is not None:
+        doc["steps"] = dict(steps)
+    if slots is not None:
+        doc["slots"] = slots
     path.write_text(json.dumps(doc))
     return path
 
@@ -226,3 +243,87 @@ def fidelity_row(state: str = "held", cause: str | None = None) -> dict[str, obj
     return {"scores": [500] * 15, "mean_prefix": 500.0, "p_above_bar": 0.001,
             "p_below_bar": 0.999, "state": state, "cause": cause, "kl": None,
             "kl_note": "not measured"}  # fmt: skip
+
+
+# ---------------------------------------------------------------- properties/2 (RFC-0018 GL-1)
+
+PIN = "a" * 40  # the manifests' system.upstream.commit
+TOOLCHAIN = {"name": "coq", "version": "8.20.0"}  # formal.toolchain of the invented file
+REPO = "example/fake-prover"
+_SILENT = (False, "not_said", "not_stated", None)
+_PLAIN = ("terms", "visible", "axioms", "theorem", "theorem_url", "scope_card")
+
+
+def quote(text: str, commit: str = PIN, path: str = "README.md") -> dict[str, str]:
+    return {"text": text, "url": f"https://github.com/{REPO}/blob/{commit}/{path}#L1"}
+
+
+def fact(value: object, text: str | None = None, commit: str = PIN) -> dict[str, object]:
+    """A fact with one quote, none when the value is silent."""
+    silent = value in _SILENT or value == []
+    quotes = [] if silent and text is None else [quote(text or f"the publisher says {value}",
+                                                       commit)]  # fmt: skip
+    return {"value": value, "quotes": quotes}
+
+
+def _group(
+    defaults: Mapping[str, object], overrides: Mapping[str, object], commit: str
+) -> dict[str, object]:
+    out = dict(defaults)
+    for k, v in overrides.items():
+        given = isinstance(v, dict) and "value" in v  # already a fact
+        out[k] = v if k in _PLAIN or given else fact(v, commit=commit)
+    return out
+
+
+def properties2(
+    *,
+    commit: str = PIN,
+    system: str = SYSTEM,
+    bound: Mapping[str, object] | None = None,
+    formal: Mapping[str, object] | None = None,
+    hiding: Mapping[str, object] | None = None,
+    trust: Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """An invented properties/2 tree (not a file) whose facts reach green on every statement
+    petal; each keyword replaces facts of one group, raw values wrapped as quoted facts (a
+    dict with a `value` is taken as a fact as it is)."""
+    expr = "2^-130 + 2^-128"
+    cell = {"value": "not_stated", "quotes": []}
+    b = {"stated": fact(True, f"at most {expr}", commit),
+         "expression": fact(expr, f"at most {expr}", commit), "terms": [130, 128],
+         "basis": fact("proved", commit=commit), "unit": fact("reply", commit=commit),
+         "batch": fact("not_said", commit=commit),
+         "adversary": fact("any_prover", commit=commit), "parameters": fact("row", commit=commit),
+         "conditions_shown": fact(True, commit=commit),
+         "program": fact("stated", commit=commit)}  # fmt: skip
+    f = {"reach": fact("verifier_run", commit=commit), "tool": fact("Coq 8.20", commit=commit),
+         "toolchain": fact(TOOLCHAIN, "coq 8.20.0", commit),
+         "theorem": "Fake.Verifier.sound",
+         "theorem_url": f"https://github.com/{REPO}/blob/{commit}/coq/V.v#L4",
+         "trusted_base": fact(["Coq's kernel", "classic"], "Trusted: Coq's kernel and classic.",
+                              commit),
+         "axioms": ["classic"], "input_code_unverified": fact(False, "parser checked", commit),
+         "scope_card": {r: {c: dict(cell) for c in ("protocol", "verifier_run", "prover_run")}
+                        for r in ("soundness", "zero_knowledge", "completeness")}}  # fmt: skip
+    h = {"stated": fact(True, commit=commit), "verifier_gets_weights": fact(False, "no weights",
+                                                                           commit),
+         "proof": fact("configuration_run", commit=commit),
+         "programs": fact("stated", commit=commit), "visible_listed": fact(True, commit=commit),
+         "visible": [{"item": "Each reply.", "tag": "statement_io",
+                      "quotes": [quote("Each reply.", commit)]}]}  # fmt: skip
+    t = {"rests_on": fact("transparent", commit=commit),
+         "publicly_checkable": fact(True, commit=commit)}  # fmt: skip
+    sources = ["README.md", "docs/a.md"]
+    return {"schema": "properties/2", "system": system, "configuration": "default",
+            "upstream": {"repo": REPO, "commit": commit}, "read": "2026-11-13",
+            "petals": {
+                "unforgeable": {"sources_read": sources,
+                                "bound": _group(b, bound or {}, commit)},
+                "machine_checked": {"sources_read": sources,
+                                    "formal": _group(f, formal or {}, commit)},
+                "weights_hidden": {"sources_read": sources,
+                                   "hiding": _group(h, hiding or {}, commit)},
+                "no_trusted_party": {"sources_read": sources,
+                                     "trust": _group(t, trust or {}, commit)},
+            }}  # fmt: skip

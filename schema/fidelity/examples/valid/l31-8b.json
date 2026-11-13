@@ -359,6 +359,24 @@
         499
       ],
       "state": "held",
+      "step_tests": {
+        "green": {
+          "method": "exact",
+          "n": 15,
+          "p": 0.639190673828125,
+          "seed": null,
+          "threshold": "T_green",
+          "value": 489.53333333333336
+        },
+        "upper": {
+          "method": "exact",
+          "n": 15,
+          "p": 0.00164794921875,
+          "seed": null,
+          "threshold": "T_upper",
+          "value": 388.7
+        }
+      },
       "tests": [
         {
           "a": "sash",
@@ -381,6 +399,27 @@
   },
   "rung": "llama-3.1-8b",
   "schema": "fidelity/1",
+  "slots": 1,
+  "steps": {
+    "green": {
+      "cause": null,
+      "controls": [
+        "reference-2",
+        "q8_0"
+      ],
+      "value": 489.53333333333336
+    },
+    "rule": "T_green = (mean(rerun) + mean(Q8_0)) / 2 and T_upper = (mean(Q8_0) + mean(Q4_K_M)) / 2 over the same n prompts; a row is shown above T when the FI-4 sign-flip test on d_i = 2n*s_i - (S_a + S_b) gives p < alpha",
+    "seed_rule": "SEED_RULE with a = the row's system id and b = \"T_green\" or \"T_upper\"",
+    "upper": {
+      "cause": null,
+      "controls": [
+        "q8_0",
+        "q4_k_m"
+      ],
+      "value": 388.7
+    }
+  },
   "test": {
     "alpha": 0.05,
     "exact_up_to": 20,

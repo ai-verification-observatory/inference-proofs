@@ -73,49 +73,128 @@ STATE_WORD = {"held": "held", "failed": "failed", "undecided": "undecided"}
 
 # ------------------------------------------------------------------ the five petals (RFC-0018 §The glyph)
 PETAL_NAME = {"unforgeable": "Unforgeable", "weights_hidden": "Weights hidden",
-              "faithful_model": "Faithful model", "any_model": "Any model",
-              "no_trusted_party": "Only the verifier trusted"}  # fmt: skip
-PETAL_WORD = {"green": "green", "amber": "amber", "red": "red", "hollow": "not decided"}
-BASIS_WORD = {"statement": "the publisher's documents", "test": "our checks",
-              "run": "our runs"}  # fmt: skip
-# what each colour means for each petal, RFC-0018's table in short: (green, amber, red)
+              "faithful_model": "Faithful model", "machine_checked": "Machine-checked",
+              "no_trusted_party": "No third party trusted"}  # fmt: skip
+# a petal's stored step in words (None: hollow, not decided), §The glyph, step table and GL-8
+STEP_WORD = {"green": "green · in full", "amber_upper": "amber · in part",
+             "amber_lower": "amber · in lesser part", "red": "red · no",
+             None: "not decided"}  # fmt: skip
+# why a petal is red or hollow (GL-1, GL-3); the checks page defines each at #cause-<id>
+CAUSE_WORD = {"not_stated": "not stated", "stated": "stated, short of amber",
+              "check_failed": "our check failed", "not_read": "not read yet",
+              "not_decided": "not decided yet",
+              "proof_build_not_run": "no proof build yet"}  # fmt: skip
+# each cause in a line, on the checks page (#cause-<id>)
+PETAL_CAUSE_RULE = {
+    "not_stated": "Red: the publisher's documents at the pinned commit do not state the property. "
+    "Drawn as an outline in the red ink, its name not struck.",
+    "stated": "Red: the publisher states that the property does not hold, or the facts it "
+    "states fall short of amber.",
+    "check_failed": "Red: one of our checks failed, or a recorded build of the publisher's "
+    "machine-checked proof failed or reported other axioms. The petal names which.",
+    "not_read": "Hollow: the publisher's documents are not read yet for the commit the row runs.",
+    "not_decided": "Hollow: the petal is measured, and its check is undecided or has no record "
+    "yet.",
+    "proof_build_not_run": "Hollow: the publisher states a reach above red for Machine-checked, "
+    "and no build of the named proof at the pinned commit, with the toolchain the publisher pins, "
+    "is recorded yet.",
+}
+BASIS_WORD = {"statement": "the publisher's documents", "test": "our checks"}
+# the From cell of a petal decided on the publisher's documents when a fact it read carries a note
+# (the board petal's `reading`), and what that means, on the checks page (#reading)
+BASIS_READING = ("the publisher's documents", "our reading")
+READING_RULE = ("Our reading: a fact the petal's step rests on is our reading of the publisher's "
+                "quoted words, not a sentence that states it. The quotes are printed with the "
+                "petal.")  # fmt: skip
+# Machine-checked's scope card: what is machine-checked, for which program (printed, sets no state)
+SCOPE_ROW_WORD = {"soundness": "Soundness", "zero_knowledge": "Zero knowledge",
+                  "completeness": "Completeness"}  # fmt: skip
+SCOPE_COL_WORD = {"protocol": "protocol", "verifier_run": "verifier run",
+                  "prover_run": "prover run"}  # fmt: skip
+SCOPE_VALUE_WORD = {"machine_checked": "machine-checked", "paper": "on paper", "tested": "tested",
+                    "not_stated": "not stated"}  # fmt: skip
+# Weights hidden: what kind of value a proof leaves visible (only fitted_to_weights sets a step)
+VISIBLE_TAG_WORD = {"statement_io": "the statement's input or output", "shape": "shape",
+                    "side_channel": "side channel",
+                    "fitted_to_weights": "fitted to the weights"}  # fmt: skip
+# what each step means for each petal, RFC-0018's tables in short: (green, amber in part, amber
+# in lesser part, red)
 PETAL_RULE = {
     "unforgeable": (
-        "A soundness level of 128 bits or more, proven for the verifier code the system runs.",
-        "A level that is conjectured, below 128 bits, stated per part only, or proven for the "
-        "protocol but not for the code run.",
-        "No level stated, or our Model, Prompt or Reply check failed.",
+        "A bound on a false reply being accepted, proved, against any prover, that covers the "
+        "run: one reply a proof, each member of a batch checked alone, the row's parameters, its "
+        "conditions shown to hold for the row's files, and the verifier program the row runs "
+        "proved or stated to implement what the bound is about. Every exponent in the stated "
+        "bound 128 or more; a term 2^-t or q/2^t has exponent t.",
+        "The same, with every exponent 100 or more.",
+        "A bound that is conjectured or whose basis is not said, with every exponent 100 or "
+        "more. Or a proved bound that does not cover the run: the adversary not said; stated per "
+        "part, per round, or with no unit said; more than one reply a proof, or replies a proof "
+        "not recorded; stated only for batch members handed in together, or not said for batch "
+        "members, or the batch size not recorded; the parameters not the row's or not said; the "
+        "conditions not shown for the row's files; the verifier program the row runs not proved "
+        "or stated to implement what the bound is about. Or a proved bound with an exponent "
+        "under 100.",
+        "No bound stated, a bound against a weaker prover, an exponent under 80, a conjectured "
+        "bound or one whose basis is not said with an exponent under 100, or our Model, Prompt "
+        "or Reply check failed.",
     ),
     "weights_hidden": (
-        "Zero knowledge proven for the program run, with no leak beyond public sizes.",
-        "Hidden with leaks the publisher lists, or proven for the protocol but not for the "
-        "program run.",
-        "The checker receives the weights, hiding is off or not stated, or our No weight file "
-        "check failed.",
+        "Zero knowledge proved for the configuration the row runs, the programs stated to "
+        "implement it, and a published list of what stays visible with nothing fitted to the "
+        "weights.",
+        "Zero knowledge proved for the protocol only, the programs only expected, or not stated, "
+        "to implement it, no list of what stays visible, or a visible value fitted to the "
+        "weights.",
+        "Hiding stated, with no zero-knowledge theorem.",
+        "The verifier receives the weights, hiding is stated not to hold or not stated, or our "
+        "No weight file check failed.",
     ),
     "faithful_model": (
-        "The replies are not shown below a second run of the publisher's original weights.",
-        "The replies score above the model's bar, and the second run of the original weights "
-        "scores above them.",
+        "The proved replies are shown above the midpoint between a second run of the "
+        "publisher's model and its Q8_0 copy, in a fidelity run of one request at a time.",
+        "Shown above the midpoint between the Q8_0 and Q4_K_M copies. Replies also shown above "
+        "the green midpoint, in a fidelity run of more than one request at a time, stay here.",
+        "Fidelity held but the replies are not shown above the Q8_0 and Q4_K_M midpoint; the "
+        "claim accepts tokens other than the model's top token; or the second run, the Q8_0 "
+        "copy or the Q4_K_M copy is missing or failed, or no step tests are stored.",
         "Our Fidelity check failed.",
     ),
-    "any_model": (
-        "The system passed on every model of the level.",
-        "It passed on more than one model, not all.",
-        "It passed on one model or none.",
+    "machine_checked": (
+        "A machine-checked soundness theorem covers the verifier program the row runs, from the "
+        "bytes it reads to its verdict, with its trusted base listed and no input code outside "
+        "it, and a build of it at the pinned commit, with the toolchain the publisher pins, is "
+        "recorded.",
+        "Machine-checked for the whole protocol and for the statement that encodes the model, "
+        "but not for the verifier program the row runs, or for that program without a listed "
+        "trusted base, or with input code outside the proof or not stated to be inside it.",
+        "Machine-checked for a part, or for the protocol or the model's statement alone.",
+        "Nothing machine-checked or not stated, a recorded build that failed or reports axioms "
+        "other than those the publisher declares, or our Model, Prompt or Reply check failed "
+        "where it was green.",
     ),
     "no_trusted_party": (
-        "Soundness rests on cryptographic assumptions alone (for example a random oracle): no "
-        "setup ceremony, hardware maker's key or third party. Public files fixed before the hash "
-        "do not count: every non-interactive proof has them.",
-        "One honest party among several, or a setup the publisher says anyone can reproduce.",
-        "A trusted setup, hardware attestation or a trusted key, or not stated.",
+        "The publisher's documents show soundness resting on cryptographic assumptions alone: no "
+        "setup ever produced a secret. Public files fixed before the hash, or derived from public "
+        "inputs, do not count.",
+        "A setup produced a secret in an open ceremony with a public transcript; the secret "
+        "stays unknown if one participant was honest.",
+        "One honest party among a fixed set, a challenger in a challenge window, or proofs only a "
+        "designated party can check or checked interactively.",
+        "A setup run by one party, a hardware maker's key, a trusted key, or not stated.",
     ),
 }
+# the checks page: why a petal is hollow, and that silence is not
+HOLLOW_RULE = ("A petal is hollow while it is not decided: its properties file is not read yet, "
+               "its fidelity run is not measured or not decided yet, or, for Machine-checked, no "
+               "build of the named proof with the toolchain the publisher pins is recorded yet. "
+               "Silence is not hollow: a property the publisher does not state is red, drawn as an "
+               "outline in the red ink, its name not struck.")  # fmt: skip
 # the checks whose failure a petal's red names (PETAL_RULE), so a petal and its checks light
 # together on a system page
 PETAL_CHECKS = {"unforgeable": ("model", "prompt", "reply"), "weights_hidden": ("no_weight_file",),
-                "faithful_model": ("fidelity",), "any_model": (), "no_trusted_party": ()}  # fmt: skip
+                "faithful_model": ("fidelity",), "machine_checked": ("model", "prompt", "reply"),
+                "no_trusted_party": ()}  # fmt: skip
 # ------------------------------------------------------------------ the checks page's terms
 # RFC-0018 §Terms and the glossary's Proved and Commitment, in short. {request} is the level's
 # request in words.
@@ -253,7 +332,8 @@ MANDATE = (
          "and the measuring code are public."),
     )),
 )  # fmt: skip
-CAUSE_WORD = {
+# why a check is undecided (its cause as the board stores it)
+CHECK_CAUSE_WORD = {
     "system limit": "the system cannot do what the test needs; the publisher's sentence is quoted",
     "not run": "the test has not been run",
     "not resolved": "the test ran and decided nothing",

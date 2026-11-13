@@ -19,9 +19,19 @@ CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")
 STATES = ("held", "failed", "undecided")
 LINK_REF = "main"
 # RFC-0018 §The glyph: the five petals, in the glyph's order (top to bottom)
-PETALS = ("unforgeable", "weights_hidden", "faithful_model", "any_model", "no_trusted_party")
-PETAL_STATES = ("green", "amber", "red", "hollow")
-BASES = ("statement", "test", "run")
+PETALS = ("unforgeable", "weights_hidden", "faithful_model", "machine_checked", "no_trusted_party")
+# §The glyph, step table: a petal's decided step, a word (GL-8; None: not decided), and the ink
+# each step is drawn in
+STEPS = ("green", "amber_upper", "amber_lower", "red", None)
+STEP_STATE = {"green": "green", "amber_upper": "amber", "amber_lower": "amber", "red": "red",
+              None: "hollow"}  # fmt: skip
+RED_CAUSES = ("not_stated", "stated", "check_failed")
+HOLLOW_CAUSES = ("not_read", "not_decided", "proof_build_not_run")
+BASES = ("statement", "test")
+# Machine-checked's scope card (MC-1 to MC-6): printed as recorded facts, it sets no state
+SCOPE_ROWS = ("soundness", "zero_knowledge", "completeness")
+SCOPE_COLS = ("protocol", "verifier_run", "prover_run")
+SCOPE_VALUES = ("machine_checked", "paper", "tested", "not_stated")
 
 
 def _escape(part: str) -> str:
@@ -58,18 +68,70 @@ def _system(sid: str, facts: Any) -> dict[str, Any]:
     }  # fmt: skip
 
 
+def _quotes(raw: list[dict[str, Any]] | None) -> list[dict[str, str]]:
+    return [{"text": q["text"], "url": q["url"]} for q in raw or []]
+
+
+def _form(step: str | None, state: str, cause: str | None) -> str:
+    """How an arm is drawn beside its ink: `cut` for amber in lesser part, `open` for a red the
+    publisher's silence set (§The glyph, Q7); "" otherwise."""
+    if step == "amber_lower":
+        return "cut"
+    if state == "red" and cause == "not_stated":
+        return "open"
+    return ""
+
+
+def _formal(pid: str, raw: dict[str, Any] | None) -> dict[str, Any] | None:
+    if raw is None:
+        return None
+    card = raw["scope_card"]
+    for r in SCOPE_ROWS:
+        for c in SCOPE_COLS:
+            if card[r][c]["value"] not in SCOPE_VALUES:
+                raise inputs.config(f"petal {pid}: scope card {r}/{c} {card[r][c]['value']!r}")
+    return {
+        "stated_step": raw["stated_step"],
+        "reach": raw["reach"],
+        "tool": raw["tool"],
+        "theorem": raw["theorem"],
+        "theorem_url": raw["theorem_url"],
+        "trusted_base": list(raw["trusted_base"]),
+        "input_code_unverified": raw["input_code_unverified"],
+        "scope_card": {r: {c: {"value": card[r][c]["value"],
+                               "quotes": _quotes(card[r][c]["quotes"])}
+                           for c in SCOPE_COLS} for r in SCOPE_ROWS},
+    }  # fmt: skip
+
+
 def _glyph(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """GL-5: the five petals as the board stores them, in RFC-0018's order."""
+    """GL-5: the five petals as the board stores them, in RFC-0018's order, each with its step,
+    its cause and the form its arm is drawn in. No count, total or order over petals (GL-8)."""
     if [p["id"] for p in raw] != list(PETALS):
         raise inputs.config(f"glyph petals {[p['id'] for p in raw]}, the site draws {PETALS}")
     out = []
     for p in raw:
-        if p["state"] not in PETAL_STATES or p["basis"] not in BASES:
-            raise inputs.config(f"petal {p['id']}: state {p['state']!r}, basis {p['basis']!r}")
-        out.append({"id": p["id"], "state": p["state"], "basis": p["basis"],
-                    "reason": p["reason"],
-                    "quotes": [{"text": q["text"], "url": q["url"]}
-                               for q in p.get("quotes") or []]})  # fmt: skip
+        pid, step, state, cause = p["id"], p["step"], p["state"], p["cause"]
+        if step not in STEPS or state != STEP_STATE[step]:
+            raise inputs.config(f"petal {pid}: step {step!r}, state {state!r}")
+        allowed = {"red": RED_CAUSES, "hollow": HOLLOW_CAUSES}.get(state, (None,))
+        if cause not in allowed:
+            raise inputs.config(f"petal {pid}: {state} with cause {cause!r}")
+        if p["basis"] not in BASES:
+            raise inputs.config(f"petal {pid}: basis {p['basis']!r}")
+        # a fact the decision read carries a note: the reader's reading, not the publisher's words
+        reading = p.get("reading", False)
+        if not isinstance(reading, bool):
+            raise inputs.config(f"petal {pid}: reading {reading!r}")
+        visible = p.get("visible")
+        out.append({"id": pid, "state": state, "step": step, "cause": cause,
+                    "basis": p["basis"], "reading": reading, "reason": p["reason"],
+                    "quotes": _quotes(p.get("quotes")),
+                    "lowered_by": list(p["lowered_by"]), "form": _form(step, state, cause),
+                    "formal": _formal(pid, p.get("formal")),
+                    "visible": None if visible is None else
+                    [{"item": v["item"], "tag": v["tag"], "quotes": _quotes(v["quotes"])}
+                     for v in visible]})  # fmt: skip
     return out
 
 

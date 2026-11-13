@@ -1,36 +1,84 @@
-# The statement petals of SASH's glyph (RFC-0018 §The glyph, GL-1), read from
-# sg-ai-safety-hub/zk-inference-prover at the pinned commit for the configuration the row runs
-# (claim.yaml, `boundary-grid --verify`). Every quote is upstream's own wording. Statements made
-# only in the companion results repository are not used (claim.yaml, INV-CLAIM-3). Read by the
-# integrator on 2026-11-11; not reviewed by SASH's maintainers.
-schema: "properties/1"
+# Statement facts of SASH's glyph (RFC-0018 GL-1), copied from sg-ai-safety-hub/zk-inference-prover at the pin
+# for the configuration the row runs (claim.yaml, `boundary-grid --verify`). Statements made only in the companion
+# results repository are not used (INV-CLAIM-3). No state is typed. Read by the integrator on 2026-11-13; not
+# reviewed by SASH's maintainers. First read at eb95bfa; the quoted files read the same at the pin, 4f41667
+# (README.md, prover/README.md, docs/statement.md and prover/src/util.rs byte for byte; prover/src/compose.rs at
+# L1-L30).
+schema: "properties/2"
 system: "sash"
 configuration: "sound-defaults"
 upstream: {repo: "sg-ai-safety-hub/zk-inference-prover", commit: "4f41667297430a598165c4a8604258fe37d952ae"}
-read: "2026-11-11"
+read: "2026-11-13"
 petals:
   unforgeable:
-    state: "amber"
-    reason: "A level is stated per segment proof and called conjectured; no level is stated for the whole grid, and no proof covers the verifier code."
-    quotes:
-      - text: "100 conjectured bits for each segment proof, by stwo's own conjectured-soundness accounting security_bits = pow_bits + log_blowup_factor * n_queries"
-        url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L7-L28"
-    sources_read: []
+    sources_read: ["README.md", "prover/README.md", "docs/statement.md", "prover/src/util.rs"]
+    bound:
+      stated:
+        value: true
+        quotes: [{text: "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L11"}]
+      expression:
+        value: "100 conjectured bits"
+        quotes: [{text: "so blowup 2 (log_blowup_factor = 1) at 100 conjectured bits means exactly", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L11"}]
+      terms: [100]
+      basis:
+        value: "conjectured"
+        quotes: [{text: "stwo's own conjectured-soundness accounting is", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L9"}]
+      unit:
+        value: "part"
+        quotes: [{text: "A proof made by this prover is about one **segment**: one transformer layer", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md#L3"}]
+      batch: {value: "not_said", quotes: []}
+      adversary: {value: "not_said", quotes: []}
+      parameters:
+        value: "row"
+        quotes: [{text: "assert_eq!(cfg.security_bits(), 100, \"security parameter drifted\");", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L26"}]
+        note: "the security parameters are constants (util.rs L14-L16) and pcs_config() asserts 100 bits (L26); the row runs the sound defaults"
+      conditions_shown: {value: false, quotes: []}
+      program:
+        value: "not_stated"
+        quotes: []
+        note: "our reading: no sentence states that the verifier the row runs uses pcs_config; the 100 bits are asserted in pcs_config itself (util.rs L26); not read while the basis is conjectured"
+  machine_checked:
+    sources_read: ["README.md", "prover/README.md", "docs/statement.md", "prover/src/util.rs"]
+    formal:
+      reach: {value: "not_stated", quotes: []}
+      tool: {value: null, quotes: []}
+      toolchain: {value: null, quotes: []}
+      theorem: null
+      theorem_url: null
+      trusted_base: {value: [], quotes: []}
+      axioms: []
+      input_code_unverified: {value: null, quotes: []}
+      scope_card:
+        soundness:
+          protocol: {value: "not_stated", quotes: []}
+          verifier_run: {value: "not_stated", quotes: []}
+          prover_run: {value: "not_stated", quotes: []}
+        zero_knowledge:
+          protocol: {value: "not_stated", quotes: []}
+          verifier_run: {value: "not_stated", quotes: []}
+          prover_run: {value: "not_stated", quotes: []}
+        completeness:
+          protocol: {value: "not_stated", quotes: []}
+          verifier_run: {value: "not_stated", quotes: []}
+          prover_run: {value: "not_stated", quotes: []}
   weights_hidden:
-    state: "not_stated"
-    reason: "The repository states no hiding property; its verifier does not hold the weights, which the No weight file check tests, but nothing says what a proof reveals about them."
-    quotes: []
-    sources_read:
-      - "README.md"
-      - "prover/README.md"
-      - "docs/statement.md"
-      - "prover/src/util.rs"
+    sources_read: ["README.md", "prover/README.md", "docs/statement.md", "prover/src/util.rs"]
+    hiding:
+      stated: {value: "not_stated", quotes: []}
+      verifier_gets_weights:
+        value: false
+        quotes: [{text: "The model root is not derivable -- it is the publisher's commitment to weights the verifier does not hold", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L56-L58"}]
+      proof: {value: "none", quotes: []}
+      programs: {value: "not_stated", quotes: []}
+      visible_listed: {value: false, quotes: []}
+      visible: []
   no_trusted_party:
-    state: "not_stated"
-    reason: "The repository states no security model or assumption. The fixed statement it says is \"produced at setup, trusted by the verifier\" is public parameters (shapes, security configuration, a preprocessed root), which every non-interactive proof shares, so it does not count against the petal; nothing states what soundness rests on."
-    quotes: []
-    sources_read:
-      - "README.md"
-      - "prover/README.md"
-      - "docs/statement.md"
-      - "prover/src/compose.rs"
+    sources_read: ["README.md", "prover/README.md", "docs/statement.md", "prover/src/compose.rs"]
+    trust:
+      rests_on:
+        value: "not_stated"
+        quotes: []
+        note: "the Fixed statement is \"produced at setup, trusted by the verifier\" (compose.rs L7); who produces it, and what soundness rests on, is not stated"
+      publicly_checkable:
+        value: true
+        quotes: [{text: "The **verifier** (`verify_composed`) takes those two byte strings and the //! serialized proof, and nothing else", url: "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/compose.rs#L15-L16"}]

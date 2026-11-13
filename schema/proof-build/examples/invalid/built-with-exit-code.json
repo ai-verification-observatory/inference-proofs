@@ -1,0 +1,34 @@
+{
+  "argv": [
+    "make",
+    "-C",
+    "coq",
+    "check-axioms"
+  ],
+  "axioms_reported": [
+    "Fake.Axioms.hash_random"
+  ],
+  "exit_code": 1,
+  "last_lines": [
+    "Axioms:",
+    "Fake.Axioms.hash_random"
+  ],
+  "schema": "proof-build/1",
+  "seconds": 812.4,
+  "started_at": "2026-11-13T10:00:00Z",
+  "status": "built",
+  "system": "fake",
+  "theorem": {
+    "name": "Fake.Verifier.sound",
+    "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/coq/Verifier.v#L40"
+  },
+  "toolchain": {
+    "image": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+    "name": "coq",
+    "version": "8.20.0"
+  },
+  "upstream": {
+    "commit": "0123456789abcdef0123456789abcdef01234567",
+    "repo": "example/fake-prover"
+  }
+}

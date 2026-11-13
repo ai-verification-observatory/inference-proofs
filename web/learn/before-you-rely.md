@@ -26,7 +26,7 @@ Ask for the system's [[security level]]. Three follow-up questions matter more t
 
 ### 6. Whom else must I trust?
 
-Some systems need a one-time setup whose secrets must be destroyed, a hardware maker's key, or a third party. Others need only the verifier and cryptographic assumptions. The "Only the verifier trusted" petal says which, as the publisher states it. The verifier itself always has to be trusted, so ask who has read its code. A scheme that samples traffic also trusts whatever recorded the traffic.
+Some systems need a one-time setup whose secrets must be destroyed, a hardware maker's key, or a third party. Others need only the verifier and cryptographic assumptions. The "No third party trusted" petal says which, from the publisher's documents; where that is our reading of them, not their words, the system page says so. The verifier itself always has to be trusted, so ask who has read its code. A scheme that samples traffic also trusts whatever recorded the traffic.
 
 ### 7. What does the operator have to show?
 
@@ -52,7 +52,7 @@ An operator can decline, fail or run late. A proof system has no answer to that.
 
 - **The standing.** "Passed" means all six [checks](/checks) are held for that system on that model. Otherwise the row names the checks that are not. An undecided check is not a failed one: it names its cause, often that a test has not been run yet.
 - **The position.** Only a system that passed, and whose publisher states a security level, has one, and only among systems on the same model. Nothing is compared across models.
-- **The glyph.** Five petals. Green: holds in full. Amber: in part. Red: not at all, not stated, or one of our checks failed. Hollow: not decided yet. Three petals repeat what the publisher states, and two come from our checks. The glyph never moves a position.
+- **The glyph.** Five petals. Green: holds in full. Amber: in part, or in lesser part (the arm drawn cut). Red: no, stated short of amber, or one of our checks failed; a red the publisher is silent on is drawn as an outline in the red ink. Hollow: not decided yet. Four petals are read from what the publisher states, and Faithful model comes from our fidelity run. The glyph never moves a position.
 - **The multiple.** The GPU time of one more proved reply, over the GPU time of serving one, on the same kind of GPU. Generating the reply is inside it. Under it: what was timed, and over how many sessions. A position needs three sessions, so a figure over fewer is provisional.
 
 ## What this benchmark will not tell you

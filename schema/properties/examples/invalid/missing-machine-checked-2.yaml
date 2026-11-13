@@ -1,0 +1,64 @@
+# Invalid: the machine_checked petal is missing; all four statement petals are required.
+schema: "properties/2"
+system: "fake"
+configuration: "default"
+upstream: {repo: "example/fake-prover", commit: "0123456789abcdef0123456789abcdef01234567"}
+read: "2026-11-13"
+petals:
+  unforgeable:
+    sources_read: ["README.md", "docs/soundness.md"]
+    bound:
+      stated:
+        value: true
+        quotes:
+          - text: "A false reply is accepted with probability at most 2^-110 + 2^-128."
+            url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L4"
+      expression:
+        value: "2^-110 + 2^-128"
+        quotes:
+          - text: "A false reply is accepted with probability at most 2^-110 + 2^-128."
+            url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L4"
+      terms: [110, 128]
+      basis:
+        value: "proved"
+        quotes:
+          - {text: "The bound is proved in docs/soundness.pdf.", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L6"}
+      unit:
+        value: "reply"
+        quotes:
+          - {text: "One proof covers one reply.", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L8"}
+      adversary:
+        value: "any_prover"
+        quotes:
+          - {text: "against any prover", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L9"}
+      parameters:
+        value: "row"
+        quotes:
+          - {text: "for the default parameters", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L10"}
+        note: "the row runs the default configuration"
+      conditions_shown: {value: false, quotes: []}
+      batch: {value: "not_said", quotes: []}
+      program:
+        value: "proved"
+        quotes:
+          - {text: "The verifier binary is extracted from the checked proof.", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L3"}
+  weights_hidden:
+    sources_read: ["README.md", "docs/soundness.md", "docs/formal.md"]
+    hiding:
+      stated: {value: "not_stated", quotes: []}
+      verifier_gets_weights: {value: false, quotes: []}
+      proof: {value: "none", quotes: []}
+      programs: {value: "not_stated", quotes: []}
+      visible_listed: {value: false, quotes: []}
+      visible: []
+  no_trusted_party:
+    sources_read: ["README.md"]
+    trust:
+      rests_on:
+        value: "open_ceremony"
+        quotes:
+          - {text: "The parameters come from an open ceremony with a public transcript.", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/README.md#L12"}
+      publicly_checkable:
+        value: true
+        quotes:
+          - {text: "Anyone can check a proof file.", url: "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/README.md#L14"}

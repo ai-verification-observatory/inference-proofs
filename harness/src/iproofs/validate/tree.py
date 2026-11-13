@@ -9,6 +9,7 @@ from functools import partial
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.glyph import PROPERTIES_SCHEMA, not_read_rows, properties_problems
 from iproofs.log.patterns import IPV4_ALLOWED, PATTERNS, is_ipv6
 from iproofs.schema import SchemaRegistry, check_examples, load_document, parse_tree
 from iproofs.serialize import check_format
@@ -37,6 +38,7 @@ G2_GLOBS = (
     "releases/*/board.json",
     "results/**/fidelity.json",
     "results/**/fidelity/*/fidelity-run.json",
+    "results/**/proof-build/*/proof-build.json",
     "results/**/verify-trace/*.json",
     "targets/**/*.yaml",
     "releases/*/release.yaml",
@@ -170,6 +172,40 @@ def _profile_known(root: Path, release: str, profile: str) -> bool:
             if isinstance(profiles, Mapping) and profile in profiles:
                 return True
     return False
+
+
+def g2_glyph(root: Path, files: list[str]) -> list[Finding]:
+    """RFC-0018 GL-1 and GL-9: what the properties/2 schema cannot check (the pin, the quote
+    urls, the facts copied from the quotes), and no `not_read` petal on a frozen release's
+    board (one whose index.json exists)."""
+    found: list[Finding] = []
+    for rel in files:
+        parts = rel.split("/")
+        if len(parts) == 3 and parts[0] == "systems" and parts[2] == "properties.yaml":
+            try:
+                doc = parse_tree(root / rel)
+            except IProofsError:
+                continue  # the schema gate reports a file that does not parse
+            if doc.get("schema") != PROPERTIES_SCHEMA:
+                continue
+            system = root / "systems" / parts[1] / "system.yaml"
+            upstream = parse_tree(system).get("upstream") if system.is_file() else None
+            pin = upstream.get("commit") if isinstance(upstream, Mapping) else None
+            found += [
+                Finding("G2", rel, "PROPERTIES", m, ErrorKind.CONFIG)
+                for m in properties_problems(doc, root / "systems" / parts[1],
+                                             None if pin is None else str(pin))
+            ]  # fmt: skip
+        elif len(parts) == 3 and parts[0] == "releases" and parts[2] == "board.json":
+            if not (root / "releases" / parts[1] / "index.json").is_file():
+                continue  # not frozen: `iproofs release freeze` refuses it there (GL-9)
+            try:
+                board = parse_tree(root / rel)
+            except IProofsError:
+                continue
+            found += [Finding("G2", rel, "GLYPH", f"{m} (RFC-0018 GL-9)", ErrorKind.CONFIG)
+                      for m in not_read_rows(board)]  # fmt: skip
+    return found
 
 
 # RFC-0008: `iproofs controls RUN_DIR` adds a completed run's controls, once; these are the
@@ -397,7 +433,7 @@ def validate_tree(
     if base_ref:
         found += g2_append_only(root, base_ref)
     found += g3_format(root, files, memo) + g4_derived(root, files) + g5_labels(root, files)
-    found += g6_policy(root, files) + g7_pins(root, files)
+    found += g2_glyph(root, files) + g6_policy(root, files) + g7_pins(root, files)
     found += g9_secrets(root, files, only or (), memo)
     found += precision.check(root, files, registry) + cost.check(root, files)
     if memo is not None:

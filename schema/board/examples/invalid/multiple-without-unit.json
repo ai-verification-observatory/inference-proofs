@@ -175,48 +175,158 @@
           "glyph": [
             {
               "basis": "statement",
+              "cause": null,
               "id": "unforgeable",
+              "lowered_by": [],
               "quotes": [
                 {
-                  "text": "100 bits of conjectured security",
-                  "url": "https://example.org/fake/README.md#L10"
+                  "text": "A false reply is accepted with probability at most 2^-110 + 2^-128.",
+                  "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/soundness.md#L4"
                 }
               ],
-              "reason": "a conjectured level of 100 bits, stated for the protocol",
-              "state": "amber"
+              "reason": "conditions not shown for the row's files: 2^-110 + 2^-128",
+              "state": "amber",
+              "step": "amber_lower"
             },
             {
               "basis": "statement",
+              "cause": "stated",
               "id": "weights_hidden",
+              "lowered_by": [],
               "quotes": [
                 {
                   "text": "verify reads the model file",
-                  "url": "https://example.org/fake/docs/verify.md#L3"
+                  "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/verify.md#L3"
                 }
               ],
               "reason": "the verifier receives the weights",
-              "state": "red"
+              "state": "red",
+              "step": "red",
+              "visible": []
             },
             {
               "basis": "test",
+              "cause": null,
               "id": "faithful_model",
+              "lowered_by": [],
               "quotes": [],
-              "reason": "the reference rerun is not shown above the row (p = 0.41, alpha 0.05, n = 360)",
-              "state": "green"
-            },
-            {
-              "basis": "run",
-              "id": "any_model",
-              "quotes": [],
-              "reason": "passed on 1 of 2 rungs",
-              "state": "red"
+              "reason": "shown above T_green = 489.53 (p = 0.0021, alpha 0.05, n = 360)",
+              "state": "green",
+              "step": "green"
             },
             {
               "basis": "statement",
+              "cause": "proof_build_not_run",
+              "formal": {
+                "input_code_unverified": true,
+                "reach": "protocol_and_statement",
+                "scope_card": {
+                  "completeness": {
+                    "protocol": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "The verifier binary is tested against the checked protocol, not proved.",
+                          "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L4"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  },
+                  "soundness": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "The protocol and the model's statement are checked in Coq 8.20.",
+                          "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L3"
+                        }
+                      ],
+                      "value": "machine_checked"
+                    },
+                    "prover_run": {
+                      "quotes": [
+                        {
+                          "text": "The verifier binary is tested against the checked protocol, not proved.",
+                          "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L4"
+                        }
+                      ],
+                      "value": "tested"
+                    },
+                    "verifier_run": {
+                      "quotes": [
+                        {
+                          "text": "The verifier binary is tested against the checked protocol, not proved.",
+                          "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L4"
+                        }
+                      ],
+                      "value": "tested"
+                    }
+                  },
+                  "zero_knowledge": {
+                    "protocol": {
+                      "quotes": [
+                        {
+                          "text": "Zero knowledge is proved on paper.",
+                          "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L9"
+                        }
+                      ],
+                      "value": "paper"
+                    },
+                    "prover_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    },
+                    "verifier_run": {
+                      "quotes": [],
+                      "value": "not_stated"
+                    }
+                  }
+                },
+                "stated_step": "amber_upper",
+                "theorem": "Fake.Verifier.sound",
+                "theorem_url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/coq/Verifier.v#L40",
+                "tool": "Coq 8.20",
+                "trusted_base": [
+                  "Coq's kernel",
+                  "the extraction to OCaml"
+                ]
+              },
+              "id": "machine_checked",
+              "lowered_by": [],
+              "quotes": [
+                {
+                  "text": "The protocol and the model's statement are checked in Coq 8.20.",
+                  "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L3"
+                },
+                {
+                  "text": "Trusted: Coq's kernel and the extraction to OCaml.",
+                  "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L5"
+                },
+                {
+                  "text": "The input parser is outside the checked code.",
+                  "url": "https://github.com/example/fake-prover/blob/0123456789abcdef0123456789abcdef01234567/docs/formal.md#L6"
+                }
+              ],
+              "reason": "no proof build recorded for Fake.Verifier.sound; stated reach: the protocol and the model's statement",
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": "not_stated",
               "id": "no_trusted_party",
+              "lowered_by": [],
               "quotes": [],
               "reason": "not stated in README.md, docs/verify.md at 0123456789abcdef0123456789abcdef01234567",
-              "state": "red"
+              "state": "red",
+              "step": "red"
             }
           ],
           "incomplete_sessions": [
@@ -566,38 +676,55 @@
           "glyph": [
             {
               "basis": "statement",
+              "cause": "not_read",
               "id": "unforgeable",
+              "lowered_by": [],
               "quotes": [],
               "reason": "no properties file",
-              "state": "red"
+              "state": "hollow",
+              "step": null
             },
             {
               "basis": "statement",
+              "cause": "not_read",
               "id": "weights_hidden",
+              "lowered_by": [],
               "quotes": [],
               "reason": "no properties file",
-              "state": "red"
+              "state": "hollow",
+              "step": null,
+              "visible": null
             },
             {
               "basis": "test",
+              "cause": "not_decided",
               "id": "faithful_model",
+              "lowered_by": [],
               "quotes": [],
-              "reason": "no fidelity run stored",
-              "state": "hollow"
-            },
-            {
-              "basis": "run",
-              "id": "any_model",
-              "quotes": [],
-              "reason": "passed on 0 of 2 rungs; a check is still undecided",
-              "state": "hollow"
+              "reason": "FIDELITY undecided: not run",
+              "state": "hollow",
+              "step": null
             },
             {
               "basis": "statement",
-              "id": "no_trusted_party",
+              "cause": "not_read",
+              "formal": null,
+              "id": "machine_checked",
+              "lowered_by": [],
               "quotes": [],
               "reason": "no properties file",
-              "state": "red"
+              "state": "hollow",
+              "step": null
+            },
+            {
+              "basis": "statement",
+              "cause": "not_read",
+              "id": "no_trusted_party",
+              "lowered_by": [],
+              "quotes": [],
+              "reason": "no properties file",
+              "state": "hollow",
+              "step": null
             }
           ],
           "incomplete_sessions": [],

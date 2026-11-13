@@ -325,8 +325,8 @@ adapter sets none and the process runs on the CPUs the harness's cpuset gives it
    the first worker run shows it.
 3. Prompt round trip. Checked on CPU for the same round: all 15 prompts' text tokenizes back to
    its ids with `tokenizer.json` (`tokenizers` 0.23.3).
-4. `perturb` for the level's model change; there is no `claim.yaml` or `properties.yaml` yet.
-   The level file's security words cite the book's commitment scheme (Basefold,
+4. `perturb` for the level's model change; there is no `claim.yaml` or `properties.yaml` yet,
+   so its statement petals are hollow, not read (RFC-0018 GL-3). The level file's security words cite the book's commitment scheme (Basefold,
    `docs/src/commitments.md`); the programs this adapter runs use HyperKZG on BN254
    ([`zkml/README.md` L36][U-zr36]; [`immediate.rs` L38-L39][U-im38]).
 5. The image built on 2026-11-11: the apt pins, the archive digest and the offline workspace

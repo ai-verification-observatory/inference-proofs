@@ -144,25 +144,425 @@
       ],
       "type": "object"
     },
-    "petal": {
-      "$comment": "RFC-0018 §The glyph: one petal; `basis` says whether a publisher's statement, our test or our runs decided it",
+    "formal": {
+      "$comment": "Machine-checked's facts copied from properties/2 (RFC-0018 MC-1 to MC-6): the step the publisher's words reach before the proof build lowers it, and the scope card",
       "additionalProperties": false,
+      "properties": {
+        "input_code_unverified": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "reach": {
+          "enum": [
+            "none",
+            "part",
+            "protocol",
+            "protocol_and_statement",
+            "verifier_run",
+            "not_stated"
+          ]
+        },
+        "scope_card": {
+          "additionalProperties": false,
+          "properties": {
+            "completeness": {
+              "additionalProperties": false,
+              "properties": {
+                "protocol": {
+                  "$ref": "#/$defs/scope_cell"
+                },
+                "prover_run": {
+                  "$ref": "#/$defs/scope_cell"
+                },
+                "verifier_run": {
+                  "$ref": "#/$defs/scope_cell"
+                }
+              },
+              "required": [
+                "protocol",
+                "verifier_run",
+                "prover_run"
+              ],
+              "type": "object"
+            },
+            "soundness": {
+              "additionalProperties": false,
+              "properties": {
+                "protocol": {
+                  "$ref": "#/$defs/scope_cell"
+                },
+                "prover_run": {
+                  "$ref": "#/$defs/scope_cell"
+                },
+                "verifier_run": {
+                  "$ref": "#/$defs/scope_cell"
+                }
+              },
+              "required": [
+                "protocol",
+                "verifier_run",
+                "prover_run"
+              ],
+              "type": "object"
+            },
+            "zero_knowledge": {
+              "additionalProperties": false,
+              "properties": {
+                "protocol": {
+                  "$ref": "#/$defs/scope_cell"
+                },
+                "prover_run": {
+                  "$ref": "#/$defs/scope_cell"
+                },
+                "verifier_run": {
+                  "$ref": "#/$defs/scope_cell"
+                }
+              },
+              "required": [
+                "protocol",
+                "verifier_run",
+                "prover_run"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "soundness",
+            "zero_knowledge",
+            "completeness"
+          ],
+          "type": "object"
+        },
+        "stated_step": {
+          "enum": [
+            "green",
+            "amber_upper",
+            "amber_lower",
+            "red"
+          ]
+        },
+        "theorem": {
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "theorem_url": {
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tool": {
+          "minLength": 1,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "trusted_base": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "stated_step",
+        "reach",
+        "tool",
+        "theorem",
+        "theorem_url",
+        "trusted_base",
+        "input_code_unverified",
+        "scope_card"
+      ],
+      "type": "object"
+    },
+    "petal": {
+      "$comment": "RFC-0018 §The glyph: one petal. `step` is the decided step, a word (GL-8); `state` is its ink, derived from the step; `cause` says why a petal is red or hollow; `basis` says whether the publisher's documents or our checks decided it; `lowered_by` names the checks that set it red (GL-2). The row's prefixItems fix each id.",
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "$comment": "state is the step's ink; a green or amber petal has no cause",
+          "if": {
+            "properties": {
+              "step": {
+                "const": "green"
+              }
+            },
+            "required": [
+              "step"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "type": "null"
+              },
+              "state": {
+                "const": "green"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "step": {
+                "enum": [
+                  "amber_upper",
+                  "amber_lower"
+                ]
+              }
+            },
+            "required": [
+              "step"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "type": "null"
+              },
+              "state": {
+                "const": "amber"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "step": {
+                "const": "red"
+              }
+            },
+            "required": [
+              "step"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "enum": [
+                  "not_stated",
+                  "stated",
+                  "check_failed"
+                ]
+              },
+              "state": {
+                "const": "red"
+              }
+            }
+          }
+        },
+        {
+          "$comment": "GL-3: a hollow petal is not decided and names why",
+          "if": {
+            "properties": {
+              "step": {
+                "type": "null"
+              }
+            },
+            "required": [
+              "step"
+            ]
+          },
+          "then": {
+            "properties": {
+              "cause": {
+                "enum": [
+                  "not_read",
+                  "not_decided",
+                  "proof_build_not_run"
+                ]
+              },
+              "state": {
+                "const": "hollow"
+              }
+            }
+          }
+        },
+        {
+          "$comment": "GL-2: a petal our check set red names the checks; no other petal names any",
+          "else": {
+            "properties": {
+              "lowered_by": {
+                "maxItems": 0
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "cause": {
+                "const": "check_failed"
+              }
+            },
+            "required": [
+              "cause"
+            ]
+          },
+          "then": {
+            "properties": {
+              "basis": {
+                "const": "test"
+              },
+              "lowered_by": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "$comment": "only Machine-checked carries `formal`; null when its properties file is not read",
+          "else": {
+            "not": {
+              "required": [
+                "formal"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "id": {
+                "const": "machine_checked"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          },
+          "then": {
+            "allOf": [
+              {
+                "else": {
+                  "properties": {
+                    "formal": {
+                      "type": "object"
+                    }
+                  }
+                },
+                "if": {
+                  "properties": {
+                    "cause": {
+                      "const": "not_read"
+                    }
+                  },
+                  "required": [
+                    "cause"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "formal": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ],
+            "required": [
+              "formal"
+            ]
+          }
+        },
+        {
+          "$comment": "only Weights hidden carries `visible`; null when its properties file is not read",
+          "else": {
+            "not": {
+              "required": [
+                "visible"
+              ]
+            }
+          },
+          "if": {
+            "properties": {
+              "id": {
+                "const": "weights_hidden"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          },
+          "then": {
+            "allOf": [
+              {
+                "if": {
+                  "properties": {
+                    "cause": {
+                      "const": "not_read"
+                    }
+                  },
+                  "required": [
+                    "cause"
+                  ]
+                },
+                "then": {
+                  "properties": {
+                    "visible": {
+                      "type": "null"
+                    }
+                  }
+                }
+              }
+            ],
+            "required": [
+              "visible"
+            ]
+          }
+        }
+      ],
       "properties": {
         "basis": {
           "enum": [
             "statement",
-            "test",
-            "run"
+            "test"
+          ]
+        },
+        "cause": {
+          "enum": [
+            "not_stated",
+            "stated",
+            "check_failed",
+            "not_read",
+            "not_decided",
+            "proof_build_not_run",
+            null
+          ]
+        },
+        "formal": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/formal"
+            }
           ]
         },
         "id": {
-          "enum": [
-            "unforgeable",
-            "weights_hidden",
-            "faithful_model",
-            "any_model",
-            "no_trusted_party"
-          ]
+          "type": "string"
+        },
+        "lowered_by": {
+          "items": {
+            "enum": [
+              "model",
+              "prompt",
+              "reply",
+              "no_weight_file",
+              "fidelity",
+              "proof_build"
+            ]
+          },
+          "type": "array",
+          "uniqueItems": true
         },
         "quotes": {
           "items": {
@@ -185,6 +585,10 @@
           },
           "type": "array"
         },
+        "reading": {
+          "$comment": "N1: true when a fact the petal's decision read carries a note, so the value is the reader's reading, not the publisher's words; absent means false",
+          "type": "boolean"
+        },
         "reason": {
           "minLength": 1,
           "type": "string"
@@ -196,14 +600,39 @@
             "red",
             "hollow"
           ]
+        },
+        "step": {
+          "enum": [
+            "green",
+            "amber_upper",
+            "amber_lower",
+            "red",
+            null
+          ]
+        },
+        "visible": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "items": {
+                "$ref": "#/$defs/visible_item"
+              },
+              "type": "array"
+            }
+          ]
         }
       },
       "required": [
         "id",
         "state",
+        "step",
+        "cause",
         "basis",
         "reason",
-        "quotes"
+        "quotes",
+        "lowered_by"
       ],
       "type": "object"
     },
@@ -357,8 +786,12 @@
             }
           ]
         },
+        "generation_multiple": {
+          "$comment": "CO-7: the generation part over the baseline's GPU-seconds per reply",
+          "$ref": "#/$defs/value"
+        },
         "glyph": {
-          "$comment": "GL-1 to GL-5: the five petals in drawing order; never moves a position (GL-4)",
+          "$comment": "GL-1 to GL-9: the five petals in drawing order; no field sums, counts or orders them (GL-8); never moves a position (GL-4)",
           "items": false,
           "minItems": 5,
           "prefixItems": [
@@ -390,7 +823,7 @@
               "$ref": "#/$defs/petal",
               "properties": {
                 "id": {
-                  "const": "any_model"
+                  "const": "machine_checked"
                 }
               }
             },
@@ -470,6 +903,10 @@
           ]
         },
         "proof_bytes_per_reply": {
+          "$ref": "#/$defs/value"
+        },
+        "proving_multiple": {
+          "$comment": "CO-7: the proving part over the baseline's GPU-seconds per reply",
           "$ref": "#/$defs/value"
         },
         "ranked": {
@@ -586,24 +1023,16 @@
           },
           "type": "array"
         },
-        "steady_gpu_seconds_per_reply": {
-          "$comment": "CO-3: mean m of the counted sessions; null when any counted session has no steady state",
-          "$ref": "#/$defs/value"
-        },
         "steady_generation_gpu_seconds_per_reply": {
           "$comment": "CO-7: the generation phase's part of m, mean of the counted sessions; null when the system has no generation phase of its own or no steady state",
           "$ref": "#/$defs/value"
         },
+        "steady_gpu_seconds_per_reply": {
+          "$comment": "CO-3: mean m of the counted sessions; null when any counted session has no steady state",
+          "$ref": "#/$defs/value"
+        },
         "steady_proving_gpu_seconds_per_reply": {
           "$comment": "CO-7: m less its generation part, mean of the counted sessions; null as the generation part",
-          "$ref": "#/$defs/value"
-        },
-        "generation_multiple": {
-          "$comment": "CO-7: the generation part over the baseline's GPU-seconds per reply",
-          "$ref": "#/$defs/value"
-        },
-        "proving_multiple": {
-          "$comment": "CO-7: the proving part over the baseline's GPU-seconds per reply",
           "$ref": "#/$defs/value"
         },
         "steady_usd_per_reply": {
@@ -836,6 +1265,46 @@
       ],
       "type": "object"
     },
+    "scope_cell": {
+      "$comment": "one cell of Machine-checked's scope card, copied from properties/2; printed as a recorded fact, it sets no state",
+      "additionalProperties": false,
+      "properties": {
+        "quotes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "value": {
+          "enum": [
+            "machine_checked",
+            "paper",
+            "tested",
+            "not_stated"
+          ]
+        }
+      },
+      "required": [
+        "value",
+        "quotes"
+      ],
+      "type": "object"
+    },
     "value": {
       "oneOf": [
         {
@@ -845,6 +1314,52 @@
           "$ref": "../quantity/1.schema.json#/$defs/statistic"
         }
       ]
+    },
+    "visible_item": {
+      "$comment": "Weights hidden: one value a proof leaves visible, copied from properties/2; only fitted_to_weights sets a state (WH-5)",
+      "additionalProperties": false,
+      "properties": {
+        "item": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "quotes": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "text": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "text",
+              "url"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "tag": {
+          "enum": [
+            "statement_io",
+            "shape",
+            "side_channel",
+            "fitted_to_weights"
+          ]
+        }
+      },
+      "required": [
+        "item",
+        "tag",
+        "quotes"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://inference-proofs.org/schema/board/1.schema.json",

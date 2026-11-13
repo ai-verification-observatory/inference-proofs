@@ -241,6 +241,7 @@ html,body{{box-shadow:inset 0 0 0 2px {LINE}}}
 .g{{position:absolute;right:96px;top:165px}}
 .g svg{{display:block}}
 .sl.green{{fill:{S.INK["green"]}}}.sl.amber{{fill:{S.INK["amber"]}}}.sl.red{{fill:{S.INK["red"]}}}.sl.hollow{{fill:none;stroke:{MUTED}}}
+.sl.red.open{{fill:none;stroke:{S.INK["red"]}}}
 .pie-svg{{overflow:visible}}
 """
     body = (f'<div class="cl">{lockup_svg(26, ink=PAPER, mark=COBALT)}</div>'

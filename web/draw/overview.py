@@ -8,14 +8,15 @@ from . import state as S
 from .chrome import CHECKS_PAGE, footer, header, level_words, page, rung_of
 from .hexagon import glyph_svg
 from .words import (
+    CAUSE_WORD,
     CHECK_NAME,
     FIGURE_NAME,
     NULL_WORD,
     PETAL_NAME,
-    PETAL_WORD,
     REFERENCE_WORD,
     SEP,
     STATE_WORD,
+    STEP_WORD,
     architecture,
     e,
     kl_head,
@@ -34,15 +35,23 @@ PHONE_GLYPH = 1.5
 
 
 def states(row):
-    """The five petals' states, in the glyph's order (GL-5)."""
-    return [p["state"] for p in row["glyph"]]
+    """The five petals, in the glyph's order (GL-5), as glyph_svg draws them: each with its state,
+    step, cause and form (view._glyph)."""
+    return row["glyph"]
+
+
+def petal_words(p):
+    """A petal's step in words, and for a red or hollow petal its cause (§The glyph, step table;
+    GL-1, GL-3)."""
+    words = STEP_WORD[p["step"]]
+    return f"{words}, {CAUSE_WORD[p['cause']]}" if p["cause"] is not None else words
 
 
 def states_words(row):
     """The petals in words, for screen readers (the glyph is drawn, not read); one span per
     petal, its name in <b>, which words.js shows beside a petal pointed at. It sits in the
     glyph's cell, so the row's header reads the name and standing only."""
-    return ", ".join(f"<span><b>{e(PETAL_NAME[p['id']])}</b> {e(PETAL_WORD[p['state']])}</span>"
+    return "; ".join(f"<span><b>{e(PETAL_NAME[p['id']])}</b> {e(petal_words(p))}</span>"
                      for p in row["glyph"])  # fmt: skip
 
 

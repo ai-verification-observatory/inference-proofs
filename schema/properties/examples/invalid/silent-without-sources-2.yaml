@@ -1,0 +1,49 @@
+# Invalid: no_trusted_party is silent (rests_on not_stated) and names no document read.
+schema: "properties/2"
+system: "fake"
+configuration: "default"
+upstream: {repo: "example/fake-prover", commit: "0123456789abcdef0123456789abcdef01234567"}
+read: "2026-11-13"
+petals:
+  unforgeable:
+    sources_read: ["README.md"]
+    bound:
+      stated: {value: false, quotes: []}
+      expression: {value: null, quotes: []}
+      terms: []
+      basis: {value: "not_said", quotes: []}
+      unit: {value: "not_said", quotes: []}
+      adversary: {value: "not_said", quotes: []}
+      parameters: {value: "not_said", quotes: []}
+      conditions_shown: {value: false, quotes: []}
+      batch: {value: "not_said", quotes: []}
+      program: {value: "not_stated", quotes: []}
+  machine_checked:
+    sources_read: ["README.md"]
+    formal:
+      reach: {value: "not_stated", quotes: []}
+      tool: {value: null, quotes: []}
+      toolchain: {value: null, quotes: []}
+      theorem: null
+      theorem_url: null
+      trusted_base: {value: [], quotes: []}
+      axioms: []
+      input_code_unverified: {value: null, quotes: []}
+      scope_card:
+        soundness: {protocol: {value: "not_stated", quotes: []}, verifier_run: {value: "not_stated", quotes: []}, prover_run: {value: "not_stated", quotes: []}}
+        zero_knowledge: {protocol: {value: "not_stated", quotes: []}, verifier_run: {value: "not_stated", quotes: []}, prover_run: {value: "not_stated", quotes: []}}
+        completeness: {protocol: {value: "not_stated", quotes: []}, verifier_run: {value: "not_stated", quotes: []}, prover_run: {value: "not_stated", quotes: []}}
+  weights_hidden:
+    sources_read: ["README.md"]
+    hiding:
+      stated: {value: "not_stated", quotes: []}
+      verifier_gets_weights: {value: false, quotes: []}
+      proof: {value: "none", quotes: []}
+      programs: {value: "not_stated", quotes: []}
+      visible_listed: {value: false, quotes: []}
+      visible: []
+  no_trusted_party:
+    sources_read: []
+    trust:
+      rests_on: {value: "not_stated", quotes: []}
+      publicly_checkable: {value: "not_said", quotes: []}

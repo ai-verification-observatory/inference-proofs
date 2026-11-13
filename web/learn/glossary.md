@@ -56,9 +56,9 @@ The random checks of a proof system need exact arithmetic, which is why provers 
 
 ### Glyph
 
-The five-petal figure drawn for each system this benchmark has run. Each petal is one of five properties a prover can have in full: Unforgeable, Weights hidden, Faithful model, Any model, Only the verifier trusted.
+The five-petal figure drawn for each system this benchmark has run. Each petal is one of five properties a prover can have in full: Unforgeable, Weights hidden, Faithful model, Machine-checked, No third party trusted.
 
-A petal is green, amber, red or hollow. Three petals are read from what the publisher states, and two come from our checks. The glyph never moves a system's position.
+A petal's step is green (in full), amber in part, amber in lesser part (its arm drawn cut), red (no) or not decided (hollow). Four petals are read from what the publisher states at the pinned commit and can be lowered by our checks; Faithful model is measured by our fidelity run. A red petal the publisher is silent on is drawn as an outline. The glyph never moves a system's position, and nothing adds its petals up.
 
 ### Greedy decoding
 
@@ -106,7 +106,7 @@ Said of a system on a model when all six checks are held there. It is never said
 
 ### Petal
 
-One of the five parts of the [[glyph]]: a property a prover can have in full, in part or not at all.
+One of the five parts of the [[glyph]]: a property a prover can have in full, in part, in lesser part or not at all.
 
 ### Polynomial commitment
 

@@ -40,15 +40,17 @@ from iproofs.derive import (
     steady_per_reply,
 )
 from iproofs.errors import ErrorKind, IProofsError
+from iproofs.fidelity import with_steps as fidelity_with_steps
 from iproofs.glyph import (
-    PETALS,
+    Coverage,
     Petal,
-    any_model,
     faithful_model,
     glyph,
+    load_proof_build,
     load_properties,
     statement_petals,
 )
+from iproofs.model import card_path
 from iproofs.quantity import Grade, NullReason, Scope, SourceKind, Tier, Unit
 from iproofs.release import RunView
 from iproofs.serialize import load_yaml
@@ -577,6 +579,25 @@ def _row_tree(
 # ---------------------------------------------------------------- the board
 
 
+def _with_steps(
+    root: Path, release: str, level: object, rung: object, doc: dict[str, object] | None
+) -> dict[str, object] | None:
+    """FM-4a: a `fidelity.json` scored before the step tests existed gets them computed from its
+    own stored scores (results are append-only, so the stored file is not written again)."""
+    if doc is None or "steps" in doc:
+        return doc
+    randomness = beacon_randomness(root, level_id(level))
+    if randomness is None:
+        return doc  # no beacon record: FM-4 reads "no step tests stored"
+    run_path = fidelity_path(root, release, str(field_of(rung, "id"))).with_name(
+        "fidelity-run.json"
+    )
+    slots = json.loads(run_path.read_text()).get("slots") if run_path.is_file() else None
+    controls: Sequence[object] = field_of(rung, "controls") or ()  # type: ignore[assignment]
+    specs = [{k: field_of(c, k) for k in ("id", "kind", "recipe", "type")} for c in controls]
+    return fidelity_with_steps(doc, specs, slots if isinstance(slots, int) else None, randomness)
+
+
 def build_board(root: Path, release: str, level: object) -> dict[str, object]:
     """RFC-0018 §The board file: the `board/1` tree of `release` under `level` (a level model,
     its tree, or its id)."""
@@ -586,8 +607,9 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
     margin = field_of(field_of(level, "order"), "margin")
     if not isinstance(margin, int | float):
         raise IProofsError(ErrorKind.CONFIG, f"level {level_id(level)} has no order.margin")
+    alpha = field_of(field_of(level, "fidelity"), "alpha")  # F5: the step tests' alpha
+    level_alpha = float(alpha) if isinstance(alpha, int | float) else None
     runs = [RunView.read(p) for p in release_run_dirs(root, release)]
-    randomness = beacon_randomness(root, level_id(level))
     dates: set[str] = set()
     rungs_out, summaries = [], []
     rung_list: Sequence[object] = field_of(level, "rungs") or ()  # type: ignore[assignment]
@@ -598,6 +620,7 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
         baseline_block, baseline, read = _baseline(root, runs, level, rung, digest, base, price)
         dates |= {r.run_id[:10] for r in read}
         fidelity_block, fidelity_doc = _fidelity(root, release, rung_id)
+        fidelity_doc = _with_steps(root, release, level, rung, fidelity_doc)
         fidelity_rows = fidelity_doc.get("rows") if fidelity_doc else None
         fidelity_rows = fidelity_rows if isinstance(fidelity_rows, dict) else {}
         rows = []
@@ -610,14 +633,22 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
             security, stated = _security(level, system)
             first = (sessions.counted_in_order() or sessions.all)[0]
             commit = first.run.get("manifest", "system", "upstream", "commit")
+            configuration = first.run.get("manifest", "claim", "configuration")
+            coverage = Coverage(_granularity(root, system), _batch_size(root, str(workload)))
             petals = statement_petals(
                 load_properties(root, system), {k: v.state for k, v in states.items()},
-                str(commit) if isinstance(commit, str) else None,
+                str(commit) if isinstance(commit, str) else None, coverage,
+                load_proof_build(root, release, system),
             )  # fmt: skip
             fid = states["fidelity"]
-            petals["faithful_model"] = faithful_model(fid.state, fid.cause, fidelity_doc, system,
-                                                      randomness)  # fmt: skip
-            petals["any_model"] = any_model(0, 0, True)  # set once every rung is read
+            petals["faithful_model"] = faithful_model(
+                fid.state,
+                fid.cause,
+                fidelity_doc,
+                system,
+                _policy(root, system, configuration),
+                level_alpha,
+            )
             rows.append(_Row(
                 system, str(workload), sessions,
                 [session_figures(s, n, level) for s in sessions.counted_in_order()],
@@ -643,7 +674,6 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
                                fidelity_rows, n)
                      for j, (s, p) in enumerate(ordered)],
         })  # fmt: skip
-    _any_model(rungs_out)
     request = field_of(level, "request")
     return {
         "schema": "board/1",
@@ -662,15 +692,33 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
     }
 
 
-def _any_model(rungs: Sequence[Mapping[str, object]]) -> None:
-    """The `any_model` petal of every row, from the system's rows on every rung."""
-    rows = [r for rung in rungs for r in rung["rows"]]  # type: ignore[attr-defined]
-    for r in rows:
-        mine = [o for o in rows if o["system"] == r["system"]]
-        passed_rungs = sum(o["passed"] is True for o in mine)
-        undecided = any(c["state"] == "undecided" for o in mine for c in o["checks"].values())
-        r["glyph"][PETALS.index("any_model")] = any_model(passed_rungs, len(rungs),
-                                                          undecided).tree()  # fmt: skip
+def _key(path: Path, *keys: str) -> object:
+    """`keys` in the YAML file at `path`, None when the file or a key is missing."""
+    found: object = load_yaml(path) if path.is_file() else None
+    for k in keys:
+        found = found.get(k) if isinstance(found, Mapping) else None
+    return found
+
+
+def _granularity(root: Path, system: str) -> str | None:
+    """How much one proof covers (`proofs.granularity` of system.yaml), the glyph's Coverage."""
+    found = _key(root / "systems" / system / "system.yaml", "proofs", "granularity")
+    return found if isinstance(found, str) else None
+
+
+def _batch_size(root: Path, workload: str) -> int | None:
+    """The replies of one batch (`shape.batch_size` of the workload), the glyph's Coverage."""
+    found = _key(root / "workloads" / f"{workload}.yaml", "shape", "batch_size")
+    return found if isinstance(found, int) and not isinstance(found, bool) else None
+
+
+def _policy(root: Path, system: str, configuration: object) -> str | None:
+    """The claim card's `coverage.policy.kind` for the row's configuration (FM-3)."""
+    if not isinstance(configuration, str):
+        return None
+    card = card_path(root, system, configuration)
+    found = None if card is None else _key(card, "coverage", "policy", "kind")
+    return found if isinstance(found, str) else None
 
 
 def beacon_randomness(root: Path, level: str) -> str | None:

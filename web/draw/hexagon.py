@@ -13,7 +13,10 @@ from .words import e
 # Every arm has the same length in every state, so the outline never changes and nothing adds up.
 # A state is the arm's ink (green, amber, red); a red arm's name is struck, so the name cannot be
 # read as a warning about the property; hollow is an outline, open toward the stem, its name in the
-# muted ink. With names an arm is 50 units long and the names are set 4 units high; without (under
+# muted ink. Two steps also change the drawing (§The glyph, Q7): amber in lesser part is the amber arm with
+# its end cell cut off (a gap of ground, then a cell 5 units long, as the mark's cells are), and a
+# red the publisher's silence set is the hollow outline drawn in the red ink, its name red and not
+# struck. With names an arm is 50 units long and the names are set 4 units high; without (under
 # 3 px a unit, where the names could not be read) it is 22 long and the stem stands 1 unit proud.
 # The viewBox is in units, so every edge sits on a whole pixel at a whole-pixel unit.
 STEM, ARM, GAP = 3, 5, 1
@@ -41,56 +44,80 @@ def _n(x):
     return f"{x:.3f}".rstrip("0").rstrip(".")
 
 
-def _ink(state):
+def _ink(state, form=""):
     """An arm's ink as presentation attributes, so the glyph reads with no stylesheet (words.css
     sets the same inks and wins over these)."""
     if state == "hollow":
         return f'fill="none" stroke="{MUTED}"'
+    if form == "open":
+        return f'fill="none" stroke="{S.INK.get("red", MUTED)}"'
     return f'fill="{COBALT if state == "key" else S.INK.get(state, MUTED)}"'
 
 
-def glyph_svg(unit, states, names=None, cls="pie-svg", hrefs=None):
-    """The glyph: a stem and one arm per state, top to bottom. unit: px per unit (3 on the board,
-    1 in the search list). states: each arm's state (green, amber and red filled, hollow an
-    outline; key the checks page's cobalt). names: each arm's name set in it (then the arms are
-    long). hrefs: each arm (and its name) a link there, out of the tab order (the svg is hidden
-    from assistive tech; the page's own text holds the same links)."""
-    n = len(states)
+def _arm(arm):
+    """An arm as (state, form, its class and data attributes): a petal as the view gives it, or a
+    bare state word (the checks page's key)."""
+    if isinstance(arm, str):
+        return arm, "", ""
+    form = arm.get("form") or ""
+    data = f' data-step="{e(arm["step"] or "none")}"'
+    if arm["cause"] is not None:
+        data += f' data-cause="{e(arm["cause"])}"'
+    return arm["state"], form, data
+
+
+def glyph_svg(unit, arms, names=None, cls="pie-svg", hrefs=None):
+    """The glyph: a stem and one arm per petal, top to bottom. unit: px per unit (3 on the board,
+    1 in the search list). arms: each arm's petal as the view gives it (its state, step, cause and
+    form: green, amber and red filled, amber in lesser part cut, a silent red open, hollow an
+    outline), or a bare state (key: the checks page's cobalt). names: each arm's name set in it
+    (then the arms are long). hrefs: each arm (and its name) a link there, out of the tab order
+    (the svg is hidden from assistive tech; the page's own text holds the same links and words)."""
+    n = len(arms)
     long = bool(names)
     over = 0 if long else GAP
     w, h = STEM + (LONG if long else SHORT), n * ARM + (n - 1) * GAP
     px = 1 / unit
-    arms = []
-    for i, state in enumerate(states):
+    # amber in lesser part: the ground gap never under 2 px, the cut cell never under 3 px
+    gap, cell = max(1, 2 / unit), max(5, 3 / unit)
+    out = []
+    for i, raw in enumerate(arms):
+        state, form, data = _arm(raw)
         y = i * (ARM + GAP)
-        klass = f'class="sl s{i + 1} {state}"'
-        if state == "hollow":
+        tok = f"{state} {form}".strip()
+        klass = f'class="sl s{i + 1} {tok}"{data}'
+        if state == "hollow" or form == "open":
             d = f"M{STEM} {_n(y + px / 2)}H{_n(w - px / 2)}V{_n(y + ARM - px / 2)}H{STEM}"
-            arm = f'<path {klass} {_ink(state)} stroke-width="{_n(px)}" d="{d}"/>'
+            arm = f'<path {klass} {_ink(state, form)} stroke-width="{_n(px)}" d="{d}"/>'
+        elif form == "cut":
+            d = (f"M{STEM} {y}H{_n(w - gap - cell)}V{y + ARM}H{STEM}Z"
+                 f"M{_n(w - cell)} {y}H{w}V{y + ARM}H{_n(w - cell)}Z")  # fmt: skip
+            arm = f'<path {klass} {_ink(state)} d="{d}"/>'
         else:
             arm = f'<rect {klass} {_ink(state)} x="{STEM}" y="{y}" width="{w - STEM}" height="{ARM}"/>'
         if long:
             x, base = STEM + PAD, y + (ARM + NAME * 0.8) / 2
-            ink = MUTED if state == "hollow" else GROUND
+            ink = (MUTED if state == "hollow" else S.INK.get("red", MUTED) if form == "open"
+                   else GROUND)  # fmt: skip
             style = (f'font-family="Big Shoulders Display,system-ui,sans-serif" font-weight="800" '
                      f'font-size="{_n(NAME)}" letter-spacing="{_n(NAME * TRACK)}" fill="{ink}"')  # fmt: skip
             caps = e(names[i].upper())
-            if state == "red":
+            if state == "red" and form != "open":
                 tw = name_units(names[i])
                 text = (f'<text x="{_n(x)}" y="{_n(base)}" textLength="{_n(tw)}" {style}>{caps}</text>'
                         f'<rect x="{_n(x - 0.5)}" y="{_n(y + (ARM - STRIKE) / 2)}" '
                         f'width="{_n(tw + 1)}" height="{STRIKE}" fill="{GROUND}"/>')  # fmt: skip
             else:
                 text = f'<text x="{_n(x)}" y="{_n(base)}" {style}>{caps}</text>'
-            arm += f'<g class="t s{i + 1} {state}">{text}</g>'
+            arm += f'<g class="t s{i + 1} {tok}">{text}</g>'
         if hrefs:
             arm = f'<a href="{e(hrefs[i])}" tabindex="-1">{arm}</a>'
-        arms.append(arm)
+        out.append(arm)
     stem = (
         f'<rect class="stem" fill="{COBALT}" y="{-over}" width="{STEM}" height="{h + 2 * over}"/>'
     )
     return (
         f'<svg class="{cls}" viewBox="0 {-over} {w} {h + 2 * over}" width="{_n(w * unit)}" '
         f'height="{_n((h + 2 * over) * unit)}" shape-rendering="crispEdges" aria-hidden="true" '
-        f'focusable="false">{stem}{"".join(arms)}</svg>'
+        f'focusable="false">{stem}{"".join(out)}</svg>'
     )
