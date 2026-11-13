@@ -367,3 +367,47 @@ def test_a_gpu_host_session_without_kept_proofs_gives_its_slot_to_a_later_one(tr
     (moved / "manifest.json").write_text(json.dumps(manifest))
     assert states(other)["no_weight_file"] == ("undecided", "not resolved")
     assert row_sessions(other.root, RELEASE, other.level, RUNG, SYSTEM).replaced == []
+
+
+FAILED_ANSWER = ("adapter: prove exited 1: flashprove: cp_prove exited 0, last line "
+                 "'p258 end 0'; failed [0], unanswered [] | log: p258 end 0")  # fmt: skip
+DECLARES_FAILED_ANSWER = (
+    "p1_refusals:\n"
+    "  stops: [hc-own-node]\n"
+    "  source: x\n"
+    "  failed_answer:\n"
+    "    match: \"cp_prove exited 0, last line 'p258 end 0'; failed "
+    '\\\\[(?P<requests>\\\\d+(, \\\\d+)*)\\\\], unanswered \\\\[\\\\]"\n'
+    "    source: x\n"
+)
+
+
+def declare(tree: Tree, text: str) -> None:
+    (tree.root / "systems" / SYSTEM).mkdir(parents=True, exist_ok=True)
+    (tree.root / "systems" / SYSTEM / "system.yaml").write_text(text)
+
+
+def test_p1_failed_answer_with_the_honest_twin_accepted_is_refused(tree: Tree) -> None:
+    """CH-1a (owner, 2026-11-13): a prove that exits 0 and answers the request "failed", as the
+    system declares, counts as refused when the same run's honest proof of it was accepted."""
+    declare(tree, DECLARES_FAILED_ANSWER)
+    p1_failed(tree, FAILED_ANSWER)
+    assert states(tree)["model"] == ("held", None)
+
+
+def test_p1_failed_answer_without_an_accepted_twin_decides_nothing(tree: Tree) -> None:
+    declare(tree, DECLARES_FAILED_ANSWER)
+    p1_failed(tree, FAILED_ANSWER.replace("failed [0]", "failed [9]"))  # request 9 never proved
+    model = checks(tree)["model"]
+    assert model.state == "undecided"
+    assert model.note == "P1: no counted trial stored"
+
+
+def test_p1_failed_answer_on_a_system_that_does_not_declare_it_decides_nothing(
+    tree: Tree,
+) -> None:
+    declare(tree, 'p1_refusals: {stops: ["hc-own-node"], source: "x"}\n')
+    p1_failed(tree, FAILED_ANSWER)
+    model = checks(tree)["model"]
+    assert model.state == "undecided"
+    assert model.note == "P1: no counted trial stored"
