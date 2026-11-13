@@ -318,9 +318,12 @@ def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
     seconds = [json.loads((io / "score" / f"{i}.json").read_text()).get("seconds")
                for i in range(n + 1)]  # fmt: skip
     if any(x is not None for x in seconds):
-        write_json(out / f"seconds-{system}.json", {
-            "unit": "s", "what": "the adapter's own time for each score request, in order; "
-            "request 0 is the system's own proved reply to prompt 0", "requests": seconds})  # fmt: skip
+        what = (
+            "the adapter's own time for each score request, in order; request 0 is the "
+            "system's own proved reply to prompt 0"
+        )
+        write_json(out / f"seconds-{system}.json", {"unit": "s", "what": what,
+                                                     "requests": seconds})  # fmt: skip
 
 
 def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
