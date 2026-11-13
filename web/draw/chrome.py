@@ -20,6 +20,7 @@ from .words import CAUSE_WORD, PETAL_NAME, STEP_WORD, e
 MANDATE_PAGE = "/mandate"  # what the site is for, what it does and does not do, who runs it
 CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
 LEARN_PAGE = "/learn"  # the hub of the Learn pages (learn.py), when the tree holds their words
+SCALE_PAGE = "/scale"  # every row on a decade axis, one figure at a time (scale.py)
 
 
 def file_of(path):
@@ -107,13 +108,13 @@ GITHUB_MARK = (
 )
 
 
-TABS = (("/", "Ladder", "home"), (LEARN_PAGE, "Learn", "learn"), (CHECKS_PAGE, "Checks", "checks"),
-        (MANDATE_PAGE, "Mandate", "mandate"))  # fmt: skip
+TABS = (("/", "Ladder", "home"), (SCALE_PAGE, "Scale", "scale"), (LEARN_PAGE, "Learn", "learn"),
+        (CHECKS_PAGE, "Checks", "checks"), (MANDATE_PAGE, "Mandate", "mandate"))  # fmt: skip
 
 
 def header(here, under=False):
     """The top bar: the lockup, the pages as tabs, search and GitHub. here: the page's tab
-    ("home", "learn", "checks", "mandate"), "system" for a system page (under the ladder's tab)
+    ("home", "scale", "learn", "checks", "mandate"), "system" for a system page (under the ladder's tab)
     or None; `under` when the page in view is under that tab's page and not the page itself (a
     Learn article). Learn is a tab only when the tree holds the Learn words. Systems are reached
     from the ladder or by search (one link each would not scale)."""

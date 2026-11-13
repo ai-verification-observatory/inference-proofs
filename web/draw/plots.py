@@ -1,6 +1,6 @@
 """The drawings of a system page: bars of one row's GPU times per reply and the fidelity tracks.
 Every mark is geometry from a stored value of one row or one model: no number is typed here, and
-no scale is shared between two models (RFC-0018 OR-1). Each bar sits beside its labelled figure.
+nothing is ranked across models (RFC-0018 OR-1). Each bar sits beside its labelled figure.
 
 A bar is SVG on a viewBox VB units wide, stretched to its box (`preserveAspectRatio="none"`), so
 a length is the stored value over the largest value it is drawn beside; lines keep their width

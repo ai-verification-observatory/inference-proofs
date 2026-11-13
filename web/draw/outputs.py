@@ -15,6 +15,7 @@ from .chrome import (
     HEAD_SCRIPT,
     LEARN_PAGE,
     MANDATE_PAGE,
+    SCALE_PAGE,
     font_faces,
     level_words,
     rung_of,
@@ -24,6 +25,7 @@ from .inks import COBALT, GROUND, LINE, MUTED, PAPER, ratio
 from .learn import glossary, glossary_entries
 from .mark import lockup_svg, mark_svg, stacked_svg, tile_svg
 from .overview import filled, href, name_of, standing, states
+from .scale import DIMS
 from .words import (
     CHECK_HELD,
     CHECK_NAME,
@@ -96,6 +98,14 @@ def search_entries():
         PAGE_MARK,
         "checks terms proof commitment request ladder figures order rule undecided unranked "
         "not tested",
+    )
+    add(
+        "page",
+        "Scale",
+        SCALE_PAGE,
+        ", ".join(n for _, n, _ in DIMS),
+        PAGE_MARK,
+        "scale chart log decade axis",
     )
     add(
         "page",

@@ -273,9 +273,14 @@ ORDER_RULE = (
      "level at the pinned commit. The level is printed as stated: our tests cannot tell 60 bits "
      "from 128."),
     ("glyph", "The glyph never moves a position."),
-    ("models", "Nothing is compared across models: they differ in what serving costs and in how "
+    ("models", "Nothing is ranked across models: they differ in what serving costs and in how "
      "proving scales."),
 )  # fmt: skip
+# ------------------------------------------------------------------ the scale page (RFC-0018 SI-7)
+SCALE_PROOF_SIZE = "Proof size per reply"  # a figure the ladder does not print
+SCALE_LOG = "log scale"  # beside an axis's unit
+SCALE_SERVING = "Serving"  # a lane's foot: serving's line and its stored figure
+SCALE_NOT_RUN = "Not run yet."
 # ------------------------------------------------------------------ the mandate page
 # The headline, what the site is for, then what we do, what we do not do, who runs it and how to
 # check us: each line (a plain label, the rule that binds it, the file that rule is in, the

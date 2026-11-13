@@ -351,6 +351,7 @@ Every `<quantity>` is a `quantity/1` value with its labels (AGENTS.md rule 2). R
 - SI-4. Systems not run are listed after the ladder, alphabetical, each with one fixed reason (`licence`, `no public verifier`, `no configuration at the request`, `another kind of check`, `not yet run`) from `web/_data/facts.json`.
 - SI-5. No figure of v0.1 is printed. The v0.1 release stays in the repository as a record.
 - SI-6. Words: measurement vocabulary only. "Passed" is said of a system on a model ("FlashProve passed on Llama 4 Maverick"), never of a model. No "secure", "best", "neutral" or "independent".
+- SI-7. The scale page draws every row on a decade (log) axis, one stored figure at a time: the multiple (or, with no steady state, the cold sessions' multiple, CO-5), cost per reply, check time per reply and proof size per reply. One lane per rung, largest first, its rows in OR-5 order; every lane of a figure shares one decade grid, so a change of scale between rungs is seen by position. It ranks nothing across rungs: no position, ratio, count or order is printed across lanes, no mark joins two lanes, and lanes are never sorted by a value. Each mark is the row's figure, printed beside it with its labels; a row that has not passed is drawn as an outline, never filled. With no script the page draws every figure (adopted 2026-11-13, Q15).
 
 ### Adapter contract amendment (RFC-0005)
 
@@ -458,6 +459,7 @@ Besides the settings fitted to the weights, two of FlashProve's visible values, 
 - Q12. Which model a commitment names is not graded on No third party trusted (RFC-0016 ST-6). It is to be decided before a closed-weights level (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's recommended answer to its open question 4, do not grade it yet; the disclosure line the report recommends is left out of this amendment by the criteria brief; not decided by the owner).
 - Q13. Architecture hiding is not a petal and not a step (adopted 2026-11-13 under the owner's request to update the criteria from the research: the research report's section 2, architecture hiding stays out of the glyph; the disclosure list the report recommends is left out of this amendment by the criteria brief; not decided by the owner).
 - Q14. `board/1` is changed in place, not given a new major: no release is frozen, and the one stored board is recomputed in the same change, as §Migration and RFC-0012's amendment of 2026-11-13 say (adopted 2026-11-13 under the owner's request to update the criteria from the research: decided by the implementation spec of 2026-11-13, not by the report; not decided by the owner).
+- Q15. The scale page's lanes share one decade grid (SI-7), and the site's words "Nothing is compared across models" read "Nothing is ranked across models", as OR-1 says. A grid per rung, each lane on its own values, is one argument of `panel_html` in `web/draw/scale.py` (adopted 2026-11-13 for the scale page; open to the owner, who may set one grid per rung; not decided by the owner).
 
 ## References
 

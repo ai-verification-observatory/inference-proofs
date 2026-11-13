@@ -691,7 +691,7 @@ def rows_words(found):
 
 @drawn(MEASURED, "rows")
 def measured_rows():
-    """Every row of the board, one table per model (nothing is set side by side across models):
+    """Every row of the board, one table per model (nothing is ranked across models):
     system, standing, multiple of serving, check time and proof size per reply. A row with no
     position is set in the muted ink, as on the ladder."""
     found = [(rung, row) for rung in S.V["rungs"] for row in rung["rows"]]
