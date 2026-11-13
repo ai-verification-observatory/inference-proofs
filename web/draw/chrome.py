@@ -31,6 +31,7 @@ from .words import (
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
 # serve.py does the same locally), so every link works at any depth, the 404 page included.
+LEVEL_ANCHOR = "level"  # the mandate's line on the level, where the footer's level cell leads
 MANDATE_PAGE = "/mandate"  # what the site is for, what it does and does not do, who runs it
 CHECKS_PAGE = "/checks"  # what each of the six checks tests, the order rule, what is not tested
 LEARN_PAGE = "/learn"  # the hub of the Learn pages (learn.py), when the tree holds their words
@@ -199,11 +200,6 @@ def level_words():
     return f"{lv['name']} ({state})"
 
 
-def level_link():
-    """The level and its state as a link to the mandate, where the frozen rules are stated."""
-    return f'<a href="{MANDATE_PAGE}#what-we-do">{e(level_words())}</a>'
-
-
 def credit_words(linked=True):
     """Who builds the site and who leads it, from the facts file (`credit`), as one sentence."""
     c = S.V["credit"]
@@ -215,10 +211,11 @@ def credit_words(linked=True):
 
 
 def footer():
-    """Every page's footer, one strip of cells: the level file (its digest in the link's title),
-    the release's board file when there is one, the licence and who builds the site."""
-    lv, rel = S.V["level"], S.V["release"]
-    parts = [f'<a href="{e(link(lv["path"]))}" title="{e(lv["digest"])}">{e(level_words())}</a>']
+    """Every page's footer, one strip of cells: the level, linked to the mandate's line on it
+    (which links the level file), the release's board file when there is one, the licence and who
+    builds the site."""
+    rel = S.V["release"]
+    parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{e(level_words())}</a>']
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None

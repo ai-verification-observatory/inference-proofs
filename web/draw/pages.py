@@ -11,6 +11,7 @@ import re
 from . import state as S
 from .chrome import (
     CHECKS_PAGE,
+    LEVEL_ANCHOR,
     MANDATE_PAGE,
     card_current,
     cards_record,
@@ -19,6 +20,7 @@ from .chrome import (
     has,
     header,
     lead_figure,
+    level_words,
     link,
     page,
     pnav,
@@ -27,6 +29,7 @@ from .chrome import (
 )
 from .hexagon import glyph_svg
 from .overview import (
+    BARE,
     NOT_TESTED,
     defined,
     fig_html,
@@ -60,6 +63,8 @@ from .words import (
     M_NAME,
     MANDATE,
     MANDATE_BELIEF,
+    MANDATE_LEVEL,
+    MANDATE_LEVEL_IN,
     MANDATE_MEMBERS_IN,
     MANDATE_WHAT,
     NO_STEADY_WORD,
@@ -474,10 +479,11 @@ def missing_html(missing):
 
 
 def cost_html(row):
-    """The cost parts (CO-1 to CO-5) the band and the figures block do not print, each figure as
-    the board stores it: the serving baseline, the GPU times drawn on one scale (`cost_bars`),
-    then a sheet of the other figures; then, once, each figure the board holds no value for with
-    the board's reason (a steady figure on a row with no steady state: NO_STEADY_WORD)."""
+    """The cost parts (CO-1 to CO-5), each figure as the board stores it, with its scope and n
+    (the figures block above prints three of them alone): how the model was served, the GPU times
+    drawn on one scale (`cost_bars`), then a sheet of the other figures, check time and proof
+    size per reply among them; then, once, each figure the board holds no value for with the
+    board's reason (a steady figure on a row with no steady state: NO_STEADY_WORD)."""
     rung = rung_of(row)
     figs, b, n = row["figures"], rung["baseline"] or {}, counted(row)
     whole = WHOLE_SESSIONS.format(n=rung["requests_per_session"])
@@ -489,10 +495,11 @@ def cost_html(row):
     drawn = [("Serving GPU time per reply", b.get("gpu_seconds_per_reply"), None),
              (M_NAME, figs["steady_gpu_seconds_per_reply"], n),
              ("Session GPU time per reply", figs["session_gpu_seconds_per_reply"], n)]  # fmt: skip
-    shown = row_cost(row)  # printed in the figures block
     sheet = [other, ("Steady cost per reply", figs["steady_usd_per_reply"], n),
              ("Session cost per reply", figs["session_usd_per_reply"], n),
-             ("Serving cost per reply", b.get("usd_per_reply"), None)]  # fmt: skip
+             ("Serving cost per reply", b.get("usd_per_reply"), None),
+             (FIGURE_NAME["check-time"], figs["verify_seconds_per_reply"], n),
+             (PROOF_SIZE, figs["proof_bytes_per_reply"], n)]  # fmt: skip
     no_steady = not has(figs["multiple"]) and figs["multiple"]["null_reason"] == "not_applicable"
     steady_figs = (figs["multiple"], figs["steady_gpu_seconds_per_reply"],
                    figs["steady_usd_per_reply"])  # fmt: skip
@@ -504,7 +511,7 @@ def cost_html(row):
                if no_steady and any(f is g for g in steady_figs) else NULL_WORD[f["null_reason"]])  # fmt: skip
         missing.setdefault(why, []).append(k)
     rows = [(k, fig_html(f, count, sub=FULL_LOAD_WORD if count is None and k.startswith("Serving")
-                         else None)) for k, f, count in sheet if has(f) and f is not shown]  # fmt: skip
+                         else None)) for k, f, count in sheet if has(f)]  # fmt: skip
     if price and has(price["usd_per_gpu_hour"]):
         rows.append(("Price of one H200 GPU-hour",
                      fig_html(price["usd_per_gpu_hour"], sub=f"{price['basis']}, {price['date']}")))  # fmt: skip
@@ -589,14 +596,14 @@ def fidelity_html(row):
 
 def figures_html(row):
     """The row's other figures (the band prints its one figure) as one ruled row of cells, each
-    with its unit, scope and n: cost per reply at the multiple's own scope, check time and proof
-    size per reply, then fidelity: the replies' mean matched prefix on its track against the
-    model's bar, and KL where it was measured."""
-    rung, figs, n = rung_of(row), row["figures"], counted(row)
-    cells = [(defined(FIGURE_NAME["cost"], "cost"), fig_html(row_cost(row), n)),
+    figure with its unit and no more: cost per reply at the multiple's own scope, check time and
+    proof size per reply, then fidelity: the replies' mean matched prefix against the model's
+    bar, and KL where it was measured. Each one's scope and n stand under Cost and Fidelity."""
+    rung, figs = rung_of(row), row["figures"]
+    cells = [(defined(FIGURE_NAME["cost"], "cost"), fig_html(row_cost(row), sub=BARE)),
              (defined(FIGURE_NAME["check-time"], "check-time"),
-              fig_html(figs["verify_seconds_per_reply"], n)),
-             (e(PROOF_SIZE), fig_html(figs["proof_bytes_per_reply"], n))]  # fmt: skip
+              fig_html(figs["verify_seconds_per_reply"], sub=BARE)),
+             (e(PROOF_SIZE), fig_html(figs["proof_bytes_per_reply"], sub=BARE))]  # fmt: skip
     mine, fid = row["fidelity"], rung["fidelity"] or {}
     bar = fid.get("bar")
     if mine is None:
@@ -609,10 +616,11 @@ def figures_html(row):
             track = (f'<span class="fbar"><span class="k">bar</span>'
                      f'{plain(bar["mean_prefix"], "tokens", at)}</span>')  # fmt: skip
         prefix = (plain(mine["mean_prefix"], "tokens", row["record"] + "/fidelity/mean_prefix")
-                  + f'<span class="sub">n\u00a0=\u00a0{mine["n"]:,}</span>' + track)  # fmt: skip
+                  + track)  # fmt: skip
     cells.append((defined(PREFIX, "fidelity"), prefix))
     if mine is not None and has(mine.get("kl")):
-        cells.append((defined(kl_head(rung["reference_dtype"]), "kl"), fig_html(mine["kl"])))
+        cells.append((defined(kl_head(rung["reference_dtype"]), "kl"),
+                      fig_html(mine["kl"], sub=BARE)))  # fmt: skip
     return '<dl class="figs">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>"
                                          for k, v in cells) + "</dl>"  # fmt: skip
 
@@ -653,7 +661,11 @@ def system_page(row):
     share = share_html(row)
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
     label, lead = lead_fig(row)
-    lead += split_html(row, lead_figure(row)[2], bar=False, of_which=True)
+    _, lf, lkey = lead_figure(row)
+    if lkey == "session_multiple" and has(lf):  # the label names the scope: under it, n alone
+        count = lf["n"] if lf["n"] is not None else counted(row)
+        lead = fig_html(lf, sub=f"n\u00a0=\u00a0{count}")
+    lead += split_html(row, lead_figure(row)[2], bar=False, of_which=True, bare=True)
     unranked = "" if row["position"] is not None else " unr"
     band_ = (
         f'<section class="mast mast-sys sysb" aria-labelledby="h-name"><div class="mast-in">'
@@ -779,7 +791,8 @@ def build_checks():
 
 def build_mandate():
     """The mandate: the belief as the headline, what the site is for, then what we do, what we
-    do not do, who runs it (with the members, once any has agreed) and how to check us. A line
+    do not do, who runs it (with the members, once any has agreed) and how to check us (the level
+    and its file among them: the footer's level cell leads there). A line
     bound by a rule links its label to the file that holds it, the rule named in the title."""
 
     def label(text, name, path):
@@ -793,11 +806,17 @@ def build_mandate():
     row = ('<div class="mbr"><dt>Members</dt><dd><ul class="mbl">' + "".join(
         f'<li><a href="{e(m["url"])}">{e(m["name"])}</a></li>' for m in members)
         + "</ul></dd></div>") if members else ""  # fmt: skip
+    lv = S.V["level"]
+    # the level and its state, linked to the level file (its digest in the title)
+    level = (f'<div id="{LEVEL_ANCHOR}"><dt><a href="{e(link(lv["path"]))}" '
+             f'title="{e(lv["digest"])}">{e(level_words())}</a></dt>'
+             f"<dd>{e(MANDATE_LEVEL)}</dd></div>")  # fmt: skip
     blocks = "".join(
         section(title.lower().replace(" ", "-"), title, '<dl class="cs">' + "".join(
             f"<div><dt>{label(text, name, path)}</dt><dd>{e(words)}</dd></div>"
             for text, name, path, words in lines)
-            + (row if title == MANDATE_MEMBERS_IN else "") + "</dl>")
+            + (row if title == MANDATE_MEMBERS_IN else "")
+            + (level if title == MANDATE_LEVEL_IN else "") + "</dl>")
         for title, lines in MANDATE
     )  # fmt: skip
     parts = [(title.lower().replace(" ", "-"), title) for title, _ in MANDATE]

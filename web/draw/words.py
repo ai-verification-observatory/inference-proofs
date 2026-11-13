@@ -313,13 +313,19 @@ MANDATE = (
          "Parts of this project's code and text are drafted with Claude, Anthropic's model."),
     )),
     ("How to check us", (
-        ("Sources", "rule 2", "AGENTS.md", "Every figure shows its unit, what was timed and "
-         "its sample size, and names the source it came from."),
+        ("Sources", "rule 2", "AGENTS.md", "Every figure has its unit, what was timed, its "
+         "sample size and the source it came from. A system's page prints them."),
         ("Open code", "Licence", "README.md", "The rules, the code we use to run each system "
          "and the measuring code are public."),
     )),
 )  # fmt: skip
 MANDATE_MEMBERS_IN = "Who runs it"
+# the mandate's line on the level (its label is the level and its state, linked to the level file)
+MANDATE_LEVEL_IN = "How to check us"
+MANDATE_LEVEL = (
+    "The models, the request, the constants of the checks and the order rule are "
+    "one file. It does not change once frozen: a change of rule is a new level."
+)
 # why a check is undecided (its cause as the board stores it)
 CHECK_CAUSE_WORD = {
     "system limit": "the system cannot do what the test needs; the publisher's sentence is quoted",

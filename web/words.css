@@ -219,11 +219,10 @@ html:has(.top.s-on) { overflow: hidden; }
 /* ---------------------------------------------------------------- the band: black on cobalt, flat */
 .mast { background: var(--cobalt); color: var(--ground); }
 .mast-in { margin-inline: var(--gut); padding: 48px 0 40px; }
-/* the overview's band: the level and the request, the title on one line, then one block of ground ink for the
+/* the overview's band: the title on one line, then one block of ground ink for the
    largest model proved (or run), a link to its rung, holding the one figure of the band */
-.home .mast-in { padding: 20px 0 32px; }
-.bk { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 32px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
-.band-h { margin: 32px 0 0; font: 900 min(var(--title), calc((100vw - 2 * var(--gut)) / 12.8))/.92 var(--disp); letter-spacing: -.012em; white-space: nowrap; }
+.home .mast-in { padding: 48px 0 32px; }
+.band-h { margin: 0; font: 900 min(var(--title), calc((100vw - 2 * var(--gut)) / 12.8))/.92 var(--disp); letter-spacing: -.012em; white-space: nowrap; }
 .bl { --cp: min(16px, var(--gut)); margin: 28px calc(-1 * var(--cp)) 0; }
 .bx { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 20rem) max-content; grid-template-areas: "k k k k" "p m s c" ". . f f"; align-items: last baseline; column-gap: 24px; padding: 16px var(--cp) 20px; background: var(--ground); color: var(--paper); text-decoration: none; }
 .bx-p { grid-area: p; font: 600 16px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
@@ -260,9 +259,7 @@ html:has(.top.s-on) { overflow: hidden; }
   .bx-w { font-size: 24px; }
 }
 @media (max-width: 760px) {
-  .home .mast-in { padding: 14px 0 12px; }
-  .bk { flex-direction: column; }
-  .band-h { margin-top: 12px; }
+  .home .mast-in { padding: 24px 0 12px; }
   .bl { margin-top: 12px; }
   .bx { grid-template-columns: 3.6rem minmax(0, 1fr) auto; grid-template-areas: "k k k" "p m m" ". s c" ". f f"; column-gap: 12px; row-gap: 6px; padding-block: 10px 12px; }
   .bx-k { margin-bottom: 8px; }
@@ -301,9 +298,9 @@ html:has(.top.s-on) { overflow: hidden; }
 .facts > div { min-width: 0; padding-top: 12px; }
 .facts dt { font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
 .facts dd { margin: 6px 0 0; font: 600 13px/19px var(--mono); }
-.facts a, .bk a { text-decoration-thickness: 1px; }
+.facts a { text-decoration-thickness: 1px; }
 /* a link on the band, in hand: a block of ground ink, the words in cobalt (as an index line) */
-.facts a:hover, .tsub a:hover, .bk a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+.facts a:hover, .tsub a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
 .facts .pos { display: flex; align-items: center; gap: 8px; }
 .facts .pos .pn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; box-shadow: inset 0 0 0 1.5px var(--ground); font: 900 18px/1 var(--disp); font-variant-numeric: tabular-nums; }
 .facts .pos.p1 .pn { background: var(--paper); box-shadow: none; }
@@ -1085,7 +1082,7 @@ main { flex: 1 0 auto; }
 .fcells li { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; margin-left: -1px; padding: 16px 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
 .foot a { color: var(--paper); text-decoration-color: var(--rule); }
 /* a footer link pointed at or pressed: cobalt under ground ink, at once */
-.foot a:hover, .foot a:active, .tsub a:active, .bk a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+.foot a:hover, .foot a:active, .tsub a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */

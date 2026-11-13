@@ -4,7 +4,8 @@ figure at a time (the multiple of serving, cost, check time and proof size per r
 Each figure is a section; the strip of sections picks the one drawn (words.js), and with no script
 all four are drawn. A section is one table with its axis once at the head and one group (lane) per
 model in the level's order under it, its rows in the board's order (OR-5): position, name and
-standing, the plot, and the stored figure printed by `fig_html` with its labels. Every lane shares
+standing, the plot, and the stored figure printed by `fig_html`, alone: its labels are in its
+title, and in full on the system's page the row links to. Every lane shares
 one decade grid (`extent` over the whole board), so a change of scale between models is seen by
 position; nothing is ranked, divided or ordered across lanes, and no mark joins two lanes.
 
@@ -20,30 +21,27 @@ from . import state as S
 from .chrome import (
     CHECKS_PAGE,
     SCALE_PAGE,
-    counted,
     footer,
     has,
     header,
-    level_link,
     page,
     pnav,
     row_cost,
 )
 from .overview import (
+    BARE,
     fig_html,
     href,
     multiple_html,
     name_of,
     nobreak,
     position_html,
-    request_words,
     standing_html,
 )
 from .pages import section, title_band
 from .words import (
     FIGURE_NAME,
     FIGURE_RULE,
-    FULL_LOAD_WORD,
     SCALE_LOG,
     SCALE_NOT_RUN,
     SCALE_PROOF_SIZE,
@@ -235,13 +233,13 @@ def plot_svg(lo, hi, serve, mean=None, ticks=(), span=None):
 def figure_html(row, dim):
     """The row's figure as the ladder prints it, with its two parts where it has them (CO-7)."""
     if dim == "multiple":
-        return multiple_html(row)
-    return fig_html(figure_of(row, dim), counted(row))
+        return multiple_html(row, bare=True)
+    return fig_html(figure_of(row, dim), sub=BARE)
 
 
 def serving_html(rung, dim):
     """The stored serving figure a model's head prints: GPU time beside the multiple (its 1x),
-    USD beside the cost, with the full load's concurrency; the cause where the rung has no
+    USD beside the cost; the cause where the rung has no
     baseline; nothing for a figure with no serving counterpart."""
     if dim not in ("multiple", "cost"):
         return ""
@@ -251,7 +249,7 @@ def serving_html(rung, dim):
         why = (b or {}).get("cause") or "no full load recorded"
         fig = f'<span class="na">{e(why)}</span>'
     else:
-        fig = fig_html(b[key], sub=f"{FULL_LOAD_WORD} at {b['concurrency']:,} concurrent requests")
+        fig = fig_html(b[key], sub=BARE)
     return f'<span class="lsv"><span class="k">{e(SCALE_SERVING)}</span>{fig}</span>'
 
 
@@ -318,12 +316,11 @@ def panel_html(dim, name, unit, shared=True):
 
 
 def build_scale():
-    sub = f'<p class="tsub">{level_link()} · {e(request_words())}</p>'
     panels = "".join(panel_html(d, n, u) for d, n, u in DIMS)
     body = f"""
 {header("scale")}
 <main id="main" class="sys">
-  {title_band("Scale", sub)}
+  {title_band("Scale")}
   {pnav("Scale", [(d, n) for d, n, _ in DIMS])}
   <div class="wrap">{panels}</div>
 </main>

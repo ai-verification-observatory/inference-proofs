@@ -13,7 +13,7 @@ An open benchmark for provable inference. Level 1 ([RFC-0018](rfcs/0018-level-1-
 ## Hard rules
 
 1. **Never patch a prover.** Adapters wrap upstream tools at a full commit hash. No source change, no undocumented parameter. If an adapter cannot work without a change, stop and open an issue.
-2. **No published number without its labels.** Every number in `results/`, `releases/` and on the site carries unit, timing scope, grade, tier and source (RFC-0004, RFC-0012), and the site shows the scope and n beside it.
+2. **No published number without its labels.** Every number in `results/`, `releases/` and on the site carries unit, timing scope, grade, tier and source (RFC-0004, RFC-0012), and a system's page shows the scope and n with it. The ladder and the Scale page print a figure with its unit alone, its labels in its title (RFC-0018 SI-8).
 3. **Derived numbers are computed, not typed.** A ratio goes into the derivation code so CI recomputes it.
 4. **Weakening flags only in control jobs.** A flag that weakens a system's statement (for example SASH's `--unsound-skip-*`) is never used outside a negative-control job (RFC-0008), never to make a run pass.
 5. **Never fabricate or round away results.** A failed run is recorded with its exit code and last lines. Report ranges and sample sizes, never a single best run.
