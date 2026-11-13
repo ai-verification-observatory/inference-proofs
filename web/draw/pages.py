@@ -246,6 +246,19 @@ def sessions_html(row):
         out += '<h3 class="sub-h">Incomplete sessions</h3>' + stacked(
             ["Slot", "Run", "Exit code", "Step", "Cause", "Last line"], rows
         )
+    if row.get("replaced"):  # SE-3a: listed with why, in no figure and no check
+        rows = [
+            [
+                str(s["slot"]) if s["slot"] is not None else "",
+                run_link(row, s["run_id"]),
+                run_link(row, s["replaced_by"]),
+                e(s["cause"]),
+            ]
+            for s in row["replaced"]
+        ]
+        out += '<h3 class="sub-h">Replaced sessions</h3>' + stacked(
+            ["Slot", "Run", "Replaced by", "Why"], rows
+        )
     return out
 
 

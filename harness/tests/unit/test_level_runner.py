@@ -712,3 +712,35 @@ def test_control_prove_state_is_what_commit_left(tmp_path: Path) -> None:
     old = tmp_path / "prove-P1-old"
     copy_state_after_commit(src, old)
     assert (old / "state/prove/home").is_dir()
+
+
+def test_reverify_of_a_kept_session_on_a_verifier_host(tmp_path: Path) -> None:
+    """RFC-0018 CH-4a: `iproofs reverify` verifies every proof of a kept level session again on
+    a verifier host, under the trace, into reverify/ (the session's own traces untouched), once;
+    a GPU host is refused."""
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import VerifierEnvironment, reverify_run  # noqa: PLC0415
+
+    path = f"{fake_strace(tmp_path / 'bin')}{os.pathsep}{os.environ['PATH']}"
+    kept = level_runner(path)
+    kept.keep_io = True
+    run_dir = kept.run(spec(tmp_path / "r", controls=False))
+    own = sorted(p.name for p in (run_dir / "verify-trace").iterdir())
+    with pytest.raises(IProofsError, match="verifier host"):
+        reverify_run(level_runner(path), run_dir)
+    host = Host(ROOT / "harness/tests/fixtures/host", run=lambda _: None, hosted=True)
+    verifier_host = level_runner(path)
+    verifier_host.env = VerifierEnvironment(host, 3)
+    record = read(run_dir, str(reverify_run(verifier_host, run_dir).relative_to(run_dir)))
+    assert REGISTRY.errors("reverify/1", record) == []
+    proofs = read(run_dir, "run.json")["proofs"]
+    assert [p["proof_id"] for p in record["proofs"]] == [p["proof_id"] for p in proofs]
+    assert {p["verdict"] for p in record["proofs"]} == {"accept"}
+    for p in record["proofs"]:
+        trace = read(run_dir, p["trace"])
+        assert trace["tool"] == "strace"
+        assert trace["gpu_visible"] is False
+        assert trace["model_files_present"] is False
+    assert sorted(p.name for p in (run_dir / "verify-trace").iterdir()) == own
+    with pytest.raises(IProofsError, match="re-verified once"):
+        reverify_run(verifier_host, run_dir)

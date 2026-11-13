@@ -571,6 +571,7 @@
             "value": null
           },
           "ranked": false,
+          "replaced_sessions": [],
           "security": {
             "source": "systems/flashprove/claim.yaml#security.level",
             "stated": true,
@@ -1399,6 +1400,7 @@
             "value": null
           },
           "ranked": false,
+          "replaced_sessions": [],
           "security": {
             "source": "systems/sash/claim.yaml#security.level",
             "stated": true,

@@ -1,0 +1,105 @@
+{
+  "$id": "https://inference-proofs.org/schema/reverify/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "A re-verify of a kept run on a verifier host with no GPU (RFC-0018 CH-4a)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "run_manifest_digest",
+    "image",
+    "harness",
+    "host",
+    "proofs"
+  ],
+  "properties": {
+    "schema": {
+      "const": "reverify/1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_manifest_digest": {
+      "$ref": "../quantity/1.schema.json#/$defs/digest"
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ref",
+        "digest_kind"
+      ],
+      "properties": {
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        },
+        "digest_kind": {
+          "type": "string"
+        }
+      }
+    },
+    "harness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "git_commit",
+        "git_dirty"
+      ],
+      "properties": {
+        "git_commit": {
+          "type": "string"
+        },
+        "git_dirty": {
+          "type": "boolean"
+        }
+      }
+    },
+    "host": {
+      "$comment": "this host's RFC-0006 machine record, allowlisted fields only, and the profile checks it does not meet",
+      "$ref": "../controls-part/1.schema.json#/properties/host"
+    },
+    "proofs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "proof_id",
+          "verdict",
+          "seconds",
+          "proof_digest",
+          "trace"
+        ],
+        "properties": {
+          "proof_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "verdict": {
+            "enum": [
+              "accept",
+              "reject",
+              "no_verdict",
+              "invalid_call"
+            ]
+          },
+          "seconds": {
+            "type": "number",
+            "minimum": 0
+          },
+          "proof_digest": {
+            "$ref": "../quantity/1.schema.json#/$defs/digest"
+          },
+          "trace": {
+            "type": "string",
+            "pattern": "^reverify/verify-trace/[^/]+\\.json$"
+          }
+        }
+      }
+    }
+  }
+}

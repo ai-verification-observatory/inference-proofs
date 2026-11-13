@@ -175,11 +175,16 @@ def _profile_known(root: Path, release: str, profile: str) -> bool:
 # RFC-0008: `iproofs controls RUN_DIR` adds a completed run's controls, once; these are the
 # files it adds (whole, or merged from parts with their seed record)
 CONTROLS_ADDED = ("controls.json", "controls-seed.json", "controls-parts/")
+REVERIFY_ADDED = "reverify/"  # RFC-0018 CH-4a: added once, to a run whose base has none
 
 
 def _controls_added(root: Path, base_ref: str, run_dir: str, path: str) -> bool:
-    """A controls record added to a run whose base has no controls.json (RFC-0008, once)."""
+    """A controls record added to a run whose base has no controls.json (RFC-0008, once), or a
+    re-verify record to one whose base has no reverify/ (RFC-0018 CH-4a, once)."""
     inside = path[len(run_dir) + 1 :]
+    if inside.startswith(REVERIFY_ADDED):
+        reverify = f"{run_dir}/{REVERIFY_ADDED}reverify.json"
+        return not _git(root, "ls-tree", "--name-only", base_ref, reverify)
     if not any(inside == n or (n.endswith("/") and inside.startswith(n)) for n in CONTROLS_ADDED):
         return False
     return not _git(root, "ls-tree", "--name-only", base_ref, f"{run_dir}/controls.json")

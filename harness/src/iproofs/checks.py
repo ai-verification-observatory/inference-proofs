@@ -190,6 +190,7 @@ class RowSessions:
     incomplete: list[Session]
     all: list[Session] = field(default_factory=list)
     control_runs: list[Session] = field(default_factory=list)  # CH-1b: P1 from these
+    replaced: list[tuple[Session, Session, str]] = field(default_factory=list)  # SE-3a
 
     def counted_in_order(self) -> list[Session]:
         return [self.counted[k] for k in sorted(self.counted)]
@@ -262,7 +263,10 @@ def row_sessions(
             counted[s.slot] = s
     pin = {_pin(s) for s in counted.values()}
     same_pin = [c for c in controls if len(pin) == 1 and _pin(c) in pin]
-    return RowSessions(counted, [s for s in found if not s.complete], found, same_pin)
+    replaced = _replace_for_ch4(counted, found)
+    return RowSessions(
+        counted, [s for s in found if not s.complete], found, same_pin, replaced=replaced
+    )
 
 
 def _pin(s: Session) -> tuple[object, object]:
@@ -482,40 +486,130 @@ def coverage_state(sessions: RowSessions, output: int) -> CheckState:
 # ---------------------------------------------------------------- NO WEIGHT FILE (CH-4)
 
 
+REVERIFY_RECORD = "reverify/reverify.json"  # CH-4a, beside the session's run.json
+GPU_SEEN = "a GPU was visible"
+
+
+def _trace_gap(trace: Mapping[str, object]) -> str | None:
+    """Why one verify trace does not meet CH-4 (a) to (c), `opened` when it names a model file
+    the call read, or None when it meets them."""
+    files = [
+        f
+        for f in _list(trace.get("model_files_opened"))
+        if isinstance(f, dict) and f.get("ok") is True
+    ]  # a failed open read nothing
+    if files:
+        return "opened"
+    if trace.get("tool") is None:
+        return "no trace tool"
+    if trace.get("gpu_visible") is not False:
+        return GPU_SEEN
+    if trace.get("model_files_present") is not False:
+        return "model files were present"
+    return None
+
+
+def _reverified(s: Session) -> dict[str, str]:
+    """CH-4a: proof id -> repository path of its re-verify trace, for the proofs a re-verify of
+    this run (its run id and image) accepted with the same proof bytes: the sha256 the
+    re-verify recorded is the one the session's manifest records for that proof."""
+    path = s.run.path / REVERIFY_RECORD
+    if not path.is_file():
+        return {}
+    doc = json.loads(path.read_text())
+    image = s.run.get("manifest", "system", "image", "ref")
+    if doc.get("run_id") != s.run_id or (doc.get("image") or {}).get("ref") != image:
+        return {}
+    digests = {str(p.get("proof_id")): p.get("digest")
+               for p in _list(s.run.get("manifest", "proofs")) if isinstance(p, dict)}  # fmt: skip
+    return {str(p["proof_id"]): str(p["trace"]) for p in _list(doc.get("proofs"))
+            if isinstance(p, dict) and p.get("verdict") == "accept" and p.get("trace")
+            and p.get("proof_digest") is not None
+            and p.get("proof_digest") == digests.get(str(p["proof_id"]))}  # fmt: skip
+
+
+def _session_traces(s: Session) -> tuple[list[str], list[str], list[str]]:
+    """(traces that name an opened model file, gaps, evidence) of one session's verdicts: each
+    verdict meets CH-4 through its own trace or, where that one does not, a re-verify of the
+    same proof (CH-4a)."""
+    opened: list[str] = []
+    gaps: list[str] = []
+    evidence = [f"{s.path}/verify-trace/"]
+    again = _reverified(s)
+    if again:
+        evidence.append(f"{s.path}/{REVERIFY_RECORD}")
+    for p in _list(s.run.run.get("proofs")):
+        if not isinstance(p, dict) or p.get("verdict") is None:
+            continue
+        pid = str(p.get("proof_id"))
+        path = s.run.path / "verify-trace" / f"{pid}.json"
+        if not path.is_file():
+            gaps.append(f"{s.run_id}/{pid}: no trace")
+            continue
+        gap = _trace_gap(json.loads(path.read_text()))
+        if gap == "opened":
+            opened.append(f"{s.path}/verify-trace/{pid}.json")
+            continue
+        if gap is not None and pid in again and (s.run.path / again[pid]).is_file():
+            other = _trace_gap(json.loads((s.run.path / again[pid]).read_text()))
+            if other == "opened":
+                opened.append(f"{s.path}/{again[pid]}")
+                continue
+            gap = None if other is None else gap
+        if gap is not None:
+            gaps.append(f"{s.run_id}/{pid}: {gap}")
+    return opened, gaps, evidence
+
+
+def _replace_for_ch4(
+    counted: dict[int, Session], found: Sequence[Session]
+) -> list[tuple[Session, Session, str]]:
+    """SE-3a: a counted session whose verdicts miss CH-4 only because a GPU was visible on its
+    host (no model file opened, every trace written), and that has no re-verify, gives its slot to
+    the first later complete session of the same pin (image and adapter commit) whose verdicts
+    all meet CH-4. Returns (replaced, replacement, reason); `counted` is updated in place."""
+    out: list[tuple[Session, Session, str]] = []
+    for slot, s in sorted(counted.items()):
+        opened, gaps, _ = _session_traces(s)
+        if opened or not gaps or not all(g.endswith(GPU_SEEN) for g in gaps) or _reverified(s):
+            continue
+        pin = (s.run.get("manifest", "system", "image", "ref"),
+               s.run.get("manifest", "system", "adapter_commit"))  # fmt: skip
+        for t in found:
+            same = (t.run.get("manifest", "system", "image", "ref"),
+                    t.run.get("manifest", "system", "adapter_commit")) == pin  # fmt: skip
+            if not (t.complete and t.slot == slot and t.started > s.started and same):
+                continue
+            t_opened, t_gaps, _ = _session_traces(t)
+            if not t_opened and not t_gaps:
+                counted[slot] = t
+                out.append(
+                    (
+                        s,
+                        t,
+                        "its verify ran on a host with a GPU visible and its proofs "
+                        f"were not kept to verify again (SE-3a); slot {slot} counts {t.run_id}",
+                    )
+                )
+                break
+    return out
+
+
 def no_weight_file_state(sessions: RowSessions) -> CheckState:
     """Held when every counted verdict has a trace written by a trace tool, with no GPU
-    visible, no model file present and no model file opened; failed when a trace names a model
-    file; else undecided, `not run` (a missing trace, no trace tool, a GPU or a model file in
-    reach)."""
+    visible, no model file present and no model file opened, its own or a re-verify's of the same
+    proof (CH-4a); failed when a trace names a model file; else undecided, `not run` (a missing
+    trace, no trace tool, a GPU or a model file in reach)."""
     if not sessions.counted:
         return _undecided(NOT_RUN, (), "no counted session")
     opened: list[str] = []
     gaps: list[str] = []
     evidence: list[str] = []
     for s in sessions.counted_in_order():
-        evidence.append(f"{s.path}/verify-trace/")
-        for p in _list(s.run.run.get("proofs")):
-            if not isinstance(p, dict) or p.get("verdict") is None:
-                continue
-            pid = str(p.get("proof_id"))
-            path = s.run.path / "verify-trace" / f"{pid}.json"
-            if not path.is_file():
-                gaps.append(f"{s.run_id}/{pid}: no trace")
-                continue
-            trace = json.loads(path.read_text())
-            files = [
-                f
-                for f in _list(trace.get("model_files_opened"))
-                if isinstance(f, dict) and f.get("ok") is True
-            ]  # a failed open read nothing
-            if files:
-                opened.append(f"{s.path}/verify-trace/{pid}.json")
-            elif trace.get("tool") is None:
-                gaps.append(f"{s.run_id}/{pid}: no trace tool")
-            elif trace.get("gpu_visible") is not False:
-                gaps.append(f"{s.run_id}/{pid}: a GPU was visible")
-            elif trace.get("model_files_present") is not False:
-                gaps.append(f"{s.run_id}/{pid}: model files were present")
+        o, g, ev = _session_traces(s)
+        opened += o
+        gaps += g
+        evidence += ev
     if opened:
         return CheckState(FAILED, None, tuple(opened), "a verify call opened a model file")
     if gaps:

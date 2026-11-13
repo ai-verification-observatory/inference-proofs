@@ -168,6 +168,14 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.set_defaults(handler=run)
 
+    p = command(
+        "reverify", "verify a kept run again on a verifier host with no GPU (RFC-0018 CH-4a)"
+    )
+    p.set_defaults(handler=reverify)
+    p.add_argument("run_dir", type=Path)
+    p.add_argument("--hosted", action="store_true", help="this container is the run's image")
+    p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
+
     p = command("controls", "run the negative-control suite against a run (RFC-0008)")
     p.set_defaults(handler=controls)
     p.add_argument("run_dir", type=Path, nargs="?")
@@ -734,6 +742,33 @@ def controls(args: argparse.Namespace) -> int:
         progress=None if args.quiet else sys.stderr,
     )
     print(controls_for_run(runner, args.run_dir, seed=seed, only=args.only))
+    return 0
+
+
+def reverify(args: argparse.Namespace) -> int:
+    """`iproofs reverify RUN_DIR --hosted`: every proof of a kept run verified again on this
+    verifier host (no GPU), under the CH-4 trace; adds RUN_DIR/reverify/ once (RFC-0018 CH-4a)."""
+    from iproofs.runner import Runner, reverify_run  # noqa: PLC0415
+    from iproofs.validate import repo_root  # noqa: PLC0415
+
+    root = repo_root(Path.cwd())
+    if not args.hosted:
+        raise IProofsError(ErrorKind.CONFIG, "reverify runs in the run's image: give --hosted")
+    run = json.loads((args.run_dir / "run.json").read_text())
+    image_ref = json.loads((args.run_dir / "manifest.json").read_text())["system"]["image"]["ref"]
+    system_file = root / "systems" / run["system"] / "system.yaml"
+    containers, _, registry = _containers(system_file, False, hosted=True)
+    _check_hosted_image(system_file, registry, image_ref)
+    runner = Runner(
+        containers,
+        root=root,
+        registry=registry,
+        env=_verifier_host(root, run["release"], registry),
+        hosted=True,
+        provider=args.provider or "undeclared",
+        progress=None if args.quiet else sys.stderr,
+    )
+    print(reverify_run(runner, args.run_dir))
     return 0
 
 

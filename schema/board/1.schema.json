@@ -623,6 +623,40 @@
         },
         "workload": {
           "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "replaced_sessions": {
+          "$comment": "SE-3a: a counted session whose verify ran with a GPU visible and whose proofs were not kept, replaced in its slot by a later session of the same pin; it enters no figure and no check",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "run_id",
+              "slot",
+              "replaced_by",
+              "cause"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "string",
+                "minLength": 1
+              },
+              "slot": {
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "replaced_by": {
+                "type": "string",
+                "minLength": 1
+              },
+              "cause": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       },
       "required": [
