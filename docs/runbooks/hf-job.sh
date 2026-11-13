@@ -91,6 +91,9 @@
 #                         keeps those controls, IPROOFS_TF_LIMIT=N the first N prompts (a trial),
 #                         IPROOFS_TF_NAME names the record, IPROOFS_TF_TOP_K the tokens listed per
 #                         position (default 256), IPROOFS_FIDELITY_NO_OTHER=1 skips the other model
+#   IPROOFS_TF_EACH       with IPROOFS_TF and the controls part: ID[,ID], one run per control in
+#                         that order, each with its own record (controls-<id>), so a job stopped at
+#                         its deadline keeps the controls that finished
 #   IPROOFS_TF_SYSTEM     with IPROOFS_TF: a row's own code through its adapter's score subcommand
 #                         (AD-7), in the scoring image the job was started from,
 #                         IPROOFS_TF_IMAGE=<repository>@sha256:<digest>. IPROOFS_TF_BEFORE lists the
@@ -780,6 +783,22 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
       uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf download "$repo" --revision "$rev" \
       --include "$pattern" --local-dir "$WORK/reference-gguf" >/dev/null || { log "download of $repo failed"; exit 3; }
     SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
+    if [ -n "${IPROOFS_TF:-}" ] && [ -n "${IPROOFS_TF_EACH:-}" ]; then
+      # one teacher-forced run per control, in the order given, each with its own record, so a
+      # job stopped at its deadline keeps the controls that finished
+      rc=0
+      for id in ${IPROOFS_TF_EACH//,/ }; do
+        log "fidelity run $RUNG --part controls --teacher-forced --only $id on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+        env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
+          --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
+          --results "$DEV" --work "$WORK/fidelity-io" --part controls \
+          --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src" \
+          --teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}" --only "$id" --name "controls-$id" \
+          ${IPROOFS_TF_LIMIT:+--limit "$IPROOFS_TF_LIMIT"} || rc=$?
+        log "fidelity run ($id) exit $rc"
+      done
+      exit "$rc"
+    fi
     log "fidelity run $RUNG --part controls on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
     env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
       --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \

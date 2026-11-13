@@ -74,7 +74,7 @@ Printed beside the fidelity check, gating nothing. They need the rung's stored `
 | llama.cpp: the reference and the controls it builds (8B) | `ref-fidelity` | `h200` | nothing |
 | SASH's own code (8B) | the scoring image, `systems/sash/Dockerfile.score` | `h200` | `IPROOFS_TF_SYSTEM=sash`, `IPROOFS_TF_IMAGE`, `IPROOFS_TF_PROVER_FILES` (a counted session's `commitment/prover` folder in the bucket) |
 | vLLM: the reference, its rerun, the other model (Maverick) | `ref-fidelity-vllm` | `h200x8` | `IPROOFS_FIDELITY_ENGINE=vllm` |
-| llama.cpp: the quantized controls (Maverick) | `ref-fidelity` | `h200x4` | `IPROOFS_FIDELITY_PART=controls`, `IPROOFS_FIDELITY_GGUF`, `IPROOFS_FIDELITY_SLOTS=16`, `IPROOFS_TF_ONLY` to keep some |
+| llama.cpp: the quantized controls (Maverick) | `ref-fidelity` | `h200x4` | `IPROOFS_FIDELITY_PART=controls`, `IPROOFS_FIDELITY_GGUF`, `IPROOFS_FIDELITY_SLOTS=16`, `IPROOFS_TF_EACH=q8_0,q4_k_m` for one run per control, in that order |
 | FlashProve's own code (Maverick) | the scoring image, `systems/flashprove/Dockerfile.score` | `h200x2` | `IPROOFS_TF_SYSTEM=flashprove`, `IPROOFS_TF_IMAGE` |
 
 A scoring image is built by the images workflow with `dockerfile: Dockerfile.score`; it is the row's pinned image plus this commit's adapter file, and `system.yaml` keeps its pin. Run one prompt first on a new path (`IPROOFS_TF_LIMIT=1`): such a run is a trial and is not scored. Each job leaves `teacher-forced/` under the rung's fidelity folder of its upload: copy `run-*.json`, `top/`, `status-*.json`, `commands-*.jsonl` and `logs/` into `results/v1.0/fidelity/<rung>/teacher-forced/`, and keep `raw/` (the lists, about 1 MB per prompt and engine) outside the repository. Then, with every job's `raw/` folders merged into one directory:
