@@ -2947,6 +2947,103 @@ def controls_for_run(  # noqa: PLR0915 (one check per refusal)
         shutil.rmtree(run_dir / "controls-io", ignore_errors=True)
 
 
+REVERIFY_DIR = "reverify"  # RFC-0018 CH-4a: <run-dir>/reverify/, added once
+REVERIFY_RECORD = "reverify.json"
+
+
+def _reverify_job(
+    runner: Runner,
+    spec: JobSpec,
+    doc: Mapping[str, Any],
+    manifest: Mapping[str, Any],
+    staging: Path,
+) -> Job:
+    """The stored run as a job a verify can run in (CH-4a): its records, never its weights."""
+    io = staging / "io"
+    job = Job(spec, doc["run_id"], staging, log_prefix="reverify-")
+    runner._resolve_inputs(job, models=False)
+    assert job.workload is not None
+    job.image = manifest["system"]["image"]["ref"]
+    job.level = manifest["level"]
+    job.optional_subcommands = tuple(manifest["system"].get("optional_subcommands", ()))
+    job.commitment_record = manifest["commitment"]  # digests rechecked before every verify
+    job.proof_records = manifest["proofs"]  # proof digests rechecked before every verify
+    job.prompts = [json.loads(line) for line in (io / "prompts.jsonl").read_text().splitlines()]
+    for name, attr in (("commit", "commit"), ("prove", "proofs")):
+        out = load(io / f"{name}.out.json", runner.registry)
+        assert isinstance(out, AdapterOut)
+        setattr(job, attr, out)
+    # CH-4 (b): the weights were never fetched here; the trace is matched against the paths
+    # they would have, and their absence is recorded
+    job.models = default_cache() / "models" / job.workload.model.digest.removeprefix("sha256:")
+    job.model_paths = model_paths(job.workload, job.models)
+    job.models_removed = False
+    return job
+
+
+def reverify_run(runner: Runner, run_dir: Path) -> Path:
+    """`iproofs reverify RUN_DIR` (RFC-0018 CH-4a): every proof of a completed run whose proof
+    bytes were kept, verified again on a verifier host with no GPU, each call under the file-open
+    trace of CH-4, the weights never fetched on this host. Writes `reverify/` once: the traces
+    (`reverify/verify-trace/`), the verdicts (`reverify/verifier/`) and `reverify.json`, which
+    names the run by id and manifest digest, the image and this host's machine record."""
+    target = run_dir / REVERIFY_DIR
+    if target.exists():
+        raise IProofsError(ErrorKind.CONFIG, f"{target} exists; a run is re-verified once")
+    if not isinstance(runner.env, VerifierEnvironment):
+        raise IProofsError(ErrorKind.CONFIG, "a re-verify runs on a verifier host with no GPU")
+    io = run_dir / "io"
+    if not (io / "proofs").is_dir() or not (io / "prove.out.json").is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no proofs; rerun with --keep-io")
+    if not (run_dir / COMMITMENT_STORE).is_dir():
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} kept no commitment store")
+    doc = _completed_run(run_dir)
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    if not manifest.get("level"):
+        raise IProofsError(ErrorKind.CONFIG, f"{run_dir} is not a level session (CH-4)")
+    spec = JobSpec(doc["system"], doc["workload"]["id"], doc["workload"]["version"],
+                   doc["profile"], doc["repetition"], True, str(run_dir.parent.parent.parent),
+                   doc["release"])  # fmt: skip
+    staging = run_dir / ".reverify-staging"
+    shutil.rmtree(staging, ignore_errors=True)
+    staging.mkdir()
+    (staging / "io").symlink_to(io.resolve(), target_is_directory=True)
+    (staging / COMMITMENT_STORE).symlink_to((run_dir / COMMITMENT_STORE).resolve(),
+                                            target_is_directory=True)  # fmt: skip
+    for sub in ("logs", "verifier", "verify"):
+        (staging / sub).mkdir()
+    try:
+        job = _reverify_job(runner, spec, doc, manifest, staging)
+        assert job.proofs is not None
+        entries = {e.proof_id: e for e in job.proofs.proofs or ()}
+        rows: list[dict[str, object]] = []
+        for p in doc["proofs"]:
+            pid = str(p["proof_id"])
+            seconds, verdict = runner._verify_one(job, pid, entries[pid], single=False)
+            proof = next(r for r in manifest["proofs"] if r.get("proof_id") == pid)
+            rows.append({"proof_id": pid, "verdict": verdict, "seconds": seconds,
+                         "proof_digest": proof.get("digest"),
+                         "trace": f"{REVERIFY_DIR}/{VERIFY_TRACE}/{pid}.json"})  # fmt: skip
+        host = _part_host(runner, job, manifest.get("machine") or {}, False)
+        commit, dirty = git_state(runner.root)
+        record = {"schema": "reverify/1", "run_id": doc["run_id"],
+                  "run_manifest_digest": file_digest(run_dir / "manifest.json"),
+                  "image": manifest["system"]["image"], "harness": {"git_commit": commit,
+                  "git_dirty": dirty}, "host": host, "proofs": rows}  # fmt: skip
+        errors = runner.registry.errors("reverify/1", record)
+        if errors:
+            raise IProofsError(ErrorKind.INTERNAL, f"reverify.json fails reverify/1: {errors[0]}")
+        out_dir = staging / "out"
+        out_dir.mkdir()
+        shutil.move(str(staging / VERIFY_TRACE), str(out_dir / VERIFY_TRACE))
+        shutil.move(str(staging / "verifier"), str(out_dir / "verifier"))
+        write_json(out_dir / REVERIFY_RECORD, record)
+        out_dir.rename(target)
+        return target / REVERIFY_RECORD
+    finally:
+        shutil.rmtree(staging, ignore_errors=True)
+
+
 def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:
     """`iproofs controls RUN_DIR --merge PART...`: the `controls.json` of a suite run in parts
     (RFC-0008 §Split suites). RUN_DIR needs run.json, manifest.json and the controls-seed.json

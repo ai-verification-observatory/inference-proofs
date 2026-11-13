@@ -290,3 +290,64 @@ def test_p1_from_a_control_run_at_the_rows_pin(tree: Tree) -> None:
     three_sessions(other, control_doc=controls(omit=("P1",)))
     control_run(other, adapter="b" * 40)
     assert states(other)["model"] == ("undecided", "not run")
+
+
+def reverify(run_dir: Path, *, digest: str = "sha256:" + "ab" * 32) -> None:
+    """A reverify/ of every proof of `run_dir`, accepted, traced with no GPU (CH-4a); the
+    session's manifest records each proof's sha256 as `sha256:abab...`."""
+    run = json.loads((run_dir / "run.json").read_text())
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    manifest["proofs"] = [{"proof_id": p["proof_id"], "digest": "sha256:" + "ab" * 32}
+                          for p in run["proofs"]]  # fmt: skip
+    (run_dir / "manifest.json").write_text(json.dumps(manifest))
+    (run_dir / "reverify" / "verify-trace").mkdir(parents=True)
+    rows = []
+    for p in run["proofs"]:
+        name = f"reverify/verify-trace/{p['proof_id']}.json"
+        (run_dir / name).write_text(json.dumps(trace()))
+        rows.append({"proof_id": p["proof_id"], "verdict": "accept", "trace": name,
+                     "proof_digest": digest})  # fmt: skip
+    doc = {"schema": "reverify/1", "run_id": run["run_id"], "image": {"ref": None},
+           "proofs": rows}  # fmt: skip
+    (run_dir / "reverify" / "reverify.json").write_text(json.dumps(doc))
+
+
+def test_a_reverify_on_a_gpu_less_host_stands_for_the_sessions_verdicts(tree: Tree) -> None:
+    """CH-4a: every verdict traced with a GPU visible holds once a re-verify of the same run
+    (same proof bytes by sha256) traced each proof with none; one of other bytes counts not."""
+    runs = three_sessions(tree, traces=trace(gpu=True))
+    assert states(tree)["no_weight_file"] == ("undecided", "not run")
+    for run_dir in runs[:2]:
+        reverify(run_dir)
+    reverify(runs[2], digest="sha256:" + "0" * 64)
+    assert states(tree)["no_weight_file"] == ("undecided", "not run")
+    other = Tree(tree.root / "second")
+    for run_dir in three_sessions(other, traces=trace(gpu=True)):
+        reverify(run_dir)
+    assert states(other)["no_weight_file"] == ("held", None)
+
+
+def test_a_gpu_host_session_without_kept_proofs_gives_its_slot_to_a_later_one(tree: Tree) -> None:
+    """SE-3a: slot 1's session verified with a GPU visible and was never re-verified; the first
+    later complete session of slot 1 at the same pin whose verdicts meet CH-4 counts instead, and
+    the replaced one is listed. At another adapter commit it does not replace it."""
+    first = session(tree, 1, 1, traces=trace(gpu=True))
+    session(tree, 2, 2)
+    session(tree, 3, 3)
+    later = session(tree, 1, 4)
+    assert states(tree)["no_weight_file"] == ("held", None)
+    rows = row_sessions(tree.root, RELEASE, tree.level, RUNG, SYSTEM)
+    assert rows.counted[1].path.endswith(later.name)
+    assert [(a.path.split("/")[-1], b.path.split("/")[-1]) for a, b, _ in rows.replaced] == [
+        (first.name, later.name)
+    ]
+    other = Tree(tree.root / "second")
+    session(other, 1, 1, traces=trace(gpu=True))
+    session(other, 2, 2)
+    session(other, 3, 3)
+    moved = session(other, 1, 4)
+    manifest = json.loads((moved / "manifest.json").read_text())
+    manifest["system"]["adapter_commit"] = "b" * 40
+    (moved / "manifest.json").write_text(json.dumps(manifest))
+    assert states(other)["no_weight_file"] == ("undecided", "not run")
+    assert row_sessions(other.root, RELEASE, other.level, RUNG, SYSTEM).replaced == []

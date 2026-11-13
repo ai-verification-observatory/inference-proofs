@@ -44,6 +44,13 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
     p.add_argument("source", type=Path, help="the run directory the job wrote")
     p.add_argument("--release", default="v1.0")
     p.add_argument("--results", type=Path, help="default: the repository's results/")
+    p.add_argument(
+        "--add-to",
+        type=Path,
+        metavar="RUN_DIR",
+        help="add the source's later records (controls, reverify/) to this imported run, the "
+        "source's run id rewritten to its own, once each",
+    )
     p.set_defaults(handler=results_import)
 
 
@@ -104,11 +111,44 @@ def import_run(source: Path, results: Path, release: str) -> Path:
     return target
 
 
+ADDED_LATER = ("controls.json", "controls-seed.json", "controls-parts", "reverify")
+
+
+def add_records(source: Path, target: Path) -> list[Path]:
+    """The records a merged run may gain once (RFC-0008 controls, RFC-0018 CH-4a reverify/),
+    copied from the job's copy of the run into the imported one, the job's run id rewritten to
+    the imported id as `import_run` does. Refused when the target already has one of them."""
+    old = str(json.loads((source / "run.json").read_text())["run_id"])
+    new = str(json.loads((target / "run.json").read_text())["run_id"])
+    same = re.compile(re.escape(old) + r"(?!\d)")
+    added: list[Path] = []
+    for name in ADDED_LATER:
+        src = source / name
+        if not src.exists():
+            continue
+        dst = target / name
+        if dst.exists():
+            raise IProofsError(ErrorKind.CONFIG, f"{dst} exists; it is added once")
+        if src.is_dir():
+            shutil.copytree(src, dst)
+        else:
+            shutil.copyfile(src, dst)
+        added.append(dst)
+        for path in [dst] if dst.is_file() else sorted(dst.rglob("*")):
+            if path.is_file() and path.suffix in TEXT and old in (text := path.read_text()):
+                path.write_text(same.sub(new, text))
+    return added
+
+
 def results_import(args: argparse.Namespace) -> int:
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     if not (args.source / "run.json").is_file():
         raise IProofsError(ErrorKind.CONFIG, f"no run.json in {args.source}")
+    if args.add_to is not None:
+        for path in add_records(args.source, args.add_to):
+            print(path)
+        return 0
     results = args.results or repo_root(Path.cwd()) / "results"
     print(import_run(args.source, results, args.release))
     return 0

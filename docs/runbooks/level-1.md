@@ -63,7 +63,7 @@ hf-job.sh fidelity llama-3.1-8b                                         # ref-fi
 hf-job.sh fidelity llama-4-maverick   # fidelity-h200x8-hosted, IPROOFS_FIDELITY_SLOTS=16
 ```
 
-The verifier-side controls of a kept SASH session run as in `hf-jobs.md` stage 5 (`seed`, `controls`, `merge`); `iproofs controls RUN_DIR` reads the level from the run's manifest.
+The verifier-side controls of a kept SASH session run as in `hf-jobs.md` stage 5 (`seed`, `controls`, `merge`); `iproofs controls RUN_DIR` reads the level from the run's manifest. A session whose verify host showed a GPU (SASH) is verified again on `cpu-xl` with `hf-job.sh reverify SYSTEM RUN_PATH` (RFC-0018 CH-4a); the job adds `reverify/` beside the stored run, and `iproofs results import JOB_RUN --add-to results/<release>/<system>/<run id>` brings it into the imported run.
 
 ## Step 4: release
 

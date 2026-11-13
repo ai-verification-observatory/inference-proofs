@@ -559,6 +559,10 @@ def _row_tree(
         "session_usd_per_reply": _usd(Scope.WHOLE_WALL, session_in, price),
         "sessions": [f.tree() for f in figures],
         "incomplete_sessions": [s.incomplete_tree() for s in row.sessions.incomplete],
+        "replaced_sessions": [
+            {"run_id": a.run_id, "slot": a.slot, "replaced_by": b.run_id, "cause": why}
+            for a, b, why in row.sessions.replaced
+        ],
         "fidelity": _row_fidelity(fidelity_rows.get(row.system)),
         "security": row.security,
         "verify_seconds_per_reply": _metric_stat(
