@@ -241,3 +241,26 @@ def test_failed_open_of_a_model_file_is_not_an_open(tree: Tree) -> None:
     """A model file whose open failed (`ok` false: removed before verify) read nothing."""
     three_sessions(tree, traces=trace(failed=["/models/model.gguf"]))
     assert states(tree)["no_weight_file"] == ("held", None)
+
+
+def test_p1_failed_prove_needs_the_provers_reason(tree: Tree) -> None:
+    """CH-1: a P1 `prover_failed` whose line is only the harness's "prove exited N" decided
+    nothing (the adapter may have failed before the prover ran, FlashProve session 1); with the
+    prover's own last line it counts as a refusal."""
+    doc = controls(p1=("prover_failed",) * 3)
+    for c in doc["controls"]:  # type: ignore[attr-defined]
+        if c["id"] == "P1":
+            for t in c["trials"]:
+                t["raw_last_line"] = "adapter: prove exited 1"
+    three_sessions(tree, control_doc=doc)
+    assert states(tree)["model"] == ("undecided", "not run")
+    other = Tree(tree.root / "second")
+    doc = controls(p1=("prover_failed",) * 3)
+    for c in doc["controls"]:  # type: ignore[attr-defined]
+        if c["id"] == "P1":
+            for t in c["trials"]:
+                t["raw_last_line"] = (
+                    "adapter: prove exited 2: commitment does not match the weights"
+                )
+    three_sessions(other, control_doc=doc)
+    assert states(other)["model"] == ("held", None)

@@ -150,3 +150,27 @@ def test_summary_recomputed(tmp_path: Path, workload: Workload) -> None:
     assert rules == {"INV-CTRL-5"}
     path.write_text("{}")  # no controls list: nothing to recompute
     assert check_controls_summary(path, ROOT) == []
+
+
+def test_a_control_prove_that_raised_in_the_adapter_is_an_error() -> None:
+    """RFC-0018 CH-1: a traceback whose last frame is the adapter's entrypoint is our failure,
+    not the prover's refusal; any other failed prove is `prover_failed` with its last line."""
+    from iproofs.controls import prove_failure  # noqa: PLC0415
+    from iproofs.errors import ErrorKind, IProofsError  # noqa: PLC0415
+
+    crash = (
+        "Traceback (most recent call last):",
+        '  File "/opt/flashprove/entrypoint", line 147, in workdir',
+        "FileExistsError: [Errno 17] File exists: '/io/state/prove'",
+    )
+    e = IProofsError(ErrorKind.ADAPTER, "prove exited 1", exit_code=1, last_lines=crash)
+    assert prove_failure(e) == (
+        "error",
+        "adapter raised: FileExistsError: [Errno 17] File exists: '/io/state/prove'",
+    )
+    refused = ("cp_prove: weights do not match the commitment",)
+    e = IProofsError(ErrorKind.ADAPTER, "prove exited 2", exit_code=2, last_lines=refused)
+    assert prove_failure(e) == (
+        "prover_failed",
+        "adapter: prove exited 2: cp_prove: weights do not match the commitment",
+    )

@@ -8,6 +8,7 @@ No reviewer sets a state. Nothing here writes a file or reads a clock.
 """
 
 import json
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,6 +29,10 @@ CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")
 COUNTED_TRIALS = 3  # CH-1: 3 counted trials per control (per position for C1)
 C1_POSITIONS = ("first", "last", "interior")
 UNCOUNTED = frozenset({"void", "error"})  # trials that decided nothing (CH-1)
+# CH-1: a failed control prove counts as the prover's refusal only when the trial names a reason
+# from the prover; the harness's bare "<kind>: <step> exited <code>" names none (the adapter may
+# have failed before the prover ran), so such a trial decides nothing.
+_BARE_EXIT = re.compile(r"\w+: \w+ exited -?\d+")
 # When parts of a check disagree, the first state here decides (a failure stands over a gap).
 _CAUSE_ORDER = (SYSTEM_LIMIT, NOT_REPRODUCED, NOT_RUN, NOT_RESOLVED)
 
@@ -379,6 +384,10 @@ def control_trials(sessions: RowSessions, output: int) -> tuple[list[Trial], lis
                     continue
                 position = _position(t) if cid == "C1" else None
                 outcome = str(t.get("outcome"))
+                if outcome == "prover_failed" and _BARE_EXIT.fullmatch(
+                    str(t.get("raw_last_line") or "").strip()
+                ):
+                    outcome = "error"
                 if (
                     position == "interior"
                     and outcome not in UNCOUNTED
