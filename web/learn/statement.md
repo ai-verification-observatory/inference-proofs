@@ -1,84 +1,84 @@
-A proof proves one sentence and nothing more. Two systems can both *prove inference* and prove different sentences, about different models, covering different parts of a reply. So before asking what a prover costs, ask what its verifier's yes means. This page takes that sentence apart, using two systems' own words.
+A cryptographic proof establishes one exact mathematical sentence and nothing beyond it. Two systems can both say they "prove inference" while actually proving very different statements, about different representations of a model, covering different parts of a reply. Before you ask how much a prover costs, you have to ask what its verifier's "accept" actually means. Here we unpack that statement clause by clause using the words of two published provers on our ladder.
 
-## The parts of the sentence
+## Anatomy of an inference statement
 
-A proof system is built around a relation between two things: public inputs, which the verifier is given, and a private [[witness]], which only the prover holds. The [[statement]] is the sentence that says the relation holds for them. The verifier's yes means that a witness exists for which the relation holds. Some systems state more: that the prover knows such a witness. Read which one a system states.
+Every cryptographic proof system checks a relation between two sets of inputs: public inputs (which both the prover and verifier see) and a private [[witness]] (which only the prover holds). The [[statement]] is the claim that a valid witness exists satisfying the relation for those public inputs. When a verifier accepts, it confirms that such a witness exists (or, in a proof of knowledge, that the prover actually knows one).
 
-| Part | Public or private | For inference |
+| Component | Visibility | What it represents in inference |
 |---|---|---|
-| The model's identity | public | a [[commitment]] to the weights |
-| The input | public | the prompt, as token ids |
-| The output | public | the reply, as token ids, and which of its positions are checked |
-| The rules | public | the architecture and its sizes, the arithmetic, the decoding rule |
-| The model itself | private | the [[weights]] |
-| The work | private | every intermediate value of the forward pass |
+| Model identity | public | a cryptographic [[commitment]] to the model weights |
+| Input | public | the prompt, represented as a sequence of token IDs |
+| Output | public | the reply as token IDs, along with which token positions are checked |
+| Execution rules | public | model architecture dimensions, numeric precision, and decoding rule |
+| Model parameters | private | the [[weights]] themselves |
+| Execution trace | private | every intermediate activation across every layer of the forward pass |
 
-The relation then reads: *the committed weights, run on this prompt with this arithmetic and this decoding rule, give this reply at the checked positions.* Each clause of that sentence is a design decision, and each can be made in a way that proves less than a reader assumes.
+Put together, the relation says: *the weights fixed by this commitment, when evaluated on this prompt under this arithmetic and decoding rule, produce these reply tokens at the checked positions.* Every phrase in that sentence is a concrete engineering choice, and relaxing any one of them weakens what the proof guarantees.
 
-## Two statements, in their publishers' words
+## Two real statements, in their publishers' own words
 
-FlashProve's documentation says that, under its exact-match policy, a yes from its verifier ["is meant to show that each checked token is the committed integer model's top choice at its position, up to the error bound"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md#L57-L59). One proof covers one pass over a window of tokens.
+FlashProve's documentation states that under its exact-match policy, an accepted proof ["is meant to show that each checked token is the committed integer model's top choice at its position, up to the error bound"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/how-it-works.md#L57-L59). A single FlashProve proof covers one forward pass over a window of tokens.
 
-SASH's prover cuts the computation into segments: one layer applied to one block of positions, or the output head applied to one block. Its [claim card](repo:systems/sash/claim.yaml) records what its verifier's exit code stands for: every segment proof verifies, every link between segments "ran and chained on its own axis", and every position's token is "the prompt's or the previous position's proved argmax".
+SASH's prover slices the forward pass into smaller segments: either a single transformer layer applied to a block of token positions, or the language-modeling output head applied to a block. Its [claim card](repo:systems/sash/claim.yaml) records what a passing exit code from its verifier means: every individual segment proof verified, every boundary check between segments "ran and chained on its own axis", and every output position's token is "the prompt's or the previous position's proved argmax".
 
-Both are statements about a committed model decoding greedily. They differ in four things: what one proof covers, how the pieces are joined, what is hidden, and how the strength of the whole is stated. A proving time can be read only beside the sentence it was obtained for.
+Both systems prove greedy decoding of a committed model, yet they differ in four critical ways: how much of the forward pass a single proof file covers, how adjacent segments are stitched together, whether the weights are hidden, and how the soundness bound of the overall run is stated. You can only interpret a proving time alongside the exact statement it proved.
 
-## Reading it clause by clause
+## Reading the statement clause by clause
 
-### "The committed model"
+### 1. "The committed model"
 
-A commitment fixes a set of weights. It does not say whose they are. FlashProve's list of known limits says:
+A cryptographic commitment locks in a specific array of weights, but it never tells you *whose* weights they are. FlashProve's documentation spells this out candidly:
 
 :::quote https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L29-L32 FlashProve, guide/known-limits.md at 9e2bdd8
 A yes does not say whose weights they are, that the shipped committer made the commitment, or which real model it is. A provider can commit to any model it likes, a small or degenerate one included, and a scale file within the admitted range can switch off model blocks, up to all of them (worked out by hand).
 :::
 
-Something outside the proof has to tie the commitment to a known model: a public register, an evaluation, a contract. The commitment must also reach the verifier by a path the prover does not control. FlashProve's README asks for it to come from ["a party your user trusts, never from the server being checked or from files sent with the proof"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L147-L148). This benchmark does the same: the verifier is always given the commitment from our own record. Some systems draw a fresh secret each time they commit, so nobody can recompute such a commitment from public weights. For those, our Model check shows the weight change with the system's own digest tool.
+Something outside the proof system has to connect that commitment digest to a known model, whether through an official release, an audit report, or a shared registry. Just as importantly, the verifier must obtain that commitment from a source the prover cannot overwrite. FlashProve's README warns that the commitment must come from ["a party your user trusts, never from the server being checked or from files sent with the proof"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/README.md#L147-L148). Our benchmark enforces that rule strictly: the verifier always receives the commitment from the harness's own record of the commit step. (For systems that mix fresh randomness into each commitment so that outsiders cannot recompute the digest from public weights alone, our Model check verifies weight binding using the system's own commitment tool.)
 
-### "Integer model"
+### 2. "Integer model"
 
-A proof needs arithmetic that every run reproduces bit for bit. The floating point of a serving engine does not give that: its results depend on the order of operations. So the model a system proves is a quantized copy with exactly specified arithmetic, and the statement is about the copy. FlashProve's copy is in integers throughout. SASH's keeps steps in 16-bit floating point with a fixed rounding rule for its non-linear operations.
+A proof system requires arithmetic that produces the exact same bits on every run. Standard GPU floating-point inference does not: because floating-point addition is non-associative, thread scheduling and batching change rounding in the low bits. To make inference deterministic and provable, every prover defines a quantized or fixed-point copy of the model with exact rounding rules, and proves *that copy*. FlashProve converts the entire forward pass to integers; SASH keeps intermediate activations in 16-bit floating point with deterministic rounding rules for non-linearities.
 
 :::quote https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L58-L60 FlashProve, guide/known-limits.md at 9e2bdd8
 Proofs are about the integer model, quantized and fixed-point. How far its outputs track the original floating-point model's is a measurement, not part of any proof
 :::
 
-That measurement is our Fidelity check. A system could otherwise make proving cheap by proving a model that has been quantized into something else.
+That external measurement is our Fidelity check. Without it, a system could quantize a model down to junk just to make proving cheap.
 
-### "Each checked token"
+### 3. "Each checked token"
 
-A proof covers the positions it names. A proof of the next token after a prompt and a proof of all 512 tokens of a reply are different statements. For a design that proves a whole window in one pass, the proving costs the same and the difference is the cost of generating the reply. And a reply cut short can verify as a shorter reply. This is why the [[request]] of this benchmark requires every reply token to be checked, and why the Reply check tampers with the first, the last and an interior token.
+A proof only vouches for the token positions it checks. Proving the first generated token after a prompt is a much smaller statement than proving all 512 tokens of a complete reply. (For architectures that prove a full token window in one pass, the proving step itself costs roughly the same either way, while generating the 512 tokens sequentially adds the generation cost.) Similarly, if a verifier does not enforce the reply length, a truncated reply can pass as a valid shorter reply. That is why our benchmark [[request]] requires every system to prove all 512 reply tokens, and why our Reply check tampers with the first, last, and an interior token.
 
-### "Top choice"
+### 4. "Top choice"
 
-The decoding rule is part of the statement. Under exact match, each reply token must be the highest-scoring token of the committed model at its position. The alternative is a tolerance: the token must be among the top few, or within a margin of the top score. A tolerance is easier to meet when the proved arithmetic differs from the arithmetic that produced the reply, and it is a weaker statement, because it leaves the prover a choice.
+The decoding rule is baked into the statement. Under exact-match greedy decoding, every reply token must be the single highest-scoring token (the argmax) of the committed model at that position. An alternative is to prove a relaxed tolerance, allowing any token within the top-k choices or within a score margin of the top token. Relaxing the statement to a tolerance makes it easier to bridge numerical drift between a floating-point serving engine and an integer prover, but it also gives a dishonest prover room to steer outputs among the permitted tokens.
 
-### The joins
+### 5. Stitching segments together
 
-When a computation is proved in pieces, the statement has to cover the seams. SASH's [documentation](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md) says how its pieces are tied: "The residual stream leaving a segment and the keys and values a block writes are committed as their own trees, and `boundary-grid` compares each such root with the root the consuming segment committed for its input." Its claim card lists sixteen edges, each marked as [[bound]]: twelve inside a segment, two between segments, and two at the ends, where the embedding row enters and the token is chosen.
+When a prover breaks a forward pass into per-layer or per-block segments, the statement is only as strong as the checks at the seams. SASH's [statement documentation](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/docs/statement.md) explains how it links segments: "The residual stream leaving a segment and the keys and values a block writes are committed as their own trees, and `boundary-grid` compares each such root with the root the consuming segment committed for its input." SASH's claim card enumerates sixteen boundary edges, each marked as [[bound]]: twelve internal to a segment, two between adjacent segments, and two at the input embedding and output argmax.
 
-Fourteen of the sixteen have a switch that turns their check off, whose name starts with `--unsound-skip-`: the publisher's own label for a proof that would say less. Its [README](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md) adds: "A run with a skip in effect is a control, never a result." This benchmark holds to the same rule.
+Notably, fourteen of those sixteen checks in SASH have a command-line flag that disables them, prefixed with `--unsound-skip-` so nobody mistakes a skipped check for a full proof. As SASH's [README](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/README.md) states: "A run with a skip in effect is a control, never a result." We enforce that same rule across our harness.
 
-### How strong, and for what
+### 6. Soundness bounds and what they cover
 
-A [[security level]] belongs to a specific object. SASH's code sets the parameters of each segment proof for ["100 conjectured bits"](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L7-L28), and its claim card records no stated level for a whole grid of segments. FlashProve states a bound of ["about q/2^124 + 2^-101 after q hash queries"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L70) for a verifier written in the Lean proof assistant, and adds that this figure is not "claimed for the C++ programs", which are the ones this benchmark runs.
+A [[security level]] always applies to a specific scope. SASH configures each individual segment proof for ["100 conjectured bits"](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/eb95bfa887299d1637550228d42086c27cbb2b3b/prover/src/util.rs#L7-L28), and its documentation states no combined soundness bound for an entire grid of segments. FlashProve states a bound of ["about q/2^124 + 2^-101 after q hash queries"](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/what-is-proved.md#L46-L70) for its formal specification in the Lean proof assistant, while explicitly noting that this theorem is not "claimed for the C++ programs" that users and benchmarks actually run.
 
-Read every stated level for three things: per piece or for the whole, proven or conjectured, for the protocol or for the program. Errors also add. A level per piece is not the level of the whole, and a level per proof is not the level of a day's proofs: FlashProve's [claim card](repo:systems/flashprove/claim.yaml) records its publisher's sentence that N proofs handed in at once "cost N times that error".
+Whenever you read a stated security level, check three things: whether it applies to a single component or a full reply, whether it is mathematically proved or conjectured, and whether it covers the paper protocol or the executable verifier binary. Remember too that soundness errors accumulate across segments and batches: as FlashProve's [claim card](repo:systems/flashprove/claim.yaml) quotes, checking a batch of N proofs together "cost N times that error".
 
-### What is left over
+### 7. What remains outside the statement (the residual)
 
-Every statement leaves something a dishonest prover can still do. A claim card calls this the [[residual]]. FlashProve's list includes: ["A proof names no client or time."](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L51-L55) A relying party needs the residual as much as the statement, since it is the list of things to cover by other means.
+Even when every check holds, every statement leaves room for things a dishonest operator can still do without invalidating the proof. On our claim cards, we call this the [[residual]]. For example, FlashProve's documentation notes: ["A proof names no client or time."](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/known-limits.md#L51-L55) For a relying party, reading the residual is just as important as reading the positive statement, because the residual is the exact list of gaps your surrounding system has to close by other means.
 
-## The claim card
+## How we record statements on claim cards
 
-All of the above is recorded per system in a [[claim card]]: the relation, the security notion and level, the assumptions, what is bound, the residual. Every field is copied from the system's own documents at a pinned commit, with a link to the line. Where the documents are silent the card reads "not stated", which records silence and not the absence of a property. Each card records whether the system's maintainers have reviewed it. As of 12 November 2026, neither of the two cards has been. A card copies or cites: where it sums up several lines of a document in a sentence of its own, the link shows the lines.
+We record all of these details for each system in a structured [[claim card]]: the mathematical relation, the security level and its assumptions, the list of bound edges, and the residual. Every field is copied from the publisher's own documentation at the pinned commit, with a direct link to the source lines. Where the publisher's documentation does not address a question, we write "not stated" (recording silence rather than assuming the property fails). Each card also tracks whether the upstream maintainers have reviewed our summary; as of 12 November 2026, neither card has been reviewed by upstream.
 
-## What the benchmark does with it
+## How our benchmark handles differing statements
 
-It cannot make two different sentences comparable. It does three smaller things.
+No benchmark can magically make two different mathematical statements identical, so we do three concrete things instead:
 
-- **It fixes the request**, so that every system is asked for the same coverage: one prompt, one reply, every token checked.
-- **It tests the bindings it can test.** Changing the model, the prompt or the reply must make the verifier refuse. The [checks page](/checks) defines each test, and a page of the policy track lets you [try them](/proof-of-inference#exp-tamper).
-- **It prints what it cannot test**, as stated: the security level, what is hidden, what must be trusted. Those are the petals of the [[glyph]] that are read from documents, not taken from our checks.
+- **We standardize the workload.** Every system on a model rung is given the exact same [[request]]: one 512-token prompt, one 512-token reply, greedy decoding, with every reply token covered.
+- **We empirically test input bindings.** Modifying the committed weights, the prompt, or the reply must cause the verifier to reject the proof. Our [checks page](/checks) defines each test, and you can [explore them interactively](/proof-of-inference#exp-tamper).
+- **We surface what cannot be tested empirically.** Properties like mathematical soundness, weight hiding, formal verification reach, and setup trust are displayed in the five-petal [[glyph]] directly from the publisher's documented statements.
 
-The next two pages are introductions. [Inference, for cryptographers](/inference) is for readers who know proof systems. [Proof systems, for ML engineers](/proof-systems) is for readers who know models.
+Next up are two bridging primers: [Inference, for cryptographers](/inference) introduces transformer serving for readers who already know proof systems, while [Proof systems, for ML engineers](/proof-systems) introduces algebraic proofs for readers who already know machine learning.

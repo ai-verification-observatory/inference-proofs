@@ -1,78 +1,80 @@
-A company says its service answers with a certain model. A lab tells a regulator that the model it sells is the model that was tested. A state tells another state that its data centres serve only approved models. In each case the listener is in the same position: the claim is about a computation that only the claimant can see. This page says what it means to verify such a claim, why that is hard for AI, and which small part of the problem this site covers.
+A cloud provider claims its API is serving a specific frontier model. A developer tells a regulator that the model in production is the exact one that passed pre-deployment testing. One government tells another that its declared data centres only run approved models. In every case, the person on the receiving end faces the same problem: the claim is about a computation running on someone else's machines, behind closed doors.
 
 :::note In short
-A proof of inference can show one thing: that a given reply is what a model fixed in advance gives for a given prompt. Whoever checks it needs no copy of the weights. A proof cannot show that the reply was served, that the machine did nothing else, or that the model is safe. The systems that make such proofs are research prototypes, and the table on the next page is everything this site has run.
+A cryptographic proof of inference establishes one specific fact: that a given reply is the output of a pre-committed model for a given prompt. Anyone can check that proof without holding the model's weights. A proof cannot tell you whether that reply was actually served to a user, whether the cluster ran other jobs on the side, or whether the model itself is safe. The systems that generate these proofs today are research prototypes, and the table on the next page shows every system we have run so far.
 :::
 
 ## Claims nobody outside can check
 
-You send a prompt to a service and a reply comes back. The service says a particular model wrote it. You hold the prompt and the reply. You do not hold the model, and nothing in the reply says which model produced it.
+When you send a prompt to an inference API and receive a reply, the provider tells you which model wrote it. You have the prompt and the reply, but you do not have the model, and nothing in the text of the reply proves which weights produced it.
 
-Researchers who tested commercial services offering four open models in 2024 found that ["11 out of 31 endpoints serve different distributions than reference weights released by Meta"](https://arxiv.org/abs/2410.20247). The causes they name are that providers "may quantize, watermark, or finetune the underlying model", without saying so. A [2026 study](https://arxiv.org/abs/2603.01919) of unofficial resale services reports "identity verification failures in 45.83% of fingerprint tests", and concludes: "fingerprint-based evidence consistent with deceptive model claims in a subset of audited endpoints".
+That gap is not hypothetical. Researchers who tested commercial APIs serving four open-weights models in 2024 found that ["11 out of 31 endpoints serve different distributions than reference weights released by Meta"](https://arxiv.org/abs/2410.20247), noting that providers "may quantize, watermark, or finetune the underlying model" without disclosing it. A [2026 study](https://arxiv.org/abs/2603.01919) of third-party proxy and resale endpoints reported "identity verification failures in 45.83% of fingerprint tests", finding "fingerprint-based evidence consistent with deceptive model claims in a subset of audited endpoints".
 
-Regulators meet a wider version of this gap. The 2026 [International AI Safety Report](https://internationalaisafetyreport.org/publication/international-ai-safety-report-2026) puts it as a matter of evidence: "Information asymmetries limit access to evidence about general-purpose AI systems."
+Regulators run into a broader version of the same problem. As the 2026 [International AI Safety Report](https://internationalaisafetyreport.org/publication/international-ai-safety-report-2026) puts it: "Information asymmetries limit access to evidence about general-purpose AI systems."
 
 ## What verification means
 
-The word is used in four ways, and arguments go wrong when they are mixed.
+People use the word "verification" to mean four distinct things, and discussions quickly get muddled when those meanings are conflated.
 
-| Sense | What it is | Who does it |
+| Sense | What it means | Who does it |
 |---|---|---|
-| Checking a claim | Finding evidence that a claim is true | Anyone with the evidence |
-| Finding compliance | Deciding that a party has kept a rule or a treaty | An institution, using everything it knows |
-| Formal verification | A mathematical proof that software meets its specification | Specialists, with proof tools |
-| Running a verifier | Running the program that checks a cryptographic proof and answers yes or no | A computer |
+| Checking a claim | Gathering evidence to test whether a stated fact holds | Anyone given the evidence |
+| Assessing compliance | Judging whether a party has abided by a law, contract, or treaty | An institution weighing all available evidence |
+| Formal verification | Proving mathematically that a piece of software satisfies a formal specification | Verification engineers using theorem provers |
+| Running a verifier | Executing a program that checks a cryptographic proof and outputs accept or refuse | Any computer |
 
-A [RAND report](https://arxiv.org/abs/2507.15916) on verifying AI agreements defines the first: "The act or process of checking whether a claim is true, such as checking whether a party has complied with a requirement as claimed." The tools this site runs are of the fourth kind. Such a tool can supply evidence for the first two. It is never the second by itself: as a [report to the US Congress](https://www.everycrsreport.com/reports/R41201.html) on arms control says, "verification is almost always a matter of judgment".
+A [RAND report](https://arxiv.org/abs/2507.15916) on verifying international AI agreements defines the first sense as: "The act or process of checking whether a claim is true, such as checking whether a party has complied with a requirement as claimed." The systems we benchmark on this site belong to the fourth row: they produce cryptographic proofs checked by a verifier program. Running a verifier program can supply one piece of evidence for checking a claim or assessing compliance, but it never settles compliance on its own. As a [US Congressional Research Service report](https://www.everycrsreport.com/reports/R41201.html) on arms control observes, "verification is almost always a matter of judgment".
 
-The working definition for these pages: to verify a claim is to check it against evidence that holds up even if the claimant is not trusted.
+Across these pages, we use a practical working definition: verifying a claim means checking it against evidence that holds up even when you do not trust the party making the claim.
 
-Holding up does not mean certainty. "There is no such thing as absolute, 100 percent verification", [George Shultz told the US Senate](https://www.armscontrol.org/act/2007-06/looking-back-intermediate-range-nuclear-forces-treaty), defending a missile treaty whose verification he judged effective. The useful questions are narrower: which violation, how large, detected how fast, with what confidence.
+That still does not mean 100 percent certainty. "There is no such thing as absolute, 100 percent verification", [George Shultz told the US Senate](https://www.armscontrol.org/act/2007-06/looking-back-intermediate-range-nuclear-forces-treaty) while defending the INF missile treaty. The useful questions are always concrete: what kind of violation, how large, caught how quickly, and under what assumptions.
 
-## Why it is hard for AI
+## Why inference is hard to verify
 
-- **The evidence is the secret.** The direct way to check which model answered is to look at the model. A model's weights are a trade secret of its owner, and prompts are often private. Researchers call this the [transparency-security trade-off](https://www.oxfordmartin.ox.ac.uk/publications/verification-for-international-ai-governance): the more a party shows, the more it gives away.
-- **The computation is costly to rerun.** One reply of a large model is trillions of arithmetic operations on hardware few people have.
-- **The claimant runs the machine.** Whatever logs or reports exist come from the party being checked.
+Three obstacles get in the way whenever you try to check which AI model produced a reply:
 
-Each way of checking gives something up against one of these. Rerunning needs the weights and the hardware. Trusted hardware needs trust in a chip maker and in a machine the operator holds. A proof needs neither, and costs the operator a large multiple of serving. [Three ways to check](/three-ways) compares them.
+- **The model weights are proprietary.** The most direct way to check which model answered is to inspect the model and run it yourself. For closed models, the weights are the owner's core trade secret, and user prompts are often confidential too. Policy researchers call this the [transparency-security trade-off](https://www.oxfordmartin.ox.ac.uk/publications/verification-for-international-ai-governance): the more an operator reveals to prove compliance, the more sensitive IP or private data it exposes.
+- **Re-running inference is expensive.** Generating a single reply from a frontier model takes trillions of arithmetic operations on specialized GPU clusters.
+- **The operator controls the hardware.** Any ordinary server log or API metadata comes from machines owned and administered by the very party whose claim you want to check.
 
-## A wide field, and one corner of it
+Every technical approach to checking inference trades off against these three constraints. Re-running the model requires access to the weights and spare GPUs. Hardware attestation avoids sharing the weights, but requires trusting the chip manufacturer and assuming the operator has not physically tampered with the server. A cryptographic proof requires neither the weights nor trusted hardware, at the cost of making the operator do orders of magnitude more compute. [Three ways to check](/three-ways) compares these options directly.
 
-A [bibliography of the research](https://github.com/WHodgkins/AI-Verification-Papers), which these pages draw on, defines the field this way:
+## A wide field, and our small corner of it
+
+The [AI Workload Verification Papers](https://github.com/WHodgkins/AI-Verification-Papers) bibliography, which we draw on throughout these pages, describes the broader research area like this:
 
 :::quote https://github.com/WHodgkins/AI-Verification-Papers AI Workload Verification Papers, a bibliography built on a reading list by Will Hodgkins
 AI workload verification establishes properties of computations performed on AI hardware — for example, whether accelerators are being used for training or inference, which model is running, whether required safeguards are active, or whether information has left an approved environment.
 :::
 
-This site covers part of one item of that list, "which model is running": for one reply at a time, with one family of techniques, cryptographic proofs of inference. The other items need other tools: chip tracking, inspections, sensors on power and network, trusted hardware. The pages that follow say where a proof stops, because most of what a serious arrangement needs lies beyond it.
+This benchmark focuses on a single slice of that problem: verifying *which model produced a given reply*, one request at a time, using cryptographic proofs of inference. Answering the other questions in that quote requires very different tools, including hardware telemetry, physical inspections, power and network monitoring, and hardware enclaves. In the pages ahead, we spend just as much time on where cryptographic proofs stop as on how they work, because almost every real-world governance proposal depends on what happens outside the proof.
 
-## Who would rely on such evidence
+## Who might rely on inference proofs
 
-| Who relies | The claim | What exists today |
+| Who relies on the check | The claim they want checked | What is used or demonstrated today |
 |---|---|---|
-| A customer | The model I pay for wrote this reply | Statistical tests from outside, and attestation by hardware |
-| An auditor or a regulator | The model that was evaluated is the model that is deployed | Shown with proofs on small models and with trusted hardware on larger ones. An [open problem](https://arxiv.org/abs/2407.14981) at scale |
-| A security team | Only replies of our own model leave this server | [Signing the traffic](https://www.anthropic.com/rsp/roadmap) and [recomputing inference on a trusted server](https://www.anthropic.com/research/provable-inference), at Anthropic |
-| A state | Another state's declared data centres do what it declared | Proposals, of which few parts are built |
+| An API customer | The model I paid for actually wrote this reply | External black-box fingerprinting tests, and GPU hardware attestation |
+| An auditor or regulator | The model deployed in production is the one that was evaluated | Demonstrated with proofs on small models and with trusted hardware on larger ones; still an [open problem](https://arxiv.org/abs/2407.14981) at frontier scale |
+| An internal security team | Only replies from our approved model leave this server | [Signing inference traffic](https://www.anthropic.com/rsp/roadmap) and [recomputing inference on a trusted server](https://www.anthropic.com/research/provable-inference) (at Anthropic) |
+| A party to an international agreement | Another state's declared data centres only run declared workloads | Conceptual architectures and research prototypes |
 
-The needs are documented. Nothing shows that cryptographic proofs will meet them: where something is deployed today, it is usually one of the alternatives that [Three ways to check](/three-ways) compares. And none of the laws and official texts we read asks for a proof. The [EU AI Act](http://publications.europa.eu/resource/celex/32024R1689), for instance, asks providers of general-purpose models for technical documentation, and providers of those with systemic risk also for model evaluations and for cybersecurity protection of the model. A proof could support one of them: that the model evaluated is the model deployed.
+While these use cases are widely discussed, it is still an open question whether cryptographic proofs will be the tool chosen for them. Where verification is deployed in practice today, it typically relies on the alternatives covered in [Three ways to check](/three-ways). Nor do current regulations require cryptographic proofs. For example, the [EU AI Act](http://publications.europa.eu/resource/celex/32024R1689) requires providers of general-purpose models to maintain technical documentation, and requires providers of models with systemic risk to conduct model evaluations and protect model weights. A proof of inference could in principle help show that the deployed model matches the evaluated one, but no regulation mandates it.
 
-## A word in official texts
+## Verification in recent policy statements
 
-In 2026 "verification" appeared in government statements about AI. The UK government [describes](https://www.gov.uk/government/news/britain-steps-up-national-defences-against-growing-ai-risks) "the emerging field of AI verification" as one that "helps check that claims about how AI systems have been developed, tested and assessed stands up to scrutiny". The [Paris Call](https://www.elysee.fr/en/emmanuel-macron/2026/11/09/paris-call-for-ai-safety-and-security) of November 2026, signed as of 12 November 2026 by seventeen governments and ten companies, lists "transparency, incident reporting, risk management and verification" as areas needing "tangible and immediate results".
+In 2026, the term "verification" began appearing regularly in official government statements on AI. The UK government [describes](https://www.gov.uk/government/news/britain-steps-up-national-defences-against-growing-ai-risks) "the emerging field of AI verification" as work that "helps check that claims about how AI systems have been developed, tested and assessed stands up to scrutiny". Similarly, the [Paris Call](https://www.elysee.fr/en/emmanuel-macron/2026/11/09/paris-call-for-ai-safety-and-security) of November 2026, signed as of 12 November 2026 by seventeen governments and ten AI companies, names "transparency, incident reporting, risk management and verification" as areas requiring "tangible and immediate results".
 
-Neither text names a tool, and most of the concrete work behind such statements is on hardware and inspections. This site takes no position on whether states should agree to limit AI development. Its question is the conditional one: if a claim about inference has to be checked, what can be checked today, how, and at what cost.
+Neither statement endorses a specific technical mechanism, and most government-funded work in this area focuses on hardware security and inspections rather than cryptography. We take no position on whether states should negotiate limits on AI development. Instead, we ask a conditional question: *if* someone needs to verify a claim about model inference without trusting the operator, what actually works today, what does it prove, and what does it cost?
 
-Verification also costs the party being checked, and it can be misused. The RAND report warns that verification, "if implemented without adequate restraint, could compromise sensitive information, hinder innovation, and centralize information and power". The scheme on [the treaty page](/treaty) records a fingerprint of every prompt and reply in a state's data centres and gives an inspectorate samples of them. These pages describe what such a scheme can show. They do not say it should be built.
+Verification mechanisms also carry real costs and risks of their own. The RAND report cautions that verification, "if implemented without adequate restraint, could compromise sensitive information, hinder innovation, and centralize information and power". For instance, the architecture we examine on [the treaty page](/treaty) logs a fingerprint of every prompt and reply crossing a data centre's boundary and hands random samples to an inspectorate. We explain how such a design works and where it can fail; we do not advocate building it.
 
-:::note Who is speaking
-Several sources these pages quote build provers or verification hardware: Anthropic, the Singapore AI Safety Hub, Attestable and Amodo Design. Each is named where it is quoted. One of them bears on this site itself: Anthropic publishes FlashProve, a system on the ladder, and parts of this site's code and text, these pages included, are drafted with Claude, Anthropic's model. The [mandate](/mandate) names who runs the site and lists its conflicts of interest.
+:::note Conflicts and authorship
+Several organizations quoted in these pages build inference provers or verification hardware, including Anthropic, the Singapore AI Safety Hub, Attestable, and Amodo Design. We identify each organization whenever we quote its work. One conflict of interest applies directly to us: Anthropic publishes FlashProve, one of the systems on our ladder, and parts of this project's code and prose (including drafts of these Learn pages) were written with the help of Claude, Anthropic's model. See our [mandate](/mandate) for who operates this site and how our rules are enforced.
 :::
 
-## The rest of this track
+## Where to go next in this track
 
-- [What a proof of inference is](/proof-of-inference): what the file is, what an accepted proof tells you, and a longer list of what it does not.
-- [Three ways to check](/three-ways): rerunning, trusted hardware and proofs, and what each asks you to trust.
-- [A treaty, stage by stage](/treaty): two states and an inspectorate, stage by stage, with each stage marked by what stands behind it.
-- [Before you rely on a proof](/before-you-rely): the questions to ask, and where this site answers them.
+- [What a proof of inference is](/proof-of-inference): how a cryptographic proof binds a model commitment, a prompt, and a reply, what an accepted proof guarantees, and nine things it does not tell you.
+- [Three ways to check](/three-ways): how re-running inference, trusting hardware enclaves, and checking cryptographic proofs compare on trust assumptions and cost.
+- [A treaty, stage by stage](/treaty): how proofs of inference would fit into a bilateral AI agreement, marking what is running today versus what remains unbuilt.
+- [Before you rely on a proof](/before-you-rely): nine questions to ask any prover team, and how to read a row on our benchmark ladder.

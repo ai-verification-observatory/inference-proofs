@@ -1,82 +1,82 @@
-A proved reply costs a multiple of a served one, and that multiple is the one figure this site ranks by. This page says what is inside the figure, where a prover's time goes, and how to read a cost without being misled by it.
+Proving a reply costs a multiple of serving it without a proof, and that multiple is the single figure this benchmark ranks by. This page explains how the multiple is defined, where a prover spends its time, and how to read a cost claim without being misled.
 
 ## The figure
 
 :::figure session
-One session, from a cold start. Proofs are released in groups, because a prover can share work across a batch of requests and release the batch's proofs together. The steady interval runs from the release of the first group to the release of the last. A generation phase, where a system has one, counts in m too.
+One session from a cold start. Proofs are released in groups because a prover can batch work across requests and emit their proofs together. The steady interval runs from the release of the first group to the release of the last. Where a system generates replies in a separate phase before proving, that generation time is included in m as well.
 :::
 
-Two quantities in GPU-seconds of the same kind of GPU, and their ratio.
+The multiple compares two measurements in GPU-seconds on the same hardware:
 
-- **m** is the GPU time of the steady interval, divided by the number of replies released after the first group. Where a system generates its replies in a phase of its own, before proving, that phase's GPU time divided by all the session's replies is added. So m is what one more proved reply costs once a system is running, and generating the reply is always inside it.
-- **b** is what one served reply costs: the publisher's own release of the model, on a pinned serving engine with its defaults, at full load.
-- **The [[multiple]]** is m over b, on one model. Both halves run on the same GPU at the same price, so the multiple is the same in dollars.
+- **m** is the GPU time of the steady interval divided by the number of replies released after the first group. When a system generates its replies in a separate phase before proving, that phase's GPU time divided by all replies in the session is added to m. In short, m is the marginal GPU cost of one more proved reply once the prover is warmed up, always including the work of generating the reply itself.
+- **b** is the GPU cost of one unproved reply: the publisher's release of the model running on a pinned serving engine with default settings at full load.
+- **The [[multiple]]** is m divided by b on the same model. Because both numerator and denominator run on the same GPU type, the ratio in GPU-seconds is also the ratio in hardware dollars.
 
 :::measured rows
-The rows of the board. Under each figure: what was timed, and over how many sessions.
+The measured rows on the board today. Under each figure: the timing scope and the number of sessions.
 :::
 
-A system whose sessions release too few groups, or uneven ones, has no steady state. It gets no multiple. Its row prints the cost of its whole sessions over b, labelled as whole sessions, and is placed below every row that has a multiple.
+If a system releases too few groups in a session, or releases them at uneven rates, it never reaches a measured steady state and receives no multiple. Instead, its row reports the whole-session GPU cost divided by b, explicitly labelled as whole-session, and sits below every row that achieved a steady multiple.
 
 ## What is inside m
 
-A prover does six jobs for each reply, and they scale differently.
+To produce and prove a reply, a system carries out six distinct jobs that scale in different ways:
 
-1. **Generate the reply.** Under exact match the reply has to be produced by the committed copy of the model, token by token. A serving engine does this job with floating point kernels and hundreds of requests batched together. The one generator run here so far does not: FlashProve's integer-model package [states](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/integrations/vllm/integer_model/README.md#L18-L19) "greedy decoding, one sequence at a time, one GPU".
-2. **Record the witness.** Every intermediate value of the pass that will be proved is kept: each layer's output at each position.
-3. **Commit to what cannot be reduced away.** A prover that works on a trace of the whole computation commits to every recorded value. A sumcheck prover passes claims from layer to layer and commits mainly to the values that enter the non-arithmetic steps. Committing means hashing the values or doing elliptic-curve arithmetic on them, value by value.
-4. **Prove the linear steps.** The matrix products, by [[sumcheck]] or by a random check inside the trace. The work is in proportion to the size of the matrices.
-5. **Prove the rest.** Each activation, normalisation, rounding and comparison, by a [[lookup argument]] or a range check.
-6. **Open and assemble.** Open the model commitment and the witness commitments at the random points the proof arrived at, and write the file.
+1. **Generate the reply.** Under an exact-match statement, the reply must be produced token by token using the committed model's exact arithmetic. Standard serving engines run floating-point kernels across hundreds of batched requests at once. Prover generators often do not: FlashProve's integer-model package, for instance, [notes](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/integrations/vllm/integer_model/README.md#L18-L19) that it runs "greedy decoding, one sequence at a time, one GPU".
+2. **Record the witness.** The prover runs a forward pass that saves every intermediate activation that the proof will need: each layer's output at every token position.
+3. **Commit to what cannot be reduced away.** A trace-based prover commits to every recorded intermediate value. A sumcheck prover reduces claims from layer to layer and commits mainly to the activations entering non-arithmetic operations. Either way, committing means hashing those values or multiplying elliptic-curve points by them, element by element.
+4. **Prove the linear steps.** The matrix multiplications are proved via [[sumcheck]] or random linear checks inside the trace, scaling with the size of the weight matrices.
+5. **Prove the non-linear steps.** Every activation function, normalisation, rounding step, and comparison is proved through a [[lookup argument]] or range check.
+6. **Open and assemble.** Finally, the prover opens the weight commitment and witness commitments at the random evaluation points chosen during the protocol, and writes out the proof file.
 
-Two published breakdowns of provers built on sumcheck both put more than half of the time outside the matrix products. They do not split it the same way. The [DeepProve](https://eprint.iacr.org/2026/1112) authors report, for GPT-2 at 512 tokens on 48 CPU threads, 57 % of the prover's time in committing to the witness and 35 % in the interactive proof. Inside the interactive proof, the linear algebra is 15 %. The [zkGPT](https://www.usenix.org/system/files/usenixsecurity25-qu-zkgpt.pdf) authors report, for GPT-2 on 32 threads, 12.1 of 21.8 seconds in lookups and 0.8 seconds in the step they call commit advice. Those are their figures for their workloads, not this benchmark's. In both, the matrix products are the small part.
+Two published timing breakdowns of sumcheck-based provers both find that more than half of the prover's time goes to steps outside the matrix multiplications, though the two systems bottleneck in different places. For GPT-2 at 512 tokens on 48 CPU threads, the [DeepProve](https://eprint.iacr.org/2026/1112) authors report that 57 % of prover time goes to committing to the witness and 35 % goes to the interactive proof, with linear algebra taking just 15 % of the interactive proof. For GPT-2 on 32 CPU threads, the [zkGPT](https://www.usenix.org/system/files/usenixsecurity25-qu-zkgpt.pdf) authors report 12.1 out of 21.8 seconds in lookup arguments and 0.8 seconds in the step they call commit advice. Those numbers come from the authors' own workloads rather than this benchmark, and in both cases the matrix products are the smaller share of the work.
 
-Where a system generates its replies in a phase of its own, before proving, the harness times that phase apart, and the row prints m in two parts: generation and proving. The bar under a multiple on the [ladder](/) is that split. It answers a question a total cannot: how much of a system's cost is producing the reply, and how much is everything after it. The second part is not only cryptography: it includes the pass that records the witness.
+When a system generates its replies in a separate phase before proving begins, our harness times that phase separately and splits m into two parts: generation and proving. The two-tone bar underneath a multiple on the [ladder](/) shows that split. It tells you how much of a system's cost comes from running its integer generator and how much comes from everything after, including both witness recording and cryptography.
 
-Two costs are outside m. The commitment to the model is made once per session, before any request. It is not printed on its own: it is inside the whole-session cost, which starts when the commit step starts. And checking is the verifier's work, not the prover's: the row gives the verify time and the proof size per reply.
+Two costs sit outside m. First, committing to the model weights happens once per session before any request arrives; it is excluded from steady-state m and included in the whole-session figure. Second, verification is paid by the relying party rather than the prover, so each row reports verification time and proof size separately.
 
 ## Why the multiple is large
 
-Steps 3 to 6 touch every number of the forward pass again, several times, with operations that are each far more expensive than the one that produced the number.
+Steps 3 through 6 revisit every number in the forward pass multiple times, replacing fast hardware arithmetic with much heavier finite-field and cryptographic operations.
 
-A GPU multiplies and adds 8-bit or 16-bit numbers in bulk. A proof works in a [[field]]. In a field larger than 2^128, each operation takes ["at least about ten 64-bit machine multiplications"](https://a16zfrontier.com/posts/article/measuring-snark-performance-frontends-backends-and-the-future/), by a 2022 estimate. The 31-bit and 64-bit fields that GPU provers favour are cheaper, and need an extension on top for their random challenges. A commitment then hashes each value or multiplies an elliptic-curve point by it. A lookup costs several field operations and a share of a commitment for one comparison that a GPU does in one instruction.
+During ordinary inference, a GPU multiplies and adds 8-bit or 16-bit numbers in massive parallel blocks. A cryptographic proof works over a finite [[field]]. In a field larger than 2^128, a single field multiplication takes ["at least about ten 64-bit machine multiplications"](https://a16zfrontier.com/posts/article/measuring-snark-performance-frontends-backends-and-the-future/) by a 2022 estimate. The 31-bit and 64-bit fields favoured by GPU provers are much faster per element, though random challenges must then be drawn from an extension field on top. Committing to the trace hashes every value or multiplies an elliptic-curve point by it, and a lookup argument spends several field operations plus a commitment entry to verify a single comparison that a GPU executes in one clock cycle.
 
-These operations buy a check that needs neither the weights nor the computation. A prover gets cheaper mostly by doing fewer of them per number of the model, and that is where the [design families](/architectures) differ.
+That overhead is the price of producing a check that requires neither the model weights nor re-execution. Provers become cheaper mainly by doing fewer cryptographic operations per model parameter, which is where the [design families](/architectures) diverge.
 
 ## Reading a cost without being misled
 
-Each rule of the benchmark's cost figure exists because there is a way to make a prover look cheaper without making it cheaper.
+Every rule in our cost definition exists to close a way of making a prover look cheaper on paper without doing less work.
 
-| A cost can be lowered on paper by | The rule |
+| A cost figure can be lowered on paper by | How the benchmark prevents it |
 |---|---|
-| Leaving out start-up, or the commitment, and not saying so | Both scopes are printed and labelled: steady, and the whole session |
-| Counting replies by batch membership | Replies are counted by when their proofs were released |
-| Checking one token of a reply, not all of them | Every reply token must be covered by an accepted proof |
-| Comparing with serving at low load | The baseline is taken at full load, found by raising the concurrency until the rate stops rising |
-| Reporting only the lowest of several runs | Three sessions count, one per slot, and each value is printed |
-| Quantizing the model until it is cheap to prove | The Fidelity check, and the KL figure printed beside it |
-| Not generating the reply with the proved arithmetic | Generation is inside m |
+| Omitting warm-up or model commitment time without saying so | Both scopes are printed and labelled side by side: steady-state and whole-session |
+| Counting replies by batch membership rather than completion | Replies are counted strictly by when their proof files are written and released |
+| Proving only one token of a reply instead of the whole output | Accepted proofs must cover all 512 reply tokens |
+| Comparing against a serving baseline running at low concurrency | The serving baseline is measured at full load, found by raising concurrency until throughput plateaus |
+| Cherry-picking the lowest-cost single run | A ranked row requires three sessions, one per slot, with every session's value printed |
+| Quantizing the model aggressively until proving is cheap | The Fidelity check gates ranking, and the KL divergence from the publisher's weights is printed beside it |
+| Generating replies outside the proved arithmetic | Reply generation is timed and counted inside m |
 
-Three limits remain, and the pages say so where they print a figure. The baseline is one engine with its defaults, not the highest throughput anyone could reach. It serves the publisher's precision, while the prover runs a quantized copy, so the multiple mixes the cost of proving with that difference. And only GPU time is priced: CPU, memory and storage are not.
+Three practical limitations remain, and we state them wherever figures appear. First, the baseline uses one standard serving engine with default settings, not the highest throughput achievable with custom tuning. Second, the baseline serves the model at the publisher's released precision while provers run quantized copies, so the multiple combines proving overhead with that precision difference. Third, only GPU time is priced; CPU time, host RAM, and disk traffic are recorded but not folded into the ratio.
 
-A multiple is also a property of a system on one model. Two systems on two models have not been compared, whatever their multiples.
+Finally, a multiple belongs to a single model. Two systems measured on different models have not been compared, regardless of their multiples.
 
 ## From a multiple to a bill
 
-Few uses need every reply proved. If a relying party is content with a random sample, part of the cost falls with the share. Which part depends on the statement.
+Most practical uses do not require proving every single reply. If a relying party verifies a random sample of traffic, part of the proving cost drops in proportion to the sampling rate. How much of the cost drops depends on the system's statement.
 
-Under exact match, the statement every row here is run under, a reply can be proved only if the committed copy of the model generated it. A reply from an ordinary serving engine differs in some token and fails. FlashProve's [guide](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/performance.md) reports: "At exact match a reply passes only if every token is the integer model's own choice: of 96 stored replies each from stock vLLM at 16 bits and at FP8, none did". The sample is drawn after serving, so every reply has to come from the committed copy, sampled or not. The generation part of m is then paid on every reply, and only the proving part falls with the share.
+Under an exact-match statement (which every measured row on this board uses), a reply can be proved only if it was generated by the committed integer or fixed-point model. A reply generated by a standard floating-point engine like vLLM will diverge on at least one token and fail verification. As FlashProve's [guide](https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c/guide/performance.md) reports: "At exact match a reply passes only if every token is the integer model's own choice: of 96 stored replies each from stock vLLM at 16 bits and at FP8, none did". Because an operator cannot know in advance which replies will be sampled for verification, every reply has to be generated by the committed model. That means the generation component of m is paid on 100 % of traffic, while only the proving component scales down with the sampling rate.
 
 :::explore cost
-The arithmetic of a sample: the generation part on every reply, the proving part on the share that is proved.
+The arithmetic of random sampling under exact match: you pay the generation cost on every reply, and the proving cost only on the sampled share.
 :::
 
-The sum holds for a row that prints its two parts. A row with no split generates inside its proving interval, and the board cannot separate the two. The simpler sum, 1 + share × proving part, holds only if replies from an ordinary engine can be proved. That takes a statement with a tolerance, which this benchmark does not run.
+That formula applies directly to rows that separate generation from proving. When a system generates and proves inside a single combined loop, the benchmark cannot split the two costs. The simpler formula (1 + sample share × proving cost) only applies when replies served by a standard floating-point engine can be proved afterwards, which requires a statement with numerical tolerance that this benchmark does not currently run.
 
-A sample gives a [[sampled]] guarantee. Suppose an operator serves a different model for 1 reply in 100, and 1 reply in 1,000 is proved, chosen at random. Over 1,000,000 replies, 10 of the substituted ones are expected to fall in the sample, and for each the operator has no valid proof to give. The chance that none falls in it is about 1 in 22,000. A single substituted reply is caught 1 time in 1,000.
+Auditing a random sample provides a [[sampled]] guarantee. Suppose an operator quietly substitutes a cheaper model on 1 reply in 100, and a verifier checks 1 reply in 1,000 chosen at random. Across 1,000,000 replies, 10 substituted replies will fall into the sample on average, and for each of those the operator cannot produce a valid proof. The probability that all 10,000 substituted replies slip past the sample is roughly 1 in 22,000. On the other hand, a single targeted substitution will be caught only 1 time in 1,000.
 
-For this to work, the choice has to come after the reply. The operator must answer first and learn afterwards which replies it must prove, or it will prove only the ones it served honestly. The draft of Level 2 names this: "a reply chosen after serving".
+For sampling to work at all, the audit choice must happen after the reply is delivered. If the operator learns which requests will be checked before answering them, it can run the committed model on audited requests and substitute freely on the rest. The Level 2 draft calls this requirement "a reply chosen after serving".
 
 ## The verifier's side
 
-A relying party pays twice for a proof: it stores or receives the proof, and it runs the check. Both are meant to be small next to the prover's work, and they differ a great deal from one system to another: in published reports a proof is a few hundred bytes or many gigabytes, and a check takes milliseconds or hours. The rows at the top of this page print both. Read them in their own units: the verify time is in seconds of an ordinary processor, and m is in GPU-seconds. For a language model the check is not shorter than serving the reply on a GPU. Its worth is that it needs neither the GPU nor the weights. A relying party that checks a sample of a large service's traffic runs the verifier many times a day.
+A relying party pays two costs of its own: receiving and storing the proof bytes, and running the verifier program. Both are much smaller than proving, yet they vary widely across architectures: published proofs range from a few hundred bytes to tens of gigabytes, and verification times range from milliseconds to hours. The table at the top of this page lists both for every measured row. Keep the units in mind when reading them: verification time is measured in wall-clock seconds on an ordinary CPU with no GPU attached, whereas m is measured in GPU-seconds. Checking a proof on a CPU is not necessarily faster in wall-clock time than serving the reply on a GPU; its value is that the verifier needs neither a GPU nor the model weights. A relying party auditing a sample of high-volume traffic will run that verifier many times a day.

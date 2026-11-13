@@ -43,8 +43,12 @@ from .words import (
 )
 
 # what the checks do not test (the checks page)
-NOT_TESTED = ("These checks run each system's own prover and verifier. None attempts a forged "
-              "proof: soundness and weight secrecy are not tested.")  # fmt: skip
+NOT_TESTED = (
+    "These six checks run each system's own prover and verifier from the outside. They do not "
+    "attempt to cryptographically forge a proof or extract hidden weights: mathematical "
+    "soundness and weight secrecy are reported from the publisher's documentation, not proved "
+    "by our test suite."
+)
 ROW_GLYPH = 3  # the row glyph's unit in px: its arms carry their names (159 by 87 px)
 # a phone's row glyph, px a unit, no names (37.5 by 46.5 px): whole device pixels at 2x
 PHONE_GLYPH = 1.5
