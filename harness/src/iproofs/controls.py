@@ -565,7 +565,9 @@ def prove_failure(e: IProofsError) -> tuple[str, str]:
     adapter's entrypoint (the raising frame may be a library the adapter called, pathlib in
     FlashProve's P1 of 2026-11-13), our code and not the prover. Else `prover_failed`, with
     the prover's last line, so a stored trial names the reason the prover gave."""
-    lines = [line for line in e.last_lines if line.strip()]
+    every = [line for line in e.last_lines if line.strip()]
+    logged = [line.removeprefix("[log] ").strip() for line in every if line.startswith("[log] ")]
+    lines = [line for line in every if not line.startswith("[log] ")]
     frames = [_FRAME.search(line) for line in lines]
     files = [m.group(1) for m in frames if m]
     traced = any(line.startswith("Traceback (most recent call last)") for line in lines)
@@ -573,6 +575,8 @@ def prove_failure(e: IProofsError) -> tuple[str, str]:
         return "error", f"adapter raised: {lines[-1].strip()}"[:4096]
     tail = lines[-1].strip() if lines else ""
     line = f"{e.kind}: {e.message}" + (f": {tail}" if tail and tail not in e.message else "")
+    if logged:  # the prover's own reason, from its log (RFC-0018 CH-1a)
+        line += " | log: " + " / ".join(logged)
     return "prover_failed", line[:4096]
 
 

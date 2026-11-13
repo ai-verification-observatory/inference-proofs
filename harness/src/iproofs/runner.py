@@ -421,26 +421,30 @@ STATE_AFTER_COMMIT = "state-after-commit.json"  # what io held once commit ended
 _NOT_SETUP = frozenset({"state", "proofs"})  # io directories that are not setup's or commit's
 
 
-def copy_state_after_commit(src_io: Path, dst_io: Path) -> None:
+def copy_state_after_commit(src_io: Path, dst_io: Path) -> list[Path]:
     """A control prove's io as setup and commit left it (RFC-0008 P1: commit W, then prove with
     W'), not what the run's own prove wrote after it (a work directory an adapter makes anew, a
-    build cache). io/state's recorded entries are copied. Every other directory setup or commit
-    left in io (FlashProve's /io/fit, the weights cp_commit recorded) is linked file by file:
-    no second copy of the weights; a control prove that rewrites a linked file (P1 writes W'
-    there) rewrites the run's, which nothing reads once the run's prove and verify ended. A run
-    with no record (made before it was kept) gives its whole state, as before."""
+    build cache): io/state's recorded entries and every other directory setup or commit left in
+    io (FlashProve's /io/fit, the weights cp_commit recorded), as real copies. A prover may
+    refuse a file with a second name (FlashProve's cp_prove: st_nlink != 1, cp-weights-files),
+    so nothing is linked. Returns the copied directories, which the caller removes once the
+    prove ended (one copy on disk at a time). A run with no record (made before it was kept)
+    gives its whole state, as before."""
     record = src_io / STATE_AFTER_COMMIT
     doc = json.loads(record.read_text()) if record.is_file() else None
     names = doc.get("state", []) if isinstance(doc, dict) else doc
+    made: list[Path] = []
     for name in doc.get("dirs", []) if isinstance(doc, dict) else []:
         if name not in _NOT_SETUP and (src_io / name).is_dir():
-            shutil.copytree(src_io / name, dst_io / name, symlinks=True, copy_function=os.link)
+            shutil.copytree(src_io / name, dst_io / name, symlinks=True)
+            made.append(dst_io / name)
     state = src_io / "state"
     if not state.is_dir():
-        return
+        return made
+    made.append(dst_io / "state")
     if names is None:
         shutil.copytree(state, dst_io / "state")
-        return
+        return made
     (dst_io / "state").mkdir(parents=True)
     for name in names:
         entry = state / name
@@ -448,6 +452,20 @@ def copy_state_after_commit(src_io: Path, dst_io: Path) -> None:
             shutil.copytree(entry, dst_io / "state" / name, symlinks=True)
         elif entry.exists() or entry.is_symlink():
             shutil.copy2(entry, dst_io / "state" / name, follow_symlinks=False)
+    return made
+
+
+def log_tail(io: Path, lines: int = 3) -> tuple[str, ...]:
+    """The last lines of the newest `*.log` under a control prove's io, each marked `[log]`:
+    a prover's own reason (FlashProve's cp_prove.log, before `p258 end 1 <name>`), kept in the
+    trial's line before the copies are removed (RFC-0018 CH-1a)."""
+    logs = [p for p in io.rglob("*.log") if p.is_file() and not p.is_symlink()]
+    if not logs:
+        return ()
+    newest = max(logs, key=lambda p: p.stat().st_mtime)
+    text = newest.read_text(errors="replace").splitlines()
+    tail = [ln.strip()[:500] for ln in text if ln.strip()][-lines:]
+    return tuple(f"[log] {ln}" for ln in tail)
 
 
 def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, Path]:
@@ -1775,7 +1793,7 @@ class Runner:
         io = work / (f"prove-{control_id}" + (f"-{trial}" if trial else ""))
         io.mkdir(parents=True)
         shutil.copyfile(job.staging / "io/prompts.jsonl", io / "prompts.jsonl")
-        copy_state_after_commit(job.staging / "io", io)
+        copies = copy_state_after_commit(job.staging / "io", io)
         if models is None and job.models_removed:  # hosted level run: fetched again (CH-4)
             job.models = self._models(job.workload, log)
             job.models_removed = False
@@ -1797,13 +1815,27 @@ class Runner:
                 io=io,
                 control=control or True,
             )
+        except IProofsError as e:  # the prover's own reason goes into the trial's line
+            tail = log_tail(io)
+            for copy in copies:
+                shutil.rmtree(copy, ignore_errors=True)
+            raise IProofsError(e.kind, e.message, step=e.step, exit_code=e.exit_code,
+                               last_lines=(*e.last_lines, *tail)) from e  # fmt: skip
+        except BaseException:
+            for copy in copies:
+                shutil.rmtree(copy, ignore_errors=True)
+            raise
         finally:
             job.models = honest_models
         self._log_call(log, job, control_id, None, "prove", result)
-        check_proofs(IoDirs(io), out, job.system)  # type: ignore[arg-type]
-        report = None
-        if out.binding_report:
-            report = json.loads(IoDirs(io).host(out.binding_report, "prove").read_text())
+        try:
+            check_proofs(IoDirs(io), out, job.system)  # type: ignore[arg-type]
+            report = None
+            if out.binding_report:
+                report = json.loads(IoDirs(io).host(out.binding_report, "prove").read_text())
+        finally:
+            for copy in copies:
+                shutil.rmtree(copy, ignore_errors=True)
         calls = [
             VerifyCall(control_id, i, commitment, tuple(job.prompts[e.request_index]),
                        tuple(e.claimed_output), io / "proofs" / e.proof_id, tuple(e.parts), {})
