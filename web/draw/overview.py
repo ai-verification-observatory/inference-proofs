@@ -22,7 +22,9 @@ from .hexagon import glyph_svg
 from .words import (
     CAUSE_WORD,
     CHECK_NAME,
-    FIGURE_NAME,
+    FIDELITY_OF,
+    FIDELITY_TITLE,
+    FIGURE_HEAD,
     FULL_LOAD_WORD,
     NULL_WORD,
     OF_WHICH,
@@ -34,10 +36,10 @@ from .words import (
     WHOLE_SESSIONS,
     architecture,
     e,
-    kl_head,
     labels,
     number,
     params,
+    sig,
     sub_words,
 )
 
@@ -121,7 +123,7 @@ def lead_fig(row, bare=False):
     what it is in its title."""
     label, f, _ = lead_figure(row)
     if bare:
-        return FIGURE_NAME["multiple"], multiple_html(row, parts=False, bare=True)
+        return FIGURE_HEAD["multiple"], multiple_html(row, parts=False, bare=True)
     return label, fig_html(f, counted(row))
 
 
@@ -176,13 +178,28 @@ def split_html(row, key, bar=True, of_which=False, bare=False):
     return f'<span class="split">{svg}{out}</span>'
 
 
-def kl_html(row, bare=False):
+def kl_html(row):
     fid = row["fidelity"] or {}
     kl = fid.get("kl")
     if kl is not None and kl["value"] is not None:
-        return fig_html(kl, sub=BARE if bare else None)
+        return fig_html(kl)
     note = fid.get("kl_note") or "not measured"
     return f'<span class="na" title="{e(note)}">not measured</span>'
+
+
+def fidelity_fig(row):
+    """A row's fidelity as the ladder and a system's Figures row print it: its replies' mean
+    count of leading tokens equal to the original's (FI-3), of the request's reply tokens. The
+    bar, the controls and KL are under Fidelity on the system's page."""
+    mine = row["fidelity"]
+    if mine is None or mine.get("mean_prefix") is None:
+        return '<span class="na">not run yet</span>'
+    num = sig(mine["mean_prefix"])
+    whole = S.V["request"]["output_tokens"]
+    title = (f"{FIDELITY_TITLE.format(n=f'{mine["n"]:,}')}; "
+             f"record: {row['record']}/fidelity/mean_prefix")  # fmt: skip
+    return (f'<span class="fig" title="{e(title)}"><span class="n">{e(num)}</span>'
+            f'<span class="u">{e(FIDELITY_OF.format(whole=f"{whole:,}"))}</span></span>')  # fmt: skip
 
 
 def position_html(row, rung):
@@ -240,14 +257,13 @@ def filled(text):
     )
 
 
-FIGURES = ("multiple", "cost", "check-time", "kl")  # the figure columns, in the row's order
+FIGURES = ("multiple", "cost", "check-time", "fidelity")  # the figure columns, in the row's order
 
 
-def heads(rung):
-    """The figure columns' heads, each linked to its definition; the KL head names the precision
-    of the rung's reference (FI-1)."""
-    names = {**FIGURE_NAME, "kl": kl_head(rung["reference_dtype"])}
-    return [defined(names[f], f) for f in FIGURES]
+def heads():
+    """The figure columns' heads (`FIGURE_HEAD`: no word its unit says), each linked to its
+    definition on the checks page."""
+    return [defined(FIGURE_HEAD[f], f) for f in FIGURES]
 
 
 def row_html(row, rung):
@@ -258,10 +274,10 @@ def row_html(row, rung):
         ("cm", multiple_html(row, bare=True)),
         ("cc", fig_html(row_cost(row), counted(row), sub=BARE)),
         ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row), sub=BARE)),
-        ("ck", kl_html(row, bare=True)),
+        ("ck", fidelity_fig(row)),
     )
     figs = "".join(f'<td class="{c}"><span class="lbl">{h}</span>{html}</td>'
-                   for (c, html), h in zip(cells, heads(rung), strict=True))  # fmt: skip
+                   for (c, html), h in zip(cells, heads(), strict=True))  # fmt: skip
     return (
         f'<tr class="row" id="row-{e(row["page"])}">'
         f'<td class="cp">{position_html(row, rung)}</td>'
@@ -317,7 +333,7 @@ def rung_meta(rung):
     elif not has(b["gpu_seconds_per_reply"]):
         facts.append(("Serving", e(b["cause"] or "no full load recorded")))
     else:
-        facts.append(("Serving GPU time per reply",
+        facts.append((FIGURE_HEAD["serving"],
                       fig_html(b["gpu_seconds_per_reply"], sub=BARE)))  # fmt: skip
     return '<dl class="meta">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>"
                                          for k, v in facts) + "</dl>"  # fmt: skip
@@ -339,7 +355,7 @@ def rung_html(rung):
                  f'<span class="hm" aria-hidden="true">{nobreak(rung["model"])}</span>'
                  '<span class="sr">Position</span></th>'
                  '<th scope="col"><span class="sr">Petals</span></th>')  # fmt: skip
-        ths = first + "".join(f'<th scope="col">{h}</th>' for h in ("System", *heads(rung)))
+        ths = first + "".join(f'<th scope="col">{h}</th>' for h in ("System", *heads()))
         rows = "".join(row_html(r, rung) for r in rung["rows"])
         cols = ('<colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4">'
                 '<col class="c5"><col class="c6"><col class="c7"></colgroup>')  # fmt: skip

@@ -196,6 +196,22 @@ PETAL_CHECKS = {"unforgeable": ("model", "prompt", "reply"), "weights_hidden": (
 # file's constants; {reference} is each model's reference precision.
 FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
                "check-time": "Verify time per reply", "kl": "KL to the original weights"}  # fmt: skip
+# a figure's head where its unit stands beside it: the unit says "per reply", so the head does
+# not; and the surface names fidelity, not the metric (KL and the matched tokens' bar are under
+# Fidelity on a system's page)
+FIGURE_HEAD = {"multiple": "Cost vs serving", "cost": "Cost", "check-time": "Verify time",
+               "proof-size": "Proof size", "fidelity": "Fidelity", "serving": "Serving"}  # fmt: skip
+FIDELITY_OF = "of {whole} tokens"  # the unit of a mean count of matched leading tokens (FI-3)
+FIDELITY_TITLE = (
+    "leading tokens of a reply equal to the original model's reply, mean over {n} replies"
+)
+
+
+def beside_unit(name):
+    """A figure's name where its unit follows it: "per reply" is the unit's to say."""
+    return name.replace(" per reply", "")
+
+
 FIGURE_RULE = {
     "multiple": (
         ("m", "GPU-seconds per proved reply after the first group. In one session, proofs released "
@@ -258,7 +274,6 @@ ORDER_RULE = (
     ("models", "Nothing is ranked across models."),
 )  # fmt: skip
 # ------------------------------------------------------------------ the scale page (RFC-0018 SI-7)
-SCALE_PROOF_SIZE = "Proof size per reply"  # a figure the ladder does not print
 SCALE_LOG = "log scale"  # beside an axis's unit
 SCALE_SERVING = "Serving"  # a lane's foot: serving's line and its stored figure
 SCALE_NOT_RUN = "Not run yet."

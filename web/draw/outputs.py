@@ -45,6 +45,7 @@ from .scale import DIMS
 from .words import (
     CHECK_HELD,
     CHECK_NAME,
+    FIGURE_HEAD,
     FIGURE_NAME,
     FIGURE_RULE,
     MANDATE_BELIEF,
@@ -365,8 +366,8 @@ def system_card(pid):
     glyph = glyph_svg(6, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
     model = (f'{e(rung["model"])}<span>'
              f'{e(architecture(rung["parameters_total"], rung.get("parameters_active")))}</span>')  # fmt: skip
-    cells = ((FIGURE_NAME["cost"], fig_html(row_cost(row), n)),
-             (FIGURE_NAME["check-time"], fig_html(row["figures"]["verify_seconds_per_reply"], n)))  # fmt: skip
+    cells = ((FIGURE_HEAD["cost"], fig_html(row_cost(row), n)),
+             (FIGURE_HEAD["check-time"], fig_html(row["figures"]["verify_seconds_per_reply"], n)))  # fmt: skip
     small = " sm" if len(why) > WHY_LONG else ""
     reason = f'<p class="mono why{small}">{e(why)}</p>' if why else ""
     figs = "".join(f'<div class="cell fit"><span class="lbl">{e(k)}</span>{v}</div>'

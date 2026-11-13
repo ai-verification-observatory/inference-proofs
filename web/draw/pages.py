@@ -32,6 +32,7 @@ from .overview import (
     BARE,
     NOT_TESTED,
     defined,
+    fidelity_fig,
     fig_html,
     filled,
     href,
@@ -56,6 +57,7 @@ from .words import (
     CHECK_HELD,
     CHECK_NAME,
     CONTROL_NAME,
+    FIGURE_HEAD,
     FIGURE_NAME,
     FIGURE_RULE,
     FULL_LOAD_WORD,
@@ -87,6 +89,7 @@ from .words import (
     STEP_WORD,
     VISIBLE_TAG_WORD,
     WHOLE_SESSIONS,
+    beside_unit,
     e,
     kl_head,
     number,
@@ -457,9 +460,9 @@ def cost_bars(row):
         lines.append(f'<div class="cl {cls}"><span class="cln">{e(name)}</span>{bar}'
                      f'<span class="clf">{fig}</span>{cps}</div>')  # fmt: skip
 
-    line("srv", "Serving GPU time per reply", b, fig_html(b, sub=FULL_LOAD_WORD))
-    line("std", M_NAME, m, fig_html(m, n), key="steady_gpu_seconds_per_reply")
-    line("ses", "Session GPU time per reply", s, fig_html(s, n), "bc",
+    line("srv", "Serving GPU time", b, fig_html(b, sub=FULL_LOAD_WORD))
+    line("std", beside_unit(M_NAME), m, fig_html(m, n), key="steady_gpu_seconds_per_reply")
+    line("ses", "Session GPU time", s, fig_html(s, n), "bc",
          "session_gpu_seconds_per_reply")  # fmt: skip
     return f'<div class="cbars">{"".join(lines)}</div>'
 
@@ -518,7 +521,7 @@ def cost_html(row):
                      fig_html(price["usd_per_gpu_hour"], sub=f"{price['basis']}, {price['date']}")))  # fmt: skip
     else:
         missing.setdefault("not recorded", []).append("Price of one H200 GPU-hour")
-    cells = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
+    cells = "".join(f"<div><dt>{e(beside_unit(k))}</dt><dd>{v}</dd></div>" for k, v in rows)
     base = rung["baseline"]
     serving = (f'<p class="rb"><span class="k">Serving</span> {e(serving_words(base))}</p>'
                if base and has(base["gpu_seconds_per_reply"]) else "")  # fmt: skip
@@ -597,31 +600,15 @@ def fidelity_html(row):
 
 def figures_html(row):
     """The row's other figures (the band prints its one figure) as one ruled row of cells, each
-    figure with its unit and no more: cost per reply at the multiple's own scope, check time and
-    proof size per reply, then fidelity: the replies' mean matched prefix against the model's
-    bar, and KL where it was measured. Each one's scope and n stand under Cost and Fidelity."""
-    rung, figs = rung_of(row), row["figures"]
-    cells = [(defined(FIGURE_NAME["cost"], "cost"), fig_html(row_cost(row), sub=BARE)),
-             (defined(FIGURE_NAME["check-time"], "check-time"),
+    figure with its unit and no more: cost per reply at the multiple's own scope, verify time
+    and proof size per reply, then fidelity, the replies' mean matched prefix. Each one's scope
+    and n stand under Cost; the bar, the controls and KL under Fidelity."""
+    figs = row["figures"]
+    cells = [(defined(FIGURE_HEAD["cost"], "cost"), fig_html(row_cost(row), sub=BARE)),
+             (defined(FIGURE_HEAD["check-time"], "check-time"),
               fig_html(figs["verify_seconds_per_reply"], sub=BARE)),
-             (e(PROOF_SIZE), fig_html(figs["proof_bytes_per_reply"], sub=BARE))]  # fmt: skip
-    mine, fid = row["fidelity"], rung["fidelity"] or {}
-    bar = fid.get("bar")
-    if mine is None:
-        prefix = '<span class="na">not run yet</span>'
-    else:
-        track = ""  # the Fidelity section draws the tracks
-        if bar is not None:
-            i = next(k for k, c in enumerate(fid["controls"]) if c["id"] == bar["control"])
-            at = f"{fid['record']}/controls/{i}/mean_prefix"
-            track = (f'<span class="fbar"><span class="k">bar</span>'
-                     f'{plain(bar["mean_prefix"], "tokens", at)}</span>')  # fmt: skip
-        prefix = (plain(mine["mean_prefix"], "tokens", row["record"] + "/fidelity/mean_prefix")
-                  + track)  # fmt: skip
-    cells.append((defined(PREFIX, "fidelity"), prefix))
-    if mine is not None and has(mine.get("kl")):
-        cells.append((defined(kl_head(rung["reference_dtype"]), "kl"),
-                      fig_html(mine["kl"], sub=BARE)))  # fmt: skip
+             (e(FIGURE_HEAD["proof-size"]), fig_html(figs["proof_bytes_per_reply"], sub=BARE)),
+             (defined(FIGURE_HEAD["fidelity"], "fidelity"), fidelity_fig(row))]  # fmt: skip
     return '<dl class="figs">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>"
                                          for k, v in cells) + "</dl>"  # fmt: skip
 

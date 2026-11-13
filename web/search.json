@@ -213,10 +213,10 @@
     {
       "group": "Pages",
       "kind": "page",
-      "meta": "Cost vs serving, Cost per reply, Verify time per reply, Proof size per reply",
+      "meta": "Cost vs serving, Cost, Verify time, Proof size",
       "name": "Scale",
       "pie": "<svg class=\"pie-svg lm\" viewBox=\"0 0 26 18\" width=\"26\" height=\"18\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><path fill=\"currentColor\" d=\"M0 0h4v18h-4zM4 6h6v6h-6zM12 6h6v6h-6zM20 6h6v6h-6z\"/></svg>",
-      "terms": "scale cost vs serving, cost per reply, verify time per reply, proof size per reply scale chart log decade axis",
+      "terms": "scale cost vs serving, cost, verify time, proof size scale chart log decade axis",
       "tier": 4,
       "url": "/scale"
     },

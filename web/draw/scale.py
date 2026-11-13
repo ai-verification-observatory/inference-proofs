@@ -41,11 +41,10 @@ from .overview import (
 )
 from .pages import section, title_band
 from .words import (
-    FIGURE_NAME,
+    FIGURE_HEAD,
     FIGURE_RULE,
     SCALE_LOG,
     SCALE_NOT_RUN,
-    SCALE_PROOF_SIZE,
     SCALE_SERVING,
     architecture,
     e,
@@ -55,10 +54,10 @@ from .words import (
 
 # the figures, in the strip's order (the first is drawn when the address names none): the section's
 # id, its name, and the stored unit its axis reads in
-DIMS = (("multiple", FIGURE_NAME["multiple"], "ratio"),
-        ("cost", FIGURE_NAME["cost"], "USD/request"),
-        ("check-time", FIGURE_NAME["check-time"], "s/request"),
-        ("proof-size", SCALE_PROOF_SIZE, "B/request"))  # fmt: skip
+DIMS = (("multiple", FIGURE_HEAD["multiple"], "ratio"),
+        ("cost", FIGURE_HEAD["cost"], "USD/request"),
+        ("check-time", FIGURE_HEAD["check-time"], "s/request"),
+        ("proof-size", FIGURE_HEAD["proof-size"], "B/request"))  # fmt: skip
 # a stored value in the unit `words.number` reads it in (bytes read as MB); 1 for the others
 READING = {"B/request": 1e-6}
 # Martian Mono's advance, in em, at the width the site sets it (87.5 %): every glyph alike,
