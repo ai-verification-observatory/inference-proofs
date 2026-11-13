@@ -15,7 +15,8 @@ what a reader operates; the state inks stay with the states of a check (words.cs
 """
 
 from . import state as S
-from .overview import baseline_html, counted, fig_html, href, multiple_html, name_of, standing
+from .chrome import counted, standing
+from .overview import baseline_html, fig_html, href, multiple_html, name_of
 from .words import CHECK_NAME, FIGURE_NAME, STATE_WORD, e
 
 FIGURES: dict = {}

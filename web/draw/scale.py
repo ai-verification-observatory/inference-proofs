@@ -17,24 +17,33 @@ are positions only: no quotient computed here is printed.
 import math
 
 from . import state as S
-from .chrome import CHECKS_PAGE, SCALE_PAGE, footer, header, level_words, page, pnav
-from .overview import (
+from .chrome import (
+    CHECKS_PAGE,
+    SCALE_PAGE,
     counted,
-    fig_html,
+    footer,
     has,
+    header,
+    level_words,
+    page,
+    pnav,
+    row_cost,
+)
+from .overview import (
+    fig_html,
     href,
     multiple_html,
     name_of,
     nobreak,
     position_html,
     request_words,
-    row_cost,
     standing_html,
 )
 from .pages import section, title_band
 from .words import (
     FIGURE_NAME,
     FIGURE_RULE,
+    FULL_LOAD_WORD,
     SCALE_LOG,
     SCALE_NOT_RUN,
     SCALE_PROOF_SIZE,
@@ -224,10 +233,10 @@ def plot_svg(lo, hi, serve, mean=None, ticks=(), span=None):
 
 # ------------------------------------------------------------------ a lane, a section, the page
 def figure_html(row, dim):
-    """The row's figure as the ladder prints it (the multiple without its parts)."""
+    """The row's figure as the ladder prints it (the multiple without its parts: on a lane's
+    decade axis a part's tick would sit among the sessions' ticks, told apart only by a key)."""
     if dim == "multiple":
-        m = row["figures"]["multiple"]
-        return fig_html(m, counted(row)) if has(m) else multiple_html(row)
+        return multiple_html(row, parts=False)
     return fig_html(figure_of(row, dim), counted(row))
 
 
@@ -239,7 +248,7 @@ def serving_html(rung, dim):
     if b is None or not has(b[key]):
         why = (b or {}).get("cause") or "no full load recorded"
         return f'<span class="na">{e(why)}</span>'
-    return fig_html(b[key])
+    return fig_html(b[key], sub=FULL_LOAD_WORD)
 
 
 def lane_html(rung, dim, name, unit, ext):

@@ -513,7 +513,7 @@ def _row_tree(
     events = [f"{f.session.path}/run.json#/events" for f in figures]
     session = _stat([f.per_reply for f in figures], Unit.GPU_S_PER_REQUEST, Scope.WHOLE_WALL,
                     "D-L1-SESSION", [*events, *proofs], NullReason.MISSING_INPUT,
-                    f"cold sessions of {n} replies")  # fmt: skip
+                    f"whole sessions of {n} replies")  # fmt: skip
     steady_in = (f"{index}/steady_gpu_seconds_per_reply", steady)
     # CO-7: m = generation + proving where the adapter generates in a phase of its own (AD-4)
     phased = bool(figures) and all(f.generation is not None for f in figures)

@@ -5,7 +5,20 @@ only by the order rule: no column head re-sorts them. Also the figure cells the 
 """
 
 from . import state as S
-from .chrome import CHECKS_PAGE, footer, header, level_words, page, rung_of
+from .chrome import (
+    CHECKS_PAGE,
+    counted,
+    footer,
+    has,
+    header,
+    lead_figure,
+    level_words,
+    not_passed,
+    page,
+    parts_of,
+    row_cost,
+    rung_of,
+)
 from .hexagon import glyph_svg
 from .words import (
     CAUSE_WORD,
@@ -18,6 +31,7 @@ from .words import (
     SEP,
     STATE_WORD,
     STEP_WORD,
+    WHOLE_SESSIONS,
     architecture,
     e,
     kl_head,
@@ -89,10 +103,6 @@ def sub_line(line):
     return e(line).replace(SEP, f'<span class="sep">{SEP}</span>')
 
 
-def has(f):
-    return f is not None and f["value"] is not None
-
-
 def nobreak(text):
     """Words escaped, a short token that holds a hyphen ("17B-128E", "Apache-2.0") kept on one
     line; a long one (a repository name) may still break."""
@@ -100,63 +110,46 @@ def nobreak(text):
                     for t in str(text).split(" "))  # fmt: skip
 
 
-def counted(row):
-    """The counted sessions a row's figures are over."""
-    return len(row["sessions"]) or None
-
-
 def lead_fig(row):
-    """A row's one figure, labelled for what it is (CO-5): the multiple of serving; with no
-    steady state, the whole sessions' multiple, named so in its label; else the multiple's
-    null. Returns (label, figure)."""
-    figs = row["figures"]
-    m, cold = figs["multiple"], figs["session_multiple"]
-    if not has(m) and has(cold):
-        n = rung_of(row)["requests_per_session"]
-        return (f"{FIGURE_NAME['multiple']}, whole sessions of {n:,} replies",
-                fig_html(cold, counted(row)))  # fmt: skip
-    return FIGURE_NAME["multiple"], fig_html(m, counted(row))
+    """A row's one figure, labelled for what it is (CO-5, `chrome.lead_figure`). Returns (label,
+    figure html)."""
+    label, f, _ = lead_figure(row)
+    return label, fig_html(f, counted(row))
 
 
-def multiple_html(row):
+def multiple_html(row, parts=True):
     """CO-5: the multiple; with no steady state, the session cost over serving, labelled as whole
-    sessions."""
-    figs = row["figures"]
-    m = figs["multiple"]
-    if m is not None and m["value"] is not None:
-        return fig_html(m, counted(row)) + split_html(row)
-    cold = figs["session_multiple"]
-    if cold is not None and cold["value"] is not None:
+    sessions. With `parts`, its two parts under it (CO-7, `split_html`)."""
+    _, f, key = lead_figure(row)
+    split = split_html(row, key) if parts else ""
+    if key == "session_multiple":
         n = rung_of(row)["requests_per_session"]
-        count = cold["n"] if cold["n"] is not None else counted(row)
-        return fig_html(cold, sub=f"whole sessions of {n:,} replies{SEP}n\u00a0=\u00a0{count}")
-    return fig_html(m)
+        count = f["n"] if f["n"] is not None else counted(row)
+        sub = f"{WHOLE_SESSIONS.format(n=n)}{SEP}n\u00a0=\u00a0{count}"
+        return fig_html(f, sub=sub) + split
+    return fig_html(f, counted(row)) + (split if has(f) else "")
 
 
-def split_html(row):
-    """CO-7: under the multiple, its proving and generation parts as two figures, with a bar of
-    their shares of m, where the system generates in a phase of its own; nothing otherwise."""
-    figs = row["figures"]
-    p, g = figs.get("proving_multiple"), figs.get("generation_multiple")
-    if not p or not g or p["value"] is None or g["value"] is None:
+def split_html(row, key, bar=True):
+    """CO-7: under a multiple (`key`: the steady one or the whole sessions'), its two parts, each
+    a figure with its scope and n, after a bar of their shares, where the system generates in a
+    phase of its own; nothing otherwise. The part that is not generation first, in paper."""
+    parts = parts_of(row, key)
+    if not parts:
         return ""
-    share = 100 * p["value"] / (p["value"] + g["value"])
-    # each share at its own length; one too short to see is marked by a line where it ends (as plots.hbar)
-    nib = f'<line class="nib" x1="{share:.2f}" x2="{share:.2f}" y2="4"/>' if share < 1.5 else ""
-    bar = (f'<svg class="sbar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">'
-           f'<rect class="bp" width="{share:.2f}" height="4"/>'
-           f'<rect class="bg" x="{share:.2f}" width="{100 - share:.2f}" height="4"/>{nib}</svg>')  # fmt: skip
-
-    def part(name, f, cls):
-        num, unit = number(f["value"], f["unit"])
-        return (
-            f'<span class="part {cls}" title="{e(labels(f))}"><span class="pn">{e(num)}'
-            f'<span class="px">{e(unit)}</span></span><span class="pl">{name}</span></span>'
-        )
-
-    return (
-        f'<span class="split">{bar}{part("proving", p, "pp")}{part("generation", g, "pg")}</span>'
-    )
+    (w1, f1), (w2, f2) = parts
+    share = 100 * f1["value"] / (f1["value"] + f2["value"])
+    svg = ""
+    if bar:
+        # each share at its own length; one too short to see is marked by a line where it ends
+        nib = f'<line class="nib" x1="{share:.2f}" x2="{share:.2f}" y2="4"/>' if share < 1.5 else ""
+        svg = (f'<svg class="sbar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true">'
+               f'<rect class="bp" width="{share:.2f}" height="4"/>'
+               f'<rect class="bg" x="{share:.2f}" width="{100 - share:.2f}" height="4"/>{nib}</svg>')  # fmt: skip
+    n = counted(row)
+    out = "".join(f'<span class="part {c}"><span class="pl">{e(w)}</span>{fig_html(f, n)}</span>'
+                  for c, w, f in (("pp", w1, f1), ("pg", w2, f2)))  # fmt: skip
+    return f'<span class="split">{svg}{out}</span>'
 
 
 def kl_html(row):
@@ -177,26 +170,6 @@ def position_html(row, rung):
     lead = " p1" if row["position"] == 1 else ""
     return (f'<span class="pos{lead}"><span class="pn">{row["position"]}</span>'
             f'<span class="of">of {rung["systems_run"]}</span></span>')  # fmt: skip
-
-
-def not_passed(row):
-    """The standing of a row that has not passed: "not passed" with a failed check, "not passed
-    yet" while every check not held is undecided (RFC-0018: an undecided check is never worded as
-    a failure)."""
-    failed = any(c["state"] == "failed" for c in row["checks"])
-    return "not passed" if failed else "not passed yet"
-
-
-def standing(row):
-    """Passed (a system on a model, SI-6), passed and unranked with why, or not passed with the
-    checks not held (SI-1), each named as a check."""
-    if row["passed"] and not row["ranked"]:
-        return f"passed, unranked: {row['unranked_reason']}"
-    if row["passed"]:
-        return "passed"
-    missing = [f"{CHECK_NAME[c['id']]} check {STATE_WORD[c['state']]}" for c in row["checks"]
-               if c["state"] != "held"]  # fmt: skip
-    return f"{not_passed(row)}: " + ", ".join(missing) if missing else not_passed(row)
 
 
 def defined(words, anchor):
@@ -251,14 +224,6 @@ def heads(rung):
     of the rung's reference (FI-1)."""
     names = {**FIGURE_NAME, "kl": kl_head(rung["reference_dtype"])}
     return [defined(names[f], f) for f in FIGURES]
-
-
-def row_cost(row):
-    """The cost per reply at the multiple's own scope: steady when the row has a steady
-    multiple, else its whole sessions, so one row never mixes two scopes."""
-    figs = row["figures"]
-    steady = figs["multiple"].get("value") is not None
-    return figs["steady_usd_per_reply" if steady else "session_usd_per_reply"]
 
 
 def row_html(row, rung):

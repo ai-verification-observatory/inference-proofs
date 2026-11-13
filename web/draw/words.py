@@ -63,14 +63,6 @@ CHECK_FAILED = {
     "publisher's original weights for fewer leading tokens than those of a copy damaged on "
     "purpose.",
 }
-CHECK_EVIDENCE = {
-    "run": "every session's run record",
-    "model": "the controls record",
-    "prompt": "the controls record",
-    "reply": "the run records and the controls record",
-    "no_weight_file": "the file-open trace of every verify call",
-    "fidelity": "the model's fidelity record",
-}
 STATE_WORD = {"held": "held", "failed": "failed", "undecided": "undecided"}
 
 # ------------------------------------------------------------------ the five petals (RFC-0018 §The glyph)
@@ -206,7 +198,7 @@ FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
                "check-time": "Verify time per reply", "kl": "KL to the original weights"}  # fmt: skip
 FIGURE_RULE = {
     "multiple": (
-        ("proving", "m, GPU-seconds per further proved reply. In one session, proofs released "
+        ("proving", "m, GPU-seconds per proved reply after the first group. In one session, proofs released "
          "within {gap} of the previous release form a group. m is the GPU time from the first "
          "group's last release to the session's last release, over the replies of the later "
          "groups, generating the replies included. The mean of {slots} sessions, each from a "
@@ -219,6 +211,10 @@ FIGURE_RULE = {
          "price, so the multiple is the same in dollars."),
         ("whole session", "A system whose sessions release too few groups, or uneven ones, has "
          "no m. It prints its session cost per reply over b, labelled as whole sessions."),
+        ("parts", "Where a system generates its replies in a phase of its own, the figure is "
+         "printed in two parts, each over b: generation, that phase's GPU time over the replies, "
+         "and the rest. Under m the rest is proving; under whole sessions it is commit and "
+         "proving."),
     ),
     "cost": (
         ("steady", "m in USD, at the release's price of one H200 GPU-hour."),
@@ -280,7 +276,7 @@ MANDATE_WHAT = (
     "When a service says a reply came from a given AI model, you normally have to take its word. "
     "A proof of inference is a file that lets anyone check that claim without running the model. "
     "This site tests the systems that make such proofs. It measures how much more a proved "
-    "reply costs than serving the same reply without a proof, and whether each system's checker "
+    "reply costs than serving the same reply without a proof, and whether each system's verifier "
     "refuses a proof once the model, the prompt or the reply is changed. Every system gets the "
     "same request on the same kind of GPU, and we run each one as published, with no change to "
     "its code."
@@ -297,7 +293,7 @@ MANDATE = (
          "single best run."),
         ("Computed", "CH-6", RFC_18, "Compute every check result from stored records. No "
          "reviewer sets one by hand."),
-        ("Confirmed", "CH-8", RFC_18, "Before we publish that a system's checker accepted a "
+        ("Confirmed", "CH-8", RFC_18, "Before we publish that a system's verifier accepted a "
          "changed model, prompt or reply, reproduce it with the system's own command, outside "
          "our own code. Until then the check reads undecided and we tell the system's "
          "publisher."),
@@ -372,6 +368,19 @@ NULL_WORD = {
 NO_STEADY_WORD = "not every session had a steady state"
 # the line under the serving baseline's figure: it is timed at full load, not steady (CO-4)
 FULL_LOAD_WORD = "full load"
+# CO-7: the two parts a multiple or a GPU time splits into where the system generates in a phase
+# of its own. A session's second part holds commit as well (most of it), so it is never "proving"
+PART_WORD = {"proving": "proving", "generation": "generation",
+             "commit_and_proving": "commit and proving"}  # fmt: skip
+OF_WHICH = "of which"  # before a part's name where it stands under its whole (the Cost section)
+# the GPU time per reply after the first release group, m (CO-1); its column in the sessions table
+M_NAME, M_COL = "GPU time per reply after the first group (m)", "After the first group (m)"
+# the line under a whole session's figure, N the level's replies per session (CO-5)
+WHOLE_SESSIONS = "whole sessions of {n:,} replies"
+# the fidelity table (FI-5, FI-6): the replies' figure, a control's id as printed, the p line
+PREFIX = "Leading tokens matching the original, mean"
+CONTROL_NAME = {"reference-2": "original, run again"}
+P_ABOVE = "above the bar: p\u00a0=\u00a0{p}"
 
 
 # ------------------------------------------------------------------ numbers (display only)

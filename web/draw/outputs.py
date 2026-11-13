@@ -18,24 +18,24 @@ from .chrome import (
     MANDATE_PAGE,
     SCALE_PAGE,
     SITE_URL,
+    counted,
     credit_words,
     font_faces,
     level_words,
+    row_cost,
     rung_of,
+    standing,
 )
 from .hexagon import glyph_svg
 from .inks import COBALT, GROUND, LINE, MUTED, PAPER, ratio
 from .learn import glossary, glossary_entries
 from .mark import lockup_svg, mark_svg, stacked_svg, tile_svg
 from .overview import (
-    counted,
     fig_html,
     filled,
     href,
     lead_fig,
     name_of,
-    row_cost,
-    standing,
     states,
 )
 from .scale import DIMS
@@ -319,7 +319,7 @@ def system_card(pid):
 .model span{{display:block;font-weight:400}}
 .lead{{width:340px;text-align:right}}
 .lbl{{display:block;font-size:12px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}}
-.lead .lbl{{margin-bottom:12px}}
+.lead .lbl{{margin-bottom:12px;text-wrap:balance}}
 .fig{{display:flex;align-items:baseline;white-space:nowrap}}
 .lead .fig{{justify-content:flex-end}}
 .n{{letter-spacing:-.04em}}

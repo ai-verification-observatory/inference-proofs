@@ -12,7 +12,20 @@ import re
 from . import state as S
 from .inks import GROUND
 from .mark import lockup_svg
-from .words import CAUSE_WORD, PETAL_NAME, STEP_WORD, e
+from .words import (
+    CAUSE_WORD,
+    CHECK_NAME,
+    FIGURE_NAME,
+    PART_WORD,
+    PETAL_NAME,
+    SEP,
+    STATE_WORD,
+    STEP_WORD,
+    WHOLE_SESSIONS,
+    e,
+    shown,
+    sub_words,
+)
 
 # ------------------------------------------------------------------ chrome
 # Pages are files <name>.html served at clean, root-relative addresses (vercel.json cleanUrls;
@@ -286,20 +299,103 @@ def cards_record():
 
 
 def card_alt(card):
-    """The picture in words, from the same data the picture draws."""
+    """The picture in words, from the same data the picture draws: the system and its model, the
+    band's figure, the standing, cost and verify time per reply, the petals. Each
+    figure with its unit, scope and n."""
     if card == "home":
         return "Inference proofs."
     row = S.PAGE[card]
+    n = counted(row)
+    label, f, _ = lead_figure(row)
+    lead = f"{label}: {fig_words(f, n)}"
+    figs = [(FIGURE_NAME["cost"], row_cost(row)),
+            (FIGURE_NAME["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
+    cells = ". ".join(f"{k}: {fig_words(v, n)}" for k, v in figs)
     states = "; ".join(
         f"{PETAL_NAME[p['id']]}: {STEP_WORD[p['step']]}"
         + (f", {CAUSE_WORD[p['cause']]}" if p["cause"] is not None else "")
         for p in row["glyph"]
     )
-    return f"{S.V['systems'][row['system']]['name']} on {rung_of(row)['model']}. {states}."
+    name = S.V["systems"][row["system"]]["name"]
+    return (f"{name} on {rung_of(row)['model']}. {lead}. Standing: {standing(row)}. {cells}. "
+            f"{states}.")  # fmt: skip
 
 
 def rung_of(row):
     return next(r for r in S.V["rungs"] if r["id"] == row["rung"])
+
+
+# ------------------------------------------------------------------ a row's figures and standing
+# Here, not in overview.py, so the share tags (`card_alt`) say what the pages and the card print.
+def has(f):
+    return f is not None and f["value"] is not None
+
+
+def counted(row):
+    """The counted sessions a row's figures are over."""
+    return len(row["sessions"]) or None
+
+
+def fig_words(f, n=None):
+    """A stored figure in plain words: the number in its unit, its scope and n in brackets."""
+    if not has(f):
+        return "none"
+    line = sub_words(f, n).replace(SEP, ", ").replace("\u00a0", " ")
+    return shown(f["value"], f["unit"]) + (f" ({line})" if line else "")
+
+
+# CO-7: a printed multiple's two parts, where the system generates in a phase of its own, in the
+# order they are drawn (the part that is not generation first)
+SPLITS = {"multiple": (("proving", "proving_multiple"), ("generation", "generation_multiple")),
+          "session_multiple": (("commit_and_proving", "session_commit_and_proving_multiple"),
+                               ("generation", "session_generation_multiple"))}  # fmt: skip
+
+
+def lead_figure(row):
+    """A row's one figure (CO-5): the multiple of serving; with no steady state, the whole
+    sessions' multiple, named so in its label; else the multiple's null. Returns (label, figure,
+    its key in the row's figures)."""
+    figs = row["figures"]
+    if not has(figs["multiple"]) and has(figs["session_multiple"]):
+        n = rung_of(row)["requests_per_session"]
+        return (f"{FIGURE_NAME['multiple']}, {WHOLE_SESSIONS.format(n=n)}",
+                figs["session_multiple"], "session_multiple")  # fmt: skip
+    return FIGURE_NAME["multiple"], figs["multiple"], "multiple"
+
+
+def parts_of(row, key):
+    """The two parts of the row's figure `key` as (name, figure), or none where either part has
+    no value (CO-7)."""
+    parts = [(PART_WORD[w], row["figures"].get(k)) for w, k in SPLITS.get(key, ())]
+    return parts if parts and all(has(f) for _, f in parts) else []
+
+
+def row_cost(row):
+    """The cost per reply at the multiple's own scope: steady when the row has a steady
+    multiple, else its whole sessions, so one row never mixes two scopes."""
+    figs = row["figures"]
+    steady = figs["multiple"].get("value") is not None
+    return figs["steady_usd_per_reply" if steady else "session_usd_per_reply"]
+
+
+def not_passed(row):
+    """The standing of a row that has not passed: "not passed" with a failed check, "not passed
+    yet" while every check not held is undecided (RFC-0018: an undecided check is never worded as
+    a failure)."""
+    failed = any(c["state"] == "failed" for c in row["checks"])
+    return "not passed" if failed else "not passed yet"
+
+
+def standing(row):
+    """Passed (a system on a model, SI-6), passed and unranked with why, or not passed with the
+    checks not held (SI-1), each named as a check."""
+    if row["passed"] and not row["ranked"]:
+        return f"passed, unranked: {row['unranked_reason']}"
+    if row["passed"]:
+        return "passed"
+    missing = [f"{CHECK_NAME[c['id']]} check {STATE_WORD[c['state']]}" for c in row["checks"]
+               if c["state"] != "held"]  # fmt: skip
+    return f"{not_passed(row)}: " + ", ".join(missing) if missing else not_passed(row)
 
 
 def card_current(card):

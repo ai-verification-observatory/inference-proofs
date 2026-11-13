@@ -14,29 +14,31 @@ from .chrome import (
     MANDATE_PAGE,
     card_current,
     cards_record,
+    counted,
     footer,
+    has,
     header,
+    lead_figure,
     link,
     page,
     pnav,
+    row_cost,
     rung_of,
 )
 from .hexagon import glyph_svg
 from .overview import (
     NOT_TESTED,
-    counted,
     defined,
     fig_html,
     filled,
-    has,
     href,
     kl_html,
     lead_fig,
     name_of,
     nobreak,
     position_html,
-    row_cost,
     serving_words,
+    split_html,
     standing_html,
     states,
 )
@@ -49,19 +51,28 @@ from .words import (
     CHECK_FAILED,
     CHECK_HELD,
     CHECK_NAME,
+    CONTROL_NAME,
     FIGURE_NAME,
     FIGURE_RULE,
+    FULL_LOAD_WORD,
     HOLLOW_RULE,
+    M_COL,
+    M_NAME,
     MANDATE,
     MANDATE_BELIEF,
     MANDATE_MEMBERS_IN,
     MANDATE_WHAT,
+    NO_STEADY_WORD,
     NULL_WORD,
+    OF_WHICH,
     ORDER_RULE,
+    P_ABOVE,
+    PART_WORD,
     PETAL_CAUSE_RULE,
     PETAL_CHECKS,
     PETAL_NAME,
     PETAL_RULE,
+    PREFIX,
     READING_RULE,
     SCOPE_COL_WORD,
     SCOPE_ROW_WORD,
@@ -69,6 +80,7 @@ from .words import (
     STATE_WORD,
     STEP_WORD,
     VISIBLE_TAG_WORD,
+    WHOLE_SESSIONS,
     e,
     kl_head,
     number,
@@ -79,7 +91,6 @@ from .words import (
 
 GLYPH = 6  # the checks page's key glyph, px per unit (318 by 174 px)
 GPU_S = "gpu_s/request"  # a session's values: GPU-seconds per reply (RFC-0018 CO-1, CO-3)
-PREFIX = "Mean matched prefix"  # a replies row's fidelity (FI-5)
 PROOF_SIZE = "Proof size per reply"
 
 
@@ -351,7 +362,8 @@ def sessions_html(row):
             f"{len(s['groups']):,}",
         ]
 
-    heads = ["Slot", "Run", "Steady, m", *(["Of which generation"] if gen else []), "Session",
+    of_gen = f"{OF_WHICH} {PART_WORD['generation']}".capitalize()
+    heads = ["Slot", "Run", M_COL, *([of_gen] if gen else []), "Session",
              "Steady state", "Release groups"]  # fmt: skip
     out = (stacked(heads, [cells(k, s) for k, s in enumerate(row["sessions"])])
            if row["sessions"] else '<p class="none">No counted session.</p>')  # fmt: skip
@@ -386,55 +398,70 @@ def sessions_html(row):
     return out
 
 
+def of_which(word):
+    return f"{OF_WHICH} {PART_WORD[word]}"
+
+
+# CO-7: a GPU time's two parts, where the system generates in a phase of its own, drawn in this
+# order (the part that is not generation first, in paper)
+GPU_PARTS = {
+    "steady_gpu_seconds_per_reply": (("proving", "steady_proving_gpu_seconds_per_reply"),
+                                     ("generation", "steady_generation_gpu_seconds_per_reply")),
+    "session_gpu_seconds_per_reply": (
+        ("commit_and_proving", "session_commit_and_proving_gpu_seconds_per_reply"),
+        ("generation", "session_generation_gpu_seconds_per_reply")),
+}  # fmt: skip
+
+
 def cost_bars(row):
-    """CO-1 to CO-3 drawn: serving, the steady m (its proving and generation parts where the
-    system generates in a phase of its own) and the whole session, each in GPU time per reply on
-    one scale, this row's own (one model). Each line: its name, its bar, its labelled figure; a
-    figure the board holds no value for draws no line (`cost_html` names it)."""
+    """CO-1 to CO-3 drawn: serving, the steady m and the whole session, each in GPU time per
+    reply on one scale, this row's own (one model); m and the session each in two parts where the
+    system generates in a phase of its own (CO-7). Each line: its name, its bar, its labelled
+    figure and its parts' figures; a figure the board holds no value for draws no line
+    (`cost_html` names it)."""
     figs, n = row["figures"], counted(row)
     b = (rung_of(row)["baseline"] or {}).get("gpu_seconds_per_reply")
     m, s = figs["steady_gpu_seconds_per_reply"], figs["session_gpu_seconds_per_reply"]
-    p, g = (figs.get(k) for k in ("steady_proving_gpu_seconds_per_reply",
-                                  "steady_generation_gpu_seconds_per_reply"))  # fmt: skip
     present = [f["value"] for f in (b, m, s) if has(f)]
     if not present:
         return ""
     top = max(present)
     lines = []
 
-    def line(cls, name, f, segs, fig, parts=""):
+    def line(cls, name, f, fig, ink="bs", key=None):
         if not has(f):
             return
+        parts = [(w, figs.get(k)) for w, k in GPU_PARTS.get(key, ())]
+        split = parts and all(has(p) for _, p in parts)
+        segs = [(p["value"], c) for (_, p), c in zip(parts, ("bp", "bg"), strict=True)] if split \
+            else [(f["value"], ink)]  # fmt: skip
+        cps = ""
+        if split:
+            cps = "".join(f'<span class="cpt {c}"><span class="cpl">{e(of_which(w))}</span>'
+                          f"{fig_html(p, n)}</span>"
+                          for (w, p), c in zip(parts, ("pp", "pg"), strict=True))  # fmt: skip
+            cps = f'<span class="cps">{cps}</span>'
         bar = hbar(segs, top, h=14, cls="hb")
         lines.append(f'<div class="cl {cls}"><span class="cln">{e(name)}</span>{bar}'
-                     f'<span class="clf">{fig}</span>{parts}</div>')  # fmt: skip
+                     f'<span class="clf">{fig}</span>{cps}</div>')  # fmt: skip
 
-    line("srv", "Serving GPU time per reply", b,
-         [(b["value"], "bs")] if has(b) else [], fig_html(b))  # fmt: skip
-    if has(m) and has(p) and has(g):
-        parts = "".join(f'<span class="cpt {c}"><span class="cpl">{w}</span>{fig_html(f, n)}</span>'
-                        for c, w, f in (("pp", "of which proving", p),
-                                        ("pg", "of which generation", g)))  # fmt: skip
-        line("std", "Steady GPU time per further reply", m,
-             [(p["value"], "bp"), (g["value"], "bg")], fig_html(m, n),
-             f'<span class="cps">{parts}</span>')  # fmt: skip
-    else:
-        line("std", "Steady GPU time per further reply", m,
-             [(m["value"], "bs")] if has(m) else [], fig_html(m, n))  # fmt: skip
-    line(
-        "ses",
-        "Session GPU time per reply",
-        s,
-        [(s["value"], "bc")] if has(s) else [],
-        fig_html(s, n),
-    )
+    line("srv", "Serving GPU time per reply", b, fig_html(b, sub=FULL_LOAD_WORD))
+    line("std", M_NAME, m, fig_html(m, n), key="steady_gpu_seconds_per_reply")
+    line("ses", "Session GPU time per reply", s, fig_html(s, n), "bc",
+         "session_gpu_seconds_per_reply")  # fmt: skip
     return f'<div class="cbars">{"".join(lines)}</div>'
+
+
+def low_first(name):
+    """A label inside a list: its first letter lower case, unless it opens a capitalised word
+    ("GPU time" stays)."""
+    return name if name[1:2].isupper() else name[:1].lower() + name[1:]
 
 
 def missing_html(missing):
     """The figures the board holds no value for, named once per reason, in the board's words."""
     return "".join(
-        f'<p class="cnone">{e(", ".join(k if i == 0 else k[0].lower() + k[1:] for i, k in enumerate(names)))}'
+        f'<p class="cnone">{e(", ".join(k if i == 0 else low_first(k) for i, k in enumerate(names)))}'
         f": none, {e(why)}</p>"
         for why, names in missing.items()
     )  # fmt: skip
@@ -444,32 +471,34 @@ def cost_html(row):
     """The cost parts (CO-1 to CO-5) the band and the figures block do not print, each figure as
     the board stores it: the serving baseline, the GPU times drawn on one scale (`cost_bars`),
     then a sheet of the other figures; then, once, each figure the board holds no value for with
-    the board's reason."""
+    the board's reason (a steady figure on a row with no steady state: NO_STEADY_WORD)."""
     rung = rung_of(row)
     figs, b, n = row["figures"], rung["baseline"] or {}, counted(row)
-    cold = f"cold sessions of {rung['requests_per_session']:,} replies"
+    whole = WHOLE_SESSIONS.format(n=rung["requests_per_session"])
     price = S.V["price"]
-    label, _ = lead_fig(row)
-    steady = (FIGURE_NAME["multiple"], figs["multiple"], n)
-    other = steady if label != FIGURE_NAME["multiple"] else (
-        f"{FIGURE_NAME['multiple']}, {cold}", figs["session_multiple"], n)  # fmt: skip
-    split = []
-    if has(figs.get("proving_multiple")) and has(figs.get("generation_multiple")):
-        split = [("Of which proving, multiple of serving", figs["proving_multiple"], n),
-                 ("Of which generation, multiple of serving", figs["generation_multiple"], n)]  # fmt: skip
-    m = figs["steady_gpu_seconds_per_reply"]
+    _, _, key = lead_figure(row)
+    steady_multiple = f"Steady {FIGURE_NAME['multiple'].lower()}"
+    other = ((f"{FIGURE_NAME['multiple']}, {whole}", figs["session_multiple"], n)
+             if key == "multiple" else (steady_multiple, figs["multiple"], n))  # fmt: skip
     drawn = [("Serving GPU time per reply", b.get("gpu_seconds_per_reply"), None),
-             ("Steady GPU time per further reply", m, n),
+             (M_NAME, figs["steady_gpu_seconds_per_reply"], n),
              ("Session GPU time per reply", figs["session_gpu_seconds_per_reply"], n)]  # fmt: skip
     shown = row_cost(row)  # printed in the figures block
-    sheet = [*split, other, ("Steady cost per reply", figs["steady_usd_per_reply"], n),
+    sheet = [other, ("Steady cost per reply", figs["steady_usd_per_reply"], n),
              ("Session cost per reply", figs["session_usd_per_reply"], n),
              ("Serving cost per reply", b.get("usd_per_reply"), None)]  # fmt: skip
+    no_steady = not has(figs["multiple"]) and figs["multiple"]["null_reason"] == "not_applicable"
+    steady_figs = (figs["multiple"], figs["steady_gpu_seconds_per_reply"],
+                   figs["steady_usd_per_reply"])  # fmt: skip
     missing: dict[str, list[str]] = {}
     for k, f, _ in (*drawn, *sheet):
-        if not has(f):
-            missing.setdefault(NULL_WORD[f["null_reason"]] if f else "not recorded", []).append(k)
-    rows = [(k, fig_html(f, count)) for k, f, count in sheet if has(f) and f is not shown]
+        if has(f):
+            continue
+        why = ("not recorded" if not f else NO_STEADY_WORD
+               if no_steady and any(f is g for g in steady_figs) else NULL_WORD[f["null_reason"]])  # fmt: skip
+        missing.setdefault(why, []).append(k)
+    rows = [(k, fig_html(f, count, sub=FULL_LOAD_WORD if count is None and k.startswith("Serving")
+                         else None)) for k, f, count in sheet if has(f) and f is not shown]  # fmt: skip
     if price and has(price["usd_per_gpu_hour"]):
         rows.append(("Price of one H200 GPU-hour",
                      fig_html(price["usd_per_gpu_hour"], sub=f"{price['basis']}, {price['date']}")))  # fmt: skip
@@ -505,8 +534,7 @@ def fidelity_html(row):
         prefix = plain(mine["mean_prefix"], "tokens", row["record"] + "/fidelity/mean_prefix")
         sub = f"n\u00a0=\u00a0{mine['n']:,}"
         if mine["p_above_bar"] is not None:
-            sub += (f" · p above the bar {sig(mine['p_above_bar'], 2)}, p below "
-                    f"{sig(mine['p_below_bar'], 2)}")  # fmt: skip
+            sub += " · " + P_ABOVE.format(p=sig(mine["p_above_bar"], 2))
         out.append(f'<tr class="me"><th scope="row">{e(name_of(row))}</th>'
                    + tds("this system", (mine["mean_prefix"], "me"),
                          f'{prefix}<span class="sub">{e(sub)}</span>', kl_html(row))
@@ -522,7 +550,8 @@ def fidelity_html(row):
             kind += ", failed to run"
         kl = fig_html(c["kl"]) if has(c["kl"]) else '<span class="na">not measured</span>'
         out.append(
-            f'<tr class="{"bar" if is_bar else ""}"><th scope="row">{e(c["id"])}</th>'
+            f'<tr class="{"bar" if is_bar else ""}"><th scope="row">'
+            f"{e(CONTROL_NAME.get(c['id'], c['id']))}</th>"
             + tds(
                 e(kind),
                 (c["mean_prefix"], "bar" if is_bar else c["kind"]),
@@ -610,6 +639,7 @@ def system_page(row):
     share = share_html(row)
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
     label, lead = lead_fig(row)
+    lead += split_html(row, lead_figure(row)[2], bar=False)
     unranked = "" if row["position"] is not None else " unr"
     band_ = (
         f'<section class="mast mast-sys sysb" aria-labelledby="h-name"><div class="mast-in">'

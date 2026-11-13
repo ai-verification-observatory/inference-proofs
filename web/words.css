@@ -225,7 +225,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .bk { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 32px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
 .band-h { margin: 32px 0 0; font: 900 min(var(--title), calc((100vw - 2 * var(--gut)) / 12.8))/.92 var(--disp); letter-spacing: -.012em; white-space: nowrap; }
 .bl { --cp: min(16px, var(--gut)); margin: 28px calc(-1 * var(--cp)) 0; }
-.bx { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 20rem) 5.5rem; grid-template-areas: "k k k k" "p m s c" ". . f f"; align-items: last baseline; column-gap: 24px; padding: 16px var(--cp) 20px; background: var(--ground); color: var(--paper); text-decoration: none; }
+.bx { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 20rem) max-content; grid-template-areas: "k k k k" "p m s c" ". . f f"; align-items: last baseline; column-gap: 24px; padding: 16px var(--cp) 20px; background: var(--ground); color: var(--paper); text-decoration: none; }
 .bx-p { grid-area: p; font: 600 16px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .bx-m { grid-area: m; font: 900 40px/.92 var(--disp); letter-spacing: -.005em; }
 .bx-s { grid-area: s; display: flex; align-items: baseline; column-gap: 10px; min-width: 0; font: 600 14px/18px var(--mono); }
@@ -255,7 +255,7 @@ html:has(.top.s-on) { overflow: hidden; }
 @media (max-width: 1100px) {
   /* the block runs to the window's edges, its words on the gutter */
   .bl { --cp: var(--gut); }
-  .bx { grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 15rem) 4.5rem; column-gap: 20px; }
+  .bx { grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 15rem) max-content; column-gap: 20px; }
   .bx-m { font-size: 32px; }
   .bx-w { font-size: 24px; }
 }
@@ -407,6 +407,8 @@ html:not(.js) .shr:not(:has(a)) { display: none; }
 .lad col.c1 { width: 88px; } .lad col.c2 { width: 175px; } .lad col.c3 { width: 18%; } .lad col.c4 { width: 16%; } .lad col.c7 { width: 15%; }
 .lad thead th { position: sticky; top: var(--top-h); z-index: 3; background: var(--ground); font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); text-align: left; white-space: nowrap; padding: 14px 16px 12px 0; vertical-align: bottom; box-shadow: inset 0 -1px 0 var(--rule); }
 .lad thead th:first-child { container-type: scroll-state; }
+/* the last head (KL's) may take two lines rather than run past the table's edge */
+.lad thead th:last-child { white-space: normal; padding-right: 0; }
 .hk { display: none; padding: 4px 8px 5px; background: var(--cobalt); color: var(--ground); font: 600 13px/1 var(--mono); letter-spacing: -.01em; }
 @container scroll-state(stuck: top) { .hk { display: inline-block; } }
 /* the same, where words.js marks a stuck head (a browser with no scroll-state query) */
@@ -453,16 +455,26 @@ html.js .row { cursor: pointer; }
 .lad .fig .n { font-size: 24px; }
 .lad .cm .fig .n { font-size: 42px; letter-spacing: -.04em; }
 .lad .cm .fig .u.x { font-size: 24px; }
-.split { display: grid; grid-template-columns: auto auto; justify-content: start; column-gap: 18px; row-gap: 6px; margin-top: 14px; }
+.split { display: grid; grid-template-columns: minmax(0, max-content); justify-content: start; row-gap: 10px; margin-top: 14px; }
 .split .sbar { grid-column: 1 / -1; width: 100%; max-width: 168px; height: 4px; display: block; }
 .split .bp { fill: var(--paper); }
 .split .bg { fill: var(--rule); }
 .split .nib { stroke: var(--paper); stroke-width: 2px; vector-effect: non-scaling-stroke; }
-.split .part { display: flex; flex-direction: column; row-gap: 3px; }
-.split .pn { font: 600 14px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.split .px { font-weight: 600; margin-left: .1em; }
-.split .pl { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); }
+/* a part: its name on a line, then its figure with its scope and n beside it */
+.split .part { display: grid; grid-template-columns: max-content max-content; justify-content: start; align-items: baseline; column-gap: 8px; row-gap: 3px; }
+.split .pl { grid-column: 1 / -1; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); white-space: nowrap; }
 .split .pp .pl { color: var(--paper); }
+.split .fig .n, .lad .cm .split .fig .n { font-size: 14px; letter-spacing: -.02em; }
+.split .fig .u.x, .lad .cm .split .fig .u.x { font-size: 12px; margin-left: -.1em; }
+.split .sub, .lad .cm .split .sub { margin: 0; font-size: 11px; line-height: 14px; white-space: nowrap; }
+/* on the band: the parts under its figure, set right with it, in the ground ink, no bar */
+.sbm .split { grid-template-columns: max-content max-content; justify-content: end; column-gap: 28px; margin-top: 18px; }
+.sbm .split .part { justify-content: end; justify-items: end; }
+.sbm .split .pl, .sbm .split .pp .pl { color: var(--ground); }
+@media (max-width: 760px) {
+  .sbm .split { grid-template-columns: max-content; justify-content: start; row-gap: 10px; margin-top: 16px; }
+  .sbm .split .part { justify-content: start; justify-items: start; }
+}
 .sub { display: block; font: 400 12px/16px var(--mono); color: var(--muted); margin-top: 6px; }
 .lad .sub { white-space: nowrap; }
 .lad .cm .sub { white-space: normal; }
@@ -981,9 +993,6 @@ html.js .scalepage .scl-panel { margin-top: 0; }
   .parts .fig .n { font-size: 16px; }
 }
 /* the mandate: the rule binding a line, named under its words */
-.qsrc { display: block; width: fit-content; margin-top: 6px; font: 400 11px/16px var(--mono); color: var(--muted); text-decoration-color: var(--rule); }
-.qsrc:hover { color: var(--paper); text-decoration-color: currentColor; }
-.cs .qsrc { display: block; margin-top: 6px; }
 /* the checks page: the key (the glyph in cobalt) kept beside the five petals; the petal read lights in it */
 .cwrap { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 56px; padding-top: 32px; align-items: start; }
 .chk { padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line); }
@@ -1062,7 +1071,7 @@ main { flex: 1 0 auto; }
 .fcells li { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; margin-left: -1px; padding: 16px 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
 .foot a { color: var(--paper); text-decoration-color: var(--rule); }
 /* a footer link pointed at or pressed: cobalt under ground ink, at once */
-.foot a:hover, .foot a:active, .tsub a:active, .qsrc:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+.foot a:hover, .foot a:active, .tsub a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
 
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */
@@ -1321,7 +1330,6 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .tp:active { box-shadow: inset 0 0 0 1px var(--rule), inset 6px 0 0 var(--cobalt); }
 .tx:active { box-shadow: inset 0 0 0 4px var(--cobalt); }
 .tx:focus-visible { outline-offset: 2px; }
-.src { margin-top: 28px; font: 400 12px/19px var(--mono); color: var(--muted); }
 /* the glossary: a letter in the margin, kept in view while its terms pass; each term's name
    beside what it means, in the text column of every Learn page */
 .gli { margin-left: calc(var(--hd) + var(--hg)); max-width: var(--tx); }
@@ -1576,10 +1584,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 }
 @media (hover: none) {
   /* the hit area grows, not the box: a press inverts the words' own line */
-  .qsrc, .foot a { position: relative; }
+  .foot a { position: relative; }
   .foot a { z-index: 1; }
   .foot a:after { content: ""; position: absolute; inset: -14px 0; }
-  .qsrc:after { content: ""; position: absolute; inset: -14px 0; }
   /* a finger's targets: 44 px, the layout unchanged where a negative margin can take the growth */
   .brand .logo { padding-block: 14px; margin-block: -14px; }
   .ckt .ev { padding-block: 7px; }

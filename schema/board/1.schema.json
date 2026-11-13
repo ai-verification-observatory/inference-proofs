@@ -962,7 +962,7 @@
           "$ref": "#/$defs/value"
         },
         "session_multiple": {
-          "$comment": "CO-5: session cost per reply over the baseline's GPU-seconds per reply, printed as 'cold sessions of N replies'",
+          "$comment": "CO-5: session cost per reply over the baseline's GPU-seconds per reply, printed as 'whole sessions of N replies'",
           "$ref": "#/$defs/value"
         },
         "session_usd_per_reply": {
