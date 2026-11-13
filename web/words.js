@@ -704,6 +704,28 @@
     });
   }
 
+  // ------------------------------------------------------------ a system page's share group: Copy link writes the page's
+  // canonical address to the clipboard and says the page's word for done, on the button for a moment and to a screen
+  // reader. Without script, or with no clipboard, the button stays hidden
+  {
+    const canon = $('link[rel="canonical"]');
+    if (canon && navigator.clipboard) {
+      $$('.cplink').forEach((b) => {
+        const word = b.textContent;
+        let back = 0;
+        b.hidden = false;
+        b.addEventListener('click', () => {
+          navigator.clipboard.writeText(canon.href).then(() => {
+            b.textContent = b.dataset.done;
+            say(b.dataset.done);
+            clearTimeout(back);
+            back = setTimeout(() => { b.textContent = word; }, 2000);
+          }, () => {});
+        });
+      });
+    }
+  }
+
   // ------------------------------------------------------------ one page into the next: leaving the ladder for a system's
   // page, that row's name takes the name the page gives its title, so it morphs into it (the page has no glyph of its
   // own to morph into: its arms head the petals' table). A system's page morphs back into the ladder only: leaving for

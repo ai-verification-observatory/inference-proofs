@@ -211,13 +211,13 @@ def footer():
     return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
 
 
-def pnav(title, items):
+def pnav(title, items, end=""):
     """A page's sections as a strip that stays under the top bar (words.js marks the one in
     view): the page's title, shown once the band has scrolled away, then one link per section,
-    items as (id, label)."""
+    items as (id, label); `end` at the strip's right end, out of its scroll."""
     links = "".join(f'<a href="#{sid}">{e(label)}</a>' for sid, label in items)
     return (f'<nav class="pnav" aria-label="Sections"><div class="ps">'
-            f'<span class="ps-t" aria-hidden="true">{e(title)}</span>{links}</div></nav>')  # fmt: skip
+            f'<span class="ps-t" aria-hidden="true">{e(title)}</span>{links}</div>{end}</nav>')  # fmt: skip
 
 
 def full_title(title):
@@ -259,7 +259,8 @@ def page(title, desc, body, cls, path, card):
 # renderer writes each picture's source, og/<card>.html (CARD_W x CARD_H CSS px, the view's own
 # words and pies); og.mjs renders it to og/<card>.png at CARD_SCALE and records both sha256 in
 # og/cards.json. The pages name each picture with its hash, so a new picture is a new URL for link
-# caches; a page whose picture was not rendered yet names the home card, never a missing file.
+# caches; a page whose picture was not rendered, or was rendered from another source than the one
+# this build wrote (card_current), names the home card, never a missing or stale picture.
 SITE_URL = "https://www.inferenceproofs.ai"
 CARD_W, CARD_H, CARD_SCALE = 1200, 630, 2
 
@@ -300,9 +301,18 @@ def rung_of(row):
     return next(r for r in S.V["rungs"] if r["id"] == row["rung"])
 
 
+def card_current(card):
+    """Whether og/<card>.png was rendered from the source this build wrote (cards.json holds the
+    source's sha256): a picture of an earlier board is never named."""
+    rec, src = cards_record().get(card), S.OG / f"{card}.html"
+    return (
+        bool(rec) and src.exists() and rec["source"] == hashlib.sha256(src.read_bytes()).hexdigest()
+    )
+
+
 def share_meta(title, desc, path, card):
     url = f"{SITE_URL}/{path}"
-    if card not in cards_record():
+    if card != "home" and not card_current(card):
         card = "home"
     rec = cards_record().get(card)
     img = f"{SITE_URL}/og/{card}.png" + (f"?v={rec['png'][:12]}" if rec else "")
