@@ -1695,9 +1695,10 @@
               "evidence": [
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/verify-trace/"
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/verify-trace/",
+                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/reverify/reverify.json"
               ],
-              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 14 more)",
+              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 9 more)",
               "state": "undecided"
             },
             "prompt": {

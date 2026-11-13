@@ -1,0 +1,101 @@
+{
+  "harness": {
+    "git_commit": "ac288065a67b6904e160c59aa0298d38ab6ad254",
+    "git_dirty": false
+  },
+  "host": {
+    "machine": {
+      "container": {
+        "cgroup_version": "2",
+        "execution": "hosted"
+      },
+      "cpu": {
+        "bound_prover": [],
+        "bound_verifier": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ],
+        "bound_verifier_single": [
+          0
+        ],
+        "cgroup_quota_cpus": 16.0,
+        "logical_cpus": 64,
+        "model": "AMD EPYC 7R13 Processor",
+        "physical_cores": 32,
+        "smt_active": true,
+        "sockets": 1
+      },
+      "disk": {
+        "free_bytes_at_start": 1113043451904
+      },
+      "kernel": {
+        "release": "6.12.113-138.209.amzn2023.x86_64"
+      },
+      "memory": {
+        "available_bytes_at_start": 506609225728,
+        "cgroup_limit_bytes": 133999996928,
+        "total_bytes": 529681711104
+      },
+      "numa": {
+        "bound_mems": [
+          0
+        ],
+        "nodes": 2
+      },
+      "os": {},
+      "provider": "Hugging Face Jobs",
+      "verifier_host": "separate"
+    },
+    "nonconforming": []
+  },
+  "image": {
+    "digest_kind": "manifest",
+    "ref": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5"
+  },
+  "proofs": [
+    {
+      "proof_digest": "sha256:0080cd69d1929bfd3042532aa13c829fc5ec66fad101cc1d3e475878059ae31f",
+      "proof_id": "req-0",
+      "seconds": 1280.889628608,
+      "trace": "reverify/verify-trace/req-0.json",
+      "verdict": "accept"
+    },
+    {
+      "proof_digest": "sha256:60619100e813fd5eb3f7e7493a2c26b5828fb6e1abaa8ec0297d808706fa2d56",
+      "proof_id": "req-1",
+      "seconds": 1444.373448338,
+      "trace": "reverify/verify-trace/req-1.json",
+      "verdict": "accept"
+    },
+    {
+      "proof_digest": "sha256:cbee0da8016bf0c06ceb6b7b5d7e9dbb5746a650342520c42af2f10b3d11defc",
+      "proof_id": "req-2",
+      "seconds": 1494.372921077,
+      "trace": "reverify/verify-trace/req-2.json",
+      "verdict": "accept"
+    },
+    {
+      "proof_digest": "sha256:0f1bae9db8838ea7f3cdecb22582a832735bd05899aab0e5db45fbf7b7a09920",
+      "proof_id": "req-3",
+      "seconds": 1663.381637496,
+      "trace": "reverify/verify-trace/req-3.json",
+      "verdict": "accept"
+    },
+    {
+      "proof_digest": "sha256:806102912789a4174f96a14723c725d559027387faabc1370513aa6243e75361",
+      "proof_id": "req-4",
+      "seconds": 1387.227767967,
+      "trace": "reverify/verify-trace/req-4.json",
+      "verdict": "accept"
+    }
+  ],
+  "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+  "run_manifest_digest": "sha256:b041225bd87c4cd7e4bc588443b5e812bdfdcf922f67d04b552ba99038a12521",
+  "schema": "reverify/1"
+}
