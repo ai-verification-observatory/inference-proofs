@@ -228,7 +228,8 @@ PETAL_CHECKS = {"unforgeable": ("model", "prompt", "reply"), "weights_hidden": (
 # of the highest rate that is full load) and {top} (the ladder's top concurrency) are the level
 # file's constants; {reference} is each model's reference precision.
 FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
-               "check-time": "Verify time per reply", "kl": "KL to the original weights"}  # fmt: skip
+               "check-time": "Verify time per reply", "proof-size": "Proof size per reply",
+               "kl": "KL to the original weights"}  # fmt: skip
 # a figure's head where its unit stands beside it: the unit says "per reply", so the head does
 # not; and the surface names fidelity, not the metric (KL and the matched tokens' bar are under
 # Fidelity on a system's page)
@@ -275,6 +276,10 @@ FIGURE_RULE = {
         ("verify", "Total CPU wall-clock time the system's verifier takes to check all proofs in "
          "a session, divided by the number of replies in that session."),
     ),
+    "proof-size": (
+        ("proof size", "Total bytes of every file the system writes for the proofs of a session, "
+         "divided by the number of replies in that session."),
+    ),
     "kl": (
         ("kl", "Mean Kullback-Leibler divergence per scored token (in nats) between the model "
          "file the system commits to and the publisher's original {reference} reference weights."),
@@ -314,7 +319,9 @@ ORDER_RULE = (
 # ------------------------------------------------------------------ the scale page (RFC-0018 SI-7)
 SCALE_LOG = "log scale"  # beside an axis's unit
 SCALE_SERVING = "Serving"  # a lane's foot: serving's line and its stored figure
-SCALE_NOT_RUN = "Not run yet."
+SCALE_NOT_RUN = "not run yet"  # a model no system has run on (the ladder, the scale page)
+# the scale page's line under its title, and the start of its description
+SCALE_LEAD = "Every system run, model by model, on one log scale"
 # ------------------------------------------------------------------ the mandate page
 # The headline, what the site is for, then what we do, what we do not do, who runs it and how to
 # check us: each line (a plain label, the rule that binds it, the file that rule is in, the
@@ -402,13 +409,14 @@ CHECK_CAUSE_WORD = {
 SCOPE_SHORT = {None: "", "prove.steady": "steady", "prove.session": "session",
                "whole_wall": "session", "verify": "verify", "commit": "commit",
                "setup": "setup", "verify.single_thread": "verify, one thread"}  # fmt: skip
+WHOLE_WALL_SPAN = "from commit to the last proof"  # what a whole session's time runs over
 SCOPE_WORD = {
     None: "not a timed number",
     "setup": "setting up",
     "commit": "committing to the model",
     "prove.steady": "steady state, after the first release group",
     "prove.session": "the whole session, start-up included",
-    "whole_wall": "the whole session, from commit to the last proof",
+    "whole_wall": f"the whole session, {WHOLE_WALL_SPAN}",
     "verify": "verifying",
     "verify.single_thread": "verifying on one CPU thread",
     "primitive": "one primitive",
@@ -510,9 +518,14 @@ def labels(f, n=None, note=None):
     """A figure's labels in words, for its title: scope, grade, evidence, sample size, record.
     `n` stands where the figure stores no sample size (the row's counted sessions); `note` opens
     the title (CO-5's "whole sessions of N replies")."""
-    parts = [note] if note else []
-    parts += [f"scope: {SCOPE_WORD[f['scope']]}", f"grade: {GRADE_WORD[f['grade']]}",
-              f"evidence: {TIER_WORD[f['tier']]}"]  # fmt: skip
+    # CO-5's note says the session once, inside the scope: "scope: whole sessions of N replies,
+    # from commit to the last proof"
+    if note and f["scope"] == "whole_wall":
+        parts = [f"scope: {note}, {WHOLE_WALL_SPAN}"]
+    else:
+        parts = [note] if note else []
+        parts.append(f"scope: {SCOPE_WORD[f['scope']]}")
+    parts += [f"grade: {GRADE_WORD[f['grade']]}", f"evidence: {TIER_WORD[f['tier']]}"]
     count = f["n"] if f["n"] is not None else n
     if count is not None:
         parts.append(f"n = {count}")

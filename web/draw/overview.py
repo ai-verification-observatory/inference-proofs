@@ -29,6 +29,7 @@ from .words import (
     OF_WHICH,
     PETAL_NAME,
     REFERENCE_WORD,
+    SCALE_NOT_RUN,
     SEP,
     STATE_WORD,
     STEP_WORD,
@@ -137,6 +138,22 @@ def whole_note(row, key):
     return WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"])
 
 
+def scope_note(row, f):
+    """CO-5's label for any figure timed over the whole sessions (a session's cost beside its
+    multiple), so the figures of one row carry the same scope words in their titles."""
+    if f is None or f.get("scope") != "whole_wall":
+        return None
+    return WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"])
+
+
+def serving_missing(b, why="no full load recorded"):
+    """A model's serving figure where the board holds none: "not run yet" with no serving run,
+    "not measured" with one; the stored cause in its title."""
+    word = "not run yet" if b is None or b.get("run_id") is None else "not measured"
+    cause = (b or {}).get("cause") or why
+    return f'<span class="na" title="{e(cause)}">{word}</span>'
+
+
 def multiple_html(row, parts=True, bare=False):
     """CO-5: the multiple; with no steady state, the session cost over serving, labelled as whole
     sessions. With `parts`, its two parts under it (CO-7, `split_html`). `bare` (the ladder, the
@@ -212,9 +229,10 @@ def fidelity_word(row, page=None):
 def position_html(row, rung):
     """A row's position as a square, position 1 solid paper, the others an outline; the count run
     under it. A row with no position keeps the square, a dash in it and no count (the dash is
-    drawn, not read out: the cell is empty to a screen reader), so every row starts alike."""
+    drawn, not read out: a screen reader reads "no position"), so every row starts alike."""
     if row["position"] is None:
-        return '<span class="pos p0"><span class="pn" aria-hidden="true">\u2013</span></span>'
+        return ('<span class="pos p0"><span class="pn" aria-hidden="true">\u2013</span>'
+                '<span class="sr">no position</span></span>')  # fmt: skip
     lead = " p1" if row["position"] == 1 else ""
     return (f'<span class="pos{lead}"><span class="pn">{row["position"]}</span>'
             f'<span class="of">of {rung["systems_run"]}</span></span>')  # fmt: skip
@@ -235,9 +253,11 @@ def standing_html(row, page=None):
     if row["passed"]:
         return defined("passed", "passed")
     at = href(row) if page is None else page
-    missing = [f'<a class="df" href="{e(at)}#ck-{c["id"]}">{e(CHECK_NAME[c["id"]])} check</a> '
-               f"{e(STATE_WORD[c['state']])}" for c in row["checks"] if c["state"] != "held"]  # fmt: skip
-    return f"{not_passed(row)}: " + ", ".join(missing) if missing else not_passed(row)
+    missing = [f'<span class="ckn"><a class="df" href="{e(at)}#ck-{c["id"]}">'
+               f'{e(CHECK_NAME[c["id"]])} check</a> {e(STATE_WORD[c["state"]])}</span>'
+               for c in row["checks"] if c["state"] != "held"]  # fmt: skip
+    state = f'<span class="nw">{e(not_passed(row))}{":" if missing else ""}</span>'
+    return f"{state} " + ", ".join(missing) if missing else state
 
 
 def reference_words():
@@ -277,9 +297,10 @@ def row_html(row, rung):
     glyph = glyph_svg(ROW_GLYPH, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
     # the same petals with no names, drawn in place of the first on a phone (words.css shows one)
     glyph += glyph_svg(PHONE_GLYPH, states(row), cls="pie-svg gsh")
+    cost = row_cost(row)
     cells = (
         ("cm", multiple_html(row, bare=True)),
-        ("cc", fig_html(row_cost(row), counted(row), sub=BARE)),
+        ("cc", fig_html(cost, counted(row), sub=BARE, note=scope_note(row, cost))),
         ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row), sub=BARE)),
         ("ck", fidelity_word(row)),
     )
@@ -335,10 +356,8 @@ def rung_meta(rung):
     facts = [("Publisher", e(rung["publisher"])),
              ("Parameters", nobreak(architecture(rung["parameters_total"],
                                                  rung.get("parameters_active"))))]  # fmt: skip
-    if b is None:
-        facts.append(("Serving", "not run yet"))
-    elif not has(b["gpu_seconds_per_reply"]):
-        facts.append(("Serving", e(b["cause"] or "no full load recorded")))
+    if b is None or not has(b["gpu_seconds_per_reply"]):
+        facts.append(("Serving", serving_missing(b)))
     else:
         facts.append((FIGURE_HEAD["serving"],
                       fig_html(b["gpu_seconds_per_reply"], sub=BARE)))  # fmt: skip
@@ -356,7 +375,7 @@ def rung_html(rung):
         f"{rung_meta(rung)}</header>"
     )
     if not rung["rows"]:
-        body = '<p class="none">Not run yet.</p>'
+        body = f'<p class="none">{e(SCALE_NOT_RUN)}</p>'
     else:
         first = (f'<th scope="col"><span class="hk" aria-hidden="true">{size}</span>'
                  f'<span class="hm" aria-hidden="true">{nobreak(rung["model"])}</span>'
