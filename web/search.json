@@ -13,10 +13,10 @@
     {
       "group": "Systems",
       "kind": "system",
-      "meta": "Llama 3.1 8B Instruct · not passed yet: Verify without weights check undecided",
+      "meta": "Llama 3.1 8B Instruct · passed",
       "name": "SASH",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><path class=\"sl s1 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 0H18V5H3ZM20 0H25V5H20Z\"/><path class=\"sl s2 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 6.5H24.5V10.5H3\"/><path class=\"sl s3 amber cut\" data-step=\"amber_lower\" fill=\"#e49921\" d=\"M3 12H18V17H3ZM20 12H25V17H20Z\"/><path class=\"sl s4 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><path class=\"sl s5 red open\" data-step=\"red\" data-cause=\"not_stated\" fill=\"none\" stroke=\"#e03c44\" stroke-width=\"1\" d=\"M3 24.5H24.5V28.5H3\"/></svg>",
-      "terms": "sash llama 3.1 8b instruct · not passed yet: verify without weights check undecided l1-l31-8b-p512-o512 sash",
+      "terms": "sash llama 3.1 8b instruct · passed l1-l31-8b-p512-o512 sash",
       "tier": 0,
       "url": "/sash"
     },
