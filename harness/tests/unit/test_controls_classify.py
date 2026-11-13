@@ -174,3 +174,19 @@ def test_a_control_prove_that_raised_in_the_adapter_is_an_error() -> None:
         "prover_failed",
         "adapter: prove exited 2: cp_prove: weights do not match the commitment",
     )
+
+
+def test_an_adapter_traceback_raising_in_a_library_is_an_error() -> None:
+    """FlashProve's P1 of 2026-11-13: the traceback runs through the entrypoint and raises in
+    pathlib; still the adapter's failure."""
+    from iproofs.controls import prove_failure  # noqa: PLC0415
+    from iproofs.errors import ErrorKind, IProofsError  # noqa: PLC0415
+
+    crash = (
+        "Traceback (most recent call last):",
+        '  File "/opt/flashprove/entrypoint", line 205, in clone',
+        '  File "/usr/lib/python3.12/pathlib.py", line 1015, in open',
+        "FileNotFoundError: [Errno 2] No such file or directory: '/io/fit/weights/a.gguf'",
+    )
+    e = IProofsError(ErrorKind.ADAPTER, "prove exited 1", exit_code=1, last_lines=crash)
+    assert prove_failure(e)[0] == "error"

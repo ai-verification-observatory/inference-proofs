@@ -744,3 +744,22 @@ def test_reverify_of_a_kept_session_on_a_verifier_host(tmp_path: Path) -> None:
     assert sorted(p.name for p in (run_dir / "verify-trace").iterdir()) == own
     with pytest.raises(IProofsError, match="re-verified once"):
         reverify_run(verifier_host, run_dir)
+
+
+def test_control_prove_gets_setups_directories_linked(tmp_path: Path) -> None:
+    """FlashProve's P1 writes W' into /io/fit/weights, which setup made outside io/state: a
+    control prove's io holds every directory setup and commit left, linked, never proofs/."""
+    from iproofs.runner import STATE_AFTER_COMMIT, copy_state_after_commit  # noqa: PLC0415
+
+    src = tmp_path / "io"
+    (src / "fit/weights").mkdir(parents=True)
+    (src / "fit/weights/w.gguf").write_text("W")
+    (src / "state").mkdir()
+    (src / "state/isk.tar").write_text("k")
+    (src / "proofs/req-0").mkdir(parents=True)
+    (src / STATE_AFTER_COMMIT).write_text(json.dumps({"state": ["isk.tar"], "dirs": ["fit"]}))
+    dst = tmp_path / "prove-P1"
+    copy_state_after_commit(src, dst)
+    assert (dst / "fit/weights/w.gguf").stat().st_ino == (src / "fit/weights/w.gguf").stat().st_ino
+    assert (dst / "state/isk.tar").read_text() == "k"
+    assert not (dst / "proofs").exists()
