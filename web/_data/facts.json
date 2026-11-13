@@ -229,7 +229,7 @@
       "status": {
         "state": "active"
       },
-      "technique": "Ligero over hash-based commitments (Merkle trees, sequential Fiat-Shamir); matrix multiplications by Freivalds' check, nonlinearities by LogUp lookups"
+      "technique": "Ligero over hash-based commitments (sequential Fiat-Shamir); matrix multiplications by Freivalds' check, nonlinearities by LogUp lookups"
     },
     "zkgpt": {
       "code": "open_licence",

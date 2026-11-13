@@ -2,9 +2,9 @@
 figure at a time (the multiple of serving, cost, check time and proof size per reply).
 
 Each figure is a section; the strip of sections picks the one drawn (words.js), and with no script
-all four are drawn. In a section, one lane per model in the level's order, its rows in the
-board's order (OR-5), each a table whose rows are the systems: position, name and standing, the
-plot, and the stored figure printed by `fig_html` with its labels. Every lane of a section shares
+all four are drawn. A section is one table with its axis once at the head and one group (lane) per
+model in the level's order under it, its rows in the board's order (OR-5): position, name and
+standing, the plot, and the stored figure printed by `fig_html` with its labels. Every lane shares
 one decade grid (`extent` over the whole board), so a change of scale between models is seen by
 position; nothing is ranked, divided or ordered across lanes, and no mark joins two lanes.
 
@@ -226,54 +226,53 @@ def plot_svg(lo, hi, serve, mean=None, ticks=(), span=None):
         out.append(f'<line class="ss" x1="{x}" x2="{x}" y1="{MID - 12}" y2="{MID + 12}"/>')
     if mean is not None:
         out.append(f'<svg class="mk" x="{pct(pos(mean, lo, hi))}" y="{MID}" overflow="visible">'
-                   '<rect x="-5.25" y="-5.25" width="10.5" height="10.5"/></svg>')  # fmt: skip
+                   '<rect x="-7" y="-7" width="14" height="14"/></svg>')  # fmt: skip
     return (f'<svg class="lx" width="100%" height="{H}" aria-hidden="true" focusable="false">'
             f'{"".join(out)}</svg>')  # fmt: skip
 
 
 # ------------------------------------------------------------------ a lane, a section, the page
 def figure_html(row, dim):
-    """The row's figure as the ladder prints it (the multiple without its parts: on a lane's
-    decade axis a part's tick would sit among the sessions' ticks, told apart only by a key)."""
+    """The row's figure as the ladder prints it, with its two parts where it has them (CO-7)."""
     if dim == "multiple":
-        return multiple_html(row, parts=False)
+        return multiple_html(row)
     return fig_html(figure_of(row, dim), counted(row))
 
 
 def serving_html(rung, dim):
-    """The stored serving figure a lane's foot prints: GPU time beside the multiple's 1×, USD
-    beside the cost; the cause where the rung has no baseline."""
+    """The stored serving figure a model's head prints: GPU time beside the multiple (its 1x),
+    USD beside the cost, with the full load's concurrency; the cause where the rung has no
+    baseline; nothing for a figure with no serving counterpart."""
+    if dim not in ("multiple", "cost"):
+        return ""
     b = rung["baseline"]
     key = "gpu_seconds_per_reply" if dim == "multiple" else "usd_per_reply"
     if b is None or not has(b[key]):
         why = (b or {}).get("cause") or "no full load recorded"
-        return f'<span class="na">{e(why)}</span>'
-    return fig_html(b[key], sub=FULL_LOAD_WORD)
+        fig = f'<span class="na">{e(why)}</span>'
+    else:
+        fig = fig_html(b[key], sub=f"{FULL_LOAD_WORD} at {b['concurrency']:,} concurrent requests")
+    return f'<span class="lsv"><span class="k">{e(SCALE_SERVING)}</span>{fig}</span>'
 
 
-def lane_html(rung, dim, name, unit, ext):
-    """One model: its size in a tab and its name under a cobalt rule, then its rows on the
-    section's decade grid (`ext`), its serving line in its foot where the figure has one."""
+def lane_html(rung, dim, unit, ext):
+    """One model under the section's one axis: a group of the table, headed by its size in a tab
+    and its name under a cobalt rule, with its serving figure where the figure has one; then its
+    rows on the section's decade grid (`ext`). A model not run is its head and a line."""
     size = e(params(rung["parameters_total"]))
     facts = architecture(rung["parameters_total"], rung.get("parameters_active"))
     if rung["rows"]:
         facts += f" · {rung['systems_run']:,} run"
-    head = (f'<header class="lh"><p class="rk">{size}</p>'
-            f'<h3 class="ln" id="{dim}-{e(rung["id"])}">{nobreak(rung["model"])}</h3>'
-            f'<p class="lf">{nobreak(facts)}</p></header>')  # fmt: skip
+    serving = serving_html(rung, dim) if rung["rows"] else ""
+    head = (f'<tr class="grp"><th colspan="4" scope="rowgroup" id="{dim}-{e(rung["id"])}">'
+            f'<span class="lh"><span class="rk">{size}</span>'
+            f'<span class="ln">{nobreak(rung["model"])}</span>'
+            f'<span class="lf">{nobreak(facts)}</span>{serving}</span></th></tr>')  # fmt: skip
     if not rung["rows"] or ext is None:
-        return f'<div class="lane">{head}<p class="none">{e(SCALE_NOT_RUN)}</p></div>'
+        return (f'<tbody class="lane">{head}<tr class="nrun"><td colspan="4">'
+                f"{e(SCALE_NOT_RUN)}</td></tr></tbody>")  # fmt: skip
     lo, hi = ext
     serve = serving_of(rung, dim)
-    named = (f'<a class="df" href="{CHECKS_PAGE}#{dim}">{e(name)}</a>' if dim in FIGURE_RULE
-             else e(name))  # fmt: skip
-    _, words = number(1, unit)
-    words = f"{words} {SCALE_SERVING.lower()}" if unit == "ratio" else words
-    thead = ('<thead><tr><th scope="col" class="cp"><span class="sr">Position</span></th>'
-             '<th scope="col" class="csys">System</th>'
-             f'<th scope="col" class="cx"><span class="al">{e(words)}, {e(SCALE_LOG)}</span>'
-             f'{axis_svg(lo, hi, unit)}</th>'
-             f'<th scope="col" class="cf">{named}</th></tr></thead>')  # fmt: skip
     trs = []
     for row in rung["rows"]:
         mean, ticks, span = marks_of(row, dim, rung, unit)
@@ -285,30 +284,37 @@ def lane_html(rung, dim, name, unit, ext):
             f'<td class="cx" aria-hidden="true">{plot_svg(lo, hi, serve, mean, ticks, span)}</td>'
             f'<td class="cf">{figure_html(row, dim)}</td></tr>'
         )
-    foot = ""
-    if dim in ("multiple", "cost"):
-        foot = (f'<tfoot><tr class="svr"><td class="cp"></td>'
-                f'<th class="csys" scope="row">{e(SCALE_SERVING)}</th>'
-                f'<td class="cx" aria-hidden="true">{plot_svg(lo, hi, serve)}</td>'
-                f'<td class="cf">{serving_html(rung, dim)}</td></tr></tfoot>')  # fmt: skip
-    table = (f'<table class="scl" data-lo="{lo}" data-hi="{hi}">'
-             f'<caption class="sr">{e(rung["model"])}</caption>{thead}'
-             f'<tbody>{"".join(trs)}</tbody>{foot}</table>')  # fmt: skip
-    return f'<div class="lane">{head}{table}</div>'
+    return f'<tbody class="lane">{head}{"".join(trs)}</tbody>'
 
 
 def panel_html(dim, name, unit, shared=True):
-    """One figure's section: a lane per model, largest first. `shared`: every lane on the
-    decade grid of the whole board (SI-7); False sets each lane on its own values' grid (the
-    stricter reading, Q15)."""
+    """One figure's section: one table, its axis once at the head, a group per model under it,
+    largest first. `shared`: every group on the decade grid of the whole board (SI-7); False sets
+    each group on its own values' grid in a table of its own (the stricter reading, Q17)."""
     rungs = S.V["rungs"]
     whole = extent(values(dim, unit, rungs), unit == "ratio")
+    named = (f'<a class="df" href="{CHECKS_PAGE}#{dim}">{e(name)}</a>' if dim in FIGURE_RULE
+             else e(name))  # fmt: skip
+    _, words = number(1, unit)
+    words = f"{words} {SCALE_SERVING.lower()}" if unit == "ratio" else words
 
-    def grid(rung):
-        return whole if shared else extent(values(dim, unit, [rung]), unit == "ratio")
+    def table(groups, ext):
+        lo, hi = ext if ext is not None else (0, 1)
+        axis = axis_svg(lo, hi, unit) if ext is not None else ""
+        thead = ('<thead><tr><th scope="col" class="cp"><span class="sr">Position</span></th>'
+                 '<th scope="col" class="csys">System</th>'
+                 f'<th scope="col" class="cx"><span class="al">{e(words)}, {e(SCALE_LOG)}</span>'
+                 f"{axis}</th>"
+                 f'<th scope="col" class="cf">{named}</th></tr></thead>')  # fmt: skip
+        return (f'<table class="scl" data-lo="{lo}" data-hi="{hi}">'
+                f'<caption class="sr">{e(name)}</caption>{thead}{groups}</table>')  # fmt: skip
 
-    lanes = "".join(lane_html(r, dim, name, unit, grid(r)) for r in rungs)
-    return section(dim, name, lanes).replace('class="blk"', 'class="blk scl-panel"', 1)
+    if shared:
+        body = table("".join(lane_html(r, dim, unit, whole) for r in rungs), whole)
+    else:
+        body = "".join(table(lane_html(r, dim, unit, g), g) for r in rungs
+                       for g in [extent(values(dim, unit, [r]), unit == "ratio")])  # fmt: skip
+    return section(dim, name, body).replace('class="blk"', 'class="blk scl-panel"', 1)
 
 
 def build_scale():

@@ -593,6 +593,28 @@
           "minLength": 1,
           "type": "string"
         },
+        "sources_read": {
+          "$comment": "R-SILENT: on a red with cause not_stated, the documents read, each linked at the pin; absent otherwise",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "path": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "url": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "url"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
         "state": {
           "enum": [
             "green",

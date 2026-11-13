@@ -198,7 +198,7 @@ FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
                "check-time": "Verify time per reply", "kl": "KL to the original weights"}  # fmt: skip
 FIGURE_RULE = {
     "multiple": (
-        ("proving", "m, GPU-seconds per proved reply after the first group. In one session, proofs released "
+        ("m", "GPU-seconds per proved reply after the first group. In one session, proofs released "
          "within {gap} of the previous release form a group. m is the GPU time from the first "
          "group's last release to the session's last release, over the replies of the later "
          "groups, generating the replies included. The mean of {slots} sessions, each from a "

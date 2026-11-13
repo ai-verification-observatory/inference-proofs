@@ -12,7 +12,7 @@ line wins. Every function here is pure except `load_properties` and `load_proof_
 import json
 import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from iproofs.errors import ErrorKind, IProofsError
@@ -82,6 +82,7 @@ class Petal:
     formal: Mapping[str, object] | None = None
     visible: Sequence[Mapping[str, object]] | None = None
     reading: bool = False  # a fact the decision read carries a note: the reader's reading (N1)
+    sources: tuple[Mapping[str, str], ...] = ()  # R-SILENT: the documents read, linked at the pin
 
     @property
     def state(self) -> str:
@@ -106,6 +107,8 @@ class Petal:
                  "quotes": [_quote(q) for q in _quotes(i)]} for i in self.visible]  # fmt: skip
         if self.reading:
             out["reading"] = True
+        if self.sources:
+            out["sources_read"] = [dict(s) for s in self.sources]
         return out
 
 
@@ -217,9 +220,20 @@ def _not_read(pid: str, reason: str) -> Petal:
 
 
 def _silent(petal: Mapping[str, object], props: Mapping[str, object]) -> str:
-    """R-SILENT: the documents read, at the pin."""
-    docs = ", ".join(str(s) for s in petal.get("sources_read") or ())  # type: ignore[attr-defined]
-    return f"not stated in {docs} at {_pin(props)[:7]}"
+    """R-SILENT: silence at the pin; the documents read go with the petal (`_with_sources`)."""
+    return "not stated in the publisher's documents read at the pin"
+
+
+def _with_sources(p: Petal, props: Mapping[str, object] | None) -> Petal:
+    """R-SILENT: a silent red carries the petal's `sources_read`, each linked at the pin."""
+    if p.cause != NOT_STATED or props is None:
+        return p
+    up = _m(props.get("upstream"))
+    docs = _m(_m(props.get("petals")).get(p.id)).get("sources_read")
+    base = f"https://github.com/{up.get('repo')}/blob/{up.get('commit')}/"
+    found = tuple({"path": str(d), "url": base + str(d)}
+                  for d in (docs if isinstance(docs, list) else ()))  # fmt: skip
+    return replace(p, sources=found)
 
 
 def petal_quotes(pid: str, petal: Mapping[str, object]) -> tuple[Quote, ...]:
@@ -451,7 +465,7 @@ def machine_checked(  # noqa: PLR0911, PLR0912 (one return per line of the table
             reason = "no proof build of the named theorem is recorded yet"
         return Petal(pid, None, PROOF_BUILD_NOT_RUN, STATEMENT, reason, quotes, formal=formal,
                      reading=v.noted)  # fmt: skip
-    reason = f"a proof build recorded at {pin7} checks {reach}"  # MC-6
+    reason = f"the named theorem builds at {pin7}, stated to reach {reach}"  # MC-6
     if r == "verifier_run" and stated == AMBER_UPPER:
         unverified = v("input_code_unverified")
         but = ("no trusted base listed" if not v("trusted_base")
@@ -557,8 +571,8 @@ def no_trusted_party(  # noqa: PLR0911 (one return per line of the table)
         return decided(AMBER_UPPER, None, "soundness rests on an open setup ceremony whose "
                        "secret stays unknown if one participant was honest")  # fmt: skip
     if rests_noted:  # NT-6, N1: no quote says it in words
-        return decided(GREEN, None, "read as resting on cryptographic assumptions alone, not "
-                       "said in those words")  # fmt: skip
+        return decided(GREEN, None, "read as resting on cryptographic assumptions alone; no quote "
+                       "says no setup produced a secret")  # fmt: skip
     return decided(GREEN, None, "stated to rest on cryptographic assumptions alone, with no "
                    "setup that produced a secret")  # NT-6  # fmt: skip
 
@@ -571,12 +585,13 @@ def statement_petals(
     build: Mapping[str, object] | None,
 ) -> dict[str, Petal]:
     """The four statement petals, each decided on its own (GL-7)."""
-    return {
+    found = {
         "unforgeable": unforgeable(props, checks, commit, coverage),
         "weights_hidden": weights_hidden(props, checks, commit),
         "machine_checked": machine_checked(props, checks, commit, build),
         "no_trusted_party": no_trusted_party(props, commit),
     }
+    return {k: _with_sources(p, props) for k, p in found.items()}
 
 
 # ---------------------------------------------------------------- Faithful model (FM-1 to FM-7)
@@ -730,10 +745,10 @@ def faithful_model(  # noqa: PLR0911, PLR0912 (one return per line of the table)
         if green_shown:
             return petal(AMBER_UPPER, f"shown above {t_green}, but {had} and green needs 1")
         return petal(AMBER_UPPER, f"shown above {t_upper}, but not the {_LINE_WORDS['green']} "
-                     f"one, {vg:.2f}")  # fmt: skip
+                     f"one, {vg:.2f} {SCORE_UNIT}")  # fmt: skip
     if green_shown:  # FM-7 (F4)
         return petal(AMBER_LOWER, f"shown above {t_green}, not the {_LINE_WORDS['upper']} one, "
-                     f"{vu:.2f}, and {had}")  # fmt: skip
+                     f"{vu:.2f} {SCORE_UNIT}, and {had}")  # fmt: skip
     return petal(AMBER_LOWER, f"not shown above {t_upper}")  # FM-7
 
 

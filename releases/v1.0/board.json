@@ -874,7 +874,7 @@
                 }
               ],
               "reading": true,
-              "reason": "read as resting on cryptographic assumptions alone, not said in those words",
+              "reason": "read as resting on cryptographic assumptions alone; no quote says no setup produced a secret",
               "state": "green",
               "step": "green"
             }
@@ -1795,7 +1795,25 @@
                   "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L56-L58"
                 }
               ],
-              "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/util.rs at 4f41667",
+              "reason": "not stated in the publisher's documents read at the pin",
+              "sources_read": [
+                {
+                  "path": "README.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/README.md"
+                },
+                {
+                  "path": "prover/README.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md"
+                },
+                {
+                  "path": "docs/statement.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md"
+                },
+                {
+                  "path": "prover/src/util.rs",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs"
+                }
+              ],
               "state": "red",
               "step": "red",
               "visible": []
@@ -1869,7 +1887,25 @@
               "id": "machine_checked",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/util.rs at 4f41667",
+              "reason": "not stated in the publisher's documents read at the pin",
+              "sources_read": [
+                {
+                  "path": "README.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/README.md"
+                },
+                {
+                  "path": "prover/README.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md"
+                },
+                {
+                  "path": "docs/statement.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md"
+                },
+                {
+                  "path": "prover/src/util.rs",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs"
+                }
+              ],
               "state": "red",
               "step": "red"
             },
@@ -1885,7 +1921,25 @@
                 }
               ],
               "reading": true,
-              "reason": "not stated in README.md, prover/README.md, docs/statement.md, prover/src/compose.rs at 4f41667",
+              "reason": "not stated in the publisher's documents read at the pin",
+              "sources_read": [
+                {
+                  "path": "README.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/README.md"
+                },
+                {
+                  "path": "prover/README.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md"
+                },
+                {
+                  "path": "docs/statement.md",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/docs/statement.md"
+                },
+                {
+                  "path": "prover/src/compose.rs",
+                  "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/compose.rs"
+                }
+              ],
               "state": "red",
               "step": "red"
             }

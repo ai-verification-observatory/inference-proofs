@@ -357,7 +357,10 @@
     lastY = y;
     if (!pnav) return;
     const edge = pnav.getBoundingClientRect().bottom;
+    const wasStuck = pnav.classList.contains('stuck');
     pnav.classList.toggle('stuck', !!mast && mast.getBoundingClientRect().bottom < pnav.getBoundingClientRect().top - 1);
+    // the title slides into the strip or out of it: the marked label is made whole again once it has (below)
+    if (wasStuck !== pnav.classList.contains('stuck')) requestAnimationFrame(rewhole);
     // the scale page's strip marks the figure drawn, not the section in view (below)
     if (panels.length) { petalSpy(); return; }
     let k = -1;
@@ -409,6 +412,9 @@
     a.style.setProperty('width', `${Math.ceil(w + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight))}px`);
   };
   addEventListener('resize', () => links.forEach(snug), { passive: true });
+  const rewhole = () => { const on = strip && $('a.on', strip); if (on) whole(on, 'auto'); };
+  const stripTitle = strip && $('.ps-t', strip);
+  if (stripTitle) stripTitle.addEventListener('transitionend', (ev) => { if (ev.propertyName === 'max-width') rewhole(); });
 
   // ------------------------------------------------------------ the scale page: its strip picks the one figure drawn, and
   // the address keeps it (no history entry, no scroll); an address naming none draws the first. With no script every

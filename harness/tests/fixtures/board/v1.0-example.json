@@ -1029,6 +1029,89 @@
             "stated": true,
             "words": "an invented example of a publisher's words"
           },
+          "session_commit_and_proving_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "#/rungs/1/rows/0/session_gpu_seconds_per_reply",
+                "#/rungs/1/rows/0/session_generation_gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-COMMIT-PROVING@0.1.0"
+            },
+            "stats": {
+              "max": 504.9,
+              "mean": 504.9,
+              "median": 504.9,
+              "min": 504.9,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 0.0
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 504.9
+          },
+          "session_commit_and_proving_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "#/rungs/1/rows/0/session_commit_and_proving_gpu_seconds_per_reply",
+                "#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 358.479
+          },
+          "session_generation_gpu_seconds_per_reply": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "results/v1.0/sash/2026-12-03-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/marks",
+                "results/v1.0/sash/2026-12-03-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/marks",
+                "results/v1.0/sash/2026-12-03-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/marks"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-GENERATION@0.1.0"
+            },
+            "stats": {
+              "max": 100.0,
+              "mean": 100.0,
+              "median": 100.0,
+              "min": 100.0,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 0.0
+            },
+            "tier": "reported",
+            "unit": "gpu_s/request",
+            "value": 100.0
+          },
+          "session_generation_multiple": {
+            "grade": "derived",
+            "null_reason": null,
+            "scope": "whole_wall",
+            "source": {
+              "inputs": [
+                "#/rungs/1/rows/0/session_generation_gpu_seconds_per_reply",
+                "#/rungs/1/baseline/gpu_seconds_per_reply"
+              ],
+              "kind": "derivation",
+              "ref": "derive:D-L1-MULTIPLE@0.1.0"
+            },
+            "tier": "reported",
+            "unit": "ratio",
+            "value": 71.0
+          },
           "session_gpu_seconds_per_reply": {
             "grade": "derived",
             "null_reason": null,

@@ -58,13 +58,17 @@ def figure(q: Any, pointer: str, board: str | None) -> dict[str, Any] | None:
     }
 
 
-def _system(sid: str, facts: Any) -> dict[str, Any]:
+def _system(sid: str, facts: Any, root: Path) -> dict[str, Any]:
     row = facts.rows.get(sid)
+    # the publisher's repository, as the claim card pins it (`upstream.repo`)
+    card = root / "systems" / sid / "claim.yaml"
+    up = inputs.read_yaml(card).get("upstream") if card.is_file() else None
     return {
         "id": sid,
         "name": row.name if row is not None else sid,
         "licence": None if row is None or row.licence is None else
         {"name": row.licence.name, "url": row.licence.url},
+        "repo": str(up["repo"]) if isinstance(up, dict) and up.get("repo") else None,
     }  # fmt: skip
 
 
@@ -127,6 +131,8 @@ def _glyph(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         out.append({"id": pid, "state": state, "step": step, "cause": cause,
                     "basis": p["basis"], "reading": reading, "reason": p["reason"],
                     "quotes": _quotes(p.get("quotes")),
+                    "sources": [{"path": d["path"], "url": d["url"]}
+                                for d in p.get("sources_read") or []],
                     "lowered_by": list(p["lowered_by"]), "form": _form(step, state, cause),
                     "formal": _formal(pid, p.get("formal")),
                     "visible": None if visible is None else
@@ -309,7 +315,7 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
         rungs.append(_rung(lr, found, f"/rungs/{i}", shown))
     _pages(rungs)
     ran = {row["system"] for r in rungs for row in r["rows"]}
-    systems = {sid: _system(sid, facts) for sid in sorted(ran)}
+    systems = {sid: _system(sid, facts, root) for sid in sorted(ran)}
     frontier = None
     if doc is not None and doc["frontier"] is not None:
         f = doc["frontier"]

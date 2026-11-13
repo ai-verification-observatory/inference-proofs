@@ -26,6 +26,7 @@ from .words import (
     FIGURE_NAME,
     FULL_LOAD_WORD,
     NULL_WORD,
+    OF_WHICH,
     PETAL_NAME,
     REFERENCE_WORD,
     SEP,
@@ -130,7 +131,7 @@ def multiple_html(row, parts=True):
     return fig_html(f, counted(row)) + (split if has(f) else "")
 
 
-def split_html(row, key, bar=True):
+def split_html(row, key, bar=True, of_which=False):
     """CO-7: under a multiple (`key`: the steady one or the whole sessions'), its two parts, each
     a figure with its scope and n, after a bar of their shares, where the system generates in a
     phase of its own; nothing otherwise. The part that is not generation first, in paper."""
@@ -147,7 +148,8 @@ def split_html(row, key, bar=True):
                f'<rect class="bp" width="{share:.2f}" height="4"/>'
                f'<rect class="bg" x="{share:.2f}" width="{100 - share:.2f}" height="4"/>{nib}</svg>')  # fmt: skip
     n = counted(row)
-    out = "".join(f'<span class="part {c}"><span class="pl">{e(w)}</span>{fig_html(f, n)}</span>'
+    pre = f"{OF_WHICH} " if of_which else ""  # with no bar, the words tie each part to its whole
+    out = "".join(f'<span class="part {c}"><span class="pl">{e(pre + w)}</span>{fig_html(f, n)}</span>'
                   for c, w, f in (("pp", w1, f1), ("pg", w2, f2)))  # fmt: skip
     return f'<span class="split">{svg}{out}</span>'
 

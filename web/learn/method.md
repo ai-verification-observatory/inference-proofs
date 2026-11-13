@@ -1,4 +1,4 @@
-A benchmark of provers has to settle three things before it runs anything: what every system is asked to do, what a system must get right to count, and which one number is compared. This page gives each rule of [[level|Level 1]], the reason its text gives, and the places where the text gives none. The rules themselves are in [RFC-0018](repo:rfcs/0018-level-1-ladder.md) and the [level file](repo:levels/L1.yaml). Where this page and they differ, they win.
+A benchmark of provers has to settle three things before it runs anything: what every system is asked to do, what a system must get right to count, and which one number is compared.
 
 ## What is fixed before the first run
 
@@ -7,14 +7,14 @@ Published figures for provers differ in four things at once: the model, the hard
 1. **The rules are frozen.** The level file holds the constants of the request, the sessions, the steady state, the baseline, the order rule and the fidelity test. The number of trials per control and the thresholds of the glyph are in the RFC. The stated aim is a level file "frozen before the first counted run, so no constant is chosen after seeing a row". Every counted run names the frozen file by its digest, and the level link in every page's footer carries it in its title. The record differs from the aim in two ways, given under [Who wrote the rules](#who-wrote-the-rules-and-how-they-changed).
 2. **Nobody picks the prompts.** They are windows of public-domain books, drawn with a seed taken from a [public randomness beacon](https://docs.drand.love/): the first round produced after the commit that froze the level. In the RFC's words, "nobody, the operator included, knows the prompts when the constants are fixed, and nobody chooses the round". The operator there is whoever runs this benchmark.
 3. **Systems run as published.** Each runs at a full commit hash, unpatched, with no option its documentation does not name. An [[adapter]] wraps it and changes nothing.
-4. **Times are read from outside.** Our process reads the clock outside the system's container. A proof counts as released at the instant that process sees its files appear, because, in the words of [RFC-0011](repo:rfcs/0011-measurement-and-sampling.md), "this project must not depend on code inside the container for its headline numbers".
-5. **The commitment comes from our record.** The verifier is given the [[commitment]] from our record of the commit step, never from files sent with a proof. Otherwise, as [RFC-0014](repo:rfcs/0014-provenance-and-integrity.md) puts it, "a forged proof with a matching forged commitment is accepted".
+4. **Times are read from outside.** Our process reads the clock outside the system's container. A proof counts as released at the instant that process sees its files appear, because "[this project must not depend on code inside the container for its headline numbers](repo:rfcs/0011-measurement-and-sampling.md)".
+5. **The commitment comes from our record.** The verifier is given the [[commitment]] from our record of the commit step, never from files sent with a proof. Otherwise "[a forged proof with a matching forged commitment is accepted](repo:rfcs/0014-provenance-and-integrity.md)".
 
 ## One request for every system
 
 The [[request]] is 512 prompt tokens and a 512-token reply, decoded greedily, with every reply token checked by the verifier. It is the same on every model, "so a multiple means the same thing on every rung".
 
-Two details of it close ways to move a figure without changing a prover. The end token does not stop a reply, "so every request decodes exactly the tokens the harness counts" ([RFC-0015](repo:rfcs/0015-reference-rows.md)). And all 512 reply tokens must be covered by accepted proofs. RFC-0018 gives no reason for that. [RFC-0017](repo:rfcs/0017-requests-tasks-and-tested-states.md) gives a related one for printing no figure per token: for a design that proves a window, the range of tokens checked is "a request parameter with no measured effect on cost", so such a figure "would rank adapters".
+Two details of it close ways to move a figure without changing a prover. The end token does not stop a reply, "[so every request decodes exactly the tokens the harness counts](repo:rfcs/0015-reference-rows.md)". And all 512 reply tokens must be covered by accepted proofs. No reason is given for that. A related one is given for printing no figure per token: for a design that proves a window, the range of tokens checked is "[a request parameter with no measured effect on cost](repo:rfcs/0017-requests-tasks-and-tested-states.md)", so such a figure "would rank adapters".
 
 The length itself is bounded by the systems: one of the first two systems accepts a window of 1,024 tokens. Within that bound the RFC gives no argument for a 512-token reply over a shorter one, and it keeps a shorter reply as a fallback.
 
@@ -55,7 +55,7 @@ None of them attempts a forged proof. The RFC says: "Tests cannot tell a proof f
 
 ## Fidelity: is the proved model the publisher's?
 
-RFC-0018's motivation says: "A system can quantize a model until proving it is cheap." The Fidelity check asks how far the proved copy has moved from the original.
+"[A system can quantize a model until proving it is cheap.](repo:rfcs/0018-level-1-ladder.md#motivation)" The Fidelity check asks how far the proved copy has moved from the original.
 
 The score of a reply is the number of leading tokens it shares with the reply of the publisher's original weights to the same prompt. The same score is computed for comparison copies: honest ones (the original run a second time, two mild quantizations) and damaged ones (two harsh quantizations, the model with a quarter of its blocks removed, a smaller model of the same family). The bar is the damaged copy that scores highest among those every honest copy scores above. The check is held when the system's replies score above the bar, by a paired test over the prompts.
 
@@ -63,11 +63,11 @@ The KL divergence from the original is printed beside it and decides nothing, be
 
 ## One figure: the multiple of serving
 
-"A proving rate alone says nothing about cost relative to the work being proved", in the words of [RFC-0015](repo:rfcs/0015-reference-rows.md). The ranked figure is therefore a ratio on one model, the [[multiple]]: m, the GPU-seconds of one more proved reply with its generation included, as the mean of three sessions, over b, the GPU-seconds of a reply served at full load on the same kind of GPU. [Where the cost goes](/cost) defines both and draws the session they are taken from.
+"[A proving rate alone says nothing about cost relative to the work being proved](repo:rfcs/0015-reference-rows.md)." The ranked figure is therefore a ratio on one model, the [[multiple]]: m, the GPU-seconds of one more proved reply with its generation included, as the mean of three sessions, over b, the GPU-seconds of a reply served at full load on the same kind of GPU. [Where the cost goes](/cost) defines both and draws the session they are taken from.
 
 Each half can be moved without changing a prover, and has a rule against it. Proofs are grouped by when they were released, not by batch. The rule comes from an error of our own: an earlier rule counted more replies than the interval had produced, and proving looked cheaper than it was. For serving, full load is found by raising the concurrency in steps, and a run whose rate is still rising at the last step gives no baseline at all. The stated goal is "a cost figure that a hostile expert cannot move by choosing a window, a batch or a baseline".
 
-Two limits are admitted in [RFC-0015](repo:rfcs/0015-reference-rows.md)'s own list of drawbacks. Serving with an engine's defaults "is not the maximum achievable serving throughput". And the served precision is the publisher's choice, so the ratio "mixes the cost of proving with a precision difference the publisher chose".
+Two limits are admitted among the [baseline's drawbacks](repo:rfcs/0015-reference-rows.md). Serving with an engine's defaults "is not the maximum achievable serving throughput". And the served precision is the publisher's choice, so the ratio "mixes the cost of proving with a precision difference the publisher chose".
 
 :::measured rows
 The rows of the board today. A row with too few release groups has no m, and prints its whole-session cost over b instead, labelled as whole sessions.
@@ -85,7 +85,7 @@ Passing the checks is the entry gate. The [[glyph]] shows the distance from ther
 - **Each petal alone.** A petal is decided as if the others were green, and nothing adds them up.
 
 - **Silence is red**, since "a guarantee nobody states is one nobody can rely on". It is drawn as an outline in the red ink. Not read is not silent: a petal whose documents are not read yet is hollow.
-- **Tests only lower.** A failed check turns its petals red. A held check never turns one green. RFC-0018 gives no reason. The earlier [RFC-0016](repo:rfcs/0016-glyph-properties-and-states.md) did: a passed control shows that one change was refused, and "reading more into it would turn a test into a certificate".
+- **Tests only lower.** A failed check turns its petals red. A held check never turns one green: a passed control shows that one change was refused, and "[reading more into it would turn a test into a certificate](repo:rfcs/0016-glyph-properties-and-states.md)".
 - **The glyph never moves a position.** The order is cost among the systems that passed.
 
 ## What was set by judgement

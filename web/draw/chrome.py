@@ -16,6 +16,7 @@ from .words import (
     CAUSE_WORD,
     CHECK_NAME,
     FIGURE_NAME,
+    OF_WHICH,
     PART_WORD,
     PETAL_NAME,
     SEP,
@@ -306,8 +307,10 @@ def card_alt(card):
         return "Inference proofs."
     row = S.PAGE[card]
     n = counted(row)
-    label, f, _ = lead_figure(row)
+    label, f, key = lead_figure(row)
     lead = f"{label}: {fig_words(f, n)}"
+    if parts := parts_of(row, key):  # CO-7
+        lead += "".join(f", {OF_WHICH} {w} {fig_words(p, n)}" for w, p in parts)
     figs = [(FIGURE_NAME["cost"], row_cost(row)),
             (FIGURE_NAME["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
     cells = ". ".join(f"{k}: {fig_words(v, n)}" for k, v in figs)
