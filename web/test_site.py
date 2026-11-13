@@ -56,7 +56,7 @@ def test_every_printed_figure_is_a_board_value(board_site: Any) -> None:
             stored = resolve(board_site.board, record[1])
             if isinstance(stored, dict):  # a quantity: its own unit
                 assert (n, unit) == number(stored["value"], stored["unit"]), (name, record[1])
-            elif unit.endswith("tokens"):  # a mean matched prefix ("tokens", "of 512 tokens")
+            elif unit == "tokens":  # a mean matched prefix
                 assert n == board_site.build.sig(stored), (name, record[1])
             else:  # a session's GPU-seconds per reply
                 assert (n, unit) == number(stored, "gpu_s/request"), (name, record[1])

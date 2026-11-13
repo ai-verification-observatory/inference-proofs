@@ -446,6 +446,12 @@ html.js .row { cursor: pointer; }
 .fig .n { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .fig .u { font: 400 12px/14px var(--mono); white-space: nowrap; }
 .fig .u.x { font: 600 16px/1 var(--mono); margin-left: -.2em; }
+/* a state in a figure's place (the ladder's and a system page's Fidelity): the check's word at a figure's size */
+.fw { font: 600 22px/1 var(--mono); letter-spacing: -.02em; text-decoration: none; }
+.fw:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.fw.undecided { color: var(--muted); }
+.lad .fw { font-size: 24px; }
+.figs .fw { font-size: 30px; letter-spacing: -.03em; }
 .lad .fig .n { font-size: 24px; }
 .lad .cm .fig .n { font-size: 42px; letter-spacing: -.04em; }
 .lad .cm .fig .u.x { font-size: 24px; }

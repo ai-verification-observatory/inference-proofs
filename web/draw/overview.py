@@ -22,7 +22,6 @@ from .hexagon import glyph_svg
 from .words import (
     CAUSE_WORD,
     CHECK_NAME,
-    FIDELITY_OF,
     FIDELITY_TITLE,
     FIGURE_HEAD,
     FULL_LOAD_WORD,
@@ -187,19 +186,23 @@ def kl_html(row):
     return f'<span class="na" title="{e(note)}">not measured</span>'
 
 
-def fidelity_fig(row):
-    """A row's fidelity as the ladder and a system's Figures row print it: its replies' mean
-    count of leading tokens equal to the original's (FI-3), of the request's reply tokens. The
-    bar, the controls and KL are under Fidelity on the system's page."""
-    mine = row["fidelity"]
-    if mine is None or mine.get("mean_prefix") is None:
-        return '<span class="na">not run yet</span>'
-    num = sig(mine["mean_prefix"])
-    whole = S.V["request"]["output_tokens"]
-    title = (f"{FIDELITY_TITLE.format(n=f'{mine["n"]:,}')}; "
-             f"record: {row['record']}/fidelity/mean_prefix")  # fmt: skip
-    return (f'<span class="fig" title="{e(title)}"><span class="n">{e(num)}</span>'
-            f'<span class="u">{e(FIDELITY_OF.format(whole=f"{whole:,}"))}</span></span>')  # fmt: skip
+def fidelity_word(row, page=None):
+    """A row's fidelity as the surface prints it: the FIDELITY check's state in a word (held,
+    failed, undecided: FI-6), linked to the Fidelity section of the system's page, which holds
+    what it is read from. Its title carries the stored figures: the replies' mean count of
+    leading tokens equal to the original's (FI-3), the rung's bar (FI-5) and n. The closeness
+    grade is the glyph's Faithful model petal; KL is under Fidelity on the system's page."""
+    check = next(c for c in row["checks"] if c["id"] == "fidelity")
+    mine, bar = row["fidelity"], (rung_of(row)["fidelity"] or {}).get("bar")
+    title = []
+    if mine is not None and mine.get("mean_prefix") is not None:
+        title.append(f"{FIDELITY_TITLE}: {sig(mine['mean_prefix'])} tokens")
+        if bar is not None:
+            title.append(f"bar: {sig(bar['mean_prefix'])} tokens")
+        title += [f"n = {mine['n']:,}", f"record: {row['record']}/fidelity"]
+    at = href(row) if page is None else page
+    return (f'<a class="fw {e(check["state"])}" href="{e(at)}#fidelity" '
+            f'title="{e("; ".join(title))}">{e(STATE_WORD[check["state"]])}</a>')  # fmt: skip
 
 
 def position_html(row, rung):
@@ -274,7 +277,7 @@ def row_html(row, rung):
         ("cm", multiple_html(row, bare=True)),
         ("cc", fig_html(row_cost(row), counted(row), sub=BARE)),
         ("ct", fig_html(row["figures"]["verify_seconds_per_reply"], counted(row), sub=BARE)),
-        ("ck", fidelity_fig(row)),
+        ("ck", fidelity_word(row)),
     )
     figs = "".join(f'<td class="{c}"><span class="lbl">{h}</span>{html}</td>'
                    for (c, html), h in zip(cells, heads(), strict=True))  # fmt: skip

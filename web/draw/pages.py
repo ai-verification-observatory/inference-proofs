@@ -32,12 +32,12 @@ from .overview import (
     BARE,
     NOT_TESTED,
     defined,
-    fidelity_fig,
+    fidelity_word,
     fig_html,
     filled,
     href,
     kl_html,
-    lead_fig,
+    multiple_html,
     name_of,
     nobreak,
     position_html,
@@ -608,7 +608,7 @@ def figures_html(row):
              (defined(FIGURE_HEAD["check-time"], "check-time"),
               fig_html(figs["verify_seconds_per_reply"], sub=BARE)),
              (e(FIGURE_HEAD["proof-size"]), fig_html(figs["proof_bytes_per_reply"], sub=BARE)),
-             (defined(FIGURE_HEAD["fidelity"], "fidelity"), fidelity_fig(row))]  # fmt: skip
+             (defined(FIGURE_HEAD["fidelity"], "fidelity"), fidelity_word(row, ""))]  # fmt: skip
     return '<dl class="figs">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>"
                                          for k, v in cells) + "</dl>"  # fmt: skip
 
@@ -648,11 +648,9 @@ def system_page(row):
                                 f'{nobreak(sysd["repo"])}</a>'))  # fmt: skip
     share = share_html(row)
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
-    label, lead = lead_fig(row)
-    _, lf, lkey = lead_figure(row)
-    if lkey == "session_multiple" and has(lf):  # the label names the scope: under it, n alone
-        count = lf["n"] if lf["n"] is not None else counted(row)
-        lead = fig_html(lf, sub=f"n\u00a0=\u00a0{count}")
+    # the figure's plain name, the figure, and under it, once, what was counted and n (CO-5)
+    label, lead = FIGURE_HEAD["multiple"], multiple_html(row, parts=False)
+    lkey = lead_figure(row)[2]
     lead += split_html(row, lkey, bar=False, of_which=True, bare=True)
     unranked = "" if row["position"] is not None else " unr"
     band_ = (

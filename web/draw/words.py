@@ -201,10 +201,7 @@ FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
 # Fidelity on a system's page)
 FIGURE_HEAD = {"multiple": "Cost vs serving", "cost": "Cost", "check-time": "Verify time",
                "proof-size": "Proof size", "fidelity": "Fidelity", "serving": "Serving"}  # fmt: skip
-FIDELITY_OF = "of {whole} tokens"  # the unit of a mean count of matched leading tokens (FI-3)
-FIDELITY_TITLE = (
-    "leading tokens of a reply equal to the original model's reply, mean over {n} replies"
-)
+FIDELITY_TITLE = "leading tokens matching the original, mean"  # in a fidelity word's title
 
 
 def beside_unit(name):

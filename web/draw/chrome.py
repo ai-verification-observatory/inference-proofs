@@ -20,13 +20,11 @@ from .words import (
     OF_WHICH,
     PART_WORD,
     PETAL_NAME,
-    SEP,
     STATE_WORD,
     STEP_WORD,
     WHOLE_SESSIONS,
     e,
     shown,
-    sub_words,
 )
 
 # ------------------------------------------------------------------ chrome
@@ -212,11 +210,11 @@ def credit_words(linked=True):
 
 
 def footer():
-    """Every page's footer, one strip of cells: the level, linked to the mandate's line on it
-    (which links the level file), the release's board file when there is one, the licence and who
-    builds the site."""
+    """Every page's footer, one strip of cells: the level's name, linked to the mandate's line
+    on it (which holds its freeze date and links the level file), the release's board file when
+    there is one, the licence and who builds the site."""
     rel = S.V["release"]
-    parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{e(level_words())}</a>']
+    parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{e(S.V["level"]["name"])}</a>']
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None
@@ -304,19 +302,18 @@ def cards_record():
 
 def card_alt(card):
     """The picture in words, from the same data the picture draws: the system and its model, the
-    band's figure, the standing, cost and verify time per reply, the petals. Each
-    figure with its unit, scope and n."""
+    band's figure, the standing, cost and verify time per reply, the petals. Each figure with its
+    unit, as the picture prints it."""
     if card == "home":
         return "Inference proofs."
     row = S.PAGE[card]
-    n = counted(row)
-    label, f, key = lead_figure(row)
-    lead = f"{label}: {fig_words(f, n)}"
+    _, f, key = lead_figure(row)
+    lead = f"{FIGURE_HEAD['multiple']}: {fig_words(f)}"
     if parts := parts_of(row, key):  # CO-7
-        lead += "".join(f", {OF_WHICH} {w} {fig_words(p, n)}" for w, p in parts)
+        lead += "".join(f", {OF_WHICH} {w} {fig_words(p)}" for w, p in parts)
     figs = [(FIGURE_HEAD["cost"], row_cost(row)),
             (FIGURE_HEAD["check-time"], row["figures"]["verify_seconds_per_reply"])]  # fmt: skip
-    cells = ". ".join(f"{k}: {fig_words(v, n)}" for k, v in figs)
+    cells = ". ".join(f"{k}: {fig_words(v)}" for k, v in figs)
     states = "; ".join(
         f"{PETAL_NAME[p['id']]}: {STEP_WORD[p['step']]}"
         + (f", {CAUSE_WORD[p['cause']]}" if p["cause"] is not None else "")
@@ -342,12 +339,9 @@ def counted(row):
     return len(row["sessions"]) or None
 
 
-def fig_words(f, n=None):
-    """A stored figure in plain words: the number in its unit, its scope and n in brackets."""
-    if not has(f):
-        return "none"
-    line = sub_words(f, n).replace(SEP, ", ").replace("\u00a0", " ")
-    return shown(f["value"], f["unit"]) + (f" ({line})" if line else "")
+def fig_words(f):
+    """A stored figure in plain words: the number in its unit."""
+    return shown(f["value"], f["unit"]) if has(f) else "none"
 
 
 # CO-7: a printed multiple's two parts, where the system generates in a phase of its own, in the
