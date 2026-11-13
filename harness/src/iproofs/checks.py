@@ -30,12 +30,9 @@ COUNTED_TRIALS = 3  # CH-1: 3 counted trials per control (per position for C1)
 C1_POSITIONS = ("first", "last", "interior")
 UNCOUNTED = frozenset({"void", "error"})  # trials that decided nothing (CH-1)
 P1_FROM_CONTROL_RUNS = frozenset({"P1"})  # CH-1b
-# CH-1: a failed control prove counts as the prover's refusal only when the trial names a reason
-# from the prover; the harness's bare "<kind>: <step> exited <code>" names none (the adapter may
-# have failed before the prover ran), so such a trial decides nothing.
-# A line that goes on with a Python exception (`...: FileNotFoundError: ...`) is the adapter's
-# own failure as well.
-_BARE_EXIT = re.compile(r"\w+: \w+ exited -?\d+(: \w*(Error|Exception)\b.*)?")
+# CH-1a: a failed P1 prove counts as the prover's refusal only when its line names a stop the
+# system's system.yaml lists under p1_refusals (the weights are not the committed ones); any other
+# failed prove (the adapter, the harness, a guard on how the files are laid out) decides nothing.
 # When parts of a check disagree, the first state here decides (a failure stands over a gap).
 _CAUSE_ORDER = (SYSTEM_LIMIT, NOT_REPRODUCED, NOT_RUN, NOT_RESOLVED)
 
@@ -282,6 +279,19 @@ def _pin(s: Session) -> tuple[object, object]:
 # ---------------------------------------------------------------- RUN
 
 
+def p1_refusal_stops(root: Path, system: str) -> tuple[str, ...]:
+    """CH-1a: the stops the system's system.yaml lists under `p1_refusals`."""
+    path = root / "systems" / system / "system.yaml"
+    doc = load_yaml(path) if path.is_file() else {}
+    declared = doc.get("p1_refusals")
+    stops = declared.get("stops") if isinstance(declared, dict) else None
+    return tuple(str(s) for s in _list(stops))
+
+
+def _names_a_refusal(line: str, stops: Sequence[str]) -> bool:
+    return any(re.search(rf"(?<![\w-]){re.escape(s)}(?![\w-])", line) for s in stops)
+
+
 def _forbidden_flags(root: Path, system: str) -> list[str]:
     path = root / "systems" / system / "system.yaml"
     doc = load_yaml(path) if path.is_file() else {}
@@ -381,9 +391,12 @@ def _interior_ok(seed: object, trial: Mapping[str, object], output: int) -> bool
     return index == seeded_index(seed, "C1-interior", k, output - 2) + 1
 
 
-def control_trials(sessions: RowSessions, output: int) -> tuple[list[Trial], list[str], str | None]:
+def control_trials(
+    sessions: RowSessions, output: int, refusal_stops: Sequence[str] = ()
+) -> tuple[list[Trial], list[str], str | None]:
     """Every trial of the counted sessions' `controls.json`, with the ids of the controls
-    present and the note of a perturbed commitment equal to the honest one (CH-2)."""
+    present and the note of a perturbed commitment equal to the honest one (CH-2). A P1
+    `prover_failed` trial whose line names none of `refusal_stops` counts as `error` (CH-1a)."""
     trials: list[Trial] = []
     present: list[str] = []
     same_commitment = None
@@ -413,8 +426,8 @@ def control_trials(sessions: RowSessions, output: int) -> tuple[list[Trial], lis
                     continue
                 position = _position(t) if cid == "C1" else None
                 outcome = str(t.get("outcome"))
-                if outcome == "prover_failed" and _BARE_EXIT.fullmatch(
-                    str(t.get("raw_last_line") or "").strip()
+                if outcome == "prover_failed" and not _names_a_refusal(
+                    str(t.get("raw_last_line") or ""), refusal_stops
                 ):
                     outcome = "error"
                 if (
@@ -687,7 +700,7 @@ def checks_from(
 ) -> dict[str, CheckState]:
     """`row_checks` over sessions already read."""
     output = int_of(field_of(level, "request"), "output_tokens", 0)
-    trials, present, same = control_trials(sessions, output)
+    trials, present, same = control_trials(sessions, output, p1_refusal_stops(root, system))
 
     def control(cid: str, refused: frozenset[str], position: str | None = None) -> CheckState:
         return control_state(trials, present, cid, refused, position)
