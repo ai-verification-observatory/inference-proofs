@@ -21,9 +21,12 @@ engine:
 # (RFC-0018 FI-10 to FI-13). The Llama 3.1 8B fidelity run of 2026-11-12 ran sha256:551f1175...,
 # from aa5f31f9, and the Llama 4 Maverick controls part sha256:4de61052..., from fb8bc9c5; their
 # entrypoints differ from this one only by the controls call (FI-9) and that pass.
+# The Llama 4 Maverick teacher-forced controls of 2026-11-13 ran the build below: the one above
+# (sha256:b91682f5..., which the 8B passes ran) with the entrypoint of b0cafa57 over it
+# (Dockerfile.adapter, run 43515577499), which writes each prompt of a pass as it finishes.
 image:
   repository: "ghcr.io/ai-verification-observatory/ref-fidelity"
-  digest: "sha256:b91682f5807e1765ad58d6cbe7ed517cf2c9b243be1daef5fc866aae1b889113"
+  digest: "sha256:5a65ddf7616f0e25dfb9d25fbfedb05e9177d2868054c91ad3cfd69d042c033b"
 workloads:
 - id: l1-maverick-p512-o512
   precision_used: BF16
