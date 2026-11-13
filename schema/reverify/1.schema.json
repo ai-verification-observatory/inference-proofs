@@ -97,6 +97,10 @@
           "trace": {
             "type": "string",
             "pattern": "^reverify/verify-trace/[^/]+\\.json$"
+          },
+          "host": {
+            "$comment": "the host that verified this proof (one job per proof: hosts differ)",
+            "$ref": "../controls-part/1.schema.json#/properties/host"
           }
         }
       }

@@ -173,6 +173,18 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     )
     p.set_defaults(handler=reverify)
     p.add_argument("run_dir", type=Path)
+    p.add_argument(
+        "--only",
+        metavar="PROOF[,PROOF...]",
+        help="these proofs only, into RUN_DIR/reverify-part-<ids>/ for --merge",
+    )
+    p.add_argument(
+        "--merge",
+        metavar="PART",
+        nargs="+",
+        type=Path,
+        help="write RUN_DIR/reverify/ from parts that cover every proof once",
+    )
     p.add_argument("--hosted", action="store_true", help="this container is the run's image")
     p.add_argument("--provider", metavar="NAME", help="the hosting provider, as declared")
 
@@ -748,10 +760,16 @@ def controls(args: argparse.Namespace) -> int:
 def reverify(args: argparse.Namespace) -> int:
     """`iproofs reverify RUN_DIR --hosted`: every proof of a kept run verified again on this
     verifier host (no GPU), under the CH-4 trace; adds RUN_DIR/reverify/ once (RFC-0018 CH-4a)."""
-    from iproofs.runner import Runner, reverify_run  # noqa: PLC0415
+    from iproofs.runner import Runner, merge_reverify, reverify_run  # noqa: PLC0415
+    from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
+    if args.merge:
+        if args.only or args.hosted:
+            raise IProofsError(ErrorKind.CONFIG, "--merge takes RUN_DIR and parts only")
+        print(merge_reverify(SchemaRegistry.from_tree(root / "schema"), args.run_dir, args.merge))
+        return 0
     if not args.hosted:
         raise IProofsError(ErrorKind.CONFIG, "reverify runs in the run's image: give --hosted")
     run = json.loads((args.run_dir / "run.json").read_text())
@@ -768,7 +786,8 @@ def reverify(args: argparse.Namespace) -> int:
         provider=args.provider or "undeclared",
         progress=None if args.quiet else sys.stderr,
     )
-    print(reverify_run(runner, args.run_dir))
+    only = [i for i in (args.only or "").split(",") if i] or None
+    print(reverify_run(runner, args.run_dir, only))
     return 0
 
 

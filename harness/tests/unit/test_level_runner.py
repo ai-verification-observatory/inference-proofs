@@ -788,3 +788,39 @@ def test_a_failed_control_prove_keeps_the_provers_log_line(tmp_path: Path) -> No
     outcome, line = prove_failure(e)
     assert outcome == "prover_failed"
     assert line.endswith("| log: hc: node 7 differs / p258 end 1 hc-own-node")
+
+
+def test_reverify_split_by_proof_merges_into_one_record(tmp_path: Path) -> None:
+    """CH-4a, one job per proof: parts verify disjoint proofs; the merge writes the record a
+    whole re-verify writes (every proof once, its sha256 from the manifest, its trace and the
+    host that verified it), and refuses parts that miss a proof or name another run."""
+    from iproofs.provenance import Host  # noqa: PLC0415
+    from iproofs.runner import VerifierEnvironment, merge_reverify, reverify_run  # noqa: PLC0415
+
+    path = f"{fake_strace(tmp_path / 'bin')}{os.pathsep}{os.environ['PATH']}"
+    kept = level_runner(path)
+    kept.keep_io = True
+    run_dir = kept.run(spec(tmp_path / "r", controls=False))
+    ids = [p["proof_id"] for p in read(run_dir, "run.json")["proofs"]]
+    host = Host(ROOT / "harness/tests/fixtures/host", run=lambda _: None, hosted=True)
+    verifier_host = level_runner(path)
+    verifier_host.env = VerifierEnvironment(host, 3)
+    parts = [reverify_run(verifier_host, run_dir, [pid]).parent for pid in ids]
+    with pytest.raises(IProofsError, match="not the run's proofs"):
+        merge_reverify(REGISTRY, run_dir, parts[1:])
+    record = read(run_dir, str(merge_reverify(REGISTRY, run_dir, parts).relative_to(run_dir)))
+    assert REGISTRY.errors("reverify/1", record) == []
+    digests = {p["proof_id"]: p["digest"] for p in read(run_dir, "manifest.json")["proofs"]}
+    assert [r["proof_id"] for r in record["proofs"]] == ids
+    for r in record["proofs"]:
+        assert r["verdict"] == "accept"
+        assert r["proof_digest"] == digests[r["proof_id"]]
+        assert "machine" in r["host"]
+        trace = read(run_dir, r["trace"])
+        assert (trace["proof_id"], trace["gpu_visible"], trace["model_files_present"]) == (
+            r["proof_id"],
+            False,
+            False,
+        )
+    with pytest.raises(IProofsError, match="no proof"):
+        reverify_run(verifier_host, run_dir, ["req-99"])
