@@ -38,6 +38,8 @@
 # its bucket folder; `seed`, `controls` and `merge` refuse a stored run whose folder has none.
 # Every mode uploads the same way: through the bucket API, checked file by file, when HF_TOKEN
 # and IPROOFS_UPLOAD_BUCKET are set (prover and production-serving jobs alike).
+# A failed sync is tried again every 10 min until 30 min before the budget ends; with keep-io
+# each released proof goes up while the run goes on (proof_uploader).
 #
 # `seed`, `controls` and `merge` (RFC-0008 §Split suites) work on a stored run, RUN_PATH =
 # runs/<UTC>-<label>/dev-results/<release>/SYSTEM/<run id> in the mounted bucket. `seed` runs
@@ -118,6 +120,10 @@ RESERVE=900                          # seconds kept for the upload at the end
 IO_KEEP_MAX_K=1048576                # a development run's io/ is uploaded only without a file
                                      # above 1 GiB or a weights file (prune)
 KEEP_IO=0                            # a step keeps io/: .archive stays out of the upload
+UPLOAD_FOLDER=""                     # keep-io: the bucket folder, fixed at the start (proofs go
+                                     # up as they are released, the rest at the end)
+RETRY_S=${IPROOFS_UPLOAD_RETRY_S:-600}  # a failed upload is tried again every 10 min, until
+RETRY_STOP_S=${IPROOFS_UPLOAD_RETRY_STOP_S:-1800}  # 30 min before the budget ends
 MODE=${1:-}
 [ "$MODE" = fidelity ] && RELEASE=v1.0  # the fidelity profiles are in reference/v1.0.yaml
 [ $# -gt 0 ] && shift
@@ -223,6 +229,53 @@ sys.exit(1 if wrong else 0)
 PYEOF
 }
 
+retry() {  # WHAT CMD...: CMD until it succeeds, again every RETRY_S, until RETRY_STOP_S before the budget ends
+  local what=$1
+  shift
+  until "$@"; do
+    if [ $(( $(date +%s) + RETRY_S )) -gt $(( START + BUDGET - RETRY_STOP_S )) ]; then
+      log "upload: $what FAILED; no time left for another try"
+      return 1
+    fi
+    log "upload: $what FAILED; next try in $RETRY_S s"
+    sleep "$RETRY_S"
+  done
+}
+
+proof_uploader() {  # keep-io, in the background: each released proof goes up as soon as it is seen
+  # A proof directory under io/proofs is complete: the adapter releases it by rename (RFC-0005
+  # §Release). It goes to the place the final upload copies it to, which then finds it there.
+  local dest="hf://buckets/$IPROOFS_UPLOAD_BUCKET/$UPLOAD_FOLDER/dev-results/$RELEASE/$SYSTEM"
+  local sent="$WORK/proofs-sent" wait_dir="$WORK/proof-retry" p name run key next
+  mkdir -p "$wait_dir"
+  touch "$sent"
+  local stopping _
+  while :; do
+    stopping=0
+    [ -e "$WORK/proof-uploader.stop" ] && stopping=1  # the run returned: one last pass
+    for p in "$DEV/$RELEASE/$SYSTEM"/*/io/proofs/* "$DEV/$RELEASE/$SYSTEM"/.staging-*/io/proofs/*; do
+      [ -d "$p" ] || continue
+      name=$(basename "$p")
+      case "$name" in .*) continue ;; esac  # not released yet
+      run=$(basename "$(dirname "$(dirname "$(dirname "$p")")")")
+      run=${run#.staging-}
+      key="$run/$name"
+      grep -qxF "$key" "$sent" && continue
+      next=$(cat "$wait_dir/$run-$name" 2>/dev/null || echo 0)
+      [ "$(date +%s)" -ge "$next" ] || continue
+      if hfcli buckets sync "$p" "$dest/$run/io/proofs/$name" --quiet; then
+        echo "$key" >> "$sent"
+        log "upload: proof $key sent ($(du -sh "$p" | cut -f1))"
+      else  # a staging directory renamed meanwhile is found again under its run id
+        echo $(( $(date +%s) + RETRY_S )) > "$wait_dir/$run-$name"
+        log "upload: proof $key FAILED; next try in $RETRY_S s"
+      fi
+    done
+    [ "$stopping" = 1 ] && return 0
+    for _ in $(seq 60); do [ -e "$WORK/proof-uploader.stop" ] && break; sleep 1; done
+  done
+}
+
 upload_api() {  # STATUS FOLDER: through the bucket API, which returns once the files are sent
   local status=$1 folder=$2 ok=1
   local dest="hf://buckets/$IPROOFS_UPLOAD_BUCKET/$folder"
@@ -230,17 +283,15 @@ upload_api() {  # STATUS FOLDER: through the bucket API, which returns once the 
   [ "${IPROOFS_UPLOAD_ARCHIVES:-0}" = 1 ] && tars=()
   log "upload: out/ through the bucket API to $dest (proof archives: ${IPROOFS_UPLOAD_ARCHIVES:-0})"
   # the records first (no proof archive, no io/), so they arrive even if a large file fails
-  if hfcli buckets sync "$OUT" "$dest" --exclude '*.tar' --exclude '*/io/*' --quiet; then
+  if retry records hfcli buckets sync "$OUT" "$dest" --exclude '*.tar' --exclude '*/io/*' --quiet; then
     log "upload: records sent"
   else
     ok=0
-    log "upload: records FAILED"
   fi
-  if ! hfcli buckets sync "$OUT" "$dest" ${tars[@]+"${tars[@]}"} --quiet; then
-    ok=0
-    log "upload: large files FAILED"
-  fi
-  if [ "$ok" = 1 ] && verify_upload "$folder"; then
+  # the large files, then the file-by-file check: tried again together (a quota or a dropped
+  # connection can clear before the job ends)
+  send_checked() { hfcli buckets sync "$OUT" "$dest" ${tars[@]+"${tars[@]}"} --quiet && verify_upload "$folder"; }
+  if [ "$ok" = 1 ] && retry "large files" send_checked; then
     printf 'dev-results bytes %s\n' "$(dev_bytes)" > "$OUT/upload.done"
     if hfcli buckets cp "$OUT/upload.done" "$dest/upload.done" --quiet; then
       log "upload: done and checked file by file ($(cat "$OUT/upload.done")); exit $status"
@@ -257,7 +308,7 @@ upload() {
   local status=$?
   prune
   local folder
-  folder="runs/$(date -u +%Y%m%dT%H%M%SZ)-${IPROOFS_LABEL:-$MODE}"
+  folder=${UPLOAD_FOLDER:-"runs/$(date -u +%Y%m%dT%H%M%SZ)-${IPROOFS_LABEL:-$MODE}"}
   if [ -n "${HF_TOKEN:-}" ] && [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ]; then
     upload_api "$status" "$folder"
     return
@@ -350,6 +401,7 @@ if [ "$MODE" = run ] && [ $# -ge 1 ]; then
     # at 12.4 MB/s or more, an assumption (hf-jobs.md stage 2)
     RESERVE=3600
     KEEP_IO=1
+    UPLOAD_FOLDER="runs/$(date -u +%Y%m%dT%H%M%SZ)-${IPROOFS_LABEL:-$MODE}"
   done
 fi
 stored_checks() {  # SYSTEM RUN_PATH: a stored run that seed, controls and merge can use
@@ -987,6 +1039,13 @@ if reference_role(root, sys.argv[1]) == "serve":
     [ "${reps:-1}" = 1 ] || { log "a level step runs one session: REPETITIONS must be 1 in $step"; exit 2; }
     reps_args=()
   fi
+  UPLOADER=""
+  if has_opt "${opts:-}" keep-io && [ -n "${HF_TOKEN:-}" ] && [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ]; then
+    rm -f "$WORK/proof-uploader.stop"
+    proof_uploader &
+    UPLOADER=$!
+    log "keep-io: each released proof goes up to $UPLOAD_FOLDER as it is seen"
+  fi
   log "run $SYSTEM $workload x${reps:-1} ${extra[*]:-} ${image_args[*]:-}, at most $remaining s"
   env -u HF_TOKEN timeout --kill-after=60 "$remaining" "$IP" run --system "$SYSTEM" \
     --workload "$workload" --profile "$PROFILE" --hosted "${GPU_ARGS[@]}" --provider "$PROVIDER" \
@@ -997,6 +1056,10 @@ if reference_role(root, sys.argv[1]) == "serve":
   # the job's deadline: its staging directory is uploaded without io/, the scratch directories
   # and the commitment store (prune); other: a harness error.
   log "run $SYSTEM $workload exit $rc"
+  if [ -n "$UPLOADER" ]; then  # one last pass over the released proofs, then the final upload
+    touch "$WORK/proof-uploader.stop"
+    wait "$UPLOADER" 2>/dev/null || true
+  fi
   if has_opt "${opts:-}" keep-io; then  # what the upload will copy: proofs, state, commitment
     for kept in "$DEV/$RELEASE/$SYSTEM"/*/io "$DEV/$RELEASE/$SYSTEM"/*/commitment; do
       [ -d "$kept" ] && log "keep-io: $(du -sh "$kept" | cut -f1) $(basename "$(dirname "$kept")")/$(basename "$kept")"
