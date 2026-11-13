@@ -556,27 +556,31 @@ html.js .row { cursor: pointer; }
 @media (max-width: 640px) and (min-width: 561px) {
   .lad :is(.cc, .ct, .ck) > .lbl { display: flex; align-items: flex-end; min-height: 28px; }
 }
-/* a phone: the ladder is still the table, a row bounded by a full rule and set as a ruled list. Its first line
-   is its glyph (drawn with no names) and its name with its standing (its position's square is left to a wide
-   screen: the rows are in its order). Then one figure a line, its name at the line's start and the figure at its
-   end, a hairline over each: the multiple, the largest, whose two parts stand inside its own block under the bar of
-   their shares; then cost, verify time and fidelity. The table's heads are not drawn; the model's band alone
-   stays on screen over the rows. A rung's head is its size, its name, its publisher and architecture on one line,
-   and its serving figure on the next */
+/* a phone: the ladder is still the table, a row bounded by a full rule. Its first line is its glyph (drawn with no
+   names) and its name with its standing, and at the line's end its multiple (its position's square is left to a
+   wide screen: the rows are in its order). Where the multiple has two parts, one line under it, ending on its
+   edge, says them as its sum ("= 118.2x commit and proving + 1,199x generation"). Then a ruled list, one figure a
+   line, its name at the line's start and the figure at its end, on the multiple's edge: cost, verify time and
+   fidelity. The heads System and Cost vs serving stay on screen with the model's band over them. A rung's head is
+   its size, its name, its publisher and architecture on one line, and its serving figure on the next */
 .gsh { display: none; }
 @media (max-width: 560px) {
-  /* one column; --gw is the glyph's room at the start of the name's line */
-  .lad { --gw: 46px; }
+  /* the columns: the system, the multiple (as wide as it is, at the row's end); --gw is the glyph's room at the
+     start of the system's */
+  .lad { --cols: minmax(0, 1fr) max-content; --gw: 46px; }
   .lad thead { height: auto; top: calc(var(--top-h) + 32px); background: var(--ground); box-shadow: inset 0 -1px 0 var(--rule); }
   html.js .tophide .lad thead { top: 32px; }
-  .lad thead tr, .lad tbody tr { display: grid; grid-template-columns: minmax(0, 1fr); column-gap: 0; }
-  /* every figure is named where it stands, so the table's heads are not drawn (a screen reader still reads them);
-     the model's band alone sticks, in the line over the rows */
-  .lad thead tr { row-gap: 0; padding: 0; }
+  .lad thead tr, .lad tbody tr { display: grid; grid-template-columns: var(--cols); column-gap: 0; }
+  /* the heads over their columns; the model's band in the line over them once they stick */
+  .lad thead tr { row-gap: 0; padding: 8px 0 8px; }
   .lad thead th:first-child { grid-column: 1 / -1; grid-row: 1; height: 0; }
-  .lad thead th:nth-child(n+3) { display: block; position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; background: none; box-shadow: none; }
+  .lad thead th:nth-child(n+3) { display: block; position: static; padding: 0; background: none; box-shadow: none; line-height: 16px; white-space: nowrap; }
+  .lad thead th:nth-child(3) { grid-area: 2 / 1; }
+  .lad thead th:nth-child(4) { grid-area: 2 / 2; justify-self: end; }
+  .lad thead th:nth-child(n+5) { display: none; }
   @container scroll-state(stuck: top) { .lad thead th:first-child { top: -32px; height: 32px; } }
   .lad thead th.stuck:first-child { top: -32px; }
+  .lad tbody { border-top: 0; }
   /* a row is bounded by a full rule; inside it a hairline over each line of its list */
   .lad tbody tr { align-items: start; row-gap: 0; padding: 18px 0 14px; border-bottom: 1px solid var(--rule); }
   /* the row in hand: its name in cobalt (the script), pressed on the lift */
@@ -584,26 +588,30 @@ html.js .row { cursor: pointer; }
   .row:active { background: var(--lift); box-shadow: -8px 0 0 var(--lift), 8px 0 0 var(--lift); }
   /* the position is not drawn on a phone (the rows are in its order); a screen reader still reads it */
   .lad .cp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* the glyph at the start of the name's line, over it, so a petal still answers a finger */
+  /* the glyph at the start of the name's cell, over it, so a petal still answers a finger */
   .lad .cg { grid-area: 1 / 1; position: relative; z-index: 1; width: var(--gw); }
-  .lad .csys { grid-area: 1 / 1; min-width: 0; min-height: 46.5px; padding: 0 0 14px var(--gw); }
-  /* the multiple's block, between two hairlines: its name and the figure on one line, and where it has two parts,
-     under that line and inside the block, the bar of their shares and one part a line, each named after a square
-     of its share's ink and set a step smaller. The name's line is over the block's rule, so the bar and the parts
-     belong to the multiple alone */
-  .lad .cm { grid-row: 2; display: grid; grid-template-columns: minmax(0, 1fr) max-content; grid-template-areas: "l f" "s s"; align-items: baseline; column-gap: 12px; padding: 10px 0 9px; box-shadow: inset 0 1px 0 var(--line); }
-  .lad .cm > .lbl { grid-area: l; display: block; margin: 0; white-space: nowrap; }
-  .lad .cm > :is(.fig, .na) { grid-area: f; justify-self: end; }
-  .lad .cm > .sub { grid-area: s; margin: 4px 0 0; text-align: right; }
-  .lad .cm > .split { grid-area: s; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; row-gap: 0; margin: 10px 0 0; padding: 0; }
-  .lad .cm .split .sbar { max-width: none; margin-bottom: 5px; }
-  .lad .cm .split .part { display: flex; justify-content: space-between; align-items: baseline; column-gap: 12px; min-height: 24px; padding: 4px 0 3px; }
-  .lad .cm .split .pl { letter-spacing: var(--track); white-space: nowrap; }
-  .lad .cm .split .pl:before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; background: var(--rule); }
-  .lad .cm .split .pp .pl:before { background: var(--paper); }
-  .lad .cm .split .fig .n { font-size: 13px; }
+  .lad .csys { grid-area: 1 / 1; min-width: 0; min-height: 46.5px; padding: 0 12px 14px var(--gw); }
+  .lad tr:has(> .cm > .split) > .csys { padding-bottom: 8px; }
+  /* the multiple's cell makes no box: its figure ends the name's line. A row with no multiple keeps the cell, the
+     word and its reason under it at the line's end */
+  .lad .cm { display: contents; }
+  .lad .cm > .fig { grid-area: 1 / 2; justify-self: end; }
+  .lad .cm:has(> .na) { display: block; grid-area: 1 / 2; max-width: 11rem; text-align: right; }
+  .lad .cm .lbl, .lad .cm .split .sbar { display: none; }
+  /* the multiple's two parts are said as its sum, on one line that ends on the multiple's edge, right under it:
+     "= 118.2x commit and proving + 1,199x generation" (two lines, each part whole, where one is too short). A
+     sentence about the figure over it, in the standing's small type: never two more lines of the list */
+  .lad .cm > .split { grid-area: 2 / 1 / 3 / -1; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; column-gap: .55em; row-gap: 2px; margin: 0 0 12px; padding: 0; }
+  .lad .cm .split .part { display: inline-flex; align-items: baseline; column-gap: .5em; }
+  .lad .cm .split .part:before { font: 400 12px/16px var(--mono); color: var(--muted); }
+  .lad .cm .split .pp:before { content: "="; }
+  .lad .cm .split .pg:before { content: "+"; }
+  .lad .cm .split .fig { order: 1; }
+  .lad .cm .split .fig .n { font-size: 12px; }
+  .lad .cm .split .pl, .lad .cm .split .pp .pl { order: 2; font: 400 11px/16px var(--mono); letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
   /* the list: one figure a line, named at the line's start, the figure at its end */
   .lad :is(.cc, .ct, .ck) { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 12px; min-height: 32px; padding: 7px 0; }
+  .lad :is(.cc, .ct, .ck) { grid-column: 1 / -1; }
   .lad .cc { grid-row: 3; }
   .lad .ct { grid-row: 4; }
   .lad .ck { grid-row: 5; }
@@ -639,7 +647,7 @@ html.js .row { cursor: pointer; }
   .meta > div:nth-child(3) > dt { margin: 0; }
   .meta > div:nth-child(3) dd .fig { color: var(--paper); }
   .meta > div:nth-child(n+4) { display: none; }
-  .lad { margin-top: 14px; }
+  .lad { margin-top: 6px; }
   .rung > .none { margin-top: 12px; font-size: 24px; }
 }
 /* a narrow phone: the multiple a step smaller */
@@ -754,18 +762,20 @@ html.js .scalepage .scl-panel { margin-top: 0; }
   .scl tr > .cp { display: none; }
   .scl tr > .csys { padding-left: 12px; }
   .scl .nrun > td { padding-left: 12px; }
-  /* a multiple in two parts, as the ladder's phone row sets them: the figure ends the name's line, and its two parts
-     hang from it under the bar of their shares, one a line, its name (after a square of its share's ink) at the
-     line's start and its figure on the multiple's edge, so the row holds no empty corner beside them */
+  /* a multiple in two parts, as the ladder's phone row says them: the figure ends the name's line, and one line
+     under it, ending on its edge, says the parts as its sum (no bar), so the row holds no empty corner */
   .scl tr.row:has(> .cf > .split) { grid-template-areas: "s f" "l l" "x x"; }
   .scl .cf:has(> .split) { display: contents; }
   .scl .cf:has(> .split) > .fig { grid-area: f; justify-self: end; padding-right: 16px; }
-  .scl .cf > .split { grid-area: l; display: grid; grid-template-columns: minmax(0, 1fr); justify-content: stretch; row-gap: 0; justify-self: end; width: min(224px, calc(100% - 28px)); margin: 8px 16px 4px 12px; }
-  .scl .cf > .split .sbar { max-width: none; margin-bottom: 4px; }
-  .scl .cf > .split .part { display: flex; justify-content: space-between; align-items: baseline; column-gap: 12px; min-height: 24px; padding: 4px 0 3px; }
-  .scl .cf > .split .pl:before { content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 8px; background: var(--rule); }
-  .scl .cf > .split .pp .pl:before { background: var(--paper); }
-  .scl .cf > .split .fig .n { font-size: 13px; }
+  .scl .cf > .split .sbar { display: none; }
+  .scl .cf > .split { grid-area: l; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; column-gap: .55em; row-gap: 2px; margin: 4px 16px 6px 12px; }
+  .scl .cf > .split .part { display: inline-flex; align-items: baseline; column-gap: .5em; }
+  .scl .cf > .split .part:before { font: 400 12px/16px var(--mono); color: var(--muted); }
+  .scl .cf > .split .pp:before { content: "="; }
+  .scl .cf > .split .pg:before { content: "+"; }
+  .scl .cf > .split .fig { order: 1; }
+  .scl .cf > .split .fig .n { font-size: 12px; }
+  .scl .cf > .split .pl, .scl .cf > .split .pp .pl { order: 2; font: 400 11px/16px var(--mono); letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
 }
 @media print {
   .scl-panel[hidden] { display: block; }
