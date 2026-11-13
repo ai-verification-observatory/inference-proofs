@@ -163,10 +163,10 @@
     {
       "group": "Figures",
       "kind": "figure",
-      "meta": "m, GPU-seconds per proved reply after the first group. In one session, proofs released within 1 s of the previous release form a group. m is the GPU time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. The mean of 3 sessions, each from a cold start.",
+      "meta": "GPU-seconds per proved reply after the first group. In one session, proofs released within 1 s of the previous release form a group. m is the GPU time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. The mean of 3 sessions, each from a cold start.",
       "name": "Cost vs serving",
       "pie": "",
-      "terms": "cost vs serving m, gpu-seconds per proved reply after the first group. in one session, proofs released within 1 s of the previous release form a group. m is the gpu time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. the mean of 3 sessions, each from a cold start.",
+      "terms": "cost vs serving gpu-seconds per proved reply after the first group. in one session, proofs released within 1 s of the previous release form a group. m is the gpu time from the first group's last release to the session's last release, over the replies of the later groups, generating the replies included. the mean of 3 sessions, each from a cold start.",
       "tier": 4,
       "url": "/checks#multiple"
     },
