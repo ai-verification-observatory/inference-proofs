@@ -11,7 +11,7 @@ on:
         description: "systems/<name> to build"
         required: true
         type: choice
-        options: [ref-serve, ref-recompute, ref-fidelity, ref-fidelity-vllm, sash, flashprove, deepprove]
+        options: [ref-serve, ref-recompute, ref-fidelity, ref-fidelity-vllm, sash, flashprove, deepprove, tessera]
 
 permissions:
   contents: read
