@@ -50,6 +50,20 @@ def test_added_other_file_in_existing_run_rejected(repo: Path) -> None:
     assert commit(repo) == ["APP-1"]
 
 
+def test_controls_added_once_to_an_existing_run_accepted(repo: Path) -> None:
+    (repo / RUN / "controls.json").write_text("{}\n")
+    (repo / RUN / "controls-seed.json").write_text("{}\n")
+    (repo / RUN / "controls-parts/job-1").mkdir(parents=True)
+    (repo / RUN / "controls-parts/job-1/controls-part-1.json").write_text("{}\n")
+    assert commit(repo) == []
+    git(repo, "checkout", "-q", "main")
+    git(repo, "merge", "-q", "change")
+    git(repo, "checkout", "-qb", "again")
+    (repo / RUN / "controls-parts/job-2").mkdir(parents=True)
+    (repo / RUN / "controls-parts/job-2/controls-part-2.json").write_text("{}\n")
+    assert commit(repo) == ["APP-1"]  # a run's controls are added once
+
+
 def test_new_run_directory_accepted(repo: Path) -> None:
     new = repo / RUN.replace("-1", "-2")
     new.mkdir(parents=True)

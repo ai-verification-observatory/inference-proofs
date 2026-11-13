@@ -13,10 +13,10 @@
     {
       "group": "Systems",
       "kind": "system",
-      "meta": "Llama 3.1 8B Instruct · not passed: Model undecided, Prompt undecided, Reply undecided, No weight file undecided",
+      "meta": "Llama 3.1 8B Instruct · not passed: No weight file undecided",
       "name": "SASH",
       "pie": "<svg class=\"pie-svg\" viewBox=\"0 -1 25 31\" width=\"25\" height=\"31\" shape-rendering=\"crispEdges\" aria-hidden=\"true\" focusable=\"false\"><rect class=\"stem\" fill=\"#5b7bff\" y=\"-1\" width=\"3\" height=\"31\"/><rect class=\"sl s1 amber\" fill=\"#e49921\" x=\"3\" y=\"0\" width=\"22\" height=\"5\"/><rect class=\"sl s2 red\" fill=\"#e03c44\" x=\"3\" y=\"6\" width=\"22\" height=\"5\"/><rect class=\"sl s3 amber\" fill=\"#e49921\" x=\"3\" y=\"12\" width=\"22\" height=\"5\"/><path class=\"sl s4 hollow\" fill=\"none\" stroke=\"#9b978e\" stroke-width=\"1\" d=\"M3 18.5H24.5V22.5H3\"/><rect class=\"sl s5 red\" fill=\"#e03c44\" x=\"3\" y=\"24\" width=\"22\" height=\"5\"/></svg>",
-      "terms": "sash llama 3.1 8b instruct · not passed: model undecided, prompt undecided, reply undecided, no weight file undecided l1-l31-8b-p512-o512 sash",
+      "terms": "sash llama 3.1 8b instruct · not passed: no weight file undecided l1-l31-8b-p512-o512 sash",
       "tier": 0,
       "url": "/sash"
     },

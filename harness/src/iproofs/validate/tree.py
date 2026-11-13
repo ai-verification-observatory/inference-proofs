@@ -172,15 +172,31 @@ def _profile_known(root: Path, release: str, profile: str) -> bool:
     return False
 
 
+# RFC-0008: `iproofs controls RUN_DIR` adds a completed run's controls, once; these are the
+# files it adds (whole, or merged from parts with their seed record)
+CONTROLS_ADDED = ("controls.json", "controls-seed.json", "controls-parts/")
+
+
+def _controls_added(root: Path, base_ref: str, run_dir: str, path: str) -> bool:
+    """A controls record added to a run whose base has no controls.json (RFC-0008, once)."""
+    inside = path[len(run_dir) + 1 :]
+    if not any(inside == n or (n.endswith("/") and inside.startswith(n)) for n in CONTROLS_ADDED):
+        return False
+    return not _git(root, "ls-tree", "--name-only", base_ref, f"{run_dir}/controls.json")
+
+
 def g2_append_only(root: Path, base_ref: str) -> list[Finding]:
-    """APP-1: results are append-only; no file is added to, changed in or removed from a run."""
+    """APP-1 (RFC-0009): no file of a merged run changes or is removed, and none is added but
+    the run's controls records, once (RFC-0008 `iproofs controls RUN_DIR`)."""
     found = []
     for line in _git(root, "diff", "--name-status", f"{base_ref}...HEAD", "--", "results/"):
         status, *paths = line.split("\t")
         path = paths[-1]
         if status == "A":
             run_dir = "/".join(path.split("/")[:4])
-            if _git(root, "ls-tree", "--name-only", base_ref, f"{run_dir}/run.json"):
+            if _git(
+                root, "ls-tree", "--name-only", base_ref, f"{run_dir}/run.json"
+            ) and not _controls_added(root, base_ref, run_dir, path):
                 found.append(
                     Finding("G2", path, "APP-1", "adds a file to an existing run", ErrorKind.POLICY)
                 )

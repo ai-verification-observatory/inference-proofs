@@ -1,0 +1,7 @@
+{
+  "control_seed": "0x39a0b872fe1e124e",
+  "drawn_at": "2026-11-12T18:46:33Z",
+  "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+  "run_manifest_digest": "sha256:b041225bd87c4cd7e4bc588443b5e812bdfdcf922f67d04b552ba99038a12521",
+  "schema": "controls-seed/1"
+}
