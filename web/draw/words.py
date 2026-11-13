@@ -195,23 +195,6 @@ HOLLOW_RULE = ("A petal is hollow while it is not decided: its properties file i
 PETAL_CHECKS = {"unforgeable": ("model", "prompt", "reply"), "weights_hidden": ("no_weight_file",),
                 "faithful_model": ("fidelity",), "machine_checked": ("model", "prompt", "reply"),
                 "no_trusted_party": ()}  # fmt: skip
-# ------------------------------------------------------------------ the checks page's terms
-# RFC-0018 §Terms and the glossary's Proved and Commitment, in short. {request} is the level's
-# request in words.
-TERMS = (
-    ("proof", "The files a system writes for one reply. Its verifier is a program that accepts "
-     "or refuses them. Each publisher states what an accepted proof shows, for example that "
-     "each reply token is the committed model's top choice, and under which assumptions. A "
-     "sound verifier accepts a reply that statement does not cover only with the probability "
-     "its security level bounds."),
-    ("commitment", "The value a system's commit step produces: it fixes the weights a later "
-     "proof refers to. The verifier is given the value from our record of that step, never from "
-     "files sent with a proof."),
-    ("request", "{request}. The same request for every system on every model."),
-    ("ladder", "The models, largest first, each an open-weights release named by its publisher. "
-     "A system has a row on each model it was run on."),
-)  # fmt: skip
-
 # ------------------------------------------------------------------ the figures (RFC-0018 §Cost, FI-7)
 # The overview's four figure columns: the anchor on the checks page, the column head, and the
 # definition as (label, words) lines. {slots}, {gap} (the release-group gap), {full} (the share
@@ -270,16 +253,15 @@ ORDER_RULE = (
     ("position", "1 plus the number of systems placed above. The count of systems run on the "
      "model is printed beside it."),
     ("unranked", "A system that passed is ranked only when its publisher states a security "
-     "level at the pinned commit. The level is printed as stated: our tests cannot tell 60 bits "
-     "from 128."),
+     "level at the pinned commit."),
     ("glyph", "The glyph never moves a position."),
-    ("models", "Nothing is compared across models: they differ in what serving costs and in how "
-     "proving scales."),
+    ("models", "Nothing is compared across models."),
 )  # fmt: skip
 # ------------------------------------------------------------------ the mandate page
 # The headline, what the site is for, then what we do, what we do not do, who runs it and how to
 # check us: each line (a plain label, the rule that binds it, the file that rule is in, the
-# words). A line with no file is the owner's commitment.
+# words). A line with no file is the owner's commitment. The members (facts.json `credit`) are
+# listed in the section MANDATE_MEMBERS_IN names, once any has agreed.
 RFC_18 = "rfcs/0018-level-1-ladder.md"
 MANDATE_BELIEF = (
     "We believe a claim about which AI model answered should come with evidence anyone can "
@@ -332,6 +314,7 @@ MANDATE = (
          "and the measuring code are public."),
     )),
 )  # fmt: skip
+MANDATE_MEMBERS_IN = "Who runs it"
 # why a check is undecided (its cause as the board stores it)
 CHECK_CAUSE_WORD = {
     "system limit": "the system cannot do what the test needs; the publisher's sentence is quoted",

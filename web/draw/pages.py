@@ -14,7 +14,6 @@ from .chrome import (
     MANDATE_PAGE,
     footer,
     header,
-    learn_page,
     link,
     page,
     pnav,
@@ -43,7 +42,6 @@ from .words import (
     BASIS_WORD,
     CAUSE_WORD,
     CHECK_CAUSE_WORD,
-    CHECK_EVIDENCE,
     CHECK_FAILED,
     CHECK_HELD,
     CHECK_NAME,
@@ -52,6 +50,7 @@ from .words import (
     HOLLOW_RULE,
     MANDATE,
     MANDATE_BELIEF,
+    MANDATE_MEMBERS_IN,
     MANDATE_WHAT,
     ORDER_RULE,
     PETAL_CAUSE_RULE,
@@ -64,7 +63,6 @@ from .words import (
     SCOPE_VALUE_WORD,
     STATE_WORD,
     STEP_WORD,
-    TERMS,
     VISIBLE_TAG_WORD,
     e,
     kl_head,
@@ -546,14 +544,6 @@ def rules(lines, ids=()):
     ) + "</dl>"  # fmt: skip
 
 
-def explained(lead, slug, cls="rd lead"):
-    """One line that leads to the Learn page explaining this one; nothing without that page."""
-    found = learn_page(slug)
-    if found is None:
-        return ""
-    return f'<p class="{cls}">{e(lead)} <a href="/{e(slug)}">{e(found["title"])}</a>.</p>'
-
-
 def title_band(title, sub="", cls="ttl"):
     """The band of a page that is not a system's (the checks, the mandate, the 404): its title
     at the home title's size, and a line under it."""
@@ -564,7 +554,7 @@ def title_band(title, sub="", cls="ttl"):
 def build_checks():
     """The five petals (RFC-0018 §The glyph) as the key beside their rules, the six checks as the
     entry gate (§The six checks) with what is not tested, the undecided causes, the figures (§Cost,
-    FI-7), the order rule, then the terms. The page opens on the glyph, as a system page does."""
+    FI-7), then the order rule. The page opens on the glyph, as a system page does."""
     ids = list(S.V["petals"])
     names = [PETAL_NAME[p] for p in ids]
     glyph = glyph_svg(GLYPH, ["key"] * len(names), names=names, cls="pie-svg big",
@@ -581,8 +571,7 @@ def build_checks():
     )  # fmt: skip
     checks = "".join(
         f'<div class="chk" id="{c}"><h3 class="cn2">{e(CHECK_NAME[c])}</h3>'
-        + rules((("held", CHECK_HELD[c]), ("failed", CHECK_FAILED[c]),
-                 ("evidence", CHECK_EVIDENCE[c])))
+        + rules((("held", CHECK_HELD[c]), ("failed", CHECK_FAILED[c])))
         + "</div>"
         for c in S.V["checks"]
     )  # fmt: skip
@@ -603,16 +592,15 @@ def build_checks():
     passed = (f'<p class="rd" id="passed">{e(gate)}</p>'
               f'<p class="rd" id="not-tested">{e(NOT_TESTED)}</p>')  # fmt: skip
     parts = (("glyph", "Glyph"), ("checks", "The six checks"), ("undecided", "Undecided"),
-             ("figures", "Figures"), ("order", "Order"), ("terms", "Terms"))  # fmt: skip
+             ("figures", "Figures"), ("order", "Order"))  # fmt: skip
     key = (f'<div class="cwrap"><div class="gbig">{glyph}</div><div class="clist">{petals}'
            f'<p class="rd hl">{e(HOLLOW_RULE)}</p><dl class="cs pcause">{petal_causes}</dl>'
            f'<p class="rd hl" id="reading">{e(READING_RULE)}</p>'
            "</div></div>")  # fmt: skip
-    lead = explained("The reason for each rule on this page:", "method", cls="tsub")
     body = f"""
 {header("checks")}
 <main id="main" class="sys">
-  {title_band("Checks", lead)}
+  {title_band("Checks")}
   {pnav("Checks", parts)}
   <div class="wrap">
     {section("glyph", "Glyph", key)}
@@ -620,7 +608,6 @@ def build_checks():
     {section("undecided", "Undecided", f'<dl class="cs">{causes}</dl>')}
     {section("figures", "Figures", f'<div class="clist">{figures}</div>')}
     {section("order", "Order", rules(ORDER_RULE, ids=("unranked",)))}
-    {section("terms", "Terms", rules(TERMS))}
   </div>
 </main>
 {footer()}"""
@@ -630,19 +617,25 @@ def build_checks():
 
 def build_mandate():
     """The mandate: the belief as the headline, what the site is for, then what we do, what we
-    do not do, who runs it and how to check us. A line bound by a rule names it under its words,
-    linked to the file that holds it."""
+    do not do, who runs it (with the members, once any has agreed) and how to check us. A line
+    bound by a rule links its label to the file that holds it, the rule named in the title."""
 
-    def rule(name, path):
+    def label(text, name, path):
         if not path:
-            return ""
-        return (f'<a class="qsrc" href="{e(link(path))}">'
-                f"{e(path.rsplit('/', 1)[-1])} · {e(name)}</a>")  # fmt: skip
+            return e(text)
+        return (f'<a href="{e(link(path))}" title="{e(path.rsplit("/", 1)[-1])}, {e(name)}">'
+                f"{e(text)}</a>")  # fmt: skip
 
+    members = S.V["credit"]["members"]
+    # the members' names in display type, a ruled row; nothing while none has agreed
+    row = ('<div class="mbr"><dt>Members</dt><dd><ul class="mbl">' + "".join(
+        f'<li><a href="{e(m["url"])}">{e(m["name"])}</a></li>' for m in members)
+        + "</ul></dd></div>") if members else ""  # fmt: skip
     blocks = "".join(
         section(title.lower().replace(" ", "-"), title, '<dl class="cs">' + "".join(
-            f"<div><dt>{e(label)}</dt><dd>{e(words)}{rule(name, path)}</dd></div>"
-            for label, name, path, words in lines) + "</dl>")
+            f"<div><dt>{label(text, name, path)}</dt><dd>{e(words)}</dd></div>"
+            for text, name, path, words in lines)
+            + (row if title == MANDATE_MEMBERS_IN else "") + "</dl>")
         for title, lines in MANDATE
     )  # fmt: skip
     parts = [(title.lower().replace(" ", "-"), title) for title, _ in MANDATE]
@@ -653,7 +646,6 @@ def build_mandate():
   {pnav("Mandate", parts)}
   <div class="wrap">
     <p class="rd lead">{e(MANDATE_WHAT)}</p>
-    {explained("Why a claim about an AI system needs evidence:", "why-verify", cls="rd")}
     {blocks}
   </div>
 </main>

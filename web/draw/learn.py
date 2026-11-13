@@ -388,12 +388,6 @@ def turn(before, after):
             f'{to("tp", before, STEP + e(before[1]))}{to("tx", after, e(after[1]) + STEP)}</nav>')  # fmt: skip
 
 
-def source_line(entry):
-    """Where a page's text is kept, and where to say that it is wrong."""
-    return (f'<p class="src">This page\'s text: <a href="{e(link(entry["path"]))}">{e(entry["path"])}</a>. '
-            f'Wrong or unclear? <a href="{e(S.REPO_URL)}/issues/new">Tell us</a>.</p>')  # fmt: skip
-
-
 def build_page(slug_):
     """One page of a track: the band (track, title, summary, the track's pages), the strip of its
     sections with its place in the track, the text, then the pages before and after."""
@@ -416,7 +410,7 @@ def build_page(slug_):
   {strip(entry["title"], ctx.get("heads", []), (where, before, after))}
   <div class="wrap lwrap">
     <article class="prose lpr">{text}</article>
-    {turn(before, after)}{source_line(entry)}
+    {turn(before, after)}
   </div>
 </main>
 {footer()}"""
@@ -449,7 +443,6 @@ def build_glossary():
   {strip(entry["title"], heads)}
   <div class="wrap lwrap">
     <article class="prose gls"><div class="gli">{intro}</div>{sections}</article>
-    {source_line(entry)}
   </div>
 </main>
 {footer()}"""
