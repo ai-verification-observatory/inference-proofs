@@ -38,7 +38,7 @@ A benchmark that only times honest runs cannot tell a verifier from a program th
 | [Model](/checks#model) | Change one weight; also check an honest proof against the changed weights' commitment | Neither was accepted |
 | [Prompt](/checks#prompt) | Change one prompt token | That change was refused |
 | [Reply](/checks#reply) | Change one reply token at the first, the last and one interior position | Those changes were refused, and the proofs cover all 512 tokens |
-| [No weight file](/checks#no_weight_file) | Trace every file the verifier opens, with no GPU visible and no model file on the machine | The verifier reached its verdicts without opening a model file |
+| [Verify without weights](/checks#no_weight_file) | Trace every file the verifier opens, with no GPU visible and no model file on the machine | The verifier reached its verdicts without opening a model file |
 | [Fidelity](/checks#fidelity) | Compare the replies with those of the publisher's original weights | The proved copy is closer to the original than a copy damaged on purpose |
 
 The three tampering checks reuse the [[control|negative controls]] of [RFC-0008](repo:rfcs/0008-negative-controls.md), and three rules keep them from giving a system a result it has not earned, either way.
@@ -70,7 +70,7 @@ Each half can be moved without changing a prover, and has a rule against it. Pro
 Two limits are admitted in [RFC-0015](repo:rfcs/0015-reference-rows.md)'s own list of drawbacks. Serving with an engine's defaults "is not the maximum achievable serving throughput". And the served precision is the publisher's choice, so the ratio "mixes the cost of proving with a precision difference the publisher chose".
 
 :::measured rows
-The rows of the board today. A row with too few release groups has no m, and prints its whole-session cost over b instead, labelled as cold sessions.
+The rows of the board today. A row with too few release groups has no m, and prints its whole-session cost over b instead, labelled as whole sessions.
 :::
 
 ## Order

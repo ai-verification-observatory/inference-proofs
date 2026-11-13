@@ -43,7 +43,7 @@ LOWERED_BY: Mapping[str, tuple[str, ...]] = {
     "no_trusted_party": (),
 }
 _CHECK_NAMES = {"model": "Model", "prompt": "Prompt", "reply": "Reply",
-                "no_weight_file": "No weight file", "fidelity": "Fidelity"}  # fmt: skip
+                "no_weight_file": "Verify without weights", "fidelity": "Fidelity"}  # fmt: skip
 _REACH_WORDS = {"part": "a part", "protocol": "the protocol",
                 "protocol_and_statement": "the protocol and the model's statement",
                 "verifier_run": "the verifier program the row runs",

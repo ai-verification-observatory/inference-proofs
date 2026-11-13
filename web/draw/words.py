@@ -28,35 +28,37 @@ def quoted(text):
 
 # ------------------------------------------------------------------ the six checks (RFC-0018)
 CHECK_NAME = {"run": "Run", "model": "Model", "prompt": "Prompt", "reply": "Reply",
-              "no_weight_file": "No weight file", "fidelity": "Fidelity"}  # fmt: skip
+              "no_weight_file": "Verify without weights", "fidelity": "Fidelity"}  # fmt: skip
 # {slots}, {attempts} and {reply_tokens} are the level file's constants (`overview.filled`)
 CHECK_HELD = {
-    "run": "Each of the {slots} session slots holds a complete session, built from the public "
-    "pin, unpatched, with no weakening flag.",
+    "run": "Each of {slots} sessions, from a cold start on its own prompts, returned an accepted "
+    "proof for every request, built from the published code at its pinned commit, unpatched, with "
+    "no flag that weakens the proof.",
     "model": "A proof made after one weight was changed is not accepted, and an honest proof "
     "checked against the changed weights' commitment is refused, in 3 of 3 trials each.",
     "prompt": "A proof checked with one prompt token changed is refused, in 3 of 3 trials.",
     "reply": "Every accepted proof covers all {reply_tokens} reply tokens, and a changed reply "
-    "token is refused at the first, the last and one seeded interior position, in 3 of 3 trials "
-    "each.",
-    "no_weight_file": "Every counted verdict came from a check run with no GPU visible, on a "
-    "filesystem holding no model file, under a file-open trace that names no model file.",
-    "fidelity": "The system's replies score above the model's bar: the damaged copy of the model "
-    "that every honest copy scores above, scored by the leading tokens each reply shares with the "
-    "reply of the publisher's original weights.",
+    "token is refused at the first, the last and one interior position drawn from a public seed, "
+    "in 3 of 3 trials each.",
+    "no_weight_file": "Every counted verdict came from a verify call with no GPU visible, on a "
+    "machine holding no model file, and the trace of the files it opened names no model file.",
+    "fidelity": "The system's replies match the replies of the publisher's original weights for "
+    "more leading tokens than the bar's do. The bar is the copy we damaged on purpose that matches "
+    "most, among those every honest copy scores above. A floor, not a measure of closeness: the "
+    "Faithful model petal grades closeness.",
 }
 # after the colon, what an accepted trial is: the verifier accepted a false statement (RFC-0018
 # §The glyph)
 CHECK_FAILED = {
-    "run": "A slot has {attempts} incomplete runs, the system's own code refuses the request, or "
-    "a counted session used a weakening flag.",
+    "run": "One set of prompts did not complete in {attempts} attempts, the system's own code "
+    "refused the request, or a counted session used a flag that weakens the proof.",
     "model": "Any trial is accepted: the verifier accepts a proof for weights other than the "
     "committed ones.",
     "prompt": "Any trial is accepted: the verifier accepts a proof for a prompt other than the "
     "one proved.",
     "reply": "A proof covers fewer reply tokens, or any trial is accepted: the verifier accepts "
     "a reply with a token changed.",
-    "no_weight_file": "The trace names a model file, or a check needed one.",
+    "no_weight_file": "The trace names a model file, or a verify call needed one.",
     "fidelity": "The bar scores above the system's replies: they match the replies of the "
     "publisher's original weights for fewer leading tokens than those of a copy damaged on "
     "purpose.",
@@ -66,7 +68,7 @@ CHECK_EVIDENCE = {
     "model": "the controls record",
     "prompt": "the controls record",
     "reply": "the run records and the controls record",
-    "no_weight_file": "the file-open trace of every check",
+    "no_weight_file": "the file-open trace of every verify call",
     "fidelity": "the model's fidelity record",
 }
 STATE_WORD = {"held": "held", "failed": "failed", "undecided": "undecided"}
@@ -75,14 +77,14 @@ STATE_WORD = {"held": "held", "failed": "failed", "undecided": "undecided"}
 PETAL_NAME = {"unforgeable": "Unforgeable", "weights_hidden": "Weights hidden",
               "faithful_model": "Faithful model", "machine_checked": "Machine-checked",
               "no_trusted_party": "No third party trusted"}  # fmt: skip
-# a petal's stored step in words (None: hollow, not decided), §The glyph, step table and GL-8
+# a petal's stored step in words (None: hollow, undecided), §The glyph, step table and GL-8
 STEP_WORD = {"green": "green · in full", "amber_upper": "amber · in part",
              "amber_lower": "amber · in lesser part", "red": "red · no",
-             None: "not decided"}  # fmt: skip
+             None: "undecided"}  # fmt: skip
 # why a petal is red or hollow (GL-1, GL-3); the checks page defines each at #cause-<id>
 CAUSE_WORD = {"not_stated": "not stated", "stated": "stated, short of amber",
               "check_failed": "our check failed", "not_read": "not read yet",
-              "not_decided": "not decided yet",
+              "not_decided": "our check undecided",
               "proof_build_not_run": "no proof build yet"}  # fmt: skip
 # each cause in a line, on the checks page (#cause-<id>)
 PETAL_CAUSE_RULE = {
@@ -99,7 +101,7 @@ PETAL_CAUSE_RULE = {
     "and no build of the named proof at the pinned commit, with the toolchain the publisher pins, "
     "is recorded yet.",
 }
-BASIS_WORD = {"statement": "the publisher's documents", "test": "our checks"}
+BASIS_WORD = {"statement": "the publisher's documents", "test": "our tests"}
 # the From cell of a petal decided on the publisher's documents when a fact it read carries a note
 # (the board petal's `reading`), and what that means, on the checks page (#reading)
 BASIS_READING = ("the publisher's documents", "our reading")
@@ -148,7 +150,7 @@ PETAL_RULE = {
         "weights.",
         "Hiding stated, with no zero-knowledge theorem.",
         "The verifier receives the weights, hiding is stated not to hold or not stated, or our "
-        "No weight file check failed.",
+        "Verify without weights check failed.",
     ),
     "faithful_model": (
         "The proved replies are shown above the midpoint between a second run of the "
@@ -185,8 +187,8 @@ PETAL_RULE = {
     ),
 }
 # the checks page: why a petal is hollow, and that silence is not
-HOLLOW_RULE = ("A petal is hollow while it is not decided: its properties file is not read yet, "
-               "its fidelity run is not measured or not decided yet, or, for Machine-checked, no "
+HOLLOW_RULE = ("A petal is hollow while it is undecided: its properties file is not read yet, "
+               "its fidelity run is not measured or still undecided, or, for Machine-checked, no "
                "build of the named proof with the toolchain the publisher pins is recorded yet. "
                "Silence is not hollow: a property the publisher does not state is red, drawn as an "
                "outline in the red ink, its name not struck.")  # fmt: skip
@@ -217,8 +219,8 @@ TERMS = (
 # definition as (label, words) lines. {slots}, {gap} (the release-group gap), {full} (the share
 # of the highest rate that is full load) and {top} (the ladder's top concurrency) are the level
 # file's constants; {reference} is each model's reference precision.
-FIGURE_NAME = {"multiple": "Multiple of serving", "cost": "Cost per reply",
-               "check-time": "Check time per reply", "kl": "KL to the reference"}  # fmt: skip
+FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
+               "check-time": "Verify time per reply", "kl": "KL to the original weights"}  # fmt: skip
 FIGURE_RULE = {
     "multiple": (
         ("proving", "m, GPU-seconds per further proved reply. In one session, proofs released "
@@ -232,8 +234,8 @@ FIGURE_RULE = {
          "{top} concurrent requests."),
         ("multiple", "m over b, on one model. Both halves are GPU-seconds of the same GPU at one "
          "price, so the multiple is the same in dollars."),
-        ("cold", "A system whose sessions release too few groups, or uneven ones, has no m. It "
-         "prints its session cost per reply over b, labelled as cold sessions."),
+        ("whole session", "A system whose sessions release too few groups, or uneven ones, has "
+         "no m. It prints its session cost per reply over b, labelled as whole sessions."),
     ),
     "cost": (
         ("steady", "m in USD, at the release's price of one H200 GPU-hour."),
@@ -241,7 +243,7 @@ FIGURE_RULE = {
          "the release of the last proof, over the session's replies, in USD."),
     ),
     "check-time": (
-        ("check", "The time the system's verifier takes on a session's proofs, over the "
+        ("verify", "The time the system's verifier takes on a session's proofs, over the "
          "session's replies."),
     ),
     "kl": (
@@ -257,7 +259,9 @@ REFERENCE_WORD = {"bf16": "16-bit", "f16": "16-bit", "f32": "32-bit"}
 
 
 def kl_head(dtype):
-    return f"KL to the {REFERENCE_WORD[dtype]} model"
+    """The KL column's head: one name on every page; the precision of each model's reference is
+    in the figure's definition."""
+    return FIGURE_NAME["kl"]
 
 
 # the order rule (RFC-0018 OR-1 to OR-4, GL-4), as (label, words). {margin} is the level's.
@@ -337,13 +341,14 @@ CHECK_CAUSE_WORD = {
     "system limit": "the system cannot do what the test needs; the publisher's sentence is quoted",
     "not run": "the test has not been run",
     "not resolved": "the test ran and decided nothing",
-    "not reproduced": "failed in our adapter, not yet reproduced outside it",
+    "not reproduced": "a verifier accepted a changed input in our adapter; not yet reproduced "
+    "with the system's own command",
 }
 
 # ------------------------------------------------------------------ labels of a stored figure
 SCOPE_SHORT = {None: "", "prove.steady": "steady", "prove.session": "session",
-               "whole_wall": "session", "verify": "check", "commit": "commit",
-               "setup": "setup", "verify.single_thread": "check, one thread"}  # fmt: skip
+               "whole_wall": "session", "verify": "verify", "commit": "commit",
+               "setup": "setup", "verify.single_thread": "verify, one thread"}  # fmt: skip
 SCOPE_WORD = {
     None: "not a timed number",
     "setup": "setting up",
@@ -351,8 +356,8 @@ SCOPE_WORD = {
     "prove.steady": "steady state, after the first release group",
     "prove.session": "the whole session, start-up included",
     "whole_wall": "the whole session, from commit to the last proof",
-    "verify": "checking",
-    "verify.single_thread": "checking on one CPU thread",
+    "verify": "verifying",
+    "verify.single_thread": "verifying on one CPU thread",
     "primitive": "one primitive",
 }
 GRADE_WORD = {
@@ -375,6 +380,10 @@ NULL_WORD = {
     "not_measurable_on_profile": "not measurable on this GPU",
     "missing_input": "a number it is calculated from is missing",
 }
+# in place of a null reason: a steady figure on a row with no steady state (CO-3, CO-5)
+NO_STEADY_WORD = "not every session had a steady state"
+# the line under the serving baseline's figure: it is timed at full load, not steady (CO-4)
+FULL_LOAD_WORD = "full load"
 
 
 # ------------------------------------------------------------------ numbers (display only)
