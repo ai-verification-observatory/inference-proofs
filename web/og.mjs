@@ -2,8 +2,8 @@
 // (OG_CHANNEL=chrome runs an installed Chrome instead of Playwright's own browser)
 // (README §Build and check). Renders each og/<card>.html that the build wrote to og/<card>.png and
 // records the sha256 of both in og/cards.json; the build then names each picture in the pages. A card is 1200 x 630 CSS px at 2x
-// unless its <html> sets data-w, data-h and data-scale (the 180 px touch icon). test_cards.py
-// checks the record against the files. Fonts load from ../fonts/, so it needs no network.
+// unless its <html> sets data-w, data-h and data-scale (the 180 px touch icon). A page whose card
+// is not in the record names the home card. Fonts load from ../fonts/, so it needs no network.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';

@@ -18,6 +18,7 @@ A dash used as punctuation (U+2014, U+2013) stops the build: the site's prose us
 colons or parentheses (AGENTS.md, Writing style).
 """
 
+import html
 import re
 
 from . import state as S
@@ -72,9 +73,11 @@ def inline(text, ctx):
             term = slug(m[2])
             if term not in ctx["terms"]:
                 raise Halt(f"{ctx['where']}: [[{m[2]}]] is not a glossary entry")
-            out.append(
-                f'<a class="df" href="/{ctx["glossary"]}#{term}">{inline(m[3] or m[2], ctx)}</a>'
-            )
+            peek = ""
+            if found := ctx.get("defs", {}).get(term):
+                peek = f' data-g="{e(found[0])}" data-d="{e(found[1])}"'
+            out.append(f'<a class="df" href="/{ctx["glossary"]}#{term}"{peek}>'
+                       f"{inline(m[3] or m[2], ctx)}</a>")  # fmt: skip
         elif m[4]:
             out.append(f'<a href="{e(address(m[5], ctx["where"]))}">{inline(m[4], ctx)}</a>')
         elif m[6]:
@@ -100,15 +103,21 @@ def cells(line):
 def table(rows, ctx):
     if len(rows) < 3 or not RULE.match(rows[1].strip()):
         raise Halt(f"{ctx['where']}: a table needs a head, a |---| line and a row")
-    head = "".join(f'<th scope="col">{inline(c, ctx)}</th>' for c in cells(rows[0]))
+    heads = [inline(c, ctx) for c in cells(rows[0])]
+    head = "".join(f'<th scope="col">{h}</th>' for h in heads)
+    # on a phone the table stacks (.mt): each cell, the row's head too, under its head's name, its
+    # plain words
+    lead, *names = [e(html.unescape(re.sub(r"<[^>]+>", "", h))) for h in heads]
+    lead = f' data-l="{lead}"' if lead else ""
     body = ""
     for row in rows[2:]:
         first, *rest = cells(row)
-        if len(rest) + 1 != len(cells(rows[0])):
+        if len(rest) + 1 != len(heads):
             raise Halt(f"{ctx['where']}: a table row and its head differ in length: {row!r}")
-        body += (f'<tr><th scope="row">{inline(first, ctx)}</th>'
-                 + "".join(f"<td>{inline(c, ctx)}</td>" for c in rest) + "</tr>")  # fmt: skip
-    return (f'<div class="tw"><table class="rt lt"><thead><tr>{head}</tr></thead>'
+        body += (f'<tr><th scope="row"{lead}>{inline(first, ctx)}</th>'
+                 + "".join(f'<td data-l="{n}">{inline(c, ctx)}</td>'
+                           for n, c in zip(names, rest, strict=True)) + "</tr>")  # fmt: skip
+    return (f'<div class="tw"><table class="rt lt mt"><thead><tr>{head}</tr></thead>'
             f"<tbody>{body}</tbody></table></div>")  # fmt: skip
 
 
@@ -205,6 +214,8 @@ def markdown(text, ctx):
             i += 1
             hid = ctx["ids"](m[2])
             tag, cls = ("h2", "ah") if m[1] == "##" else ("h3", "ah3")
+            if tag == "h2":
+                ctx.setdefault("heads", []).append((hid, plain(m[2])))
             out.append(f'<{tag} class="{cls}" id="{hid}">{inline(m[2], ctx)}</{tag}>')
         elif line.startswith("|"):
             out.append(table(run(lambda ln: ln.startswith("|")), ctx))
@@ -219,10 +230,11 @@ def markdown(text, ctx):
     return "".join(out)
 
 
-def context(entry, terms):
-    """What `markdown` needs for one page: where its text is, the glossary's entries and an id
-    maker that stops the build on an id used twice (a heading, a stage, a drawing, or an id of
-    the page's own frame)."""
+def context(entry, terms, defs=None):
+    """What `markdown` needs for one page: where its text is, the glossary's entries (with, in
+    `defs`, each one's name and first sentence, which a link to it carries) and an id maker that
+    stops the build on an id used twice (a heading, a stage, a drawing, or an id of the page's
+    own frame). `markdown` adds `heads`, the page's sections, (id, words) for each `## Title`."""
     seen = set(FRAME_IDS)
 
     def own(hid):
@@ -236,11 +248,11 @@ def context(entry, terms):
         return own(slug(re.sub(r"[`*\[\]]", "", title)))
 
     return {"where": entry["path"], "terms": terms, "ids": ids, "own": own,
-            "glossary": glossary()["slug"]}  # fmt: skip
+            "glossary": glossary()["slug"], "defs": defs or {}}  # fmt: skip
 
 
 # the ids every page's frame holds (chrome.py, `band`): a heading must not take one
-FRAME_IDS = ("main", "live", "q", "q-list", "h-name")
+FRAME_IDS = ("main", "live", "q", "q-list", "h-name", "gpk")
 SAID = re.compile(r'^:::quote\b.*?^:::[ \t]*$|"[^"\n]*"', re.M | re.S)  # a publisher's own words
 CODE = re.compile(r"^```.*?^```|`[^`\n]+`", re.M | re.S)  # code keeps its straight quotes
 
@@ -297,39 +309,83 @@ def glossary_entries():
             for m in found]  # fmt: skip
 
 
-def band(kicker, title, summary):
-    return (f'<section class="mast mast-sys" aria-labelledby="h-name"><div class="mast-in">'
-            f'<p class="kick">{kicker}</p><h1 id="h-name" class="sysname lt-h">{e(title)}</h1>'
-            f'<p class="bsub lt-s">{e(summary)}</p></div></section>')  # fmt: skip
+def defs():
+    """Each glossary term's name and first sentence, by its id: what a link to it carries, for
+    the reader who points at it or gives it focus (words.js)."""
+    return {tid: (name, first) for name, tid, first in glossary_entries()}
 
 
-def rail(track, here):
-    """The track as a ladder of its pages, the one in view marked; then the glossary and hub."""
-    items = "".join(
-        f'<li{" class=on" if p["slug"] == here else ""}><a href="/{p["slug"]}"'
+def band(kicker, title, summary, under=""):
+    """A Learn page's band: where it stands (on a track's page, the glossary at the line's right
+    end), its title and summary (none when the text opens with it), then `under` (the track's
+    pages, or the hub's two tracks) on the band's lower edge."""
+    kick = f'<p class="kick">{kicker}</p>' if kicker else ""
+    said = f'<p class="lt-s">{e(summary)}</p>' if summary else ""
+    return (f'<section class="mast mast-sys lband{" lunder" if under else ""}" '
+            f'aria-labelledby="h-name"><div class="mast-in">{kick}'
+            f'<h1 id="h-name" class="sysname lt-h">{e(title)}</h1>{said}{under}</div></section>')  # fmt: skip
+
+
+def steps(track, here):
+    """The track's pages as one row of cells on the band's edge, the page in view a block of
+    ground ink (it moves along the row from one page to the next); on a phone their numbers."""
+    cells = "".join(
+        f'<li><a class="lsc{" on" if p["slug"] == here else ""}" href="/{p["slug"]}"'
         f"{' aria-current=page' if p['slug'] == here else ''}>"
-        f'<span class="no">{k:02d}</span>{e(p["title"])}</a></li>'
+        f'<span class="lsn">{k:02d}</span><span class="lst">{e(p["title"])}</span></a></li>'
         for k, p in enumerate(track["pages"], start=1)
     )
-    g = glossary()
-    return (f'<nav class="rail" aria-label="{e(track["name"])}"><p class="rl">{e(track["name"])}</p>'
-            f'<ol>{items}</ol><p class="rx"><a href="/{g["slug"]}">{e(g["title"])}</a>'
-            f'<a href="{LEARN_PAGE}">All of Learn</a></p></nav>')  # fmt: skip
+    return f'<nav class="lsteps" aria-label="{e(track["name"])}"><ol>{cells}</ol></nav>'
 
 
-def turn(track, k):
-    """Under a page: the page before it and the page after it in its track."""
+def neighbours(track, k):
+    """The page before this one and the page after it, each (address, label, title): before a
+    track's first page the hub; after its last page the first page of the other track (or the
+    glossary, with one track)."""
     pages = track["pages"]
+    if k:
+        before = (f"/{pages[k - 1]['slug']}", "Previous", pages[k - 1]["title"])
+    else:
+        before = (LEARN_PAGE, "Previous", S.V["learn"]["title"])
+    if k + 1 < len(pages):
+        return before, (f"/{pages[k + 1]['slug']}", "Next", pages[k + 1]["title"])
+    other = [t for t in tracks() if t is not track]
+    if other:
+        return before, (f"/{other[0]['pages'][0]['slug']}", other[0]["name"],
+                        other[0]["pages"][0]["title"])  # fmt: skip
+    return before, (f"/{glossary()['slug']}", "Next", glossary()["title"])
 
-    def to(label, p):
-        if p is None:
-            return "<span></span>"
-        return (f'<a class="tn" href="/{p["slug"]}"><span class="tl2">{label}</span>'
-                f'<span class="tt">{e(p["title"])}</span></a>')  # fmt: skip
 
-    before = pages[k - 1] if k else None
-    after = pages[k + 1] if k + 1 < len(pages) else None
-    return f'<nav class="turn" aria-label="Previous and next page">{to("Previous", before)}{to("Next", after)}</nav>'
+STEP = ('<svg class="lar" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" '
+        'focusable="false"><path d="M5.5 2.5 11 8l-5.5 5.5" fill="none" stroke="currentColor" '
+        'stroke-width="2"/></svg>')  # fmt: skip
+
+
+def strip(title, heads, place=None):
+    """The page's sections as the strip that stays under the top bar (the chrome's own: words.js
+    marks the section in view and slides the title in once the band is gone); on a track's page
+    its place in the track at the strip's end, between the page before and the page after."""
+    links = "".join(f'<a href="#{hid}">{e(words)}</a>' for hid, words in heads)
+    end = ""
+    if place:
+        where, before, after = place
+        end = (f'<p class="lpl"><a class="lpa lpb" href="{before[0]}" '
+               f'aria-label="{e(before[1])}: {e(before[2])}">{STEP}</a>'
+               f'<span class="lpo">{where}</span><a class="lpa" href="{after[0]}" '
+               f'aria-label="{e(after[1])}: {e(after[2])}">{STEP}</a></p>')  # fmt: skip
+    return (f'<div class="pnav lpn"><nav class="ps" aria-label="Sections">'
+            f'<span class="ps-t" aria-hidden="true">{e(title)}</span>{links}</nav>{end}</div>')  # fmt: skip
+
+
+def turn(before, after):
+    """Under a page: the page before it and the page after it, the next one in cobalt."""
+
+    def to(cls, a, label):
+        return (f'<a class="tn {cls}" href="{a[0]}"><span class="tl2">{label}</span>'
+                f'<span class="tt">{e(a[2])}</span></a>')  # fmt: skip
+
+    return (f'<nav class="turn" aria-label="Previous and next page">'
+            f'{to("tp", before, STEP + e(before[1]))}{to("tx", after, e(after[1]) + STEP)}</nav>')  # fmt: skip
 
 
 def source_line(entry):
@@ -339,23 +395,28 @@ def source_line(entry):
 
 
 def build_page(slug_):
-    """One page of a track: the band (track, position, title, summary), the track's ladder
-    beside the text, then the pages before and after."""
+    """One page of a track: the band (track, title, summary, the track's pages), the strip of its
+    sections with its place in the track, the text, then the pages before and after."""
     found = [(t, k) for t in tracks() for k, p in enumerate(t["pages"]) if p["slug"] == slug_]
     if not found:
         raise Halt(f"no Learn page {slug_!r}")
     track, k = found[0]
     entry = track["pages"][k]
-    kicker = (f'<a href="{LEARN_PAGE}">Learn</a> · {e(track["name"])} · '
-              f"{k + 1} of {len(track['pages'])}")  # fmt: skip
-    text = markdown(text_of(entry), context(entry, terms()))
+    kicker = (f'<span><a href="{LEARN_PAGE}">Learn</a> · '
+              f'<a href="{LEARN_PAGE}#{e(track["id"])}">{e(track["name"])}</a></span>'
+              f'<a href="/{e(glossary()["slug"])}">{e(glossary()["title"])}</a>')  # fmt: skip
+    ctx = context(entry, terms(), defs())
+    text = markdown(text_of(entry), ctx)
+    before, after = neighbours(track, k)
+    where = f"{k + 1} of {len(track['pages'])}"
     body = f"""
 {header("learn", under=True)}
 <main id="main" class="sys">
-  {band(kicker, entry["title"], entry["summary"])}
-  <div class="wrap art">
-    <article class="prose">{text}{turn(track, k)}{source_line(entry)}</article>
-    {rail(track, slug_)}
+  {band(kicker, entry["title"], entry["summary"], steps(track, slug_))}
+  {strip(entry["title"], ctx.get("heads", []), (where, before, after))}
+  <div class="wrap lwrap">
+    <article class="prose lpr">{text}</article>
+    {turn(before, after)}{source_line(entry)}
   </div>
 </main>
 {footer()}"""
@@ -363,23 +424,32 @@ def build_page(slug_):
 
 
 def build_glossary():
-    """The glossary: one entry per `### Term`, each an address of its own."""
+    """The glossary: its terms under their first letter (each letter a section of the strip), one
+    entry per `### Term`, each an address of its own."""
     entry = glossary()
-    kicker = f'<a href="{LEARN_PAGE}">Learn</a> · both tracks'
-    text = markdown(text_of(entry), context(entry, terms()))
-    # each term with what follows it, as one row; a term is the page's second level of heading
-    parts = re.split(r'(?=<h3 class="ah3")', text)
-    rows = "".join(
-        f'<div class="term">{p.replace("<h3 ", "<h2 ", 1).replace("</h3>", "</h2>", 1)}</div>'
-        if p.startswith("<h3") else p
-        for p in parts
-    )  # fmt: skip
+    ctx = context(entry, terms(), defs())
+    intro, *found = re.split(r'(?=<h3 class="ah3")', markdown(text_of(entry), ctx))
+    groups = {}
+    for part in found:
+        name = re.sub(r"<[^>]+>", "", re.match(r"<h3[^>]*>(.*?)</h3>", part)[1])
+        groups.setdefault(name[0].upper(), []).append(f'<div class="term">{part}</div>')
+    heads, sections = [], ""
+    for letter, rows in groups.items():
+        lid = ctx["own"](f"l-{letter.lower()}")
+        ctx["own"](f"h-{lid}")
+        heads.append((lid, letter))
+        sections += (f'<section class="gll" id="{lid}" aria-labelledby="h-{lid}">'
+                     f'<h2 class="glh" id="h-{lid}">{e(letter)}</h2>'
+                     f'<div class="glt">{"".join(rows)}</div></section>')  # fmt: skip
+    kicker = f'<span><a href="{LEARN_PAGE}">Learn</a> · both tracks</span>'
     body = f"""
 {header("learn", under=True)}
 <main id="main" class="sys">
-  {band(kicker, entry["title"], entry["summary"])}
-  <div class="wrap art one">
-    <article class="prose gloss">{rows}{source_line(entry)}</article>
+  {band(kicker, entry["title"], "")}
+  {strip(entry["title"], heads)}
+  <div class="wrap lwrap">
+    <article class="prose gls"><div class="gli">{intro}</div>{sections}</article>
+    {source_line(entry)}
   </div>
 </main>
 {footer()}"""
@@ -387,28 +457,36 @@ def build_glossary():
 
 
 def build_hub():
-    """The hub: the two tracks side by side, each a ladder of its pages, then the glossary."""
+    """The hub: the two tracks as two cells on the band's edge, each over its pages in reading
+    order; then every term of the glossary."""
     lv = S.V["learn"]
+    ways = "".join(
+        f'<a class="lway" href="#{e(t["id"])}"><span class="lwn">{e(t["name"])}</span>'
+        f'<span class="lwr">{e(t["reader"])}</span>'
+        f'<span class="lwc">{len(t["pages"])} pages</span></a>'
+        for t in tracks()
+    )
 
     def track_html(t):
         rows = "".join(
-            f'<li><a class="hp" href="/{p["slug"]}"><span class="no">{k:02d}</span>'
+            f'<li><a class="hp" href="/{p["slug"]}"><span class="hn">{k:02d}</span>'
             f'<span class="ht">{e(p["title"])}</span><span class="hs">{e(p["summary"])}</span></a></li>'
             for k, p in enumerate(t["pages"], start=1)
         )
-        return (f'<section class="blk trk" id="{e(t["id"])}" aria-labelledby="h-{e(t["id"])}">'
-                f'<h2 class="sect sm" id="h-{e(t["id"])}">{e(t["name"])}</h2>'
-                f'<p class="rd who">{e(t["reader"])}</p><ol class="hl2">{rows}</ol></section>')  # fmt: skip
+        return (f'<section class="ltk" id="{e(t["id"])}" aria-labelledby="h-{e(t["id"])}">'
+                f'<h2 class="trh" id="h-{e(t["id"])}">{e(t["name"])}</h2>'
+                f'<p class="trr">{e(t["reader"])}</p><ol class="hl2">{rows}</ol></section>')  # fmt: skip
 
     g = glossary()
-    both = (f'<section class="blk" id="both" aria-labelledby="h-both"><h2 class="sect sm" id="h-both">'
-            f'Both tracks</h2><ol class="hl2"><li><a class="hp" href="/{g["slug"]}">'
-            f'<span class="no">Aa</span><span class="ht">{e(g["title"])}</span>'
-            f'<span class="hs">{e(g["summary"])}</span></a></li></ol></section>')  # fmt: skip
+    names = "".join(f'<li><a href="/{g["slug"]}#{tid}" data-g="{e(name)}" data-d="{e(first)}">'
+                    f"{e(name)}</a></li>" for name, tid, first in glossary_entries())  # fmt: skip
+    both = (f'<section class="lgl" id="terms" aria-labelledby="h-terms"><h2 class="trh lgh" '
+            f'id="h-terms"><a href="/{g["slug"]}">{e(g["title"])}</a></h2>'
+            f'<p class="hs">{e(g["summary"])}</p><ul class="lgt">{names}</ul></section>')  # fmt: skip
     body = f"""
 {header("learn")}
-<main id="main" class="sys">
-  {band("", lv["title"], lv["lead"])}
+<main id="main">
+  {band("", lv["title"], lv["lead"], f'<nav class="lways" aria-label="Tracks">{ways}</nav>')}
   <div class="wrap">
     <div class="trks">{"".join(track_html(t) for t in tracks())}</div>
     {both}

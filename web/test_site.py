@@ -14,7 +14,8 @@ FIG = re.compile(
 )
 SLICE = re.compile(r'class="sl s(\d) (green|amber|red|hollow)"')
 CHECK_ROW = re.compile(
-    r'<tr class="ck (held|failed|undecided)"><th scope="row"><a href="/checks#([a-z_]+)"'
+    r'<tr class="ck (held|failed|undecided)"(?: id="ck-[a-z_]+")?><th scope="row">'
+    r'<a href="/checks#([a-z_]+)"'
 )
 PETALS = ("unforgeable", "weights_hidden", "faithful_model", "any_model", "no_trusted_party")
 CHECKS = ("run", "model", "prompt", "reply", "no_weight_file", "fidelity")

@@ -112,6 +112,10 @@ PETAL_RULE = {
         "A trusted setup, hardware attestation or a trusted key, or not stated.",
     ),
 }
+# the checks whose failure a petal's red names (PETAL_RULE), so a petal and its checks light
+# together on a system page
+PETAL_CHECKS = {"unforgeable": ("model", "prompt", "reply"), "weights_hidden": ("no_weight_file",),
+                "faithful_model": ("fidelity",), "any_model": (), "no_trusted_party": ()}  # fmt: skip
 # ------------------------------------------------------------------ the checks page's terms
 # RFC-0018 §Terms and the glossary's Proved and Commitment, in short. {request} is the level's
 # request in words.
@@ -304,55 +308,24 @@ def sig(v, d=4):
     return f"{round(v, places):,.0f}"
 
 
-SI = ((1e12, "T"), (1e9, "G"), (1e6, "M"), (1e3, "k"), (1.0, ""), (1e-3, "m"), (1e-6, "µ"),
-      (1e-9, "n"))  # fmt: skip
-
-
-def prefixed(v, base, lo=1e-9, hi=1e12, d=4):
-    """(number, unit) with the prefix that puts the number between 1 and 1000 where one can. The
-    value is rounded to its d digits first, so 999.96 ms prints 1.000 s."""
-    r = float(f"{v:.{d}g}")
-    if r == 0:
-        return "0", base
-    steps = [(f, p) for f, p in SI if lo <= f <= hi]
-    f, p = next(((f, p) for f, p in steps if abs(r) >= f), steps[-1])
-    return sig(r / f, d), p + base
-
-
-def seconds(v, d=4):
-    """A time: ns to s with their prefix, then minutes and hours."""
-    r = float(f"{v:.{d}g}")
-    if abs(r) < 1e3:
-        return prefixed(v, "s", hi=1.0, d=d)
-    return (sig(v / 60, d), "min") if abs(r) < 6e4 else (sig(v / 3600, d), "h")
-
-
-def usd(v, d=4):
-    """An amount in USD, below 1 USD in cents."""
-    if abs(v) >= 1 or v == 0:
-        return sig(v, d), "USD"
-    return sig(v * 100, d), "¢"
-
-
-# a stored unit -> how its value reads: (number, unit words). Per request reads per reply: the
-# request is the level's one request, and its reply is what each proof covers (RFC-0018)
+# a stored unit -> how its value reads: (number, unit words). One unit per quantity, whatever the
+# value's size: every row of a column, and every page, reads a quantity in the same unit (money in
+# USD, times in seconds, sizes in MB), so two rows are compared by their numbers alone. Per request
+# reads per reply: the request is the level's one request, and its reply is what each proof covers
+# (RFC-0018)
 def number(v, unit):  # noqa: PLR0911 (one return per stored unit)
     if unit == "ratio":
         return sig(v), "×"
     if unit == "gpu_s/request":
-        n, u = seconds(v)
-        return n, f"GPU-{u}/reply"
+        return sig(v), "GPU-s/reply"
     if unit == "s/request":
-        n, u = seconds(v)
-        return n, f"{u}/reply"
+        return sig(v), "s/reply"
     if unit == "USD/request":
-        n, u = usd(v)
-        return n, f"{u}/reply"
+        return sig(v), "USD/reply"
     if unit == "B/request":
-        n, u = prefixed(v, "B", lo=1.0)
-        return n, f"{u}/reply"
+        return sig(v / 1e6), "MB/reply"
     if unit == "USD/gpu_hour":
-        return sig(v), "USD per GPU-hour"
+        return sig(v), "USD/GPU-hour"
     if unit == "nat/token":
         return sig(v), "nats/token"
     raise KeyError(f"no words for the unit {unit!r}")
@@ -389,7 +362,12 @@ def labels(f):
 
 
 def sub_words(f, n=None):
-    """The one line under a figure: its scope in a word and its sample size."""
+    """The one line under a figure: its scope in a word and its sample size. The dot keeps to the
+    scope word (no break before it), so a wrapped line never starts with it."""
     count = f["n"] if f["n"] is not None else n
     parts = [SCOPE_SHORT[f["scope"]], f"n\u00a0=\u00a0{count}" if count is not None else ""]
-    return " · ".join(p for p in parts if p)
+    return SEP.join(p for p in parts if p)
+
+
+# the dot between a scope and its sample size
+SEP = "\u00a0· "
