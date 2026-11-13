@@ -32,6 +32,7 @@ from iproofs.adapter import (
 from iproofs.controls import (
     EXPECTED,
     LEVEL_TRIALS,
+    LEVEL_VERIFIER_CONTROLS,
     SEED_RECORD,
     SEED_SCHEMA,
     SHARED_PROVER_CONTROLS,
@@ -294,6 +295,11 @@ class Environment(Protocol):
     def host(self) -> Host: ...
     def gpu(self) -> int | None: ...
     def cpus(self, role: Literal["prover", "verifier", "verifier_1"]) -> tuple[str, str]: ...
+
+
+# calls that run on the verifier's CPUs with no GPU and no weights: `verify`, and the
+# adapter's `mutate_reply` (RFC-0018 AD-6), which a verifier host runs for C1
+NO_GPU_CALLS = ("verify", "mutate_reply")
 
 
 def bound_gpus(env: "Environment") -> tuple[int, ...]:
@@ -1135,14 +1141,15 @@ class Runner:
             },
         )
         role: Literal["prover", "verifier", "verifier_1"] = (
-            "prover" if sub != "verify" else ("verifier_1" if extra.get("_single") else "verifier")
-        )
+            "prover" if sub not in NO_GPU_CALLS
+            else ("verifier_1" if extra.get("_single") else "verifier")
+        )  # fmt: skip
         job_json = json.loads((io / "job.json").read_text())
         job_json.pop("_single", None)
         write_json(io / "job.json", job_json)
         cpuset, mems = self.env.cpus(role)
         started_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
-        bound = bound_gpus(self.env) if sub != "verify" else ()
+        bound = bound_gpus(self.env) if sub not in NO_GPU_CALLS else ()
         sampler = Sampler(bound or None, self.readers)  # every bound GPU (RFC-0011)
         idle = IdleWatch(self._unbound(job), self.env.host().gpu_usage)  # PC-GPU-IDLE
         cpu0, oom0 = self.readers.cpu_usage_usec(), self.readers.oom_kills()
@@ -1199,7 +1206,7 @@ class Runner:
         assert job.system is not None
         sinks = [job.logs.setdefault(f"{job.log_prefix}{sub}.{s}", Capture())
                  for s in ("stdout", "stderr")]  # fmt: skip
-        models = job.models if sub not in ("verify", "mutate_reply") else None
+        models = job.models if sub not in NO_GPU_CALLS else None
         timeout = job.system.timeout(sub)
         if trace_dir is None:  # the call of every run before RFC-0018
             return self.containers.run(job.image, sub, io, models_dir=models,
@@ -1213,8 +1220,8 @@ class Runner:
 
     def _gpu_arg(self, sub: str) -> int | str | None:
         """The container runner's GPU: the one bound index, or a serving job's list
-        (`CUDA_VISIBLE_DEVICES=0,1,2,3`, RFC-0006 R6); none for `verify`."""
-        bound = bound_gpus(self.env) if sub != "verify" else ()
+        (`CUDA_VISIBLE_DEVICES=0,1,2,3`, RFC-0006 R6); none for `verify` and `mutate_reply`."""
+        bound = bound_gpus(self.env) if sub not in NO_GPU_CALLS else ()
         if not bound:
             return None
         return bound[0] if len(bound) == 1 else ",".join(map(str, bound))
@@ -2073,12 +2080,15 @@ class Runner:
         paths = ["harness", "pyproject.toml", "uv.lock", f"systems/{job.spec.system}", "schema",
                  "reference"]  # fmt: skip
         commit, dirty = git_state(self.root, paths)
+        suite = [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)]
+        if job.level is not None:  # RFC-0018 CH-1: a session's suite is its checks' controls
+            suite = [cid for cid in suite if cid in (*LEVEL_VERIFIER_CONTROLS, "P1")]
         return {
             "run_id": job.run_id,
             "run_manifest_digest": file_digest(job.staging / "manifest.json"),
             "control_seed": seed,
             "seed_record_digest": seed_record_digest,
-            "suite": [cid for cid, _ in control_suite(self.root, self.registry, job.spec.system)],
+            "suite": suite,
             "image": job.image,
             "verifier_profile": self._verifier_profile(job),
             "profile": job.spec.profile,
