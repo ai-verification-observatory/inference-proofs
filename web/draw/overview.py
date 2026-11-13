@@ -192,9 +192,11 @@ def split_html(row, key, bar=True, of_which=False, bare=False):
                f'<rect class="bp" width="{share:.2f}" height="4"/>'
                f'<rect class="bg" x="{share:.2f}" width="{100 - share:.2f}" height="4"/>{nib}</svg>')  # fmt: skip
     n = counted(row)
-    pre = f"{OF_WHICH} " if of_which else ""  # with no bar, the words tie each part to its whole
+    # with no bar, the words tie each part to its whole (in a span: a phone's band sets the parts
+    # right beside their whole and leaves the words out)
+    pre = f'<span class="ow">{e(OF_WHICH)} </span>' if of_which else ""
     line, note = (BARE, whole_note(row, key)) if bare else (None, None)
-    out = "".join(f'<span class="part {c}"><span class="pl">{e(pre + w)}</span>'
+    out = "".join(f'<span class="part {c}"><span class="pl">{pre}{e(w)}</span>'
                   f"{fig_html(f, n, sub=line, note=note)}</span>"
                   for c, w, f in (("pp", w1, f1), ("pg", w2, f2)))  # fmt: skip
     return f'<span class="split">{svg}{out}</span>'

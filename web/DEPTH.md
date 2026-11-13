@@ -46,13 +46,14 @@ The shallowest depth where each kind of content may be printed, and its form the
 | the fidelity metrics (matched leading tokens, the bar, p, the controls, KL) | 3 | the Fidelity table; in the surface word's title above that |
 | serving, the figure every multiple is over | 1 | figure with its unit, in the model's head |
 | how the model was served (engine, GPUs, concurrency) | 3 | one line under Cost |
-| what was counted (scope: "whole sessions of N replies", steady, verify) | 2 | once, under the band's figure; at 3 once for the Cost block, and under a figure whose scope differs |
+| what was counted (scope: "whole sessions of N replies", steady, verify) | 2 | once, under the band's figure (a phone's band leaves it to the Cost block); at 3 once for the Cost block, and under a figure whose scope differs |
 | sample size (n) | 2 | once, beside the scope; at 3 beside the Cost block's scope, and under the system's own Fidelity figure (in replies) |
 | pass thresholds, petal steps | 3 as the bar's row; 4 as rules | |
 | the request (prompt and reply tokens, decoding) | 4 | the line that opens the six checks |
 | the level's name | footer | a link to the mandate |
 | the level's freeze date, its file and digest | 4 | the mandate's line on the level |
 | the release | 0 (a card's stamp), footer | "Release v1.0, 2026-11-12": a card is a snapshot, and its date says of when |
+| the publisher's repository (source), the share group | 2 | the band's facts and the strip; on a phone, the page's foot |
 | publisher quotes | 3 | behind each petal's disclosure |
 | run records, failed runs | 3 | counts and links under Checks and Sessions |
 | definitions | 4 | the checks page and the glossary; a head at 1 or 2 links to its definition |

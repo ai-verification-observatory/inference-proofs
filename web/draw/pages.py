@@ -811,12 +811,14 @@ def system_page(row):
     rung = rung_of(row)
     sysd = S.V["systems"][row["system"]]
     name = name_of(row)
-    facts = [("Standing", standing_html(row, "")),
-             ("Model", f'<a href="/#{e(rung["id"])}">{nobreak(rung["model"])}</a>')]  # fmt: skip
+    facts = [("f-st", "Standing", standing_html(row, "")),
+             ("f-md", "Model", f'<a href="/#{e(rung["id"])}">{nobreak(rung["model"])}</a>')]  # fmt: skip
+    source = ""
     if sysd["repo"]:  # the publisher's repository, at the commit the row runs
         at = f"/tree/{e(row['commit'])}" if row["commit"] else ""
-        facts.append(("Source", f'<a href="https://github.com/{e(sysd["repo"])}{at}">'
-                                f'{nobreak(sysd["repo"])}</a>'))  # fmt: skip
+        source = (f'<a href="https://github.com/{e(sysd["repo"])}{at}">'
+                  f'{nobreak(sysd["repo"])}</a>')  # fmt: skip
+        facts.append(("f-src", "Source", source))
     share = share_html(row)
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
     # the figure's plain name, the figure, and under it, once, what was counted and n (CO-5)
@@ -829,11 +831,18 @@ def system_page(row):
         f'<div class="sb"><h1 id="h-name" class="sysname nm{size}">{e(name)}</h1>'
         f'<p class="sbm{unranked}"><span class="sbl">{e(label)}</span>{lead}</p></div>'
         '<dl class="facts">'
-        + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in facts)
-        + f'<div class="fshr"><dt>{e(SHARE[0])}</dt><dd>{share}</dd></div>'
+        + "".join(f'<div class="{c}"><dt>{k}</dt><dd>{v}</dd></div>' for c, k, v in facts)
         + "</dl></div></section>"
     )
-    # the share group at the strip's end on a wide screen, among the band's facts on a phone
+    # a phone's band holds the name, the model, the standing and the figure, and no more: the
+    # source and the share group stand at the page's foot there (the source from 560 px down,
+    # the share group from 760 px down, where the strip has no room for it)
+    foot = (
+        '<dl class="fend">'
+        + (f'<div class="f-src"><dt>Source</dt><dd>{source}</dd></div>' if source else "")
+        + f'<div class="fshr"><dt>{e(SHARE[0])}</dt><dd>{share}</dd></div></dl>'
+    )
+    # the share group at the strip's end on a wide screen
     share_strip = (f'<div class="shr" role="group" aria-label="{e(SHARE[0])}">'
                    f'<span class="shl" aria-hidden="true">{e(SHARE[0])}</span>{share}</div>')  # fmt: skip
     parts = (("figures", "Figures"), ("glyph", "Glyph"), ("checks", "Checks"), ("cost", "Cost"),
@@ -850,6 +859,7 @@ def system_page(row):
     {section("cost", "Cost", cost_html(row))}
     {section("fidelity", "Fidelity", fidelity_html(row))}
     {section("sessions", "Sessions", sessions_html(row))}
+    {foot}
   </div>
 </main>
 {footer()}"""

@@ -279,13 +279,27 @@ html:has(.top.s-on) { overflow: hidden; }
   .facts > div { padding-top: 10px; }
   .facts dd { margin-top: 4px; }
 }
-/* a phone: the band says less room. Its facts are a list, a name and its value on one line (a long value takes
-   two), and the multiple's two parts a line each, the name then its figure */
+/* a phone: the band holds the name, the model, the standing and the figure, and no more, so the page's first
+   section is on the first screen. Its model and standing stand right under the name, their names left to a screen
+   reader; the figure's two parts stand beside it (under it where the line is too short), with no "of which", which
+   their place says; what was counted and n are left to the Cost block; the source and the share group are at the
+   page's foot */
 @media (max-width: 560px) {
-  .facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; column-gap: 16px; row-gap: 5px; margin-top: 20px; padding: 12px 0 16px; }
-  .facts > div { display: contents; }
-  .facts dd { margin: 0; }
-  .sbm .sub { white-space: normal; }
+  .sysb .mast-in { display: flex; flex-direction: column; padding-top: 24px; }
+  .sysb .sb, .sysb .facts { display: contents; }
+  .sysb .sysname { order: 1; }
+  .sysb .facts > div { padding: 0; }
+  .sysb .facts dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .sysb .facts dd { margin: 0; }
+  .sysb .facts > .f-md { order: 2; margin-top: 10px; }
+  .sysb .facts > .f-st { order: 3; margin-top: 3px; }
+  .sysb .facts > .f-src { display: none; }
+  .sysb .sbm { order: 4; display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 18px; row-gap: 8px; margin: 18px 0 20px; padding: 0; }
+  .sysb .sbl { flex: 0 0 100%; margin-bottom: 0; }
+  .sysb .sbm > .sub { display: none; }
+  .sysb .sbm > .na + .sub { display: block; flex-basis: 100%; margin: 0; white-space: normal; }
+  .sysb .sbm > .fig .n { font-size: 40px; }
+  .sysb .sbm > .fig .u.x { font-size: 24px; }
 }
 /* a narrow tablet and paper: the name's column would split a long name inside its word, so the figure goes under it */
 @media (max-width: 860px) and (min-width: 761px), print {
@@ -335,13 +349,25 @@ html:not(.js) .ps-t { display: none; }
 html:not(.js) .shr:not(:has(a)) { display: none; }
 .fshr dd { display: flex; gap: 20px; }
 .fshr button { text-decoration: underline 1px; text-underline-offset: 2px; }
-.fshr button:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+/* the page's foot on a narrow screen: the share group (the strip has no room for it), and on a phone the source
+   too (its band holds neither) */
+.fend { display: none; }
 @media (max-width: 760px) {
   .shr { display: none; }
+  .fend { display: flex; flex-wrap: wrap; gap: 14px 40px; margin: 48px 0 0; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .fend > div { min-width: 0; }
+  .fend dt { font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+  .fend dd { margin: 6px 0 0; font: 600 13px/19px var(--mono); overflow-wrap: anywhere; }
+  .fend a, .fend button { text-decoration: underline 1px; text-underline-offset: 2px; }
+  .fend a:hover, .fend a:focus-visible, .fend button:hover, .fend button:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+  .fend .f-src { display: none; }
   .fshr { display: block; }
   /* no card and no way to copy the link: the group has nothing to offer, so its name is not printed */
-  .facts > .fshr:not(:has(a)):has(button[hidden]) { display: none; }
+  .fend > .fshr:not(:has(a)):has(button[hidden]) { display: none; }
   html:not(.js) .fshr:not(:has(a)) { display: none; }
+}
+@media (max-width: 560px) {
+  .fend .f-src { display: block; }
 }
 @media (hover: none) {
   .fshr a, .fshr button { position: relative; }
@@ -466,9 +492,13 @@ html.js .row { cursor: pointer; }
   .sbm .split .part { justify-content: start; justify-items: start; }
 }
 @media (max-width: 560px) {
-  .sbm .split { row-gap: 4px; margin-top: 12px; }
-  .sbm .split .part { grid-template-columns: max-content max-content; column-gap: 10px; align-items: baseline; }
-  .sbm .split .pl { grid-column: auto; }
+  .sbm .split { grid-template-columns: max-content max-content; justify-content: start; align-items: baseline; column-gap: 8px; row-gap: 2px; margin: 0 0 3px; }
+  .sbm .split .part { display: contents; }
+  .sbm .split .pl, .sbm .split .pp .pl { grid-column: 1; font: 400 11px/16px var(--mono); letter-spacing: 0; text-transform: none; white-space: nowrap; }
+  .sbm .split .ow { display: none; }
+  .sbm .split .fig { grid-column: 2; justify-self: end; }
+  .sbm .split .fig .n { font-size: 13px; }
+  .sbm .split .fig .u.x { font-size: 12px; }
 }
 @media (max-width: 860px) and (min-width: 761px), print {
   .sbm .split { justify-content: start; }
