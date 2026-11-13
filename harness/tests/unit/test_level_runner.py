@@ -689,6 +689,7 @@ def test_control_run_proves_one_batch_and_is_marked_control(tmp_path: Path) -> N
     assert run["status"] == "completed", run["failure"]
     assert run["control"] is True
     assert manifest["control"] is True
+    assert set(run["metrics"]) <= {"verdicts_accept_count"}  # POL-2: a control run measures nothing
     assert sorted({p["request_index"] for p in run["proofs"]}) == [0]
     assert (run_dir / "controls.json").is_file()
 

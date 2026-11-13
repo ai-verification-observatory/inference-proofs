@@ -252,6 +252,25 @@
         "source": {
           "format": "uri",
           "type": "string"
+        },
+        "failed_answer": {
+          "description": "RFC-0018 CH-1a: a prove that exits 0 and answers every request \"failed\", as the system documents it at its pin; `match` is a regular expression over a trial's line whose group `requests` holds the failed request indices",
+          "additionalProperties": false,
+          "properties": {
+            "match": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "source": {
+              "format": "uri",
+              "type": "string"
+            }
+          },
+          "required": [
+            "match",
+            "source"
+          ],
+          "type": "object"
         }
       },
       "required": [

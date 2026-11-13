@@ -1,0 +1,593 @@
+{
+  "control_seed": "0x3c5a22880628c29f",
+  "controls": [
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C1",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 49635
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567565191,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 49635
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.568257586,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "first",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 0,
+            "token": 49635
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.517307544,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "token": 311
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567501974,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "token": 311
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567588564,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "last",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 511,
+            "token": 311
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567632761,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 46,
+            "token": 291
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.817708637,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 121,
+            "token": 107461
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567661011,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "position": "interior",
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "index": 446,
+            "token": 5075
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.56755926,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C2",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 411,
+            "token": 1630
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567666546,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 198,
+            "token": 25
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567724052,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "position": 159,
+            "token": 1328
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567600252,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C3",
+      "note": null,
+      "outcome": "rejected",
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "commitment": "perturbed"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.517233318,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "commitment": "perturbed"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.56753086,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "detail": {
+            "twin": {
+              "raw_exit_code": 0,
+              "verdict": "accept"
+            }
+          },
+          "mutation": {
+            "commitment": "perturbed"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 2.567599755,
+          "seed_index": 2,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C4",
+      "note": "no second accepted proof with a different request",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C5",
+      "note": null,
+      "outcome": "rejected",
+      "parts_not_read": [
+        {
+          "part": "response.y",
+          "reason": "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "bytes": 9378334,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 9.627220207,
+          "seed_index": 0,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C6",
+      "note": null,
+      "outcome": "rejected",
+      "parts_not_read": [
+        {
+          "part": "response.y",
+          "reason": "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "bit_offset": 118815784,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 13.682433968,
+          "seed_index": 0,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 109125350,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 12.831358966,
+          "seed_index": 1,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 67520479,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 8.725787639,
+          "seed_index": 2,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 119122044,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 13.883266052,
+          "seed_index": 3,
+          "verdict": "reject"
+        },
+        {
+          "mutation": {
+            "bit_offset": 48104099,
+            "part": "response.proof"
+          },
+          "outcome": "rejected",
+          "raw_exit_code": 1,
+          "raw_last_line": "NO: proof-refused",
+          "seconds": 6.823298486,
+          "seed_index": 4,
+          "verdict": "reject"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "rejected"
+      ],
+      "id": "C7",
+      "note": "no two accepted proofs with different requests in one batch",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    },
+    {
+      "expected": [
+        "rejected",
+        "invalid_call"
+      ],
+      "id": "C8",
+      "note": null,
+      "outcome": "invalid_call",
+      "parts_not_read": [
+        {
+          "part": "response.y",
+          "reason": "verify never reads it: cp_verify checks a token file the adapter writes from the job's claimed_output, which the harness takes from its own record (AGENTS.md rule 6); C1 changes that token"
+        }
+      ],
+      "passed": true,
+      "side": "verifier",
+      "source": "shared",
+      "trials": [
+        {
+          "mutation": {
+            "dropped": "response.proof"
+          },
+          "outcome": "invalid_call",
+          "raw_exit_code": 2,
+          "raw_last_line": "input-unreadable-proof: the proof file cannot be read: No such file or directory",
+          "seconds": 0.064147462,
+          "seed_index": 0,
+          "verdict": "invalid_call"
+        }
+      ],
+      "twin": {
+        "raw_exit_code": 0,
+        "verdict": "accept"
+      }
+    },
+    {
+      "expected": [
+        "prover_failed",
+        "rejected"
+      ],
+      "id": "P1",
+      "note": null,
+      "outcome": "prover_failed",
+      "passed": true,
+      "side": "prover",
+      "source": "shared",
+      "trials": [
+        {
+          "detail": {},
+          "mutation": {},
+          "outcome": "prover_failed",
+          "raw_exit_code": 1,
+          "raw_last_line": "adapter: prove exited 1: flashprove: cp_prove exited 0, last line 'p258 end 0'; failed [0], unanswered [] | log: p258 setting 3 128 5 168 5 128 / batch 0 leaf 0 n 1 / p258 end 0",
+          "seconds": null,
+          "seed_index": 0,
+          "verdict": null
+        },
+        {
+          "detail": {},
+          "mutation": {},
+          "outcome": "prover_failed",
+          "raw_exit_code": 1,
+          "raw_last_line": "adapter: prove exited 1: flashprove: cp_prove exited 0, last line 'p258 end 0'; failed [0], unanswered [] | log: p258 setting 3 128 5 168 5 128 / batch 0 leaf 0 n 1 / p258 end 0",
+          "seconds": null,
+          "seed_index": 1,
+          "verdict": null
+        },
+        {
+          "detail": {},
+          "mutation": {},
+          "outcome": "prover_failed",
+          "raw_exit_code": 1,
+          "raw_last_line": "adapter: prove exited 1: flashprove: cp_prove exited 0, last line 'p258 end 0'; failed [0], unanswered [] | log: p258 setting 3 128 5 168 5 128 / batch 0 leaf 0 n 1 / p258 end 0",
+          "seconds": null,
+          "seed_index": 2,
+          "verdict": null
+        }
+      ],
+      "twin": null
+    },
+    {
+      "expected": [
+        "prover_failed",
+        "rejected"
+      ],
+      "id": "P2",
+      "note": "the workload declares one precision",
+      "outcome": "not_applicable",
+      "passed": null,
+      "side": "prover",
+      "source": "shared",
+      "trials": [],
+      "twin": null
+    }
+  ],
+  "disclosure_pending": false,
+  "image": "ghcr.io/ai-verification-observatory/flashprove@sha256:12611db7e7349ed667599730a7fa77e68459de38b7b2622ea4ac2339c1f656d1",
+  "perturbed_commitment": {
+    "commitment_id": "7e3f2b380fb3a03958731d5d579ec450103e2f480e48538221fcb1d2c5d6e27c",
+    "model_digest": "sha256:5960e4898f464112d63d513b27601ce50943ce3536a13ec7c46495a2c897ae5f"
+  },
+  "run_id": "2026-11-13-flashprove-l1-maverick-p512-o512-prover-h200-hosted-1",
+  "schema": "controls/1",
+  "summary": {
+    "accepted": 0,
+    "error": 0,
+    "invalid_call": 1,
+    "no_verdict": 0,
+    "not_applicable": 3,
+    "passed": 7,
+    "prover_failed": 1,
+    "rejected": 5,
+    "run": 10,
+    "void": 0
+  },
+  "verifier_profile": "verifier-cpu"
+}
