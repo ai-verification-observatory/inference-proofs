@@ -561,14 +561,15 @@ _FRAME = re.compile(r'File "([^"]+)"')
 
 def prove_failure(e: IProofsError) -> tuple[str, str]:
     """(outcome, last line) of a control prove that failed (RFC-0008 §Outcomes, RFC-0018 CH-1).
-    `error` when the adapter itself raised: its stderr ends in a Python traceback whose last
-    frame is the adapter's entrypoint, our code and not the prover. Else `prover_failed`, with
+    `error` when the adapter itself raised: its stderr holds a Python traceback through the
+    adapter's entrypoint (the raising frame may be a library the adapter called, pathlib in
+    FlashProve's P1 of 2026-11-13), our code and not the prover. Else `prover_failed`, with
     the prover's last line, so a stored trial names the reason the prover gave."""
     lines = [line for line in e.last_lines if line.strip()]
     frames = [_FRAME.search(line) for line in lines]
     files = [m.group(1) for m in frames if m]
     traced = any(line.startswith("Traceback (most recent call last)") for line in lines)
-    if traced and files and files[-1].endswith("/entrypoint"):
+    if traced and any(f.endswith("/entrypoint") for f in files):
         return "error", f"adapter raised: {lines[-1].strip()}"[:4096]
     tail = lines[-1].strip() if lines else ""
     line = f"{e.kind}: {e.message}" + (f": {tail}" if tail and tail not in e.message else "")
