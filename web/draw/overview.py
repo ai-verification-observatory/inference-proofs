@@ -304,9 +304,7 @@ def row_html(row, rung):
                    for (c, html), h in zip(cells, heads(), strict=True))  # fmt: skip
     return (
         f'<tr class="row" id="row-{e(row["page"])}">'
-        # the cell's name where a phone lists it as a line (the head names it for a screen reader)
-        f'<td class="cp"><span class="lbl" aria-hidden="true">Position</span>'
-        f"{position_html(row, rung)}</td>"
+        f'<td class="cp">{position_html(row, rung)}</td>'
         f'<td class="cg"><span class="sr pw">{states_words(row)}</span>'
         f'<a class="glyph" href="{e(href(row))}" tabindex="-1" aria-hidden="true">{glyph}</a></td>'
         f'<th class="csys" scope="row"><a class="sname" href="{e(href(row))}">{e(name_of(row))}</a>'

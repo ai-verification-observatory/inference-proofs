@@ -291,7 +291,7 @@ No reason says that the publisher states something its quotes do not say. No che
 - OR-3. Row A is placed above row B when both have a multiple, A's mean multiple is at most (1 − `order.margin`) times B's, and A's highest session value of m is below B's lowest. A row with a multiple is placed above a row without one. Two rows without a multiple compare the same way on session cost per reply.
 - OR-4. A row's position is 1 plus the number of rows placed above it. Rows with equal positions share it. A lone passed, ranked row holds position 1, and the page prints the count of systems run on the rung beside every position.
 - OR-5. Under the ranked rows: passed and unranked rows, then rows that have not passed, each group alphabetical. A row that has not passed prints its checks and its figures; it has no position.
-- OR-6 (amended 2026-11-13, Q19). The frontier is the largest rung with a passed row. The board file records it with the row at position 1 there (or every passed row if none is ranked) and the count of systems run on that rung. The overview marks that rung's section as the largest model proved and prints nothing of it a second time: the section's own rows hold the systems, their multiples and the count (SI-8).
+- OR-6 (amended 2026-11-13, Q19). The frontier is the largest rung with a passed row. The board file records it with the row at position 1 there (or every passed row if none is ranked) and the count of systems run on that rung. The overview marks that rung's section as the largest model proved and prints nothing of it a second time: the section's own rows hold the systems and their multiples, and beside each position the count (OR-4, SI-8).
 
 ### The board file
 
