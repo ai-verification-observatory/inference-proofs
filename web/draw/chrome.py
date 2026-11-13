@@ -207,21 +207,43 @@ def credit_words(linked=True):
 LICENCE_FILE = {"CC BY 4.0": "LICENSES/CC-BY-4.0.txt"}
 
 
+# a phone's footer is a list, a name and its value on each line: the names a wide screen's strip
+# leaves out
+FOOT_NAME = {"level": "Rules", "licence": "Licence"}
+
+
 def footer():
-    """Every page's footer, one strip of cells: the level's name, linked to the mandate's line
-    on it (which holds its freeze date and links the level file), the release's board file when
-    there is one, the licence (linked to its text) and who builds the site."""
-    rel = S.V["release"]
-    parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{e(S.V["level"]["name"])}</a>']
+    """Every page's footer: the level's name, linked to the mandate's line on it (which holds its
+    freeze date and links the level file), the release's board file when there is one, the
+    licence (linked to its text) and who builds the site. One strip of cells on a wide screen;
+    on a phone a ruled list, a name and its value on each line (`fk` the name, `fv` the value;
+    `fp` is printed on a phone only, `fx` on a wide screen only)."""
+    rel, c = S.V["release"], S.V["credit"]
+
+    def named(key):
+        return f'<span class="fk fp">{e(FOOT_NAME[key])}</span>'
+
+    def org(o):
+        return f'<a href="{e(o["url"])}">{e(o["name"])}</a>'
+
+    level = f'<span class="fv">{e(S.V["level"]["name"])}</span>'
+    parts = [f'<a href="{MANDATE_PAGE}#{LEVEL_ANCHOR}">{named("level")}{level}</a>']
     if rel is not None:
         board = rel["board"]
         where = link(board) if board.startswith("releases/") else None
-        name = f"Release {rel['id']}" + (f", {rel['date']}" if rel["date"] else "")
-        parts.append(f'<a class="nw" href="{e(where)}">{e(name)}</a>' if where
-                     else f'<span class="nw">{e(name)}</span><code>{e(board)}</code>')  # fmt: skip
+        tail = rel["id"] + (f", {rel['date']}" if rel["date"] else "")
+        parts.append(f'<a class="nw" href="{e(where)}"><span class="fk">Release</span> '
+                     f'<span class="fv">{e(tail)}</span></a>' if where
+                     else f'<span class="nw">Release {e(tail)}</span><code>{e(board)}</code>')  # fmt: skip
     lic = S.V["licence"]
-    parts.append(f'<a class="nw" href="{e(link(LICENCE_FILE[lic]))}">{e(lic)}</a>')
-    parts.append(f'<span class="fcr">{credit_words()}</span>')
+    parts.append(f'<a class="nw" href="{e(link(LICENCE_FILE[lic]))}">{named("licence")}'
+                 f'<span class="fv">{e(lic)}</span></a>')  # fmt: skip
+    # `credit_words`, each half a line of a phone's list
+    parts.append(
+        '<span class="fcr"><span class="fci"><span class="fk">Built by<span class="fx"> the</span>'
+        f'</span> {org(c["builder"])}</span><span class="fx">, </span><span class="fci">'
+        f'<span class="fk">led by</span> {org(c["lead"])}</span><span class="fx">.</span></span>'
+    )
     cells = "".join(f"<li>{p}</li>" for p in parts)
     return f'<footer class="foot"><ul class="fcells">{cells}</ul></footer>'
 

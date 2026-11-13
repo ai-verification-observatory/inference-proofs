@@ -1214,6 +1214,8 @@ main { flex: 1 0 auto; }
 .foot a:hover, .foot a:active, .foot a:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .foot a:focus-visible, .cs dt a:focus-visible { outline-color: var(--paper); outline-offset: 5px; }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+/* a name printed on a phone only (its list names every line) */
+.fp { display: none; }
 
 /* the Learn strip's fading ends (.lpn .ps, below): the fades' widths, tied to the strip's scroll */
 @property --psl { syntax: "<length>"; inherits: false; initial-value: 0px; }
@@ -1833,6 +1835,28 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
    other keep their own bands */
 @media (hover: none) {
   .fcells li { padding-top: 26px; }
+}
+/* a phone: the footer is a ruled list, as a ladder row's figures are: a name at the line's start, its value at the
+   line's end, a hairline under each, every line 44 px and a link over its whole width (the level, the release,
+   the licence, who builds the site, who leads it) */
+@media (max-width: 560px) {
+  .foot { margin-top: 72px; }
+  .fcells { display: block; margin: 0 var(--gut); padding: 0 0 40px; overflow: visible; }
+  .foot .fcells li { display: block; margin: 0; padding: 0; box-shadow: none; }
+  .fp { display: inline; }
+  .fx { display: none; }
+  .foot .fcr { display: block; line-height: inherit; }
+  .fcells li > a, .fci { display: flex; justify-content: space-between; align-items: baseline; column-gap: 16px; min-height: 44px; padding: 13px 0 11px; box-shadow: inset 0 -1px 0 var(--line); text-decoration: none; white-space: normal; }
+  .fci { position: relative; }
+  .fcells .fk { flex: none; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+  .fcells .fv, .fci a { min-width: 0; font: 600 13px/19px var(--mono); color: var(--paper); text-align: right; text-decoration: underline 1px var(--rule); text-underline-offset: 3px; }
+  /* the whole line answers: a link that is the line fills it; a link at a line's end is stretched over it */
+  .foot .fcells li > a:after { inset: 0; }
+  .foot .fci a { position: static; }
+  .foot .fci a:after { content: ""; position: absolute; inset: 0; }
+  /* pressed, the line turns cobalt under ground ink, its name with it */
+  .fcells li > a:is(:hover, :active, :focus-visible) :is(.fk, .fv) { color: var(--ground); text-decoration: none; }
+  .foot .fci a:is(:hover, :active, :focus-visible) { background: none; box-shadow: none; color: var(--cobalt); }
 }
 /* a field a finger types in: 44 px tall, its words at 16 px so the phone does not zoom on focus */
 @media (pointer: coarse) {
