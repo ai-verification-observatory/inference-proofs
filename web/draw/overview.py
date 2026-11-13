@@ -29,6 +29,8 @@ from .words import (
 NOT_TESTED = ("These checks run each system's own prover and verifier. None attempts a forged "
               "proof: soundness and weight secrecy are not tested.")  # fmt: skip
 ROW_GLYPH = 3  # the row glyph's unit in px: its arms carry their names (159 by 87 px)
+# a phone's row glyph, px a unit, no names (37.5 by 46.5 px): whole device pixels at 2x
+PHONE_GLYPH = 1.5
 
 
 def states(row):
@@ -242,6 +244,8 @@ def row_cost(row):
 
 def row_html(row, rung):
     glyph = glyph_svg(ROW_GLYPH, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
+    # the same petals with no names, drawn in place of the first on a phone (words.css shows one)
+    glyph += glyph_svg(PHONE_GLYPH, states(row), cls="pie-svg gsh")
     cells = (
         ("cm", multiple_html(row)),
         ("cc", fig_html(row_cost(row), counted(row))),
