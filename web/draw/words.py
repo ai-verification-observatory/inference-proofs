@@ -259,8 +259,13 @@ ORDER_RULE = (
     ("unranked", "A system that passed is ranked only when its publisher states a security "
      "level at the pinned commit."),
     ("glyph", "The glyph never moves a position."),
-    ("models", "Nothing is compared across models."),
+    ("models", "Nothing is ranked across models."),
 )  # fmt: skip
+# ------------------------------------------------------------------ the scale page (RFC-0018 SI-7)
+SCALE_PROOF_SIZE = "Proof size per reply"  # a figure the ladder does not print
+SCALE_LOG = "log scale"  # beside an axis's unit
+SCALE_SERVING = "Serving"  # a lane's foot: serving's line and its stored figure
+SCALE_NOT_RUN = "Not run yet."
 # ------------------------------------------------------------------ the mandate page
 # The headline, what the site is for, then what we do, what we do not do, who runs it and how to
 # check us: each line (a plain label, the rule that binds it, the file that rule is in, the

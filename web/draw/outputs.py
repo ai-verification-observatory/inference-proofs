@@ -16,6 +16,7 @@ from .chrome import (
     HEAD_SCRIPT,
     LEARN_PAGE,
     MANDATE_PAGE,
+    SCALE_PAGE,
     SITE_URL,
     credit_words,
     font_faces,
@@ -37,6 +38,7 @@ from .overview import (
     standing,
     states,
 )
+from .scale import DIMS
 from .words import (
     CHECK_HELD,
     CHECK_NAME,
@@ -108,6 +110,14 @@ def search_entries():
         "The six checks, the figures, the order rule, what is not tested",
         PAGE_MARK,
         "checks figures order rule undecided unranked not tested",
+    )
+    add(
+        "page",
+        "Scale",
+        SCALE_PAGE,
+        ", ".join(n for _, n, _ in DIMS),
+        PAGE_MARK,
+        "scale chart log decade axis",
     )
     add(
         "page",

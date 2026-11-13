@@ -279,7 +279,7 @@
 
   // ------------------------------------------------------------ the ladder's rows: the whole row leads to its page, but
   // a tap on one of its figures shows that figure's labels
-  const rows = $$('.lad .row');
+  const rows = $$('.lad .row, .scl .row');
   rows.forEach((tr) => {
     const a = $('.sname', tr);
     if (!a) return;
@@ -358,6 +358,8 @@
     if (!pnav) return;
     const edge = pnav.getBoundingClientRect().bottom;
     pnav.classList.toggle('stuck', !!mast && mast.getBoundingClientRect().bottom < pnav.getBoundingClientRect().top - 1);
+    // the scale page's strip marks the figure drawn, not the section in view (below)
+    if (panels.length) { petalSpy(); return; }
     let k = -1;
     // a section is in view once its top has passed a third of the window under the strip (48 px at least); of two
     // that have, the earlier while its own top is still under the strip (a short section is not passed over)
@@ -407,6 +409,30 @@
     a.style.setProperty('width', `${Math.ceil(w + parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight))}px`);
   };
   addEventListener('resize', () => links.forEach(snug), { passive: true });
+
+  // ------------------------------------------------------------ the scale page: its strip picks the one figure drawn, and
+  // the address keeps it (no history entry, no scroll); an address naming none draws the first. With no script every
+  // figure is drawn
+  const panels = body.classList.contains('scalepage') ? secs.filter(Boolean) : [];
+  const pick = (id, keep) => {
+    const k = Math.max(0, panels.findIndex((s) => s.id === id));
+    panels.forEach((s, i) => { s.hidden = i !== k; });
+    links.forEach((a, i) => { a.classList.toggle('on', i === k); if (i === k) a.setAttribute('aria-current', 'true'); else a.removeAttribute('aria-current'); snug(a); });
+    if (links[k]) whole(links[k], 'auto');
+    if (!keep) return;
+    history.replaceState(null, '', `#${panels[k].id}`);
+    // a figure picked further down the page starts at its top, under the strip
+    if (panels[k].getBoundingClientRect().top < pnav.getBoundingClientRect().bottom) panels[k].scrollIntoView({ block: 'start' });
+  };
+  if (panels.length) {
+    pick(decodeURIComponent(location.hash.slice(1)));
+    links.forEach((a) => a.addEventListener('click', (ev) => {
+      if (ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;
+      ev.preventDefault();
+      pick(decodeURIComponent(a.hash.slice(1)), true);
+    }));
+    addEventListener('hashchange', () => pick(decodeURIComponent(location.hash.slice(1))));
+  }
   if (strip) strip.addEventListener('focusin', (ev) => { const a = ev.target.closest('a'); if (a && a.matches(':focus-visible')) whole(a, 'auto'); });
   // on a phone, a jump within the page first sets the bar as the scroll will leave it (away on the way down, back on
   // the way up), so the scroll padding the browser reads is the one in force when the section lands (words.css)
@@ -690,7 +716,7 @@
     away.push(() => { if (!at) return; if (byKey && at === document.activeElement) place(at); else { clearPetal(); hide(); } });
     // a figure's labels reach the keyboard too: outside the ladder's rows (each row leads to the page that
     // holds the same figures) and outside links, a figure takes focus and shows them
-    $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a, .lad')) el.tabIndex = 0; });
+    $$('.fig[title], .na[title], .part[title]', main).forEach((el) => { if (!el.closest('a, .lad, .scl')) el.tabIndex = 0; });
     // Escape puts the labels away. Labels shown by the keyboard and cut by a short window scroll with the arrows while
     // their figure has focus; at either end the arrow is left to the browser, which scrolls the page
     addEventListener('keydown', (ev) => {
