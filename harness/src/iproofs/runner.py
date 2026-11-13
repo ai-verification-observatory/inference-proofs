@@ -3032,7 +3032,12 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
         rows: list[dict[str, object]] = []
         for p in doc["proofs"]:
             pid = str(p["proof_id"])
+            if runner.progress is not None:  # one line per call: a stopped job says how far
+                print(f"reverify {pid}: verify started", file=runner.progress, flush=True)
             seconds, verdict = runner._verify_one(job, pid, entries[pid], single=False)
+            if runner.progress is not None:
+                print(f"reverify {pid}: {verdict} in {seconds:.0f} s", file=runner.progress,
+                      flush=True)  # fmt: skip
             proof = next(r for r in manifest["proofs"] if r.get("proof_id") == pid)
             rows.append({"proof_id": pid, "verdict": verdict, "seconds": seconds,
                          "proof_digest": proof.get("digest"),
@@ -3052,9 +3057,10 @@ def reverify_run(runner: Runner, run_dir: Path) -> Path:
         shutil.move(str(staging / "verifier"), str(out_dir / "verifier"))
         write_json(out_dir / REVERIFY_RECORD, record)
         out_dir.rename(target)
-        return target / REVERIFY_RECORD
-    finally:
-        shutil.rmtree(staging, ignore_errors=True)
+    except BaseException:
+        raise  # the staging dir stays for the job's logs; a new re-verify starts afresh
+    shutil.rmtree(staging, ignore_errors=True)
+    return target / REVERIFY_RECORD
 
 
 def merge_controls(registry: SchemaRegistry, run_dir: Path, parts: Sequence[Path]) -> Path:

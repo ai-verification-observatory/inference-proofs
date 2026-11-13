@@ -706,7 +706,12 @@ if [ "$MODE" = reverify ]; then  # RFC-0018 CH-4a, on a copy of the stored run o
   env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" reverify "$RUN" --hosted --provider "$PROVIDER"
   rc=$?
   log "reverify exit $rc"
-  [ "$rc" -eq 0 ] || exit "$rc"
+  if [ "$rc" -ne 0 ]; then  # what was done, for the next attempt's timeout
+    mkdir -p "$OUT/reverify-partial"
+    cp -R "$RUN/.reverify-staging/verifier" "$RUN/.reverify-staging/verify-trace" \
+      "$OUT/reverify-partial/" 2>/dev/null || log "nothing verified"
+    exit "$rc"
+  fi
   if [ -e "$STORED/reverify" ]; then
     log "$RUN_PATH has reverify/ now; this one is discarded"
     exit 2
