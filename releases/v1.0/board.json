@@ -510,7 +510,7 @@
                 }
               ],
               "reading": true,
-              "reason": "the bound is stated for a batch checked together, not for the row's 24 replies checked alone",
+              "reason": "the bound is stated for a batch checked together, not for a reply checked alone (the row proves 24 replies a batch)",
               "state": "amber",
               "step": "amber_lower"
             },
