@@ -48,6 +48,8 @@ How closely the quantized or integer model that a system proves matches the orig
 
 On this site: a gate that compares a system's greedy replies against the original weights' replies, benchmarked against deliberately degraded copies of the model.
 
+A second measure is printed beside it on each system's page and gates nothing: the system's own code is fed the original's reply token by token, and we count the positions where its top token is the original's. A proof covers only the model's own reply, so that count is computed by the system's own code, not by the proved computation.
+
 ### Field
 
 A finite set of numbers where addition, subtraction, multiplication, and division are all exact and wrap around a prime modulus. Cryptographic proof systems operate over finite fields rather than floating-point numbers because their algebraic checks require exact arithmetic with no rounding drift.

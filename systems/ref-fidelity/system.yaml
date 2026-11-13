@@ -16,13 +16,14 @@ engine:
   # The CUDA image the engine is compiled in (the build stage); the runtime stage is the same
   # release's runtime image. Both by digest in the Dockerfile.
   image: docker.io/nvidia/cuda@sha256:520292dbb4f755fd360766059e62956e9379485d9e073bbd2f6e3c20c270ed66
-# RFC-0014 B7: built by the images workflow (run 43233789681) from the fidelity-vllm branch at
-# fb8bc9c5953d2c422c9ee03a837edeaa1b3108b3 (adapter_dirty false), with the controls call (FI-9).
-# The Llama 3.1 8B fidelity run of 2026-11-12 ran the previous build, sha256:551f1175..., from
-# aa5f31f9, whose entrypoint differs only by that call.
+# RFC-0014 B7: built by the images workflow (run 43453873438) from the teacher-forced branch at
+# fb54cdd6e6b555238d2e4833cbf2b4fe36238295 (adapter_dirty false), with the teacher-forced pass
+# (RFC-0018 FI-10 to FI-13). The Llama 3.1 8B fidelity run of 2026-11-12 ran sha256:551f1175...,
+# from aa5f31f9, and the Llama 4 Maverick controls part sha256:4de61052..., from fb8bc9c5; their
+# entrypoints differ from this one only by the controls call (FI-9) and that pass.
 image:
   repository: "ghcr.io/ai-verification-observatory/ref-fidelity"
-  digest: "sha256:4de61052db8fc85f713c0ec37e5e04e5510aed6eb5558b30412e736f0ef7091c"
+  digest: "sha256:b91682f5807e1765ad58d6cbe7ed517cf2c9b243be1daef5fc866aae1b889113"
 workloads:
 - id: l1-maverick-p512-o512
   precision_used: BF16
