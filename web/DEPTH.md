@@ -20,7 +20,7 @@ So a line is placed by one question: how deep is the reader who needs it? What a
 Two things sit beside the depths, not in them:
 
 - **Learn** is a way in for a reader who wants the subject explained. It is not a step between the ladder and a system. Its pages follow their own order (a policy track, an engineering track), and a figure there is printed with its labels, since the page is read alone.
-- **The footer** is the same on every page. It holds names only (the level, the release, the licence, who builds the site), each a link down. It carries no date of a rule and no hash.
+- **The footer** is the same on every page. It holds names only (the level, the release with its date, the licence, who builds the site), each a link: the level to the mandate's line on it, the release to its board file, the licence to its text in the repository. It carries no date of a rule and no hash.
 
 ## Three laws
 
@@ -46,8 +46,8 @@ The shallowest depth where each kind of content may be printed, and its form the
 | the fidelity metrics (matched leading tokens, the bar, p, the controls, KL) | 3 | the Fidelity table; in the surface word's title above that |
 | serving, the figure every multiple is over | 1 | figure with its unit, in the model's head |
 | how the model was served (engine, GPUs, concurrency) | 3 | one line under Cost |
-| what was counted (scope: "whole sessions of N replies", steady, verify) | 2 | once, under the band's figure; per figure at 3 |
-| sample size (n) | 2 | once, beside the scope; per figure at 3 |
+| what was counted (scope: "whole sessions of N replies", steady, verify) | 2 | once, under the band's figure; at 3 once for the Cost block, and under a figure whose scope differs |
+| sample size (n) | 2 | once, beside the scope; at 3 beside the Cost block's scope, and under the system's own Fidelity figure (in replies) |
 | pass thresholds, petal steps | 3 as the bar's row; 4 as rules | |
 | the request (prompt and reply tokens, decoding) | 4 | the line that opens the six checks |
 | the level's name | footer | a link to the mandate |
@@ -91,10 +91,7 @@ Then, before printing it: does a head, a unit, the glyph or another block of the
 
 Places that do not yet follow the map, found by reading the built pages on 2026-11-13. Fix them as the pages are next touched.
 
-- A system page's Cost section prints "session · n = 3" under each of five figures; once for the block is enough.
-- A system page's Checks table prints run directories and control ids in visible text ("P1: no counted trial stored"); they belong in the link's title.
 - A ladder figure's head links to its definition (depth 4) and the figure itself links nowhere; the figure should lead to its section of the system's page (depth 3).
-- A model's serving figure is in GPU-seconds per reply on the ladder and in USD per reply on the Scale page's cost view; the ladder's reader meets a second unit for cost.
 - The "Systems not run" reasons on the ladder ("no configuration at the request", "a different statement") use the method's words. RFC-0018 SI-4 fixes the list and its place, so moving it needs that rule amended.
-- The Scale page opens on its name alone; it has no line saying what it draws.
-- The surface's labels are in hover titles only (law 3 is met through the system's page); a keyboard cannot reach a ladder figure's title.
+- The surface's labels are in a figure's title, shown to a pointer or a tap (law 3 is met through the system's page); a keyboard cannot reach the title of a ladder or Scale page figure: a row's links take focus, its figures do not.
+- A model's head on the ladder repeats the size its tab says ("400B" in the tab, "MoE, 400B total, 17B active" under Parameters); the Scale page's head already prints the architecture without it.
