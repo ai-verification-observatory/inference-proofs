@@ -102,6 +102,12 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
     p.add_argument(
         "--session", type=int, metavar="K", help="with --level: the session slot, 1 to 3"
     )
+    p.add_argument(
+        "--control-run",
+        action="store_true",
+        help="with --level, --session and --control-suite: a control run (RFC-0018 CH-1b): "
+        "the slot's first prompt at batch 1, run.json control true, never a session",
+    )
     p.add_argument("--provider", metavar="NAME")
     p.add_argument("--prompts-from", type=Path, metavar="RUN_DIR")
     p.add_argument("--allow-nonconforming", action="store_true", help=argparse.SUPPRESS)  # no-op
@@ -460,6 +466,9 @@ def run(args: argparse.Namespace) -> int:
         if args.level is not None
         else None
     )
+    if args.control_run and (level is None or level.slot is None or not args.control_suite):
+        raise IProofsError(ErrorKind.CONFIG, "--control-run needs --level, --session and "
+                           "--control-suite (RFC-0018 CH-1b)")  # fmt: skip
     runner = Runner(
         containers,
         root=root,
@@ -485,6 +494,7 @@ def run(args: argparse.Namespace) -> int:
         source_prompt_digest=_prompt_digest(args.prompts_from) if args.prompts_from else None,
         sizing_batches=args.sizing_batches,
         level=level,
+        control_run=args.control_run,
     )
     spec = JobSpec(
         args.system,

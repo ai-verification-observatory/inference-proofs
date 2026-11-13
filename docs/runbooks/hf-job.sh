@@ -738,7 +738,7 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
   exit "$rc"
 fi
 if [ "$MODE" != run ] || [ $# -lt 2 ]; then
-  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed]..."
+  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed][:control-run]..."
   log "       hf-job.sh seed|merge SYSTEM RUN_PATH | hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
   exit 2
 fi
@@ -795,6 +795,7 @@ for step in "$@"; do
       session=*) extra+=(--session "${flag#session=}") ;;
       ladder) extra+=(--load ladder) ;;
       perturbed) ;;  # handled below: the Model check's W' is committed before the run
+      control-run) extra+=(--control-run) ;;  # RFC-0018 CH-1b: one batch, P1, never a session
       *) log "unknown step field $flag in $step"; exit 2 ;;
     esac
   done

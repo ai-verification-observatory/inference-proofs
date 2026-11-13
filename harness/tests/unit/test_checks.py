@@ -264,3 +264,29 @@ def test_p1_failed_prove_needs_the_provers_reason(tree: Tree) -> None:
                 )
     three_sessions(other, control_doc=doc)
     assert states(other)["model"] == ("held", None)
+
+
+def control_run(tree: Tree, *, adapter: str | None = None) -> Path:
+    """A complete control run of slot 1 (CH-1b): run.json control true, P1 refused 3 of 3."""
+    path = session(tree, 1, 4, control_doc=controls(omit=("C1", "C2", "C3")))
+    run = json.loads((path / "run.json").read_text())
+    (path / "run.json").write_text(json.dumps({**run, "control": True}))
+    if adapter is not None:
+        manifest = json.loads((path / "manifest.json").read_text())
+        manifest["system"]["adapter_commit"] = adapter
+        (path / "manifest.json").write_text(json.dumps(manifest))
+    return path
+
+
+def test_p1_from_a_control_run_at_the_rows_pin(tree: Tree) -> None:
+    """CH-1b: MODEL takes P1 from a complete control run at the counted sessions' pin; one at
+    another pin decides nothing; a control run is never a session."""
+    three_sessions(tree, control_doc=controls(omit=("P1",)))
+    assert states(tree)["model"] == ("undecided", "not run")
+    control_run(tree)
+    assert states(tree)["model"] == ("held", None)
+    assert states(tree)["run"] == ("held", None)  # still three sessions, none incomplete
+    other = Tree(tree.root / "second")
+    three_sessions(other, control_doc=controls(omit=("P1",)))
+    control_run(other, adapter="b" * 40)
+    assert states(other)["model"] == ("undecided", "not run")
