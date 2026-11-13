@@ -688,11 +688,11 @@ html.js .row { cursor: pointer; }
 .rid { overflow-wrap: anywhere; }
 .rt.stk .rid { overflow-wrap: normal; white-space: nowrap; }
 /* the cost parts: the GPU times drawn on one scale (this system's own), each bar beside its
-   figure; then a sheet of cells, the row's one figure first and larger */
+   figure; then a sheet of cells */
 .cbars { margin-top: 18px; border-top: 1px solid var(--rule); }
 .cl { display: grid; grid-template-columns: 260px minmax(0, 1fr) 220px; grid-template-areas: "k b f" ". s f"; align-items: center; column-gap: 32px; padding: 16px 0 16px 12px; border-bottom: 1px solid var(--line); }
 .cln { grid-area: k; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
-.cl .hb, .hbn { grid-area: b; }
+.cl .hb { grid-area: b; }
 .clf { grid-area: f; }
 .cps { grid-area: s; display: flex; flex-wrap: wrap; gap: 8px 32px; margin-top: 12px; }
 .cpt { display: flex; flex-direction: column; row-gap: 4px; }
@@ -717,9 +717,6 @@ html.js .row { cursor: pointer; }
 .parts > div { flex: 1 1 260px; margin-left: -1px; padding: 14px 16px 16px 17px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); transition: background-color var(--quick); }
 .parts .fig .u { white-space: nowrap; }
 .parts > div:hover { background: var(--lift); }
-.parts > div:first-child { flex: 2 1 520px; }
-.parts > div:first-child .fig .n { font-size: 56px; letter-spacing: -.04em; }
-.parts > div:first-child .fig .u.x { font-size: 32px; }
 /* a label of one or two lines: the figures of a line of cells start on one line */
 .parts dt { display: flex; align-items: flex-end; min-height: 28px; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 8px; }
 .parts dd { margin: 0; }
@@ -793,6 +790,54 @@ html.js .row { cursor: pointer; }
    (still legible), never hide; the state chips stay whole */
 .ckt.dim tbody tr:not(.lit) > :not(:nth-child(2)), .ckt.dim tbody tr:not(.lit) > :not(:nth-child(2)) a:not(.sl) { color: var(--muted); text-decoration-color: var(--line); }
 .anim .ckt tbody tr > * { transition: color var(--quick), background-color var(--quick), box-shadow var(--quick); }
+/* a system page's first screen: its other figures in one ruled row of cells (two columns on a phone), each
+   figure large over its scope and n; fidelity's track against the bar */
+.figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 0; overflow: hidden; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.figs > div { min-width: 0; margin: 0 0 -1px -1px; padding: 14px 20px 16px 13px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transition: background-color var(--quick); }
+.figs > div:hover { background: var(--lift); }
+.figs dt { display: flex; align-items: flex-end; min-height: 28px; margin-bottom: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.figs dd { margin: 0; }
+.figs .fig { flex-wrap: wrap; }
+.figs .fig .n { font-size: 30px; letter-spacing: -.03em; }
+.figs .fig .u { font-size: 13px; }
+.fbar { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.fbar .fdt { flex: 1 1 0; min-width: 48px; margin-right: 4px; }
+.fbar .k { font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+.figs .fbar .fig .n { font-size: 14px; letter-spacing: 0; }
+.figs .fbar .fig .u { font-size: 12px; }
+.syspage .checks { padding-top: 20px; }
+.syspage .wrap > .blk { margin-top: 48px; }
+/* what a petal or a check holds besides its line (quotes, scope card, visible list, basis; records, a long
+   note): a native disclosure, its summary the count, opened under the line; any number open at once */
+.more > summary { display: block; width: fit-content; padding: 5px 8px 4px; list-style: none; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; white-space: nowrap; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); cursor: pointer; }
+.more > summary::-webkit-details-marker { display: none; }
+.more > summary:after { content: "+"; margin-left: 10px; font: 600 13px/1 var(--mono); }
+.more[open] > summary:after { content: "\2212"; }
+.more > summary:hover, .more[open] > summary { color: var(--paper); box-shadow: inset 0 0 0 1px var(--muted); }
+.more[open] > summary { margin-bottom: 4px; }
+.pfrom { margin: 12px 0 0; color: var(--muted); }
+.pfrom .k { margin-right: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
+.cnone { margin: 0; padding: 12px 0 0 12px; font: var(--f-meta); color: var(--muted); }
+/* on a wide screen a petal's summary (or its basis alone) stands at its row's end, level with the arm, and
+   opens under the reason */
+@media (min-width: 761px) {
+  .ckt.gbig tbody tr { position: relative; }
+  .ckt.gbig td.prs { padding-right: 200px; }
+  .ckt.gbig td.prs > .bs, .ckt.gbig .more > summary { position: absolute; top: 12px; right: 0; max-width: 184px; }
+  .ckt.gbig .more > summary { white-space: normal; }
+  .ckt.gbig tbody tr:first-child .more > summary, .ckt.gbig tbody tr:first-child td.prs > .bs { top: 0; }
+  .ckt.gbig .more[open] { margin-top: 4px; }
+}
+@media (max-width: 760px) {
+  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .figs > div { padding: 12px 10px 14px 13px; }
+  .figs .fig .n { font-size: 22px; }
+  .figs .fig .u { font-size: 12px; }
+  .fbar { flex-wrap: wrap; row-gap: 8px; }
+  .fbar .fdt { flex-basis: 100%; margin-right: 0; }
+  .ckt.gbig td.prs > .bs { display: block; margin-top: 8px; }
+  .ckt.gbig .more > summary { margin-top: 10px; }
+}
 @media (max-width: 1100px) {
   .cl { grid-template-columns: 200px minmax(0, 1fr) 190px; column-gap: 24px; }
   /* the Reason column narrows: the scope card's words wrap (machine-checked at its hyphen) before it scrolls */
@@ -800,12 +845,8 @@ html.js .row { cursor: pointer; }
 }
 @media (max-width: 760px) {
   .parts > div { flex-basis: 150px; }
-  .parts > div:first-child { flex-basis: 100%; }
-  .parts > div:first-child .fig .n { font-size: 44px; }
-  .parts > div:first-child .fig .u.x { font-size: 26px; }
   .parts .fig .n { font-size: 18px; }
   .cl { grid-template-columns: minmax(0, 1fr); grid-template-areas: "k" "f" "b" "s"; row-gap: 8px; padding-left: 0; }
-  .hbn { display: none; }
   .fid .trk { width: auto; grid-column: 1 / -1; padding: 0; }
   .rt.fid.stk tbody th { grid-column: 1; align-self: end; }
   .fid.stk td[data-l="Kind"]:before { display: none; }

@@ -1,9 +1,9 @@
 """The system pages (RFC-0018 SI-3), the checks page and the 404.
 
-A system page holds one row of the board: the glyph once, large, its arms the heads of a ruled
-table of the petals (state, reason, the publisher's quotes, basis); then
-the six checks as a ruled table (state, cause, evidence), the sessions, the cost parts and
-fidelity beside the model's controls.
+A system page holds one row of the board: its other figures in one ruled row; the glyph once,
+large, its arms the heads of a ruled table of the petals (state, reason, and behind a disclosure
+the publisher's quotes and basis); then the six checks as a ruled table (state, cause, evidence
+behind a disclosure), the cost parts, fidelity beside the model's controls and the sessions.
 """
 
 import re
@@ -24,6 +24,7 @@ from .hexagon import glyph_svg
 from .overview import (
     NOT_TESTED,
     counted,
+    defined,
     fig_html,
     filled,
     has,
@@ -33,6 +34,7 @@ from .overview import (
     name_of,
     nobreak,
     position_html,
+    row_cost,
     serving_words,
     standing_html,
     states,
@@ -53,6 +55,7 @@ from .words import (
     MANDATE,
     MANDATE_BELIEF,
     MANDATE_WHAT,
+    NULL_WORD,
     ORDER_RULE,
     PETAL_CAUSE_RULE,
     PETAL_CHECKS,
@@ -76,6 +79,8 @@ from .words import (
 
 GLYPH = 6  # the checks page's key glyph, px per unit (318 by 174 px)
 GPU_S = "gpu_s/request"  # a session's values: GPU-seconds per reply (RFC-0018 CO-1, CO-3)
+PREFIX = "Mean matched prefix"  # a replies row's fidelity (FI-5)
+PROOF_SIZE = "Proof size per reply"
 
 
 def section(sid, title, body):
@@ -222,12 +227,35 @@ def basis_html(p):
     return e(BASIS_WORD[p["basis"]])
 
 
+def counted_words(k, one):
+    """A count in words: "1 quote", "16 quotes"."""
+    return f"{k:,} {one}" if k == 1 else f"{k:,} {one}s"
+
+
+def petal_more(p):
+    """What a petal holds beyond its reason, one click away: a native disclosure whose summary
+    names it by count (the quotes, Machine-checked's scope card, Weights hidden's visible list),
+    opening onto them and what the petal rests on (SI-3). A petal with none of them prints only
+    what it rests on."""
+    said = [counted_words(len(p["quotes"]), "quote")] if p["quotes"] else []
+    if p["formal"] is not None:
+        said.append("scope card")
+    if p["visible"]:
+        said.append(counted_words(len(p["visible"]), "visible value"))
+    if not said:
+        return f'<span class="bs">{basis_html(p)}</span>'
+    body = (quote_links(p["quotes"]) + scope_card_html(p["formal"]) + visible_html(p["visible"])
+            + f'<p class="pfrom"><span class="k">From</span> {basis_html(p)}</p>')  # fmt: skip
+    said = " · ".join(f'<span class="nw">{e(w)}</span>' for w in said)
+    return f'<details class="more"><summary>{said}</summary>{body}</details>'
+
+
 def glyph_html(row):
     """The glyph once, large, as the heads of the petals' table: each arm is its petal's name on
     the ink of its state (never its state word: the ink says it, and the chip beside it), on one
-    stem, then the step in words with the cause of a red or hollow petal, the reason with the
-    publisher's quotes linked (and Machine-checked's scope card, Weights hidden's visible list),
-    and what it rests on (SI-3). An arm, its row and the checks its red names light together."""
+    stem, then the step in words with the cause of a red or hollow petal, the reason, and at the
+    row's end what the petal holds besides (`petal_more`). An arm, its row and the checks its red
+    names light together."""
     trs = []
     for i, p in enumerate(row["glyph"]):
         tok = f"{p['state']} {p['form']}".strip()
@@ -237,32 +265,48 @@ def glyph_html(row):
             data += f' data-cause="{e(p["cause"])}"'
             cause = (f'<a class="cw df" href="{CHECKS_PAGE}#cause-{e(p["cause"])}">'
                      f"{e(CAUSE_WORD[p['cause']])}</a>")  # fmt: skip
-        extra = scope_card_html(p["formal"]) + visible_html(p["visible"])
         trs.append(
             f'<tr class="pt {tok}"><th scope="row">'
             f'<a class="sl s{i + 1} {tok}"{data} href="{CHECKS_PAGE}#{p["id"]}" data-k="p{i + 1}">'
             f"<span>{e(PETAL_NAME[p['id']])}</span></a></th>"
             f'<td class="cst">{chip(p["state"], STEP_WORD[p["step"]], p["form"])}{cause}</td>'
-            f'<td><span class="rs">{e(p["reason"])}</span>{quote_links(p["quotes"])}{extra}</td>'
-            f'<td class="bs">{basis_html(p)}</td></tr>'
+            f'<td class="prs"><span class="rs">{e(p["reason"])}</span>{petal_more(p)}</td></tr>'
         )
     return ('<div class="checks"><table class="rt ckt gbig"><thead><tr><th scope="col">Petal</th>'
-            '<th scope="col">State</th><th scope="col">Reason</th><th scope="col">From</th></tr>'
+            '<th scope="col">State</th><th scope="col">Reason</th></tr>'
             f'</thead><tbody>{"".join(trs)}</tbody></table></div>')  # fmt: skip
+
+
+NOTE_SHORT = 48  # a check's note longer than this, in characters, is left to its records
+
+
+def note_gist(note):
+    """A check's note as its row prints it: the words after an internal id ("P1: ", a run's
+    request) when it leads them, and only when they are short; None otherwise."""
+    head, sep, tail = note.partition(": ")
+    gist = tail if sep and " " not in head else note
+    return gist if len(gist) <= NOTE_SHORT else None
 
 
 def checks_html(row):
     """The six checks, the entry gate: one ruled row per check: name, state, cause (a column
-    only where a check has one), evidence. A check names the petals its failure turns red."""
+    only where a check has one, a short note under it), and its records one click away, the
+    note in full with them. A check names the petals its failure turns red."""
     caused = any(c["cause"] or c.get("note") for c in row["checks"])
     trs = []
     for c in row["checks"]:
-        cause = ""
+        cause, note = "", c.get("note")
         if c["cause"]:
             cause = (f'<a class="cw df" href="{CHECKS_PAGE}#undecided" '
                      f'title="{e(CHECK_CAUSE_WORD[c["cause"]])}">{e(c["cause"])}</a>')  # fmt: skip
-        if c.get("note"):
-            cause += f'<span class="cn">{quoted(c["note"])}</span>'
+        gist = note_gist(note) if note else None
+        if gist:
+            cause += f'<span class="cn">{quoted(gist)}</span>'
+        full = f'<p class="cn">{quoted(note)}</p>' if note and gist != note else ""
+        recs = counted_words(len(c["evidence"]), "record") if c["evidence"] else "note"
+        more = (f'<details class="more"><summary>{e(recs)}</summary>{full}'
+                f"{evidence_html(c['evidence'])}</details>"
+                if c["evidence"] or full else "")  # fmt: skip
         to = petals_of(c["id"])
         to = f' data-to="{to}"' if to else ""
         trs.append(
@@ -270,7 +314,7 @@ def checks_html(row):
             f'<a href="{CHECKS_PAGE}#{c["id"]}"{to}>{e(CHECK_NAME[c["id"]])}</a></th>'
             f'<td class="cst">{chip(c["state"], STATE_WORD[c["state"]])}</td>'
             + (f"<td>{cause}</td>" if caused else "")
-            + f"<td>{evidence_html(c['evidence'])}</td></tr>"
+            + f"<td>{more}</td></tr>"
         )
     cause_th = '<th scope="col">Cause</th>' if caused else ""
     return ('<table class="rt ckt cks"><thead><tr><th scope="col">Check</th><th scope="col">'
@@ -345,7 +389,8 @@ def sessions_html(row):
 def cost_bars(row):
     """CO-1 to CO-3 drawn: serving, the steady m (its proving and generation parts where the
     system generates in a phase of its own) and the whole session, each in GPU time per reply on
-    one scale, this row's own (one model). Each line: its name, its bar, its labelled figure."""
+    one scale, this row's own (one model). Each line: its name, its bar, its labelled figure; a
+    figure the board holds no value for draws no line (`cost_html` names it)."""
     figs, n = row["figures"], counted(row)
     b = (rung_of(row)["baseline"] or {}).get("gpu_seconds_per_reply")
     m, s = figs["steady_gpu_seconds_per_reply"], figs["session_gpu_seconds_per_reply"]
@@ -358,7 +403,9 @@ def cost_bars(row):
     lines = []
 
     def line(cls, name, f, segs, fig, parts=""):
-        bar = hbar(segs, top, h=14, cls="hb") if has(f) else '<span class="hbn"></span>'
+        if not has(f):
+            return
+        bar = hbar(segs, top, h=14, cls="hb")
         lines.append(f'<div class="cl {cls}"><span class="cln">{e(name)}</span>{bar}'
                      f'<span class="clf">{fig}</span>{parts}</div>')  # fmt: skip
 
@@ -384,41 +431,56 @@ def cost_bars(row):
     return f'<div class="cbars">{"".join(lines)}</div>'
 
 
+def missing_html(missing):
+    """The figures the board holds no value for, named once per reason, in the board's words."""
+    return "".join(
+        f'<p class="cnone">{e(", ".join(k if i == 0 else k[0].lower() + k[1:] for i, k in enumerate(names)))}'
+        f": none, {e(why)}</p>"
+        for why, names in missing.items()
+    )  # fmt: skip
+
+
 def cost_html(row):
-    """The cost parts (CO-1 to CO-5), each figure as the board stores it: the serving baseline,
-    the GPU times drawn on one scale (`cost_bars`), then a sheet of the other figures, the row's
-    one figure first and larger (labelled as the band labels it)."""
+    """The cost parts (CO-1 to CO-5) the band and the figures block do not print, each figure as
+    the board stores it: the serving baseline, the GPU times drawn on one scale (`cost_bars`),
+    then a sheet of the other figures; then, once, each figure the board holds no value for with
+    the board's reason."""
     rung = rung_of(row)
     figs, b, n = row["figures"], rung["baseline"] or {}, counted(row)
     cold = f"cold sessions of {rung['requests_per_session']:,} replies"
     price = S.V["price"]
-    label, lead = lead_fig(row)
-    steady = (FIGURE_NAME["multiple"], fig_html(figs["multiple"], n))
+    label, _ = lead_fig(row)
+    steady = (FIGURE_NAME["multiple"], figs["multiple"], n)
     other = steady if label != FIGURE_NAME["multiple"] else (
-        f"{FIGURE_NAME['multiple']}, {cold}", fig_html(figs["session_multiple"], n))  # fmt: skip
+        f"{FIGURE_NAME['multiple']}, {cold}", figs["session_multiple"], n)  # fmt: skip
     split = []
     if has(figs.get("proving_multiple")) and has(figs.get("generation_multiple")):
-        split = [("Of which proving, multiple of serving", fig_html(figs["proving_multiple"], n)),
-                 ("Of which generation, multiple of serving",
-                  fig_html(figs["generation_multiple"], n))]  # fmt: skip
-    parts = [
-        (label, lead),
-        *split,
-        other,
-        ("Steady cost per reply", fig_html(figs["steady_usd_per_reply"], n)),
-        ("Session cost per reply", fig_html(figs["session_usd_per_reply"], n)),
-        ("Serving cost per reply", fig_html(b.get("usd_per_reply"))),
-        ("Price of one H200 GPU-hour", fig_html(price and price["usd_per_gpu_hour"],
-                                                sub=f"{price['basis']}, {price['date']}"
-                                                if price else None)),
-        ("Check time per reply", fig_html(figs["verify_seconds_per_reply"], n)),
-        ("Proof size per reply", fig_html(figs["proof_bytes_per_reply"], n)),
-    ]  # fmt: skip
-    rows = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in parts)
+        split = [("Of which proving, multiple of serving", figs["proving_multiple"], n),
+                 ("Of which generation, multiple of serving", figs["generation_multiple"], n)]  # fmt: skip
+    m = figs["steady_gpu_seconds_per_reply"]
+    drawn = [("Serving GPU time per reply", b.get("gpu_seconds_per_reply"), None),
+             ("Steady GPU time per further reply", m, n),
+             ("Session GPU time per reply", figs["session_gpu_seconds_per_reply"], n)]  # fmt: skip
+    shown = row_cost(row)  # printed in the figures block
+    sheet = [*split, other, ("Steady cost per reply", figs["steady_usd_per_reply"], n),
+             ("Session cost per reply", figs["session_usd_per_reply"], n),
+             ("Serving cost per reply", b.get("usd_per_reply"), None)]  # fmt: skip
+    missing: dict[str, list[str]] = {}
+    for k, f, _ in (*drawn, *sheet):
+        if not has(f):
+            missing.setdefault(NULL_WORD[f["null_reason"]] if f else "not recorded", []).append(k)
+    rows = [(k, fig_html(f, count)) for k, f, count in sheet if has(f) and f is not shown]
+    if price and has(price["usd_per_gpu_hour"]):
+        rows.append(("Price of one H200 GPU-hour",
+                     fig_html(price["usd_per_gpu_hour"], sub=f"{price['basis']}, {price['date']}")))  # fmt: skip
+    else:
+        missing.setdefault("not recorded", []).append("Price of one H200 GPU-hour")
+    cells = "".join(f"<div><dt>{e(k)}</dt><dd>{v}</dd></div>" for k, v in rows)
     base = rung["baseline"]
     serving = (f'<p class="rb"><span class="k">Serving</span> {e(serving_words(base))}</p>'
                if base and has(base["gpu_seconds_per_reply"]) else "")  # fmt: skip
-    return f'{serving}{cost_bars(row)}<dl class="parts">{rows}</dl>'
+    return (f'{serving}{cost_bars(row)}<dl class="parts">{cells}</dl>'
+            f"{missing_html(missing)}")  # fmt: skip
 
 
 def fidelity_html(row):
@@ -431,7 +493,7 @@ def fidelity_html(row):
     whole = S.V["request"]["output_tokens"]
     edge = bar["mean_prefix"] if bar is not None else None
     kl_h = kl_head(rung_of(row)["reference_dtype"])
-    heads = ("Replies", "Kind", "Mean matched prefix", kl_h)
+    heads = ("Replies", "Kind", PREFIX, kl_h)
 
     def tds(kind, track, prefix, kl):
         return (f'<td data-l="Kind">{kind}</td>'
@@ -481,13 +543,45 @@ def fidelity_html(row):
             f'<tbody>{"".join(out)}</tbody></table>')  # fmt: skip
 
 
+def figures_html(row):
+    """The row's other figures (the band prints its one figure) as one ruled row of cells, each
+    with its unit, scope and n: cost per reply at the multiple's own scope, check time and proof
+    size per reply, then fidelity: the replies' mean matched prefix on its track against the
+    model's bar, and KL where it was measured."""
+    rung, figs, n = rung_of(row), row["figures"], counted(row)
+    cells = [(defined(FIGURE_NAME["cost"], "cost"), fig_html(row_cost(row), n)),
+             (defined(FIGURE_NAME["check-time"], "check-time"),
+              fig_html(figs["verify_seconds_per_reply"], n)),
+             (e(PROOF_SIZE), fig_html(figs["proof_bytes_per_reply"], n))]  # fmt: skip
+    mine, fid = row["fidelity"], rung["fidelity"] or {}
+    bar = fid.get("bar")
+    if mine is None:
+        prefix = '<span class="na">not run yet</span>'
+    else:
+        track = fid_svg(mine["mean_prefix"], bar["mean_prefix"] if bar else None,
+                        S.V["request"]["output_tokens"], "me")  # fmt: skip
+        if bar is not None:
+            i = next(k for k, c in enumerate(fid["controls"]) if c["id"] == bar["control"])
+            at = f"{fid['record']}/controls/{i}/mean_prefix"
+            track += f'<span class="k">bar</span>{plain(bar["mean_prefix"], "tokens", at)}'
+        prefix = (plain(mine["mean_prefix"], "tokens", row["record"] + "/fidelity/mean_prefix")
+                  + f'<span class="sub">n\u00a0=\u00a0{mine["n"]:,}</span>'
+                  + f'<span class="fbar">{track}</span>')  # fmt: skip
+    cells.append((defined(PREFIX, "fidelity"), prefix))
+    if mine is not None and has(mine.get("kl")):
+        cells.append((defined(kl_head(rung["reference_dtype"]), "kl"), fig_html(mine["kl"])))
+    return '<dl class="figs">' + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>"
+                                         for k, v in cells) + "</dl>"  # fmt: skip
+
+
 NAME_SIZES = (6, 12, 20)  # a system's name on its band: one size per length up to these
 
 
 def system_page(row):
     """A system on a model (SI-3): the band (its name, sized by its length, never more than two
-    lines; its one figure on the right, labelled for what it is; the facts under them), then the
-    glyph and its petals, the checks, the sessions, the cost and fidelity."""
+    lines; its one figure on the right, labelled for what it is; the facts under them), then its
+    other figures, the glyph and its petals, the checks, the cost, fidelity and, last, the
+    sessions (the audit trail)."""
     rung = rung_of(row)
     sysd = S.V["systems"][row["system"]]
     name = name_of(row)
@@ -510,19 +604,20 @@ def system_page(row):
         + "".join(f"<div><dt>{k}</dt><dd>{v}</dd></div>" for k, v in facts)
         + "</dl></div></section>"
     )
-    parts = (("glyph", "Glyph"), ("checks", "Checks"), ("sessions", "Sessions"), ("cost", "Cost"),
-             ("fidelity", "Fidelity"))  # fmt: skip
+    parts = (("figures", "Figures"), ("glyph", "Glyph"), ("checks", "Checks"), ("cost", "Cost"),
+             ("fidelity", "Fidelity"), ("sessions", "Sessions"))  # fmt: skip
     body = f"""
 {header("system")}
 <main id="main" class="sys">
   {band_}
   {pnav(name, parts)}
   <div class="wrap">
+    {section("figures", "Figures", figures_html(row))}
     {section("glyph", "Glyph", glyph_html(row))}
     {section("checks", "Checks", checks_html(row))}
-    {section("sessions", "Sessions", sessions_html(row))}
     {section("cost", "Cost", cost_html(row))}
     {section("fidelity", "Fidelity", fidelity_html(row))}
+    {section("sessions", "Sessions", sessions_html(row))}
   </div>
 </main>
 {footer()}"""
