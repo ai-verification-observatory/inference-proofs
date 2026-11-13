@@ -91,6 +91,8 @@ def test_top_tokens_of_the_reference_and_each_control(
     q4 = tops(io, "q4_k_m")
     assert [t for t in range(512) if q4[0][t] != REPLIES[0][t]] == [99, 199, 299, 399, 499]
     assert status["controls"]["q4_k_m"]["positions_without_list"] == [1, 1, 1]
+    # each prompt is written as it finishes, and the file goes once the pass is whole
+    assert not list((io / "fidelity/teacher-forced/partial").glob("*.jsonl"))
     # no reply is generated and no KL tool runs in this mode
     assert not (io / "fidelity/replies").exists()
     assert not any("llama-perplexity" in c[0] for c in calls)

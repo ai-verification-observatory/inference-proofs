@@ -365,6 +365,11 @@
       "minimum": 1,
       "type": "integer"
     },
+    "stopped": {
+      "$comment": "set when the run was stopped before its end (a deadline): why, and what it kept. Its finished prompts and controls are stored; a system's stopped run names fewer prompts than `of` and gives no pass",
+      "minLength": 1,
+      "type": "string"
+    },
     "system": {
       "type": "string"
     },

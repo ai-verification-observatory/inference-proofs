@@ -16,7 +16,9 @@ values (`kl.json`), which `--raw DIR` measures first from the lists. It writes
 
 import argparse
 import json
+import os
 import shutil
+import signal
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -142,12 +144,15 @@ def _system_runner(root: Path, args: argparse.Namespace, registry: "SchemaRegist
     return DockerRunner(registry), image
 
 
-def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
+def _system_calls(  # noqa: PLR0913, PLR0915, PLR0917 (one adapter flow, read top to bottom)
     args: argparse.Namespace, root: Path, registry: "SchemaRegistry", level: "Level",
     rung: "Rung", io: Path, digest: str, requests: Sequence[Mapping[str, object]],
-) -> dict[str, Any]:  # fmt: skip
-    """AD-7: `info`, the steps `score` needs (`--before`), then `score`. Returns the record's
-    parts. The image's upstream commit must be the counted sessions'."""
+    part: dict[str, Any],
+) -> None:  # fmt: skip
+    """AD-7: `info`, the steps `score` needs (`--before`), then `score`. Fills `part` with the
+    record's parts as each becomes known, so a run stopped during `score` can still store the
+    requests that finished (`_system_record`). The image's upstream commit must be the counted
+    sessions'."""
     from iproofs.provenance import file_digest  # noqa: PLC0415
     from iproofs.runner import retry_fetch  # noqa: PLC0415
     from iproofs.serialize import write_json, write_jsonl  # noqa: PLC0415
@@ -161,6 +166,9 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
     models = ensure_model(wl, default_cache(), retry=lambda op: retry_fetch(op, f"model {wl.id}"),
                           token=None)  # fmt: skip
     containers, image = _system_runner(root, args, registry, system)
+    records: list[dict[str, object]] = []
+    part |= {"image": image, "workload": wl.id, "records": records, "said": {}, "ok": False,
+             "pin": pin, "prover_files": None, "own": pin.pop("own_reply")}  # fmt: skip
     shape = wl.shape
     base = {"schema": "adapter-job/1", "contract": "adapter/1",
             "run_id": f"teacher-forced-{system}-{rung.id}",
@@ -170,10 +178,10 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
                       "batches_per_session": shape.batches_per_session,
                       "context_window": shape.context_window},
             "control": False}  # fmt: skip
-    records = []
     info, said = fid._call(containers, image, io, {**base, "subcommand": "info"}, None, args,
                            "info")  # fmt: skip
     records.append(info)
+    part["said"] = said
     if info["exit_code"] != 0 or not said:
         raise IProofsError(ErrorKind.ADAPTER, f"{system} info failed: {info['stderr_tail']}")
     upstream = {s["upstream_commit"] for s in pin["sessions"]}
@@ -185,6 +193,7 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
     provenance: dict[str, Any] | None = None
     if args.prover_files is not None:
         prover_files, provenance = _place_prover_files(args.prover_files, pin, io)
+        part["prover_files"] = provenance
     before = [s for s in (args.before or "").split(",") if s]
     ok = True
     for step in before:
@@ -204,12 +213,12 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
             if not equal:
                 raise IProofsError(ErrorKind.INTEGRITY, f"this job's commit kept {found}; the "
                                    f"counted sessions record {pin['prover_files']}")  # fmt: skip
-    failed: list[int] = []
-    own = pin.pop("own_reply")
+            part["prover_files"] = provenance
+    own = part["own"]
     if own is None or len(own["reply"]) != len(requests[0]["reply"]):  # type: ignore[arg-type]
         raise IProofsError(ErrorKind.CONFIG, f"{system}: no proved reply to prompt 0 in a "
                            "counted session of slot 1, which the run scores first")  # fmt: skip
-    check: dict[str, Any] | None = None
+    write_json(io / "sessions-pin.json", pin)
     if ok:
         # request 0 is the system's own proved reply to prompt 0; the rest follow it
         requests = [{"prompt": requests[0]["prompt"], "reply": own["reply"]}, *requests]
@@ -219,25 +228,73 @@ def _system_calls(  # noqa: PLR0915 (one adapter flow, read top to bottom)
                "requests_file": "/io/score-requests.jsonl", "out_dir": "/io/score",
                "top_k": args.top_k,
                **({"prover_files": prover_files} if prover_files else {})}  # fmt: skip
+        part["scoring"] = True
         record, _ = fid._call(containers, image, io, job, models, args, "score")
         records.append(record)
         ok = record["exit_code"] == 0
-        if ok:
-            first = json.loads((io / "score" / "0.json").read_text())
-            agreeing = sum(a == b for a, b in zip(first.get("top", []), own["reply"],
-                                                  strict=False))  # fmt: skip
-            check = {"prompt": 0, "session": own["run"], "positions": len(own["reply"]),
-                     "agreeing": agreeing}  # fmt: skip
-            if agreeing != len(own["reply"]):
-                why = first.get("failed") or f"{agreeing} of {len(own['reply'])} positions agree"
-                raise IProofsError(ErrorKind.INTEGRITY, f"{system}: the scoring path does not "
-                                   f"reproduce the system's own proved reply to prompt 0 "
-                                   f"({why}); nothing is stored")  # fmt: skip
-            failed = [i - 1 for i in json.loads((io / "out.json").read_text())["scores"]["failed"]]
-    write_json(io / "sessions-pin.json", pin)
-    return {"image": image, "said": said, "records": records, "ok": ok, "failed": failed,
-            "pin": pin, "prover_files": provenance, "workload": wl.id,
-            "own_reply_check": check}  # fmt: skip
+    part["ok"] = ok
+
+
+def _finished(io: Path) -> int:
+    """The requests whose result the adapter has written, counted from request 0 with no gap."""
+    k = 0
+    while True:
+        try:
+            json.loads((io / "score" / f"{k}.json").read_text())
+        except (OSError, ValueError):
+            return k
+        k += 1
+
+
+def _system_record(args: argparse.Namespace, record: dict[str, Any], part: Mapping[str, Any],
+                   io: Path, out: Path, n: int, stopped: str | None) -> bool:  # fmt: skip
+    """The record of a system's run and its stored outputs. A run that ended keeps its n
+    prompts; a run stopped during `score` (`stopped`: why) keeps the prompts whose requests
+    finished, so no finished work is lost, and its record says how many (`prompts`), which makes
+    it a trial that `fidelity score` reads no pass from. Request 0 is the system's own proved
+    reply (FI-14): nothing is stored unless its top tokens are that reply."""
+    own = part.get("own")
+    k = _finished(io) if part.get("scoring") and (part.get("ok") or stopped) else 0
+    check: dict[str, Any] | None = None
+    if k and own:
+        first = json.loads((io / "score" / "0.json").read_text())
+        agreeing = sum(a == b for a, b in zip(first.get("top", []), own["reply"], strict=False))
+        check = {"prompt": 0, "session": own["run"], "positions": len(own["reply"]),
+                 "agreeing": agreeing}  # fmt: skip
+        if agreeing != len(own["reply"]):
+            why = first.get("failed") or f"{agreeing} of {len(own['reply'])} positions agree"
+            raise IProofsError(ErrorKind.INTEGRITY, f"{args.system}: the scoring path does not "
+                               f"reproduce the system's own proved reply to prompt 0 ({why}); "
+                               "nothing is stored")  # fmt: skip
+    done = min(max(0, k - 1), n)
+    if done:
+        _collect_system(io, out, args.system, done)
+    failed = [i for i in range(done)
+              if "failed" in json.loads((io / "score" / f"{i + 1}.json").read_text())]  # fmt: skip
+    said = part.get("said") or {}
+    calls = list(part.get("records") or [])
+    if stopped:
+        calls.append({"call": "score", "step": "score", "exit_code": 124, "seconds": 0.0,
+                      "stderr_tail": [stopped], "phases": []})  # fmt: skip
+    record |= {
+        "kind": "system",
+        "system": args.system,
+        "workload": part.get("workload"),
+        "engine": {"tool": args.system, "commit": said.get("upstream_commit"),
+                   "image": part.get("image")},
+        "adapter": {k: said.get(k) for k in ("adapter_commit", "adapter_dirty")},
+        "sessions": part["pin"]["sessions"],
+        "upstream_commit_equal_to_sessions": True,
+        "prover_files": part.get("prover_files"),
+        "own_reply_check": check,
+        "ids": [args.system] if done else [],
+        "failed_prompts": failed,
+        "not_run": {},
+        "calls": calls,
+    }  # fmt: skip
+    if stopped:
+        record |= {"prompts": max(done, 1), "stopped": f"{stopped}; {done} of {n} prompts kept"}
+    return bool(part.get("ok")) and done == n and not stopped
 
 
 def _collect_system(io: Path, out: Path, system: str, n: int) -> None:
@@ -275,6 +332,8 @@ def _collect_engine(io: Path, out: Path, name: str) -> list[str]:
         ids.append(f.stem)
     if (src / DIR / "raw").is_dir():
         shutil.copytree(src / DIR / "raw", out / "raw", dirs_exist_ok=True)
+    if (src / DIR / "partial").is_dir():  # the prompts a pass finished before a stop
+        shutil.copytree(src / DIR / "partial", out / "raw" / "partial", dirs_exist_ok=True)
     for f in sorted((src / "logs").glob("*")) if (src / "logs").is_dir() else []:
         # a server's log holds a line per request (megabytes): it stays with the lists
         logs = out / ("raw/server-logs" if f.name.startswith("server-") else "logs") / name
@@ -348,81 +407,101 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
         "slots": args.slots,
         "top_k": args.top_k,
     }  # fmt: skip
-    if args.system:
-        done = _system_calls(args, root, registry, level, rung, io, digest,
-                             [{"prompt": p, "reply": r} for p, r in
-                              zip(prompts[:n], replies[:n], strict=True)])  # fmt: skip
-        if done["ok"]:
-            _collect_system(io, out, args.system, n)
-        said = done["said"]
-        record |= {
-            "kind": "system",
-            "system": args.system,
-            "workload": done["workload"],
-            "engine": {"tool": args.system, "commit": said.get("upstream_commit"),
-                       "image": done["image"]},
-            "adapter": {k: said.get(k) for k in ("adapter_commit", "adapter_dirty")},
-            "sessions": done["pin"]["sessions"],
-            "upstream_commit_equal_to_sessions": True,
-            "prover_files": done["prover_files"],
-            "own_reply_check": done["own_reply_check"],
-            "ids": [args.system] if done["ok"] else [],
-            "failed_prompts": done["failed"],
-            "not_run": {},
-            "calls": done["records"],
-        }  # fmt: skip
-        ok = bool(done["ok"])
-    else:
-        system = fid.SYSTEMS[args.engine]
-        containers, image = fid._containers(root, args, registry, system)
-        info, said = fid._call(containers, image, io, {"subcommand": "info"}, None, args, "info")
-        if info["exit_code"] != 0 or not said:
-            raise IProofsError(ErrorKind.ADAPTER, f"{system} info failed: {info['stderr_tail']}")
-        commit = str(said.get("upstream_commit"))
-        pinned = fid._engine_pin(root, level, system)
-        if pinned is not None and commit != pinned:
-            raise IProofsError(ErrorKind.INTEGRITY, f"the image runs {args.engine} {commit}, "
-                               f"the pin is {pinned}")  # fmt: skip
-        common = {"subcommand": "prove", "rung": rung.id, "model_dir": "/models",
-                  "dtype": rung.reference.dtype, "prompts_file": "/io/prompts.jsonl",
-                  "output_tokens": level.request.output_tokens, "slots": args.slots,
-                  "teacher_forced": {"replies_file": "/io/reference.jsonl",
-                                     "top_k": args.top_k}}  # fmt: skip
-        calls, not_run, reference_record = fid._plan(args, root, registry, rung)
-        only = {x for x in args.only.split(",") if x} if args.only else None
-        calls = _only([c for c in calls if c[0] != "file"], not_run, only)
-        shutil.rmtree(io / "fidelity", ignore_errors=True)
-        records = [info]
-        for call, models, controls, _, extra in calls:
-            job = {**common, **extra, "call": call, "controls": controls}
-            rec, _ = fid._call(containers, image, io, job, models, args, call)
-            records.append(rec)
-            if call == "reference" and rec["exit_code"] != 0:
-                break
+
+    def write(ok: bool) -> int:
+        commands = io / "commands.jsonl"
+        if commands.is_file():
+            from iproofs.log.redact import Redactor  # noqa: PLC0415
+
+            text = Redactor.from_host()(commands.read_text())
+            (out / f"commands-{name}.jsonl").write_text(text)
+        record["lists"] = {i: {"files": len(list((out / "raw" / i).glob("*.topk"))),
+                               "digest": raw_digest(out / "raw" / i)}
+                           for i in record["ids"] if (out / "raw" / i).is_dir()}  # fmt: skip
+        print(fid._write_checked(registry, RUN_SCHEMA, out / f"run-{name}.json", record))
+        return 0 if ok else 4
+
+    part: dict[str, Any] = {}
+
+    def finish(stopped: str | None = None) -> int:
+        """Stores what the run finished and writes its record; with `stopped`, from the stop
+        signal's handler, so a run cut at a deadline keeps its finished prompts and controls."""
+        if args.system:
+            if "pin" not in part:
+                return 4  # stopped before any call: nothing to store
+            ok = _system_record(args, record, part, io, out, n, stopped)
+            return write(ok) if record["ids"] or not stopped else 4
+        if "said" not in part:
+            return 4
         ids = _collect_engine(io, out, name)
-        record |= {
+        said, not_run = part["said"], dict(part["not_run"])
+        if stopped:
+            wanted = [str(c["id"]) for call in part["calls"] for c in call[2]]
+            if any(call[0] == "reference" for call in part["calls"]):
+                wanted.append("reference")
+            for ident in wanted:
+                if ident not in ids:
+                    not_run[ident] = f"not run: {stopped} before its pass finished"
+            record["stopped"] = stopped
+        record.update({
             "kind": "engine",
             "engine": {"tool": args.engine,
                        "repo": fid.ENGINE_REPOS.get(args.engine, level.fidelity.engine.repo),
-                       "commit": commit, "image": image},
+                       "commit": part["commit"], "image": part["image"]},
             "adapter": {k: said.get(k) for k in ("adapter_commit", "adapter_dirty")},
-            "model_files": reference_record,
+            "model_files": part["reference_record"],
             "ids": ids,
             "failed_prompts": [],
             "not_run": not_run,
-            "calls": records,
-        }  # fmt: skip
-        ok = len(records) > 1 and all(r["exit_code"] == 0 for r in records[1:])
-    commands = io / "commands.jsonl"
-    if commands.is_file():
-        from iproofs.log.redact import Redactor  # noqa: PLC0415
+            "calls": part["records"],
+        })  # fmt: skip
+        records = part["records"]
+        ok = len(records) > 1 and all(r["exit_code"] == 0 for r in records[1:]) and not stopped
+        return write(ok)
 
-        (out / f"commands-{name}.jsonl").write_text(Redactor.from_host()(commands.read_text()))
-    record["lists"] = {i: {"files": len(list((out / "raw" / i).glob("*.topk"))),
-                           "digest": raw_digest(out / "raw" / i)}
-                       for i in record["ids"] if (out / "raw" / i).is_dir()}  # fmt: skip
-    print(fid._write_checked(registry, RUN_SCHEMA, out / f"run-{name}.json", record))
-    return 0 if ok else 4
+    def on_stop(signum: int, frame: object) -> None:
+        # the job's deadline (`timeout` sends SIGTERM): keep what finished, then leave
+        code = 124
+        try:
+            finish(f"stopped by signal {signum} (the job's deadline)")
+        finally:
+            os._exit(code)
+
+    signal.signal(signal.SIGTERM, on_stop)
+    if args.system:
+        _system_calls(args, root, registry, level, rung, io, digest,
+                      [{"prompt": p, "reply": r} for p, r in
+                       zip(prompts[:n], replies[:n], strict=True)], part)  # fmt: skip
+        return finish()
+    system = fid.SYSTEMS[args.engine]
+    containers, image = fid._containers(root, args, registry, system)
+    info, said = fid._call(containers, image, io, {"subcommand": "info"}, None, args, "info")
+    if info["exit_code"] != 0 or not said:
+        raise IProofsError(ErrorKind.ADAPTER, f"{system} info failed: {info['stderr_tail']}")
+    commit = str(said.get("upstream_commit"))
+    pinned = fid._engine_pin(root, level, system)
+    if pinned is not None and commit != pinned:
+        raise IProofsError(ErrorKind.INTEGRITY, f"the image runs {args.engine} {commit}, "
+                           f"the pin is {pinned}")  # fmt: skip
+    common = {"subcommand": "prove", "rung": rung.id, "model_dir": "/models",
+              "dtype": rung.reference.dtype, "prompts_file": "/io/prompts.jsonl",
+              "output_tokens": level.request.output_tokens, "slots": args.slots,
+              "teacher_forced": {"replies_file": "/io/reference.jsonl",
+                                 "top_k": args.top_k}}  # fmt: skip
+    calls, not_run, reference_record = fid._plan(args, root, registry, rung)
+    only = {x for x in args.only.split(",") if x} if args.only else None
+    calls = _only([c for c in calls if c[0] != "file"], not_run, only)
+    shutil.rmtree(io / "fidelity", ignore_errors=True)
+    records = [info]
+    part |= {"said": said, "commit": commit, "image": image, "not_run": not_run,
+             "reference_record": reference_record, "records": records, "calls": calls}  # fmt: skip
+    for call, models, controls, _, extra in calls:
+        job = {**common, **extra, "call": call, "controls": controls}
+        rec, _ = fid._call(containers, image, io, job, models, args, call)
+        records.append(rec)
+        if call == "reference" and rec["exit_code"] != 0:
+            break
+    return finish()
 
 
 # ---------------------------------------------------------------- score

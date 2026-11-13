@@ -49,6 +49,7 @@ import socket
 import struct
 import subprocess
 import sys
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -454,6 +455,11 @@ def teacher_forced(model: Path, ident: str, job: dict) -> dict[str, object]:
     ctx = max(len(p) for p in prompts) + max(len(r) for r in replies) + CTX_MARGIN
     server = make_server(model, slots, ctx, host(f"/io/fidelity/logs/server-tf-{ident}.log"))
 
+    partial = host(f"{TF}/partial/{ident}.jsonl")  # each finished prompt, as it finishes
+    partial.parent.mkdir(parents=True, exist_ok=True)
+    partial.unlink(missing_ok=True)
+    wrote = threading.Lock()
+
     def lane(slot: int) -> list[tuple[int, list[int], int]]:
         done = []
         for i in range(slot, len(prompts), slots):
@@ -461,6 +467,8 @@ def teacher_forced(model: Path, ident: str, job: dict) -> dict[str, object]:
             if k > 0:
                 write_topk(host(f"{TF}/raw/{ident}/{i}.topk"), rows, k)
             done.append((i, top, sum(r is None for r in rows)))
+            with wrote, partial.open("a") as f:  # a pass stopped later keeps this prompt
+                f.write(json.dumps({"prompt": i, "top": top}, separators=(",", ":")) + "\n")
         return done
 
     try:
@@ -469,6 +477,7 @@ def teacher_forced(model: Path, ident: str, job: dict) -> dict[str, object]:
     finally:
         server.stop()
     write_replies(host(f"{TF}/top/{ident}.jsonl"), [top for _, top, _ in done])
+    partial.unlink(missing_ok=True)  # the whole pass is stored
     return {"top": f"fidelity/teacher-forced/top/{ident}.jsonl", "top_k": k,
             "positions_without_list": [n for _, _, n in done]}  # fmt: skip
 

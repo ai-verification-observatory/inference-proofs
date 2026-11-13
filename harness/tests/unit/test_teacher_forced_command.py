@@ -1,6 +1,7 @@
 """`iproofs fidelity run --teacher-forced` and `score --part teacher-forced`: the parts that
 decide what a record may be used for (RFC-0018 FI-14, FI-15)."""
 
+import argparse
 import json
 from math import log
 from pathlib import Path
@@ -128,3 +129,58 @@ def test_kl_is_measured_from_the_lists_and_the_board_recomputes_everything(
     top.write_text("[1,1,1,1]\n[2,2,2,2]\n")  # the stored top tokens now say 4 and 4
     with pytest.raises(ValueError, match="not the ones its stored top tokens give"):
         board_block(doc, "p", {"sash": top}, reference)
+
+
+def _score_files(io: Path, docs: list[dict[str, object]]) -> None:
+    (io / "score").mkdir(parents=True)
+    for i, doc in enumerate(docs):
+        (io / "score" / f"{i}.json").write_text(json.dumps(doc))
+
+
+def _part(own: list[int]) -> dict[str, object]:
+    return {"own": {"run": "session-1", "reply": own}, "scoring": True, "ok": False,
+            "said": {"upstream_commit": "c", "adapter_commit": "a", "adapter_dirty": False},
+            "image": "i@sha256:" + "0" * 64, "workload": "w", "records": [],
+            "pin": {"sessions": []}, "prover_files": None}  # fmt: skip
+
+
+def test_a_stopped_system_run_keeps_the_prompts_that_finished(tmp_path: Path) -> None:
+    """A run cut at a deadline during `score`: request 0 is the system's own reply, requests
+    1 and 2 finished (one declined by the system), request 3 never did."""
+    io, out = tmp_path / "io", tmp_path / "out"
+    own = [5, 6, 7]
+    _score_files(io, [{"top": own}, {"top": [1, 2, 3]}, {"failed": "RangeConditionFailed"}])
+    (io / "score" / "1.topk").write_bytes(b"lists")
+    record: dict[str, object] = {"prompts": 4, "of": 4}
+    args = argparse.Namespace(system="sys")
+    ok = cmd._system_record(args, record, _part(own), io, out, 4, "stopped by signal 15")
+    assert ok is False
+    assert record["prompts"] == 2
+    assert record["stopped"] == "stopped by signal 15; 2 of 4 prompts kept"
+    assert (record["ids"], record["failed_prompts"]) == (["sys"], [1])
+    assert record["own_reply_check"] == {"prompt": 0, "session": "session-1", "positions": 3,
+                                         "agreeing": 3}  # fmt: skip
+    lines = (out / "top" / "sys.jsonl").read_text().splitlines()
+    assert [json.loads(x) for x in lines] == [[1, 2, 3], {"failed": "RangeConditionFailed"}]
+    assert (out / "raw" / "sys" / "0.topk").read_bytes() == b"lists"
+    calls: list[dict[str, object]] = record["calls"]  # type: ignore[assignment]
+    assert calls[-1]["exit_code"] == 124
+
+
+def test_nothing_is_stored_when_the_systems_own_reply_is_not_reproduced(tmp_path: Path) -> None:
+    io = tmp_path / "io"
+    _score_files(io, [{"top": [5, 6, 0]}, {"top": [1, 2, 3]}])
+    args = argparse.Namespace(system="sys")
+    with pytest.raises(IProofsError, match="2 of 3 positions agree"):
+        cmd._system_record(args, {}, {**_part([5, 6, 7]), "ok": True}, io, tmp_path / "out", 1,
+                           None)  # fmt: skip
+    assert not (tmp_path / "out").exists()
+
+
+def test_a_finished_system_run_is_a_pass_of_every_prompt(tmp_path: Path) -> None:
+    io, out = tmp_path / "io", tmp_path / "out"
+    _score_files(io, [{"top": [5]}, {"top": [1]}, {"top": [2]}])
+    part = {**_part([5]), "ok": True}
+    record: dict[str, object] = {"prompts": 2, "of": 2}
+    assert cmd._system_record(argparse.Namespace(system="sys"), record, part, io, out, 2, None)
+    assert (record["prompts"], "stopped" in record, record["ids"]) == (2, False, ["sys"])
