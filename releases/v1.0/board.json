@@ -510,7 +510,7 @@
                 }
               ],
               "reading": true,
-              "reason": "stated for batch members handed in together, not for members checked alone; the harness checks each of the row's 24 replies in its own call: q/2^124 + 2^-101",
+              "reason": "the bound is stated for a batch checked together, not for the row's 24 replies checked alone",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -546,7 +546,7 @@
                 }
               ],
               "reading": true,
-              "reason": "proved for the protocol, not the configuration the row runs; programs not stated to hide the weights; visible values fitted to the weights: \"Settings fitted to the weights\", \"That cp_commit's checks passed\", \"Masked sums of the weights, public for good\"",
+              "reason": "zero knowledge proved for the protocol only, not stated for its programs, and 3 visible values fitted to the weights",
               "state": "amber",
               "step": "amber_upper",
               "visible": [
@@ -680,7 +680,7 @@
               "id": "faithful_model",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not shown above T_upper = 48.00 leading tokens (p = 1); alpha 0.05, n = 360",
+              "reason": "not shown above the Q8_0 and Q4_K_M midpoint, 48.00 leading tokens",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -834,7 +834,7 @@
                 }
               ],
               "reading": true,
-              "reason": "no proof build recorded for VerifierAndGoals.AtTheName.sound_of_verify_at; stated reach: the protocol and the model's statement",
+              "reason": "no proof build of the named theorem is recorded yet",
               "state": "hollow",
               "step": null
             },
@@ -874,7 +874,7 @@
                 }
               ],
               "reading": true,
-              "reason": "read as resting on cryptographic assumptions alone; no quoted sentence says in words that no setup produced a secret",
+              "reason": "read as resting on cryptographic assumptions alone, not said in those words",
               "state": "green",
               "step": "green"
             }
@@ -1780,7 +1780,7 @@
                   "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/src/util.rs#L26"
                 }
               ],
-              "reason": "conjectured: 100 conjectured bits",
+              "reason": "the stated bound is conjectured, not proved",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -1806,7 +1806,7 @@
               "id": "faithful_model",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not shown above T_upper = 55.67 leading tokens (p = 0.8095); alpha 0.05, n = 15",
+              "reason": "not shown above the Q8_0 and Q4_K_M midpoint, 55.67 leading tokens",
               "state": "amber",
               "step": "amber_lower"
             },
