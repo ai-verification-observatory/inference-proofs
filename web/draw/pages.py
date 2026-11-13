@@ -22,7 +22,6 @@ from .chrome import (
     has,
     header,
     lead_figure,
-    level_words,
     link,
     page,
     pnav,
@@ -59,6 +58,7 @@ from .words import (
     CHECK_FAILED,
     CHECK_HELD,
     CHECK_NAME,
+    CHECKS_DESC,
     CONTROL_NAME,
     FIGURE_HEAD,
     FIGURE_NAME,
@@ -907,25 +907,31 @@ def build_checks():
     )
     gate = (
         "The six checks are empirical tests we run on every system, on the same request "
-        f"({request_words()}). A system passes on a model "
-        "only when all six checks hold there. The five petals of the glyph summarize what kind "
-        "of proof the system produces: four report what the publisher's documentation states at "
-        "the pinned commit, and Faithful model reports how closely the proved replies match the "
-        "original weights in our fidelity suite. A failed check pulls the corresponding petals "
-        "down to red, while a passing check never raises a petal above what the publisher states."
+        f"({request_words()}). A system passes on a model only when all six checks hold there."
+    )
+    # what the petals summarise, at the head of their rules (the red rules say which failed check
+    # makes each petal red)
+    summary = (
+        "The five petals of the glyph summarise what kind of proof the system produces: four "
+        "report what the publisher's documentation states at the pinned commit, and Faithful "
+        "model reports how closely the proved replies match the original weights in our fidelity "
+        "suite. A passing check never raises a petal above what the publisher states."
     )
     # why a petal is red or hollow: one address per cause, which a system page's State cell links
     petal_causes = "".join(
         f'<div id="cause-{e(k)}"><dt>{e(CAUSE_WORD[k])}</dt><dd>{e(v)}</dd></div>'
         for k, v in PETAL_CAUSE_RULE.items()
     )  # fmt: skip
-    causes = "".join(f'<div id="cause-{e(k.replace(" ", "-"))}"><dt>{e(k)}</dt><dd>{e(v)}</dd></div>'
+    # a cause's words are inline on a system page; here each is a sentence of its own
+    causes = "".join(f'<div id="cause-{e(k.replace(" ", "-"))}"><dt>{e(k)}</dt>'
+                     f"<dd>{e(v[0].upper() + v[1:])}.</dd></div>"
                      for k, v in CHECK_CAUSE_WORD.items())  # fmt: skip
     passed = (f'<p class="rd" id="passed">{e(gate)}</p>'
               f'<p class="rd" id="not-tested">{e(NOT_TESTED)}</p>')  # fmt: skip
     parts = (("glyph", "Glyph"), ("checks", "The six checks"), ("undecided", "Undecided"),
              ("figures", "Figures"), ("order", "Order"))  # fmt: skip
     key = (f'<div class="cwrap"><div class="gbig">{glyph}</div><div class="clist">{petals}'
+           f'<p class="rd hl">{e(summary)}</p>'
            f'<p class="rd hl">{e(HOLLOW_RULE)}</p><dl class="cs pcause">{petal_causes}</dl>'
            f'<p class="rd hl" id="reading">{e(READING_RULE)}</p>'
            "</div></div>")  # fmt: skip
@@ -943,8 +949,7 @@ def build_checks():
   </div>
 </main>
 {footer()}"""
-    return page("Checks", "The five petals of the glyph, the six checks, the figures, the order "
-                "rule.", body, "system checkspage", CHECKS_PAGE.strip("/"), "home")  # fmt: skip
+    return page("Checks", CHECKS_DESC, body, "system checkspage", CHECKS_PAGE.strip("/"), "home")
 
 
 def build_mandate():
@@ -965,10 +970,11 @@ def build_mandate():
         f'<li><a href="{e(m["url"])}">{e(m["name"])}</a></li>' for m in members)
         + "</ul></dd></div>") if members else ""  # fmt: skip
     lv = S.V["level"]
-    # the level and its state, linked to the level file (its digest in the title)
+    # the level, linked to the level file (its digest in the title); its state opens the line
+    state = f"Frozen {lv['frozen']}." if lv["frozen"] else "Draft."
     level = (f'<div id="{LEVEL_ANCHOR}"><dt><a href="{e(link(lv["path"]))}" '
-             f'title="{e(lv["digest"])}">{e(level_words())}</a></dt>'
-             f"<dd>{e(MANDATE_LEVEL)}</dd></div>")  # fmt: skip
+             f'title="{e(lv["digest"])}">{e(lv["name"])}</a></dt>'
+             f"<dd>{e(state)} {e(MANDATE_LEVEL)}</dd></div>")  # fmt: skip
     blocks = "".join(
         section(title.lower().replace(" ", "-"), title, '<dl class="cs">' + "".join(
             f"<div><dt>{label(text, name, path)}</dt><dd>{e(words)}</dd></div>"
@@ -989,7 +995,7 @@ def build_mandate():
   </div>
 </main>
 {footer()}"""
-    return page("Mandate", MANDATE_WHAT, body, "system mandatepage", MANDATE_PAGE.strip("/"),
+    return page("Mandate", MANDATE_BELIEF, body, "system mandatepage", MANDATE_PAGE.strip("/"),
                 "home")  # fmt: skip
 
 
@@ -998,12 +1004,12 @@ def build_404():
     systems with a page, each with its glyph and model; the header and footer link the rest."""
     models = "".join(
         f'<li><a href="/#{e(r["id"])}"><span class="lp">{e(params(r["parameters_total"]))}</span>'
-        f'<span class="ln">{e(r["model"])}</span></a></li>'
+        f'<span class="ln">{nobreak(r["model"])}</span></a></li>'
         for r in S.V["rungs"]
     )
     systems = "".join(
         f'<li><a href="{e(href(r))}">{glyph_svg(2, states(r))}'
-        f'<span class="ln">{e(name_of(r))}</span><span class="lp">{e(rung_of(r)["model"])}</span>'
+        f'<span class="ln">{e(name_of(r))}</span><span class="lp">{nobreak(rung_of(r)["model"])}</span>'
         "</a></li>"
         for r in S.ROWS
     )

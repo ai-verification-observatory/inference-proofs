@@ -16,10 +16,11 @@
   // Matching is local and forgiving: the start of a name, a word inside it, then the other words; a
   // typo (one letter added, missing, wrong or two swapped) is tried only for a word no entry has, and
   // only from its first letter on. Order: systems not run after every other match; within
-  // each part, a match in the name before one in the other words only, then the kind of entry, the
-  // page in view, how closely, then the name (models, petals, checks and figures in their own
-  // order, the ladder's for models). It never orders by how good a system is. Each group is listed
-  // once, where its first result falls, and the words that matched are marked.
+  // each part, a name that is the query, then one that starts with it, then a word of the name
+  // that does, then a match in the other words only; then the kind of entry, the page in view, how
+  // closely, then the name (models, petals, checks and figures in their own order, the ladder's
+  // for models). It never orders by how good a system is. Each group is listed once, where its
+  // best result falls, and the words that matched are marked.
   const sbox = $('.search');
   if (sbox) {
     const input = $('#q', sbox);
@@ -81,9 +82,9 @@
     };
     // kinds listed in their own order (the build writes them so: the models largest first), not A to Z
     const ordered = new Set(['model', 'petal', 'check', 'figure', 'learn']);
-    // every match: not run last; a match in the name before one in the other words only; then by group
-    // (systems first, the page in view first), within a group where the words matched (a name that starts
-    // with the query first), then how closely, then its own order or the name; then each group once
+    // every match: not run last; a name that is the query first, then one that starts with it, then a match
+    // inside the name, then one in the other words only; then by group (systems first, the page in view
+    // first), then how closely, then its own order or the name; then each group once, where its best falls
     const results = (q) => {
       const whole = norm(q);
       if (!whole) return entries.filter((x) => x.kind === 'system');
@@ -91,19 +92,22 @@
       // a word some entry has is matched as typed; only a word no entry has gets typo matching
       const typo = qs.map((w) => !entries.some((x) => wordScore(w, x.nw, false) < 9 || wordScore(w, x.tw, false) < 9));
       const here = (m) => m.x.url.split('#')[0] === location.pathname;
+      // how the name matched: 0 it is the query, 1 it starts with it, 2 a word of it does, 3 the other words only
+      const how = (m) => (m.x.n === whole ? 0 : m.r[0] + 1);
       const sorted = entries.map((x) => ({ x, r: rank(x, qs, whole, typo) })).filter((m) => m.r)
-        .sort((a, b) => (a.x.tier === 5) - (b.x.tier === 5) || (a.r[0] === 2) - (b.r[0] === 2)
-          || a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group) || a.r[0] - b.r[0] || a.r[1] - b.r[1]
+        .sort((a, b) => (a.x.tier === 5) - (b.x.tier === 5) || how(a) - how(b)
+          || a.x.tier - b.x.tier || here(b) - here(a) || a.x.group.localeCompare(b.x.group) || a.r[1] - b.r[1]
           || (ordered.has(a.x.kind) && a.x.kind === b.x.kind ? a.x.i - b.x.i : a.x.name.localeCompare(b.x.name)))
         .map((m) => m.x);
       const groups = [...new Set(sorted.map((x) => x.group))];
       return groups.flatMap((g) => sorted.filter((x) => x.group === g));
     };
-    // a name with the words that matched marked: the start of a word, as long as the query word
+    // a name with the words that matched marked: the start of a word (each part of a hyphened one), as long as
+    // the query word
     const marked = (text) => {
       const qs = norm(input.value).split(' ').filter(Boolean);
       const out = [];
-      text.split(/(\s+)/).forEach((w) => {
+      text.split(/([\s\-\u2010\u2011]+)/).forEach((w) => {
         const k = norm(w);
         const q = k && qs.find((x) => k.startsWith(x));
         const at = w.search(/[\p{L}\p{N}]/u);
@@ -373,10 +377,17 @@
     // a section whose top sits right under the strip (where its link or an anchor lands it) is the one in view
     const here = tops.findIndex((t) => t >= -8 && t <= 40);
     if (here >= 0) k = here;
-    // at the page's end, the last section, unless the one the address names (its link, an anchor) is in view
+    // the anchor the address names, inside a section (a paragraph, a rule): where it sits right under the strip,
+    // its section is the one in view
+    const aim = location.hash ? $(':target') : null;
+    const ti = aim ? secs.findIndex((s) => s && s.contains(aim)) : -1;
+    const tt = ti >= 0 ? aim.getBoundingClientRect().top - edge : Infinity;
+    if (ti >= 0 && aim !== secs[ti] && tt >= -8 && tt <= 40) k = ti;
+    // at the page's top, before any section has passed the line, the first
+    if (k < 0) k = secs.findIndex(Boolean);
+    // at the page's end, the last section, unless the one the address names (its link, an anchor in it) is in view
     if (innerHeight + y >= document.documentElement.scrollHeight - 4 && k >= 0) {
-      const t = secs.findIndex((s) => s && s.matches(':target'));
-      k = t >= 0 && tops[t] >= -8 && tops[t] < innerHeight - edge ? t : secs.length - 1;
+      k = ti >= 0 && tt >= -8 && tt < innerHeight - edge ? ti : secs.length - 1;
     }
     if (k !== inView) {
       inView = k;
@@ -387,7 +398,8 @@
   };
   // a strip's label brought into the strip a third of the way along, but always whole: its end in view, and its start
   // before that. The marked label is, and so is a label that takes keyboard focus (not a press: a label that moves
-  // between a press and its release loses the click)
+  // between a press and its release loses the click). The strip then starts on a label's edge, so no label shows
+  // cut at its start (under the page's title, once that has slid in)
   const strip = pnav && $('.ps', pnav);
   const whole = (a, behavior) => {
     if (!strip || strip.scrollWidth <= strip.clientWidth) return;
@@ -395,9 +407,22 @@
     // the page's title, once it has slid into the strip, holds the strip's start: a label is whole after it
     const t = $('.ps-t', strip);
     const lead = t ? Math.max(0, t.getBoundingClientRect().right - s.left) : 0;
-    const x = a.getBoundingClientRect().left - s.left + strip.scrollLeft - lead;
+    const at = (el) => el.getBoundingClientRect().left - s.left + strip.scrollLeft - lead;
+    const x = at(a);
     const aw = a.offsetWidth; const room = strip.clientWidth - lead;
-    strip.scrollTo({ left: aw >= room ? x : Math.min(x, Math.max(x + aw - room, x - room / 3)), behavior });
+    const left = aw >= room ? x : Math.min(x, Math.max(x + aw - room, x - room / 3));
+    // the first label edge at or after that: the label marked keeps its end in view, as it starts no later than x.
+    // Past the strip's end (where the browser would stop short of it) the last edge before the end that still
+    // shows the marked label whole
+    const edges = links.map(at);
+    const max = strip.scrollWidth - strip.clientWidth;
+    const after = edges.filter((v) => v >= left - 0.5);
+    let to = after.length ? Math.min(...after) : left;
+    if (to > max) {
+      const fit = edges.filter((v) => v <= max + 0.5 && v <= x + 0.5 && x + aw - v <= room + 1);
+      to = fit.length ? Math.max(...fit) : max;
+    }
+    strip.scrollTo({ left: to, behavior });
   };
   // a label in view that takes two lines (a phone's strip, words.css) is as wide as its longer line, so its bar ends
   // with its words
@@ -499,7 +524,9 @@
     const edge = pnav ? pnav.getBoundingClientRect().bottom : 0;
     const mid = edge + (innerHeight - edge) * 0.15;
     let k = -1;
-    if (wrap.top < mid && wrap.bottom > mid) lines.forEach((l, i) => { if (l.getBoundingClientRect().top < mid) k = i; });
+    // only while the key stays beside the rules (a narrow window sets it above them, out of sight once read past)
+    const beside = getComputedStyle(gb).position === 'sticky';
+    if (beside && wrap.top < mid && wrap.bottom > mid) lines.forEach((l, i) => { if (l.getBoundingClientRect().top < mid) k = i; });
     if (k !== read) { read = k; light(); }
   };
   if (gb && lines.length === petals.length) {
@@ -526,6 +553,9 @@
   }
   addEventListener('scroll', onScroll, { passive: true });
   addEventListener('resize', onScroll, { passive: true });
+  // the strip moves up or down with the top bar after the scroll that moved the bar has ended (a page opened
+  // at an anchor on a phone): the section in view is read again once it has settled
+  if (pnav) pnav.addEventListener('transitionend', (ev) => { if (ev.target === pnav && ev.propertyName === 'transform') onScroll(); });
   // a link to a section already in view scrolls nothing, but marks it
   addEventListener('hashchange', onScroll);
   // after the first frame, so a view transition into this page is not held up by layout read here
