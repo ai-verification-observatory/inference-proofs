@@ -333,6 +333,13 @@
     "schema": {
       "const": "teacher-forced-run/1"
     },
+    "server_args": {
+      "$comment": "engine, llama.cpp: the options this run added to llama-server (FI-14); absent when none",
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "sessions": {
       "$comment": "system: what the row's counted sessions ran (SE-3)",
       "items": {

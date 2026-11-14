@@ -142,6 +142,14 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
         "such run)",
     )
     p.add_argument(
+        "--server-arg",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help="with --teacher-forced in llama.cpp: an option added to llama-server (the image "
+        "allows --swa-full); recorded in the run",
+    )
+    p.add_argument(
         "--offset",
         type=int,
         default=0,

@@ -149,11 +149,13 @@ def greedy_reply(server: "LlamaServer", prompt: list[int], n: int) -> tuple[list
 class LlamaServer:
     """`llama-server` on one model file, bound to the container's loopback."""
 
-    def __init__(self, model: Path, slots: int, ctx_per_slot: int, log: Path) -> None:
+    def __init__(self, model: Path, slots: int, ctx_per_slot: int, log: Path,
+                 *extra: str) -> None:  # fmt: skip
         self.port = free_port()
         self.argv = [str(BIN / "llama-server"), "-m", str(model), "--host", "127.0.0.1",
                      "--port", str(self.port), "-c", str(ctx_per_slot * slots), "-np",
-                     str(slots), "-ngl", ALL_LAYERS, "--cache-ram", "0", "--no-webui"]  # fmt: skip
+                     str(slots), "-ngl", ALL_LAYERS, "--cache-ram", "0", "--no-webui",
+                     *extra]  # fmt: skip
         log.parent.mkdir(parents=True, exist_ok=True)
         self.log_path = log
         self.log = log.open("w")
@@ -382,6 +384,12 @@ def run_control(control: dict, reference: Path | None, job: dict, phases: list) 
 # ---------------------------------------------------------------- teacher-forced (FI-10 to FI-13)
 
 TF = "/io/fidelity/teacher-forced"
+# The llama-server options a teacher-forced pass may add, each documented in
+# tools/server/README.md at the pin. `--swa-full` ("use full-size SWA cache"): llama.cpp gives
+# some models (Llama 4 Maverick) a sliding-window attention cache that cannot drop only its
+# last token, so each one-token request restores an earlier state and evaluates several tokens;
+# with the full-size cache it evaluates one (README.md, the Maverick measurements).
+SERVER_ARGS = ("--swa-full",)
 
 
 def position_body(prefix: list[int], slot: int, k: int) -> dict[str, object]:
@@ -452,8 +460,12 @@ def teacher_forced(model: Path, ident: str, job: dict) -> dict[str, object]:
     if len(replies) != len(prompts):
         raise ToolFailed(f"{len(replies)} reference replies for {len(prompts)} prompts")
     k, slots = int(job["teacher_forced"].get("top_k", 0)), max(1, int(job.get("slots", 1)))
+    extra = [str(a) for a in job["teacher_forced"].get("server_args", [])]
+    if any(a not in SERVER_ARGS for a in extra):
+        raise ToolFailed(f"server_args {extra} are not all among {list(SERVER_ARGS)}")
     ctx = max(len(p) for p in prompts) + max(len(r) for r in replies) + CTX_MARGIN
-    server = make_server(model, slots, ctx, host(f"/io/fidelity/logs/server-tf-{ident}.log"))
+    server = make_server(model, slots, ctx, host(f"/io/fidelity/logs/server-tf-{ident}.log"),
+                         *extra)  # fmt: skip
 
     partial = host(f"{TF}/partial/{ident}.jsonl")  # each finished prompt, as it finishes
     partial.parent.mkdir(parents=True, exist_ok=True)
@@ -479,7 +491,7 @@ def teacher_forced(model: Path, ident: str, job: dict) -> dict[str, object]:
     write_replies(host(f"{TF}/top/{ident}.jsonl"), [top for _, top, _ in done])
     partial.unlink(missing_ok=True)  # the whole pass is stored
     return {"top": f"fidelity/teacher-forced/top/{ident}.jsonl", "top_k": k,
-            "positions_without_list": [n for _, _, n in done]}  # fmt: skip
+            "server_args": extra, "positions_without_list": [n for _, _, n in done]}  # fmt: skip
 
 
 def forced_control(control: dict, reference: Path | None, job: dict, phases: list) -> dict:

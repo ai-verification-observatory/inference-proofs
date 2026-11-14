@@ -97,7 +97,10 @@
 #                         position (default 256), IPROOFS_FIDELITY_NO_OTHER=1 skips the other model
 #   IPROOFS_TF_EACH       with IPROOFS_TF and the controls part: ID[,ID], one run per control in
 #                         that order, each with its own record (controls-<id>), so a job stopped at
-#                         its deadline keeps the controls that finished
+#                         its deadline keeps the controls that finished; ID@OFFSET+LIMIT runs one
+#                         shard of that control's prompts
+#   IPROOFS_TF_SERVER_ARGS  with IPROOFS_TF in llama.cpp: one llama-server option the image allows
+#                         (--swa-full), recorded in the run
 #   IPROOFS_TF_SYSTEM     with IPROOFS_TF: a row's own code through its adapter's score subcommand
 #                         (AD-7), in the scoring image the job was started from,
 #                         IPROOFS_TF_IMAGE=<repository>@sha256:<digest>. IPROOFS_TF_BEFORE lists the
@@ -838,6 +841,7 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
     [ -n "${IPROOFS_TF_ONLY:-}" ] && tf_args+=(--only "$IPROOFS_TF_ONLY")
     [ -n "${IPROOFS_TF_LIMIT:-}" ] && tf_args+=(--limit "$IPROOFS_TF_LIMIT")
     [ -n "${IPROOFS_TF_OFFSET:-}" ] && tf_args+=(--offset "$IPROOFS_TF_OFFSET")
+    [ -n "${IPROOFS_TF_SERVER_ARGS:-}" ] && tf_args+=(--server-arg="$IPROOFS_TF_SERVER_ARGS")
     [ -n "${IPROOFS_TF_NAME:-}" ] && tf_args+=(--name "$IPROOFS_TF_NAME")
   fi
   if [ -n "${IPROOFS_TF_SYSTEM:-}" ]; then
@@ -874,16 +878,19 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
       # one teacher-forced run per control, in the order given, each with its own record, so a
       # job stopped at its deadline keeps the controls that finished
       rc=0
-      for id in ${IPROOFS_TF_EACH//,/ }; do
-        log "fidelity run $RUNG --part controls --teacher-forced --only $id on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+      for item in ${IPROOFS_TF_EACH//,/ }; do
+        # ID, or ID@OFFSET+LIMIT for one shard of that control's prompts
+        id=${item%%@*}; lo=${IPROOFS_TF_OFFSET:-}; lim=${IPROOFS_TF_LIMIT:-}
+        case "$item" in *@*+*) lo=${item#*@}; lim=${lo#*+}; lo=${lo%%+*} ;; esac
+        log "fidelity run $RUNG --part controls --teacher-forced --only $id${lo:+ from prompt $lo}${lim:+, $lim prompts} on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
         env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
           --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
           --results "$DEV" --work "$WORK/fidelity-io" --part controls \
           --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src" \
           --teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}" --only "$id" \
-          --name "controls-$id${IPROOFS_TF_OFFSET:+-$IPROOFS_TF_OFFSET}" \
-          ${IPROOFS_TF_OFFSET:+--offset "$IPROOFS_TF_OFFSET"} \
-          ${IPROOFS_TF_LIMIT:+--limit "$IPROOFS_TF_LIMIT"} || rc=$?
+          --name "${IPROOFS_TF_NAME:-controls}-$id${lo:+-$lo}" \
+          ${lo:+--offset "$lo"} ${lim:+--limit "$lim"} \
+          ${IPROOFS_TF_SERVER_ARGS:+--server-arg="$IPROOFS_TF_SERVER_ARGS"} || rc=$?
         log "fidelity run ($id) exit $rc"
         # sent at once, so a job cancelled later keeps this control
         if [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ] && [ -n "${HF_TOKEN:-}" ]; then

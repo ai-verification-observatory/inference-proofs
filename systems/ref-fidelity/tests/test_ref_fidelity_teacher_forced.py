@@ -152,3 +152,32 @@ def test_a_list_that_does_not_hold_the_generated_token_fails_the_control(
     # equal values: the lower id first, and either may be the generated token
     tie = [{"id": 5, "logprob": -0.7}, {"id": 3, "logprob": -0.7}]
     assert adapter.listed_row(tie, 5, 2, "x") == ([3, 5], [-0.7, -0.7])
+
+
+def test_a_documented_server_option_is_passed_and_recorded(
+    adapter: ModuleType, tmp_path: Path
+) -> None:
+    """`server_args` reach llama-server's command line and the status; an option the image does
+    not list fails the pass before any server starts."""
+    io = tmp_path / "io"
+    fake_tools(adapter, fail={"drop_blocks.py"})
+    started: list[tuple[str, ...]] = []
+
+    class WithArgs(Forced):
+        def __init__(self, model: Path, slots: int, ctx: int, log: Path, *extra: str) -> None:
+            super().__init__(model, slots, ctx, log)
+            started.append(extra)
+
+    setattr(adapter, "make_server", WithArgs)  # noqa: B010
+    doc = job(io, top_k=0)
+    doc["controls"] = []
+    doc["teacher_forced"]["server_args"] = ["--swa-full"]  # type: ignore[index]
+    adapter.prove(doc)
+    assert started == [("--swa-full",)]
+    status = json.loads((io / "fidelity/status.json").read_text())
+    assert status["reference"]["server_args"] == ["--swa-full"]
+    assert "--swa-full" in adapter.SERVER_ARGS
+    doc["teacher_forced"]["server_args"] = ["--ctx-size", "1"]  # type: ignore[index]
+    with pytest.raises(SystemExit, match="are not all among"):
+        adapter.prove(doc)
+    assert len(started) == 1

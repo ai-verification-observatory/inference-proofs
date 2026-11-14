@@ -510,8 +510,11 @@ def run(args: argparse.Namespace) -> int:  # noqa: PLR0915 (one record, built in
     common = {"subcommand": "prove", "rung": rung.id, "model_dir": "/models",
               "dtype": rung.reference.dtype, "prompts_file": "/io/prompts.jsonl",
               "output_tokens": level.request.output_tokens, "slots": args.slots,
-              "teacher_forced": {"replies_file": "/io/reference.jsonl",
-                                 "top_k": args.top_k}}  # fmt: skip
+              "teacher_forced": {"replies_file": "/io/reference.jsonl", "top_k": args.top_k,
+                                 **({"server_args": list(args.server_arg)}
+                                    if args.server_arg else {})}}  # fmt: skip
+    if args.server_arg:
+        record["server_args"] = list(args.server_arg)
     calls, not_run, reference_record = fid._plan(args, root, registry, rung)
     only = {x for x in args.only.split(",") if x} if args.only else None
     calls = _only([c for c in calls if c[0] != "file"], not_run, only)
