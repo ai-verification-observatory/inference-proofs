@@ -24,9 +24,13 @@ engine:
 # The Llama 4 Maverick teacher-forced controls of 2026-11-13 ran the build below: the one above
 # (sha256:b91682f5..., which the 8B passes ran) with the entrypoint of b0cafa57 over it
 # (Dockerfile.adapter, run 43515577499), which writes each prompt of a pass as it finishes.
+# Maverick's Q8_0 and Q4_K_M teacher-forced passes of 2026-11-13 ran sha256:5a65ddf7... (the
+# entrypoint of b0cafa57). The build below adds the entrypoint of 973a1015 over the same base
+# (Dockerfile.adapter, run 43632507695): a teacher-forced pass may start llama-server with
+# --swa-full, which the Q3_K_S and Q2_K passes use.
 image:
   repository: "ghcr.io/ai-verification-observatory/ref-fidelity"
-  digest: "sha256:5a65ddf7616f0e25dfb9d25fbfedb05e9177d2868054c91ad3cfd69d042c033b"
+  digest: "sha256:fe1c5421e0943b4793be8a00ed47251c3c08a4da34ffa98e8b3f832cea0e6c7c"
 workloads:
 - id: l1-maverick-p512-o512
   precision_used: BF16
