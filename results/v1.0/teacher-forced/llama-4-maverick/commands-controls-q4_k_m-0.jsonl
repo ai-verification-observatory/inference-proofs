@@ -1,0 +1,2 @@
+{"argv": ["/opt/llama.cpp/build/bin/llama-quantize", "/tmp/iproofs/reference-gguf/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00001-of-00018.gguf", "/tmp/iproofs/fidelity-io/io/work/q4_k_m.gguf", "Q4_K_M"], "cwd": "/io", "exit_code": 0, "started_mono_ns": 156683755336408}
+{"argv": ["/opt/llama.cpp/build/bin/llama-server", "-m", "/tmp/iproofs/fidelity-io/io/work/q4_k_m.gguf", "--host", "127.0.0.1", "--port", "57783", "-c", "17408", "-np", "16", "-ngl", "999", "--cache-ram", "0", "--no-webui"], "cwd": "/io", "exit_code": 0, "started_mono_ns": 157450167368218}

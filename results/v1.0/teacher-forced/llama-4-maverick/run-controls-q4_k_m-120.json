@@ -1,0 +1,148 @@
+{
+  "adapter": {
+    "adapter_commit": "b0cafa57d641ee065d3401e37df7576b883d8d0a",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "info",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.11608257004991174,
+      "stderr_tail": [],
+      "step": "info"
+    },
+    {
+      "call": "controls",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "q4_k_m",
+          "seconds": 10478.604166278965
+        }
+      ],
+      "seconds": 10478.759078382049,
+      "stderr_tail": [],
+      "step": "prove"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "ghcr.io/ai-verification-observatory/ref-fidelity@sha256:5a65ddf7616f0e25dfb9d25fbfedb05e9177d2868054c91ad3cfd69d042c033b",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "failed_prompts": [],
+  "gpus": [
+    0,
+    1,
+    2,
+    3
+  ],
+  "harness": {
+    "git_commit": "13a9b7ba66055d04e8987855b3981cb23fa837f6",
+    "git_dirty": false
+  },
+  "ids": [
+    "q4_k_m"
+  ],
+  "kind": "engine",
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "lists": {
+    "q4_k_m": {
+      "digest": "sha256:a30b865cd2dea3d5ccb1cbaeb09dfb4b5c16264cc8046d28ddafecc63ef2c0d7",
+      "files": 120
+    }
+  },
+  "model_files": {
+    "files": {
+      ".cache/huggingface/.gitignore": "sha256:684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+      ".cache/huggingface/CACHEDIR.TAG": "sha256:f6572428f6d5e1575e73a1502895a8731f10757dfbb634909c6e154b849af91d",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00001-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00001-of-00018.gguf.metadata": "sha256:6af5bc29259656a51b07d453110e6742a0521ebaa1429c56d90f57ffc27a62ac",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00002-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00002-of-00018.gguf.metadata": "sha256:b1fc680c60f288027708d10a4fa6d05d170459b6c9e19be94edf05f1a44a45f7",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00003-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00003-of-00018.gguf.metadata": "sha256:2d6d8de57f234fa6c12b13f8437ff7f559bd19ca948f99fe1169ff9281f9dfb4",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00004-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00004-of-00018.gguf.metadata": "sha256:9b1ab7e70891065627745eee250829dd85ca21c682c70254ddc3daef971675f8",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00005-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00005-of-00018.gguf.metadata": "sha256:bb78a073b8507e7d8ad4fb3761bbf7e47a086e3232b43793a86d56d8ddf5ba71",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00006-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00006-of-00018.gguf.metadata": "sha256:76df738dbd5fafdc4e16d48577514692ca3e604d0d6165f3455d6b8cd223b820",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00007-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00007-of-00018.gguf.metadata": "sha256:5383170d5d44fb508573db32d1fb06bb7d10d90e1ed211d70127fb58d6d04bef",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00008-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00008-of-00018.gguf.metadata": "sha256:19fa33be5fa8519ae0230d692416e396b1304dcf8c42a3e4ee2e93de17f9ba50",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00009-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00009-of-00018.gguf.metadata": "sha256:077739515f26e30f5098b3a66e0febdf9757d3ab47217134ec30080ed6897941",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00010-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00010-of-00018.gguf.metadata": "sha256:513a06bd3381c3e4ceaa934d27398bd408028db6da24f0c53c6ecbf4106a565d",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00011-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00011-of-00018.gguf.metadata": "sha256:6c84668159021f9c9fecb3eef25c6d845020442d349e7fccd87a088de26b703a",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00012-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00012-of-00018.gguf.metadata": "sha256:d768290536cd5441f0a03995eda7d921ae1beb03ead6e42acada2118ff76f8d3",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00013-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00013-of-00018.gguf.metadata": "sha256:0b6896ff7675b8c383faf19ff3d13ac232636d2fe7cb26ee8d23bbd557d2383c",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00014-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00014-of-00018.gguf.metadata": "sha256:f0883ab528469cc4aada0cf624d70d4e3f1e5cecd776c04a343078fdcf4af28c",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00015-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00015-of-00018.gguf.metadata": "sha256:3d64dd793177bffb2e12d59c0df58c295de0d6e52c15eac0e4b5148bc1184306",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00016-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00016-of-00018.gguf.metadata": "sha256:1c2d6fbea60c9a4c30029612fb030b3ba65db44c6db6f6ff2352a72f7381d9b0",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00017-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00017-of-00018.gguf.metadata": "sha256:220974683ccfc7b38b4effcf0bee179ccf56c18247b94b1e8eb44321450d73d3",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00018-of-00018.gguf.lock": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      ".cache/huggingface/download/BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00018-of-00018.gguf.metadata": "sha256:3c6342c641f9b0bacb01bae697f52f6adbdbf0c4f5b33b7eea221af076db5011",
+      ".cache/huggingface/trees/41032e5471dd6ea5b349062d978626215d6c5bba.json": "sha256:0901868e8b9cab7be0ab127dd2da1d674459a4a5693810a3672975cf9ccca3ca",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00001-of-00018.gguf": "sha256:ed6deabf2d896f733157b77507a94b488b6a7c74b1c3a9c03fa33d4f7f11223b",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00002-of-00018.gguf": "sha256:c3110010fb2ec2739dd1de27183e64f60f4f252275122b0e6aaeca7b088f54fa",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00003-of-00018.gguf": "sha256:bc3fcb851cb191133c357030aaa58b91c4dcbdeee53c6d2d957b7524367c1df9",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00004-of-00018.gguf": "sha256:77bc9634f9e547b763a1dcae424163edf9f197cb4a0c424064ee3b5b131acba3",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00005-of-00018.gguf": "sha256:7960a0f43ac664ac8e2e2ca67a91190c8edf60032f617e38a6b19e855ea03f62",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00006-of-00018.gguf": "sha256:13b1e40154895979a30c2ca28f44a40a946667fb30f31a4d88fdbb4f2e98d5a0",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00007-of-00018.gguf": "sha256:d27f62dfcc2af38c430aaab8b8dbfc27d13de9f02c91ac4694a5a07d2b9b53e9",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00008-of-00018.gguf": "sha256:05e168b65bd75dac39941349bb7aded581a926e9904bbfc60fd5bef2684649f9",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00009-of-00018.gguf": "sha256:6a51a6db7957cd9e5ffebfe8c579296ec8a6e83b517f6b64a1a0a9e33bf3b97a",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00010-of-00018.gguf": "sha256:0c77a1a6a4a8fab46fc1ce16b86e6dfd4feb16843a313bd3c24220d5b90b9863",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00011-of-00018.gguf": "sha256:3e5cca151d8dbeca92a90410a460d9c063d86c9e358661faee0e7346bab3fd5e",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00012-of-00018.gguf": "sha256:78875927ab39090918819661c3b72af419701ad444e61e4418ba57948039e96e",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00013-of-00018.gguf": "sha256:d801bd313446694487aa9abdcda925e7341111ddbcdcf628ea3c2bc644fb0442",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00014-of-00018.gguf": "sha256:d283438bfe01cce20db677b9227d85e1e41f79a6113ecf65da8cdf9ed4b05b2c",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00015-of-00018.gguf": "sha256:3e57e52ac7b348ef13369760836ba570a42acb4e86052f9232089e4dbc1e35c0",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00016-of-00018.gguf": "sha256:2bc41417430249d157028345d016d2386d1e761aad6885128c70f9bbecf58506",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00017-of-00018.gguf": "sha256:e9d16895bcbc96ee4551f06a74f052a35db2032ed66ee438a5721314e00f5280",
+      "BF16/Llama-4-Maverick-17B-128E-Instruct-BF16-00018-of-00018.gguf": "sha256:e02f26173164408cbaab89ad05be2f5609e8c384200ebf973255207ecc960b09"
+    },
+    "source": {
+      "hub": "huggingface",
+      "repo": "unsloth/Llama-4-Maverick-17B-128E-Instruct-GGUF",
+      "revision": "41032e5471dd6ea5b349062d978626215d6c5bba"
+    }
+  },
+  "name": "controls-q4_k_m-120",
+  "not_run": {
+    "drop-every-4th-block": "not in this part: the vLLM run of the rung (FI-9)",
+    "q2_k": "not run: left out of this job (--only)",
+    "q3_k_s": "not run: left out of this job (--only)",
+    "q8_0": "not run: left out of this job (--only)",
+    "reference-2": "not in this part: the vLLM run of the rung (FI-9)",
+    "smaller-model": "not in this part: the vLLM run of the rung (FI-9)"
+  },
+  "of": 360,
+  "offset": 120,
+  "prompts": 120,
+  "prompts_digest": "sha256:9c97c72fa4e091141d3092953641db1dcfc4e79e23cf9b493864e29d70e829ec",
+  "reference": {
+    "digest": "sha256:3996895f702b9eb8572112935b503e68a827a88820812c70e3c85ca78e81d58f",
+    "replies": "results/v1.0/fidelity/llama-4-maverick/reference.jsonl"
+  },
+  "release": "v1.0",
+  "rung": "llama-4-maverick",
+  "schema": "teacher-forced-run/1",
+  "slots": 16,
+  "top_k": 256
+}

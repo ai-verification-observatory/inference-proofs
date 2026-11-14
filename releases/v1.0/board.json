@@ -1290,35 +1290,51 @@
             "status": "ok"
           },
           {
-            "cause": "not run: no pass of it is stored; run in llama.cpp by the controls part (fidelity-run-controls.json), built from the 16-bit GGUF (RFC-0018 FI-9)",
+            "cause": null,
             "failed": [],
             "id": "q8_0",
             "kind": "honest",
-            "kl": null,
-            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
-            "mean": null,
-            "mean_not_failed": null,
-            "median": null,
-            "n": 0,
-            "run": null,
-            "status": "failed"
+            "kl": {
+              "n": 360,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 184320,
+              "reference_rest_mass": 0.00044504922483715,
+              "source": "results/v1.0/teacher-forced/llama-4-maverick/kl.json#/engines/q8_0",
+              "unit": "nat/token",
+              "value": 0.026689666207296278
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 492.3277777777778,
+            "mean_not_failed": 492.3277777777778,
+            "median": 491.5,
+            "n": 360,
+            "run": "results/v1.0/teacher-forced/llama-4-maverick/run-controls-q8_0-0.json",
+            "status": "ok"
           },
           {
-            "cause": "not run: its pass was stopped by the job's deadline 2,706 s into the controls call (the build, the load and part of the pass at 16 slots) and stored nothing; our run's failure, not a result of the control (results/v1.0/teacher-forced/llama-4-maverick/not-stored.json)",
+            "cause": null,
             "failed": [],
             "id": "q4_k_m",
             "kind": "honest",
-            "kl": null,
-            "kl_note": "not measured: no lists of the most probable tokens are stored for it",
-            "mean": null,
-            "mean_not_failed": null,
-            "median": null,
-            "n": 0,
-            "run": null,
-            "status": "failed"
+            "kl": {
+              "n": 360,
+              "note": "computed by the engine on the control's file, on the reference reply",
+              "positions": 184320,
+              "reference_rest_mass": 0.0008877681343344288,
+              "source": "results/v1.0/teacher-forced/llama-4-maverick/kl.json#/engines/q4_k_m",
+              "unit": "nat/token",
+              "value": 0.2022447047615463
+            },
+            "kl_note": "computed by the engine on the control's file, on the reference reply",
+            "mean": 438.0027777777778,
+            "mean_not_failed": 438.0027777777778,
+            "median": 431.0,
+            "n": 360,
+            "run": "results/v1.0/teacher-forced/llama-4-maverick/run-controls-q4_k_m-0.json",
+            "status": "ok"
           },
           {
-            "cause": "not run: no pass of it is stored; run in llama.cpp by the controls part (fidelity-run-controls.json), built from the 16-bit GGUF (RFC-0018 FI-9)",
+            "cause": "not run: left out of this job (--only)",
             "failed": [],
             "id": "q3_k_s",
             "kind": "damaged",
@@ -1332,7 +1348,7 @@
             "status": "failed"
           },
           {
-            "cause": "not run: no pass of it is stored; run in llama.cpp by the controls part (fidelity-run-controls.json), built from the 16-bit GGUF (RFC-0018 FI-9)",
+            "cause": "not run: left out of this job (--only)",
             "failed": [],
             "id": "q2_k",
             "kind": "damaged",
@@ -1432,6 +1448,38 @@
                 "n": 360,
                 "p": 4.9999750001249995e-06,
                 "seed": "0xffaa4f222decc1f9"
+              },
+              {
+                "a": "flashprove",
+                "b": "q8_0",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 1.0,
+                "seed": "0xc544a7c56264333d"
+              },
+              {
+                "a": "q8_0",
+                "b": "flashprove",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 4.9999750001249995e-06,
+                "seed": "0x0df8e96f8c294395"
+              },
+              {
+                "a": "flashprove",
+                "b": "q4_k_m",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 4.9999750001249995e-06,
+                "seed": "0x2e6a6edcbd52ed68"
+              },
+              {
+                "a": "q4_k_m",
+                "b": "flashprove",
+                "method": "monte-carlo",
+                "n": 360,
+                "p": 1.0,
+                "seed": "0xd826dd3439861a65"
               },
               {
                 "a": "flashprove",

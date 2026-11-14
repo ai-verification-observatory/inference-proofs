@@ -59,6 +59,8 @@ Outputs: `/io/fidelity/teacher-forced/top/<id>.jsonl` and `raw/<id>/<prompt>.top
 
 Measured on Llama 3.1 8B (1 H200, one slot, `results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json`, n = 1 run): a pass over the 15 prompts (7,680 positions, each with its list of 256) took 73 to 104 s with the control's build and load, about 9 ms per position for the reference; 1 position of 61,440 came back without a list (in the `drop_blocks` control). The reference's own pass gives its stored reply at every position, as does its rerun: at one slot the engine repeats itself.
 
+Measured on Llama 4 Maverick (4 H200, 16 slots, the Q8_0 and Q4_K_M controls, each as three runs of 120 prompts, `results/v1.0/teacher-forced/llama-4-maverick/run-controls-*.json`): the pass ran at 6.7 positions per second, 2.5 s per request, so 61,440 positions took about 2 h 35 min per run after a build and load of 9 to 20 min. The server's log shows 6 prompt tokens evaluated per request, not 1, and no graph reuse; its context checkpoints (`--ctx-checkpoints`, 32 per slot by default) are the likely cause, and a pass with them off has not been run. No position came back without a list. An earlier run of the whole Q4_K_M pass in one job was stopped at its deadline and stored nothing (`not-stored.json`).
+
 ## Resources
 
 - Llama 3.1 8B: 16 GB at 16 bits, one H200; a few minutes per control for 15 prompts.
