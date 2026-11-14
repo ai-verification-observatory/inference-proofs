@@ -5,13 +5,15 @@ The adapter runs `stub_upstream.py <argv...>` when IPROOFS_SASH_EXEC names this 
 the few files the adapter reads next, shaped as upstream's source says they are; nothing here
 is a captured upstream output. IPROOFS_SASH_STUB_GRID picks the `boundary-grid` outcome
 (`accept`, `reject_segment`, `reject_chain`, `panic`), IPROOFS_SASH_STUB_TOK the ids every
-layer-0 statement states.
+layer-0 statement states. A head extraction over given ids (`--head --ids`) writes head dumps
+of a vocabulary of 8: `head_dump` says which token each row emits.
 """
 
 import hashlib
 import json
 import os
 import re
+import struct
 import sys
 from pathlib import Path
 
@@ -94,8 +96,64 @@ def grid(outcome: str) -> int:
     return 1 if bad or not chain else 0
 
 
+VOCAB = 8
+# bf16 patterns of the three logits a stub row holds, and extract.py's order key of each
+# (`sign ? 0x7FFF - mag : 0x8000 + mag`): 2.0 = 0x4000, 1.0 = 0x3F80, -1.0 = 0xBF80
+KEY_TOP, KEY_SECOND, KEY_REST = 0x8000 + 0x4000, 0x8000 + 0x3F80, 0x7FFF - 0x3F80
+
+
+def head_dump(argv: list[str]) -> int:
+    """The head dumps of `extract --head --ids`: for each block, `tok_head.i32`, `key_head.u16`
+    (rows x 8) and the manifest's count of rows that emit the next id. Row t of block b emits
+    the id after it, except at the reply positions IPROOFS_SASH_STUB_MISS lists (0-based, a
+    JSON list), where it emits that id plus 1 modulo 8; the next id modulo 8 holds the second
+    logit there. The request IPROOFS_SASH_STUB_REFUSE names (by its place in the call order) is
+    refused the way extract.py's assertions refuse."""
+    blob = host(opt(argv, "--ids")).read_bytes()
+    n = int(opt(argv, "--tokens"))
+    ids = list(struct.unpack(f"<{n}q", blob[-8 * n :]))
+    s = int(opt(argv, "--chunk"))
+    calls = host("/io/stub-head-calls")
+    calls.write_text(str(int(calls.read_text()) + 1 if calls.is_file() else 1))
+    if os.environ.get("IPROOFS_SASH_STUB_REFUSE") == str(int(calls.read_text()) - 1):
+        print("Traceback (most recent call last):", file=sys.stderr)
+        print("AssertionError: block 1 layer 16: the attention output leaves the no-wrap "
+              "window (stub)", file=sys.stderr)  # fmt: skip
+        return 1
+    if os.environ.get("IPROOFS_SASH_STUB_REFUSE") == "crash":
+        print("RuntimeError: CUDA out of memory (stub)", file=sys.stderr)
+        return 1
+    miss = set(json.loads(os.environ.get("IPROOFS_SASH_STUB_MISS", "[]")))
+    prompt = n - s
+    for b in map(int, opt(argv, "--blocks").split(",")):
+        dump = host(f"{opt(argv, '--out')}_B{b}")
+        dump.mkdir(parents=True)
+        tok, keys = [], []
+        for t in range(s):
+            nxt = ids[b * s + t + 1] % VOCAB if b * s + t + 1 < n else 0
+            top = (nxt + 1) % VOCAB if b * s + t + 1 - prompt in miss else nxt
+            tok.append(top)
+            row = [KEY_REST] * VOCAB
+            row[top] = KEY_TOP
+            row[(top + 1) % VOCAB if top == nxt else nxt] = KEY_SECOND
+            keys += row
+        (dump / "tok_head.i32").write_bytes(struct.pack(f"<{s}i", *tok))
+        (dump / "key_head.u16").write_bytes(struct.pack(f"<{s * VOCAB}H", *keys))
+        emits = sum(tok[t] == ids[b * s + t + 1] for t in range(s - 1) if b * s + t + 1 < n)
+        (dump / "manifest.json").write_text(json.dumps({"head": {"emits_next_token": emits}}))
+    return 0
+
+
 def harness(argv: list[str]) -> int:
     mod = argv[argv.index("-m") + 1] if "-m" in argv else ""
+    if (
+        mod == "harness.witness.extract"
+        and "--head" in argv
+        and "--ids" in argv
+        and host(opt(argv, "--ids")).name == "ids.npy"
+        and "score-" in opt(argv, "--ids")
+    ):
+        return head_dump(argv)
     if mod == "harness.witness.gen_ids":  # which proofs were released before this request began
         seen = (
             sorted(p.name for p in host("/io/proofs").iterdir())

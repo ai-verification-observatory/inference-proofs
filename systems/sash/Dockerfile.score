@@ -1,0 +1,16 @@
+# The scoring image of RFC-0018 FI-14, for the adapter's `score` subcommand (AD-7): the image the
+# row's counted sessions ran, by digest (system.yaml `image`), with this checkout's adapter files
+# in place of the ones it holds. Upstream's source, toolchain and built programs are the
+# sessions' own bytes; no layer below is rebuilt, and /opt/iproofs/inputs.json stays the base's.
+# system.yaml's pin and the Level 1 entries are unchanged: sessions run the base image.
+# Build with the systems/ directory as context (the images workflow, dockerfile Dockerfile.score):
+#   docker build --build-arg IPROOFS_ADAPTER_COMMIT=$(git rev-parse HEAD) \
+#     --build-arg IPROOFS_ADAPTER_DIRTY=$(test -z "$(git status --porcelain)" && echo false || echo true) \
+#     -f systems/sash/Dockerfile.score systems
+FROM ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5
+COPY sash/entrypoint sash/weight_change.py /opt/sash/
+ARG IPROOFS_ADAPTER_COMMIT=unknown
+ARG IPROOFS_ADAPTER_DIRTY=true
+ENV IPROOFS_ADAPTER_COMMIT=${IPROOFS_ADAPTER_COMMIT} IPROOFS_ADAPTER_DIRTY=${IPROOFS_ADAPTER_DIRTY}
+USER 10001
+ENTRYPOINT ["python3", "/opt/sash/entrypoint"]

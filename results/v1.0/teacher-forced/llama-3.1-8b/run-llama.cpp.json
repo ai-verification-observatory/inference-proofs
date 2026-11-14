@@ -1,0 +1,151 @@
+{
+  "adapter": {
+    "adapter_commit": "fb54cdd6e6b555238d2e4833cbf2b4fe36238295",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "info",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.11633968201931566,
+      "stderr_tail": [],
+      "step": "info"
+    },
+    {
+      "call": "reference",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "convert",
+          "seconds": 56.31575602700468
+        },
+        {
+          "name": "reference",
+          "seconds": 73.52952586498577
+        },
+        {
+          "name": "reference_2",
+          "seconds": 73.37024514202494
+        },
+        {
+          "name": "q8_0",
+          "seconds": 84.4652152400231
+        },
+        {
+          "name": "q4_k_m",
+          "seconds": 104.0682167620107
+        },
+        {
+          "name": "q3_k_s",
+          "seconds": 79.98307169700274
+        },
+        {
+          "name": "q2_k",
+          "seconds": 90.88499056501314
+        },
+        {
+          "name": "drop_every_4th_block",
+          "seconds": 83.43224370499956
+        }
+      ],
+      "seconds": 646.2005962480034,
+      "stderr_tail": [],
+      "step": "prove"
+    },
+    {
+      "call": "other_model",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "smaller_model",
+          "seconds": 56.54661558600492
+        }
+      ],
+      "seconds": 56.67296319300658,
+      "stderr_tail": [],
+      "step": "prove"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "ghcr.io/ai-verification-observatory/ref-fidelity@sha256:b91682f5807e1765ad58d6cbe7ed517cf2c9b243be1daef5fc866aae1b889113",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "failed_prompts": [],
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "d5b1dc636192c476363120e162974a2416deab94",
+    "git_dirty": false
+  },
+  "ids": [
+    "drop-every-4th-block",
+    "q2_k",
+    "q3_k_s",
+    "q4_k_m",
+    "q8_0",
+    "reference-2",
+    "reference",
+    "smaller-model"
+  ],
+  "kind": "engine",
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "lists": {
+    "drop-every-4th-block": {
+      "digest": "sha256:f5bd71d50219266df828fd0255c5ce5665796e8ecc2408e8fff76d338d619381",
+      "files": 15
+    },
+    "q2_k": {
+      "digest": "sha256:1501eea29b966af9c08a36b6fafc31af659ec1bfb6c334f565cc1d1c0ffef85d",
+      "files": 15
+    },
+    "q3_k_s": {
+      "digest": "sha256:7aacfd95a9a35267bd3da98f0ecc1b984d3e8917eb89e37dd12badcc3d344e65",
+      "files": 15
+    },
+    "q4_k_m": {
+      "digest": "sha256:53ff830123821fdc4dedd8f6ac72068e126b9d5fa7aed4c90b7776e38df2b4cf",
+      "files": 15
+    },
+    "q8_0": {
+      "digest": "sha256:d39a76ab5f5101d025e24002bb80732f17eaa46ed97355adb84cf7848829d058",
+      "files": 15
+    },
+    "reference": {
+      "digest": "sha256:8a466366ae9ad9092c990f218c22788425c2ef7c6fd11c5b6a66507af7e84522",
+      "files": 15
+    },
+    "reference-2": {
+      "digest": "sha256:8a466366ae9ad9092c990f218c22788425c2ef7c6fd11c5b6a66507af7e84522",
+      "files": 15
+    },
+    "smaller-model": {
+      "digest": "sha256:6a4eed366fc2129f41e632a8eb2755091437b50788c45d9039ca7fefefdb1783",
+      "files": 15
+    }
+  },
+  "model_files": {
+    "checked": "against the serving record",
+    "serving": "llama-3.1-8b-instruct-bf16"
+  },
+  "name": "llama.cpp",
+  "not_run": {},
+  "of": 15,
+  "prompts": 15,
+  "prompts_digest": "sha256:8641efd822be1643a7ea9bccaacc58d2eaa426fb8e22171f0c931ecdd620f61a",
+  "reference": {
+    "digest": "sha256:44d3dc247e8de593a2cb12bd8118df58aa6f52fab2a43945066c8331b3cedcd4",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "release": "v1.0",
+  "rung": "llama-3.1-8b",
+  "schema": "teacher-forced-run/1",
+  "slots": 1,
+  "top_k": 256
+}

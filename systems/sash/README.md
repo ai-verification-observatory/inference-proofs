@@ -201,6 +201,33 @@ SASH quantizes the BF16 checkpoint at load: per output channel s = bf16_ceil(max
 
 [`weight_change.py`](weight_change.py) reads one output channel of a BF16 tensor from a safetensors file and finds the change of one weight by the fewest BF16 steps that changes its int8 code while the channel's scale stays the same, so no other code moves. `tests/test_sash_weight_change.py` checks it against hand-computed cases. `perturb` (RFC-0018 AD-5, CPU) applies it to `model.layers.0.self_attn.o_proj.weight`, the first row that has such a change, writes W′ as a full copy of the model directory with those two bytes changed, and returns the record: flat element index, the BF16 bytes before and after, the steps and both codes in `unit`, and the sha256 of the changed file before and after. SASH has no weight digest tool of its own (`digest_tool: null`). The record shows the quantized model changes. That `commit` on W′ gives other model roots is upstream's statement that a model root "is a function of the model" ([driver.sh#L147-L148](https://github.com/sg-ai-safety-hub/zk-inference-results/blob/11decec3c0b62c707618aab5deb82750b355d202/tools/drivers/lib/driver.sh#L147-L148)); the C3 commit on W′ is where it shows.
 
+### Scoring a reference reply (`score`, RFC-0018 AD-7)
+
+`score` gives SASH's own top token at every position of a reply another engine wrote (FI-10), and its 256 most probable tokens there (FI-12). It runs one upstream command per request, the head pass `prove` already runs ([`witness_and_plan`](entrypoint)), with other ids:
+
+```
+python -m harness.witness.extract --tokens 1024 --chunk 512 --layer 16 --spec y-delay-vw12 \
+  --head --slim --diagonal-block --blocks 0,1 --ids <prompt + reply>.npy \
+  --attn-ranges $ZK_OUT/attn_ranges.json --out <a fresh directory>
+```
+
+- `--ids` is upstream's own option: "token ids (.npy) to run instead of the corpus's first --tokens" ([extract.py L645-L647](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/extract.py#L645-L647)). The adapter writes the file itself, 1,024 int64 values in NumPy's format. Unlike `prove`'s prompt route, nothing is written into upstream's token cache.
+- `--head` dumps "the logits' order keys and the emitted tokens" ([L679-L681](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/extract.py#L679-L681)): `tok_head.i32`, the argmax of each row (the lowest index among equal logits), and `key_head.u16`, an order key of each bf16 logit ([L1187-L1195](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/extract.py#L1187-L1195)). The adapter inverts the key (`sign ? 0x7FFF - mag : 0x8000 + mag`) to the bf16 value and takes the log-softmax in float64.
+- Row t of a block predicts the token after its position t ([L1217-L1228](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/extract.py#L1217-L1228)). Reply position 0 is row 511 of block 0's dump; positions 1 to 511 are rows 0 to 510 of block 1's. The adapter checks its count of agreeing rows in block 1 against the extractor's own (`emits_next_token` in the dump's manifest) and stops on a difference.
+- `--attn-ranges` is the calibration of the counted sessions' commitment: the harness gives the file from a session's commitment store after checking its sha256 against the manifests (`prover_files`), or the job's own `commit` writes it and the digest must be the sessions'.
+- A request the extractor refuses with an assertion (its no-wrap and fold checks, [L992](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/extract.py#L992), [L1017](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/extract.py#L1017)) is recorded as failed with that line. Any other failure stops the call.
+
+Whose computation this is: the extractor writes the prover's input, and these are the values a proof of those ids would be handed. No proof is made of them. Not stated upstream at the pin: that `--ids` is meant for ids other than the model's own greedy reply; that the extractor's values equal the proved ones bit for bit (the closest sentence: "A witness and a spec are one object", [common.py L175](https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/harness/witness/common.py#L175)); whether the segment proofs accept on such ids, with only the grid's token links failing (not run here).
+
+Measured on Level 1 (Llama 3.1 8B, the 15 prompts, 1 H200, `results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json`, n = 1 run):
+
+- The extractor refused none of the 15 reference replies: no no-wrap or fold assertion fired.
+- 16 head extractions (the system's own reply to prompt 0, then the 15) took 480 s, 30 s each with the model load, measured, n = 1.
+- On the system's own proved reply to prompt 0, `tok_head` was that reply at all 512 positions.
+- On each of the 15 prompts, the first position where `tok_head` differs from the reference token is the matched prefix of the proved reply (FI-3's stored score), so the extraction on given ids and the proved greedy run agree on where they leave the reference.
+
+The scoring image is [`Dockerfile.score`](Dockerfile.score): `system.yaml`'s image, the one the counted sessions ran, plus this directory's `entrypoint`. The `system.yaml` pin does not change.
+
 ### Open items before any Level 1 row is published
 
 1. The prompt route: `gen_ids` decodes only from upstream's corpus cache, and the adapter writes the job's prompt into that cache file, which upstream does not document (Deviations above). This needs confirming with upstream before any row is published.

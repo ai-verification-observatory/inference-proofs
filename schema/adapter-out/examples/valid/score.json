@@ -1,0 +1,16 @@
+{
+  "contract": "adapter/1",
+  "phases": [],
+  "schema": "adapter-out/1",
+  "scores": {
+    "dir": "/io/score",
+    "failed": [
+      3
+    ],
+    "positions": 512,
+    "requests": 15,
+    "top_k": 256
+  },
+  "subcommand": "score",
+  "warnings": []
+}

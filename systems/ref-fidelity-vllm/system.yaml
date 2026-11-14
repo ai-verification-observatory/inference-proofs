@@ -14,11 +14,13 @@ engine:
   version: 0.32.0
   image: docker.io/vllm/vllm-openai@sha256:befccf0e7e4089aa23926bb6f887a85c0d46c2a99e6de5c5ffdf5cb7957c5b34
   commit: 5df63a7203cdb9328d824a27b682e77c7b9928be  # the image ENV VLLM_BUILD_COMMIT (ref-serve)
-# RFC-0014 B7: built by the images workflow (run 43243280115) from the fidelity-vllm branch at
-# c3b65ba2b741bac155ad33cf726496fbb02da3f0 (adapter_dirty false).
+# RFC-0014 B7: built by the images workflow (run 43453880303) from the teacher-forced branch at
+# fb54cdd6e6b555238d2e4833cbf2b4fe36238295 (adapter_dirty false), with the teacher-forced pass
+# (RFC-0018 FI-10 to FI-13). The Llama 4 Maverick fidelity run of 2026-11-12 ran the previous
+# build, sha256:ec5a43a4..., from c3b65ba2, whose entrypoint differs only by that pass.
 image:
   repository: "ghcr.io/ai-verification-observatory/ref-fidelity-vllm"
-  digest: "sha256:ec5a43a496bc96257c3b0c6f2f43fe10c951e7f3bbbdaa93b8490bd5bb22d459"
+  digest: "sha256:cff50bee049bbe1388213a5f7469f9621bcec720986d1bdd59919d4d9cb77194"
 workloads:
 - id: l1-maverick-p512-o512
   precision_used: BF16

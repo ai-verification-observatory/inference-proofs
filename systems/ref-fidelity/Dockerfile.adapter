@@ -1,0 +1,15 @@
+# ref-fidelity with this checkout's adapter file over the pinned build: the image the 8B
+# teacher-forced passes ran (llama.cpp and every tool in it unchanged, by digest), plus the
+# entrypoint that writes each prompt of a teacher-forced pass as it finishes (RFC-0018 FI-14),
+# so a pass that is stopped keeps what it finished. Minutes to build: no layer below is rebuilt.
+# Build with the systems/ directory as context (the images workflow, dockerfile Dockerfile.adapter):
+#   docker build --build-arg IPROOFS_ADAPTER_COMMIT=$(git rev-parse HEAD) \
+#     --build-arg IPROOFS_ADAPTER_DIRTY=$(test -z "$(git status --porcelain)" && echo false || echo true) \
+#     -f systems/ref-fidelity/Dockerfile.adapter systems
+FROM ghcr.io/ai-verification-observatory/ref-fidelity@sha256:b91682f5807e1765ad58d6cbe7ed517cf2c9b243be1daef5fc866aae1b889113
+COPY ref-fidelity/entrypoint ref-fidelity/drop_blocks.py /opt/ref-fidelity/
+ARG IPROOFS_ADAPTER_COMMIT=unknown
+ARG IPROOFS_ADAPTER_DIRTY=true
+ENV IPROOFS_ADAPTER_COMMIT=${IPROOFS_ADAPTER_COMMIT} IPROOFS_ADAPTER_DIRTY=${IPROOFS_ADAPTER_DIRTY}
+USER 10001
+ENTRYPOINT ["python3", "/opt/ref-fidelity/entrypoint"]

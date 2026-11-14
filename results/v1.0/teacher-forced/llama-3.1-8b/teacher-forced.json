@@ -1,0 +1,580 @@
+{
+  "controls": [
+    {
+      "cause": null,
+      "failed": [],
+      "id": "reference-2",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.007895729315256053,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/reference-2"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.0
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 512.0,
+      "mean_not_failed": 512.0,
+      "median": 512.0,
+      "recipe": "rerun",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512,
+        512
+      ],
+      "status": "ok",
+      "type": null
+    },
+    {
+      "cause": null,
+      "failed": [],
+      "id": "q8_0",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.008014450268320948,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q8_0"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.001732025552133593
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 503.6,
+      "mean_not_failed": 503.6,
+      "median": 504.0,
+      "recipe": "quantize",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        508,
+        504,
+        506,
+        512,
+        503,
+        512,
+        508,
+        484,
+        509,
+        494,
+        503,
+        502,
+        504,
+        499,
+        506
+      ],
+      "status": "ok",
+      "type": "Q8_0"
+    },
+    {
+      "cause": null,
+      "failed": [],
+      "id": "q4_k_m",
+      "kind": "honest",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.00894205067014141,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q4_k_m"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.06918416508684878
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 464.06666666666666,
+      "mean_not_failed": 464.06666666666666,
+      "median": 467.0,
+      "recipe": "quantize",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        486,
+        456,
+        484,
+        496,
+        431,
+        497,
+        481,
+        391,
+        498,
+        415,
+        464,
+        467,
+        475,
+        465,
+        455
+      ],
+      "status": "ok",
+      "type": "Q4_K_M"
+    },
+    {
+      "cause": null,
+      "failed": [],
+      "id": "q3_k_s",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.012904116667752197,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q3_k_s"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.33214928730292337
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 399.8,
+      "mean_not_failed": 399.8,
+      "median": 401.0,
+      "recipe": "quantize",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        448,
+        396,
+        411,
+        490,
+        352,
+        390,
+        417,
+        285,
+        482,
+        333,
+        408,
+        401,
+        389,
+        409,
+        386
+      ],
+      "status": "ok",
+      "type": "Q3_K_S"
+    },
+    {
+      "cause": null,
+      "failed": [],
+      "id": "q2_k",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.016346138844509254,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/q2_k"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.5518064489420713
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 369.73333333333335,
+      "mean_not_failed": 369.73333333333335,
+      "median": 374.0,
+      "recipe": "quantize",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        438,
+        374,
+        389,
+        473,
+        310,
+        269,
+        398,
+        267,
+        473,
+        295,
+        368,
+        381,
+        372,
+        378,
+        361
+      ],
+      "status": "ok",
+      "type": "Q2_K"
+    },
+    {
+      "cause": null,
+      "failed": [],
+      "id": "drop-every-4th-block",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7679,
+        "reference_rest_mass": 0.09904039211558478,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/drop-every-4th-block"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 1.946127641276422
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 225.93333333333334,
+      "mean_not_failed": 225.93333333333334,
+      "median": 204.0,
+      "recipe": "drop_blocks",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        322,
+        218,
+        244,
+        354,
+        176,
+        171,
+        204,
+        149,
+        354,
+        176,
+        185,
+        216,
+        189,
+        230,
+        201
+      ],
+      "status": "ok",
+      "type": null
+    },
+    {
+      "cause": null,
+      "failed": [],
+      "id": "smaller-model",
+      "kind": "damaged",
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the engine on the control's file, on the reference reply",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.02280292019911199,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/smaller-model"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.6102319076797204
+      },
+      "kl_note": "computed by the engine on the control's file, on the reference reply",
+      "mean": 363.6,
+      "mean_not_failed": 363.6,
+      "median": 358.0,
+      "recipe": "other_model",
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+      ],
+      "scores": [
+        426,
+        361,
+        364,
+        464,
+        302,
+        444,
+        354,
+        236,
+        475,
+        278,
+        332,
+        358,
+        345,
+        378,
+        337
+      ],
+      "status": "ok",
+      "type": null
+    }
+  ],
+  "gating": false,
+  "kl": {
+    "rest_floor": 1e-06,
+    "rule": "per position, the KL divergence in nats between the reference's and the engine's distributions over: each token both lists of the top_k most probable tokens hold, and one outcome for every other token; at most the KL over the whole vocabulary. A rest mass below rest_floor is left out on the reference's side and taken as rest_floor on the engine's. A prompt's value is the mean over its positions",
+    "top_k": 256,
+    "unit": "nat/token",
+    "values": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json"
+  },
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "measure": {
+    "alignment": "row t is computed after the prompt and the first t tokens of the reference reply and predicts reply token t, t from 0",
+    "alpha": 0.05,
+    "exact_up_to": 20,
+    "failed_prompt": "scores 0 and is listed with its cause",
+    "label": "computed by the system's own code on the reference reply, not by the proved computation",
+    "resamples": 200000,
+    "score": "teacher_forced_agreement",
+    "seed_rule": "FI-4's seed rule over the ids prefixed teacher_forced/: first 8 bytes, big-endian, of sha256(randomness || 0x00 || utf8(teacher_forced/a) || 0x00 || utf8(teacher_forced/b))",
+    "test": "paired-sign-flip",
+    "unit": "agreeing positions"
+  },
+  "n": 15,
+  "positions": 512,
+  "prompts_digest": "sha256:8641efd822be1643a7ea9bccaacc58d2eaa426fb8e22171f0c931ecdd620f61a",
+  "reference": {
+    "digest": "sha256:44d3dc247e8de593a2cb12bd8118df58aa6f52fab2a43945066c8331b3cedcd4",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "reference_pass": {
+    "cause": null,
+    "failed": [],
+    "mean": 512.0,
+    "mean_not_failed": 512.0,
+    "median": 512.0,
+    "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
+    "runs": [
+      "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json"
+    ],
+    "scores": [
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512,
+      512
+    ],
+    "status": "ok"
+  },
+  "rows": {
+    "sash": {
+      "cause": null,
+      "computed_by": "SASH's witness extractor (harness.witness.extract --head), the program that writes the prover's input, run on the reference reply; no proof is made of these ids",
+      "failed": [],
+      "kl": {
+        "grade": "measured",
+        "n": 15,
+        "note": "computed by the system's own code on the reference reply, not by the proved computation",
+        "null_reason": null,
+        "positions": 7680,
+        "reference_rest_mass": 0.008731812810637386,
+        "scope": null,
+        "source": {
+          "kind": "adapter",
+          "ref": "results/v1.0/teacher-forced/llama-3.1-8b/kl.json#/engines/sash"
+        },
+        "tier": "reported",
+        "unit": "nat/token",
+        "value": 0.043721129985556675
+      },
+      "kl_note": "computed by the system's own code on the reference reply, not by the proved computation",
+      "label": "computed by the system's own code on the reference reply, not by the proved computation",
+      "mean": 471.2,
+      "mean_not_failed": 471.2,
+      "median": 471.0,
+      "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json",
+      "runs": [
+        "results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json"
+      ],
+      "scores": [
+        495,
+        467,
+        482,
+        504,
+        445,
+        507,
+        483,
+        418,
+        504,
+        430,
+        461,
+        465,
+        464,
+        471,
+        472
+      ],
+      "status": "ok",
+      "tests": [
+        {
+          "a": "sash",
+          "b": "reference-2",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        },
+        {
+          "a": "reference-2",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "sash",
+          "b": "q8_0",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        },
+        {
+          "a": "q8_0",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "sash",
+          "b": "q4_k_m",
+          "method": "exact",
+          "n": 15,
+          "p": 0.005828857421875,
+          "seed": null
+        },
+        {
+          "a": "q4_k_m",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 0.9949951171875,
+          "seed": null
+        },
+        {
+          "a": "sash",
+          "b": "q3_k_s",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "q3_k_s",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        },
+        {
+          "a": "sash",
+          "b": "q2_k",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "q2_k",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        },
+        {
+          "a": "sash",
+          "b": "drop-every-4th-block",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "drop-every-4th-block",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        },
+        {
+          "a": "sash",
+          "b": "smaller-model",
+          "method": "exact",
+          "n": 15,
+          "p": 3.0517578125e-05,
+          "seed": null
+        },
+        {
+          "a": "smaller-model",
+          "b": "sash",
+          "method": "exact",
+          "n": 15,
+          "p": 1.0,
+          "seed": null
+        }
+      ]
+    }
+  },
+  "rung": "llama-3.1-8b",
+  "schema": "teacher-forced/1"
+}

@@ -142,6 +142,8 @@ The site's Learn glossary ([`web/learn/glossary.md`](../../web/learn/glossary.md
 
 <a id="task"></a>**Task.** A request shape with a decoding rule, named `p<P>-o<N>`. Rows of one task may share a table and a sort for their per-request figures; rows of different tasks never do. [RFC-0017](../../rfcs/0017-requests-tasks-and-tested-states.md).
 
+<a id="teacher-forced-agreement"></a>**Teacher-forced agreement.** A fidelity measure printed beside the matched prefix, gating nothing: an engine is fed a prompt and then the reference reply, and its score for the prompt is the number of the reply's 512 positions at which its own top token is the reference token (unit `agreeing positions`). The engine always continues from the reference's tokens, never from its own. A row's figure is "computed by the system's own code on the reference reply, not by the proved computation". [RFC-0018 FI-10 to FI-15](../../rfcs/0018-level-1-ladder.md#teacher-forced-agreement-and-kl-amended-2026-11-13-fi-10-to-fi-15).
+
 <a id="tokens-covered"></a>**Tokens covered.** The positions whose computation a proof binds, as declared by the claim card and the adapter and checked against the workload: for a prefill proof stating the next token, the window's positions; for a segment grid, the positions in the grid. The denominator of every per-token metric. [RFC-0004](../../rfcs/0004-metrics-timing-grades.md).
 
 <a id="unbound"></a>**Unbound.** Said of an edge of the computation that the verifier's acceptance does not constrain, either by design or because a switch disabled its check.

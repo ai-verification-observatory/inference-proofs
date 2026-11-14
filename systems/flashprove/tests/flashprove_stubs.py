@@ -104,22 +104,74 @@ exec(compile(sys.argv[0], "<-c>", "exec"), {"__name__": "__main__"})
 """
 
 # A stand-in for the package's load_from_folder: it checks the folder and the digests as the
-# loader does, and its "greedy choice" after a token t at position n is (7 t + n) mod 1000.
+# loader does, and its "greedy choice" after a token t at position n is (7 t + n) mod 1000. With
+# `gap_for` it returns the choices and the gaps as `extend` documents them (0 exactly at the
+# choice); with `record` it hands the call's logits `lam` in the unit 2^-15 over a vocabulary of
+# 1,000: 2 at the choice, 1 at the id after it, -1 elsewhere. Feeding token 999 fails a range
+# condition, as the package's exception says it.
 FAKE_INTEGER_MODEL = """
-import hashlib, json
+import hashlib, json, math
 from pathlib import Path
+
+V, S = 1000, 15
+
+
+class RangeConditionFailed(Exception):
+    pass
+
+
+class _Tensor:
+    # the four tensor methods the adapter's score program calls, on rows of numbers
+    def __init__(self, rows):
+        self.rows = rows
+
+    def double(self):
+        return _Tensor([[float(x) for x in row] for row in self.rows])
+
+    def __truediv__(self, n):
+        return _Tensor([[x / n for x in row] for row in self.rows])
+
+    def log_softmax(self, dim):
+        assert dim == 1
+        out = []
+        for row in self.rows:
+            lse = math.log(math.fsum(math.exp(x) for x in row))
+            out.append([x - lse for x in row])
+        return _Tensor(out)
+
+    def topk(self, k, dim):
+        assert dim == 1
+        # equal values in descending id order, so the caller's own tie rule is what orders them
+        picked = [sorted(range(len(row)), key=lambda v: (-row[v], -v))[:k] for row in self.rows]
+        return (_Tensor([[row[v] for v in p] for row, p in zip(self.rows, picked)]),
+                _Tensor(picked))
+
+    def tolist(self):
+        return self.rows
 
 
 class _Model:
     def new_sequence(self):
         return []
 
-    def extend(self, seq, ids):
-        out = []
+    def extend(self, seq, ids, gap_for=None, record=None):
+        out, lam = [], []
         for t in ids:
+            if int(t) == 999:
+                raise RangeConditionFailed(f"position {len(seq)}: condition (b) of the final norm")
             seq.append(int(t))
             out.append((7 * seq[-1] + len(seq)) % 1000)
-        return out
+            row = [-(1 << S)] * V
+            row[out[-1]], row[(out[-1] + 1) % V] = 2 << S, 1 << S
+            lam.append(row)
+        if record is not None:
+            record("lam", None, _Tensor(lam))
+            record("first_choice", None, _Tensor([out]))
+        if gap_for is None:
+            return out
+        gaps = [0 if c == y else (3 << S if y != (c + 1) % V else (1 << S) + (c < y))
+                for c, y in zip(out, gap_for)]
+        return out, gaps
 
     def free(self, seq):
         seq.clear()

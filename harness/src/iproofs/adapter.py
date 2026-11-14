@@ -155,11 +155,11 @@ IMAGE_RE = re.compile(r"^[^@\s]+@sha256:[0-9a-f]{64}$")
 LOCAL_IMAGE_PREFIX = "local/"  # repository of an image built here and never pushed
 ADAPTER_UID = "10001"
 VERIFY_MEMORY = "32g"
-GPU_STEPS = frozenset({"info", "setup", "commit", "prove", "logprobs"})
+GPU_STEPS = frozenset({"info", "setup", "commit", "prove", "logprobs", "score"})
 STDERR_TAIL = 50
 # RFC-0018 AD-2: subcommands an adapter may implement; `info` lists those it does
 # (`optional_subcommands`), and one it does not list is unsupported and never called.
-OPTIONAL_SUBCOMMANDS = ("logprobs", "perturb", "mutate_reply")
+OPTIONAL_SUBCOMMANDS = ("logprobs", "perturb", "mutate_reply", "score")
 # RFC-0018 CH-4: the trace around a level run's verify process, written to TRACE_FILE in the
 # call's trace directory (mounted at /trace in a container).
 STRACE_ARGS = ("-f", "--seccomp-bpf", "-e", "trace=open,openat,openat2", "-o")

@@ -1,0 +1,118 @@
+{
+  "adapter": {
+    "adapter_commit": "fb54cdd6e6b555238d2e4833cbf2b4fe36238295",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "info",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.06713413598481566,
+      "stderr_tail": [],
+      "step": "info"
+    },
+    {
+      "call": "setup",
+      "exit_code": 0,
+      "phases": [],
+      "seconds": 0.06561541999690235,
+      "stderr_tail": [],
+      "step": "setup"
+    },
+    {
+      "call": "score",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "score",
+          "seconds": 479.52202237106394
+        }
+      ],
+      "seconds": 479.6206241530017,
+      "stderr_tail": [],
+      "step": "score"
+    }
+  ],
+  "engine": {
+    "commit": "4f41667297430a598165c4a8604258fe37d952ae",
+    "image": "ghcr.io/ai-verification-observatory/sash@sha256:bc444648ff8108e9e6d72abcbdef2de4823b3154f7aae5708fdf09434eb01be6",
+    "tool": "sash"
+  },
+  "failed_prompts": [],
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "be220729ec1677fe177fdedf8e72fbcc398a9500",
+    "git_dirty": false
+  },
+  "ids": [
+    "sash"
+  ],
+  "kind": "system",
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1"
+  },
+  "lists": {
+    "sash": {
+      "digest": "sha256:7602f7cec01070c3675dd0ebd92b54f2efa54f2a56b93673ade6a8e365f11e2a",
+      "files": 15
+    }
+  },
+  "name": "sash",
+  "not_run": {},
+  "of": 15,
+  "own_reply_check": {
+    "agreeing": 512,
+    "positions": 512,
+    "prompt": 0,
+    "session": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1"
+  },
+  "prompts": 15,
+  "prompts_digest": "sha256:8641efd822be1643a7ea9bccaacc58d2eaa426fb8e22171f0c931ecdd620f61a",
+  "prover_files": {
+    "equal_to_sessions": true,
+    "files": {
+      "attn_ranges.json": "sha256:b136a8d01ae59a58f19f4bd7babe80e8c5d14b548363740b3eda6566bf9e1597",
+      "tokens.npz": "sha256:7950ee664ff35e4f72cc8754c21a4da70a103123bb9dabca8c6135a776d5f8cb"
+    },
+    "from": "a counted session's commitment store"
+  },
+  "reference": {
+    "digest": "sha256:44d3dc247e8de593a2cb12bd8118df58aa6f52fab2a43945066c8331b3cedcd4",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "release": "v1.0",
+  "rung": "llama-3.1-8b",
+  "schema": "teacher-forced-run/1",
+  "sessions": [
+    {
+      "adapter_commit": "c3a508bfb392d34374209d2a9f964921d842f642",
+      "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+      "run": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+      "slot": 1,
+      "upstream_commit": "4f41667297430a598165c4a8604258fe37d952ae"
+    },
+    {
+      "adapter_commit": "c3a508bfb392d34374209d2a9f964921d842f642",
+      "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+      "run": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
+      "slot": 2,
+      "upstream_commit": "4f41667297430a598165c4a8604258fe37d952ae"
+    },
+    {
+      "adapter_commit": "c3a508bfb392d34374209d2a9f964921d842f642",
+      "image": "ghcr.io/ai-verification-observatory/sash@sha256:14defac4f5635bf2665b9f320e81c1ad0b6c6512b644565e7b7a9c189d84d3a5",
+      "run": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3",
+      "slot": 3,
+      "upstream_commit": "4f41667297430a598165c4a8604258fe37d952ae"
+    }
+  ],
+  "slots": 1,
+  "system": "sash",
+  "top_k": 256,
+  "upstream_commit_equal_to_sessions": true,
+  "workload": "l1-l31-8b-p512-o512"
+}

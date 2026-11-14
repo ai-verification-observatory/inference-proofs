@@ -1,0 +1,28 @@
+{
+  "comment": "Runs of this folder that stored no record: each was stopped before the harness wrote one. Listed by hand from the job's log and the provider's durations, so a failed run is on record (AGENTS.md rule 5).",
+  "runs": [
+    {
+      "cause": "its pass was stopped by the job's deadline 2,706 s into the controls call (the build, the load and part of the pass at 16 slots) and stored nothing; our run's failure, not a result of the control",
+      "date": "2026-11-13",
+      "exit_code": 124,
+      "harness_commit": "e43a54e4a1a7a274e3337c582d1d6919f328548c",
+      "ids": [
+        "q4_k_m"
+      ],
+      "image": "ghcr.io/ai-verification-observatory/ref-fidelity@sha256:b91682f5807e1765ad58d6cbe7ed517cf2c9b243be1daef5fc866aae1b889113",
+      "job": "Hugging Face Jobs, 4 H200, label tf-mav-q4km-3",
+      "job_seconds": 3200,
+      "last_lines": [
+        "fidelity: info call",
+        "fidelity: controls call",
+        "2026-11-13T17:35:14Z fidelity run (q4_k_m) exit 124",
+        "2026-11-13T17:35:15Z checkpoint: q4_k_m sent to runs/partial-tf-mav-q4km-3",
+        "2026-11-13T17:35:15Z upload: out/ through the bucket API to hf://buckets/0xchqrles/iproofs-dev-runs/runs/20261113T173515Z-tf-mav-q4km-3 (proof archives: 0)",
+        "2026-11-13T17:35:17Z upload: records sent",
+        "2026-11-13T17:35:32Z upload: done and checked file by file (dev-results bytes 511); exit 124"
+      ],
+      "name": "controls-q4_k_m",
+      "upload": "runs/20261113T173515Z-tf-mav-q4km-3"
+    }
+  ]
+}

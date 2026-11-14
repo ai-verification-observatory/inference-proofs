@@ -87,6 +87,23 @@
 #                         model in the ref-fidelity-vllm image (RFC-0018 FI-9); default llama.cpp
 #   IPROOFS_FIDELITY_PART controls: only the quantized controls, in the ref-fidelity image, from
 #                         the 16-bit GGUF IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN (FI-9)
+#   IPROOFS_TF            fidelity only: 1 runs the teacher-forced pass (RFC-0018 FI-10 to FI-15,
+#                         `fidelity run --teacher-forced`) in place of replies and KL, with the
+#                         engine, part and slots of the variables above. IPROOFS_TF_ONLY=ID[,ID]
+#                         keeps those controls, IPROOFS_TF_LIMIT=N the first N prompts (a trial),
+#                         IPROOFS_TF_OFFSET=K with it prompts K to K + N - 1 (a shard: runs that
+#                         together cover every prompt once make one pass),
+#                         IPROOFS_TF_NAME names the record, IPROOFS_TF_TOP_K the tokens listed per
+#                         position (default 256), IPROOFS_FIDELITY_NO_OTHER=1 skips the other model
+#   IPROOFS_TF_EACH       with IPROOFS_TF and the controls part: ID[,ID], one run per control in
+#                         that order, each with its own record (controls-<id>), so a job stopped at
+#                         its deadline keeps the controls that finished
+#   IPROOFS_TF_SYSTEM     with IPROOFS_TF: a row's own code through its adapter's score subcommand
+#                         (AD-7), in the scoring image the job was started from,
+#                         IPROOFS_TF_IMAGE=<repository>@sha256:<digest>. IPROOFS_TF_BEFORE lists the
+#                         adapter steps before it (default setup); IPROOFS_TF_PROVER_FILES is a
+#                         counted session's commitment/prover folder in the mounted bucket, used in
+#                         place of a commit step after each file's sha256 is checked
 #   IPROOFS_STORED_DIR    controls only: a read-only mount of the stored run (`hf jobs run -v
 #                         hf://buckets/<namespace>/<bucket>/RUN_PATH:/stored:ro`)
 # shellcheck disable=SC2329  # finish and upload run from the EXIT trap
@@ -815,6 +832,34 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
   RELEASE=v1.0
   log "level prompts $RUNG (needs levels/L1-beacon.json at this commit)"
   "$IP" level prompts "$RUNG" --out "$WORK/prompts" || { log "level prompts failed"; exit 3; }
+  tf_args=()  # RFC-0018 FI-10 to FI-15: the teacher-forced pass, on the stored reference replies
+  if [ -n "${IPROOFS_TF:-}" ]; then
+    tf_args=(--teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}")
+    [ -n "${IPROOFS_TF_ONLY:-}" ] && tf_args+=(--only "$IPROOFS_TF_ONLY")
+    [ -n "${IPROOFS_TF_LIMIT:-}" ] && tf_args+=(--limit "$IPROOFS_TF_LIMIT")
+    [ -n "${IPROOFS_TF_OFFSET:-}" ] && tf_args+=(--offset "$IPROOFS_TF_OFFSET")
+    [ -n "${IPROOFS_TF_NAME:-}" ] && tf_args+=(--name "$IPROOFS_TF_NAME")
+  fi
+  if [ -n "${IPROOFS_TF_SYSTEM:-}" ]; then
+    # a row's own code (AD-7 score) in its scoring image; the weights are the row's workload's
+    [ -n "${IPROOFS_TF:-}" ] || { log "IPROOFS_TF_SYSTEM needs IPROOFS_TF=1"; exit 2; }
+    sys_args=(--system "$IPROOFS_TF_SYSTEM" --scoring-image "${IPROOFS_TF_IMAGE:?IPROOFS_TF_IMAGE}"
+              --before "${IPROOFS_TF_BEFORE:-setup}")
+    if [ -n "${IPROOFS_TF_PROVER_FILES:-}" ]; then
+      src="${IPROOFS_UPLOAD_DIR:?IPROOFS_TF_PROVER_FILES needs the mounted bucket}/$IPROOFS_TF_PROVER_FILES"
+      mkdir -p "$WORK/prover-files" && cp "$src"/* "$WORK/prover-files/" \
+        || { log "no prover files at $IPROOFS_TF_PROVER_FILES"; exit 3; }
+      sys_args+=(--prover-files "$WORK/prover-files")
+    fi
+    log "fidelity run $RUNG --teacher-forced --system $IPROOFS_TF_SYSTEM on GPU $GPU, at most $(left) s"
+    env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
+      --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "$GPU" --hosted \
+      --results "$DEV" --work "$WORK/fidelity-io" "${tf_args[@]}" "${sys_args[@]}"
+    rc=$?
+    log "fidelity run exit $rc"
+    rm -rf "$WORK/fidelity-io"  # the adapter's state: for FlashProve a copy of the weights
+    exit "$rc"
+  fi
   if [ "${IPROOFS_FIDELITY_PART:-}" = controls ]; then
     # RFC-0018 FI-9: the quantized controls only, built in llama.cpp from a 16-bit GGUF named by
     # IPROOFS_FIDELITY_GGUF=REPO@REVISION:PATTERN; its files are hashed into the part's record
@@ -825,11 +870,38 @@ if [ "$MODE" = fidelity ]; then  # RFC-0018 FI-8: hf-job.sh fidelity RUNG, in th
       uv tool run --quiet --from "huggingface_hub==$HFCLI_VERSION" hf download "$repo" --revision "$rev" \
       --include "$pattern" --local-dir "$WORK/reference-gguf" >/dev/null || { log "download of $repo failed"; exit 3; }
     SLOTS=${IPROOFS_FIDELITY_SLOTS:-1}
+    if [ -n "${IPROOFS_TF:-}" ] && [ -n "${IPROOFS_TF_EACH:-}" ]; then
+      # one teacher-forced run per control, in the order given, each with its own record, so a
+      # job stopped at its deadline keeps the controls that finished
+      rc=0
+      for id in ${IPROOFS_TF_EACH//,/ }; do
+        log "fidelity run $RUNG --part controls --teacher-forced --only $id on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
+        env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
+          --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
+          --results "$DEV" --work "$WORK/fidelity-io" --part controls \
+          --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src" \
+          --teacher-forced --top-k "${IPROOFS_TF_TOP_K:-256}" --only "$id" \
+          --name "controls-$id${IPROOFS_TF_OFFSET:+-$IPROOFS_TF_OFFSET}" \
+          ${IPROOFS_TF_OFFSET:+--offset "$IPROOFS_TF_OFFSET"} \
+          ${IPROOFS_TF_LIMIT:+--limit "$IPROOFS_TF_LIMIT"} || rc=$?
+        log "fidelity run ($id) exit $rc"
+        # sent at once, so a job cancelled later keeps this control
+        if [ -n "${IPROOFS_UPLOAD_BUCKET:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
+          if hfcli buckets sync "$DEV/$RELEASE/teacher-forced/$RUNG" \
+            "hf://buckets/$IPROOFS_UPLOAD_BUCKET/runs/partial-${IPROOFS_LABEL:-fidelity}/teacher-forced" --quiet; then
+            log "checkpoint: $id sent to runs/partial-${IPROOFS_LABEL:-fidelity}"
+          else
+            log "checkpoint: $id FAILED"
+          fi
+        fi
+      done
+      exit "$rc"
+    fi
     log "fidelity run $RUNG --part controls on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
     env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
       --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
       --results "$DEV" --work "$WORK/fidelity-io" --part controls \
-      --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src"
+      --reference-gguf-dir "$WORK/reference-gguf" --gguf-source "$src" ${tf_args[@]+"${tf_args[@]}"}
     rc=$?
     log "fidelity run exit $rc"
     exit "$rc"
@@ -855,8 +927,8 @@ src = getattr(rung.reference, "source", None)
 if src is not None:
     print("reference", src.repo, src.revision, sep="\t")
 for c in rung.controls:
-    if c.recipe == "other_model":
-        print("other-model", c.source.repo, c.source.revision, sep="\t")' "$RUNG")
+    if c.recipe == "other_model" and len(sys.argv) < 3:
+        print("other-model", c.source.repo, c.source.revision, sep="\t")' "$RUNG" ${IPROOFS_FIDELITY_NO_OTHER:+skip})
   if [ "${#fetch_args[@]}" -eq 0 ] || [ "${fetch_args[0]}" != --reference-dir ]; then
     # the reference is the rung's serving record (RFC-0018 FI-1)
     record=$("$PY" -c 'import sys
@@ -871,7 +943,8 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
   log "fidelity run $RUNG in $ENGINE on GPUs ${GPUS:-$GPU}, $SLOTS slots, at most $(left) s"
   env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" fidelity run --level L1 --rung "$RUNG" \
     --release "$RELEASE" --prompts-dir "$WORK/prompts" --gpus "${GPUS:-$GPU}" --slots "$SLOTS" --hosted \
-    --engine "$ENGINE" --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"}
+    --engine "$ENGINE" --results "$DEV" --work "$WORK/fidelity-io" ${fetch_args[@]+"${fetch_args[@]}"} \
+    ${tf_args[@]+"${tf_args[@]}"}
   rc=$?
   log "fidelity run exit $rc"
   exit "$rc"

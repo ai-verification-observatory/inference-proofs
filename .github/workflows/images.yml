@@ -12,6 +12,12 @@ on:
         required: true
         type: choice
         options: [ref-serve, ref-recompute, ref-fidelity, ref-fidelity-vllm, sash, flashprove, deepprove]
+      dockerfile:
+        description: "Dockerfile.score, Dockerfile.adapter: the pinned image plus this commit's adapter file (RFC-0018 FI-14)"
+        required: false
+        default: Dockerfile
+        type: choice
+        options: [Dockerfile, Dockerfile.score, Dockerfile.adapter]
 
 permissions:
   contents: read
@@ -26,6 +32,7 @@ jobs:
       packages: write
     env:
       SYSTEM: ${{ inputs.system }}
+      DOCKERFILE: ${{ inputs.dockerfile }}
       REPOSITORY: ghcr.io/ai-verification-observatory/${{ inputs.system }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -37,10 +44,12 @@ jobs:
       - name: build and push
         run: |
           dirty=$(test -z "$(git status --porcelain)" && echo false || echo true)
+          tag=$GITHUB_SHA  # a scoring image is tagged score-<commit>
+          [ "$DOCKERFILE" = Dockerfile ] || tag="${DOCKERFILE#Dockerfile.}-$GITHUB_SHA"
           docker buildx build --push --provenance=false --metadata-file meta.json \
             --build-arg IPROOFS_ADAPTER_COMMIT="$GITHUB_SHA" --build-arg IPROOFS_ADAPTER_DIRTY="$dirty" \
             --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
             --label org.opencontainers.image.revision="$GITHUB_SHA" \
-            -t "$REPOSITORY:$GITHUB_SHA" -f "systems/$SYSTEM/Dockerfile" systems
+            -t "$REPOSITORY:$tag" -f "systems/$SYSTEM/$DOCKERFILE" systems
           digest=$(jq -r '."containerimage.digest"' meta.json)
-          echo "$REPOSITORY@$digest (adapter commit $GITHUB_SHA, dirty $dirty)" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "$REPOSITORY@$digest ($DOCKERFILE, adapter commit $GITHUB_SHA, dirty $dirty)" | tee -a "$GITHUB_STEP_SUMMARY"

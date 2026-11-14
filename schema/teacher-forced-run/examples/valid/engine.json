@@ -1,0 +1,65 @@
+{
+  "adapter": {
+    "adapter_commit": "1111111111111111111111111111111111111111",
+    "adapter_dirty": false
+  },
+  "calls": [
+    {
+      "call": "score",
+      "exit_code": 0,
+      "phases": [
+        {
+          "name": "score",
+          "seconds": 1790.0
+        }
+      ],
+      "seconds": 1800.5,
+      "stderr_tail": [],
+      "step": "score"
+    }
+  ],
+  "engine": {
+    "commit": "cd959bae99ff4bed22bef2604f45241c09bbb8c8",
+    "image": "ghcr.io/ai-verification-observatory/ref-fidelity@sha256:abababababababababababababababababababababababababababababababab",
+    "repo": "ggml-org/llama.cpp",
+    "tool": "llama.cpp"
+  },
+  "failed_prompts": [],
+  "gpus": [
+    0
+  ],
+  "harness": {
+    "git_commit": "0000000000000000000000000000000000000000",
+    "git_dirty": false
+  },
+  "ids": [
+    "reference",
+    "q8_0"
+  ],
+  "kind": "engine",
+  "level": {
+    "digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "id": "L1"
+  },
+  "lists": {},
+  "model_files": {
+    "checked": "against the serving record",
+    "serving": "llama-3.1-8b-instruct-bf16"
+  },
+  "name": "llama.cpp",
+  "not_run": {
+    "q2_k": "left out of this job (--only)"
+  },
+  "of": 15,
+  "prompts": 15,
+  "prompts_digest": "sha256:abababababababababababababababababababababababababababababababab",
+  "reference": {
+    "digest": "sha256:abababababababababababababababababababababababababababababababab",
+    "replies": "results/v1.0/fidelity/llama-3.1-8b/reference.jsonl"
+  },
+  "release": "v1.0",
+  "rung": "llama-3.1-8b",
+  "schema": "teacher-forced-run/1",
+  "slots": 1,
+  "top_k": 256
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """SASH zk-inference-prover adapter (RFC-0005), standard library only.
 
-Usage: entrypoint <info|setup|commit|prove|verify> /io/job.json /io/out.json
+Usage: entrypoint <info|setup|commit|prove|verify|score> /io/job.json /io/out.json
 
 Every upstream step below is the one upstream's own recorded sequence job runs, at the pins
 README.md names: `tools/drivers/lib/sequence-job.sh` and `tools/drivers/headline-c4096.sh`
@@ -22,6 +22,9 @@ each argument to its upstream source.
   for the reply block and a difference is recorded as a note, never a verdict (RFC-0018 AD-6).
 - `perturb` (RFC-0018 AD-5) writes W' with weight_change.py's change; `mutate_reply` (AD-6)
   changes one reply token in a proof where the grid reads it.
+- `score` (RFC-0018 AD-7) runs the head pass of `prove`'s extraction on ids it is given (a
+  prompt and a reply written by another engine) and reads the token each row emits and the
+  logits' order keys from the dump: the extractor that writes the prover's input, not a proof.
 
 IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories when the tests run
 this file in process. IPROOFS_SASH_EXEC names a program every upstream process is run
@@ -32,13 +35,17 @@ import fcntl
 import hashlib
 import importlib.util
 import json
+import math
 import os
 import re
 import shlex
 import shutil
+import struct
 import subprocess
 import sys
 import time
+from array import array
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +54,7 @@ WORKLOADS = ["sash-l31-8b-c4096", "sash-l31-8b-c1024", "l1-l31-8b-p512-o512"]
 INPUTS = Path(os.environ.get("IPROOFS_INPUTS", "/opt/iproofs/inputs.json"))  # B5
 FORBIDDEN_FLAGS = ["--unsound-skip-", "--unsound-argmax-lax"]  # README.md, system.yaml values
 STUB = os.environ.get("IPROOFS_SASH_EXEC")
-OPTIONAL = ["perturb", "mutate_reply"]  # RFC-0018 AD-5, AD-6
+OPTIONAL = ["perturb", "mutate_reply", "score"]  # RFC-0018 AD-5, AD-6, AD-7
 # levels/L1.yaml systems.sash.model_change: a block-0 projection other than q_proj, which is
 # rescaled before quantization (U/harness/witness/model.py L439, L468-L470)
 PERTURB_TENSOR = "model.layers.0.self_attn.o_proj.weight"
@@ -604,6 +611,150 @@ def mutate_reply(job: dict) -> dict:
         "parts": [reply, head], "fields": [f"{reply} tok_in[{t}]", f"{head} tok_out[{at}]"]}}
 
 
+def write_npy(path: Path, ids: list[int]) -> None:
+    """The ids as a NumPy file of int64 (format 1.0: magic, version, header length, a header
+    padded to a multiple of 64 bytes, then the values little-endian), which `--ids` loads."""
+    head = f"{{'descr': '<i8', 'fortran_order': False, 'shape': ({len(ids)},), }}".encode()
+    head += b" " * (-(10 + len(head) + 1) % 64) + b"\n"
+    path.write_bytes(b"\x93NUMPY\x01\x00" + struct.pack("<H", len(head)) + head
+                     + struct.pack(f"<{len(ids)}q", *ids))  # fmt: skip
+
+
+def bf16_of_key() -> list[float]:
+    """The bf16 logit each order key stands for. extract.py writes `key_head.u16` as
+    `sign ? 0x7FFF - mag : 0x8000 + mag` of the logit's bf16 pattern (U/harness/witness/
+    extract.py L1187-L1193), so the key orders the logits and the map is inverted here."""
+    out = []
+    for key in range(1 << 16):
+        sign, mag = (0, key - 0x8000) if key >= 0x8000 else (1, 0x7FFF - key)
+        out.append(struct.unpack("<f", struct.pack("<I", ((sign << 15) | mag) << 16))[0])
+    return out
+
+
+def head_rows(dump: Path, rows: list[int], k: int, value: list[float]
+              ) -> tuple[list[int], list[list[int]], list[list[float]]]:  # fmt: skip
+    """For each row of a head dump: the token it emits (`tok_head.i32`, the lowest id among the
+    largest logits, U/harness/witness/extract.py L1194-L1195) and, with k > 0, its k largest
+    logits' ids (lower id first among equal logits) with their log-probabilities in nats: the
+    log-softmax of the row's bf16 logits, computed in float64."""
+    tok = array("i")
+    tok.frombytes((dump / "tok_head.i32").read_bytes())
+    s = len(tok)
+    keys = dump / "key_head.u16"
+    vocab, rest = divmod(keys.stat().st_size, 2 * s)
+    if rest or vocab < max(1, k):
+        raise SystemExit(f"sash: {keys} is not {s} rows of at least {max(1, k)} order keys")
+    top, ids, lps = [], [], []
+    with keys.open("rb") as f:
+        for r in rows:
+            top.append(int(tok[r]))
+            if k <= 0:
+                continue
+            f.seek(2 * vocab * r)
+            row = array("H")
+            row.frombytes(f.read(2 * vocab))
+            count = Counter(row)
+            ordered = sorted(count, reverse=True)
+            if value[ordered[0]] != value[ordered[0]] or value[ordered[0]] in (
+                    float("inf"), float("-inf")):  # fmt: skip
+                raise SystemExit(f"sash: row {r} of {keys} holds a logit that is not finite")
+            peak = value[ordered[0]]
+            lse = peak + math.log(math.fsum(n * math.exp(value[key] - peak)
+                                            for key, n in count.items()))  # fmt: skip
+            taken, floor = 0, ordered[-1]
+            for key in ordered:  # the lowest key that the k largest logits reach
+                taken += count[key]
+                floor = key
+                if taken >= k:
+                    break
+            best = sorted((-key, i) for i, key in enumerate(row) if key >= floor)[:k]
+            if best[0][1] != top[-1]:
+                raise SystemExit(f"sash: tok_head row {r} is not the lowest id among the "
+                                 "largest logits of key_head")  # fmt: skip
+            ids.append([i for _, i in best])
+            lps.append([value[-key] - lse for key, _ in best])
+    return top, ids, lps
+
+
+def write_topk(path: Path, ids: list[list[int]], lps: list[list[float]]) -> None:
+    """RFC-0018 AD-7: `TFK1`, the positions and k (uint32), then the ids (int32) and the
+    log-probabilities (float32), each positions x k, row by row, little-endian."""
+    flat_i = array("i", [t for row in ids for t in row])
+    flat_f = array("f", [x for row in lps for x in row])
+    path.write_bytes(b"TFK1" + struct.pack("<II", len(ids), len(ids[0])) + flat_i.tobytes()
+                     + flat_f.tobytes())  # fmt: skip
+
+
+def score(job: dict) -> dict:
+    """RFC-0018 AD-7. For each request, `prove`'s own head extraction (the one command of
+    `witness_and_plan` that passes `--head`) on prompt + reply as `--ids`, with the attention
+    calibration `commit` kept. Row t of a head block predicts the token after its position t
+    (U/harness/witness/extract.py L1217-L1228), so the reply's position 0 is the last row of
+    the last prompt block's dump and positions 1 to S - 1 are rows 0 to S - 2 of the reply
+    block's. A request the extractor refuses with an assertion (its no-wrap and fold checks,
+    L992, L1017, L1111-L1124) is recorded as failed with that line; any other failure of the
+    extraction stops the call, since it says nothing about the model."""
+    g = geometry(job["shape"], model_layers())
+    env, p, s, k = harness_env(), g["prompt"], g["s"], int(job.get("top_k", 0))
+    ranges = ZK_OUT + "/attn_ranges.json"
+    for given in job.get("prover_files", []):  # commit's files, from the harness's record
+        kept = host(ZK_OUT) / Path(given).name
+        if host(given).resolve() != kept.resolve():
+            kept.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(host(given), kept)
+    if not host(ranges).is_file():
+        raise SystemExit(f"sash: no {ranges}: score needs the calibration commit kept")
+    lines = host(job["requests_file"]).read_text().splitlines()
+    requests = [json.loads(ln) for ln in lines if ln.strip()]
+    out = job["out_dir"].rstrip("/")
+    host(out).mkdir(parents=True, exist_ok=True)
+    first, last = g["head_blocks"]  # type: ignore[misc]
+    value = bf16_of_key() if k > 0 else []
+    failed: list[int] = []
+    seconds = 0.0
+    for i, r in enumerate(requests):
+        ids = [int(t) for t in [*r["prompt"], *r["reply"]]]
+        if len(r["prompt"]) != p or len(r["reply"]) != s:
+            raise SystemExit(f"sash: request {i} is not {p} prompt and {s} reply tokens")
+        t0 = time.monotonic()
+        wit = f"{STATE}/score-{i}"
+        shutil.rmtree(host(wit), ignore_errors=True)
+        host(wit).mkdir(parents=True)
+        write_npy(host(f"{wit}/ids.npy"), ids)
+        done = run([*UV, "-m", "harness.witness.extract", "--tokens", str(p + s), "--chunk", str(s),
+                    "--layer", str(HEAD_LAYER), "--spec", SPEC, "--head", "--slim",
+                    "--diagonal-block", "--blocks", f"{first},{last}", "--ids", f"{wit}/ids.npy",
+                    "--attn-ranges", ranges, "--out", f"{wit}/head"],
+                   cwd=HSRC, env=env, check=False)  # fmt: skip
+        if done.returncode != 0:
+            line = last_line(done.stderr)
+            if not line.startswith("AssertionError"):
+                tail = "\n".join(done.stderr.splitlines()[-50:])
+                raise SystemExit(f"sash: the head extraction of request {i} exited "
+                                 f"{done.returncode}\n{tail}")  # fmt: skip
+            failed.append(i)
+            write_json(f"{out}/{i}.json", {"failed": f"the extractor refused the ids: {line}"})
+        else:
+            a = head_rows(host(f"{wit}/head_B{first}"), [s - 1], k, value)
+            b = head_rows(host(f"{wit}/head_B{last}"), list(range(s - 1)), k, value)
+            top = a[0] + b[0]
+            # the extractor's own count of rows that emit the next id (manifest `head`)
+            manifest = json.loads(host(f"{wit}/head_B{last}/manifest.json").read_text())
+            counted = (manifest.get("head") or {}).get("emits_next_token")
+            if counted is not None and counted != sum(
+                    x == y for x, y in zip(b[0], ids[p + 1:], strict=True)):  # fmt: skip
+                raise SystemExit(f"sash: request {i}: the rows read here are not aligned as "
+                                 f"the extractor counts them (emits_next_token {counted})")  # fmt: skip
+            write_json(f"{out}/{i}.json", {"top": top})
+            if k > 0:
+                write_topk(host(f"{out}/{i}.topk"), a[1] + b[1], a[2] + b[2])
+        shutil.rmtree(host(wit))
+        seconds += time.monotonic() - t0
+    return {**base("score"), "scores": {"dir": out, "requests": len(requests), "positions": s,
+                                        "top_k": k, "failed": failed},
+            "phases": [{"name": "score", "seconds": seconds}]}  # fmt: skip
+
+
 def main() -> int:
     sub, job_path, out_path = sys.argv[1:4]
     job = json.loads(host(job_path).read_text())
@@ -614,7 +765,7 @@ def main() -> int:
     if weakening and job.get("control") is not True:  # INV-ADAPTER-10, before any process
         raise SystemExit(f"sash: refusing {weakening} outside a control job")
     handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify,
-                "perturb": perturb, "mutate_reply": mutate_reply}  # fmt: skip
+                "perturb": perturb, "mutate_reply": mutate_reply, "score": score}  # fmt: skip
     if sub not in handlers:
         raise SystemExit(f"sash: no subcommand {sub!r}")
     host(out_path).write_text(json.dumps(handlers[sub](job), sort_keys=True, indent=2) + "\n")

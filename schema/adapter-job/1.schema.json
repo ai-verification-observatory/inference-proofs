@@ -27,8 +27,10 @@
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "requests_file": false,
           "texts_file": false,
           "token": false,
+          "top_k": false,
           "verifier_files": false
         },
         "required": []
@@ -58,8 +60,10 @@
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "requests_file": false,
           "texts_file": false,
           "token": false,
+          "top_k": false,
           "verifier_files": false
         },
         "required": []
@@ -88,8 +92,10 @@
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "requests_file": false,
           "texts_file": false,
           "token": false,
+          "top_k": false,
           "verifier_files": false
         },
         "required": [
@@ -113,8 +119,10 @@
           "position": false,
           "proof_dir": false,
           "request": false,
+          "requests_file": false,
           "texts_file": false,
           "token": false,
+          "top_k": false,
           "verifier_files": false
         },
         "required": [
@@ -147,8 +155,10 @@
           "position": false,
           "prompts_file": false,
           "prover_files": false,
+          "requests_file": false,
           "texts_file": false,
-          "token": false
+          "token": false,
+          "top_k": false
         },
         "required": [
           "commitment_id",
@@ -180,7 +190,9 @@
           "prompts_file": false,
           "proof_dir": false,
           "request": false,
+          "requests_file": false,
           "token": false,
+          "top_k": false,
           "verifier_files": false
         },
         "required": [
@@ -257,9 +269,11 @@
           "proof_dir": false,
           "prover_files": false,
           "request": false,
+          "requests_file": false,
           "texts_file": false,
           "timed_batches": false,
           "token": false,
+          "top_k": false,
           "verifier_files": false,
           "warmup_batches": false
         },
@@ -294,8 +308,10 @@
           "prompts_file": false,
           "prover_files": false,
           "request": false,
+          "requests_file": false,
           "texts_file": false,
           "timed_batches": false,
+          "top_k": false,
           "verifier_files": false,
           "warmup_batches": false
         },
@@ -303,6 +319,43 @@
           "proof_dir",
           "position",
           "token",
+          "out_dir"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "subcommand": {
+            "const": "score"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "batch_size": false,
+          "batches": false,
+          "change": false,
+          "claimed_output": false,
+          "claims_file": false,
+          "commitment_id": false,
+          "control_flags": false,
+          "gpus": false,
+          "ladder": false,
+          "load_point": false,
+          "position": false,
+          "prompts_file": false,
+          "proof_dir": false,
+          "request": false,
+          "texts_file": false,
+          "timed_batches": false,
+          "token": false,
+          "verifier_files": false,
+          "warmup_batches": false
+        },
+        "required": [
+          "model_dir",
+          "requests_file",
           "out_dir"
         ]
       }
@@ -445,7 +498,7 @@
       "const": "/models"
     },
     "out_dir": {
-      "$comment": "perturb and mutate_reply: where the adapter writes W' or the mutated proof",
+      "$comment": "perturb, mutate_reply and score: where the adapter writes W', the mutated proof or the scores",
       "pattern": "^/io/[^\\x00]+$",
       "type": "string"
     },
@@ -475,6 +528,11 @@
         "type": "integer"
       },
       "type": "array"
+    },
+    "requests_file": {
+      "$comment": "score (RFC-0018 AD-7): one JSON object per request, `prompt` and `reply`, each an array of token ids",
+      "pattern": "^/io/[^\\x00]+$",
+      "type": "string"
     },
     "run_id": {
       "$ref": "../quantity/1.schema.json#/$defs/runId"
@@ -524,7 +582,8 @@
         "verify",
         "logprobs",
         "perturb",
-        "mutate_reply"
+        "mutate_reply",
+        "score"
       ]
     },
     "texts_file": {
@@ -539,6 +598,11 @@
     },
     "token": {
       "$comment": "mutate_reply: the new token id",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "top_k": {
+      "$comment": "score (RFC-0018 AD-7): the most probable tokens to list at each reply position with their log-probabilities; 0 for the top tokens alone",
       "minimum": 0,
       "type": "integer"
     },

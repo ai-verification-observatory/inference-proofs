@@ -473,6 +473,20 @@ CONTROL_NAME = {"reference-2": "original, run again"}
 RECORD_WORD = {"run.json": "run record", "controls.json": "controls", "verify-trace": "verify traces",
                "reverify.json": "re-verify record", "fidelity.json": "fidelity record"}  # fmt: skip
 P_ABOVE = "above the bar: p\u00a0=\u00a0{p}"
+# the teacher-forced table under it (RFC-0018 FI-10 to FI-13, SI-9): figures only, no state
+TF_LEAD = (
+    "A second measure, printed beside the check's score; it sets no state. Each row is fed "
+    "the prompt, then the original's reply token by token: at each of the reply's "
+    "{positions:,} positions, is its own top token the original's? n\u00a0=\u00a0{n:,} prompts in "
+    "each row. KL compares, at each position, the {k:,} most probable tokens of both, with "
+    "every other token pooled."
+)
+TF_AGREE = "Positions where the top token is the original's, mean"
+TF_KL = "KL to the original, on its reply"
+TF_SUB = "median {median}"
+TF_FAILED = "{k:,} of {n:,} prompts failed, counted as 0"
+TF_TEST = "{name} above it: p\u00a0=\u00a0{above} · below it: p\u00a0=\u00a0{below}"
+TF_KL_SUB = "n\u00a0=\u00a0{n:,}"  # under a KL figure whose n is not the block's
 
 
 # ------------------------------------------------------------------ numbers (display only)

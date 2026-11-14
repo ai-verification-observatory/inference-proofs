@@ -93,6 +93,13 @@ from .words import (
     SEP,
     STATE_WORD,
     STEP_WORD,
+    TF_AGREE,
+    TF_FAILED,
+    TF_KL,
+    TF_KL_SUB,
+    TF_LEAD,
+    TF_SUB,
+    TF_TEST,
     VISIBLE_TAG_WORD,
     WHOLE_SESSIONS,
     beside_unit,
@@ -430,7 +437,7 @@ def plain(v, unit, record, said="", missing="none"):
     `missing` in its place when there is none."""
     if v is None:
         return f'<span class="na">{e(missing)}</span>'
-    n, u = (sig(v), "tokens") if unit == "tokens" else number(v, unit)
+    n, u = (sig(v), unit) if unit in ("tokens", "positions") else number(v, unit)
     title = f"{said}; record: {record}" if said else f"record: {record}"
     return (f'<span class="fig" title="{e(title)}"><span class="n">{e(n)}</span>'
             f'<span class="u">{e(u)}</span></span>')  # fmt: skip
@@ -753,6 +760,80 @@ def fidelity_html(row):
     ths = (f'<th scope="col">{e(heads[0])}</th><th scope="col">{e(heads[1])}</th>'
            f'<th scope="col" class="trk" aria-hidden="true"></th>'
            + "".join(f'<th scope="col">{e(h)}</th>' for h in heads[2:]))  # fmt: skip
+    return (f'{lead}<table class="rt stk fid"><thead><tr>{ths}</tr></thead>'
+            f'<tbody>{"".join(out)}</tbody></table>{teacher_forced_html(row)}')  # fmt: skip
+
+
+def tf_kl_html(entry, block_n):
+    """A teacher-forced KL figure with its labels in its title (its n under it where it is not
+    the block's), or "not measured" with the cause."""
+    kl = entry["kl"]
+    if kl is None:
+        note = entry["kl_note"] or "not measured"
+        return f'<span class="na" title="{e(note)}">not measured</span>'
+    num, unit = number(kl["value"], kl["unit"])
+    title = (f"{kl['unit']} · measured, reported · {kl['note']} · {kl['n']:,} prompts, "
+             f"{kl['positions']:,} positions · mean probability the original gives the pooled "
+             f"tokens: {sig(kl['reference_rest_mass'] or 0, 2)} · record: {kl['source']}")  # fmt: skip
+    sub = "" if kl["n"] == block_n else f'<span class="sub">{e(TF_KL_SUB.format(n=kl["n"]))}</span>'
+    return (f'<span class="fig" title="{e(title)}"><span class="n">{e(num)}</span>'
+            f'<span class="u">{e(unit)}</span></span>{sub}')  # fmt: skip
+
+
+def teacher_forced_html(row):
+    """SI-9 (FI-10 to FI-13): under the Fidelity table, the row's teacher-forced agreement and
+    KL beside the model's controls, with its label, whose computation it is and its records.
+    Figures only: nothing here sets a state. Nothing is printed while no pass is scored."""
+    tf = rung_of(row).get("teacher_forced")
+    if tf is None:
+        return ""
+    mine = tf["rows"].get(row["system"])
+    whole, top_k = tf["positions"], tf["top_k"]
+
+    def cells(kind, entry, kind_class, sub):
+        if entry["status"] != "ok":
+            why = entry["cause"] or "not run"
+            agree = f'<span class="na" title="{e(why)}">not run</span>'
+        else:
+            agree = plain(entry["mean"], "positions", tf["path"]) + "".join(
+                f'<span class="sub">{e(line)}</span>' for line in sub if line
+            )
+        track = fid_svg(entry["mean"], None, whole, kind_class)
+        return (f'<td data-l="Kind">{e(kind)}</td>'
+                f'<td class="trk" aria-hidden="true">{track}</td>'
+                f'<td data-l="{e(TF_AGREE)}">{agree}</td>'
+                f'<td data-l="{e(TF_KL)}">{tf_kl_html(entry, tf["n"])}</td>')  # fmt: skip
+
+    def sub_of(entry):
+        return TF_SUB.format(median=f"{entry['median']:,.5g}")
+
+    out = []
+    lead = f'<p class="flead">{e(TF_LEAD.format(positions=whole, n=tf["n"], k=top_k))}</p>'
+    tests = {}
+    if mine is not None:
+        sub = [sub_of(mine) if mine["status"] == "ok" else ""]
+        if mine["failed"]:
+            causes = sorted({f["cause"] for f in mine["failed"]})
+            failed = TF_FAILED.format(k=len(mine["failed"]), n=mine["n"])
+            sub.append(failed + ": " + "; ".join(causes))
+        out.append(f'<tr class="me"><th scope="row">{e(name_of(row))}</th>'
+                   + cells("this system", mine, "me", sub) + "</tr>")  # fmt: skip
+        tests = {(t["a"], t["b"]): t["p"] for t in mine["tests"]}
+        records = [p for p in (mine["run"], tf["path"]) if p]
+        lead += (f'<p class="flead">{e(name_of(row))}: {e(mine["label"])}. What ran: '
+                 f'{e(mine["computed_by"])}. {''.join(evidence_links(records))}</p>')  # fmt: skip
+    for c in tf["controls"]:
+        sub = [sub_of(c) if c["status"] == "ok" else ""]
+        above, below = tests.get((row["system"], c["id"])), tests.get((c["id"], row["system"]))
+        if above is not None and below is not None:
+            sub.append(TF_TEST.format(name=name_of(row), above=sig(above, 2),
+                                      below=sig(below, 2)))  # fmt: skip
+        name = CONTROL_NAME.get(c["id"]) or (c["id"].upper() if QUANT.match(c["id"]) else c["id"])
+        out.append(f'<tr><th scope="row">{e(name)}</th>'
+                   + cells(c["kind"], c, c["kind"], sub) + "</tr>")  # fmt: skip
+    ths = ('<th scope="col">Replies</th><th scope="col">Kind</th>'
+           '<th scope="col" class="trk" aria-hidden="true"></th>'
+           f'<th scope="col">{e(TF_AGREE)}</th><th scope="col">{e(TF_KL)}</th>')  # fmt: skip
     return (f'{lead}<table class="rt stk fid"><thead><tr>{ths}</tr></thead>'
             f'<tbody>{"".join(out)}</tbody></table>')  # fmt: skip
 

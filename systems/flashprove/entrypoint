@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """FlashProve adapter (RFC-0005), standard library only.
 
-Usage: entrypoint <info|setup|commit|prove|verify> /io/job.json /io/out.json
+Usage: entrypoint <info|setup|commit|prove|verify|score> /io/job.json /io/out.json
 
 Each step calls one upstream program the way upstream's own scripts call it at the pin (U below
 is https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b0400b260c):
@@ -38,6 +38,11 @@ is https://github.com/anthropics/FlashProve/blob/9e2bdd8ff5bf9c62f18263d7dac189b
 
 The programs need an x86-64 CPU with the SHA extensions and, for cp_commit and cp_prove, a
 sandbox that lets madvise(MADV_WIPEONFORK) through (U/prover/docs/build.md "What you need").
+
+- `score` (RFC-0018 AD-7): the integer-model package's greedy choice at every position of a reply
+  it is given, and optionally the largest logits there, on `setup`'s fit. The package is the one
+  `prove` writes the replies with; upstream says it is "by design" the function cp_prove proves and
+  does not state that the two are equal value by value at full size (README.md §Scoring a reply).
 
 IPROOFS_IO and IPROOFS_MODELS map /io and /models to host directories, and IPROOFS_FLASHPROVE_SRC
 names the upstream checkout (default /src), when the tests run this file in process.
@@ -89,12 +94,71 @@ with open(out, "x") as f:
         f.write(json.dumps({"prompt_token_ids": prompt, "reply_token_ids": reply}) + "\\n")
         f.flush()
 """
+# RFC-0018 AD-7. Position j of a sequence scores token j + 1 (examples/score_reply.py L126-128), so
+# the prompt but its last token is fed first and then, in one call, the prompt's last token and the
+# reply but its last: the greedy choices of that call are the model's own top tokens at the reply's
+# positions, and its gaps are 0 exactly where the choice is the reply's token (model.py `extend`).
+# With k > 0 `record` hands the call's logits `lam` (integers, in the unit 2^-s): their log-softmax
+# in float64, then the k largest, lower id first among equal values. One process for every request,
+# so the weights load once.
+SCORE_PY = """import json, os, struct, sys, time
+from array import array
+import integer_model
+folder, requests_file, out, k, s, options = sys.argv[1:7]
+k, s = int(k), int(s)
+model = integer_model.load_from_folder(folder, "cuda", json.loads(options))
+requests = [json.loads(line) for line in open(requests_file).read().splitlines() if line.strip()]
+for i, request in enumerate(requests):
+    prompt, reply = request["prompt"], request["reply"]
+    started = time.monotonic()
+    kept = {}
+    def record(name, layer, tensor):
+        if name == "lam":
+            kept["lam"] = tensor
+    sequence = model.new_sequence()
+    doc = None
+    try:
+        if len(prompt) > 1:
+            model.extend(sequence, prompt[:-1])
+        fed = [prompt[-1], *reply[:-1]]
+        if k > 0:
+            choices, gaps = model.extend(sequence, fed, gap_for=reply, record=record)
+        else:
+            choices, gaps = model.extend(sequence, fed, gap_for=reply)
+    except integer_model.RangeConditionFailed as error:
+        doc = {"failed": "RangeConditionFailed: " + str(error)}
+    finally:
+        model.free(sequence)
+    if doc is None:
+        top = [int(c) for c in choices]
+        if [int(g) == 0 for g in gaps] != [c == y for c, y in zip(top, reply)]:
+            sys.exit(f"request {i}: the gaps are not 0 exactly where the choice is the reply's token")
+        doc = {"top": top}
+        if k > 0:
+            values, ids = (kept["lam"].double() / (1 << s)).log_softmax(1).topk(k, dim=1)
+            rows = [sorted(zip(v, t), key=lambda e: (-e[0], e[1]))
+                    for v, t in zip(values.tolist(), ids.tolist())]
+            if [row[0][1] for row in rows] != top:
+                sys.exit(f"request {i}: the largest logit is not at the greedy choice")
+            blob = b"TFK1" + struct.pack("<II", len(rows), k)
+            blob += array("i", [int(t) for row in rows for _, t in row]).tobytes()
+            blob += array("f", [v for row in rows for v, _ in row]).tobytes()
+            with open(f"{out}/{i}.topk", "wb") as f:
+                f.write(blob)
+    kept.clear()
+    doc["seconds"] = time.monotonic() - started
+    with open(f"{out}/{i}.json.tmp", "w") as f:
+        json.dump(doc, f)
+    os.replace(f"{out}/{i}.json.tmp", f"{out}/{i}.json")
+    print(f"request {i}: {'failed' if 'failed' in doc else 'scored'} in {doc['seconds']:.1f} s",
+          flush=True)
+"""
 # A pytest summary line that is not all passed: OPERATING.md "Check that float64 products are exact
 # on your GPU": "Every test should pass, and none be skipped."
 NOT_ALL_PASSED = re.compile(r"failed|skipped|error|xfailed|xpassed|deselected|no tests ran")
 # RFC-0018 CH-2: the control jobs in which W' may stand where the published files are required
 W_PRIME_CONTROLS = ("P1", "C3")
-OPTIONAL = ["perturb"]  # RFC-0018 AD-5
+OPTIONAL = ["perturb", "score"]  # RFC-0018 AD-5, AD-7
 WARNINGS: list[str] = []  # what this call accepted that a measured job would refuse
 # GGUF (U/docs/model.md 11.1, 11.2): the value types of its metadata, and Q4_K's type number and
 # block size in ggml's numbering (gguf-py 0.19.0, constants.py GGMLQuantizationType)
@@ -349,18 +413,13 @@ def request_words(prompt: list[int], reply: list[int], t: int) -> list[int]:
     return [*prompt, *reply, *[0] * (t - p - r), p - 1, p + r - 1]
 
 
-def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
-             phases: list[dict]) -> list[list[int]]:  # fmt: skip
-    """RFC-0018 AD-3: each reply is the committed integer model's own greedy reply, from the
-    package upstream ships for it, on the files the commitment was made from: the fit's policy.txt
-    and KL.bin, the weights with wsums.txt and fold.txt beside them, every tensor checked against
-    wsums.txt ("verify_sums") and the five small files against their digests, KL.bin's and
-    wsums.txt's being the published ones (OPERATING.md "The files of a model", "Verify what was
-    loaded"; integer_model/model.py load_from_folder)."""
-    t = window_of(host(FIT_CONFIG) / "policy.txt")
-    for prompt in prompts:
-        request_words(prompt, [0] * length, t)  # refuses a request that does not fit
-    mark("generation.start")  # RFC-0018 AD-4, CO-3: the GPU's time for the replies starts here
+def integer_model_folder(job: dict, work: Path, phases: list[dict]) -> tuple[Path, str]:
+    """The folder `integer_model.load_from_folder` reads and its `sha256` options, after the
+    package's float64 check on the GPU: the fit's policy.txt and KL.bin, the weights with
+    wsums.txt and fold.txt beside them, every tensor checked against wsums.txt ("verify_sums")
+    and the five small files against their digests, KL.bin's and wsums.txt's being the published
+    ones (OPERATING.md "The files of a model", "Verify what was loaded"; integer_model/model.py
+    load_from_folder)."""
     started = time.monotonic()
     log = work / "float64.log"
     argv = [IM_PYTHON, "-B", "-m", "pytest", "-p", "no:cacheprovider", "-rs",
@@ -371,7 +430,6 @@ def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
         raise SystemExit(f"flashprove: the float64 check exited {code}, last line {summary!r}: "
                          "not every test passed: this GPU does not serve the integer model")
     phases.append({"name": "float64_check", "seconds": time.monotonic() - started})
-    started = time.monotonic()
     weights, config = host(WEIGHTS), host(FIT_CONFIG)
     model = private(work / "integer-model")
     for name in ("policy.txt", "KL.bin"):
@@ -391,12 +449,26 @@ def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
         "wsums.txt": published["model/wsums.txt"],
         "fold.txt": hashlib.sha256((weights / "fold.txt").read_bytes()).hexdigest(),
     }
+    return model, json.dumps({"sha256": sha}, sort_keys=True)
+
+
+def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
+             phases: list[dict]) -> list[list[int]]:  # fmt: skip
+    """RFC-0018 AD-3: each reply is the committed integer model's own greedy reply, from the
+    package upstream ships for it, on the files the commitment was made from
+    (`integer_model_folder`)."""
+    t = window_of(host(FIT_CONFIG) / "policy.txt")
+    for prompt in prompts:
+        request_words(prompt, [0] * length, t)  # refuses a request that does not fit
+    mark("generation.start")  # RFC-0018 AD-4, CO-3: the GPU's time for the replies starts here
+    model, options = integer_model_folder(job, work, phases)
+    started = time.monotonic()
     listed = work / "prompts.jsonl"
     listed.write_text("".join(json.dumps(p) + "\n" for p in prompts))
     replies = work / "replies.jsonl"
     log = work / "generate.log"
     argv = [IM_PYTHON, "-B", "-c", GENERATE_PY, str(model), str(listed), str(len(prompts)),
-            str(length), str(replies), json.dumps({"sha256": sha}, sort_keys=True)]  # fmt: skip
+            str(length), str(replies), options]  # fmt: skip
     if run(argv, job, work, log) != 0:
         raise SystemExit(f"flashprove: the integer model exited non-zero, last line "
                          f"{last_line(log)!r}")  # fmt: skip
@@ -408,6 +480,58 @@ def generate(job: dict, prompts: list[list[int]], length: int, work: Path,
     phases.append({"name": "generate", "seconds": time.monotonic() - started})
     mark("generation.end")
     return [[int(x) for x in r["reply_token_ids"]] for r in rows]
+
+
+def logit_scale(policy: Path) -> int:
+    """s, from the line `s` of the parameter file: "a logit of the model is an integer logit
+    divided by 2^s. It is the provider's statement: no equation ties it to the model"
+    (U/verifier/docs/parameter-file.md line 219; target_full_f2 has `s 15`)."""
+    found = re.findall(r"^s (\d+)$", policy.read_text(errors="replace"), re.M)
+    if len(found) != 1:
+        raise SystemExit(f"flashprove: {policy} has {len(found)} lines `s`, not 1")
+    return int(found[0])
+
+
+def score(job: dict) -> dict:
+    """RFC-0018 AD-7: the integer model's greedy choice at every position of a reply it is
+    given, by the package `generate` uses, on the same folder and after the same float64 check.
+    The call is the one of U/integrations/vllm/integer_model/examples/score_reply.py ("scores a
+    reply that another engine served, in one forward pass", examples/README.md line 31):
+    `extend(sequence, tokens[:-1], gap_for=tokens[1:])`, whose first result is the greedy choice
+    after each fed token (model.py `extend`, docstring). With top_k > 0 the logits come from
+    `record`, which the same docstring describes ("after the layers x_last, aF, lam,
+    first_choice") and OPERATING.md names ("with `record=` every layer's arrays and the
+    logits"); the README's "Python API" section does not show it (README.md, deviations). A
+    request on which `extend` raises RangeConditionFailed is recorded as failed with that
+    message. This is the package's computation, not cp_prove's."""
+    lines = host(job["requests_file"]).read_text().splitlines()
+    requests = [json.loads(ln) for ln in lines if ln.strip()]
+    policy = host(FIT_CONFIG) / "policy.txt"
+    t = window_of(policy)
+    for r in requests:
+        request_words(r["prompt"], r["reply"], t)  # refuses a request that does not fit
+    k = int(job.get("top_k", 0))
+    work = workdir(host("/io/state/score"))
+    out = host(job["out_dir"])
+    out.mkdir(parents=True, exist_ok=True)
+    phases: list[dict] = []
+    model, options = integer_model_folder(job, work, phases)
+    started = time.monotonic()
+    listed = work / "requests.jsonl"
+    listed.write_text("".join(json.dumps(r) + "\n" for r in requests))
+    log = work / "score.log"
+    argv = [IM_PYTHON, "-B", "-c", SCORE_PY, str(model), str(listed), str(out), str(k),
+            str(logit_scale(policy) if k else 0), options]  # fmt: skip
+    if run(argv, job, work, log) != 0:
+        raise SystemExit(f"flashprove: the integer model exited non-zero, last line "
+                         f"{last_line(log)!r}")  # fmt: skip
+    phases.append({"name": "score", "seconds": time.monotonic() - started})
+    docs = [json.loads((out / f"{i}.json").read_text()) for i in range(len(requests))]
+    length = len(requests[0]["reply"]) if requests else 0
+    return {**base("score"), "phases": phases,
+            "scores": {"dir": job["out_dir"].rstrip("/"), "requests": len(requests),
+                       "positions": length, "top_k": k,
+                       "failed": [i for i, d in enumerate(docs) if "failed" in d]}}  # fmt: skip
 
 
 def prove(job: dict) -> dict:  # noqa: PLR0915
@@ -644,7 +768,7 @@ def main() -> int:
     if job.get("subcommand") != sub:
         raise SystemExit(f"flashprove: job.json is for {job.get('subcommand')!r}, not {sub!r}")
     handlers = {"info": info, "setup": setup, "commit": commit, "prove": prove, "verify": verify,
-                "perturb": perturb}  # fmt: skip
+                "perturb": perturb, "score": score}  # fmt: skip
     if sub not in handlers:
         raise SystemExit(f"flashprove: no subcommand {sub!r}")
     WARNINGS.clear()

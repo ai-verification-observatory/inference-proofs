@@ -35,6 +35,9 @@ ENGINE_REPOS = {"vllm": "vllm-project/vllm"}
 RUN_RECORD = "fidelity-run.json"
 PART = "controls"  # FI-9: the quantized controls, run apart from a vLLM reference
 ROW_PREFIX = "row-"  # the id of a row's committed file in the image's status
+# the calls given the job's GPUs: a reference image's prove, and a system's setup, commit and
+# score (RFC-0018 AD-7), which run its own code on the GPU
+GPU_CALLS = ("prove", "setup", "commit", "score")
 
 
 def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command: Command) -> None:
@@ -101,6 +104,62 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
         "(default: fidelity-work/<release>/<rung>)",
     )
     p.add_argument("--results", type=Path, help="default: the repository's results/")
+    p.add_argument(
+        "--teacher-forced",
+        action="store_true",
+        help="feed each prompt and its stored reference reply, and store the engine's top token "
+        "at every reply position and its most probable tokens there (RFC-0018 FI-10 to FI-15); "
+        "no reply is generated and nothing gates",
+    )
+    p.add_argument(
+        "--system",
+        help="with --teacher-forced: a row's own code, through its adapter's score subcommand "
+        "(AD-7), in --scoring-image",
+    )
+    p.add_argument(
+        "--scoring-image",
+        metavar="REPOSITORY@sha256:DIGEST",
+        help="with --system: the image built for scoring; its upstream commit must be the "
+        "counted sessions'",
+    )
+    p.add_argument(
+        "--before",
+        default="setup",
+        metavar="STEP[,STEP]",
+        help="with --system: the adapter steps score needs first (default: setup)",
+    )
+    p.add_argument(
+        "--prover-files",
+        type=Path,
+        help="with --system: the prover files of a counted session's commitment store, each "
+        "checked against the digest the sessions record, in place of a commit step",
+    )
+    p.add_argument("--only", metavar="ID[,ID]", help="with --teacher-forced: these controls only")
+    p.add_argument(
+        "--limit",
+        type=int,
+        help="with --teacher-forced: the first N prompts (a trial; `fidelity score` reads no "
+        "such run)",
+    )
+    p.add_argument(
+        "--offset",
+        type=int,
+        default=0,
+        help="with --teacher-forced: start at this prompt (with --limit, one shard of the "
+        "prompts; runs that together cover every prompt once make one pass)",
+    )
+    p.add_argument(
+        "--top-k",
+        type=int,
+        default=256,
+        help="with --teacher-forced: the most probable tokens listed per position (default: "
+        "256, FI-12; 0: none)",
+    )
+    p.add_argument(
+        "--name",
+        help="with --teacher-forced: the run record's name (default: the system, the part or "
+        "the engine)",
+    )
     p.add_argument("--timeout-h", type=float, default=48.0, help="per call (default: 48)")
     p.add_argument("--hosted", action="store_true", help="this container is the pinned image")
     p.add_argument("--image", metavar="IMAGE_ID", help="a locally built image by ID")
@@ -116,6 +175,18 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
     p.add_argument("--level", default="L1", help="level id (default: L1)")
     p.add_argument("--rung", required=True)
     p.add_argument("--release", required=True)
+    p.add_argument(
+        "--part",
+        choices=["teacher-forced"],
+        help="teacher-forced: agreement, its tests and KL from the stored passes into "
+        "teacher-forced.json (RFC-0018 FI-10 to FI-15); fidelity.json is not written",
+    )
+    p.add_argument(
+        "--raw",
+        type=Path,
+        help="with --part teacher-forced: the passes' lists (one directory per id), from which "
+        "the KL values are measured into kl.json first",
+    )
     p.set_defaults(handler=fidelity_score)
 
 
@@ -256,6 +327,10 @@ def fidelity_run(args: argparse.Namespace) -> int:
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.serialize import write_jsonl  # noqa: PLC0415
 
+    if args.teacher_forced:
+        from iproofs.commands import teacher_forced  # noqa: PLC0415
+
+        return teacher_forced.run(args)
     root = _root()
     registry = SchemaRegistry.from_tree(root / "schema")
     level = load_level(root, args.level, registry=registry)
@@ -470,7 +545,7 @@ def _call(
         step,
         io,
         models_dir=models,
-        gpu=",".join(map(str, args.gpus)) if step == "prove" else None,
+        gpu=",".join(map(str, args.gpus)) if step in GPU_CALLS else None,
         cpuset=_cpuset(),
         mems="0",
         memory=None,
@@ -615,6 +690,10 @@ def fidelity_score(args: argparse.Namespace) -> int:
     from iproofs.schema import SchemaRegistry  # noqa: PLC0415
     from iproofs.serialize import write_json  # noqa: PLC0415
 
+    if args.part == "teacher-forced":
+        from iproofs.commands import teacher_forced  # noqa: PLC0415
+
+        return teacher_forced.score(args)
     root = _root()
     registry = SchemaRegistry.from_tree(root / "schema")
     level = load_level(root, args.level, registry=registry)

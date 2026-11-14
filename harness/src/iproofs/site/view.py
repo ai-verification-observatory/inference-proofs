@@ -244,6 +244,7 @@ def _rung(
         "systems_run": 0,
         "baseline": None,
         "fidelity": None,
+        "teacher_forced": None,
         "rows": [],
     }
     if raw is None:
@@ -259,6 +260,8 @@ def _rung(
     rung["systems_run"] = raw["systems_run"]
     rung["baseline"] = _baseline(raw["baseline"], f"{at}/baseline", board)
     rung["fidelity"] = _fidelity(raw["fidelity"], f"{at}/fidelity", board)
+    # SI-9: the teacher-forced figures, printed beside fidelity; they set no state
+    rung["teacher_forced"] = raw.get("teacher_forced")
     rung["rows"] = [_row(r, f"{at}/rows/{i}", board, rung) for i, r in enumerate(raw["rows"])]
     return rung
 
