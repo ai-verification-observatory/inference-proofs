@@ -59,7 +59,17 @@ Outputs: `/io/fidelity/teacher-forced/top/<id>.jsonl` and `raw/<id>/<prompt>.top
 
 Measured on Llama 3.1 8B (1 H200, one slot, `results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json`, n = 1 run): a pass over the 15 prompts (7,680 positions, each with its list of 256) took 73 to 104 s with the control's build and load, about 9 ms per position for the reference; 1 position of 61,440 came back without a list (in the `drop_blocks` control). The reference's own pass gives its stored reply at every position, as does its rerun: at one slot the engine repeats itself.
 
-Measured on Llama 4 Maverick (4 H200, 16 slots, the Q8_0 and Q4_K_M controls, each as three runs of 120 prompts, `results/v1.0/teacher-forced/llama-4-maverick/run-controls-*.json`): the pass ran at 6.7 positions per second, 2.5 s per request, so 61,440 positions took about 2 h 35 min per run after a build and load of 9 to 20 min. The server's logs show 6 prompt tokens evaluated per request and no graph reuse, at 1.5 to 2.5 s per request, while the same server evaluated a 512-token prompt at 347 tokens per second; on Llama 3.1 8B at one slot a request evaluated 1 token in 5 ms. Neither log holds a line about a context checkpoint. So the time is a cost per decode step, not per token; its cause is not established. A constant batch shape (fewer slots) and the CUDA backend without graphs are the two settings to try; neither has been run. No position came back without a list. An earlier run of the whole Q4_K_M pass in one job was stopped at its deadline and stored nothing (`not-stored.json`).
+Measured on Llama 4 Maverick (4 H200, 16 slots, the Q8_0 and Q4_K_M controls, each as three runs of 120 prompts, `results/v1.0/teacher-forced/llama-4-maverick/run-controls-*.json`): the pass ran at 6.7 positions per second, 2.5 s per request, so 61,440 positions took about 2 h 35 min per run after a build and load of 9 to 20 min. The server's logs show 6 prompt tokens evaluated per request at 1.5 to 2.5 s, while the same server evaluated a 512-token prompt at 347 tokens per second; on Llama 3.1 8B a request evaluated 1 token (5 ms at one slot; 26 ms at 16 slots, with or without `GGML_CUDA_DISABLE_GRAPHS=1`, n = 1 run each, 2026-11-14).
+
+The cause, from a probe of 2026-11-14 (Q4_K_M on 4 H200, 16 slots, 16 prompts and 10 to 12 positions each, a second server started by hand on the file the job built; a diagnostic, not a pass): llama.cpp at the pin gives this model a sliding-window attention cache, which cannot drop only its last token, so a request that replaces one token is not a one-token step.
+
+| Server option | Prompt tokens evaluated per request | Request, median | Positions per second |
+|---|---|---|---|
+| default | 6 | 1,543 ms | 10.4 |
+| `--ctx-checkpoints 0` | 519 to 521 (the whole prompt again) | 975 ms | 15.6 |
+| `--swa-full` | 1 | 90 ms | 168 |
+
+`--swa-full` is documented ("use full-size SWA cache", [tools/server/README.md](https://github.com/ggml-org/llama.cpp/blob/cd959bae99ff4bed22bef2604f45241c09bbb8c8/tools/server/README.md)); the default and `--swa-full` rows were each measured twice in that job with the same result (n = 2). With it a pass over Maverick's 360 prompts would take about 18 min in place of about 7 h 40 min. Not yet checked: that the option leaves the top tokens and log-probabilities unchanged (the probe's outputs were not kept). The stored Q8_0 and Q4_K_M passes ran with the default cache; a pass with `--swa-full` should first repeat a stored shard and be compared with it. No position came back without a list. An earlier run of the whole Q4_K_M pass in one job was stopped at its deadline and stored nothing (`not-stored.json`).
 
 ## Resources
 
