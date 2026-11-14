@@ -41,6 +41,7 @@ from .overview import (
     multiple_html,
     name_of,
     nobreak,
+    pct,
     request_words,
     serving_words,
     split_html,
@@ -795,17 +796,21 @@ def teacher_forced_html(row):
             why = entry["cause"] or "not run"
             agree = f'<span class="na" title="{e(why)}">not run</span>'
         else:
-            agree = plain(entry["mean"], "positions", tf["path"]) + "".join(
+            said = (f"mean {sig(entry['mean'])} of {whole:,} positions; "
+                    f"n = {entry['n']:,} prompts")  # fmt: skip
+            agree = (f'<span class="fig" title="{e(said)}; record: {e(tf["path"])}">'
+                     f'<span class="n">{e(pct(entry["percent"]))}</span>'
+                     f'<span class="u">%</span></span>') + "".join(
                 f'<span class="sub">{e(line)}</span>' for line in sub if line
-            )
+            )  # fmt: skip
         track = fid_svg(entry["mean"], None, whole, kind_class)
         return (f'<td data-l="Kind">{e(kind)}</td>'
                 f'<td class="trk" aria-hidden="true">{track}</td>'
                 f'<td data-l="{e(TF_AGREE)}">{agree}</td>'
                 f'<td data-l="{e(TF_KL)}">{tf_kl_html(entry, tf["n"])}</td>')  # fmt: skip
 
-    def sub_of(entry):
-        return TF_SUB.format(median=f"{entry['median']:,.5g}")
+    def sub_of(entry):  # the median in the mean's unit, a percentage of the positions
+        return TF_SUB.format(median=f"{pct(entry['median'] / whole * 100)}\u202f%")
 
     out = []
     lead = f'<p class="flead">{e(TF_LEAD.format(positions=whole, n=tf["n"], k=top_k))}</p>'

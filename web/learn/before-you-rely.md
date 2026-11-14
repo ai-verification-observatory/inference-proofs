@@ -62,7 +62,7 @@ No cryptographic protocol can stop an operator from going offline, returning a t
 - **[Cost vs serving](/checks#multiple).** The GPU-seconds required to produce a proved reply, token generation included, divided by the GPU-seconds required to serve an unproved reply on the same model and hardware. Where a system generates its replies in a phase of its own, its two parts are printed under it: commit and proving, and generation.
 - **[Cost](/checks#cost).** The same GPU time in US dollars per proved reply, at the release's price for one H200 GPU-hour.
 - **[Verify time](/checks#check-time).** The CPU seconds the verifier takes per reply, with no GPU and no weights.
-- **[Fidelity](/checks#fidelity).** The Fidelity check's state in one word: held, failed or undecided. Its measures are on the system's page.
+- **[Fidelity](/glossary#fidelity).** The share of reply positions where the system's top token is the original model's, as a percentage, with the model's Q8_0 and Q4_K_M copies under it to read it against. It sets no state: the Fidelity check's state (held, failed or undecided) is in the system's checks and its Faithful model petal.
 
 The ladder prints each figure with its unit alone; a system's page prints what each figure timed and its sample size (n). A ranked position needs three completed sessions, so a figure over fewer sessions is provisional.
 

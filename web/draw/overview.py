@@ -23,6 +23,9 @@ from .hexagon import glyph_svg
 from .words import (
     CAUSE_WORD,
     CHECK_NAME,
+    FIDELITY_AGAINST,
+    FIDELITY_CHECK_TITLE,
+    FIDELITY_FIG_TITLE,
     FIDELITY_TITLE,
     FIGURE_HEAD,
     FRONTIER_WORD,
@@ -202,7 +205,43 @@ def split_html(row, key, bar=True, of_which=False, bare=False):
     return f'<span class="split">{svg}{out}</span>'
 
 
-def fidelity_word(row, page=None):
+def pct(v):
+    """A percentage as the site prints it: one decimal."""
+    return f"{v:.1f}"
+
+
+def fidelity_against(rung):
+    """The rung's 8-bit and 4-bit copies' Fidelity in one line ("Q8_0 98.4 % · Q4_K_M 90.6 %"),
+    each that ran; "" where none did."""
+    tf = rung.get("teacher_forced") or {}
+    by = {c["id"]: c for c in tf.get("controls") or []}
+    out = [f"{i.upper()} {pct(by[i]['percent'])}\u202f%" for i in FIDELITY_AGAINST
+           if i in by and by[i]["status"] == "ok" and by[i].get("percent") is not None]  # fmt: skip
+    return SEP.join(out)
+
+
+def fidelity_word(row, page=None, against=True):
+    """A row's Fidelity as the surface prints it (RFC-0018 SI-9, amended 2026-11-14): FI-10's
+    mean as a percentage of the reply's positions, linked to the Fidelity section of the
+    system's page, with the rung's Q8_0 and Q4_K_M under it (`against`). Its title says what it
+    is, whose computation, n and the record, and the FIDELITY check's state, which it does not
+    set. A row with no teacher-forced pass prints the check's state in a word, as before."""
+    tf = rung_of(row).get("teacher_forced") or {}
+    mine = (tf.get("rows") or {}).get(row["system"])
+    if mine is None or mine["status"] != "ok" or mine.get("percent") is None:
+        return check_word(row, page)
+    check = next(c for c in row["checks"] if c["id"] == "fidelity")
+    title = [FIDELITY_FIG_TITLE, mine["label"], f"n = {mine['n']:,} prompts",
+             FIDELITY_CHECK_TITLE.format(state=STATE_WORD[check["state"]]),
+             f"record: {tf['path']}"]  # fmt: skip
+    at = href(row) if page is None else page
+    line = fidelity_against(rung_of(row)) if against else ""
+    return (f'<a class="fig fp" href="{e(at)}#fidelity" title="{e("; ".join(title))}">'
+            f'<span class="n">{e(pct(mine["percent"]))}</span><span class="u">%</span></a>'
+            + (f'<span class="sub">{sub_line(line)}</span>' if line else ""))  # fmt: skip
+
+
+def check_word(row, page=None):
     """A row's fidelity as the surface prints it: the FIDELITY check's state in a word (held,
     failed, undecided: FI-6), linked to the Fidelity section of the system's page, which holds
     what it is read from. Its title carries the stored figures: the replies' mean count of

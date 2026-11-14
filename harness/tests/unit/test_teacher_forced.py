@@ -13,6 +13,7 @@ from iproofs.teacher_forced import (
     above,
     agreement,
     build,
+    fidelity_percent,
     kl_figure,
     measure_kl,
     position_kl,
@@ -33,6 +34,12 @@ def test_agreement_counts_positions_not_a_prefix() -> None:
     assert agreement([0, 0, 0, 0], [7, 7, 3, 1]) == 0
     with pytest.raises(ValueError, match="top tokens"):
         agreement([7, 7], [7, 7, 3, 1])
+
+
+def test_fidelity_is_the_mean_as_a_percentage_of_positions() -> None:
+    assert round(fidelity_percent(471.2, 512) or 0, 1) == 92.0  # SASH's stored mean on 8B
+    assert fidelity_percent(512.0, 512) == 100.0
+    assert fidelity_percent(None, 512) is None
 
 
 def test_kl_of_a_full_small_vocabulary() -> None:
