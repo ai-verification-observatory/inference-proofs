@@ -46,7 +46,7 @@ Also called a negative control. Every control trial is verified alongside its un
 
 How closely the quantized or integer model that a system proves matches the original model released by its publisher. Provers convert models into finite-field or integer arithmetic to make proving feasible, and the fidelity check measures how much the model's outputs shifted as a result.
 
-On this site: a gate that compares a system's greedy replies against the original weights' replies, benchmarked against deliberately degraded copies of the model.
+On this site, Fidelity is the share of reply positions where the system's top token is the original model's, fed the original model's reply. It is printed as a percentage beside the model's 8-bit and 4-bit copies and sets no state. The Fidelity check is separate: a gate that compares a system's own greedy replies against the original weights' replies, benchmarked against deliberately degraded copies of the model.
 
 A second measure is printed beside it on each system's page and gates nothing: the system's own code is fed the original's reply token by token, and we count the positions where its top token is the original's. A proof covers only the model's own reply, so that count is computed by the system's own code, not by the proved computation.
 

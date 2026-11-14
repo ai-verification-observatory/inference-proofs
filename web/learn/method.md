@@ -61,6 +61,8 @@ For each prompt, we score a reply by counting how many leading tokens it shares 
 
 We also print the KL divergence from the original weights alongside the Fidelity check, though KL divergence does not gate ranking because it "comes from a program that is not the proved computation". The RFC is candid about the limits of the prefix-match gate: on the 8B rung it "is coarse at 15 replies" and only "stops gross damage".
 
+The figure the ladder prints as Fidelity is finer. We feed each system the prompt, then the original's reply token by token, and count the share of the reply's positions where the system's own top token is the original's. It is printed as a percentage beside the same measure for the model's 8-bit and 4-bit copies. It is "computed by the system's own code on the reference reply, not by the proved computation", and it gates nothing: the Fidelity check alone sets the check's state and the Faithful model petal.
+
 ## One figure: cost vs serving
 
 "[A proving rate alone says nothing about cost relative to the work being proved](repo:rfcs/0015-reference-rows.md)." We therefore rank systems by a dimensionless ratio on the same model, the [[multiple]]: m (steady-state GPU-seconds per additional proved reply, including generation, averaged across three sessions) divided by b (GPU-seconds per reply served at full load on the same GPU type). [Where the cost goes](/cost) walks through the anatomy of a session and both numbers.

@@ -1286,6 +1286,7 @@
             "mean_not_failed": 506.7527777777778,
             "median": 508.0,
             "n": 360,
+            "percent": 98.97515190972223,
             "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
             "status": "ok"
           },
@@ -1308,6 +1309,7 @@
             "mean_not_failed": 492.3277777777778,
             "median": 491.5,
             "n": 360,
+            "percent": 96.15776909722223,
             "run": "results/v1.0/teacher-forced/llama-4-maverick/run-controls-q8_0-0.json",
             "status": "ok"
           },
@@ -1330,6 +1332,7 @@
             "mean_not_failed": 438.0027777777778,
             "median": 431.0,
             "n": 360,
+            "percent": 85.54741753472223,
             "run": "results/v1.0/teacher-forced/llama-4-maverick/run-controls-q4_k_m-0.json",
             "status": "ok"
           },
@@ -1344,6 +1347,7 @@
             "mean_not_failed": null,
             "median": null,
             "n": 0,
+            "percent": null,
             "run": null,
             "status": "failed"
           },
@@ -1358,6 +1362,7 @@
             "mean_not_failed": null,
             "median": null,
             "n": 0,
+            "percent": null,
             "run": null,
             "status": "failed"
           },
@@ -1372,6 +1377,7 @@
             "mean_not_failed": null,
             "median": null,
             "n": 0,
+            "percent": null,
             "run": null,
             "status": "failed"
           },
@@ -1394,6 +1400,7 @@
             "mean_not_failed": 264.61944444444447,
             "median": 248.0,
             "n": 360,
+            "percent": 51.68348524305556,
             "run": "results/v1.0/teacher-forced/llama-4-maverick/run-vllm.json",
             "status": "ok"
           }
@@ -1430,6 +1437,7 @@
             "mean_not_failed": 442.3888888888889,
             "median": 437.0,
             "n": 360,
+            "percent": 86.40407986111111,
             "run": "results/v1.0/teacher-forced/llama-4-maverick/run-flashprove.json",
             "status": "ok",
             "tests": [
@@ -2591,6 +2599,7 @@
             "mean_not_failed": 512.0,
             "median": 512.0,
             "n": 15,
+            "percent": 100.0,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           },
@@ -2613,6 +2622,7 @@
             "mean_not_failed": 503.6,
             "median": 504.0,
             "n": 15,
+            "percent": 98.359375,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           },
@@ -2635,6 +2645,7 @@
             "mean_not_failed": 464.06666666666666,
             "median": 467.0,
             "n": 15,
+            "percent": 90.63802083333333,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           },
@@ -2657,6 +2668,7 @@
             "mean_not_failed": 399.8,
             "median": 401.0,
             "n": 15,
+            "percent": 78.0859375,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           },
@@ -2679,6 +2691,7 @@
             "mean_not_failed": 369.73333333333335,
             "median": 374.0,
             "n": 15,
+            "percent": 72.21354166666667,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           },
@@ -2701,6 +2714,7 @@
             "mean_not_failed": 225.93333333333334,
             "median": 204.0,
             "n": 15,
+            "percent": 44.127604166666664,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           },
@@ -2723,6 +2737,7 @@
             "mean_not_failed": 363.6,
             "median": 358.0,
             "n": 15,
+            "percent": 71.015625,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-llama.cpp.json",
             "status": "ok"
           }
@@ -2759,6 +2774,7 @@
             "mean_not_failed": 471.2,
             "median": 471.0,
             "n": 15,
+            "percent": 92.03125,
             "run": "results/v1.0/teacher-forced/llama-3.1-8b/run-sash.json",
             "status": "ok",
             "tests": [

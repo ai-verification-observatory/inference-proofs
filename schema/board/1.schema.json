@@ -1414,6 +1414,15 @@
                     "minimum": 0,
                     "type": "integer"
                   },
+                  "percent": {
+                    "$comment": "SI-9 (amended 2026-11-14): mean ÷ positions × 100, the site's Fidelity; computed by the board",
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 100
+                  },
                   "run": {
                     "type": [
                       "string",
@@ -1628,6 +1637,15 @@
                   "n": {
                     "minimum": 0,
                     "type": "integer"
+                  },
+                  "percent": {
+                    "$comment": "SI-9 (amended 2026-11-14): mean ÷ positions × 100, the site's Fidelity; computed by the board",
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0,
+                    "maximum": 100
                   },
                   "run": {
                     "type": [

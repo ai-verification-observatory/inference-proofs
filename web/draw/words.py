@@ -235,6 +235,12 @@ FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply",
 FIGURE_HEAD = {"multiple": "Cost vs serving", "cost": "Cost", "check-time": "Verify time",
                "proof-size": "Proof size", "fidelity": "Fidelity", "serving": "Serving"}  # fmt: skip
 FIDELITY_TITLE = "leading tokens matching the original, mean"  # in a fidelity word's title
+# Fidelity as a figure (RFC-0018 SI-9, amended 2026-11-14): FI-10's mean as a percentage of the
+# reply's positions, beside the model's 8-bit and 4-bit copies; it sets no state
+FIDELITY_AGAINST = ("q8_0", "q4_k_m")  # the controls printed beside a row's Fidelity
+FIDELITY_FIG_TITLE = ("Fidelity: the share of reply positions where the system's top token is "
+                      "the original model's, fed the original model's reply")  # fmt: skip
+FIDELITY_CHECK_TITLE = "Fidelity check (leading tokens matching the original): {state}"
 
 
 def beside_unit(name):
@@ -477,11 +483,11 @@ P_ABOVE = "above the bar: p\u00a0=\u00a0{p}"
 TF_LEAD = (
     "A second measure, printed beside the check's score; it sets no state. Each row is fed "
     "the prompt, then the original's reply token by token: at each of the reply's "
-    "{positions:,} positions, is its own top token the original's? n\u00a0=\u00a0{n:,} prompts in "
-    "each row. KL compares, at each position, the {k:,} most probable tokens of both, with "
-    "every other token pooled."
+    "{positions:,} positions, is its own top token the original's? Fidelity is the share of "
+    "positions where it is. n\u00a0=\u00a0{n:,} prompts in each row. KL compares, at each "
+    "position, the {k:,} most probable tokens of both, with every other token pooled."
 )
-TF_AGREE = "Positions where the top token is the original's, mean"
+TF_AGREE = "Fidelity: share of positions where the top token is the original's, mean"
 TF_KL = "KL to the original, on its reply"
 TF_SUB = "median {median}"
 TF_FAILED = "{k:,} of {n:,} prompts failed, counted as 0"

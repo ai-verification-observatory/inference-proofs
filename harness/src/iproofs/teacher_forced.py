@@ -79,6 +79,16 @@ def agreement(top: Sequence[int], reference: Sequence[int]) -> int:
     return sum(1 for a, b in zip(top, reference, strict=True) if a == b)
 
 
+def fidelity_percent(mean: float | None, positions: int) -> float | None:
+    """SI-9 (amended 2026-11-14): FI-10's mean as a percentage of the reply's positions, the
+    figure the site names Fidelity; None where there is no mean."""
+    if mean is None:
+        return None
+    if positions < 1:
+        raise ValueError(f"{positions} positions")
+    return mean / positions * 100
+
+
 @dataclass(frozen=True, slots=True)
 class TopK:
     """One prompt's lists: at each position the `k` most probable tokens, most probable
@@ -437,6 +447,7 @@ def board_block(doc: Mapping[str, Any], path: str, tops: Mapping[str, Path],
         kl = entry.get("kl")
         return {"status": entry["status"], "cause": entry["cause"], "n": len(entry["scores"]),
                 "mean": entry["mean"], "median": entry["median"],
+                "percent": fidelity_percent(entry["mean"], int(doc["positions"])),
                 "mean_not_failed": entry["mean_not_failed"],
                 "failed": [dict(f) for f in entry["failed"]], "run": entry["run"],
                 "kl": None if kl is None else {k: kl[k] for k in (
