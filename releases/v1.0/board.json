@@ -1,5 +1,5 @@
 {
-  "date": "2026-11-12",
+  "date": "2026-11-13",
   "frontier": {
     "rows": [
       "flashprove"
@@ -517,7 +517,7 @@
                 }
               ],
               "reading": true,
-              "reason": "the bound is stated for a batch checked together, not for the row's 24 replies checked alone",
+              "reason": "the bound is stated for a batch checked together, not for a reply checked alone (the row proves 24 replies a batch)",
               "state": "amber",
               "step": "amber_lower"
             },
@@ -1937,15 +1937,17 @@
               "state": "held"
             },
             "no_weight_file": {
-              "cause": "not resolved",
+              "cause": null,
               "evidence": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify-trace/",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/reverify/reverify.json",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/verify-trace/",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/reverify/reverify.json",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/verify-trace/",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/reverify/reverify.json"
               ],
-              "note": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/req-0: a GPU was visible (and 9 more)",
-              "state": "undecided"
+              "note": null,
+              "state": "held"
             },
             "prompt": {
               "cause": null,
@@ -1958,8 +1960,8 @@
             "reply": {
               "cause": null,
               "evidence": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/controls.json#/controls/0"
               ],
@@ -1969,8 +1971,8 @@
             "run": {
               "cause": null,
               "evidence": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json"
               ],
               "note": null,
@@ -2042,7 +2044,7 @@
                   "url": "https://github.com/sg-ai-safety-hub/zk-inference-prover/blob/4f41667297430a598165c4a8604258fe37d952ae/prover/README.md#L56-L58"
                 }
               ],
-              "reason": "not stated in the publisher's documents read at the pin",
+              "reason": "not stated in the publisher's documents read at the pinned commit",
               "sources_read": [
                 {
                   "path": "README.md",
@@ -2134,7 +2136,7 @@
               "id": "machine_checked",
               "lowered_by": [],
               "quotes": [],
-              "reason": "not stated in the publisher's documents read at the pin",
+              "reason": "not stated in the publisher's documents read at the pinned commit",
               "sources_read": [
                 {
                   "path": "README.md",
@@ -2168,7 +2170,7 @@
                 }
               ],
               "reading": true,
-              "reason": "not stated in the publisher's documents read at the pin",
+              "reason": "not stated in the publisher's documents read at the pinned commit",
               "sources_read": [
                 {
                   "path": "README.md",
@@ -2194,7 +2196,7 @@
           "incomplete_sessions": [],
           "multiple": {
             "grade": "derived",
-            "null_reason": "not_applicable",
+            "null_reason": null,
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -2206,18 +2208,18 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": null
+            "value": 55938.92636846443
           },
-          "passed": false,
-          "position": null,
+          "passed": true,
+          "position": 1,
           "proof_bytes_per_reply": {
             "grade": "derived",
             "null_reason": null,
             "scope": null,
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/proof_bytes_per_request",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/metrics/proof_bytes_per_request",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/metrics/proof_bytes_per_request"
               ],
               "kind": "derivation",
@@ -2252,8 +2254,21 @@
             "unit": "ratio",
             "value": null
           },
-          "ranked": false,
-          "replaced_sessions": [],
+          "ranked": true,
+          "replaced_sessions": [
+            {
+              "cause": "its verify ran on a host with a GPU visible and its proofs were not kept to verify again (SE-3a); slot 1 counts 2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+              "replaced_by": "2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+              "slot": 1
+            },
+            {
+              "cause": "its verify ran on a host with a GPU visible and its proofs were not kept to verify again (SE-3a); slot 2 counts 2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
+              "replaced_by": "2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
+              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
+              "slot": 2
+            }
+          ],
           "security": {
             "source": "systems/sash/claim.yaml#security.level",
             "stated": true,
@@ -2266,11 +2281,11 @@
             "scope": "whole_wall",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/events",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/events",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/events",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
@@ -2303,8 +2318,8 @@
             "scope": "whole_wall",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
@@ -2336,28 +2351,28 @@
             "scope": "whole_wall",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/events",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/events",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/events",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/events",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-SESSION@0.1.0.dev0"
             },
             "stats": {
-              "max": 2725.4387569366,
-              "mean": 2644.5858689848665,
-              "median": 2717.920865269,
-              "min": 2490.397984749,
+              "max": 2800.9012595783997,
+              "mean": 2772.159324302533,
+              "median": 2797.6558480602002,
+              "min": 2717.920865269,
               "n": 3,
               "n_failed": 0,
-              "stdev": 133.5835222159949
+              "stdev": 46.999904284262364
             },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": 2644.5858689848665
+            "value": 2772.159324302533
           },
           "session_multiple": {
             "grade": "derived",
@@ -2373,7 +2388,7 @@
             },
             "tier": "reported",
             "unit": "ratio",
-            "value": 61342.9468198215
+            "value": 64302.09886587567
           },
           "session_usd_per_reply": {
             "grade": "derived",
@@ -2389,7 +2404,7 @@
             },
             "tier": "reported",
             "unit": "USD/request",
-            "value": 3.9264754082566973
+            "value": 4.115886552332511
           },
           "sessions": [
             {
@@ -2403,14 +2418,14 @@
                 1,
                 1
               ],
-              "m": 2207.22780289075,
-              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
-              "session": 2490.397984749,
+              "m": 2428.94690599575,
+              "run_id": "2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+              "session": 2800.9012595783997,
               "slot": 1,
               "steady": true
             },
             {
-              "cause": "uneven groups",
+              "cause": null,
               "generation_gpu_seconds_per_reply": null,
               "gpus": 1,
               "groups": [
@@ -2420,11 +2435,11 @@
                 1,
                 1
               ],
-              "m": null,
-              "run_id": "2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
-              "session": 2725.4387569366,
+              "m": 2421.7624822435,
+              "run_id": "2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2",
+              "session": 2797.6558480602002,
               "slot": 2,
-              "steady": false
+              "steady": true
             },
             {
               "cause": null,
@@ -2451,8 +2466,8 @@
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
@@ -2464,21 +2479,29 @@
           },
           "steady_gpu_seconds_per_reply": {
             "grade": "derived",
-            "note": "no steady state: slot 2: uneven groups",
-            "null_reason": "not_applicable",
+            "null_reason": null,
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
               "ref": "derive:D-L1-STEADY@0.1.0.dev0"
             },
+            "stats": {
+              "max": 2428.94690599575,
+              "mean": 2411.610492641417,
+              "median": 2421.7624822435,
+              "min": 2384.122089685,
+              "n": 3,
+              "n_failed": 0,
+              "stdev": 24.07515750693497
+            },
             "tier": "reported",
             "unit": "gpu_s/request",
-            "value": null
+            "value": 2411.610492641417
           },
           "steady_proving_gpu_seconds_per_reply": {
             "grade": "derived",
@@ -2487,8 +2510,8 @@
             "scope": "prove.steady",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/proofs",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/proofs",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/proofs"
               ],
               "kind": "derivation",
@@ -2500,7 +2523,7 @@
           },
           "steady_usd_per_reply": {
             "grade": "derived",
-            "null_reason": "not_applicable",
+            "null_reason": null,
             "scope": "prove.steady",
             "source": {
               "inputs": [
@@ -2512,7 +2535,7 @@
             },
             "tier": "reported",
             "unit": "USD/request",
-            "value": null
+            "value": 3.5805716897689925
           },
           "system": "sash",
           "unranked_reason": null,
@@ -2522,25 +2545,25 @@
             "scope": "verify",
             "source": {
               "inputs": [
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request",
-                "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/run.json#/metrics/verify_seconds_per_request",
+                "results/v1.0/sash/2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-2/run.json#/metrics/verify_seconds_per_request",
                 "results/v1.0/sash/2026-11-12-sash-l1-l31-8b-p512-o512-prover-h200-hosted-3/run.json#/metrics/verify_seconds_per_request"
               ],
               "kind": "derivation",
               "ref": "derive:D-VSPR@0.1.0.dev0"
             },
             "stats": {
-              "max": 1064.4517651742,
-              "mean": 1037.0059626898,
-              "median": 1052.7840417566,
-              "min": 993.7820811386,
+              "max": 1087.4793005342,
+              "mean": 1079.7332305248,
+              "median": 1087.268625866,
+              "min": 1064.4517651742,
               "n": 3,
               "n_failed": 0,
-              "stdev": 37.884850464288874
+              "stdev": 13.23455641115888
             },
             "tier": "reported",
             "unit": "s/request",
-            "value": 1037.0059626898
+            "value": 1079.7332305248
           },
           "workload": "l1-l31-8b-p512-o512"
         }

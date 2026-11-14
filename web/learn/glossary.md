@@ -1,4 +1,4 @@
-Plain-English definitions of the terms used across this site, paired with their exact technical meaning where the two differ. Benchmark-specific terms (level, rung, check, multiple) follow the normative definitions in the [specification glossary](repo:docs/spec/10-glossary.md).
+Benchmark-specific terms (level, rung, check, multiple) follow the normative definitions in the [specification glossary](repo:docs/spec/10-glossary.md).
 
 ### Adapter
 
@@ -22,7 +22,7 @@ A system's claim card lists everything its proofs bind: the weights to the publi
 
 One of the six empirical tests a system must pass in our harness before it receives a ranked position on a model: Run, Model, Prompt, Reply, Verify without weights, and Fidelity. Every check finishes as held, failed, or undecided, and an undecided check always states its cause.
 
-The [checks page](/checks) reports every check outcome, and [How we compare](/method) explains how they work.
+The [checks page](/checks) defines each check; each system's page reports its outcomes, and [How we compare](/method) explains how they work.
 
 ### Claim card
 
@@ -58,9 +58,9 @@ The size of the field determines how unlikely a random check is to miss a forged
 
 ### Glyph
 
-The five-petal summary figure drawn beside every measured row on the ladder. Each petal represents one of five verification properties a system can hold: Unforgeable, Weights hidden, Faithful model, Machine-checked, and No third party trusted.
+The five-petal summary figure drawn beside every row on the ladder. Each petal represents one of five verification properties a system can hold: Unforgeable, Weights hidden, Faithful model, Machine-checked, and No third party trusted.
 
-A petal is coloured green (held in full), amber in part, amber in lesser part (drawn with a notched arm), red (absent or unstated), or hollow (undecided). Four petals are derived from documented facts at the pinned commit and can be downgraded if a check fails; Faithful model is set by our fidelity test. When a publisher's documentation is silent on a property, the petal is drawn as a red outline. The glyph never changes a system's rank, and its five petals are never combined into a single score.
+A petal is drawn green (held in full), amber (in part), amber with its arm's end cut off (in lesser part), solid red with its name struck (not held, or a check failed), as a red outline (the publisher's documentation is silent) or as a grey outline (undecided). Four petals are derived from documented facts at the pinned commit and can be lowered if a check fails; Faithful model is set by our fidelity test. The glyph never changes a system's rank, and its five petals are never combined into a single score.
 
 ### Greedy decoding
 
@@ -94,9 +94,9 @@ The unique polynomial that matches a multi-dimensional array of numbers at every
 
 ### Multiple
 
-The GPU cost of a proved reply expressed as a ratio of the GPU cost of serving the same reply without a proof on the same model. It is the single figure used to order passing systems within a rung.
+The GPU cost of a proved reply expressed as a ratio of the GPU cost of serving the same reply without a proof on the same model. It is the single figure used to order passing systems within a rung, printed on the ladder as Cost vs serving.
 
-Specifically: steady-state GPU-seconds per additional proved reply (including generation) divided by full-load serving GPU-seconds per reply on the same hardware. See [Where the cost goes](/cost).
+Specifically: steady-state GPU-seconds per additional proved reply (including generation) divided by full-load serving GPU-seconds per reply on the same hardware. A system with no steady state is given its whole sessions' GPU time per reply over the same baseline instead, labelled whole sessions. See [Where the cost goes](/cost).
 
 ### Operator
 
@@ -146,7 +146,7 @@ Representing a model's weights and activations with lower-precision integers (su
 
 ### Random oracle
 
-An idealised mathematical model of a cryptographic hash function in which every distinct input produces an uniformly random output. Many non-interactive proof systems prove their soundness in the random oracle model before instantiating the oracle with a concrete hash function like SHA-256 or Poseidon.
+An idealised mathematical model of a cryptographic hash function in which every distinct input produces a uniformly random output. Many non-interactive proof systems prove their soundness in the random oracle model before instantiating the oracle with a concrete hash function like SHA-256 or Poseidon.
 
 ### Recomputation
 
@@ -172,7 +172,7 @@ What a dishonest prover could still manipulate or substitute while still produci
 
 ### Row
 
-One system's entry on one model [[rung]] of the [[ladder]], showing its check standing, its five-petal glyph, and its measured cost and verification figures.
+One system's entry on one model [[rung]] of the [[ladder]], showing its check standing, its five-petal glyph, and its cost and verification figures.
 
 ### Rung
 
@@ -190,7 +190,7 @@ Each publisher states its security level as either mathematically proven or conj
 
 ### Serving baseline
 
-The GPU cost of answering the benchmark request without a proof, measured using the model publisher's released weights on a standard serving engine at full load. It forms the denominator b of the cost [[multiple]].
+The GPU cost of answering the benchmark request without a proof, measured using the model publisher's released weights on a standard serving engine at full load. It is the denominator of the cost [[multiple]].
 
 ### Session
 

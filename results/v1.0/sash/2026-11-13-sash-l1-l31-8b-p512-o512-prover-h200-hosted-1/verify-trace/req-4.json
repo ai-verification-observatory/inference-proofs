@@ -1,0 +1,1265 @@
+{
+  "failed_opens": 34,
+  "gpu_devices_opened": [
+    "/dev/nvidia4"
+  ],
+  "gpu_visible": true,
+  "mode": "hosted",
+  "model_files_opened": [],
+  "model_files_present": false,
+  "model_files_removed": true,
+  "opened": [
+    {
+      "bytes": 17943,
+      "path": "/etc/ld.so.cache"
+    },
+    {
+      "bytes": 2125328,
+      "path": "/lib/x86_64-linux-gnu/libc.so.6"
+    },
+    {
+      "bytes": 952616,
+      "path": "/lib/x86_64-linux-gnu/libm.so.6"
+    },
+    {
+      "bytes": 113000,
+      "path": "/lib/x86_64-linux-gnu/libz.so.1"
+    },
+    {
+      "bytes": 186624,
+      "path": "/lib/x86_64-linux-gnu/libexpat.so.1"
+    },
+    {
+      "bytes": 360460,
+      "path": "/usr/lib/locale/C.utf8/LC_CTYPE"
+    },
+    {
+      "bytes": 27028,
+      "path": "/usr/lib/x86_64-linux-gnu/gconv/gconv-modules.cache"
+    },
+    {
+      "bytes": 114,
+      "path": "/etc/localtime"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12"
+    },
+    {
+      "bytes": 5790,
+      "path": "/usr/lib/python3.12/encodings/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/encodings"
+    },
+    {
+      "bytes": 12408,
+      "path": "/usr/lib/python3.12/encodings/__pycache__/aliases.cpython-312.pyc"
+    },
+    {
+      "bytes": 2147,
+      "path": "/usr/lib/python3.12/encodings/__pycache__/utf_8.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/local/lib/python3.12/dist-packages"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3/dist-packages"
+    },
+    {
+      "bytes": 300,
+      "path": "/usr/lib/python3.12/__pycache__/sitecustomize.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/lib-dynload"
+    },
+    {
+      "bytes": 35326,
+      "path": "/opt/sash/entrypoint"
+    },
+    {
+      "bytes": null,
+      "path": "/opt/sash"
+    },
+    {
+      "bytes": 8087,
+      "path": "/usr/lib/python3.12/__pycache__/hashlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 64368,
+      "path": "/usr/lib/python3.12/lib-dynload/_hashlib.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 5305304,
+      "path": "/lib/x86_64-linux-gnu/libcrypto.so.3"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/sys/crypto/fips_enabled"
+    },
+    {
+      "bytes": 12324,
+      "path": "/usr/lib/ssl/openssl.cnf"
+    },
+    {
+      "bytes": 4565,
+      "path": "/usr/lib/python3.12/importlib/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": 23792,
+      "path": "/usr/lib/python3.12/__pycache__/warnings.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/importlib"
+    },
+    {
+      "bytes": 1643,
+      "path": "/usr/lib/python3.12/importlib/__pycache__/_abc.cpython-312.pyc"
+    },
+    {
+      "bytes": 65346,
+      "path": "/usr/lib/python3.12/__pycache__/threading.cpython-312.pyc"
+    },
+    {
+      "bytes": 40506,
+      "path": "/usr/lib/python3.12/__pycache__/functools.cpython-312.pyc"
+    },
+    {
+      "bytes": 73089,
+      "path": "/usr/lib/python3.12/collections/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": 1041,
+      "path": "/usr/lib/python3.12/__pycache__/keyword.cpython-312.pyc"
+    },
+    {
+      "bytes": 17364,
+      "path": "/usr/lib/python3.12/__pycache__/operator.cpython-312.pyc"
+    },
+    {
+      "bytes": 9909,
+      "path": "/usr/lib/python3.12/__pycache__/reprlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 14939,
+      "path": "/usr/lib/python3.12/__pycache__/types.cpython-312.pyc"
+    },
+    {
+      "bytes": 11751,
+      "path": "/usr/lib/python3.12/__pycache__/_weakrefset.cpython-312.pyc"
+    },
+    {
+      "bytes": 13620,
+      "path": "/usr/lib/python3.12/json/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/json"
+    },
+    {
+      "bytes": 13825,
+      "path": "/usr/lib/python3.12/json/__pycache__/decoder.cpython-312.pyc"
+    },
+    {
+      "bytes": 17938,
+      "path": "/usr/lib/python3.12/re/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": 80708,
+      "path": "/usr/lib/python3.12/__pycache__/enum.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/re"
+    },
+    {
+      "bytes": 26516,
+      "path": "/usr/lib/python3.12/re/__pycache__/_compiler.cpython-312.pyc"
+    },
+    {
+      "bytes": 42007,
+      "path": "/usr/lib/python3.12/re/__pycache__/_parser.cpython-312.pyc"
+    },
+    {
+      "bytes": 5296,
+      "path": "/usr/lib/python3.12/re/__pycache__/_constants.cpython-312.pyc"
+    },
+    {
+      "bytes": 1816,
+      "path": "/usr/lib/python3.12/re/__pycache__/_casefix.cpython-312.pyc"
+    },
+    {
+      "bytes": 7414,
+      "path": "/usr/lib/python3.12/__pycache__/copyreg.cpython-312.pyc"
+    },
+    {
+      "bytes": 3321,
+      "path": "/usr/lib/python3.12/json/__pycache__/scanner.cpython-312.pyc"
+    },
+    {
+      "bytes": 48952,
+      "path": "/usr/lib/python3.12/lib-dynload/_json.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 15098,
+      "path": "/usr/lib/python3.12/json/__pycache__/encoder.cpython-312.pyc"
+    },
+    {
+      "bytes": 14162,
+      "path": "/usr/lib/python3.12/__pycache__/shlex.cpython-312.pyc"
+    },
+    {
+      "bytes": 68113,
+      "path": "/usr/lib/python3.12/__pycache__/shutil.cpython-312.pyc"
+    },
+    {
+      "bytes": 6495,
+      "path": "/usr/lib/python3.12/__pycache__/fnmatch.cpython-312.pyc"
+    },
+    {
+      "bytes": 15133,
+      "path": "/usr/lib/python3.12/__pycache__/bz2.cpython-312.pyc"
+    },
+    {
+      "bytes": 7497,
+      "path": "/usr/lib/python3.12/__pycache__/_compression.cpython-312.pyc"
+    },
+    {
+      "bytes": 32112,
+      "path": "/usr/lib/python3.12/lib-dynload/_bz2.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 78944,
+      "path": "/lib/x86_64-linux-gnu/libbz2.so.1.0"
+    },
+    {
+      "bytes": 15855,
+      "path": "/usr/lib/python3.12/__pycache__/lzma.cpython-312.pyc"
+    },
+    {
+      "bytes": 49256,
+      "path": "/usr/lib/python3.12/lib-dynload/_lzma.cpython-312-x86_64-linux-gnu.so"
+    },
+    {
+      "bytes": 202904,
+      "path": "/lib/x86_64-linux-gnu/liblzma.so.5"
+    },
+    {
+      "bytes": 79187,
+      "path": "/usr/lib/python3.12/__pycache__/subprocess.cpython-312.pyc"
+    },
+    {
+      "bytes": 59536,
+      "path": "/usr/lib/python3.12/__pycache__/locale.cpython-312.pyc"
+    },
+    {
+      "bytes": 4448,
+      "path": "/usr/lib/python3.12/__pycache__/signal.cpython-312.pyc"
+    },
+    {
+      "bytes": 30376,
+      "path": "/usr/lib/python3.12/__pycache__/contextlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 26128,
+      "path": "/usr/lib/python3.12/__pycache__/selectors.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/collections"
+    },
+    {
+      "bytes": 249,
+      "path": "/usr/lib/python3.12/collections/__pycache__/abc.cpython-312.pyc"
+    },
+    {
+      "bytes": 62098,
+      "path": "/usr/lib/python3.12/__pycache__/pathlib.cpython-312.pyc"
+    },
+    {
+      "bytes": 135,
+      "path": "/usr/lib/python3.12/urllib/__pycache__/__init__.cpython-312.pyc"
+    },
+    {
+      "bytes": null,
+      "path": "/usr/lib/python3.12/urllib"
+    },
+    {
+      "bytes": 50619,
+      "path": "/usr/lib/python3.12/urllib/__pycache__/parse.cpython-312.pyc"
+    },
+    {
+      "bytes": 90762,
+      "path": "/usr/lib/python3.12/__pycache__/ipaddress.cpython-312.pyc"
+    },
+    {
+      "bytes": 141860,
+      "path": "/usr/lib/python3.12/__pycache__/typing.cpython-312.pyc"
+    },
+    {
+      "bytes": 10456,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/job.json"
+    },
+    {
+      "bytes": 144,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/verifier/grid.json"
+    },
+    {
+      "bytes": 73586,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/verifier/model-roots.json"
+    },
+    {
+      "bytes": 3945,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/verify/prompt.json"
+    },
+    {
+      "bytes": 176882,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/verify/grid.json"
+    },
+    {
+      "bytes": 741088,
+      "path": "/usr/local/cuda/lib64/libcudart.so.12"
+    },
+    {
+      "bytes": 2592224,
+      "path": "/lib/x86_64-linux-gnu/libstdc++.so.6"
+    },
+    {
+      "bytes": 183024,
+      "path": "/lib/x86_64-linux-gnu/libgcc_s.so.1"
+    },
+    {
+      "bytes": 14408,
+      "path": "/lib/x86_64-linux-gnu/libdl.so.2"
+    },
+    {
+      "bytes": 14408,
+      "path": "/lib/x86_64-linux-gnu/libpthread.so.0"
+    },
+    {
+      "bytes": 14624,
+      "path": "/lib/x86_64-linux-gnu/librt.so.1"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/self/maps"
+    },
+    {
+      "bytes": 19720,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/plan.txt"
+    },
+    {
+      "bytes": 106028,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L0.fixed.json"
+    },
+    {
+      "bytes": 56140556,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L0.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L1.fixed.json"
+    },
+    {
+      "bytes": 54829433,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L1.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L2.fixed.json"
+    },
+    {
+      "bytes": 52980104,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L2.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L3.fixed.json"
+    },
+    {
+      "bytes": 55572190,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L3.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L4.fixed.json"
+    },
+    {
+      "bytes": 53395308,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L4.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L5.fixed.json"
+    },
+    {
+      "bytes": 54091310,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L5.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L6.fixed.json"
+    },
+    {
+      "bytes": 52402463,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L6.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L7.fixed.json"
+    },
+    {
+      "bytes": 52660892,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L7.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L8.fixed.json"
+    },
+    {
+      "bytes": 54907804,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L8.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L9.fixed.json"
+    },
+    {
+      "bytes": 56116852,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L9.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L10.fixed.json"
+    },
+    {
+      "bytes": 55002215,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L10.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L11.fixed.json"
+    },
+    {
+      "bytes": 54134056,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L11.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L12.fixed.json"
+    },
+    {
+      "bytes": 53514148,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L12.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L13.fixed.json"
+    },
+    {
+      "bytes": 54732273,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L13.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L14.fixed.json"
+    },
+    {
+      "bytes": 54333008,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L14.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L15.fixed.json"
+    },
+    {
+      "bytes": 52405771,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L15.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L16.fixed.json"
+    },
+    {
+      "bytes": 54658166,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L16.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L17.fixed.json"
+    },
+    {
+      "bytes": 53421539,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L17.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L18.fixed.json"
+    },
+    {
+      "bytes": 53582024,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L18.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L19.fixed.json"
+    },
+    {
+      "bytes": 52960641,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L19.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L20.fixed.json"
+    },
+    {
+      "bytes": 52235215,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L20.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L21.fixed.json"
+    },
+    {
+      "bytes": 54385161,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L21.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L22.fixed.json"
+    },
+    {
+      "bytes": 54480515,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L22.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L23.fixed.json"
+    },
+    {
+      "bytes": 54577137,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L23.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L24.fixed.json"
+    },
+    {
+      "bytes": 55417822,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L24.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L25.fixed.json"
+    },
+    {
+      "bytes": 54778673,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L25.proof.json"
+    },
+    {
+      "bytes": 99668,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L26.fixed.json"
+    },
+    {
+      "bytes": 54217047,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L26.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L27.fixed.json"
+    },
+    {
+      "bytes": 52915006,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L27.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L28.fixed.json"
+    },
+    {
+      "bytes": 52259257,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L28.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L29.fixed.json"
+    },
+    {
+      "bytes": 53384328,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L29.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L30.fixed.json"
+    },
+    {
+      "bytes": 53531654,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L30.proof.json"
+    },
+    {
+      "bytes": 99667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L31.fixed.json"
+    },
+    {
+      "bytes": 52471101,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L31.proof.json"
+    },
+    {
+      "bytes": 243635,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0head.fixed.json"
+    },
+    {
+      "bytes": 122751775,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0head.proof.json"
+    },
+    {
+      "bytes": 112589,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L0.fixed.json"
+    },
+    {
+      "bytes": 60813711,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L0.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L1.fixed.json"
+    },
+    {
+      "bytes": 58752887,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L1.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L2.fixed.json"
+    },
+    {
+      "bytes": 57417480,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L2.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L3.fixed.json"
+    },
+    {
+      "bytes": 56061157,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L3.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L4.fixed.json"
+    },
+    {
+      "bytes": 58997736,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L4.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L5.fixed.json"
+    },
+    {
+      "bytes": 57612238,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L5.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L6.fixed.json"
+    },
+    {
+      "bytes": 60148477,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L6.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L7.fixed.json"
+    },
+    {
+      "bytes": 56575771,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L7.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L8.fixed.json"
+    },
+    {
+      "bytes": 55944763,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L8.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L9.fixed.json"
+    },
+    {
+      "bytes": 56574986,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L9.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L10.fixed.json"
+    },
+    {
+      "bytes": 58024315,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L10.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L11.fixed.json"
+    },
+    {
+      "bytes": 58060895,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L11.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L12.fixed.json"
+    },
+    {
+      "bytes": 56885220,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L12.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L13.fixed.json"
+    },
+    {
+      "bytes": 55717182,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L13.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L14.fixed.json"
+    },
+    {
+      "bytes": 57051169,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L14.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L15.fixed.json"
+    },
+    {
+      "bytes": 58991537,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L15.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L16.fixed.json"
+    },
+    {
+      "bytes": 56594667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L16.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L17.fixed.json"
+    },
+    {
+      "bytes": 54935912,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L17.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L18.fixed.json"
+    },
+    {
+      "bytes": 57535957,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L18.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L19.fixed.json"
+    },
+    {
+      "bytes": 56777431,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L19.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L20.fixed.json"
+    },
+    {
+      "bytes": 59215325,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L20.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L21.fixed.json"
+    },
+    {
+      "bytes": 59508359,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L21.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L22.fixed.json"
+    },
+    {
+      "bytes": 57223183,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L22.proof.json"
+    },
+    {
+      "bytes": 106347,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L23.fixed.json"
+    },
+    {
+      "bytes": 57866726,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L23.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L24.fixed.json"
+    },
+    {
+      "bytes": 57955163,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L24.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L25.fixed.json"
+    },
+    {
+      "bytes": 56829891,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L25.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L26.fixed.json"
+    },
+    {
+      "bytes": 56715257,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L26.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L27.fixed.json"
+    },
+    {
+      "bytes": 58194510,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L27.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L28.fixed.json"
+    },
+    {
+      "bytes": 57240276,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L28.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L29.fixed.json"
+    },
+    {
+      "bytes": 57194630,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L29.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L30.fixed.json"
+    },
+    {
+      "bytes": 56772398,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L30.proof.json"
+    },
+    {
+      "bytes": 106346,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L31.fixed.json"
+    },
+    {
+      "bytes": 57785730,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L31.proof.json"
+    },
+    {
+      "bytes": 247622,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1head.fixed.json"
+    },
+    {
+      "bytes": 128368094,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1head.proof.json"
+    },
+    {
+      "bytes": 1329392,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L0.claims.json"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/self/cgroup"
+    },
+    {
+      "bytes": 0,
+      "path": "/sys/fs/cgroup/cpu.max"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/sys/vm/overcommit_memory"
+    },
+    {
+      "bytes": 1329218,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L1.claims.json"
+    },
+    {
+      "bytes": 1329471,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L2.claims.json"
+    },
+    {
+      "bytes": 1329010,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L3.claims.json"
+    },
+    {
+      "bytes": 1329255,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L4.claims.json"
+    },
+    {
+      "bytes": 1330098,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L5.claims.json"
+    },
+    {
+      "bytes": 1329597,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L6.claims.json"
+    },
+    {
+      "bytes": 1329120,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L7.claims.json"
+    },
+    {
+      "bytes": 1329414,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L8.claims.json"
+    },
+    {
+      "bytes": 1329426,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L9.claims.json"
+    },
+    {
+      "bytes": 1329319,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L10.claims.json"
+    },
+    {
+      "bytes": 1329723,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L11.claims.json"
+    },
+    {
+      "bytes": 1329233,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L12.claims.json"
+    },
+    {
+      "bytes": 1329855,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L13.claims.json"
+    },
+    {
+      "bytes": 1328870,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L14.claims.json"
+    },
+    {
+      "bytes": 1329172,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L15.claims.json"
+    },
+    {
+      "bytes": 1329646,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L16.claims.json"
+    },
+    {
+      "bytes": 1329171,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L17.claims.json"
+    },
+    {
+      "bytes": 1329740,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L18.claims.json"
+    },
+    {
+      "bytes": 1329407,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L19.claims.json"
+    },
+    {
+      "bytes": 1328827,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L20.claims.json"
+    },
+    {
+      "bytes": 1329838,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L21.claims.json"
+    },
+    {
+      "bytes": 1329240,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L22.claims.json"
+    },
+    {
+      "bytes": 1329462,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L23.claims.json"
+    },
+    {
+      "bytes": 1329190,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L24.claims.json"
+    },
+    {
+      "bytes": 1329945,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L25.claims.json"
+    },
+    {
+      "bytes": 1329590,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L26.claims.json"
+    },
+    {
+      "bytes": 1329511,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L27.claims.json"
+    },
+    {
+      "bytes": 1329647,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L28.claims.json"
+    },
+    {
+      "bytes": 1329318,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L29.claims.json"
+    },
+    {
+      "bytes": 1329831,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L30.claims.json"
+    },
+    {
+      "bytes": 1329743,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0L31.claims.json"
+    },
+    {
+      "bytes": 1121340,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B0head.claims.json"
+    },
+    {
+      "bytes": 1447240,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L0.claims.json"
+    },
+    {
+      "bytes": 1447616,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L1.claims.json"
+    },
+    {
+      "bytes": 1447748,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L2.claims.json"
+    },
+    {
+      "bytes": 1447520,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L3.claims.json"
+    },
+    {
+      "bytes": 1448097,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L4.claims.json"
+    },
+    {
+      "bytes": 1447104,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L5.claims.json"
+    },
+    {
+      "bytes": 1447431,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L6.claims.json"
+    },
+    {
+      "bytes": 1447529,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L7.claims.json"
+    },
+    {
+      "bytes": 1448199,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L8.claims.json"
+    },
+    {
+      "bytes": 1447997,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L9.claims.json"
+    },
+    {
+      "bytes": 1447778,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L10.claims.json"
+    },
+    {
+      "bytes": 1447386,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L11.claims.json"
+    },
+    {
+      "bytes": 1448035,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L12.claims.json"
+    },
+    {
+      "bytes": 1447831,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L13.claims.json"
+    },
+    {
+      "bytes": 1447903,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L14.claims.json"
+    },
+    {
+      "bytes": 1446760,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L15.claims.json"
+    },
+    {
+      "bytes": 1448067,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L16.claims.json"
+    },
+    {
+      "bytes": 1447780,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L17.claims.json"
+    },
+    {
+      "bytes": 1447733,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L18.claims.json"
+    },
+    {
+      "bytes": 1447738,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L19.claims.json"
+    },
+    {
+      "bytes": 1447366,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L20.claims.json"
+    },
+    {
+      "bytes": 1447868,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L21.claims.json"
+    },
+    {
+      "bytes": 1448085,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L22.claims.json"
+    },
+    {
+      "bytes": 1447667,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L23.claims.json"
+    },
+    {
+      "bytes": 1447925,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L24.claims.json"
+    },
+    {
+      "bytes": 1447659,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L25.claims.json"
+    },
+    {
+      "bytes": 1447195,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L26.claims.json"
+    },
+    {
+      "bytes": 1447439,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L27.claims.json"
+    },
+    {
+      "bytes": 1447290,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L28.claims.json"
+    },
+    {
+      "bytes": 1448000,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L29.claims.json"
+    },
+    {
+      "bytes": 1447223,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L30.claims.json"
+    },
+    {
+      "bytes": 1447511,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1L31.claims.json"
+    },
+    {
+      "bytes": 1239561,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/proof/B1head.claims.json"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/meminfo"
+    },
+    {
+      "bytes": null,
+      "path": "/dev/null"
+    },
+    {
+      "bytes": 4096,
+      "path": "/sys/devices/system/cpu/online"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/sys/vm/mmap_min_addr"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/cpuinfo"
+    },
+    {
+      "bytes": 2291896,
+      "path": "/usr/lib64/libnvidia-ml.so.1"
+    },
+    {
+      "bytes": 96284520,
+      "path": "/usr/lib64/libcuda.so.1"
+    },
+    {
+      "bytes": null,
+      "path": "/proc/self/task/18264/comm"
+    },
+    {
+      "bytes": 1019,
+      "path": "/proc/driver/nvidia/params"
+    },
+    {
+      "bytes": null,
+      "path": "/dev/nvidiactl"
+    },
+    {
+      "bytes": 4096,
+      "path": "/sys/devices/system/memory/block_size_bytes"
+    },
+    {
+      "bytes": null,
+      "path": "/dev/nvidia4"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/devices"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/driver/nvidia/capabilities/mig/config"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/driver/nvidia/capabilities/mig/monitor"
+    },
+    {
+      "bytes": 0,
+      "path": "/proc/self/status"
+    },
+    {
+      "bytes": null,
+      "path": "/sys/devices/system/node"
+    },
+    {
+      "bytes": 4096,
+      "path": "/sys/devices/system/node/node0/cpumap"
+    },
+    {
+      "bytes": 4096,
+      "path": "/sys/devices/system/node/node1/cpumap"
+    },
+    {
+      "bytes": null,
+      "path": "/dev/nvidia-uvm"
+    },
+    {
+      "bytes": null,
+      "path": "/proc/self/task/18266/comm"
+    },
+    {
+      "bytes": null,
+      "path": "/proc/self/task/18268/comm"
+    },
+    {
+      "bytes": 404,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/commands.jsonl"
+    },
+    {
+      "bytes": 393,
+      "path": "/tmp/iproofs/out/dev-results/v1.0/sash/.staging-2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/verify/req-4/out.json"
+    }
+  ],
+  "proof_id": "req-4",
+  "run_id": "2026-11-13-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+  "schema": "verify-trace/1",
+  "tool": "strace",
+  "trace": {
+    "bytes": 99384,
+    "digest": "sha256:7e530135249ba03fea7061e471291d70aae82d2612bba6313e520d7d68f17af7"
+  }
+}

@@ -190,6 +190,13 @@ def _row(raw: dict[str, Any], at: str, board: str | None, rung: dict[str, Any]) 
     }  # fmt: skip
 
 
+def _serving(f: dict[str, Any] | None) -> dict[str, Any] | None:
+    """A serving baseline's figure as the site labels it. The board stores it under the timing
+    scope `prove.steady` (RFC-0004 has no scope of serving); it is a rate at full load (CO-4),
+    with no release groups, so the site words its scope as serving's."""
+    return None if f is None else {**f, "scope": "serving"}
+
+
 def _baseline(raw: dict[str, Any] | None, at: str, board: str | None) -> dict[str, Any] | None:
     if raw is None:
         return None
@@ -199,9 +206,9 @@ def _baseline(raw: dict[str, Any] | None, at: str, board: str | None) -> dict[st
         "gpus": raw["gpus"],
         "concurrency": raw["concurrency"],
         "cause": raw["cause"],
-        "gpu_seconds_per_reply": figure(raw["gpu_seconds_per_reply"],
-                                        f"{at}/gpu_seconds_per_reply", board),
-        "usd_per_reply": figure(raw["usd_per_reply"], f"{at}/usd_per_reply", board),
+        "gpu_seconds_per_reply": _serving(figure(raw["gpu_seconds_per_reply"],
+                                                 f"{at}/gpu_seconds_per_reply", board)),
+        "usd_per_reply": _serving(figure(raw["usd_per_reply"], f"{at}/usd_per_reply", board)),
     }  # fmt: skip
 
 

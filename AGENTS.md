@@ -13,7 +13,7 @@ An open benchmark for provable inference. Level 1 ([RFC-0018](rfcs/0018-level-1-
 ## Hard rules
 
 1. **Never patch a prover.** Adapters wrap upstream tools at a full commit hash. No source change, no undocumented parameter. If an adapter cannot work without a change, stop and open an issue.
-2. **No published number without its labels.** Every number in `results/`, `releases/` and on the site carries unit, timing scope, grade, tier and source (RFC-0004, RFC-0012), and the site shows the scope and n beside it.
+2. **No published number without its labels.** Every number in `results/`, `releases/` and on the site carries unit, timing scope, grade, tier and source (RFC-0004, RFC-0012), and a system's page shows the scope and n with it. The ladder, the Scale page and a share card print a figure with its unit alone, its labels in its title (RFC-0018 SI-8, `web/DEPTH.md`).
 3. **Derived numbers are computed, not typed.** A ratio goes into the derivation code so CI recomputes it.
 4. **Weakening flags only in control jobs.** A flag that weakens a system's statement (for example SASH's `--unsound-skip-*`) is never used outside a negative-control job (RFC-0008), never to make a run pass.
 5. **Never fabricate or round away results.** A failed run is recorded with its exit code and last lines. Report ranges and sample sizes, never a single best run.
@@ -28,6 +28,7 @@ An open benchmark for provable inference. Level 1 ([RFC-0018](rfcs/0018-level-1-
 
 - Slow work (prover builds, GPU runs) runs on a GPU host. CPU-only steps (schema checks, the verifier on stored proofs, adapter tests on fixtures) run anywhere.
 - Every derived metric ships a test against a hand-computed case. Every adapter ships a CPU-only test against stored fixtures.
+- A line added to the site is placed by depth: the surface shows results, each step down shows more of how they were taken. Read `web/DEPTH.md` first (RFC-0018 SI-8).
 - Before pushing: `ruff check`, `ruff format --check`, `mypy --strict harness/src/iproofs harness/tests`, `pytest harness/tests systems -n auto --dist loadfile`, `iproofs validate --all`.
 
 ## Writing style

@@ -110,7 +110,8 @@ p { margin: 0; }
 .lit-on .sl.lit:not(.key) { stroke: var(--paper); stroke-width: 3px; vector-effect: non-scaling-stroke; }
 /* an open red in hand keeps its red edge, thicker, so it never reads as a lit hollow petal */
 .lit-on .sl.red.open.lit { stroke: var(--red); }
-.lit-on .sl.key:not(.lit) { fill: var(--ground); stroke: var(--cobalt); stroke-width: 2px; vector-effect: non-scaling-stroke; }
+/* the outline inside the arm's own box (half of a 4 px line), so every arm keeps its edges and its gaps */
+.lit-on .sl.key:not(.lit) { fill: var(--ground); stroke: var(--cobalt); stroke-width: 4px; vector-effect: non-scaling-stroke; clip-path: inset(0) fill-box; }
 .lit-on .t.key:not(.lit) text { fill: var(--paper); }
 .gbig.linked .sl, .gbig.linked .t { cursor: pointer; }
 /* a petal's name on its arm: 4 units high on an arm 5 units high (hexagon.py NAME, TRACK) */
@@ -163,6 +164,11 @@ p { margin: 0; }
 /* between the phone's two lines and a wide screen, GitHub is its mark alone, so search keeps room */
 @media (max-width: 1000px) and (min-width: 761px) {
   .top .repo > span:not(.sr) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* the bar's gaps and the tabs a step closer, so the field at rest still shows its word whole */
+  .top { column-gap: 20px; }
+  .tab { padding-inline: 10px; }
+  .ti { left: 10px; right: 10px; }
+  .sph { right: 12px; }
   /* the field is narrow here: in use it widens over the tabs to the width of its list, which hangs from
      the field's right end at a width a result reads in */
   .top .search { height: 34px; }
@@ -219,61 +225,12 @@ html:has(.top.s-on) { overflow: hidden; }
 /* ---------------------------------------------------------------- the band: black on cobalt, flat */
 .mast { background: var(--cobalt); color: var(--ground); }
 .mast-in { margin-inline: var(--gut); padding: 48px 0 40px; }
-/* the overview's band: the level and the request, the title on one line, then one block of ground ink for the
-   largest model proved (or run), a link to its rung, holding the one figure of the band */
-.home .mast-in { padding: 20px 0 32px; }
-.bk { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 32px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
-.band-h { margin: 32px 0 0; font: 900 min(var(--title), calc((100vw - 2 * var(--gut)) / 12.8))/.92 var(--disp); letter-spacing: -.012em; white-space: nowrap; }
-.bl { --cp: min(16px, var(--gut)); margin: 28px calc(-1 * var(--cp)) 0; }
-.bx { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 20rem) max-content; grid-template-areas: "k k k k" "p m s c" ". . f f"; align-items: last baseline; column-gap: 24px; padding: 16px var(--cp) 20px; background: var(--ground); color: var(--paper); text-decoration: none; }
-.bx-p { grid-area: p; font: 600 16px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
-.bx-m { grid-area: m; font: 900 40px/.92 var(--disp); letter-spacing: -.005em; }
-.bx-s { grid-area: s; display: flex; align-items: baseline; column-gap: 10px; min-width: 0; font: 600 14px/18px var(--mono); }
-.bx-n { flex: none; }
-.bx-w { min-width: 0; font: 900 28px/.92 var(--disp); overflow-wrap: anywhere; }
-.bx-c { grid-area: c; font: 400 13px/18px var(--mono); text-align: right; white-space: nowrap; }
-.bx-k { grid-area: k; margin-bottom: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--cobalt); }
-/* its figure: the number, its label over its scope beside it */
-.bx-f { grid-area: f; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "n l" "n u"; column-gap: 14px; align-items: end; margin-top: 14px; color: var(--paper); }
-.bx-l { grid-area: l; display: block; margin-bottom: 4px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
-.bx-f .fig { grid-area: n; align-self: center; }
-.bx-f .fig .n { font-size: 40px; letter-spacing: -.03em; }
-.bx-f .fig .u.x { font-size: 24px; }
-.bx-f .sub { grid-area: u; margin: 0; }
-/* on a wide screen the block's holder shares the label's line and its figure the model's, so the block holds no
-   empty corner */
-@media (min-width: 761px) {
-  .bx:has(> .bx-f) { grid-template-areas: "k k s c" "p m f f"; align-items: end; }
-  .bx:has(> .bx-f) > :is(.bx-k, .bx-s, .bx-c) { align-self: baseline; margin-bottom: 14px; }
-  .bx .bx-f { margin-top: 0; }
-}
-/* in hand its words turn cobalt at once; focused it also takes a cobalt ring inside its edge, pressed a cobalt foot */
-.bx:hover, .bx:focus-visible, .bx:active { color: var(--cobalt); }
-.bx:focus-visible { outline: 2px solid var(--cobalt); outline-offset: -5px; }
-.bx:active { box-shadow: inset 0 -4px 0 var(--cobalt); }
-.anim .bx { transition: box-shadow var(--quick); }
-@media (max-width: 1100px) {
-  /* the block runs to the window's edges, its words on the gutter */
-  .bl { --cp: var(--gut); }
-  .bx { grid-template-columns: 5rem minmax(0, 1fr) minmax(0, 15rem) max-content; column-gap: 20px; }
-  .bx-m { font-size: 32px; }
-  .bx-w { font-size: 24px; }
-}
+/* the overview band: the title on one line, alone (the frontier is marked on its rung, in the ladder) */
+.home .mast-in { padding: 48px 0; }
+.band-h { margin: 0; font: 900 min(var(--title), calc((100vw - 2 * var(--gut)) / 12.8))/.92 var(--disp); letter-spacing: -.012em; white-space: nowrap; }
 @media (max-width: 760px) {
-  .home .mast-in { padding: 14px 0 12px; }
-  .bk { flex-direction: column; }
-  .band-h { margin-top: 12px; }
-  .bl { margin-top: 12px; }
-  .bx { grid-template-columns: 3.6rem minmax(0, 1fr) auto; grid-template-areas: "k k k" "p m m" ". s c" ". f f"; column-gap: 12px; row-gap: 6px; padding-block: 10px 12px; }
-  .bx-k { margin-bottom: 8px; }
-  .bx-p { font-size: 13px; }
-  .bx-m { font-size: 24px; }
-  .bx-s { font-size: 12px; line-height: 16px; }
-  .bx-w { font-size: 20px; }
-  .bx-c { font-size: 12px; line-height: 16px; }
-  .bx-f { margin-top: 6px; }
-  .bx-f .fig .n { font-size: 36px; }
-  .bx-f .fig .u.x { font-size: 22px; }
+  /* as the other title bands (.mast-t), so the title keeps its place from tab to tab */
+  .home .mast-in { padding: 32px 0 30px; }
 }
 /* a name on its band (a system, a Learn page); a system's name morphs between the ladder and its page */
 .sysname { font: 900 clamp(56px, 7.4vw, 108px)/.84 var(--disp); letter-spacing: -.012em; padding-top: 4px; margin: 0; overflow-wrap: anywhere; }
@@ -295,7 +252,7 @@ html:has(.top.s-on) { overflow: hidden; }
 .sbm .fig .u.x { font-size: clamp(26px, 3vw, 48px); }
 .sbm.unr .fig .n, .sbm.unr .fig .u.x { font-weight: 400; }
 .sbm .sub, .sbm .na { color: var(--ground); }
-.sbm .sub { margin-top: 10px; }
+.sbm .sub { margin-top: 10px; white-space: nowrap; }
 .sbm .na { font-size: 24px; line-height: 1; }
 .facts { display: flex; flex-wrap: wrap; column-gap: 40px; margin: 32px 0 0; padding-bottom: 18px; border-top: 2px solid var(--ground); }
 .facts > div { min-width: 0; padding-top: 12px; }
@@ -303,13 +260,9 @@ html:has(.top.s-on) { overflow: hidden; }
 .facts dd { margin: 6px 0 0; font: 600 13px/19px var(--mono); }
 .facts a { text-decoration-thickness: 1px; }
 /* a link on the band, in hand: a block of ground ink, the words in cobalt (as an index line) */
-.facts a:hover, .tsub a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
-.facts .pos { display: flex; align-items: center; gap: 8px; }
-.facts .pos .pn { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; box-shadow: inset 0 0 0 1.5px var(--ground); font: 900 18px/1 var(--disp); font-variant-numeric: tabular-nums; }
-.facts .pos.p1 .pn { background: var(--paper); box-shadow: none; }
-.facts .of { margin: 0; font: inherit; color: inherit; }
+.facts a:hover, .facts a:active, .facts a:focus-visible { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
 @media print {
-  .bx, .sbm .sub, .sbm .na { color: var(--paper); }
+  .sbm .sub, .sbm .na { color: var(--paper); }
   .facts { border-color: var(--paper); }
 }
 @media (max-width: 760px) {
@@ -326,16 +279,41 @@ html:has(.top.s-on) { overflow: hidden; }
   .facts > div { padding-top: 10px; }
   .facts dd { margin-top: 4px; }
 }
+/* a phone: the band holds the name, the model, the standing and the figure, and no more, so the page's first
+   section is on the first screen. Its model and standing stand right under the name, their names left to a screen
+   reader; the figure's two parts stand beside it (under it where the line is too short), with no "of which", which
+   their place says; what was counted and n are left to the Cost block; the source and the share group are at the
+   page's foot */
+@media (max-width: 560px) {
+  .sysb .mast-in { display: flex; flex-direction: column; padding-top: 24px; }
+  .sysb .sb, .sysb .facts { display: contents; }
+  .sysb .sysname { order: 1; }
+  .sysb .facts > div { padding: 0; }
+  .sysb .facts dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .sysb .facts dd { margin: 0; }
+  .sysb .facts > .f-md { order: 2; margin-top: 10px; }
+  .sysb .facts > .f-st { order: 3; margin-top: 3px; }
+  .sysb .facts > .f-src { display: none; }
+  .sysb .sbm { order: 4; display: flex; flex-wrap: wrap; align-items: flex-end; column-gap: 18px; row-gap: 8px; margin: 18px 0 20px; padding: 0; }
+  .sysb .sbl { flex: 0 0 100%; margin-bottom: 0; }
+  .sysb .sbm > .sub { display: none; }
+  .sysb .sbm > .na + .sub { display: block; flex-basis: 100%; margin: 0; white-space: normal; }
+  .sysb .sbm > .fig .n { font-size: 40px; }
+  .sysb .sbm > .fig .u.x { font-size: 24px; }
+}
+/* a narrow tablet and paper: the name's column would split a long name inside its word, so the figure goes under it */
+@media (max-width: 860px) and (min-width: 761px), print {
+  .sb { grid-template-columns: minmax(0, 1fr); row-gap: 20px; }
+  .sbm { grid-area: 2 / 1; max-width: none; text-align: left; }
+  .sbm .fig { justify-content: flex-start; }
+}
 /* a page's band (the checks, the mandate, the 404): its title at the home title's size */
 .mast-t .mast-in { padding: 48px 0; }
 .ttl { margin: 0; font: 900 var(--title)/.92 var(--disp); letter-spacing: -.01em; overflow-wrap: normal; }
 .creed { max-width: 30ch; text-wrap: balance; }
-.tsub { margin-top: 18px; font: var(--f-meta); }
-.tsub a { text-decoration-thickness: 1px; }
 .lead { margin-top: 48px; }
 @media (max-width: 760px) {
   .mast-t .mast-in { padding: 32px 0 30px; }
-  .tsub { margin-top: 14px; }
 }
 
 /* ---------------------------------------------------------------- a page's sections: a strip that stays under the top bar */
@@ -343,7 +321,8 @@ html:has(.top.s-on) { overflow: hidden; }
 .ps { display: flex; align-items: stretch; height: 100%; margin-inline: var(--gut); overflow-x: auto; scrollbar-width: none; }
 .ps-t { position: sticky; left: 0; z-index: 1; flex: none; display: flex; align-items: center; margin-right: 0; max-width: 0; overflow: hidden; white-space: nowrap; background: var(--ground); box-shadow: inset 0 -1px 0 var(--line); font: 900 22px/1 var(--disp); opacity: 0; transition: opacity var(--ease), max-width var(--ease), margin-right var(--ease); }
 html:not(.js) .ps-t { display: none; }
-.pnav.stuck .ps-t { opacity: 1; max-width: 40ch; margin-right: 10px; padding-right: 12px; }
+/* stuck, the title is a cell of its own, ruled on its right: a label scrolled under it passes under that rule */
+.pnav.stuck .ps-t { opacity: 1; max-width: 40ch; margin-right: 10px; padding-right: 12px; box-shadow: inset -1px 0 0 var(--line), inset 0 -1px 0 var(--line); }
 .ps a { position: relative; isolation: isolate; flex: none; display: flex; align-items: center; padding: 0 12px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); text-decoration: none; }
 .ps-t + a { margin-left: -12px; }
 .pnav.stuck .ps-t + a { margin-left: 0; }
@@ -351,7 +330,8 @@ html:not(.js) .ps-t { display: none; }
 .ps a:after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 0; height: 3px; background: var(--cobalt); transform: scaleX(0); transform-origin: left; transition: transform var(--ease); }
 .ps a.on { color: var(--paper); }
 .ps a.on:after { transform: none; }
-/* on a narrow screen the strip runs to the screen's edge, so a link cut there shows it scrolls */
+/* on a narrow screen the strip runs to the screen's edge, so a link cut there shows it scrolls (at its start
+   words.js keeps a label's edge, so none shows cut there) */
 @media (max-width: 760px) {
   .ps { margin-right: 0; padding-right: var(--gut); }
 }
@@ -360,7 +340,8 @@ html:not(.js) .ps-t { display: none; }
 .pnav:has(.shr) { display: flex; }
 .pnav:has(.shr) .ps { flex: 1 1 auto; min-width: 0; margin-right: 0; }
 .shr { flex: none; display: flex; align-items: stretch; margin: 0 var(--gut) 0 12px; }
-.shl { display: flex; align-items: center; padding-right: 4px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--rule); }
+.shl { display: flex; align-items: center; padding-right: 4px; font: var(--f-label); color: var(--muted); }
+.shl:after { content: ":"; }
 .shr a, .shr button { display: flex; align-items: center; padding: 0 12px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer; }
 .shr a:hover, .shr a:focus-visible, .shr button:hover, .shr button:focus-visible { background: var(--cobalt); color: var(--ground); }
 .shr :focus-visible { outline-offset: -2px; outline-color: var(--paper); }
@@ -368,21 +349,40 @@ html:not(.js) .ps-t { display: none; }
 html:not(.js) .shr:not(:has(a)) { display: none; }
 .fshr dd { display: flex; gap: 20px; }
 .fshr button { text-decoration: underline 1px; text-underline-offset: 2px; }
-.fshr button:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+/* the page's foot on a narrow screen: the share group (the strip has no room for it), and on a phone the source
+   too (its band holds neither) */
+.fend { display: none; }
 @media (max-width: 760px) {
   .shr { display: none; }
+  .fend { display: flex; flex-wrap: wrap; gap: 14px 40px; margin: 48px 0 0; padding-top: 14px; border-top: 1px solid var(--rule); }
+  .fend > div { min-width: 0; }
+  .fend dt { font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+  .fend dd { margin: 6px 0 0; font: 600 13px/19px var(--mono); overflow-wrap: anywhere; }
+  .fend a, .fend button { text-decoration: underline 1px; text-underline-offset: 2px; }
+  .fend a:hover, .fend a:focus-visible, .fend button:hover, .fend button:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+  .fend .f-src { display: none; }
   .fshr { display: block; }
+  /* no card and no way to copy the link: the group has nothing to offer, so its name is not printed */
+  .fend > .fshr:not(:has(a)):has(button[hidden]) { display: none; }
   html:not(.js) .fshr:not(:has(a)) { display: none; }
+}
+@media (max-width: 560px) {
+  .fend .f-src { display: block; }
 }
 @media (hover: none) {
   .fshr a, .fshr button { position: relative; }
-  .fshr a:after, .fshr button:after { content: ""; position: absolute; inset: -14px 0; }
+  .fshr a:after, .fshr button:after { content: ""; position: absolute; inset: -14px -6px; }
+}
+@media print {
+  .pnav:has(.shr), .shr { display: none; }
 }
 
 /* ---------------------------------------------------------------- the ladder: a section per model under a cobalt rule, its size in a tab */
 .rung { margin-top: 96px; }
 .rh { border-top: 4px solid var(--cobalt); }
 .rk { display: inline-block; margin: 0; padding: 5px 10px 6px; background: var(--cobalt); color: var(--ground); font: 600 14px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+/* the frontier's rung says so beside its tab, in the frame's ink */
+.rf { display: inline-block; margin: 0 0 0 12px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--cobalt); }
 .rm { margin: 18px 0 0; font: 900 clamp(40px, 4.2vw, 60px)/.92 var(--disp); letter-spacing: -.008em; text-wrap: balance; }
 .meta { display: flex; flex-wrap: wrap; gap: 12px 40px; margin: 20px 0 0; }
 .meta dt { margin-bottom: 4px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
@@ -400,7 +400,7 @@ html:not(.js) .shr:not(:has(a)) { display: none; }
 .rb .sub { display: inline; margin-left: .6em; }
 .none { font: var(--f-meta); color: var(--muted); }
 .rung > .none { margin-top: 28px; padding: 16px 0 18px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--line); font: 800 28px/1 var(--disp); color: var(--muted); }
-.rung:target .rm { width: fit-content; background: var(--cobalt); color: var(--ground); box-shadow: 0 0 0 .1em var(--cobalt); }
+.rung:target .rm { width: fit-content; padding-right: .1em; background: var(--cobalt); color: var(--ground); box-shadow: 0 -.1em 0 var(--cobalt), 0 .1em 0 var(--cobalt); }
 /* the rows: a table whose heads stay under the top bar, the model's size beside them once they
    stick */
 .lad { width: 100%; margin-top: 32px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
@@ -413,6 +413,13 @@ html:not(.js) .shr:not(:has(a)) { display: none; }
 @container scroll-state(stuck: top) { .hk { display: inline-block; } }
 /* the same, where words.js marks a stuck head (a browser with no scroll-state query) */
 .lad th.stuck .hk { display: inline-block; }
+/* a wide window: the stuck head names the model beside its size, over the glyph's empty head, its tab on the rule's edge */
+@media (min-width: 1181px) {
+  .lad thead th:first-child { z-index: 4; padding-left: 0; }
+  /* a long name takes two lines rather than lose its end, the second level with the tab, the first in the head's top room */
+  @container scroll-state(stuck: top) { .lad thead .hm { display: inline-block; vertical-align: bottom; width: max-content; max-width: 190px; margin: -14px 0 0 10px; white-space: normal; line-height: 1; } }
+  .lad th.stuck .hm { display: inline-block; vertical-align: bottom; width: max-content; max-width: 190px; margin: -14px 0 0 10px; white-space: normal; line-height: 1; }
+}
 /* the model's name beside its size, in the head that sticks over a stacked ladder (below) */
 .hm { display: none; min-width: 0; font: 900 18px/1 var(--disp); letter-spacing: 0; text-transform: none; color: var(--paper); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lad td, .lad tbody th { text-align: left; vertical-align: baseline; padding: 20px 16px 22px 0; border-bottom: 1px solid var(--line); font-weight: 400; transition: background-color var(--quick), box-shadow var(--quick); }
@@ -430,7 +437,7 @@ html.js .row { cursor: pointer; }
 .row:hover > :first-child { box-shadow: inset 3px 0 0 var(--cobalt); }
 .row:focus-within > :first-child, .row.cur > :first-child { box-shadow: inset 6px 0 0 var(--cobalt); }
 .row:active > :first-child { box-shadow: inset 9px 0 0 var(--cobalt); }
-.row .sname:focus-visible { outline: none; color: var(--cobalt); }
+.row .sname:focus-visible { color: var(--cobalt); outline: 2px solid var(--cobalt); outline-offset: 4px; }
 .row.cur .sname { color: var(--cobalt); }
 .row:has(.glyph:hover) .sname { text-decoration: underline; text-decoration-thickness: 3px; text-underline-offset: 5px; }
 /* a position: a square, position 1 solid paper, the others an outline; the count run under it. It starts a ranked
@@ -438,7 +445,7 @@ html.js .row { cursor: pointer; }
 .pos { display: block; }
 .pos .pn { display: flex; align-items: center; justify-content: center; width: 56px; height: 56px; box-shadow: inset 0 0 0 1.5px var(--rule); font: 900 40px/1 var(--disp); font-variant-numeric: tabular-nums; }
 .pos.p1 .pn { background: var(--paper); color: var(--ground); box-shadow: none; }
-.pos.p0 .pn { color: var(--muted); font-weight: 800; }
+.pos.p0 .pn { box-shadow: inset 0 0 0 1px var(--line); color: var(--muted); font-weight: 800; }
 .of { display: block; font: 400 12px/16px var(--mono); color: var(--muted); margin-top: 8px; }
 .glyph { display: block; width: 159px; height: 87px; }
 .sname { display: block; width: fit-content; max-width: 100%; font: 900 36px/.92 var(--disp); text-decoration: none; overflow-wrap: anywhere; transition: color var(--quick); }
@@ -452,6 +459,12 @@ html.js .row { cursor: pointer; }
 .fig .n { font: 600 22px/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .fig .u { font: 400 12px/14px var(--mono); white-space: nowrap; }
 .fig .u.x { font: 600 16px/1 var(--mono); margin-left: -.2em; }
+/* a state in a figure's place (the ladder's and a system page's Fidelity): the check's word at a figure's size */
+.fw { font: 600 22px/1 var(--mono); letter-spacing: -.02em; text-decoration: none; }
+.fw:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.fw.undecided { color: var(--muted); }
+.lad .fw { font-size: 24px; }
+.figs .fw { font-size: 30px; letter-spacing: -.03em; }
 .lad .fig .n { font-size: 24px; }
 .lad .cm .fig .n { font-size: 42px; letter-spacing: -.04em; }
 .lad .cm .fig .u.x { font-size: 24px; }
@@ -469,15 +482,33 @@ html.js .row { cursor: pointer; }
 .split .sub, .lad .cm .split .sub { margin: 0; font-size: 11px; line-height: 14px; white-space: nowrap; }
 /* on the band: the parts under its figure, set right with it, in the ground ink, no bar */
 .sbm .split { grid-template-columns: max-content max-content; justify-content: end; column-gap: 28px; margin-top: 18px; }
-.sbm .split .part { justify-content: end; justify-items: end; }
+.sbm .split .part { grid-template-columns: max-content; justify-content: end; justify-items: end; }
 .sbm .split .pl, .sbm .split .pp .pl { color: var(--ground); }
+@media print {
+  .sbm .split .pl, .sbm .split .pp .pl { color: var(--paper); }
+}
 @media (max-width: 760px) {
   .sbm .split { grid-template-columns: max-content; justify-content: start; row-gap: 10px; margin-top: 16px; }
+  .sbm .split .part { justify-content: start; justify-items: start; }
+}
+@media (max-width: 560px) {
+  .sbm .split { grid-template-columns: max-content max-content; justify-content: start; align-items: baseline; column-gap: 8px; row-gap: 2px; margin: 0 0 3px; }
+  .sbm .split .part { display: contents; }
+  .sbm .split .pl, .sbm .split .pp .pl { grid-column: 1; font: 400 11px/16px var(--mono); letter-spacing: 0; text-transform: none; white-space: nowrap; }
+  .sbm .split .ow { display: none; }
+  .sbm .split .fig { grid-column: 2; justify-self: end; }
+  .sbm .split .fig .n { font-size: 13px; }
+  .sbm .split .fig .u.x { font-size: 12px; }
+}
+@media (max-width: 860px) and (min-width: 761px), print {
+  .sbm .split { justify-content: start; }
   .sbm .split .part { justify-content: start; justify-items: start; }
 }
 .sub { display: block; font: 400 12px/16px var(--mono); color: var(--muted); margin-top: 6px; }
 .lad .sub { white-space: nowrap; }
 .lad .st, .scl .st, .fid thead th, .fid td[data-l="Kind"] { text-wrap: balance; }
+/* a check not held and its state as one unit: it starts a line rather than break a check's name where the line has room */
+:is(.lad, .scl) .st .ckn { display: inline-block; max-width: 100%; text-wrap: wrap; }
 .lad .cm .sub { white-space: normal; }
 .na { font: 600 14px/18px var(--mono); color: var(--muted); }
 @media (max-width: 1320px) {
@@ -487,7 +518,7 @@ html.js .row { cursor: pointer; }
   .lad td, .lad tbody th { padding-right: 12px; }
   .pos .pn { width: 48px; height: 48px; font-size: 34px; }
   .sname { font-size: 30px; }
-  .lad .fig .n { font-size: 20px; }
+  .lad .fig .n, .lad .fw { font-size: 20px; }
   .lad .cm .fig .n { font-size: 34px; }
   .lad .cm .fig .u.x { font-size: 20px; }
 }
@@ -531,14 +562,14 @@ html.js .row { cursor: pointer; }
   .lad .lbl { display: block; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 6px; }
   .lad .cc, .lad .ct, .lad .ck { min-width: 0; box-shadow: inset 0 1px 0 var(--line); }
 }
-/* a tablet: the multiple on the name's line at its right end from 761 px (with its label and scope
-   beside it, its parts under it), so the multiples of a rung run down one edge; then cost, check
+/* a tablet: the multiple on the name's line at its right end from 761 px (its label over it, as
+   the thirds' are, its parts under it), so the multiples of a rung run down one edge; then cost, check
    time and KL in thirds */
 @media (max-width: 1180px) and (min-width: 561px) {
   .lad .csys { flex: 1 1 200px; }
-  .lad .cm { flex: 0 1 auto; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "f l" "f u" "s s"; column-gap: 14px; align-items: end; }
-  .lad .cm > .lbl { grid-area: l; margin: 0 0 4px; }
-  .lad .cm > .fig, .lad .cm > .na { grid-area: f; align-self: center; }
+  .lad .cm { flex: 0 1 auto; display: grid; grid-template-columns: auto; grid-template-areas: "l" "f" "u" "s"; justify-items: start; }
+  .lad .cm > .lbl { grid-area: l; margin: 0 0 6px; }
+  .lad .cm > .fig, .lad .cm > .na { grid-area: f; }
   .lad .cm > .sub { grid-area: u; margin: 0; }
   .lad .cm > .split { grid-area: s; margin-top: 10px; }
   .lad .cm .fig .n { font-size: 36px; }
@@ -547,7 +578,7 @@ html.js .row { cursor: pointer; }
      name's line has no room for it, takes a line of its own above them) */
   .lad tbody tr:after { content: ""; flex: 0 0 100%; order: 1; }
   .lad .cc, .lad .ct, .lad .ck { order: 2; flex: 1 1 30%; padding-top: 10px; }
-  .lad .fig .n { font-size: 18px; }
+  .lad .fig .n, .lad .fw { font-size: 18px; }
 }
 /* just over a phone's width (the sessions table stacks from 760 px down) its columns sit closer, so each number keeps
    its unit beside it */
@@ -557,68 +588,86 @@ html.js .row { cursor: pointer; }
 /* up to 760 px a wide multiple (or a cold session's long scope) cannot always share the name's line, so
    every row gives its multiple a line of its own: the rows of a rung keep one arrangement */
 @media (max-width: 760px) and (min-width: 561px) {
-  .lad .cm { flex-basis: 100%; }
+  /* on that line the multiple's two parts stand beside it, side by side under their bar, not under it: the line
+     holds no empty block at its right */
+  .lad .cm { flex-basis: 100%; grid-template-columns: max-content minmax(0, 1fr); grid-template-areas: "l l" "f s" "u s"; column-gap: 40px; align-items: start; }
+  .lad .cm > .split { grid-template-columns: max-content max-content; column-gap: 32px; margin-top: 6px; }
 }
 /* where one of the thirds' heads takes two lines, each head sits on the floor of two, so the values share a line */
 @media (max-width: 640px) and (min-width: 561px) {
   .lad :is(.cc, .ct, .ck) > .lbl { display: flex; align-items: flex-end; min-height: 28px; }
 }
-/* a phone: the ladder is still the table, a row set on two lines in two columns, bounded by a full rule. The first
-   line is its glyph (drawn with no names) and its name with its standing, then its multiple, scope and n under it
-   (its position's square is left to a wide screen: the rows are in its order). Under a hairline, the second line holds cost per reply
-   under the name and check time under the multiple, each named where it stands. The heads System and Multiple of
-   serving stay on screen with the model's band over them. KL, the multiple's two parts and the model's serving
-   baseline are on the system's page, one tap away. A rung's head is its size, its name, its publisher and parameters
-   on one line */
+/* a phone: the ladder is still the table, a row bounded by a full rule. Its first line is its glyph (drawn with no
+   names, tall enough to stand beside the name's line and the two parts under it), its name with its standing, and
+   at the line's end its multiple (its position's square is left to a wide screen: the rows are in its order).
+   Where the multiple has two parts they stand under it, one over the other, each named before its figure, the
+   figures on the multiple's edge. Then a ruled list, one figure a line, its name at the line's start and the
+   figure at its end, on the multiple's edge: cost, verify time and fidelity. The heads System and Cost vs serving
+   stay on screen with the model's band over them. A rung's head is its size, its name, its publisher and
+   architecture on one line, and its serving figure on the next */
 .gsh { display: none; }
 @media (max-width: 560px) {
-  /* the columns: the system, the multiple; --gw is the glyph's room at the start of the system's */
-  .lad { --cols: minmax(0, 1fr) 130px; --gw: 46px; }
+  /* the columns: the system, the multiple (as wide as it is, at the row's end); --gw is the glyph's room at the
+     start of the system's */
+  .lad { --cols: minmax(0, 1fr) max-content; --gw: 72px; }
   .lad thead { height: auto; top: calc(var(--top-h) + 32px); background: var(--ground); box-shadow: inset 0 -1px 0 var(--rule); }
   html.js .tophide .lad thead { top: 32px; }
   .lad thead tr, .lad tbody tr { display: grid; grid-template-columns: var(--cols); column-gap: 0; }
-  /* the heads over their columns, on the row's two lines; the model's band in the line over them once they stick */
+  /* the heads over their columns; the model's band in the line over them once they stick */
   .lad thead tr { row-gap: 0; padding: 8px 0 8px; }
   .lad thead th:first-child { grid-column: 1 / -1; grid-row: 1; height: 0; }
-  .lad thead th:nth-child(n+3) { display: block; position: static; padding: 0; background: none; box-shadow: none; font-size: 10px; line-height: 16px; letter-spacing: .02em; white-space: nowrap; }
+  .lad thead th:nth-child(n+3) { display: block; position: static; padding: 0; background: none; box-shadow: none; line-height: 16px; white-space: nowrap; }
   .lad thead th:nth-child(3) { grid-area: 2 / 1; }
-  .lad thead th:nth-child(4) { grid-area: 2 / 2; }
+  .lad thead th:nth-child(4) { grid-area: 2 / 2; justify-self: end; }
   .lad thead th:nth-child(n+5) { display: none; }
   @container scroll-state(stuck: top) { .lad thead th:first-child { top: -32px; height: 32px; } }
   .lad thead th.stuck:first-child { top: -32px; }
   .lad tbody { border-top: 0; }
-  /* a row is bounded by a full rule; inside it a hairline parts its two lines */
-  .lad tbody tr { align-items: start; row-gap: 14px; padding: 18px 0 16px; border-bottom: 1px solid var(--rule); }
+  /* a row is bounded by a full rule; inside it a hairline over each line of its list */
+  .lad tbody tr { align-items: start; row-gap: 0; padding: 18px 0 14px; border-bottom: 1px solid var(--rule); }
   /* the row in hand: its name in cobalt (the script), pressed on the lift */
   .row:hover, .row:focus-within, .row.cur { background: none; box-shadow: none; }
-  .row:active { background: var(--lift); box-shadow: none; }
+  .row:active { background: var(--lift); box-shadow: -8px 0 0 var(--lift), 8px 0 0 var(--lift); }
   /* the position is not drawn on a phone (the rows are in its order); a screen reader still reads it */
   .lad .cp { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  /* the glyph at the start of the name's cell, over it, so a petal still answers a finger */
-  .lad .cg { grid-area: 1 / 1; position: relative; z-index: 1; width: var(--gw); }
-  .lad .csys { grid-area: 1 / 1; min-width: 0; padding: 0 8px 0 var(--gw); }
-  .lad .cm { grid-area: 1 / 2; }
-  .lad .cc { grid-area: 2 / 1; padding-right: 10px; }
-  .lad .ct { grid-area: 2 / 2; }
-  .lad .cc, .lad .ct { padding-top: 12px; box-shadow: inset 0 1px 0 var(--line); }
-  .lad .ck, .lad .cm .split .sbar, .lad .cm .lbl { display: none; }
-  /* the parts in the figure's column: each label, figure and scope wrap inside it */
-  .lad .cm .split { grid-template-columns: minmax(0, 1fr); row-gap: 8px; margin-top: 10px; }
-  .lad .cm .split .part { grid-template-columns: minmax(0, 1fr); row-gap: 2px; }
-  .lad .cm .split .pl { white-space: normal; font-size: 10px; line-height: 12px; letter-spacing: -.01em; }
-  .lad .cm .split .sub { white-space: normal; font-size: 10px; line-height: 13px; }
-  /* the second line's figures are named where they stand */
-  .lad :is(.cc, .ct) .lbl { display: block; margin-bottom: 6px; font-size: 10px; line-height: 12px; letter-spacing: -.01em; white-space: nowrap; }
+  /* the glyph at the start of the row, over the name's cell and the line of the parts under it, so a petal still
+     answers a finger */
+  .lad .cg { grid-area: 1 / 1 / 3 / 2; position: relative; z-index: 1; width: var(--gw); padding-bottom: 14px; }
+  .lad .csys { grid-area: 1 / 1; min-width: 0; padding: 0 12px 6px var(--gw); }
+  /* the multiple's cell makes no box: its figure ends the name's line. A row with no multiple keeps the cell, the
+     word and its reason under it at the line's end */
+  .lad .cm { display: contents; }
+  .lad .cm > .fig { grid-area: 1 / 2; justify-self: end; }
+  .lad .cm:has(> .na) { display: block; grid-area: 1 / 2; max-width: 8.5rem; text-align: right; }
+  .lad tr:has(> .cm > .na) .st .nw { white-space: normal; }
+  .lad .cm .lbl, .lad .cm .split .sbar { display: none; }
+  /* the multiple's two parts stand under it, one over the other, in two columns that end on its edge: each part's
+     name, then its figure, in the standing's small type, so they read as the multiple's own and never as two more
+     lines of the list (their names run left of the multiple's column, into the room beside the glyph) */
+  .lad .cm > .split { grid-area: 2 / 1 / 3 / -1; align-self: start; display: grid; grid-template-columns: max-content max-content; justify-content: end; align-items: baseline; column-gap: 10px; row-gap: 3px; margin: 0 0 14px var(--gw); padding: 0; }
+  .lad .cm .split .part { display: contents; }
+  .lad .cm .split .pl, .lad .cm .split .pp .pl { grid-column: 1; justify-self: end; font: 400 11px/16px var(--mono); letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
+  .lad .cm .split .fig { grid-column: 2; justify-self: end; }
+  .lad .cm .split .fig .n { font-size: 13px; }
+  /* the list: one figure a line, named at the line's start, the figure at its end */
+  .lad :is(.cc, .ct, .ck) { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 12px; min-height: 32px; padding: 7px 0; }
+  .lad :is(.cc, .ct, .ck) { grid-column: 1 / -1; }
+  .lad .cc { grid-row: 3; }
+  .lad .ct { grid-row: 4; }
+  .lad .ck { grid-row: 5; }
+  .lad :is(.cc, .ct, .ck) .lbl { display: block; margin: 0; white-space: nowrap; }
+  .lad :is(.cc, .ct, .ck) .sub { flex-basis: 100%; text-align: right; }
+  .lad .ck .fw { font-size: 14px; }
   .sname { margin-top: -2px; font-size: 26px; line-height: 24px; }
   .lad .st { margin-top: 5px; font-size: 11px; line-height: 15px; }
-  .lad .glyph { width: 37.5px; height: 46.5px; }
+  .lad .glyph { width: 62.5px; height: 77.5px; }
   .lad .glyph .pie-svg:not(.gsh) { display: none; }
   .lad .glyph .gsh { display: block; }
   .lad .cm .fig .n { font-size: 26px; letter-spacing: -.04em; }
   .lad .cm .fig .u.x { font-size: 16px; }
   .lad .sub { margin-top: 4px; font-size: 11px; line-height: 14px; white-space: normal; }
-  /* the second line: a step smaller, the unit beside its number */
-  .lad :is(.cc, .ct) .fig .n { font-size: 16px; letter-spacing: -.02em; }
+  /* the list's figures: a step smaller, the unit beside its number */
+  .lad :is(.cc, .ct) .fig .n { font-size: 14px; letter-spacing: -.02em; }
   .lad :is(.cc, .ct) .fig .u { font-size: 11px; line-height: 12px; }
   .lad :is(.cc, .ct) .sub { margin-top: 3px; font-size: 10px; line-height: 13px; }
   .lad .na { display: block; font-size: 12px; line-height: 15px; }
@@ -633,30 +682,29 @@ html.js .row { cursor: pointer; }
   .meta > div:nth-child(-n+2), .meta > div:nth-child(-n+2) > dd { display: inline; }
   .meta > div:nth-child(-n+2) > dt { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .meta > div:nth-child(2):before { content: "\00a0·\00a0"; }
-  /* how the model is served and its serving baseline are left to a wide screen and to a system's page */
-  .meta > div:nth-child(n+3) { display: none; }
+  /* serving, the figure every multiple under it is over, on a line of its own, named */
+  .meta > div:nth-child(3) { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: .6em; margin-top: 4px; }
+  .meta > div:nth-child(3) > dt { margin: 0; }
+  .meta > div:nth-child(3) dd .fig { color: var(--paper); }
+  .meta > div:nth-child(n+4) { display: none; }
   .lad { margin-top: 6px; }
   .rung > .none { margin-top: 12px; font-size: 24px; }
 }
-/* a narrow phone: the multiple's column a step narrower */
+/* a narrow phone: the multiple a step smaller */
 @media (max-width: 374px) {
-  .lad { --cols: minmax(0, 1fr) 116px; }
   .lad .cm .fig .n { font-size: 24px; }
-  .lad thead th:nth-child(n+3) { padding-right: 6px; line-height: 13px; letter-spacing: 0; white-space: normal; }
-  .lad thead th:nth-child(4) { align-self: end; }
-  /* where a name of the second line takes two lines, both sit on the floor of two, so the figures share a line */
-  .lad :is(.cc, .ct) .lbl { display: flex; align-items: flex-end; min-height: 24px; white-space: normal; }
 }
 /* the narrowest phones: a smaller name and multiple; the sessions table's units under their numbers, in every
    cell alike */
 @media (max-width: 350px) {
-  .lad { --cols: minmax(0, 1fr) 108px; }
+  /* the five tabs keep to the window: less room beside each word */
+  .tabs .tab { padding-inline: 3px; }
   .sname { font-size: 24px; line-height: 22px; }
   .lad .cm .fig .n { font-size: 22px; }
-  .lad .cc { padding-right: 6px; }
-  .lad :is(.cc, .ct) .fig .n { font-size: 14px; }
-  .lad :is(.cc, .ct) .fig .u { font-size: 10px; }
-  .lad thead th:nth-child(n+3) { padding-right: 6px; line-height: 13px; white-space: normal; }
+  /* a system's page keeps to the window too: the Cost block's scope words may break, and a long figure of the
+     Fidelity table sets its unit under its number */
+  .rb .nw { white-space: normal; }
+  .fid .fig { flex-wrap: wrap; }
   .rt.stk:not(.fid) .fig { flex-wrap: wrap; }
   .rt.stk:not(.fid) .fig .u { flex-basis: 100%; }
 }
@@ -678,25 +726,28 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .lsv .fig { display: inline-flex; }
 .scl .lsv .fig .n { font-size: 14px; letter-spacing: 0; }
 .lsv .sub { display: inline; margin: 0; color: var(--muted); }
-.scl .nrun > td { padding: 14px 16px 16px; border-top: 1px solid var(--rule); font: 800 22px/1 var(--disp); color: var(--muted); }
+.scl .nrun > td { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); font: 800 22px/1 var(--disp); color: var(--muted); }
 .scl { width: 100%; margin-top: 24px; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .scl th, .scl td { text-align: left; font-weight: 400; padding: 0 16px 0 0; }
 .scl tr > :first-child { padding-left: 16px; }
 .scl .cp { width: 72px; }
-.scl .csys { width: 240px; }
+.scl .csys { width: 280px; }
 .scl .cf { width: 208px; padding-left: 16px; }
 .scl .cx { padding: 0 16px; overflow: hidden; }
 .scl thead th { vertical-align: bottom; padding-bottom: 10px; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); box-shadow: inset 0 -1px 0 var(--rule); }
 .scl thead .cx { padding-bottom: 0; overflow: visible; }
 .scl thead .cf { padding-left: 16px; }
 .al { display: block; margin-bottom: 6px; }
+.al .u { text-transform: none; letter-spacing: 0; }
 .scl tbody > tr.row > * { vertical-align: middle; padding-block: 14px; border-bottom: 1px solid var(--line); transition: background-color var(--quick), box-shadow var(--quick); }
 .scl tbody > tr.row > .cx { padding-block: 0; }
+/* a row's position, name and figure share their first line; the plot stays centred */
+.scl tbody > tr.row > :is(.cp, .csys, .cf) { vertical-align: baseline; }
 .scl .pos .pn { width: 32px; height: 32px; font-size: 24px; }
 .scl .of { margin-top: 4px; font-size: 11px; line-height: 14px; }
 .scl .sname { font-size: 26px; }
 .scl .st { margin-top: 6px; }
-.scl .fig .n { font-size: 20px; }
+.scl .cf > .fig .n { font-size: 20px; }
 .lx, .ax { display: block; overflow: visible; }
 .lx line { stroke-width: 1px; }
 .lx :is(.gd, .tk) { stroke: var(--line); }
@@ -714,10 +765,13 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 @media (max-width: 1180px) {
   .scl, .scl thead, .scl tbody { display: block; }
   .scl tr.grp, .scl tr.nrun, .scl :is(.grp, .nrun) > * { display: block; }
-  .scl tr { display: grid; grid-template-columns: 56px minmax(0, 1fr) fit-content(55%); grid-template-areas: "p s f" "x x x"; align-items: center; }
+  .scl tr { display: grid; grid-template-columns: 72px minmax(0, 1fr) fit-content(55%); grid-template-areas: "p s f" "x x x"; align-items: baseline; }
   .scl tr > .cp { grid-area: p; } .scl tr > .csys { grid-area: s; } .scl tr > .cf { grid-area: f; } .scl tr > .cx { grid-area: x; }
   .scl :is(.cp, .csys, .cf) { width: auto; }
   .scl .cf { padding-left: 12px; text-align: right; }
+  /* the parts under the multiple keep its right edge */
+  .scl .cf .split { justify-content: end; }
+  .scl .cf .split .part { grid-template-columns: max-content; justify-content: end; justify-items: end; }
   .scl .cx { padding: 0 8px; }
   .scl thead tr { box-shadow: inset 0 -1px 0 var(--rule); }
   .scl thead th { box-shadow: none; padding-bottom: 8px; }
@@ -743,8 +797,23 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 }
 @media (max-width: 560px) {
   .scl tr { grid-template-columns: minmax(0, 1fr) fit-content(55%); grid-template-areas: "s f" "x x"; }
+  /* a standing as the ladder's phone prints it */
+  .scl .st { font-size: 11px; line-height: 15px; }
   .scl tr > .cp { display: none; }
   .scl tr > .csys { padding-left: 12px; }
+  .scl .nrun > td { padding-left: 12px; }
+  /* a multiple in two parts, as the ladder's phone row sets them: the figure ends the name's line, and its two
+     parts stand under it, one over the other, each named before its figure, the figures on the multiple's edge
+     (no bar) */
+  .scl tr.row:has(> .cf > .split) { grid-template-areas: "s f" "l l" "x x"; }
+  .scl .cf:has(> .split) { display: contents; }
+  .scl .cf:has(> .split) > .fig { grid-area: f; justify-self: end; padding-right: 16px; }
+  .scl .cf > .split .sbar { display: none; }
+  .scl .cf > .split { grid-area: l; display: grid; grid-template-columns: max-content max-content; justify-content: end; align-items: baseline; column-gap: 10px; row-gap: 3px; margin: 2px 16px 6px 12px; }
+  .scl .cf > .split .part { display: contents; }
+  .scl .cf > .split .pl, .scl .cf > .split .pp .pl { grid-column: 1; justify-self: end; font: 400 11px/16px var(--mono); letter-spacing: 0; text-transform: none; color: var(--muted); white-space: nowrap; }
+  .scl .cf > .split .fig { grid-column: 2; justify-self: end; }
+  .scl .cf > .split .fig .n { font-size: 13px; }
 }
 @media print {
   .scl-panel[hidden] { display: block; }
@@ -771,7 +840,7 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 /* ---------------------------------------------------------------- the systems not run, by their reason: each reason once, the names in display type */
 .notrun { margin-top: 112px; }
 .nrg { margin: 0; }
-.nrg > div { display: grid; grid-template-columns: 240px minmax(0, 1fr); column-gap: 24px; padding: 14px 0 16px 12px; border-bottom: 1px solid var(--line); }
+.nrg > div { display: grid; grid-template-columns: 272px minmax(0, 1fr); column-gap: 24px; padding: 14px 0 16px 16px; border-bottom: 1px solid var(--line); }
 .nrg dt { padding-top: 9px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
 .nrg dd { margin: 0; }
 .nrl { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 28px; margin: 0; padding: 0; }
@@ -829,9 +898,9 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 /* the cost parts: the GPU times drawn on one scale (this system's own), each bar beside its
    figure; then a sheet of cells */
 .cbars { margin-top: 18px; border-top: 1px solid var(--rule); }
-.cl { display: grid; grid-template-columns: 260px minmax(0, 1fr) 220px; grid-template-areas: "k b f" ". s f"; align-items: center; column-gap: 32px; padding: 16px 0 16px 12px; border-bottom: 1px solid var(--line); }
+.cl { display: grid; grid-template-columns: 260px minmax(0, 1fr) 220px; grid-template-areas: "k b f" ". s f"; align-items: start; column-gap: 32px; padding: 16px 0 16px 12px; border-bottom: 1px solid var(--line); }
 .cln { grid-area: k; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
-.cl .hb { grid-area: b; }
+.cl .hb { grid-area: b; margin-top: 2px; }
 .clf { grid-area: f; }
 .cps { grid-area: s; display: flex; flex-wrap: wrap; gap: 8px 32px; margin-top: 12px; }
 .cpt { display: flex; flex-direction: column; row-gap: 4px; }
@@ -853,7 +922,7 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .cbars + .parts { margin-top: 0; border-top: 0; }
 /* a cell is never narrower than its figure (number and unit on one line): one that cannot share a
    line takes a line of its own */
-.parts > div { flex: 1 1 260px; margin-left: -1px; padding: 14px 16px 16px 17px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); transition: background-color var(--quick); }
+.parts > div { flex: 1 1 260px; margin-left: -1px; padding: 14px 16px 16px 13px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); transition: background-color var(--quick); }
 .parts .fig .u { white-space: nowrap; }
 .parts > div:hover { background: var(--lift); }
 /* a label of one or two lines: the figures of a line of cells start on one line */
@@ -864,8 +933,9 @@ html.js .scalepage .scl-panel { margin-top: 0; }
    whole reply, the stretch below the bar shaded, the bar a line; the bar's row ruled in paper */
 .fid tr.me > *, .fid tr.me:hover > * { background: var(--paper); color: var(--ground); }
 .fid tr.me :is(.sub, .na) { color: var(--ground); }
+.fid .sub sup { font-size: 10px; line-height: 0; }
 .fid tr.bar > * { border-bottom: 2px solid var(--paper); }
-.fid .trk { width: 26%; padding-right: 24px; vertical-align: middle; }
+.fid .trk { width: 26%; padding-top: 15px; padding-right: 24px; }
 .fdt { display: block; width: 100%; height: 18px; overflow: visible; }
 .fdt .tk, .fdt .fz { fill: var(--line); }
 .fdt .fb { stroke: var(--muted); stroke-width: 1px; stroke-dasharray: 2 2; vector-effect: non-scaling-stroke; }
@@ -874,7 +944,10 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .fdt .ft.bar { stroke: var(--paper); }
 .fid tr.me .fdt .ft { stroke: var(--ground); stroke-width: 5px; }
 .fid tr.me .fdt .fz, .fid tr.me .fdt .tk { fill: var(--muted); }
-.flead { font: var(--f-meta); color: var(--muted); margin-block: 12px; }
+.flead { font: var(--f-meta); color: var(--muted); margin-block: 12px; padding-left: 12px; }
+.syspage .blk > .rb { display: grid; grid-template-columns: max-content minmax(0, 1fr); column-gap: 12px; padding-left: 12px; }
+.syspage .blk > .rb .k { margin-right: 0; }
+.syspage .blk > .rb + .rb { padding-top: 4px; }
 .syspage .blk > .none { padding: 14px 0 16px 12px; border-bottom: 1px solid var(--line); }
 /* a petal's or a check's name leads to its definition: the dotted cue of a defined word */
 .ckt tbody th a { text-decoration: underline dotted 1px var(--rule); text-underline-offset: 4px; }
@@ -907,6 +980,7 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .ckt .pf > div { display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; padding: 1px 0; }
 .ckt .pf dt { color: var(--muted); }
 .ckt .pf dd { margin: 0; overflow-wrap: anywhere; }
+.ckt .pf dd code { overflow-wrap: normal; }
 /* the scope card scrolls inside its own cell (width 0, then the cell's width), so its whole cells never set how
    narrow the Reason column can get; position: relative keeps the links' (new tab) spans inside the scroller */
 .rt.ckt .scard { display: block; position: relative; width: 0; min-width: 100%; max-width: 70ch; overflow-x: auto; margin-top: 12px; border-collapse: collapse; font: inherit; }
@@ -920,13 +994,24 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .rt.ckt .scard tbody td.not_stated { color: var(--muted); }
 .ckt .pvh { margin: 12px 0 2px; color: var(--muted); }
 .ckt .pvis { margin: 0; padding: 0; list-style: none; max-width: 70ch; }
-.ckt .pvis .vt { color: var(--muted); }
+/* each item's kind on a line of its own under it, set in, so a kind never reads as another item */
+.ckt .pvis li + li { margin-top: 4px; }
+.ckt .pvis .vt { display: block; padding-left: 2ch; color: var(--muted); }
+.ckt .pvis a { color: var(--muted); text-decoration-color: var(--rule); }
+.ckt .pvis a:hover { color: var(--paper); }
 /* the petal in hand: its card keeps its own inks while the other rows dim */
 .ckt.dim tbody tr.lit .scard tr > * { color: var(--muted); }
 .ckt.dim tbody tr.lit .scard tr > * a.sv, .ckt.dim tbody tr.lit .scard tbody td:not(.not_stated) { color: var(--paper); }
 .ckt.gbig tr.lit > :first-child { box-shadow: none; }
 /* a check's records, one per line on every screen, each a whole line to tap */
 .ckt .ev { display: block; width: fit-content; padding-block: 2px; margin-block: 0; }
+/* the checks' columns are set once, so opening a row's records never moves them */
+@media (min-width: 761px) {
+  .cks { table-layout: fixed; }
+  .cks thead th:nth-child(1) { width: 24%; }
+  .cks thead th:nth-child(2) { width: 14%; }
+  .cks:has(thead th:nth-child(4)) thead th:nth-child(3) { width: 26%; }
+}
 /* a petal and the checks its red names light each other (words.js): the rest dim to the muted ink
    (still legible), never hide; the state chips stay whole */
 .ckt.dim tbody tr:not(.lit) > :not(:nth-child(2)), .ckt.dim tbody tr:not(.lit) > :not(:nth-child(2)) a:not(.sl) { color: var(--muted); text-decoration-color: var(--line); }
@@ -936,6 +1021,7 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .figs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin: 0; overflow: hidden; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
 .figs > div { min-width: 0; margin: 0 0 -1px -1px; padding: 14px 20px 16px 13px; border-left: 1px solid var(--line); border-bottom: 1px solid var(--line); transition: background-color var(--quick); }
 .figs > div:hover { background: var(--lift); }
+.syspage #figures .figs { border-top: 0; }
 .figs dt { display: flex; align-items: flex-end; min-height: 28px; margin-bottom: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
 .figs dd { margin: 0; }
 .figs .fig { flex-wrap: wrap; }
@@ -956,46 +1042,79 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .more[open] > summary:after { content: "\2212" / ""; }
 .more > summary:hover, .more[open] > summary { color: var(--paper); box-shadow: inset 0 0 0 1px var(--muted); }
 .more[open] > summary { margin-bottom: 4px; }
-.pfrom { margin: 12px 0 0; color: var(--muted); }
-.pfrom .k { margin-right: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
-.cnone { margin: 0; padding: 12px 0 0 12px; font: var(--f-meta); color: var(--muted); }
-/* on a wide screen a petal's summary (or its basis alone) stands at its row's end, level with the arm, and
-   opens under the reason */
-@media (min-width: 1181px) {
-  .ckt.gbig tbody tr { position: relative; }
-  .ckt.gbig td.prs { padding-right: 200px; }
-  .ckt.gbig td.prs > .bs, .ckt.gbig .more > summary { position: absolute; top: 12px; right: 0; max-width: 184px; }
-  .ckt.gbig .more > summary { white-space: normal; }
-  .ckt.gbig tbody tr:first-child .more > summary, .ckt.gbig tbody tr:first-child td.prs > .bs { top: 0; }
-  .ckt.gbig .more[open] { margin-top: 4px; }
+/* on paper a disclosure cannot open: its count stands as a label, not a control */
+@media print {
+  .more > summary { padding-left: 0; box-shadow: none; }
+  .more > summary:after { content: none; }
 }
+.pfrom { margin: 12px 0 0; color: var(--muted); }
+.pfrom .k, .ckt .bs .k { margin-right: 10px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
+.pfrom a.df, .ckt .pvis .vt, .ckt .bs { white-space: nowrap; }
+.ckt .bs a { color: inherit; }
+.cnone { margin: 0; padding: 12px 0 0 12px; font: var(--f-meta); color: var(--muted); }
+/* a petal's summary (or its basis alone) under its reason, so the reason keeps its whole measure and what the
+   summary opens takes the row's width */
+.ckt.gbig td.prs > .bs { display: block; margin-top: 8px; }
+.ckt.gbig .more > summary { margin-top: 10px; }
 @media (max-width: 760px) {
   .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .figs > div { padding: 12px 10px 14px 13px; }
-  .figs .fig .n { font-size: 22px; }
+  .figs .fig .n, .figs .fw { font-size: 22px; }
   .figs .fig .u { font-size: 12px; }
   .fbar { flex-wrap: wrap; row-gap: 8px; }
   .fbar .fdt { flex-basis: 100%; margin-right: 0; }
 }
-@media (max-width: 1180px) {
-  .ckt.gbig td.prs > .bs { display: block; margin-top: 8px; }
-  .ckt.gbig .more > summary { margin-top: 10px; }
-}
 /* a narrow phone: a figure and its unit on one line in a half-width cell */
 @media (max-width: 380px) {
   .figs > div { padding-right: 8px; }
-  .figs .fig .n { font-size: 20px; }
+  .figs .fig .n, .figs .fw { font-size: 20px; }
 }
 @media (max-width: 1100px) {
   .cl { grid-template-columns: 200px minmax(0, 1fr) 190px; column-gap: 24px; }
-  /* the Reason column narrows: the scope card's words wrap (machine-checked at its hyphen) before it scrolls */
-  .rt.ckt .scard tr > :is(th, td) { padding-right: 8px; white-space: normal; }
+  /* the Reason column narrows: the scope card's heads wrap, a state word stays whole, before it scrolls */
+  .rt.ckt .scard tr > :is(th, td) { padding-right: 8px; }
+  .rt.ckt .scard :is(thead th, tbody th) { white-space: normal; }
+  /* the sheet in even columns, its last cell taking what its line leaves */
+  .parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .parts > div:last-child:nth-child(3n+2) { grid-column: span 2; }
+  .parts > div:last-child:nth-child(3n+1) { grid-column: 1 / -1; }
+}
+/* the fidelity rows keep a name and a kind on one line (a reason under a figure takes lines instead); below 1100 px
+   the track gives up the width */
+@media (min-width: 761px) {
+  .fid td .na + .sub { max-width: 26ch; }
+}
+@media (min-width: 861px) {
+  .fid tbody th, .fid td[data-l="Kind"] { white-space: nowrap; }
+}
+/* stacked: the p line under the system's figure wraps inside its cell (its dot is tied to the word after it) */
+@media (max-width: 760px) {
+  .fid .sub .nw { white-space: normal; }
+}
+@media (max-width: 1100px) and (min-width: 761px) {
+  .fid .trk { width: 16%; }
+}
+/* the figures row in two columns once four cells cannot hold a figure and its unit on one line */
+@media (max-width: 1000px) {
+  .figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 760px) {
-  .parts > div { flex-basis: 150px; }
+  .parts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .parts > div:last-child:nth-child(3n+2), .parts > div:last-child:nth-child(3n+1) { grid-column: auto; }
+  .parts > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .parts .fig .n { font-size: 18px; }
-  .cl { grid-template-columns: minmax(0, 1fr); grid-template-areas: "k" "f" "b" "s"; row-gap: 8px; padding-left: 0; }
+  /* a figure wider than its half of the sheet: the unit under the number, never cut at the cell's edge */
+  .parts .fig { flex-wrap: wrap; }
+  .cl { grid-template-columns: minmax(0, 1fr); grid-template-areas: "k" "f" "b" "s"; row-gap: 8px; }
   .fid .trk { width: auto; grid-column: 1 / -1; padding: 0; }
+  /* a column's label once, on the first card (the system's own) */
+  .fid.stk tbody tr:not(:first-child) td[data-l]:before { display: none; }
+  .syspage .rt.stk tr { padding-right: 12px; }
+  /* a finger's targets: 40 px */
+  .more > summary { padding: 13px 10px; }
+  .syspage .ckt .ev { padding-block: 11px; }
+  .rt.stk .rid { display: inline-block; padding-block: 13px; margin-block: -13px; }
+  .ckt .cst a.cc { display: inline-block; margin-top: 6px; }
   .rt.fid.stk tbody th { grid-column: 1; align-self: end; }
   .fid.stk td[data-l="Kind"]:before { display: none; }
   .fid.stk td[data-l="Kind"] { align-self: end; }
@@ -1006,10 +1125,9 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 @media (max-width: 400px) {
   .parts .fig .n { font-size: 16px; }
 }
-/* the mandate: the rule binding a line, named under its words */
 /* the checks page: the key (the glyph in cobalt) kept beside the five petals; the petal read lights in it */
 .cwrap { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 56px; padding-top: 32px; align-items: start; }
-.chk { padding: 20px 0 20px 16px; border-bottom: 1px solid var(--line); }
+.chk { padding: 20px 16px; border-bottom: 1px solid var(--line); }
 .anim .chk { transition: box-shadow var(--quick), background-color var(--quick); }
 .cwrap .chk:first-child { padding-top: 16px; }
 /* the petal in hand or read: lifted with a cobalt edge, as a row of the system page's petals */
@@ -1019,17 +1137,21 @@ html.js .scalepage .scl-panel { margin-top: 0; }
    in a cobalt block that slides in from its left edge */
 .chk:target .cn2, .cs > div:target dt, .checkspage .rd:target { background: var(--cobalt); color: var(--ground); }
 .cs > div:target dt { width: fit-content; height: fit-content; margin-left: -.4em; padding: 0 .4em; }
-.checkspage .rd:target { width: fit-content; margin-left: -12px; padding: 8px 12px; }
+/* a paragraph's block grows around its words (a shadow, not padding), so they keep their place and their lines */
+.checkspage .rd:target { width: fit-content; box-shadow: 0 0 0 8px var(--cobalt), -4px 0 0 8px var(--cobalt), 4px 0 0 8px var(--cobalt); }
+.checkspage .cwrap .hl:target { max-width: calc(90ch - 16px); margin: 16px 0 0 16px; padding: 0; }
 .cs { margin: 0; font: 400 var(--read)/var(--read-lh) var(--mono); }
-.cs > div { display: grid; grid-template-columns: 176px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
-.blk > .cs > div { padding: 12px 0 12px 12px; border-bottom: 1px solid var(--line); transition: background-color var(--quick); }
-.blk > .cs > div:hover { background: var(--lift); }
+/* one term column for every list of rules (the petals' four steps need its width), so like lists in one column align */
+.cs > div { display: grid; grid-template-columns: 196px minmax(0, 1fr); gap: 16px; padding: 4px 0; }
+.blk > .cs > div { padding: 12px 0 12px 16px; border-bottom: 1px solid var(--line); }
 .cs dt { color: var(--paper); font-weight: 600; }
 .cs dd { margin: 0; max-width: 80ch; color: var(--muted); text-wrap: pretty; }
 /* the mandate: a line's label links the rule that binds it; the members' names in display type,
    a row of cells whose rules meet (the list starts a rule's width early and clips it, so the
    first name of each line has none) */
 .cs dt a { text-decoration-color: var(--rule); }
+/* in hand, as a footer link: cobalt under ground ink, at once */
+.cs dt a:hover, .cs dt a:active, .cs dt a:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
 .cs .mbr dd { max-width: none; }
 .mbl { list-style: none; display: flex; flex-wrap: wrap; row-gap: 8px; margin: 0 0 0 -20px; padding: 0; overflow: hidden; }
 .mbl li { min-width: 0; margin-left: -1px; padding: 0 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
@@ -1038,18 +1160,21 @@ html.js .scalepage .scl-panel { margin-top: 0; }
 .rd { font: 400 var(--read)/var(--read-lh) var(--mono); max-width: 90ch; text-wrap: pretty; }
 .rd + .rd { margin-top: 10px; }
 .cwrap .hl { padding: 16px 0 0 16px; }
+.cwrap .hl + .hl { padding-top: 0; }
 /* the petals' causes, under the hollow rule (#cause-<id>, linked from a system page's State cell) */
 .cwrap .pcause { padding: 12px 0 0 16px; }
 /* a petal's four steps: the widest chip (amber in lesser part, with its notch) keeps clear of its rule */
-@media (min-width: 561px) { .cwrap .chk .cs > div { grid-template-columns: 196px minmax(0, 1fr); } }
+@media (min-width: 561px) { .cwrap .cs > div { grid-template-columns: 196px minmax(0, 1fr); } }
 /* the 404: the models and the systems as cells, rules meeting; each answers as a row does */
 .lost { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); overflow: hidden; }
 .lost li { display: flex; margin-left: -1px; border-bottom: 1px solid var(--line); border-left: 1px solid var(--line); }
 .lost a { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; row-gap: 10px; padding: 18px 16px 20px 17px; text-decoration: none; }
 .lost .lp { text-wrap: balance; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
 .lost .ln { font: 900 32px/.95 var(--disp); text-wrap: balance; }
-.lsys a { grid-template-columns: 50px minmax(0, 1fr); column-gap: 16px; row-gap: 6px; align-items: center; }
+.lsys a { grid-template-columns: 50px minmax(0, 1fr); column-gap: 16px; row-gap: 6px; align-items: start; }
 .lsys svg { grid-row: 1 / span 2; }
+/* the glyph's top level with the name's line (the scale page's name margin is not this cell's) */
+.lsys .ln { margin-top: 0; }
 .lsys .lp { font: var(--f-meta); letter-spacing: 0; text-transform: none; }
 .lost a:hover { background: var(--lift); box-shadow: inset 3px 0 0 var(--cobalt); }
 .lost a:hover .ln { text-decoration: underline 3px; text-underline-offset: 5px; }
@@ -1084,9 +1209,18 @@ main { flex: 1 0 auto; }
 .fcells { display: flex; flex-wrap: wrap; list-style: none; margin: 0 var(--gut) 0 calc(var(--gut) - 20px); padding: 0 0 48px; overflow: hidden; }
 .fcells li { display: flex; align-items: baseline; flex-wrap: wrap; column-gap: 10px; margin-left: -1px; padding: 16px 20px 0 21px; box-shadow: inset 1px 0 0 var(--line); }
 .foot a { color: var(--paper); text-decoration-color: var(--rule); }
-/* a footer link pointed at or pressed: cobalt under ground ink, at once */
-.foot a:hover, .foot a:active, .tsub a:active { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+/* a footer link pointed at, pressed or focused: cobalt under ground ink, at once; focused, a paper ring
+   round the block, as a tab's */
+.foot a:hover, .foot a:active, .foot a:focus-visible { background: var(--cobalt); color: var(--ground); text-decoration: none; box-shadow: 0 0 0 3px var(--cobalt); }
+.foot a:focus-visible, .cs dt a:focus-visible { outline-color: var(--paper); outline-offset: 5px; }
 .foot code { color: var(--muted); font-weight: 400; overflow-wrap: anywhere; }
+/* a name printed on a phone only (its list names every line) */
+.fp { display: none; }
+
+/* the Learn strip's fading ends (.lpn .ps, below): the fades' widths, tied to the strip's scroll */
+@property --psl { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@property --psr { syntax: "<length>"; inherits: false; initial-value: 0px; }
+@keyframes psends { 0% { --psl: 0px; --psr: 32px; } 4% { --psl: 32px; } 96% { --psr: 32px; } 100% { --psl: 32px; --psr: 0px; } }
 
 /* ---------------------------------------------------------------- the Learn pages: the hub's two tracks; a page's text, its heads in the margin; the glossary by letter */
 /* one grid for every Learn page: the heads column (section titles, term names, letters), the
@@ -1098,7 +1232,7 @@ main { flex: 1 0 auto; }
 .kick { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 32px; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; margin-bottom: 18px; }
 .kick a { text-decoration: none; box-shadow: 0 1px 0 var(--ground); }
 /* in hand: a block of ground ink, the words in cobalt (as a link on the band) */
-.kick a:hover { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
+.kick a:hover, .kick a:active, .kick a:focus-visible { background: var(--ground); color: var(--cobalt); text-decoration: none; box-shadow: 0 0 0 3px var(--ground); }
 .learnpage .lt-h { font-size: var(--title); line-height: .92; max-width: 22ch; padding-top: 0; overflow-wrap: normal; text-wrap: balance; }
 .lt-s { font: 400 14px/22px var(--mono); margin-top: 20px; max-width: 70ch; text-wrap: pretty; }
 /* the band's lower edge: the track's pages as cells (rules of ground ink between them), the
@@ -1138,7 +1272,7 @@ main { flex: 1 0 auto; }
 .ht { font: 900 30px/30px var(--disp); text-wrap: balance; }
 .hs { font: var(--f-meta); color: var(--muted); margin-top: 8px; max-width: 58ch; text-wrap: pretty; }
 /* every term of the glossary, set as a field of names */
-.lgl { margin-top: 104px; padding-top: 20px; border-top: 2px solid var(--paper); }
+.lgl { margin: 104px calc(-1 * var(--cp)) 0; padding: 20px var(--cp) 0; border-top: 2px solid var(--paper); }
 .lgt { list-style: none; display: flex; flex-wrap: wrap; margin: 28px 0 0 -8px; padding: 0; font: 900 30px/1 var(--disp); }
 .lgt a { display: block; padding: 3px 8px 5px; margin-right: 10px; text-decoration: none; }
 .lgt a:hover, .lgt a:focus-visible { background: var(--cobalt); color: var(--ground); }
@@ -1161,7 +1295,12 @@ main { flex: 1 0 auto; }
 .prose .df { text-decoration-color: var(--muted); }
 .prose .df:hover, .prose .df:focus-visible { text-decoration: underline solid 2px var(--cobalt); }
 .prose strong { font-weight: 600; }
-.prose em { font-style: normal; box-shadow: inset 0 -1px 0 var(--muted); }
+/* emphasis in weight, never an underline (a link's mark) */
+.prose em { font-style: normal; font-weight: 600; }
+.lt td em { color: var(--paper); }
+.prose sup { font-size: .72em; line-height: 0; }
+/* a row's head that links: the prose link's mark at rest */
+.prose .rt tbody th a { text-decoration-line: underline; text-decoration-color: var(--muted); }
 .ah { font: 900 34px/34px var(--disp); letter-spacing: -.005em; margin: 72px 0 0; text-wrap: balance; }
 .lpr > .ah + * { margin-top: 74px; }
 .ah3 { font: 800 24px/24px var(--disp); margin: 36px 0 10px; }
@@ -1177,9 +1316,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .tw { margin: 24px 0; overflow-x: auto; }
 .lt { font: 400 13px/20px var(--mono); }
 .lt thead th { border-bottom: 1px solid var(--rule); }
+.lpr .rt thead th, .lpr .rt tbody th { text-wrap: balance; }
 .rt.lt tbody th { font: 600 13px/20px var(--mono); min-width: 12ch; }
 .lt td { color: var(--muted); min-width: 16ch; }
 .tr .lt td, .tr .lt tbody th { min-width: 0; }
+.tr .lt tbody th { white-space: nowrap; }
 .lt td strong { color: var(--paper); }
 .note { margin: 28px 0; padding: 14px 18px 18px; box-shadow: inset 0 0 0 1px var(--rule), inset 0 2px 0 var(--paper); }
 .nh { font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 8px; }
@@ -1210,7 +1351,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .ph { list-style: none; margin: 12px 0 0; padding: 0; font: 400 13px/20px var(--mono); }
 .ph li { padding: 5px 0; border-top: 1px solid var(--line); }
 .ph .nv { color: var(--muted); }
-.pa { align-self: center; width: 15ch; font: 400 11px/15px var(--mono); }
+/* both arrows on one line across the figure, level with the boxes' first rule */
+.pa { align-self: start; padding-top: 64px; width: 15ch; font: 400 11px/15px var(--mono); }
 .pa ul { list-style: none; margin: 0; padding: 0; }
 .pa li + li { margin-top: 8px; }
 .pa li span { display: block; color: var(--muted); }
@@ -1244,11 +1386,18 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 /* figures of the board inside a page; a system's name longer than its column breaks inside the word
    (at 7em at least), so the table never outgrows the page */
 .mt th .sub { font: var(--f-meta); }
+.ms .mt .sub { text-wrap: balance; }
 .rt.mt:not(.lt) tbody th { overflow-wrap: anywhere; min-width: 7em; }
+/* every model's table of the block on the same columns, so like columns line up */
+.ms .mt { table-layout: fixed; width: 100%; }
+.ms .mt thead th:nth-child(1) { width: 13%; }
+.ms .mt thead th:nth-child(2) { width: 25%; }
+.ms .mt thead th:nth-child(3) { width: 30%; }
 /* a row with no position: its figures in the muted ink, as on the ladder */
 .bl2 { padding: 10px 0 12px; border-top: 1px solid var(--line); }
 .bm { font: 800 20px/22px var(--disp); }
 .bl2 .rb { margin-top: 4px; }
+.bl2 .rb .fig { color: var(--paper); }
 /* an explorer: a drawing a reader operates. Drawn in full by the build; framed in cobalt once script runs it */
 .xpl { padding: 18px; box-shadow: inset 0 0 0 1px var(--rule); }
 .xpl.on { box-shadow: inset 0 0 0 2px var(--cobalt); }
@@ -1281,10 +1430,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .xc { display: inline-flex; align-items: center; gap: 8px; font: 400 13px/20px var(--mono); cursor: pointer; }
 .xc input { width: 16px; height: 16px; margin: 0; accent-color: var(--cobalt); }
 .xv { margin: 4px 0 12px; padding: 14px 16px; box-shadow: inset 0 0 0 1px var(--rule); }
-.xv b { font-weight: 600; box-shadow: inset 0 -2px 0 var(--cobalt); }
+.xv b { font-weight: 600; }
 .xv p + p { margin-top: 0; }
 .xk { display: flex; flex-wrap: wrap; gap: 6px 22px; list-style: none; margin: 0; padding: 0; font: 400 13px/20px var(--mono); }
 .eq { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.mxg { display: inline-flex; align-items: center; gap: 8px; }
 .mm { margin-bottom: 16px; }
 .lb { font: var(--f-label); color: var(--muted); letter-spacing: var(--track); }
 .tr .rt thead th { text-transform: none; }
@@ -1323,6 +1473,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 /* the chapter row and the band name the page: its title never slides into the strip, which keeps every label whole */
 .lpn .ps-t { display: none; }
 .lpn.stuck .ps-t + a { margin-left: -12px; }
+/* a strip that scrolls fades at an end where more labels wait, so a cut word reads as more that way
+   (where the browser ties an animation to a scroll; elsewhere the strip is cut as before) */
+@supports (animation-timeline: scroll()) {
+  .lpn .ps { mask-image: linear-gradient(90deg, transparent, #000 var(--psl), #000 calc(100% - var(--psr)), transparent); animation: psends linear both; animation-timeline: scroll(self inline); }
+}
 .lpl { flex: none; display: flex; align-items: stretch; margin: 0 calc(var(--gut) - 12px) 0 12px; box-shadow: inset 1px 0 0 var(--line); font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; }
 .lpa { display: flex; align-items: center; justify-content: center; width: 44px; color: var(--muted); transition: color var(--quick), background-color var(--quick); }
 .lpa:hover { color: var(--paper); background: var(--lift); }
@@ -1332,8 +1487,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .lpb .lar, .tp .lar { transform: scaleX(-1); }
 .lpo { display: flex; align-items: center; padding: 0 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 /* under a page: the page before (an outline) and the page after (a cobalt block), then where its text is kept */
-.turn { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; margin-top: 104px; }
-.tn { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 148px; padding: 18px 20px 22px; text-decoration: none; transition: background-color var(--quick), box-shadow var(--quick); }
+.turn { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px; margin: 104px calc(-1 * var(--cp)) 0; }
+.tn { display: flex; flex-direction: column; justify-content: space-between; gap: 24px; min-height: 148px; padding: 18px var(--cp) 22px; text-decoration: none; transition: background-color var(--quick), box-shadow var(--quick); }
 .tl2 { display: flex; align-items: center; gap: 10px; font: var(--f-label); text-transform: uppercase; letter-spacing: var(--track); }
 .tt { display: block; font: 900 36px/.92 var(--disp); text-wrap: balance; }
 .tp { box-shadow: inset 0 0 0 1px var(--rule); }
@@ -1354,6 +1509,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 .term { display: grid; grid-template-columns: calc(var(--hd) - 72px) minmax(0, var(--tx)); column-gap: var(--hg); padding: 16px 0 20px; border-bottom: 1px solid var(--line); }
 .term > .ah3 { grid-column: 1; grid-row: 1 / span 9; align-self: start; margin: 0; }
 .term > :not(.ah3) { grid-column: 2; }
+/* a letter's terms end on their text: the next letter's rule alone marks the change */
+.glt > .term:last-child { border-bottom: 0; }
 /* a glossary term pointed at or given focus: its name and first sentence where it is (words.js) */
 .gpk { position: fixed; z-index: 40; left: 0; top: 0; width: max-content; max-width: min(380px, calc(100vw - 2 * var(--gut))); margin: 0; padding: 10px 12px 12px; background: var(--ground); box-shadow: inset 0 0 0 1px var(--rule), inset 0 3px 0 var(--cobalt); }
 .gpk b { display: block; margin: 2px 0 6px; font: 800 20px/1 var(--disp); }
@@ -1372,6 +1529,8 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .lpr > .ah + * { margin-top: 0; }
   .ah { margin: 64px 0 16px; }
   .lpr > .fg, .lpr > .tw, .lpr > .stage { max-width: none; }
+  /* the text keeps its measure; drawings and tables take the width */
+  .lpr > :not(.fg, .tw, .stage, .ah) { max-width: var(--tx); }
   .lsc { min-height: 0; padding-block: 10px 12px; }
   .lsn { font: 900 26px/1 var(--disp); }
   .lst { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -1396,11 +1555,15 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .mt td, .mt tbody th, .mt tr > :first-child { padding: 0; border: 0; }
   .mt td { margin-top: 12px; }
   .mt td:before, .mt tbody th[data-l]:before { content: attr(data-l); display: block; font: var(--f-label); color: var(--muted); text-transform: uppercase; letter-spacing: var(--track); margin-bottom: 4px; }
+  /* a sumcheck's heads name variables: r and s stay lower case */
+  .tr .mt td:before { text-transform: none; letter-spacing: 0; }
+  /* a text's table: its row's head names the row, with no label over it */
+  .lpr > .tw .mt tbody th:before, .stage > .tw .mt tbody th:before { content: none; }
   .sx.sxw { display: none; }
   .sx.sxn { display: block; }
   /* boxes stack, and the arrows between them point down */
   .pt3, .bd, .xcc { grid-template-columns: minmax(0, 1fr); row-gap: 12px; }
-  .pa { width: auto; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 16px; align-items: center; padding-left: 16px; }
+  .pa { width: auto; display: grid; grid-template-columns: 16px minmax(0, 1fr); column-gap: 16px; align-items: center; padding: 0 0 0 16px; }
   .pa .ar { transform: rotate(90deg); margin: 0 0 0 -12px; }
   .turn { grid-template-columns: minmax(0, 1fr); }
   .tn { min-height: 0; }
@@ -1414,7 +1577,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .lsteps ol, .lways { margin-top: 28px; }
   .lsc { align-items: center; padding-inline: 4px; }
   .lsn { font-size: 24px; }
-  .lway { grid-template-columns: minmax(0, 1fr); grid-template-areas: "n" "c"; row-gap: 10px; padding-block: 12px 14px; }
+  /* the count at the cell's foot, so the two cells' counts share a line whatever the names wrap to */
+  .lway { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; grid-template-areas: "n" "c"; row-gap: 10px; padding-block: 12px 14px; }
+  .lwc { align-self: end; }
   .lwn { font-size: 26px; }
   .prose { font-size: 13px; line-height: 22px; }
   .lpr > p:first-child, .gli > p:first-child { font-size: 14px; line-height: 24px; }
@@ -1430,7 +1595,7 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
      strip takes two lines, so the one in view is always whole (words.js scrolls it in whole) */
   .lpo { display: none; }
   .lpn .ps a { white-space: nowrap; }
-  .lpn .ps a.on { max-width: calc(100vw - 2 * var(--gut) - 108px); white-space: normal; }
+  .lpn .ps a.on, .lpn .ps a:first-of-type { max-width: calc(100vw - 2 * var(--gut) - 108px); white-space: normal; }
   .rt.lt tbody th { font-size: 12px; line-height: 18px; }
   .prose .rt.lt td, .prose .rt.lt th, .prose .rt.mt td, .prose .rt.mt th { white-space: normal; }
   .xpl { padding: 14px; }
@@ -1438,8 +1603,13 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .xdots { order: -1; flex-basis: 100%; gap: 4px; }
   .xdots > li { flex: 1 1 0; max-width: 48px; }
   .xdot { width: 100%; height: 40px; line-height: 40px; }
-  .op { grid-template-columns: minmax(min-content, 1fr) auto; row-gap: 2px; }
+  /* a name on one line; a long chip takes two at the right */
+  .op { grid-template-columns: max-content minmax(0, 1fr); row-gap: 2px; }
   .o2 { grid-column: 1 / -1; grid-row: 2; }
+  /* the glossary's letters share the strip's width: none is off screen */
+  .lpg .ps a { flex: 1 1 0; min-width: 0; padding-inline: 0; justify-content: center; }
+  .lpg .ps a:after { left: 2px; right: 2px; }
+  .lpg .ps .ps-t + a { margin-left: 0; }
   .gll { grid-template-columns: 30px minmax(0, 1fr); column-gap: 10px; }
   .glh { font-size: 32px; }
 }
@@ -1459,7 +1629,6 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .xdot.on, .lsc.on { forced-color-adjust: none; background: Highlight; color: HighlightText; }
   .lsc.on .lsn { color: HighlightText; }
   .sx text, .sx .bt { fill: CanvasText; }
-  .prose em { text-decoration: underline; }
   .ah:target, .ah3:target, .sth:target, .xh:target { outline: 2px solid Highlight; }
   .xl input[type=number]:focus { outline: 2px solid Highlight; outline-offset: 1px; }
 }
@@ -1473,7 +1642,11 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .xc { min-height: 44px; }
   .xb { min-height: 44px; }
   .xdot { height: 44px; line-height: 44px; }
+  /* the terms' rows 44 px apart, so their hit bands meet and never overlap */
+  .lgt { row-gap: 12px; }
   .lgt a, .mt th a { position: relative; }
+  /* a board figure a finger taps for its labels: a taller band, the line unmoved */
+  .ms .fig, .bl2 .fig { padding-block: 8px; margin-block: -8px; }
   .mt th a { z-index: 1; }
   .lgt a:after { content: ""; position: absolute; inset: -6px 0; }
   .mt th a:after { content: ""; position: absolute; inset: -15px 0; }
@@ -1505,9 +1678,25 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
 @media (max-width: 1100px) {
   .cwrap { grid-template-columns: 265px minmax(0, 1fr); column-gap: 32px; }
 }
+/* a system's petals stack from here down: the stem is the table's own left edge, each arm on its own line, its state,
+   reason and source under it, set in from the stem as far as the arm's name, so what a petal opens takes the row's
+   width */
+@media (max-width: 1180px) {
+  .ckt.gbig thead { display: none; }
+  .ckt.gbig, .ckt.gbig tbody { display: block; }
+  .ckt.gbig { border-left: 9px solid var(--cobalt); }
+  /* (the petals' own rows only: a scope card inside a reason keeps its own) */
+  .ckt.gbig > tbody > tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .ckt.gbig > tbody > tr:first-child { padding-top: 0; }
+  .ckt.gbig > tbody > tr > * { padding: 0; border: 0; }
+  .ckt.gbig > tbody > tr > th { width: auto; padding: 0; border-left: 0; }
+  .ckt.gbig > tbody > tr > :nth-child(n+2) { grid-column: 1; margin-top: 8px; padding-left: 8px; }
+  .ckt.gbig > tbody > tr > td:empty { display: none; }
+  .ckt.gbig .bs { max-width: none; }
+  .ckt.gbig > tbody > tr.lit > *, .ckt.gbig > tbody > tr.lit, .ckt.gbig > tbody > tr:target { background: none; box-shadow: none; }
+}
 @media (max-width: 900px) {
   .cwrap { grid-template-columns: minmax(0, 1fr); row-gap: 24px; padding-top: 28px; }
-  .ckt.gbig tbody th { width: 271px; padding-right: 12px; }
   .ckt.gbig th a.sl { width: 250px; height: 25px; padding: 0 8px; font-size: 20px; line-height: 25px; }
   .ckt.gbig th a.sl.cut { width: 220px; max-width: calc(100% - 30px); }
   .ckt.gbig th a.sl.cut:before { left: calc(100% + 5px); width: 25px; }
@@ -1516,18 +1705,6 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .cwrap .gbig { justify-self: start; width: min(318px, 100%); position: static; }
 }
 @media (max-width: 760px) {
-  /* a system's petals stack from here down: the stem is the table's own left edge, each arm on its own line, its state, reason and source under it, set in from the stem as far as the arm's name */
-  .ckt.gbig thead { display: none; }
-  .ckt.gbig, .ckt.gbig tbody { display: block; }
-  .ckt.gbig { border-left: 9px solid var(--cobalt); }
-  .ckt.gbig tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 12px 0; border-bottom: 1px solid var(--line); }
-  .ckt.gbig tr:first-child { padding-top: 0; }
-  .ckt.gbig tr > *, .ckt.gbig tbody tr:first-child > * { padding: 0; border: 0; }
-  .ckt.gbig tbody th { width: auto; padding: 0; border-left: 0; }
-  .ckt.gbig tbody tr > :nth-child(n+2) { grid-column: 1; margin-top: 8px; padding-left: 8px; }
-  .ckt.gbig td:empty { display: none; }
-  .ckt.gbig .bs { max-width: none; }
-  .ckt.gbig tr.lit > *, .ckt.gbig tr.lit, .ckt.gbig tr:target { background: none; box-shadow: none; }
   /* the top bar in two lines: the lockup, search and GitHub; then the three tabs, the width shared */
   :root { --top-h: 100px; }
   .top { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-rows: 56px 44px; column-gap: 0; height: auto; box-shadow: inset 0 -1px 0 var(--line); transition: transform var(--ease); }
@@ -1576,7 +1753,10 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .creed { font-size: 32px; }
   .blk { margin-top: 48px; }
   .cn2 { font-size: 24px; }
-  .chk { padding-left: 12px; }
+  .chk { padding-inline: 12px; }
+  .blk > .cs > div { padding-left: 12px; }
+  .cwrap :is(.hl, .pcause) { padding-left: 12px; }
+  .checkspage .cwrap .hl:target { max-width: calc(90ch - 12px); margin-left: 12px; padding: 0; }
   .rt { font-size: 12px; }
   .rt tbody th { font-size: 18px; line-height: 21px; }
   /* a petal or check: its name and state on one line, then the reason or cause, then the rest */
@@ -1590,8 +1770,14 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .ckt tr.lit > *, .cks tr:target > * { background: none; }
   .ckt tr.lit, .cks tr:target { background: var(--lift); box-shadow: inset 4px 0 0 var(--cobalt); }
   .ckt tr.lit > :first-child, .cks tr:target > :first-child { box-shadow: none; }
-  /* the scope card fits the phone's width: its words wrap, the hyphen of machine-checked included */
-  .rt.ckt .scard tr > :is(th, td) { padding-right: 8px; white-space: normal; }
+  /* the scope card on a phone: each row's head on a line of its own over its three cells, the three columns under
+     their heads as wide as their words, so every column shows; a state word stays whole (the card scrolls in its
+     cell only where even that is too wide) */
+  .rt.ckt .scard { display: grid; grid-template-columns: repeat(3, max-content); }
+  .rt.ckt .scard :is(thead, tbody, tr) { display: contents; }
+  .rt.ckt .scard tr > :is(th, td) { grid-column: auto; margin-top: 0; padding-right: 12px; }
+  .rt.ckt .scard thead td { display: none; }
+  .rt.ckt .scard tbody th { grid-column: 1 / -1; padding-top: 8px; }
   .ckt .pf > div { grid-template-columns: 96px minmax(0, 1fr); }
   .lost .ln { font-size: 28px; }
   .fcells li { flex-basis: 100%; padding-top: 12px; }
@@ -1601,29 +1787,76 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .foot a { position: relative; }
   .foot a { z-index: 1; }
   .foot a:after { content: ""; position: absolute; inset: -14px 0; }
+  /* the credit's two links may sit on two lines, 44 px apart: each keeps its own band of 44 px */
+  .fcr { line-height: 44px; }
+  /* a mandate line's label (on a phone alone on its line, the words under it hold no link) */
+  .cs dt a { position: relative; }
+  .cs dt a:after { content: ""; position: absolute; inset: -12px -8px; }
   /* a finger's targets: 44 px, the layout unchanged where a negative margin can take the growth */
   .brand .logo { padding-block: 14px; margin-block: -14px; }
   .ckt .ev { padding-block: 7px; }
-  .ckt th a { position: relative; z-index: 1; display: inline-block; padding-block: 12px; margin-block: -12px; }
+  /* (a check's name reaches less far down: the summary under it on a phone starts 6 px below) */
+  .ckt th a { position: relative; z-index: 1; display: inline-block; padding-block: 13px 6px; margin-block: -13px -6px; }
   .ckt.gbig th a.sl { display: flex; padding-block: 0; margin-block: 0; }
   .ckt.gbig th a.sl:after { content: ""; position: absolute; inset: -10px 0; }
   .ckt.gbig th a.sl.cut:after { right: -36px; }
+  .figs dt a, .ckt .cst a.cc, .ckt .bs a { position: relative; display: inline-block; }
+  .figs dt a:after, .ckt .cst a.cc:after, .ckt .bs a:after { content: ""; position: absolute; inset: -13px -4px; }
   .ckt td :is(a.qt, a.cw) { position: relative; }
   .ckt td :is(a.qt, a.cw):after { content: ""; position: absolute; inset: -13px 0; }
   /* two quotes one under the other share the gap between them */
   .ckt td a.qt + a.qt:after { top: -4px; }
   .ckt td a.qt:has(+ a.qt):after { bottom: -4px; }
-  .rid, .facts dd a, .lad .st a { position: relative; }
+  .rid, .facts dd a, :is(.lad, .scl) .st a, :is(.lad, .scl) :is(thead, .lbl) a.df, .lad .ck .fw { position: relative; }
   .facts dd a:after { content: ""; position: absolute; inset: -14px 0; }
   .rid:after { content: ""; position: absolute; inset: -15px 0; }
-  /* a row's standing: its band reaches down and aside, not up over the name (which leads to the page) */
-  .lad .st a:after { content: ""; position: absolute; inset: -6px -4px -12px; }
+  /* a row's standing: its band (40 px) reaches down and aside, little up toward the name (which leads to the page) */
+  :is(.lad, .scl) .st a:after { content: ""; position: absolute; inset: -10px -4px -16px; }
+  /* a figure's head: its band (40 px) reaches up and down, so a near miss does not open the row; a label in a
+     cell reaches up into the cell's top room rather than down over its figure */
+  :is(.lad, .scl) thead a.df:after { content: ""; position: absolute; inset: -14px -4px; }
+  .lad .lbl a.df:after { content: ""; position: absolute; inset: -20px -4px -8px; }
+  /* the fidelity word: its own band, so a near miss does not open the row; it and its label 6 px over it share
+     that gap, each band 40 px */
+  .lad .ck .fw:after { content: ""; position: absolute; inset: -3px -8px -18px; }
+  .lad .ck .lbl a.df:after { inset: -25px -4px -3px; }
   .ps a { min-width: 44px; justify-content: center; }
   .top .repo { min-width: 44px; height: 44px; justify-content: center; }
+  /* the key's arms answer a finger over half of each gap beside them (an unseen edge) */
+  .gbig.linked:not(.lit-on) .sl.key { stroke: transparent; stroke-width: 6px; vector-effect: non-scaling-stroke; }
 }
-/* a footer line of several cells on a touch screen: lines 44 px apart, so two links one over the other keep their own bands */
-@media (hover: none) and (min-width: 561px) {
+/* a phone's row is a list, a figure a line (32 px): a name and the fidelity word each answer over their own line and
+   no further, so two names one over the other keep their own bands */
+@media (hover: none) and (max-width: 560px) {
+  .lad .lbl a.df:after, .lad .ck .lbl a.df:after { inset: -10px -4px -9px; }
+  .lad .ck .fw:after { inset: -9px -8px -8px; }
+}
+/* a footer's cells on a touch screen, in a line or one under another: lines 44 px apart, so two links one over the
+   other keep their own bands */
+@media (hover: none) {
   .fcells li { padding-top: 26px; }
+}
+/* a phone: the footer is a ruled list, as a ladder row's figures are: a name at the line's start, its value at the
+   line's end, a hairline under each, every line 44 px and a link over its whole width (the level, the release,
+   the licence, who builds the site, who leads it) */
+@media (max-width: 560px) {
+  .foot { margin-top: 72px; }
+  .fcells { display: block; margin: 0 var(--gut); padding: 0 0 40px; overflow: visible; }
+  .foot .fcells li { display: block; margin: 0; padding: 0; box-shadow: none; }
+  .fp { display: inline; }
+  .fx { display: none; }
+  .foot .fcr { display: block; line-height: inherit; }
+  .fcells li > a, .fci { display: flex; justify-content: space-between; align-items: baseline; column-gap: 16px; min-height: 44px; padding: 13px 0 11px; box-shadow: inset 0 -1px 0 var(--line); text-decoration: none; white-space: normal; }
+  .fci { position: relative; }
+  .fcells .fk { flex: none; font: var(--f-label); letter-spacing: var(--track); text-transform: uppercase; color: var(--muted); }
+  .fcells .fv, .fci a { min-width: 0; font: 600 13px/19px var(--mono); color: var(--paper); text-align: right; text-decoration: underline 1px var(--rule); text-underline-offset: 3px; }
+  /* the whole line answers: a link that is the line fills it; a link at a line's end is stretched over it */
+  .foot .fcells li > a:after { inset: 0; }
+  .foot .fci a { position: static; }
+  .foot .fci a:after { content: ""; position: absolute; inset: 0; }
+  /* pressed, the line turns cobalt under ground ink, its name with it */
+  .fcells li > a:is(:hover, :active, :focus-visible) :is(.fk, .fv) { color: var(--ground); text-decoration: none; }
+  .foot .fci a:is(:hover, :active, :focus-visible) { background: none; box-shadow: none; color: var(--cobalt); }
 }
 /* a field a finger types in: 44 px tall, its words at 16 px so the phone does not zoom on focus */
 @media (pointer: coarse) {
@@ -1651,9 +1884,9 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .top { box-shadow: none; }
   /* every fill that carries words in ground ink prints, so those words never print white on white */
   .schip, .sw, .sl, .sl.cut:before, .rk, .pos.p1 .pn, .fid tr.me, .fid tr.me > * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  /* a size tab's words dark on its cobalt; the frontier's label (cobalt on its block) in paper on white */
+  /* a size tab's words dark on its cobalt; the frontier's mark beside it in paper (dark on white) */
   .rk { color: #0b0b0c; }
-  .bx-k { color: var(--paper); }
+  .rf { color: var(--paper); }
   /* a petal's name stays dark on its ink, and paper (now dark) on an outline */
   .t text, .schip { fill: #0b0b0c; color: #0b0b0c; }
   .ckt.gbig a.sl:not(.hollow) { color: #0b0b0c; }
@@ -1694,5 +1927,5 @@ ol.ls > li:before { counter-increment: n; content: counter(n); position: absolut
   .schip.undecided, .schip.hollow { color: CanvasText; }
   .so.on, .row:focus-within, .row.cur { outline: 2px solid Highlight; outline-offset: -2px; }
   /* focus drawn by a fill or an inset edge elsewhere takes a line here */
-  .bx:focus-visible, .lost a:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
+  .lost a:focus-visible { outline: 2px solid Highlight; outline-offset: -2px; }
 }

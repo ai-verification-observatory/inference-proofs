@@ -432,22 +432,8 @@ stored_checks() {  # SYSTEM RUN_PATH: a stored run that seed, controls and merge
   fi
 }
 
-copy_stored() {  # the stored run at RUN_PATH (from READ_FROM) onto this disk, as RUN
-  RUN="$WORK/stored/dev-results/${RUN_PATH#*/dev-results/}"
-  mkdir -p "$(dirname "$RUN")"
-  log "copy $RUN_PATH from the bucket ($(du -sh "$READ_FROM" | cut -f1)), at most $(left) s"
-  copy_start=$(date +%s)
-  if ! timeout --kill-after=60 "$(left)" cp -R "$READ_FROM" "$RUN"; then
-    log "the copy failed or reached the deadline; stopping"
-    return 3
-  fi
-  # the bucket's read speed is not documented: this line measures it, for the spend log
-  log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
-  chmod -R u+w "$RUN"  # a copy from the read-only mount keeps its modes; the part writes here
-  # the bucket keeps no file modes: a kept build cache (io/state) would hold build scripts and
-  # binaries cargo finds fresh but cannot run, so a control prove fails for that and reads as
-  # prover_failed. The exec bit goes back on every ELF file and #! script.
-  python3 - "$RUN" <<'PYEOF'
+restore_exec() {  # DIR: the exec bit back on every ELF file and #! script (the bucket keeps no modes)
+  python3 - "$1" <<'PYEOF'
 import os
 import sys
 
@@ -464,6 +450,24 @@ for root, _, files in os.walk(sys.argv[1]):
             n += 1
 print(f"exec bit restored on {n} files")
 PYEOF
+}
+
+copy_stored() {  # the stored run at RUN_PATH (from READ_FROM) onto this disk, as RUN
+  RUN="$WORK/stored/dev-results/${RUN_PATH#*/dev-results/}"
+  mkdir -p "$(dirname "$RUN")"
+  log "copy $RUN_PATH from the bucket ($(du -sh "$READ_FROM" | cut -f1)), at most $(left) s"
+  copy_start=$(date +%s)
+  if ! timeout --kill-after=60 "$(left)" cp -R "$READ_FROM" "$RUN"; then
+    log "the copy failed or reached the deadline; stopping"
+    return 3
+  fi
+  # the bucket's read speed is not documented: this line measures it, for the spend log
+  log "copied $(du -sb "$RUN" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s"
+  chmod -R u+w "$RUN"  # a copy from the read-only mount keeps its modes; the part writes here
+  # the bucket keeps no file modes: a kept build cache (io/state) would hold build scripts and
+  # binaries cargo finds fresh but cannot run, so a control prove fails for that and reads as
+  # prover_failed. The exec bit goes back on every ELF file and #! script.
+  restore_exec "$RUN"
 }
 
 record_seed() {  # FILE: the control_seed of a controls-seed.json, with the system python3
@@ -488,11 +492,12 @@ case "$MODE" in
     fi
     ;;
   reverify)  # RFC-0018 CH-4a: every proof of a kept run verified again on a host with no GPU
-    if [ $# -ne 2 ]; then
-      log "usage: hf-job.sh reverify SYSTEM RUN_PATH"
+    if [ $# -ne 2 ] && [ $# -ne 3 ]; then
+      log "usage: hf-job.sh reverify SYSTEM RUN_PATH [PROOF_ID]"
       exit 2
     fi
-    CSYSTEM=$1 RUN_PATH=${2%/}
+    CSYSTEM=$1 RUN_PATH=${2%/} PROOF=${3:-}
+    case "$PROOF" in */*|.*) log "PROOF_ID names one proof directory: $PROOF"; exit 2 ;; esac
     case "$RUN_PATH" in
       runs/*/dev-results/*/"$CSYSTEM"/*) ;;
       *) log "RUN_PATH must be runs/<folder>/dev-results/<release>/$CSYSTEM/<run id>"; exit 2 ;;
@@ -767,6 +772,33 @@ EOF
   mkdir -p "$OUT/controls"
   cp "$RUN"/controls-part-*.json "$OUT/controls/" 2>/dev/null || log "no part written"
   cp -R "$RUN/logs" "$OUT/controls/logs"
+  exit "$rc"
+fi
+if [ "$MODE" = reverify ] && [ -n "$PROOF" ]; then
+  # one proof (one job per proof, merged later with iproofs reverify --merge): the run without
+  # its other proofs, then that one
+  RUN="$WORK/stored/dev-results/${RUN_PATH#*/dev-results/}"
+  mkdir -p "$RUN/io/proofs"
+  log "copy $RUN_PATH without its other proofs, at most $(left) s"
+  for item in "$READ_FROM"/* "$READ_FROM"/io/*; do
+    case "$item" in "$READ_FROM/io"|"$READ_FROM/io/proofs") continue ;; esac
+    rel=${item#"$READ_FROM"/}
+    timeout --kill-after=60 "$(left)" cp -R "$item" "$RUN/$rel" || { log "the copy failed"; exit 3; }
+  done
+  if [ ! -d "$READ_FROM/io/proofs/$PROOF" ]; then
+    log "no proof $PROOF in $RUN_PATH"
+    exit 2
+  fi
+  timeout --kill-after=60 "$(left)" cp -R "$READ_FROM/io/proofs/$PROOF" "$RUN/io/proofs/" || { log "the copy failed"; exit 3; }
+  chmod -R u+w "$RUN"
+  log "copied $(du -sb "$RUN" | cut -f1) bytes"
+  restore_exec "$RUN"
+  log "reverify $RUN_PATH proof $PROOF on this host (no GPU), at most $(left) s"
+  env -u HF_TOKEN timeout --kill-after=60 "$(left)" "$IP" reverify "$RUN" --hosted --provider "$PROVIDER" --only "$PROOF"
+  rc=$?
+  log "reverify exit $rc"
+  mkdir -p "$OUT/reverify-parts"
+  cp -R "$RUN"/reverify-part-* "$OUT/reverify-parts/" 2>/dev/null || log "no part written"
   exit "$rc"
 fi
 if [ "$MODE" = reverify ]; then  # RFC-0018 CH-4a, on a copy of the stored run on this disk
