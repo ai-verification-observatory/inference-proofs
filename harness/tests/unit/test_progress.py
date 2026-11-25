@@ -33,7 +33,8 @@ def test_progress_lines_match_events(tmp_path: Path) -> None:
     lines = out.getvalue().splitlines()
     assert len(lines) == len(shown)  # one line per record, none without a record
     assert all(line.startswith("[rep 1/1] ") for line in lines)
-    assert "[rep 1/1] prove    running   00:00:00  proofs 6/6" in lines
+    prove = re.compile(r"\[rep 1/1\] prove    running   \d{2}:\d{2}:\d{2}  proofs 6/6")
+    assert any(prove.fullmatch(line) for line in lines)
     assert "[rep 1/1] verify   proof 6/6 accept" in lines
     assert lines[-1].startswith("[rep 1/1] written  completed")
     released = [r for r in records if r["event"] == "proof.released"]
