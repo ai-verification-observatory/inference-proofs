@@ -19,7 +19,8 @@ TOK = list(range(1000, 1064))
 # sequence-job.sh's pins, the stub plan's line flags and step 5's own options
 UPSTREAM_FLAGS = {"--round", "--numbits", "--z-hi-bits", "--variants", "--head-groups",
                   "--tight-table", "--kmax", "--ao-rem-bits", "--fold-rem-bits", "--fold-alpha",
-                  "--table-bits", "--witness", "--block", "--min-blocks", "--families",
+                  "--table-bits", "--deq-per-row", "--witness", "--block", "--min-blocks",
+                  "--families",
                   "--out", "--gkr-key-tiles", "--gkr-dequant", "--gkr-residual-stream",
                   "--gkr-freivalds", "--gkr-attnout"}  # fmt: skip
 FORM_FLAGS = {"--ao-acc-mag", "--ao-acc-prod", "--ao-acc-lo-bits"}
@@ -61,11 +62,16 @@ def emitted(argvs: list[list[str]]) -> list[list[str]]:
 
 def from_witness(argvs: list[list[str]]) -> list[list[str]]:
     """The emissions (a) to (c): a commitment line with the pins sequence-job.sh passes."""
-    return [a for a in emitted(argvs) if "--witness" in a and not FORM_FLAGS & set(a)]
+    return [a for a in emitted(argvs) if "--witness" in a and "--weights-only" not in a
+            and not FORM_FLAGS & set(a)]  # fmt: skip
 
 
 def synthetic(argvs: list[list[str]]) -> list[list[str]]:
     return [a for a in emitted(argvs) if "--witness" not in a]
+
+
+def from_fold_dump(argvs: list[list[str]]) -> list[list[str]]:
+    return [a for a in emitted(argvs) if "--weights-only" in a]
 
 
 def test_commit_emits_from_its_own_witness_and_builds_once(adapter: ModuleType) -> None:
@@ -74,12 +80,15 @@ def test_commit_emits_from_its_own_witness_and_builds_once(adapter: ModuleType) 
     assert [a[0] for a in argvs].count("cargo") == 1
     emits = emitted(argvs)
     assert emits
-    witnessed = [a for a in emits if "--witness" in a]
+    witnessed = [a for a in emits if "--witness" in a and "--weights-only" not in a]
     assert all("/io/state/commit-witness/" in a[a.index("--witness") + 1] for a in witnessed)
-    # every other emission lowers the synthetic segment, for the two data-dependent families
+    # every other emission lowers the synthetic segment for the attention output, or the
+    # constants dump for the fold
     assert {(a[1], a[a.index("--families") + 1]) for a in synthetic(argvs)} == {
-        ("genemit", "zk_attn_out_eval"),
-        ("genemit", "zk_dequant_eval"),
+        ("genemit", "zk_attn_out_eval")
+    }
+    assert {(a[1], a[a.index("--families") + 1]) for a in from_fold_dump(argvs)} == {
+        ("genemit", "zk_dequant_eval")
     }
     # every emission precedes the build and read a dump that was there (the stub refuses a
     # dump whose directory is gone), and the witness was gone when the build ran
@@ -97,6 +106,23 @@ def test_commit_emits_from_its_own_witness_and_builds_once(adapter: ModuleType) 
         for k in ("constraint_kernels", "generation_shapes", "build_key", "shape_set")
     } == {"constraint_kernels": c, "generation_shapes": g, "build_key": key, "shape_set": shapes}
     assert out["kernels"]["emitter_runs"] == len(emits)
+
+
+def test_the_commitment_does_not_depend_on_the_run_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("IPROOFS_SASH_STUB_TOK", json.dumps(TOK))
+    ids, files = [], []
+    for name in ("one", "two/deeper"):
+        where = tmp_path / name
+        where.mkdir(parents=True)
+        adapter = load(where, monkeypatch)
+        ids.append(commit(adapter)["commitment_id"])
+        files.append(adapter.host("/io/state/model-roots.json").read_bytes())
+    assert ids[0] == ids[1]
+    assert files[0] == files[1]
+    assert b"[/io/state/commit-witness/witness_B0_L0]" in files[0]
+    assert str(tmp_path).encode() not in files[0]
 
 
 def test_commit_emits_every_plan_line_and_widens_the_pins(adapter: ModuleType) -> None:
@@ -128,6 +154,7 @@ def test_reply_whose_emission_adds_nothing_does_not_build(adapter: ModuleType) -
     assert {m.group(1) for m in dirs if m} == {"witness-0", "witness-1"}
     assert phases(out)["kernels_build"] == 0
     assert (out["kernels"]["replies_built"], out["warnings"]) == (0, [])
+    assert out["kernels"]["setup_defects"] == []
     composed = [a for a in argvs if len(a) > 1 and a[1] == "compose-chunks"]
     assert len(composed) == 2
     assert {a[0] for a in composed} == {"/io/state/build/t-cuda/release/zk-prover"}
@@ -152,8 +179,15 @@ def test_reply_whose_emission_adds_a_kernel_builds_once(
     assert phases(out)["kernels_build"] > 0
     assert out["kernels"]["replies_built"] == 1
     assert out["kernels"]["build_key"] == after[2]
-    [warning] = out["warnings"]
-    assert warning.startswith("req-0: the reply's emission added 1 constraint kernels and 1 ")
+    # a defect of the setup's emission, with what the reply added; the reply still proved
+    [defect] = out["kernels"]["setup_defects"]
+    assert {k: defect[k] for k in ("reply", "constraint_kernels_added",
+                                   "generation_shapes_added")} == {
+        "reply": "req-0", "constraint_kernels_added": 1, "generation_shapes_added": 1}  # fmt: skip
+    assert sorted((a["list"], a["family"]) for a in defect["added"]) == [
+        ("gen_shapes.json", "zk_stub"), ("shapes.json", "zk_stub")]  # fmt: skip
+    assert defect["build_seconds"] > 0
+    assert len(out["warnings"]) == 1
     assert [p["proof_id"] for p in out["proofs"]] == ["req-0", "req-1"]
 
 
@@ -287,22 +321,37 @@ def test_the_shape_set_is_the_same_for_one_set_reached_in_two_orders(adapter: Mo
     assert shapes(1, 3)[3] != x_then_y[3]
 
 
-def test_a_point_below_the_synthetic_accumulator_takes_a_wider_high_limb(
-    adapter: ModuleType,
-) -> None:
-    """The segment's accumulator is 16 bits. Magnitude lo 8, hi 4, rem 15: 8 + 4 < 16; hi 8
-    would equal lo, hi 9 equals none of rem and lo, as 4 does not: hi 9. Magnitude lo 6, hi 4,
-    rem 10: hi 10 would equal rem, so hi 11. Product lo 10, hi 4, rem 20: hi 6 equals none of
-    rem, lo and 30 - lo = 20. Magnitude lo 4, hi 4: the high limb would have to equal the low
-    one and reach 12, so the point stays (and is refused). Product lo 13, hi 4 already sums to
-    17; the offset form keeps its own limbs."""
-    point = adapter.synthetic_point
-    assert point(("magnitude", 8, 4, 15, False)) == ("magnitude", 8, 9, 15, False)
-    assert point(("magnitude", 6, 4, 10, False)) == ("magnitude", 6, 11, 10, False)
-    assert point(("product", 10, 4, 20, True)) == ("product", 10, 6, 20, True)
-    assert point(("magnitude", 4, 4, 12, False)) == ("magnitude", 4, 4, 12, False)
-    assert point(("product", 13, 4, 17, False)) == ("product", 13, 4, 17, False)
-    assert point(("offset", 8, 4, 15, False)) == ("offset", 8, 4, 15, False)
+def test_the_fold_dump_puts_the_fold_remainder_at_1(adapter: ModuleType) -> None:
+    """The dump's v exponents by hand: jv -14 and G_c 7 give ew = 134 - 14 - 7 = 113, and the
+    stand-in token scale exponent 127 gives G_t = 134 - 127 = 7, so the remainder params_of sees
+    is max(7 + 7 - 13, 1) = 1 and min G_t + min G_c = 14 lets the divisor split: every pin of
+    1..19 is at or above it. The other matrices keep exponent 115. Each file holds what the
+    manifest's dimensions ask for."""
+    params = json.loads(adapter.host(adapter.fold_dump("/io/dump")).read_text())
+    root = adapter.host("/io/dump")
+    man = json.loads((root / "manifest.json").read_text())
+    w, nh, hd = 512, 16, 32
+    assert (params["nh"], params["head_groups"], params["hd"]) == (nh, [nh], hd)
+    assert man["deq_variants"]["v"] == "fold"
+    assert {m for m, v in man["deq_variants"].items() if v == "chain"} == {
+        "q", "k", "o", "gate", "up", "down"}  # fmt: skip
+
+    def i32(name: str) -> list[int]:
+        return list(adapter.array("i", (root / name).read_bytes()))
+
+    def exponents(name: str) -> set[int]:  # (mantissa, biased exponent) per channel
+        rows = i32(name)
+        return {rows[i] for i in range(1, len(rows), 2)}
+
+    assert len(i32("sw_v.i32")) == 2 * w
+    assert exponents("sw_v.i32") == {113}
+    assert exponents("sw_q.i32") == {115}
+    g_c, g_t = 134 - 113 + -14, 134 - 127
+    assert (g_c, g_t, max(g_t + g_c - 13, 1)) == (7, 7, 1)
+    assert len(i32("jv.i32")) == nh * hd
+    assert (root / "qw_v.i8").stat().st_size == w * w
+    assert set((root / "qw_down.i8").read_bytes()) == {0}
+    assert (root / "w1.u16").stat().st_size == 2 * w
 
 
 def test_the_attention_output_box_by_hand(adapter: ModuleType) -> None:
@@ -334,7 +383,8 @@ def test_the_attention_output_box_by_hand(adapter: ModuleType) -> None:
 
 def test_commit_sweeps_the_data_dependent_families(adapter: ModuleType) -> None:
     """(d) one cudaemit per attention-output form on the first layer line that admits it;
-    (e) one synthetic genemit per point of the box; (f) one per fold pin up to 19."""
+    (e) one synthetic genemit per point of the box, at its own limbs; (f) one genemit on the
+    constants dump per fold pin up to 19 and per-row value."""
     commit(adapter)
     argvs = commands(adapter)
     forms = [a for a in emitted(argvs) if FORM_FLAGS & set(a) and "--witness" in a]
@@ -352,14 +402,19 @@ def test_commit_sweeps_the_data_dependent_families(adapter: ModuleType) -> None:
 
     assert [form(a) for a in forms] == wanted
     assert all("/head_B" not in a[a.index("--witness") + 1] for a in forms)
-    ao = [a for a in synthetic(argvs) if "zk_attn_out_eval" in a]
+    ao = synthetic(argvs)
+    # each point with its own limbs, none narrowed
     assert [a[a.index("--ao-acc-lo-bits") : a.index("--families")] for a in ao] == [
-        adapter.ao_flags(p)
-        for p in dict.fromkeys(map(adapter.synthetic_point, adapter.ao_points()))
+        adapter.ao_flags(p) for p in adapter.ao_points()
     ]
-    folds = [a for a in synthetic(argvs) if "zk_dequant_eval" in a]
-    assert [adapter.pinned(a, "--fold-rem-bits") for a in folds] == list(range(1, 20))
-    assert all(a[2 : 2 + len(adapter.SYNTH.split())] == adapter.SYNTH.split() for a in ao + folds)
+    assert all(a[2 : 2 + len(adapter.SYNTH.split())] == adapter.SYNTH.split() for a in ao)
+    # the fold: every pin of 1..19 at the per-row value of the layer lines (none named, 16) and
+    # of the head lines (501)
+    folds = from_fold_dump(argvs)
+    assert [(adapter.pinned(a, "--deq-per-row"), adapter.pinned(a, "--fold-rem-bits"))
+            for a in folds] == [(r, f) for r in (16, 501) for f in range(1, 20)]  # fmt: skip
+    assert {a[a.index("--witness") + 1] for a in folds} == {adapter.FOLD_DUMP}
+    assert not adapter.host(adapter.FOLD_DUMP).exists()  # removed once emitted
 
 
 def test_a_form_refused_on_every_layer_line_is_taken_from_a_head_line(

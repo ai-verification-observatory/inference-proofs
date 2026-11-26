@@ -502,7 +502,7 @@
       "type": "array"
     },
     "kernels": {
-      "$comment": "commit and prove: the device-kernel store an adapter that compiles kernels per shape keeps (SASH, systems/sash/README.md §Kernels): its counts, its build key (the content the binary is built from), its shape set (the shapes it holds, whatever their order), and for commit what its emission did; for prove the replies whose own emission added a kernel and so rebuilt the backend",
+      "$comment": "commit and prove: the device-kernel store an adapter that compiles kernels per shape keeps (SASH, systems/sash/README.md §Kernels): its counts, its build key (the content the binary is built from), its shape set (the shapes it holds, whatever their order), and for commit what its emission did; for prove the replies whose own emission added a kernel and so rebuilt the backend, each a defect of the commit step's emission",
       "additionalProperties": false,
       "properties": {
         "build_key": {
@@ -525,6 +525,11 @@
           "type": "array",
           "uniqueItems": true
         },
+        "fold_dump": {
+          "$comment": "commit: the input the fold's shapes were emitted from (SASH: a model-only dump written from constants, and the line it was read with)",
+          "minLength": 1,
+          "type": "string"
+        },
         "generation_shapes": {
           "minimum": 0,
           "type": "integer"
@@ -536,6 +541,66 @@
         "replies_built": {
           "minimum": 0,
           "type": "integer"
+        },
+        "setup_defects": {
+          "$comment": "prove: each reply whose own emission added a kernel the store lacked, so the backend was rebuilt; the commit step's emission is meant to hold every kernel a reply can need, so each entry is a defect of that emission",
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "added": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "family": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "list": {
+                      "enum": [
+                        "shapes.json",
+                        "gen_shapes.json"
+                      ]
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "list",
+                    "family",
+                    "name"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "build_seconds": {
+                "minimum": 0,
+                "type": "number"
+              },
+              "constraint_kernels_added": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "generation_shapes_added": {
+                "minimum": 0,
+                "type": "integer"
+              },
+              "reply": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "reply",
+              "constraint_kernels_added",
+              "generation_shapes_added",
+              "added",
+              "build_seconds"
+            ],
+            "type": "object"
+          },
+          "type": "array"
         },
         "shape_set": {
           "minLength": 1,

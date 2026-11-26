@@ -177,8 +177,9 @@ def harness(argv: list[str]) -> int:
         lines = [f"--table-bits 24 --witness {wit}/witness_B{b}_L{k} --ser-tag B{b}L{k}"
                  for b in range(nb) for k in range(last + 1)]  # fmt: skip
         hf = next(a.removeprefix("--head-flags=") for a in argv if a.startswith("--head-flags="))
-        lines += [f"--table-bits 25 --witness {wit}/head_B{b} {hf} --ser-tag B{b}head"
-                  for b in hb]  # fmt: skip
+        # plan.py L209: a head line's own per-row target
+        lines += [f"--table-bits 25 --deq-per-row 501 --witness {wit}/head_B{b} {hf} "
+                  f"--ser-tag B{b}head" for b in hb]  # fmt: skip
         host(opt(argv, "--out")).write_text("# stub plan\n" + "\n".join(lines) + "\n")
         host(opt(argv, "--emit-out")).write_text(lines[0] + "\n")
     elif "-c" in argv and "worst_of" in argv[argv.index("-c") + 1]:
@@ -266,7 +267,9 @@ def prover(argv: list[str]) -> int:
     if argv[1] in ("cudaemit", "genemit"):
         return emit(argv)
     if argv[1] == "model-roots":
-        roots = [{"layer": 0, "c": 0, "model_root": "ab"}]
+        # layer.rs L692: each row is labelled with the witness directory it read, as given
+        wit = host("/io/state/commit-witness") / "witness_B0_L0"
+        roots = [{"layer": 0, "c": 0, "model_root": "ab", "source": f"B6.5 layer witness [{wit}]"}]
         host(opt(argv, "--out")).write_text(json.dumps(roots))
     elif argv[1] == "compose-chunks":
         return compose_chunks(argv)

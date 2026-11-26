@@ -1,0 +1,49 @@
+{
+  "contract": "adapter/1",
+  "kernels": {
+    "build_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "constraint_kernels": 73,
+    "generation_shapes": 90,
+    "replies_built": 1,
+    "setup_defects": [
+      {
+        "added": [
+          {
+            "family": "zk_attn_out_eval",
+            "list": "kernels.json",
+            "name": "attnout"
+          }
+        ],
+        "build_seconds": 1360.5,
+        "constraint_kernels_added": 0,
+        "generation_shapes_added": 1,
+        "reply": "req-0"
+      }
+    ],
+    "shape_set": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "phases": [
+    {
+      "name": "witness",
+      "seconds": 0.25
+    }
+  ],
+  "proofs": [
+    {
+      "claimed_output": [
+        4
+      ],
+      "parts": [
+        "body.bin",
+        "tag.bin"
+      ],
+      "proof_id": "req-0",
+      "request_index": 0
+    }
+  ],
+  "schema": "adapter-out/1",
+  "subcommand": "prove",
+  "warnings": [
+    "setup defect: req-0's emission added 0 constraint kernels and 1 generation shapes the setup's store lacked (zk_attn_out_eval), so the backend was rebuilt in 1360.5 s"
+  ]
+}

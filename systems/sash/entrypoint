@@ -83,23 +83,35 @@ AO_REM_CAP, FOLD_REM_CAP = 20, 19
 AO_BOX = (range(1, 27), range(4, 31), range(10, AO_REM_CAP + 1))
 AO_PROD_LO = range(4, 17)
 AO_Q_BITS = 11  # attn_out_bits - 1 (cli.rs L1315); the extraction's 12-bit attention output
-# The synthetic segment's own attention-output accumulator in the magnitude and product forms:
-# params_of refuses limbs that sum below it ("--ao-acc-*-bits 8+4 is below this witness's 16",
-# cli.rs L1297-L1298). Those forms' shape keys see the high limb only through which of the
-# remainder, the low limb and (product form) 30 - lo it equals, so a point whose own limbs sum
-# below 16 is emitted with the narrowest high limb at or above 16 - lo that equals the same of
-# them: the same shape, which the segment admits (synthetic_point).
-SYNTH_AO_ACC = 16
 # `genemit` with no `--witness` lowers a synthetic segment (cli.rs L1050-L1080), the way
-# upstream's synthetic-digests.sh emits kernels with no witness. The attention output and fold
-# shapes depend on their parameters, not on the model's dimensions: this segment has the
-# request's rounding and variants (SHARED) and its 12-bit attention output (`--synth-ao-bits`,
-# cli.rs L1059), and on the pinned commit built for CPU it reproduces every attention-output and
-# fold shape the 8B sessions' stores hold. Only `--families` is emitted from it, so no shape of
-# its other components enters the store (cudagen.rs L3518-L3520).
-SYNTH = ("--round even --variants intexp --numbits 9 --z-hi-bits 7 --table-bits 16 --s 32 "
+# upstream's synthetic-digests.sh emits kernels with no witness. The attention output's shapes
+# depend on its parameters, not on the model's dimensions: this segment has the request's
+# rounding and variants (SHARED) and its 12-bit attention output (`--synth-ao-bits`, cli.rs
+# L1059). `--numbits 1` makes its nmax 1, so its own accumulator (at most 8 bits) and divisor
+# range lie below every point of AO_BOX, and params_of admits each point with its own limbs
+# (an override must clear the segment's own value, cli.rs L1297-L1299, L1316-L1321). On the
+# pinned commit built for CPU, every point both this segment and the `--numbits 9` one admit
+# gives the same Ir and kernel source, and it reproduces every attention-output shape the 8B
+# sessions' stores hold. Only `--families` is emitted from it, so no shape of its other
+# components enters the store (cudagen.rs L3518-L3520).
+SYNTH = ("--round even --variants intexp --numbits 1 --z-hi-bits 7 --table-bits 16 --s 32 "
          "--ctx 32 --hd 32 --head-groups 2,1 --nout 64 --residual-stream-a 32 --kmax 16 "
          "--synth-residual-stream --diagonal-block --layout zfold --synth-ao-bits 12")  # fmt: skip
+# The fold's shapes come from a model-only dump the adapter writes from constants (FOLD_DUMP,
+# fold_dump), read by `genemit --witness DIR --weights-only --params FILE` (cli.rs L981-L1037,
+# Layer::load_weights at U/prover/src/layer.rs L735-L935). That load stands in the activations
+# (layer.rs L850, L858, L890), so the fold remainder params_of sees is max(G_t + G_c) - 13
+# (layer.rs L1199-L1225) with G_t = 134 - 127 = 7 and G_c = 134 - ew + jv (dequant/trace.rs
+# L53-L57); the dump sets ew so that G_c = 7, its own remainder is 1, and every
+# `--fold-rem-bits` of 1..FOLD_REM_CAP is admitted. The synthetic segment's own remainder is
+# 13 or more and admits nothing below it. Its 512 x 512 matrices hold both slot layouts a
+# reply's v fold takes: 16 slots (layer lines, `--deq-per-row` 16 by default, cli.rs L1351) and
+# 512 (head lines, `--deq-per-row 501`, U/harness/witness/plan.py L209). No prompt, corpus or
+# model value is in it: zero weights, fixed exponents.
+FOLD_DUMP = BUILD + "/fold-dump"
+FOLD_DUMP_ARGS = ("--round even --variants intexp --numbits 9 --z-hi-bits 7 --table-bits 16 "
+                  "--residual-stream-a 32 --kmax 16 --diagonal-block --layout zfold")  # fmt: skip
+FOLD_GEOMETRY = {"heads": 16, "hd": 32, "s": 32, "width": 512, "jv": -14, "g_c": 7}
 # the override flags commit's sweep passes beyond the pins sequence-job.sh passes (README.md
 # §Kernels); the commit output and the setup record list them
 OVERRIDE_FLAGS = ("--ao-acc-lo-bits", "--ao-acc-hi-bits", "--ao-acc-mag", "--ao-acc-prod",
@@ -326,6 +338,20 @@ VERIFIER = [STATE + "/model-roots.json", STATE + "/grid.json"]
 PROVER = [ZK_OUT + "/attn_ranges.json", ZK_OUT + "/tokens.npz"]
 
 
+def container_paths(path: str) -> None:
+    """model-roots labels each row with the witness directory it read (`source`, layer.rs L692):
+    a host path when IPROOFS_IO maps /io, so the file, and the commitment id over it, would
+    change with the directory a run happens in. The label is written as the container path, as a
+    run in the image writes it. No verifier reads `source`: the rows are matched by layer and c,
+    and compared on their roots and calibration (shaperoot.rs calibration_for, boundary.rs
+    L1700 and L1764)."""
+    io = str(host("/io"))
+    if io == "/io":
+        return
+    text = host(path).read_text()
+    host(path).write_text(text.replace(io + "/", "/io/"))
+
+
 def commit_out(phases: dict[str, float], kernels: dict | None) -> dict:
     size = lambda fs: sum(host(f).stat().st_size for f in fs)  # noqa: E731
     return {**base("commit"), "commitment_id": commitment_of(VERIFIER),
@@ -358,6 +384,7 @@ def commit(job: dict) -> dict:
     roots, grid = VERIFIER
     run([SIMD, "model-roots", "--plan", plan, "--pins", f"{SHARED} {pins}", "--out", roots],
         out=STATE + "/model-roots.out.json")  # fmt: skip
+    container_paths(roots)
     write_json(grid, g)
     t2 = time.monotonic()
     if control:
@@ -569,22 +596,6 @@ def ao_points() -> list[tuple[str, int, int, int, bool]]:
     return list(points)
 
 
-def synthetic_point(point: tuple[str, int, int, int, bool]) -> tuple[str, int, int, int, bool]:
-    """`point` as the synthetic segment admits it (SYNTH_AO_ACC): unchanged when its limbs reach
-    the segment's accumulator or its form is the offset one, whose key holds the high limb
-    itself; else the narrowest high limb >= SYNTH_AO_ACC - lo with the same equalities. A point
-    no such limb keeps (its high limb equals its low one) stays as it is, and is refused."""
-    form, lo, hi, rem, denp2 = point
-    if form == "offset" or lo + hi >= SYNTH_AO_ACC:
-        return point
-
-    def equal(h: int) -> tuple[bool, ...]:
-        return (h == rem, h == lo, *((h == 30 - lo,) if form == "product" else ()))
-
-    wider = [h for h in range(max(SYNTH_AO_ACC - lo, 4), 32) if equal(h) == equal(hi)]
-    return (form, lo, wider[0], rem, denp2) if wider else point
-
-
 def ao_flags(point: tuple[str, int, int, int, bool]) -> list[str]:
     form, lo, hi, rem, denp2 = point
     return ["--ao-acc-lo-bits", str(lo), "--ao-acc-hi-bits", str(hi), "--ao-rem-bits", str(rem),
@@ -625,7 +636,7 @@ def emit_forms(lines: list[tuple[str, ...]], pins: str) -> tuple[int, list[str]]
 def emit_synthetic(family: str, flag_sets: list[list[str]]) -> tuple[int, list[str]]:
     """`genemit` on the synthetic segment (SYNTH) for one family, once per flag set; a refusal
     (the segment's own pins are the floor every override must clear, cli.rs L1298-L1299,
-    L1317-L1320, L1376-L1379) is recorded and never fatal."""
+    L1317-L1320) is recorded and never fatal."""
     refused = []
     for flags in flag_sets:
         p = run([SIMD, "genemit", *SYNTH.split(), *flags, "--families", family, "--out", GEN],
@@ -634,6 +645,80 @@ def emit_synthetic(family: str, flag_sets: list[list[str]]) -> tuple[int, list[s
             refused.append(f"genemit {family} `{shlex.join(flags)}`: "
                            f"{refusal_line(p.stderr)[:300]}")  # fmt: skip
     return len(flag_sets), refused
+
+
+def fold_dump(d: str) -> str:
+    """The model-only dump (f) reads (FOLD_DUMP, FOLD_GEOMETRY), in the files and the manifest
+    Layer::load_weights reads (layer.rs L735-L935): zero int8 weights, fixed exponents, v as
+    the fold and the other six matrices as chains, as an 8B statement carries them (`mats`).
+    Returns the statement `--weights-only --params` reads (cli.rs L995-L1037):
+    of it the load uses the variant, head groups, log_table, nmax, diagonal block, kv boundary
+    and ao_jo_min; the other fields are the ones serde requires, at zero."""
+    g, root = FOLD_GEOMETRY, host(d)
+    nh, hd, s, w = g["heads"], g["hd"], g["s"], g["width"]
+    shutil.rmtree(root, ignore_errors=True)
+    root.mkdir(parents=True)
+    mats = ("q", "k", "v", "o", "gate", "up", "down")
+    if sys.byteorder != "little":  # the loader reads little-endian files
+        raise SystemExit("sash: the fold dump is written little-endian only")
+    manifest = {"heads": nh, "s": s, "c": 0, "hd": hd, "frac_shared_per_head": True,
+                "frac_per_head": [10.0] * nh, "master_table_bits": 16, "diagonal_block": True,
+                "qk_bits": [12, 11], "attn_out_bits": AO_Q_BITS + 1, "dequant_round": "even",
+                "deq_variants": {m: "fold" if m == "v" else "chain" for m in mats},
+                "accumulators": {m: {"n_in": w, "n_out": w, "tokens": s} for m in mats},
+                "residual_stream": {"d": w, "dff": w, "eps": 14120, "inv_d": 15488}}  # fmt: skip
+    (root / "manifest.json").write_text(json.dumps(manifest))
+    ew_v = 134 + g["jv"] - g["g_c"]  # G_c = 134 - ew + jv (dequant/trace.rs L53-L57)
+    for m in mats:
+        (root / f"qw_{m}.i8").write_bytes(bytes(w * w))
+        (root / f"jw_{m}.i32").write_bytes(array("i", [-16] * w).tobytes())
+        rows = [0, ew_v if m == "v" else 115] * w  # (mantissa, biased exponent) per channel
+        (root / f"sw_{m}.i32").write_bytes(array("i", rows).tobytes())
+    (root / "jv.i32").write_bytes(array("i", [g["jv"]] * (nh * hd)).tobytes())
+    for name in ("w1.u16", "w2.u16"):
+        (root / name).write_bytes(array("H", [0x3F80] * w).tobytes())  # bf16 1.0
+    fixed = {"s": s, "c": 0, "hd": hd, "nh": nh, "head_groups": [nh], "variant": "intexp",
+             "log_table": 16, "nmax": 511, "diagonal_block": True, "kv_boundary": True,
+             "ao_jo_min": g["jv"], "mats": [], "round": "even", "gkr_residual_stream": False,
+             "gkr_freivalds": False, "gkr_attnout": False,
+             **dict.fromkeys(("q_bits", "k_bits", "chan_target", "grid_target", "rw",
+                              "z_lo_bits", "z_hi_bits", "z_min", "deq_target", "kmax",
+                              "ao_target", "ao_q_bits", "ao_rem_bits", "freivalds_p"), 0)}
+    params = d + "/params.json"
+    host(params).write_text(json.dumps(fixed))
+    return params
+
+
+def fold_dump_line(per_row: list[int]) -> str:
+    """What (f) lowered, for the kernels record: the dump's geometry and the line it was read
+    with."""
+    geometry = ", ".join(f"{k} {v}" for k, v in FOLD_GEOMETRY.items())
+    return (f"model-only dump from constants ({geometry}); genemit {FOLD_DUMP_ARGS} --witness "
+            f"DUMP --weights-only --params DUMP/params.json --deq-per-row "
+            f"{'|'.join(map(str, per_row))} --fold-rem-bits 1..{FOLD_REM_CAP}")
+
+
+def emit_fold(lines: list[tuple[str, ...]], pins: str) -> tuple[int, list[str], list[int]]:
+    """(f): `genemit --families zk_dequant_eval` on the constants dump for every
+    `--fold-rem-bits` of 1..FOLD_REM_CAP and every `--deq-per-row` the commitment's lines pass
+    (16 when a line names none, cli.rs L1351). Returns the runs, the refusals and the per-row
+    values. The dump is removed afterwards."""
+    per_row = sorted({pinned([*SHARED.split(), *pins.split(), *a], "--deq-per-row") or 16
+                      for a in lines})  # fmt: skip
+    params = fold_dump(FOLD_DUMP)
+    refused, runs = [], 0
+    for rows in per_row:
+        for value in range(1, FOLD_REM_CAP + 1):
+            flags = ["--deq-per-row", str(rows), "--fold-rem-bits", str(value)]
+            p = run([SIMD, "genemit", *FOLD_DUMP_ARGS.split(), "--witness", FOLD_DUMP,
+                     "--weights-only", "--params", params, *flags, "--families",
+                     "zk_dequant_eval", "--out", GEN], check=False)  # fmt: skip
+            runs += 1
+            if p.returncode != 0:
+                refused.append(f"genemit zk_dequant_eval `{shlex.join(flags)}`: "
+                               f"{refusal_line(p.stderr)[:300]}")  # fmt: skip
+    shutil.rmtree(host(FOLD_DUMP))
+    return runs, refused, per_row
 
 
 def prepare_kernels(plan: str, emit_txt: str, pins: str) -> dict[str, object]:
@@ -646,8 +731,8 @@ def prepare_kernels(plan: str, emit_txt: str, pins: str) -> dict[str, object]:
     data-dependent families over their bound, through params_of's override flags: (d) the
     attention output's constraint kernels in the magnitude form and in the product form at
     each low limb, on the commitment's own lines; (e) its generation shapes for every point of
-    AO_BOX and (f) the fold's for every `--fold-rem-bits` up to its cap, on the synthetic
-    segment. A refusal is recorded and never fatal. Returns what the sweep did."""
+    AO_BOX, on the synthetic segment; (f) the fold's for every `--fold-rem-bits` up to its cap
+    in each slot layout, on the constants dump. A refusal is recorded and never fatal. Returns what the sweep did."""
     host(GEN).mkdir(parents=True, exist_ok=True)
     total, refusals = 0, 0
 
@@ -679,16 +764,16 @@ def prepare_kernels(plan: str, emit_txt: str, pins: str) -> dict[str, object]:
     lines = reps + rest
     done("(d) attention-output forms, constraint kernels", len(lines), *emit_forms(lines, pins),
          quiet=True)  # fmt: skip
-    points = list(dict.fromkeys(synthetic_point(p) for p in ao_points()))
+    points = ao_points()
     done(f"(e) attention output over its bound, {len(points)} points, synthetic segment", 0,
          *emit_synthetic("zk_attn_out_eval", [ao_flags(p) for p in points]), quiet=True)
-    folds = [["--fold-rem-bits", str(v)] for v in range(1, FOLD_REM_CAP + 1)]
-    done(f"(f) fold --fold-rem-bits 1..{FOLD_REM_CAP}, synthetic segment", 0,
-         *emit_synthetic("zk_dequant_eval", folds), quiet=True)
+    runs, refused, per_row = emit_fold(lines, pins)
+    done(f"(f) fold --fold-rem-bits 1..{FOLD_REM_CAP} at --deq-per-row "
+         f"{', '.join(map(str, per_row))}, constants dump", 0, runs, refused, quiet=True)
     state = store()
     log(f"kernels: store after commit: {store_line(state)}")
     return {"emitter_runs": total, "refused": refusals, "flags": list(OVERRIDE_FLAGS),
-            "synthetic_segment": SYNTH}  # fmt: skip
+            "synthetic_segment": SYNTH, "fold_dump": fold_dump_line(per_row)}  # fmt: skip
 
 
 def ensure_built() -> tuple[bool, float]:
@@ -778,13 +863,28 @@ def fold_binding(slices: list[dict]) -> dict:
             "unsound_skips": sorted(skips)}  # fmt: skip
 
 
+def stored_shapes() -> dict[str, tuple[str, str, str]]:
+    """The store's shapes as {sha256 of `<list>\t<family>\t<Ir>`: (list, family, first-seen
+    name)}; empty when a file is missing or unreadable (the counts still say what changed)."""
+    root, out = host(GEN), {}
+    for name in ("shapes.json", "gen_shapes.json"):
+        with contextlib.suppress(OSError, ValueError, TypeError):
+            for family, first, ir in json.loads((root / name).read_text()):
+                body = json.dumps(ir, sort_keys=True, separators=(",", ":"))
+                key = hashlib.sha256(f"{name}\t{family}\t{body}".encode()).hexdigest()
+                out[key] = (name, family, first)
+    return out
+
+
 def reply_kernels(name: str, plan: str, emit_txt: str, pins: str,
-                  flags: list[str]) -> tuple[dict[str, float], str | None]:  # fmt: skip
+                  flags: list[str]) -> tuple[dict[str, float], dict | None]:  # fmt: skip
     """sequence-job.sh step 5 for one reply into the session's store, and a rebuild only when
     that changed the store. Returns the two phases' seconds (`kernels_build` is 0 when no build
-    ran) and, when the reply had to build, a warning that says what it added."""
+    ran) and, when the reply had to build, the setup defect: the setup's emission is meant to
+    hold every kernel a reply of this request can need (README.md §Kernels), so a reply that
+    adds one shows a shape the setup missed. The reply still builds and goes on."""
     t = time.monotonic()
-    before = store()
+    before, shapes = store(), stored_shapes()
     lines = emit_lines(plan, emit_txt)
     runs, refused = emit(lines, pins, flags)
     after = store()
@@ -794,10 +894,17 @@ def reply_kernels(name: str, plan: str, emit_txt: str, pins: str,
         f"{after[1] - before[1]} generation shapes; store {store_line(after)}")
     built, build_seconds = ensure_built()
     log(f"kernels: {name}: build {'ran' if built else 'skipped'}")
-    warning = (f"{name}: the reply's emission added {after[0] - before[0]} constraint kernels "
-               f"and {after[1] - before[1]} generation shapes the store lacked, so the backend "
-               f"was rebuilt in {build_seconds:.1f} s") if built else None  # fmt: skip
-    return {"kernels_emit": seconds, "kernels_build": build_seconds}, warning
+    if not built:
+        return {"kernels_emit": seconds, "kernels_build": build_seconds}, None
+    added = [{"list": n, "family": f, "name": first}
+             for k, (n, f, first) in stored_shapes().items() if k not in shapes]  # fmt: skip
+    defect = {"reply": name, "constraint_kernels_added": after[0] - before[0],
+              "generation_shapes_added": after[1] - before[1], "added": added,
+              "build_seconds": build_seconds}  # fmt: skip
+    log(f"kernels: {name}: SETUP DEFECT: the setup's store lacked "
+        + (", ".join(f"{a['family']} {a['name']} ({a['list']})" for a in added) or "a kernel")
+        + f"; rebuilt in {build_seconds:.1f} s")  # fmt: skip
+    return {"kernels_emit": seconds, "kernels_build": build_seconds}, defect
 
 
 def prove(job: dict) -> dict:
@@ -813,7 +920,7 @@ def prove(job: dict) -> dict:
     proofs_dir.mkdir(parents=True, exist_ok=True)
     host(out).mkdir(parents=True, exist_ok=True)
     phases: dict[str, float] = {}
-    proofs, slices, warnings = [], [], []
+    proofs, slices, warnings, defects = [], [], [], []
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else 16
     for i in range(count):
         if len(json.loads(prompts[i])) != p:
@@ -834,9 +941,15 @@ def prove(job: dict) -> dict:
         extra = ["--ids", f"{wit}/ids.npy", "--attn-ranges", ZK_OUT + "/attn_ranges.json"]
         plan, emit_txt, pins = witness_and_plan(g, wit, extra)
         one["witness"] = time.monotonic() - t
-        kernel_phases, warning = reply_kernels(f"req-{i}", plan, emit_txt, pins, flags)
+        kernel_phases, defect = reply_kernels(f"req-{i}", plan, emit_txt, pins, flags)
         one.update(kernel_phases)
-        warnings += [warning] if warning else []
+        if defect:
+            defects.append(defect)
+            warnings.append(f"setup defect: req-{i}'s emission added "
+                            f"{defect['constraint_kernels_added']} constraint kernels and "
+                            f"{defect['generation_shapes_added']} generation shapes the setup's "
+                            f"store lacked ({', '.join(a['family'] for a in defect['added'])}),"
+                            f" so the backend was rebuilt in {defect['build_seconds']:.1f} s")
         t = time.monotonic()
         proof_id = f"req-{i}"
         tmp = f"/io/proofs/.tmp-{proof_id}"
@@ -864,7 +977,7 @@ def prove(job: dict) -> dict:
                        "parts": parts})  # fmt: skip
         shutil.rmtree(host(wit))
     write_json("/io/binding.json", fold_binding(slices))
-    kernels = {**store_facts(store()), "replies_built": len(warnings)}
+    kernels = {**store_facts(store()), "replies_built": len(defects), "setup_defects": defects}
     return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json",
             "phases": [{"name": k, "seconds": v} for k, v in phases.items()],
             "kernels": kernels, "warnings": warnings}  # fmt: skip
