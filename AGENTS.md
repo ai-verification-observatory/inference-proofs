@@ -47,3 +47,4 @@ Plain, dense, active voice, short sentences. Define a term once (`docs/spec/10-g
 | `systems/<name>/` | one adapter per system |
 | `workloads/`, `reference/`, `results/`, `releases/` | inputs, profiles, run records, frozen releases |
 | `web/` | the static site written by `iproofs site build`, deployed by Vercel |
+| `preview/` | development records for the release after v1.0 and `preview/build.py`, which builds its site in a copy of the tree; not results |

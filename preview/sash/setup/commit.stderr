@@ -1,0 +1,12 @@
+sash: kernels: (a) commitment plan, the lines a reply emits: 12 lines, 24 emitter runs, 0 refused
+sash: kernels: store after (a): 59 constraint kernels, 33 generation shapes, build key sha256:0e9c42c421b44a4a8e1caf15fc3f48cf121e0c6bdd467d5f38409670d74da4dc, shape set sha256:0e3cf3c2ff9ad8438ae11b08b30f86a4b9fce860a0518b4087452a36814cf275
+sash: kernels: (b) commitment plan, every other line: 54 lines, 108 emitter runs, 0 refused
+sash: kernels: (c) --ao-rem-bits 15..20 on the lines a reply emits: 12 lines, 84 emitter runs, 0 refused
+sash: kernels: (c) --fold-rem-bits 16..19 on the lines a reply emits: 12 lines, 96 emitter runs, 0 refused
+sash: kernels: (d) attention-output forms, constraint kernels: 66 lines, 14 emitter runs, 0 refused
+sash: kernels: (e) attention output over its bound, 494 points, synthetic segment: 0 lines, 494 emitter runs, 0 refused
+sash: kernels: (f) fold --fold-rem-bits 1..19 at --deq-per-row 16, 501, constants dump: 0 lines, 38 emitter runs, 0 refused
+sash: kernels: store after commit: 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build: installing 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build ran in 2197.0 s; installed sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd
+sash: commit: seconds witness 169.7, model_roots 1278.9, kernels_emit 1259.2, kernels_build 2197.0

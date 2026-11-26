@@ -1,0 +1,25 @@
+sash: kernels: req-0, the reply's own emission: 11 lines, 22 emitter runs, 0 refused
+sash: kernels: req-0: the emission added 0 constraint kernels and 0 generation shapes; store 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build skipped, the installed store is this one (sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd)
+sash: kernels: req-0: build skipped
+sash: req-0: seconds ids 98.0, witness 165.2, kernels_emit 72.3, kernels_build 0.0, prove 788.2
+sash: kernels: req-1, the reply's own emission: 11 lines, 22 emitter runs, 0 refused
+sash: kernels: req-1: the emission added 0 constraint kernels and 0 generation shapes; store 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build skipped, the installed store is this one (sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd)
+sash: kernels: req-1: build skipped
+sash: req-1: seconds ids 96.1, witness 166.0, kernels_emit 72.5, kernels_build 0.0, prove 790.8
+sash: kernels: req-2, the reply's own emission: 11 lines, 22 emitter runs, 0 refused
+sash: kernels: req-2: the emission added 0 constraint kernels and 0 generation shapes; store 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build skipped, the installed store is this one (sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd)
+sash: kernels: req-2: build skipped
+sash: req-2: seconds ids 96.6, witness 171.0, kernels_emit 73.4, kernels_build 0.0, prove 792.8
+sash: kernels: req-3, the reply's own emission: 11 lines, 22 emitter runs, 0 refused
+sash: kernels: req-3: the emission added 0 constraint kernels and 0 generation shapes; store 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build skipped, the installed store is this one (sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd)
+sash: kernels: req-3: build skipped
+sash: req-3: seconds ids 98.7, witness 167.5, kernels_emit 73.0, kernels_build 0.0, prove 793.6
+sash: kernels: req-4, the reply's own emission: 10 lines, 20 emitter runs, 0 refused
+sash: kernels: req-4: the emission added 0 constraint kernels and 0 generation shapes; store 73 constraint kernels, 157 generation shapes, build key sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd, shape set sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5
+sash: kernels: build skipped, the installed store is this one (sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd)
+sash: kernels: req-4: build skipped
+sash: req-4: seconds ids 97.8, witness 167.1, kernels_emit 66.3, kernels_build 0.0, prove 790.3

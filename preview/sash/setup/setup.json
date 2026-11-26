@@ -1,0 +1,480 @@
+{
+  "archive": {
+    "bytes": 1418045440,
+    "digest": "sha256:514d02783e9bff3a48cc39a9398260f70410804a7f029af9d52ebe917382895b",
+    "name": "state.tar",
+    "root": "/io/state"
+  },
+  "archive_seconds": {
+    "grade": "measured",
+    "null_reason": null,
+    "scope": "primitive",
+    "source": {
+      "kind": "harness",
+      "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/archive"
+    },
+    "tier": "reported",
+    "unit": "s",
+    "value": 2.492633284
+  },
+  "commands": [
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/sash/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-26T13:57:45Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/sash/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-26T13:57:45Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "hosted",
+        "taskset",
+        "-c",
+        "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+        "python3",
+        "/opt/sash/entrypoint",
+        "commit",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "48,49,50,51,52,53,54,55,56,57,58,59,60,61,62",
+      "exit_code": 0,
+      "gpus": "device=0",
+      "mems": "1",
+      "network": "provider",
+      "started_at": "2026-11-26T13:57:45Z",
+      "step": "commit"
+    }
+  ],
+  "commitment": {
+    "commitment_id": "sha256:8f9cbc66f598fdd97165a410fbcc6d822ee3fb0a474dec39a6f1c27ef85d69fb",
+    "prover_files": [
+      {
+        "bytes": 1801597,
+        "digest": "sha256:b136a8d01ae59a58f19f4bd7babe80e8c5d14b548363740b3eda6566bf9e1597",
+        "name": "attn_ranges.json"
+      },
+      {
+        "bytes": 180728,
+        "digest": "sha256:7950ee664ff35e4f72cc8754c21a4da70a103123bb9dabca8c6135a776d5f8cb",
+        "name": "tokens.npz"
+      }
+    ],
+    "verifier_files": [
+      {
+        "bytes": 66722,
+        "digest": "sha256:5992e968f866902447a1eafdde678654a3ebb784b9f55128d5b1ded8fa8e4ec8",
+        "name": "model-roots.json"
+      },
+      {
+        "bytes": 144,
+        "digest": "sha256:3fba8d2401ba43705c8989865ebcb21a70b4a5c25ee92cdc42c31cdd79f8de14",
+        "name": "grid.json"
+      }
+    ]
+  },
+  "ended_at": "2026-11-26T15:19:35Z",
+  "failure": null,
+  "gpu_count": {
+    "grade": "asserted",
+    "null_reason": null,
+    "scope": null,
+    "source": {
+      "kind": "reference_file",
+      "ref": "reference/v1.0.yaml#/profiles/prover-h200-hosted/gpu/count"
+    },
+    "tier": "reported",
+    "unit": "count",
+    "value": 1
+  },
+  "gpu_seconds": {
+    "grade": "derived",
+    "null_reason": null,
+    "scope": "whole_wall",
+    "source": {
+      "inputs": [
+        "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/gpu_count",
+        "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/total_seconds"
+      ],
+      "kind": "derivation",
+      "ref": "iproofs.setups.gpu_seconds@1"
+    },
+    "tier": "reported",
+    "unit": "gpu_s",
+    "value": 4913.770960287
+  },
+  "harness": {
+    "git_commit": "6b249199a65c5bd41b845de402b6189a4132d5ee",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": true,
+    "version": "0.1.0.dev0"
+  },
+  "jobs": {
+    "commit": {
+      "contract": "adapter/1",
+      "control": false,
+      "model_dir": "/models",
+      "run_id": "2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+      "schema": "adapter-job/1",
+      "shape": {
+        "batch_size": 1,
+        "batches_per_session": 5,
+        "context_window": 1024,
+        "output_tokens": 512,
+        "prompt_tokens": 512
+      },
+      "subcommand": "commit",
+      "workload": {
+        "id": "l1-l31-8b-p512-o512",
+        "version": 1
+      }
+    },
+    "info": {
+      "contract": "adapter/1",
+      "control": false,
+      "run_id": "2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+      "schema": "adapter-job/1",
+      "shape": {
+        "batch_size": 1,
+        "batches_per_session": 5,
+        "context_window": 1024,
+        "output_tokens": 512,
+        "prompt_tokens": 512
+      },
+      "subcommand": "info",
+      "workload": {
+        "id": "l1-l31-8b-p512-o512",
+        "version": 1
+      }
+    },
+    "setup": {
+      "contract": "adapter/1",
+      "control": false,
+      "run_id": "2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+      "schema": "adapter-job/1",
+      "shape": {
+        "batch_size": 1,
+        "batches_per_session": 5,
+        "context_window": 1024,
+        "output_tokens": 512,
+        "prompt_tokens": 512
+      },
+      "subcommand": "setup",
+      "workload": {
+        "id": "l1-l31-8b-p512-o512",
+        "version": 1
+      }
+    }
+  },
+  "kernels": {
+    "build_key": "sha256:c279dc752ddc144a25d4292e6cebf3717ce1a76f2ffeb8ada449659d444b29cd",
+    "constraint_kernels": 73,
+    "emitter_runs": 858,
+    "flags": [
+      "--ao-acc-lo-bits",
+      "--ao-acc-hi-bits",
+      "--ao-acc-mag",
+      "--ao-acc-prod",
+      "--ao-rem-bits",
+      "--ao-denp2",
+      "--fold-rem-bits"
+    ],
+    "fold_dump": "model-only dump from constants (heads 16, hd 32, s 32, width 512, jv -14, g_c 7); genemit --round even --variants intexp --numbits 9 --z-hi-bits 7 --table-bits 16 --residual-stream-a 32 --kmax 16 --diagonal-block --layout zfold --witness DUMP --weights-only --params DUMP/params.json --deq-per-row 16|501 --fold-rem-bits 1..19",
+    "generation_shapes": 157,
+    "refused": 0,
+    "shape_set": "sha256:8a66c5b5819e220aa3373b343d99086c388fcacc0d2c76b849819c79581f91d5",
+    "synthetic_segment": "--round even --variants intexp --numbits 1 --z-hi-bits 7 --table-bits 16 --s 32 --ctx 32 --hd 32 --head-groups 2,1 --nout 64 --residual-stream-a 32 --kmax 16 --synth-residual-stream --diagonal-block --layout zfold --synth-ao-bits 12"
+  },
+  "level": {
+    "digest": "sha256:6b7b0a069f46a5d6646e3768b57d0b77c01492ea12e80f639b59cb3d819aaa3e",
+    "id": "L1",
+    "rung": "llama-3.1-8b"
+  },
+  "logs": [
+    {
+      "digest": "sha256:096c99704cea1560ba3282d12e6e89f623f054149b525c79f2723018d8f27a85",
+      "name": "logs/commit.stderr"
+    }
+  ],
+  "machine": {
+    "container": {
+      "cgroup_version": "2",
+      "execution": "hosted",
+      "shm_bytes": 2144787083264
+    },
+    "cpu": {
+      "bound_prover": [
+        48,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        56,
+        57,
+        58,
+        59,
+        60,
+        61,
+        62
+      ],
+      "bound_verifier": [
+        63,
+        64,
+        65,
+        66,
+        67,
+        68,
+        69,
+        70
+      ],
+      "bound_verifier_single": [
+        63
+      ],
+      "cgroup_quota_cpus": 23.0,
+      "logical_cpus": 192,
+      "model": "Intel(R) Xeon(R) Platinum 8488C",
+      "physical_cores": 96,
+      "smt_active": true,
+      "sockets": 2
+    },
+    "disk": {
+      "free_bytes_at_start": 28459014176768
+    },
+    "gpu": {
+      "bound_index": 0,
+      "count_visible": 1,
+      "cuda_driver_api": "13.2",
+      "driver_version": "595.112.07",
+      "memory_total_mib": 143771,
+      "model": "NVIDIA H200",
+      "numa_node": 1
+    },
+    "kernel": {
+      "release": "6.12.115-140.210.amzn2023.x86_64"
+    },
+    "memory": {
+      "available_bytes_at_start": 1743230119936,
+      "cgroup_limit_bytes": 256000000000,
+      "total_bytes": 2147443126272
+    },
+    "numa": {
+      "bound_mems": [
+        1
+      ],
+      "nodes": 2
+    },
+    "os": {},
+    "provider": "Hugging Face Jobs",
+    "verifier_host": "same_as_prover"
+  },
+  "phases": {
+    "commit": {
+      "kernels_build": {
+        "grade": "measured",
+        "null_reason": null,
+        "scope": "primitive",
+        "source": {
+          "kind": "adapter",
+          "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/phases/commit/kernels_build"
+        },
+        "tier": "reported",
+        "unit": "s",
+        "value": 2197.005215676996
+      },
+      "kernels_emit": {
+        "grade": "measured",
+        "null_reason": null,
+        "scope": "primitive",
+        "source": {
+          "kind": "adapter",
+          "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/phases/commit/kernels_emit"
+        },
+        "tier": "reported",
+        "unit": "s",
+        "value": 1259.1763111290056
+      },
+      "model_roots": {
+        "grade": "measured",
+        "null_reason": null,
+        "scope": "primitive",
+        "source": {
+          "kind": "adapter",
+          "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/phases/commit/model_roots"
+        },
+        "tier": "reported",
+        "unit": "s",
+        "value": 1278.9080722600047
+      },
+      "witness": {
+        "grade": "measured",
+        "null_reason": null,
+        "scope": "primitive",
+        "source": {
+          "kind": "adapter",
+          "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/phases/commit/witness"
+        },
+        "tier": "reported",
+        "unit": "s",
+        "value": 169.73507166298805
+      }
+    }
+  },
+  "profile": {
+    "prover": "prover-h200-hosted",
+    "reference_digest": "sha256:5efc64f73f37097073813728a545d6037032e125586202b72bfa52acfe7949ee",
+    "reference_file": "reference/v1.0.yaml"
+  },
+  "prompts_file": null,
+  "provider": "Hugging Face Jobs",
+  "release": "v1.0",
+  "runner": {
+    "affiliated_systems": [
+      "sash"
+    ],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "setup/1",
+  "setup_id": "2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1",
+  "started_at": "2026-11-26T13:57:41Z",
+  "status": "completed",
+  "steps": {
+    "commit": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/steps/commit"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 4906.798801296
+    },
+    "info": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/steps/info"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064065804
+    },
+    "setup": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/steps/setup"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.064152069
+    }
+  },
+  "system": {
+    "adapter_commit": "6b249199a65c5bd41b845de402b6189a4132d5ee",
+    "adapter_dirty": false,
+    "claim_digest": "sha256:6e39033712a86ce82fc2598159d29cd65860959b367738e59144cf2a38499b12",
+    "image": {
+      "digest_kind": "config",
+      "ref": "local/ghcr.io/ai-verification-observatory/sash@sha256:0218756a91f9b5ebae5163c0f4821a21c305197553eda85075f68b01de456f84"
+    },
+    "image_inputs": [
+      {
+        "digest": "sha256:08eb04abd87a13459175dc4def259c6335d43b7916219c388d7ca08a3e35133c",
+        "name": "zk-inference-prover",
+        "url": "https://github.com/0xChqrles/zk-inference-prover.git#4f41667297430a598165c4a8604258fe37d952ae"
+      },
+      {
+        "digest": "sha256:ac0a04b2bb6ca1e69c959e9b941ea4362dfaa005b9a9c86444aa434bca396a08",
+        "name": "rust-nightly-2025-07-14",
+        "url": "https://static.rust-lang.org/dist/2025-07-14/rust-nightly-x86_64-unknown-linux-gnu.tar.xz"
+      }
+    ],
+    "name": "sash",
+    "optional_subcommands": [
+      "perturb",
+      "mutate_reply",
+      "score"
+    ],
+    "system_manifest_digest": "sha256:f69b99748342ae87f30764da087f55637b26214be6b17ab0e5212f298b7fdae1",
+    "upstream": {
+      "commit": "4f41667297430a598165c4a8604258fe37d952ae",
+      "repo": "sg-ai-safety-hub/zk-inference-prover"
+    }
+  },
+  "total_seconds": {
+    "grade": "measured",
+    "null_reason": null,
+    "scope": "whole_wall",
+    "source": {
+      "kind": "harness",
+      "ref": "/tmp/iproofs/out/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-l1-l31-8b-p512-o512-prover-h200-hosted-1/setup.json#/started_at"
+    },
+    "tier": "reported",
+    "unit": "s",
+    "value": 4913.770960287
+  },
+  "warnings": [
+    "conformance: PC-DRIVER: driver '595.112.07', the profile pins 'unpinned'"
+  ],
+  "workload": {
+    "file_digest": "sha256:55ad89cd4a30cf0e73dfc394d14060629cd6e73cc13aee62b96460b39716fd03",
+    "id": "l1-l31-8b-p512-o512",
+    "model": {
+      "digest": "sha256:368b6c2838f66f92d67f24276a2314c7c2014b059a33c33ea35d793740377ee7",
+      "revision": "4699cc75b550f9c6f3173fb80f4703b62d946aa5",
+      "source": "huggingface:unsloth/Llama-3.1-8B-Instruct"
+    },
+    "shape": {
+      "batch_size": 1,
+      "batches_per_session": 5,
+      "context_window": 1024,
+      "output_tokens": 512,
+      "prompt_tokens": 512
+    },
+    "version": 1
+  }
+}
