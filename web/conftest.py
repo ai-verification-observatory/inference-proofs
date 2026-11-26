@@ -52,3 +52,21 @@ def empty_site(tmp_path_factory: pytest.TempPathFactory) -> Path:
     if pages is None:
         pytest.skip("a Level 1 release has a board file; the committed site is built from it")
     return out
+
+
+@pytest.fixture(scope="session")
+def further_site(tmp_path_factory: pytest.TempPathFactory) -> SimpleNamespace:
+    """out: the site built from v1.0's stored records by the further-reply rule (RFC-0018 CO-9,
+    Q55), as the next release's board will be; board: that board, written beside it (nothing in
+    the tree changes); build: the renderer, set up on its view."""
+    from iproofs.board import build_board  # noqa: PLC0415 (only this fixture builds a board)
+
+    tmp = tmp_path_factory.mktemp("further-site")
+    board = build_board(ROOT, "v1.0", "L1", "further-reply")
+    path = tmp / "board.json"
+    path.write_text(json.dumps(board))
+    out = tmp / "site"
+    build(ROOT, out, path)
+    module: ModuleType = renderer(ROOT)
+    module.setup(site_view(ROOT, path), out)
+    return SimpleNamespace(out=out, board=board, build=module)

@@ -821,7 +821,10 @@ def checks_figure():
 # the figure each multiple is over (CO-1, CO-4, CO-5): which GPU time a row's printed multiple
 # divides, by the multiple's key in the row's figures
 OVER = {"session_multiple": "session_gpu_seconds_per_reply",
-        "multiple": "steady_gpu_seconds_per_reply"}  # fmt: skip
+        "multiple": "steady_gpu_seconds_per_reply",
+        "further_reply_multiple": "further_reply_gpu_seconds"}  # fmt: skip
+# what the proved side of the fraction counted, by the multiple's key (CO-9, Q55: a further reply)
+OVER_WORDS = {"multiple": "steady state", "further_reply_multiple": "further reply"}
 
 
 def fraction_row():
@@ -858,7 +861,7 @@ def measured_fraction():
     rung = rung_of(row)
     top = (f'<p class="hck">A proved reply</p>{fig_html(over, n, sub=BARE)}'
            f'<p class="hcm">{e(name_of(row))} on {e(rung["model"])}, {e(gpus_words(row))}: '
-           f"{e(whole_line(row, n) if key == 'session_multiple' else 'steady state')}</p>")  # fmt: skip
+           f"{e(whole_line(row, n) if key == 'session_multiple' else OVER_WORDS[key])}</p>")  # fmt: skip
     low = (f'<p class="hck">Serving it</p>{fig_html(under, sub=BARE)}'
            f'<p class="hcm">{e(serving_words(rung["baseline"]))}</p>')  # fmt: skip
     whole = fig_html(f, n, sub=BARE, note=whole_note(row, key))

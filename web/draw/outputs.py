@@ -22,6 +22,7 @@ from .chrome import (
     counted,
     credit_words,
     font_faces,
+    further,
     mark_shape,
     only_run,
     rung_of,
@@ -36,6 +37,7 @@ from .ladder import (
     href,
     lead_fig,
     name_of,
+    proving_html,
     states,
 )
 from .learn import glossary, glossary_entries, sections
@@ -424,7 +426,11 @@ def system_card(pid):
     glyph = glyph_svg(6, states(row), names=[PETAL_NAME[p["id"]] for p in row["glyph"]])
     model = (f'{e(rung["model"])}<span>'
              f'{e(architecture(rung["parameters_total"], rung.get("parameters_active")))}</span>')  # fmt: skip
-    cells = ((FIGURE_HEAD["proof-size"], fig_html(row["figures"]["proof_bytes_per_reply"], n, sub=BARE)),
+    # CO-9 (Q55): the proving multiple first, beside the total in the band
+    proving = ((FIGURE_HEAD["proving"], proving_html(row, bare=True, batch=False)),) \
+        if further() else ()  # fmt: skip
+    cells = (*proving,
+             (FIGURE_HEAD["proof-size"], fig_html(row["figures"]["proof_bytes_per_reply"], n, sub=BARE)),
              (FIGURE_HEAD["check-time"],
               fig_html(row["figures"]["verify_seconds_per_reply"], n, sub=BARE)))  # fmt: skip
     small = " sm" if len(why) > WHY_LONG else ""

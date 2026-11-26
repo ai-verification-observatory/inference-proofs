@@ -46,7 +46,7 @@ Grades (every quantity carries exactly one):
 | `asserted` | An unmeasured reference input (such as a GPU hourly price), accompanied by source and date | `reference_file` (either a reference file or a workload record copied into `run.json` `inputs`, RFC-0003 WB-4) |
 
 INV-GRADE-1: every quantity with grade `derived` or `projected` MUST name a formula ID from the catalogue below in `source.ref`.
-INV-GRADE-2: a quantity with grade `measured` and `source.kind: adapter` represents an adapter-reported timing. It MUST NOT feed any derived metric in the catalogue below, and may only appear alongside harness measurements explicitly labelled as adapter-reported.
+INV-GRADE-2: a quantity with grade `measured` and `source.kind: adapter` represents an adapter-reported timing. It MUST NOT feed any derived metric in the catalogue below, and may only appear alongside harness measurements explicitly labelled as adapter-reported. One exception, for Level 1 boards ([RFC-0018](0018-level-1-ladder.md) CO-9, 2026-11-26): the generation part of a further reply of a system with no generation phase of its own is the adapter's reported phase, taken only when the reported phases sum to the harness-timed `prove` call within 1 %, and labelled with its source (`D-L1-FURTHER-GENERATION-ADAPTER`).
 INV-GRADE-3: a `derived` quantity retains grade `derived` even when one or more of its inputs are `asserted` (such as GPU price); each asserted input is cited in `source.inputs`.
 
 ### Timing scopes

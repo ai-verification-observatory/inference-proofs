@@ -15,20 +15,24 @@ from .chrome import (
     LEARN_PAGE,
     LEVEL_ANCHOR,
     MANDATE_PAGE,
+    PROVED_RATE,
     card_current,
     cards_record,
     counted,
     fig_words,
     footer,
+    further,
     gpu_name,
     has,
     header,
     how_computed,
     lead_figure,
     link,
+    not_split,
     page,
     parts_of,
     pnav,
+    proving_figure,
     rate_pair,
     rung_of,
     share_words,
@@ -45,6 +49,7 @@ from .ladder import (
     defined,
     fig_html,
     filled,
+    further_line,
     how_link,
     href,
     multiple_html,
@@ -53,6 +58,7 @@ from .ladder import (
     part_term,
     pct,
     proved_words,
+    proving_html,
     rate_html,
     request_words,
     serving_words,
@@ -76,6 +82,7 @@ from .plots import (
     log_x,
 )
 from .words import (
+    ADAPTER_SPLIT,
     BASIS_BITS,
     BASIS_READING,
     CARD_ERRATUM,
@@ -98,10 +105,12 @@ from .words import (
     FIGURE_ANCHOR,
     FIGURE_HEAD,
     FIGURE_NAME,
-    FIGURE_RULE,
     FORMAT_HEAD,
     FORMAT_WORD,
     FULL_LOAD_WORD,
+    FURTHER,
+    FURTHER_PARTS_HEAD,
+    FURTHER_TERM,
     KEPT_CHANGE,
     KEPT_HEAD,
     KEPT_MEANS,
@@ -133,14 +142,17 @@ from .words import (
     MANDATE_LEVEL_LINK,
     MANDATE_MEMBERS_IN,
     MANDATE_MODELS,
+    MEMORY_HEAD,
     NEXT_BY,
     NEXT_HEAD,
+    NO_SPLIT,
     NO_STEADY_WORD,
     NOT_RUN_LEAD,
     NOT_RUN_RULE,
     NOTION_HEAD,
     NULL_WORD,
     OF_WHICH,
+    ONE_TIME_MARK,
     ORDER_RULE,
     P_ABOVE,
     P_FLOOR,
@@ -168,6 +180,7 @@ from .words import (
     REASON_LINK,
     RECORD_WORD,
     REPLY_TOKENS_HEAD,
+    ROUTES,
     SCALE_LOG,
     SCOPE_BOUND_HEAD,
     SCOPE_CARD_HEAD,
@@ -207,10 +220,12 @@ from .words import (
     TRIAL_REFUSED,
     TRIAL_WHAT,
     TRIALS_HEAD,
+    UTIL_HEAD,
     architecture,
     beside_unit,
     curly,
     e,
+    figure_rules,
     kl_head,
     number,
     quoted,
@@ -756,7 +771,8 @@ def cost_sub(f, n, head="", own=False):
     if n is None or not has(f):
         return None
     short = SCOPE_SHORT[f["scope"]]
-    said = [short] if short not in ("", "session") and short not in head.lower() else []
+    block = SCOPE_SHORT["prove.session"] if further() else "session"  # the block's line says it
+    said = [short] if short not in ("", "session", block) and short not in head.lower() else []
     count = f["n"] if f["n"] is not None else n
     if own or count != n:
         said.append(f"n\u00a0=\u00a0{count}")
@@ -1002,7 +1018,9 @@ def reply_tokens_html(row):
     """CO-8 (adopted 2026-11-16): reply tokens per GPU-second, once, beside the session GPU time:
     the figure with its unit, its range, n in whole sessions and the GPUs bound, then what the
     records do not time apart. It depends on the GPU, so it prints nowhere above this depth."""
-    f = row["figures"].get("session_reply_tokens_per_gpu_second")
+    f = row["figures"].get(
+        PROVED_RATE.get(lead_figure(row)[2], "session_reply_tokens_per_gpu_second")
+    )
     if not has(f):
         return ""
     st = f.get("stats") or {}
@@ -1011,7 +1029,10 @@ def reply_tokens_html(row):
     if (st.get("n") or 0) > 1 and st.get("min") is not None and st.get("max") is not None:
         lo, hi = (number(st[k], f["unit"])[0] for k in ("min", "max"))
         said.append(e(f"{lo} to {hi}"))
-    said.append(f"n\u00a0=\u00a0{count:,} " + term("whole sessions", "Whole session"))
+    said.append(
+        f"n\u00a0=\u00a0{count:,} "
+        + (term("sessions", "Session") if further() else term("whole sessions", "Whole session"))
+    )
     bound = sorted({s.get("gpus") for s in row["sessions"] if s.get("gpus")})
     if bound:  # the GPUs the sessions bound, the ones its GPU-seconds count (SE-2)
         said.append(e(f"{' or '.join(f'{g:,}' for g in bound)} × {gpu_name(row)}"))
@@ -1042,6 +1063,40 @@ def evidence_words(named):
 PROVING_REST = "Proving GPU time per reply"
 
 
+def split_html(row):
+    """CO-9 (Q55): where a further reply's generation part comes from, one line: the adapter's
+    phase with each session's reported phases against its harness-timed prove call, the
+    generation marks, or why the board splits none (the board's words)."""
+    sp = row.get("further_split")
+    if not further() or sp is None:
+        return ""
+    if sp.get("source") is None:
+        said = e(f"{NO_SPLIT}: {sp.get('cause') or 'no source recorded'}")
+    elif sp.get("source") == "generation_marks":
+        said = "generation from the system's own generation phase"
+    else:
+        checks = ", ".join(f"{c['phases_seconds']:,.1f}\u00a0s of {c['prove_call_seconds']:,.1f}"
+                           "\u00a0s" for c in sp.get("sessions") or [])  # fmt: skip
+        tol = f"{sp['tolerance'] * 100:g}\u00a0%" if sp.get("tolerance") is not None else ""
+        said = e(f"generation as the adapter reports it (its {sp.get('phase')} phase); its "
+                 f"phases sum to {checks} of the timed prove call, within {tol}")  # fmt: skip
+    return f'<p class="rb"><span class="k">Split</span> <span>{said}</span></p>'
+
+
+def setups_html(row):
+    """CO-9 (Q55): the setups the counted sessions reused, counted in the one-time work: each by
+    its id, its GPU time and its record."""
+    found = row.get("one_time_setups") or []
+    if not found:
+        return ""
+    said = ", ".join(
+        f'<a href="{e(link(s["record"]))}"><code>{e(s["setup_id"][:12])}</code></a> '
+        f"{e(number(s['gpu_seconds'], 'gpu_s')[0])}\u00a0GPU-h"
+        for s in found
+    )
+    return f'<p class="rb"><span class="k">Setup</span> <span>{said}</span></p>'
+
+
 def cost_html(row):
     """The cost parts (CO-1 to CO-5), each figure as the board stores it (the figures block above
     prints the cost alone): how the model was served; once what the proving figures are over (the
@@ -1058,27 +1113,35 @@ def cost_html(row):
     _, _, key = lead_figure(row)
     # the multiple the band does not print: a steady row's session one, beside the session cost
     # (CO-5's label is the band's, for a row's one figure; this one's scope is in its title)
-    other = ((f"Session {FIGURE_NAME['multiple'].lower()}", figs["session_multiple"], n)
-             if key == "multiple" else (f"Steady {FIGURE_NAME['multiple'].lower()}",
-                                        figs["multiple"], n))  # fmt: skip
+    session = (f"Session {FIGURE_NAME['multiple'].lower()}", figs["session_multiple"], n)
+    # CO-9: on a further reply's board the session figures say so, apart from its own
+    lead = "Session c" if further() else "C"
+    steady = (f"Steady {FIGURE_NAME['multiple'].lower()}", figs["multiple"], n)
+    # CO-9 (Q55): a further reply's board keeps both, computed and stored, here
+    others = {"multiple": [session], "session_multiple": [steady]}.get(key, [session, steady])
     gpu = [("Serving GPU time per reply", b.get("gpu_seconds_per_reply"), None, None),
            (M_HEAD, figs["steady_gpu_seconds_per_reply"], n, "steady_gpu_seconds_per_reply"),
            ("Session GPU time per reply", figs["session_gpu_seconds_per_reply"], n,
             "session_gpu_seconds_per_reply"),
            # CO-7 (amended 2026-11-15): the session in its timed calls
-           ("Commit GPU time per reply", figs.get("session_commit_gpu_seconds_per_reply"), n,
-            None),
-           (PROVING_REST, figs.get("session_proving_gpu_seconds_per_reply"), n, None)]  # fmt: skip
+           (f"{lead}ommit GPU time per reply", figs.get("session_commit_gpu_seconds_per_reply"),
+            n, None),
+           (PROVING_REST if not further() else f"Session {PROVING_REST.lower()}",
+            figs.get("session_proving_gpu_seconds_per_reply"), n, None),
+           # CO-9 (Q55): the prove step's diagnostics, never a ladder figure
+           *(((UTIL_HEAD, figs["prove_gpu_util_mean"], n, None),
+              (MEMORY_HEAD, figs["prove_gpu_memory_peak"], n, None)) if further() else ())]  # fmt: skip
     # a GPU time with two parts is drawn (its head's title its full name), the others are cells
     drawn = [(k, f, key, M_NAME if k == M_HEAD else "") for k, f, _, key in gpu
              if has(f) and gpu_parts(figs, key)]  # fmt: skip
     sheet = [*((k, f, count) for k, f, count, key in gpu if not any(f is d[1] for d in drawn)),
-             other, ("Steady cost per reply", figs["steady_usd_per_reply"], n),
+             *others, ("Steady cost per reply", figs["steady_usd_per_reply"], n),
              ("Session cost per reply", figs["session_usd_per_reply"], n),
              ]  # fmt: skip
     # the block's tiles print the multiple's cost, the serving cost, the price, verify time and
     # proof size: the sheet holds the rest
-    usd = "session_usd_per_reply" if key == "session_multiple" else "steady_usd_per_reply"
+    usd = {"session_multiple": "session_usd_per_reply",
+           "further_reply_multiple": "further_reply_usd_per_reply"}.get(key, "steady_usd_per_reply")  # fmt: skip
     sheet = [x for x in sheet if x[1] is not figs[usd]]
     own = ()
     no_steady = not has(figs["multiple"]) and figs["multiple"]["null_reason"] == "not_applicable"
@@ -1123,7 +1186,7 @@ def cost_html(row):
     evidence = (f'<p class="rb"><span class="k">Evidence</span> <span>{evidence_words(shown)}'
                 "</span></p>" if shown else "")  # fmt: skip
     missing.pop(NO_STEADY_WORD, None)  # the sessions table prints each session's none and why
-    return (f"{serving}{proving}{generation_html(row)}"
+    return (f"{serving}{proving}{split_html(row)}{setups_html(row)}{generation_html(row)}"
             f"{verifying_html(row)}{size_html(row)}{reply_tokens_html(row)}{evidence}{ran_html(row)}"
             f"{cost_bars(row, drawn)}"
             f'<dl class="parts">{cells}</dl>{missing_html(missing)}{ladder_html(rung)}')  # fmt: skip
@@ -1468,6 +1531,21 @@ def tf_title(head, tf):
     return (' class="fag"' if head == TF_AGREE else "") + full
 
 
+def band_two(row):
+    """CO-9 (Q55): the band's two multiples side by side, each under its plain name: the total,
+    the proved rate under it (CO-8), and the proving part, the replies one proof covers under it
+    (or "not measured", its cause in its title); under both, once, what they counted and n."""
+    _, f, _ = lead_figure(row)
+    n = counted(row)
+    count = (f or {}).get("n") or n
+    total = fig_html(f, n, sub=BARE, how=how_computed(row)) + rate_html(row, f"#{RATE_ANCHOR}")
+    line = sub_line(further_line(count)).replace(FURTHER, term(FURTHER, FURTHER_TERM), 1)
+    return (f'<span class="sbx"><span class="sbl">{defined(FIGURE_HEAD["multiple"], "multiple")}'
+            f"</span>{total}</span>"
+            f'<span class="sbx"><span class="sbl">{defined(FIGURE_HEAD["proving"], "proving")}'
+            f'</span>{proving_html(row, bare=True)}</span><span class="sub">{line}</span>')  # fmt: skip
+
+
 def band_figure(row):
     """The band's one figure (`multiple_html`); of the whole sessions, its title
     names them and n, as the line under it does (law 3)."""
@@ -1761,6 +1839,72 @@ def parts_tile(row):
     return f'<span class="rts">{lines_html(figs)}</span>{bar}' + mean(COST_MEAN["parts"])
 
 
+def further_parts_tile(row):
+    """CO-9 (Q55): a further reply in GPU-seconds, then its two parts, proving then generation,
+    each with its range, and the two as one bar from zero split where the first ends; where the
+    board splits none, the further reply alone and why there is no split (DEPTH law 2). An
+    adapter-reported split says so (its labels are in each part's title)."""
+    figs, n = row["figures"], counted(row)
+    total = figs["further_reply_gpu_seconds"]
+    parts = [(w, figs[k]) for w, k in (("proving", "further_reply_proving_gpu_seconds"),
+                                       ("generation", "further_reply_generation_gpu_seconds"))]  # fmt: skip
+    lines = [(term(FURTHER, FURTHER_TERM), fig_html(total, n, sub=range_words(total) or BARE))]
+    split = row.get("further_split") or {}
+    if not all(has(f) for _, f in parts):
+        lines.append((e(NO_SPLIT), f'<span class="na">{e(not_split(row))}</span>'))
+        return f'<span class="rts">{lines_html(lines)}</span>'
+    lines += [(f'<span class="ptk {c}">{part_term(w)}</span>',
+               fig_html(f, n, sub=range_words(f) or BARE))
+              for (w, f), c in zip(parts, ("pp", "pg"), strict=True)]  # fmt: skip
+    segs = [(f["value"], c) for (_, f), c in zip(parts, ("bp", "bg"), strict=True)]
+    whole = sum(v for v, _ in segs)
+    bar = hbar(segs, whole, h=14, cls="hb pbar") if whole > 0 and min(segs)[0] >= 0 else ""
+    how = ""
+    if split.get("source") == "adapter_phases" and split.get("tolerance") is not None:
+        how = mean(ADAPTER_SPLIT.format(tol=f"{split['tolerance'] * 100:g}\u00a0%"))
+    return f'<span class="rts">{lines_html(lines)}</span>{bar}{how}'
+
+
+def one_time_tile(row):
+    """CO-9 (Q55): the one-time work, once, in GPU-hours, with its range and n, never divided by
+    the replies; under it its mark, the replies after which it is at most 5 % of the total."""
+    figs, n = row["figures"], counted(row)
+    f, mark = figs["one_time_gpu_seconds"], figs["one_time_mark_replies"]
+    count = f["n"] if f["n"] is not None else n
+    sub = SEP.join(w for w in (f"n\u00a0=\u00a0{count}" if count else "", range_words(f)) if w)
+    out = fig_html(f, n, sub=sub)
+    if has(mark):
+        out += f'<span class="otm">{e(ONE_TIME_MARK)} {fig_html(mark, sub=BARE)}</span>'
+    return out
+
+
+def further_cells(row):
+    """CO-9's tiles of the Cost block: the further reply in two parts, the one-time work and its
+    mark, then (as for every board) verify time and proof size, and the cost in USD, the one-time
+    work's among it."""
+    figs, n = row["figures"], counted(row)
+    b = rung_of(row)["baseline"] or {}
+    cells = [(defined(FURTHER_PARTS_HEAD, "multiple"), further_parts_tile(row), "parts"),
+             (defined(FIGURE_HEAD["one-time"], "one-time"), one_time_tile(row), "one-time")]  # fmt: skip
+    for k, f in (("check-time", figs["verify_seconds_per_reply"]),
+                 ("proof-size", figs["proof_bytes_per_reply"])):  # fmt: skip
+        sub = cost_sub(f, n, FIGURE_HEAD[k], own=True)
+        cells.append((defined(FIGURE_HEAD[k], k), fig_html(f, n, sub=sub) + mean(COST_MEAN[k]), ""))
+    usd, price = figs["further_reply_usd_per_reply"], S.V["price"]
+    if has(usd):
+        under = [(e(RATE_PROVED), fig_html(usd, n, sub=BARE))]
+        if has(b.get("usd_per_reply")):
+            under.append(("served", fig_html(b["usd_per_reply"], sub=BARE)))
+        if has(figs["one_time_usd"]):
+            under.append(("once", fig_html(figs["one_time_usd"], n, sub=BARE)))
+        if price and has(price["usd_per_gpu_hour"]):
+            basis = f"basis: {price['basis']}"
+            under.append(("H200", fig_html(price["usd_per_gpu_hour"], sub=BARE, note=basis)))
+        cells.append((defined(FIGURE_HEAD["cost"], "cost"),
+                      f'<span class="usd">{lines_html(under)}</span>', ""))  # fmt: skip
+    return cells
+
+
 def cost_block(row):
     """The Cost block (CO-1 to CO-8), led by its figures: the two rates the band's multiple
     divides, drawn on one axis (`rates_plot`; a tile where the row has no rate pair), its two
@@ -1772,8 +1916,10 @@ def cost_block(row):
     b = rung_of(row)["baseline"] or {}
     _, lead, key = lead_figure(row)
     count = (lead or {}).get("n") or n
-    scope = whole_line(row, count) if key == "session_multiple" else steady_line(count)
-    scope = e(scope).replace("whole sessions", term("whole sessions", "Whole session"), 1)
+    scope = {"session_multiple": whole_line, "further_reply_multiple": lambda _, c: further_line(c)
+             }.get(key, lambda _, c: steady_line(c))(row, count)  # fmt: skip
+    scope = (e(scope).replace("whole sessions", term("whole sessions", "Whole session"), 1)
+             .replace(FURTHER, term(FURTHER, FURTHER_TERM), 1))  # fmt: skip
     bound = sorted({s.get("gpus") for s in row["sessions"] if s.get("gpus")})
     gpus = e(f"{' or '.join(f'{g:,}' for g in bound)} × {gpu_name(row)}") if bound else ""
     shown = [(k, f) for k, f in (("multiple", lead), ("verify", figs["verify_seconds_per_reply"]),
@@ -1784,6 +1930,16 @@ def cost_block(row):
     rates = None if plot else rates_tile(row)
     if rates:
         cells.append((defined(FIGURE_HEAD["rate"], "rate"), rates, RATE_ANCHOR))
+    if further():  # CO-9 (Q55): the further reply's parts, the one-time work, the two routes
+        tier = evidence_words([(k, f) for k, f in (
+            ("multiple", lead), ("proving", proving_figure(row)),
+            ("one-time", figs["one_time_gpu_seconds"]),
+            ("verify", figs["verify_seconds_per_reply"]),
+            ("size", figs["proof_bytes_per_reply"])) if has(f)])  # fmt: skip
+        return (scope_html(scope, gpus, tier) + (plot or "")
+                + tiles([*cells, *further_cells(row)], "drawn" if plot else "")
+                + f'<p class="cmn">{e(ROUTES)}</p>'
+                + dig("GPU time, hardware and serving", cost_html(row)))  # fmt: skip
     if split := parts_tile(row):
         cells.append((defined(PARTS_HEAD, "multiple"), split, "parts"))
     for k, f in (("check-time", figs["verify_seconds_per_reply"]),
@@ -2042,13 +2198,18 @@ def system_page(row):
     share = share_html(row)
     size = next((i + 1 for i, k in enumerate(NAME_SIZES) if len(name) <= k), len(NAME_SIZES) + 1)
     # the figure's plain name, the figure, and under it, once, what was counted and n (CO-5)
-    label, lead = FIGURE_HEAD["multiple"], band_figure(row)
-    lead += rate_html(row, f"#{RATE_ANCHOR}")
     unranked = "" if row["position"] is not None else " unr"
+    if further():  # CO-9: the two multiples
+        band_fig = f'<p class="sbm two{unranked}">{band_two(row)}</p>'
+    else:
+        label, lead = FIGURE_HEAD["multiple"], band_figure(row)
+        lead += rate_html(row, f"#{RATE_ANCHOR}")
+        band_fig = (f'<p class="sbm{unranked}"><span class="sbl">{defined(label, "multiple")}'
+                    f"</span>{lead}</p>")  # fmt: skip
     band_ = (
         f'<section class="mast mast-sys sysb" aria-labelledby="h-name"><div class="mast-in">'
         f'<div class="sb"><h1 id="h-name" class="sysname nm{size}">{e(name)}</h1>'
-        f'<p class="sbm{unranked}"><span class="sbl">{defined(label, "multiple")}</span>{lead}</p></div>'
+        f"{band_fig}</div>"
         '<dl class="facts">'
         + "".join(f'<div class="{c}"><dt>{k}</dt><dd>{v}</dd></div>' for c, k, v in facts)
         + "</dl></div></section>"
@@ -2198,7 +2359,7 @@ def know_html():
         names = []
         for i in ids:
             if i == "figures":
-                names += [(f, FIGURE_NAME[f]) for f in FIGURE_RULE]
+                names += [(f, FIGURE_NAME[f]) for f in figure_rules(S.V["cost_rule"])]
             else:
                 # a check and a petal of one name are told apart (SPEC 5.1): Fidelity check,
                 # Fidelity petal
@@ -2265,10 +2426,11 @@ def build_checks():
         + "</div>"
         for c in S.V["checks"]
     )  # fmt: skip
+    figs = figure_rules(S.V["cost_rule"])  # Q55: the rule the board was built by
     figures = "".join(
         f'<div class="chk" id="{f}"><h3 class="cn2">{e(FIGURE_NAME[f])}</h3>'
-        f"{rules(FIGURE_RULE[f], at='FIGURE_RULE')}</div>"
-        for f in FIGURE_RULE
+        f"{rules(figs[f], at='FIGURE_RULE')}</div>"
+        for f in figs
     )
     # the request's one home on the site (SI-8), and what passed means
     gate = (

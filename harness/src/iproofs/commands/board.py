@@ -2,7 +2,9 @@
 
 Without `--check` it writes `releases/<release>/board.json` and prints its path. With `--check`
 it recomputes the board from the stored records and compares it with the stored file byte for
-byte, as `iproofs derive --check` does for a run.
+byte, as `iproofs derive --check` does for a run. `--cost-rule` builds by a cost rule other than
+the release's own (RFC-0018 Q55: v1.0 by the whole-session rule, later releases by the further
+reply), for a preview built in a copy of the tree.
 """
 
 import argparse
@@ -36,6 +38,12 @@ def register(sub: "argparse._SubParsersAction[argparse.ArgumentParser]", command
     p.add_argument(
         "--check", action="store_true", help="recompute and compare with the stored file"
     )
+    p.add_argument(
+        "--cost-rule",
+        choices=("whole-session", "further-reply"),
+        default=None,
+        help="build by this cost rule instead of the release's own (RFC-0018 Q55), for a preview",
+    )
     p.set_defaults(handler=release_board)
 
 
@@ -48,7 +56,7 @@ def release_board(args: argparse.Namespace) -> int:
     from iproofs.validate import repo_root  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
-    board = build_board(root, args.release, args.level)
+    board = build_board(root, args.release, args.level, args.cost_rule)
     errors = SchemaRegistry.from_tree(root / "schema").errors("board/1", board)
     if errors:
         raise IProofsError(ErrorKind.INTERNAL, f"board.json fails board/1: {errors[0]}")

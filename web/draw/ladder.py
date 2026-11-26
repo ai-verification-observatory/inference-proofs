@@ -13,16 +13,20 @@ from .chrome import (
     CHECKS_PAGE,
     MANDATE_PAGE,
     ONLY_RUN,
+    batch_words,
     counted,
     fig_words,
     footer,
+    further,
     has,
     header,
     how_computed,
     lead_figure,
     mark_shape,
     not_passed,
+    not_split,
     page,
+    proving_figure,
     rate_pair,
     rung_of,
     serving_gpu,
@@ -45,11 +49,14 @@ from .words import (
     FIDELITY_TITLE,
     FIGURE_ANCHOR,
     FIGURE_ASK,
+    FIGURE_ASK_FURTHER,
     FIGURE_HEAD,
     FORMAT_WORD,
     FULL_LOAD_WORD,
+    FURTHER,
     GRADE_WORD,
     LADDER_COLS,
+    NOT_SPLIT,
     NULL_WORD,
     PETAL_NAME,
     PETAL_PLAIN,
@@ -60,6 +67,7 @@ from .words import (
     RATE_PROVED,
     REFERENCE_WORD,
     SCALE_NOT_RUN,
+    SCOPE_WORD,
     SEP,
     STATE_WORD,
     STEADY_STATE,
@@ -209,6 +217,36 @@ def whole_line(row, count):
     return f"{label}{SEP}{session_count(count)}" if count == 1 else f"{count:,} {label}"
 
 
+def further_line(count):
+    """What a figure of a further reply counted, as the line under it says it (CO-9): "further
+    reply · 3 sessions"."""
+    return SEP.join([FURTHER, *([session_count(count)] if count is not None else [])])
+
+
+def proving_html(row, bare=False, to=None, batch=True):
+    """CO-9 (Q55): the row's proving multiple, beside its total on every surface; "not measured"
+    where the board splits no generation from the further reply, the board's cause in its title
+    (and in words under Cost: DEPTH law 2). `bare` and `to` as `multiple_html`'s; `batch`: under
+    it, the replies one proof covers, which the proving part depends on (its source in its
+    title). Nothing on a board built by the whole-session rule."""
+    f = proving_figure(row)
+    if f is None:
+        return ""
+    if has(f):
+        count = f["n"] if f["n"] is not None else counted(row)
+        sub = BARE if bare else further_line(count)
+        how = how_computed(row, "further_reply_proving_multiple")
+        fig = to_section(fig_html(f, counted(row), sub=sub, how=how), to)
+    else:
+        fig = f'<span class="na nsp" title="{e(not_split(row))}">{e(NOT_SPLIT)}</span>'
+    words = batch_words(row) if batch else None
+    if not words:
+        return fig
+    src = (row.get("proving_batch") or {}).get("source")
+    title = f' title="{e(f"proving batch: {words}; record: {src}")}"' if src else ""
+    return f'{fig}<span class="cmx"><span class="bat"{title}>{e(words)}</span></span>'
+
+
 def steady_line(count):
     """What a steady figure counted, as the line under it says it (CO-3): "steady state · 3
     sessions"."""
@@ -249,6 +287,9 @@ def multiple_html(row, bare=False, to=None, rates=None):
     if key == "session_multiple":
         count = f["n"] if f["n"] is not None else counted(row)
         return fig_html(f, counted(row), sub=whole_line(row, count), how=how) + split
+    if key == "further_reply_multiple" and has(f):
+        count = f["n"] if f["n"] is not None else counted(row)
+        return fig_html(f, counted(row), sub=further_line(count), how=how) + split
     if not has(f):
         return fig_html(f, counted(row))
     count = f["n"] if f["n"] is not None else counted(row)
@@ -275,7 +316,8 @@ def rate_html(row, to, said=True):
              f'<span class="sr">, </span><span class="ru">{e(RATE_PER.format(gpu=gp))}</span>')  # fmt: skip
     _, lead, _ = lead_figure(row)
     count = proved["n"] if proved["n"] is not None else counted(row)
-    whole = WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"])
+    whole = (SCOPE_WORD[proved["scope"]] if proved["scope"] == "prove.session"
+             else WHOLE_SESSIONS.format(n=rung_of(row)["requests_per_session"]))  # fmt: skip
     spread = range_words(proved)
     b = rung_of(row)["baseline"]
     title = [RATE_HOW.format(tokens=f"{S.V['request']['output_tokens']:,}"),
@@ -539,6 +581,20 @@ def filled(text):
 # the figure columns, in the row's order (SI-1, amended 2026-11-16: proof size in the place of
 # USD, which is printed under Cost on a system's page only)
 FIGURES = ("multiple", "proof-size", "check-time", "fidelity")
+# on a board built by the further-reply rule (CO-9, Q55): the proving multiple beside the total
+FIGURES_FURTHER = ("multiple", "proving", "proof-size", "check-time", "fidelity")
+
+
+def figure_cols():
+    """The figure columns of this board, in the row's order."""
+    return FIGURES_FURTHER if further() else FIGURES
+
+
+def cols():
+    """The board's columns, one <col> each (`COLS`, a column more for the proving multiple)."""
+    if not further():
+        return COLS
+    return "<colgroup>" + "".join(f'<col class="c{i}">' for i in range(1, 9)) + "</colgroup>"
 
 
 # the board's columns, one <col> each: the heads printed once over the board and every model's
@@ -551,7 +607,8 @@ def heads():
     """The figure columns' heads (`FIGURE_HEAD`: no word its unit says), each linked to its
     definition on the checks page (Fidelity to the figure's, not the check's: FIGURE_ANCHOR), the
     plain question the column answers in its title (`FIGURE_ASK`, amended 2026-11-23, Q54)."""
-    return [defined(FIGURE_HEAD[f], FIGURE_ANCHOR.get(f, f), FIGURE_ASK[f]) for f in FIGURES]
+    ask = FIGURE_ASK | (FIGURE_ASK_FURTHER if further() else {})
+    return [defined(FIGURE_HEAD[f], FIGURE_ANCHOR.get(f, f), ask[f]) for f in figure_cols()]
 
 
 def heads_html():
@@ -559,9 +616,11 @@ def heads_html():
     under the top bar. The columns before them have no head: the square, the glyph and the name
     say what they are. Laid out on the board's columns, not read as a table: each model's table
     names its columns to a screen reader (`sr_head`)."""
-    cells = "".join(f'<th class="h-{f}">{h}</th>' for f, h in zip(FIGURES, heads(), strict=True))
+    cells = "".join(
+        f'<th class="h-{f}">{h}</th>' for f, h in zip(figure_cols(), heads(), strict=True)
+    )
     return (
-        f'<div class="lhd"><table class="lht" role="presentation">{COLS}<tr>'
+        f'<div class="lhd"><table class="lht" role="presentation">{cols()}<tr>'
         f'<td colspan="3"></td>{cells}</tr></table></div>'
     )
 
@@ -569,7 +628,7 @@ def heads_html():
 def sr_head():
     """A model's table's column names, for a screen reader only: the heads printed once over the
     board say the figures' to the eye, and the square, the glyph and the name say the rest."""
-    names = (*LADDER_COLS, *(FIGURE_HEAD[f] for f in FIGURES))
+    names = (*LADDER_COLS, *(FIGURE_HEAD[f] for f in figure_cols()))
     return ('<thead class="srh"><tr>' + "".join(
         f'<th scope="col"><span class="sr">{e(n)}</span></th>' for n in names) + "</tr></thead>")  # fmt: skip
 
@@ -596,6 +655,7 @@ def row_html(row, rung):
     at = href(row)
     multiple = multiple_html(row, bare=True, to=f"{at}#cost", rates=f"{at}#{RATE_ANCHOR}")
     cells = (
+        *((("cv", proving_html(row, bare=True, to=f"{at}#cost")),) if further() else ()),
         ("cc", linked_fig(fig_html(size, counted(row), sub=BARE), size, f"{at}#cost")),
         ("ct", linked_fig(fig_html(verify, counted(row), sub=BARE), verify, f"{at}#cost")),
         ("ck", fidelity_word(row)),
@@ -625,13 +685,14 @@ def divider_html(rung):
     none = "" if rung["rows"] else f'<span class="none">{e(SCALE_NOT_RUN)}</span>'
     copies = copies_html(rung)
     fid = (
-        f'<span class="lbl">{heads()[3]}</span><span class="dcp">{copies}</span>' if copies else ""
+        f'<span class="lbl">{heads()[-1]}</span><span class="dcp">{copies}</span>' if copies else ""
     )
+    span = ' colspan="2"' if further() else ""
     return (f'<tr class="dv"><td class="dvh" colspan="3">'
             f'<div class="dvn"><span class="rk">{e(params(rung["parameters_total"]))}</span>'
             f'<h2 class="rm" id="h-{rid}">{nobreak(rung["model"])}</h2>{none}</div></td>'
             f'<td class="dvs" colspan="2"><span class="dl">{e(FIGURE_HEAD["serving"])}</span> '
-            f'{served_html(rung["baseline"])}</td><td class="dve"></td>'
+            f'{served_html(rung["baseline"])}</td><td class="dve"{span}></td>'
             f'<td class="dvf">{fid}</td></tr>')  # fmt: skip
 
 
@@ -643,7 +704,7 @@ def model_html(rung):
     none)."""
     rows = "".join(row_html(r, rung) for r in rung["rows"])
     rid = e(rung["id"])
-    return (f'<table class="lad" id="{rid}" aria-labelledby="h-{rid}">{COLS}{sr_head()}'
+    return (f'<table class="lad" id="{rid}" aria-labelledby="h-{rid}">{cols()}{sr_head()}'
             f"<tbody>{divider_html(rung)}{rows}</tbody></table>")  # fmt: skip
 
 
@@ -791,7 +852,7 @@ def build_index():
 {header("home")}
 <main id="main" class="home">
   <section class="mast"><div class="mast-in">{band_html()}</div></section>
-  <div class="wrap ladder">{board}</div>
+  <div class="wrap ladder{" two" if further() else ""}">{board}</div>
   <div class="wrap">{not_run_html()}{partners}</div>
 </main>
 {footer()}"""

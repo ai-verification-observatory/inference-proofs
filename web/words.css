@@ -698,6 +698,87 @@ a.fig.fp:hover .n { text-decoration: underline; text-decoration-thickness: 1px; 
   .lad .sub { font-size: 12px; line-height: 16px; }
   .lad .na { display: block; font-size: 12px; line-height: 15px; }
 }
+/* a board built by the further-reply rule (RFC-0018 CO-9, Q55): two multiples a row, the total and the proving part,
+   both at the headline's size; under the total its proved rate, under the proving part the replies one proof covers */
+.lad .bat { display: block; margin-top: 7px; font: 400 12px/16px var(--mono); color: var(--muted); white-space: nowrap; }
+.lad .nsp { font: 600 14px/28px var(--mono); }
+@media (min-width: 761px) {
+  .ladder.two col.c4 { width: 236px; }
+  .ladder.two col.c5 { width: 204px; }
+  .lad .cv .fig .n { font: 600 30px/28px var(--mono); letter-spacing: -.04em; }
+  .lad .cv .fig .u.x { font-size: 18px; }
+}
+@media (min-width: 1181px) {
+  .ladder.two:has(.csys:not(.placed)) col.c4 { width: 220px; }
+}
+@media (max-width: 1320px) and (min-width: 761px) {
+  .ladder.two col.c4 { width: 216px; }
+  .ladder.two col.c5 { width: 184px; }
+  .lad .cv .fig .n { font-size: 28px; line-height: 26px; }
+}
+@media (max-width: 1320px) and (min-width: 761px) {
+  .ladder.two .lht :is(th, td) { white-space: normal; }
+}
+/* a narrower window: the proved rate's unit and the replies a proof covers under their numbers, so the two
+   multiples' columns keep their words apart */
+@media (max-width: 1180px) and (min-width: 761px) {
+  .ladder.two col.c3 { width: 190px; }
+  .ladder.two col.c4 { width: 170px; }
+  .ladder.two col.c5 { width: 160px; }
+  .lad .cv .fig .n { font-size: 26px; line-height: 25px; }
+  .ladder.two .lad .rts { white-space: normal; }
+  .ladder.two .lad .rts .ru { display: block; }
+  .lad .bat { white-space: normal; }
+  .lad .nsp { line-height: 18px; }
+}
+@media (max-width: 1060px) and (min-width: 761px) {
+  .ladder.two col.c3 { width: 170px; }
+  .ladder.two col.c4 { width: 136px; }
+  .ladder.two col.c5 { width: 112px; }
+  .lad .cv .fig .n { font-size: 22px; line-height: 22px; }
+  .lad .cv .fig .u.x { font-size: 15px; }
+  .ladder.two .lad :is(.cc, .ct) .fig { flex-wrap: wrap; }
+  .ladder.two .lad :is(.cc, .ct) .fig .u { flex-basis: 100%; margin-top: 4px; }
+}
+/* a phone: the proving part opens the list under the row, at a step under the total's size, the replies one
+   proof covers under it at the line's end */
+@media (max-width: 760px) {
+  .ladder.two .lad .cv { grid-row: 3; margin-top: 14px; }
+  .ladder.two .lad .cc { grid-row: 4; margin-top: 0; }
+  .ladder.two .lad .ct { grid-row: 5; }
+  .ladder.two .lad .ck { grid-row: 6; }
+  .lad .cv { grid-column: 1 / -1; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 12px; min-height: 32px; padding: 7px 0; box-shadow: inset 0 1px 0 var(--line); }
+  .lad .cv .lbl { display: block; margin: 0; font: 400 12px/16px var(--mono); color: var(--muted); white-space: nowrap; }
+  .lad .cv .lbl a { color: var(--muted); }
+  .lad .cv .fig .n { font: 600 20px/22px var(--mono); letter-spacing: -.03em; }
+  .lad .cv .fig .u.x { font-size: 14px; }
+  .lad .cv .cmx { flex-basis: 100%; text-align: right; }
+  .lad .cv .bat { margin-top: 2px; }
+  .lad .cv .nsp { line-height: 18px; }
+}
+/* the system page's band: the two multiples side by side, each under its name, what they counted once under both */
+.sbm.two { display: grid; grid-template-columns: auto auto; column-gap: 48px; max-width: none; }
+.sbm.two > .sbx { display: flex; flex-direction: column; align-items: flex-end; }
+.sbm.two > .sub { grid-column: 1 / -1; justify-self: end; }
+.sbm.two .bat { display: block; margin-top: var(--s4); font: 400 12px/18px var(--mono); }
+.sbm.two .nsp { font-size: 24px; line-height: 1; }
+@media (max-width: 860px) {
+  .sbm.two { justify-content: start; align-items: start; }
+  .sbm.two > .sbx { align-items: flex-start; }
+  .sbm.two .rts { margin-left: 0; }
+  .sbm.two > .sub { justify-self: start; }
+}
+@media (max-width: 560px) {
+  .sysb .sbm.two { display: grid; grid-template-columns: auto auto; column-gap: 28px; row-gap: 8px; }
+  .sysb .sbm.two .sbl { margin-bottom: 6px; }
+  .sysb .sbm.two .fig .n { font-size: 34px; }
+  .sysb .sbm.two .fig .u.x { font-size: 20px; }
+}
+/* the Cost block's sentence on the two routes the pair reads for, and the one-time work's mark */
+.cmn { margin-top: var(--s4); max-width: 72ch; font: var(--f-meta); color: var(--muted); }
+.otm { display: block; margin-top: var(--s3); font: 400 12px/18px var(--mono); color: var(--muted); }
+.tiles .otm .fig .n { font-size: 14px; letter-spacing: 0; color: var(--paper); }
+.tiles .otm .fig .u { font-size: 12px; }
 /* the five tabs keep to a phone's window: each takes its word's width and a share of what is left, and the
    room beside a word and between its letters steps down with the window */
 @media (max-width: 760px) {

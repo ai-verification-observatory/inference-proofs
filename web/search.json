@@ -623,6 +623,16 @@
     {
       "group": "Glossary",
       "kind": "term",
+      "meta": "The GPU time one more proved reply takes once the one-time work is done: from the start of the prove call to the last reply's proof, generation included, summed over the counted sessions and divided by their replies.",
+      "name": "Further reply",
+      "pie": "",
+      "terms": "further reply the gpu time one more proved reply takes once the one-time work is done: from the start of the prove call to the last reply's proof, generation included, summed over the counted sessions and divided by their replies.",
+      "tier": 4.2,
+      "url": "/glossary#further-reply"
+    },
+    {
+      "group": "Glossary",
+      "kind": "term",
       "meta": "Generation is the separate phase of a session in which the system's own model produces the replies before proving them, for systems that separate generation from proving.",
       "name": "Generation",
       "pie": "",
@@ -923,6 +933,16 @@
     {
       "group": "Glossary",
       "kind": "term",
+      "meta": "Work a system does once, whatever the request, that every later reply reuses: committing to the weights, and a setup run a session reuses.",
+      "name": "One-time work",
+      "pie": "",
+      "terms": "one-time work work a system does once, whatever the request, that every later reply reuses: committing to the weights, and a setup run a session reuses.",
+      "tier": 4.2,
+      "url": "/glossary#one-time-work"
+    },
+    {
+      "group": "Glossary",
+      "kind": "term",
       "meta": "The organisation that serves a model and generates proofs for it, such as an AI lab or API provider.",
       "name": "Operator",
       "pie": "",
@@ -1039,6 +1059,16 @@
       "terms": "prover the software that generates a proof (and, by extension, the party running it).",
       "tier": 4.2,
       "url": "/glossary#prover"
+    },
+    {
+      "group": "Glossary",
+      "kind": "term",
+      "meta": "The proving part of a further reply (the further reply less its generation) divided by the serving baseline.",
+      "name": "Proving vs serving",
+      "pie": "",
+      "terms": "proving vs serving the proving part of a further reply (the further reply less its generation) divided by the serving baseline.",
+      "tier": 4.2,
+      "url": "/glossary#proving-vs-serving"
     },
     {
       "group": "Glossary",

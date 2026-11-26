@@ -665,13 +665,15 @@ SCOPE_LINK = "the scope table further down this page ↓"
 # steady.tolerance), 1 (baseline.ladder's first rung), 64 and 512 (kl.texts, kl.tokens) are typed
 # as the level's. "fidelity-figure" is the figure the ladder prints as Fidelity (SI-9); "fidelity"
 # is the check's anchor.
-FIGURE_NAME = {"multiple": "Cost vs serving", "cost": "Cost per reply", "rate": "Tokens per second",
+FIGURE_NAME = {"multiple": "Cost vs serving", "proving": "Proving vs serving",
+               "one-time": "One-time work", "cost": "Cost per reply", "rate": "Tokens per second",
                "check-time": "Verify time per reply", "proof-size": "Proof size per reply",
                "fidelity-figure": "Fidelity figure", "kl": "KL to the original weights"}  # fmt: skip
 # a figure's head where its unit stands beside it: the unit says "per reply", so the head does
 # not; and the surface names fidelity, not the metric (KL and the matched tokens' bar are under
 # Fidelity on a system's page)
-FIGURE_HEAD = {"multiple": "Cost vs serving", "cost": "Cost", "check-time": "Verify time",
+FIGURE_HEAD = {"multiple": "Cost vs serving", "proving": "Proving vs serving",
+               "one-time": "One-time work", "cost": "Cost", "check-time": "Verify time",
                "proof-size": "Proof size", "fidelity": "Fidelity", "serving": "Serving",
                "rate": "Tokens per second"}  # fmt: skip
 # where a head links on the checks page, where its anchor is not its key: the Fidelity figure has
@@ -682,6 +684,9 @@ FIGURE_ANCHOR = {"fidelity": "fidelity-figure"}
 FIGURE_ASK = {"multiple": "What does proving cost?", "proof-size": "How big is the proof?",
               "check-time": "How long to check a proof?",
               "fidelity": "Same as the original model?"}  # fmt: skip
+# the same for a board built by the further-reply rule (RFC-0018 CO-9, Q55): the two multiples
+FIGURE_ASK_FURTHER = {"multiple": "What does a proved reply cost, writing it included?",
+                      "proving": "What does the proof cost once the reply is written?"}  # fmt: skip
 # the ladder's columns before the figures, named for a screen reader only: the eye reads them from
 # the square, the glyph and the name (Q54)
 LADDER_COLS = ("Position", "Criteria", "System")
@@ -695,6 +700,14 @@ HOW_MULTIPLE = {
     "multiple": "Cost vs serving divides the GPU-seconds each further proved reply took in steady "
     "state (generation included) by the GPU-seconds serving the same reply took with no proof, "
     "at full load, {on}, at the same GPU price on both sides.",
+    # CO-9 (adopted 2026-11-26, Q55): every release after v1.0
+    "further_reply_multiple": "Cost vs serving divides the GPU-seconds a further proved reply "
+    "takes (from the start of the prove call to the last reply, generation included, the "
+    "one-time work before it left out) by the GPU-seconds serving the same reply took with no "
+    "proof, at full load, {on}, at the same GPU price on both sides.",
+    "further_reply_proving_multiple": "Proving vs serving divides what a further reply costs "
+    "once its tokens exist (the further reply less its generation) by the GPU-seconds serving "
+    "the same reply took with no proof, at full load, {on}, at the same GPU price on both sides.",
 }
 HOW_ON = {True: "both on {gpu} GPUs", False: "proved on {gpu}, served on {serving}"}
 SERVING_GPU = "H200"  # CO-4: the serving baseline runs on the fewest H200 that hold the model
@@ -944,7 +957,8 @@ OVERVIEW_OFF = "Not on the plot, a figure missing"
 # names, and which way each figure is better, in words (the plot sets that end up and right)
 OVERVIEW_MODEL = "Model size"
 OVERVIEW_UP, OVERVIEW_ACROSS = "Up", "Across"
-OVERVIEW_BETTER = {"multiple": "cheaper to prove", "check-time": "faster to verify",
+OVERVIEW_BETTER = {"multiple": "cheaper to prove", "proving": "cheaper to prove",
+                   "check-time": "faster to verify",
                    "proof-size": "smaller proof", "fidelity": "closer to the model",
                    "model": "larger model"}  # fmt: skip
 # beside a row the plot leaves out on the axes picked (a figure missing there)
@@ -1130,6 +1144,66 @@ CHECK_DECIDE = {
     (None, "not reproduced"): ("running the same tampered input through the system's own command "
                                "outside our adapter", "us"),
 }  # fmt: skip
+# the figures' rules on a board built by the further-reply rule (RFC-0018 CO-9, Q55: every release
+# after v1.0): Cost vs serving is a further reply's, Proving vs serving its proving part, and the
+# one-time work stands apart; the other figures' rules are FIGURE_RULE's. 1 % (the adapter
+# phases' tolerance), 5 % and 19 (the one-time work's mark) are CO-9's
+# the two routes of use the pair of multiples reads for, said once at depth 3 (Cost) and in the
+# rule (CO-9)
+ROUTES = ("Letting the system write the reply costs about the total; serving with another "
+          "engine and proving afterwards costs about the proving part, a route no run of this "
+          "release measures.")  # fmt: skip
+FIGURE_RULE_FURTHER = {
+    "multiple": (
+        ("multiple", "A further proved reply's GPU time c divided by serving baseline b on the same "
+         "model. GPU time counts only the H200 GPUs allocated to the job, for as long as they are "
+         "held, never weighted by how busy they were."),
+        ("c", "GPU-seconds from the start of the prove call to the last reply's proof, summed "
+         "over {slots} sessions and divided by their replies: everything a reply needs once the "
+         "one-time work exists, generation included. Each session's own value gives the range."),
+        FIGURE_RULE["multiple"][2],
+        ("parts", "c splits into generation (the reply's tokens) and proving (the rest). "
+         "Generation comes from the system's own generation phase, or, for a system that "
+         "generates inside its prove call, from the phase its adapter reports as generation, "
+         "used only when the phases the adapter reports add up to the timed prove call within "
+         "1\u00a0%. Otherwise the row prints no proving figure and says why under Cost."),
+        ("routes", ROUTES),
+        ("order", "Rows with a steady state still rank by their steady GPU time per reply m; "
+         "rows without one compare by c."),
+    ),
+    "proving": (
+        ("", "The proving part of c (c less its generation) divided by b: what a reply costs "
+         "once its tokens exist. It depends on how many replies one proof covers, which each "
+         "row states."),
+    ),
+    "one-time": (
+        ("", "Work that depends only on the system's version, the model and the request shape, "
+         "never on a request, and that every later reply reuses: the commit call and the "
+         "handover up to the prove call, plus a setup run a session reuses. Printed once, in "
+         "GPU-hours, never divided by the replies."),
+        ("mark", "The fewest replies after which the one-time work is at most 5\u00a0% of the "
+         "total: 19 times the one-time work divided by c, rounded up."),
+    ),
+    "rate": (
+        ("", "The request's {reply_tokens} reply tokens divided by the GPU-seconds of one further "
+         "reply on a single GPU, reported in tokens/s per GPU with the GPU model named. The "
+         "served rate covers unproved serving at full load on the same GPU type. Dividing the "
+         "served rate by the proved rate equals Cost vs serving."),
+        *FIGURE_RULE["rate"][1:],
+    ),
+    "cost": (
+        ("further", "c converted to USD at the release's hourly H200 price; the one-time work "
+         "likewise, once."),
+    ),
+    **{k: v for k, v in FIGURE_RULE.items() if k not in ("multiple", "rate", "cost")},
+}  # fmt: skip
+
+
+def figure_rules(rule):
+    """The figures' rules the checks page prints, by the board's cost rule (Q55)."""
+    return FIGURE_RULE_FURTHER if rule == "further-reply" else FIGURE_RULE
+
+
 # the line that opens the not-decided causes (a check not decided is never worded as a failure;
 # the standing words are chrome.not_passed's)
 CHECK_CAUSE_LEAD = (
@@ -1140,7 +1214,7 @@ CHECK_CAUSE_LEAD = (
 )
 
 # ------------------------------------------------------------------ labels of a stored figure
-SCOPE_SHORT = {None: "", "prove.steady": "steady", "prove.session": "session",
+SCOPE_SHORT = {None: "", "prove.steady": "steady", "prove.session": "further reply",
                "whole_wall": "session", "verify": "verify", "commit": "commit",
                "setup": "setup", "verify.single_thread": "verify, one thread",
                "serving": "full load"}  # fmt: skip
@@ -1150,7 +1224,10 @@ SCOPE_WORD = {
     "setup": "setting up",
     "commit": "committing to the model",
     "prove.steady": "steady state, after the first release group",
-    "prove.session": "the whole session, from the start of the commit call to the last proof",
+    # CO-9 (Q55) is the one rule the site prints this scope for: RFC-0004's prove call start to
+    # the last proof, the one-time work before it left out
+    "prove.session": "a further reply, from the start of the prove call to the last proof, the "
+    "one-time work before it left out",
     "whole_wall": f"the whole session, {WHOLE_WALL_SPAN}",
     "verify": "verifying",
     "verify.single_thread": "verifying on one CPU thread",
@@ -1197,6 +1274,24 @@ M_HEAD = "Steady GPU time per reply"
 M_NAME, M_COL = "GPU time per reply after the first release group (m)", "Steady"
 # CO-5's label for a figure of the whole sessions, N the level's replies per session
 WHOLE_SESSIONS = "whole sessions of {n:,} replies"
+# CO-9 (adopted 2026-11-26, Q55): what a figure of a further reply counted, its glossary entry
+FURTHER = "further reply"
+FURTHER_TERM = "Further reply"
+# the replies one proof batch holds, under the proving multiple (CO-9: the proving part depends
+# on it)
+BATCH = {1: "1 reply per proof"}
+BATCH_MANY = "{n:,} replies per proof"
+# a proving multiple the board holds none for (no split, CO-9): its words at every depth; the
+# board's cause stands one step down, under Cost
+NOT_SPLIT = "not measured"
+# the Cost block of a further-reply board: the further reply's two parts, the one-time work and
+# its mark, the two routes the pair reads for (said once, at depth 3), the diagnostics
+FURTHER_PARTS_HEAD = "Further reply, in two parts"
+ONE_TIME_MARK = "at most 5\u00a0% of the total from"
+ADAPTER_SPLIT = "generation as the adapter reports it, its phases within {tol} of the prove call"
+NO_SPLIT = "not split"
+UTIL_HEAD = "Prove GPU utilisation"
+MEMORY_HEAD = "Prove peak GPU memory"
 STEADY_STATE = "steady state"  # under a steady multiple, before its sessions (CO-3)
 
 
@@ -1286,7 +1381,7 @@ def sig(v, d=4):
 # USD, times in seconds, sizes in MB), so two rows are compared by their numbers alone. Per request
 # reads per reply: the request is the level's one request, and its reply is what each proof covers
 # (RFC-0018)
-def number(v, unit):  # noqa: PLR0911 (one return per stored unit)
+def number(v, unit):  # noqa: PLR0911, PLR0912 (one return per stored unit)
     if unit == "ratio":
         return sig(v), "×"
     if unit == "gpu_s/request":
@@ -1305,6 +1400,16 @@ def number(v, unit):  # noqa: PLR0911 (one return per stored unit)
         return sig(v), "GPU-s/reply token"
     if unit == "request/gpu_s":  # CO-4: a rung of the serving ladder
         return sig(v), "replies/GPU-s"
+    if unit == "gpu_s":  # CO-9: the one-time work, once, in hours a reader counts in
+        return sig(v / 3600), "GPU-h"
+    if unit == "USD":  # CO-9: the one-time work's price
+        return sig(v), "USD"
+    if unit == "count":  # CO-9: the one count the site prints, the one-time work's 5 % mark
+        return f"{v:,.0f}", "replies"
+    if unit == "%":  # CO-9: the prove step's GPU utilisation, a diagnostic
+        return f"{v:.1f}", "%"
+    if unit == "MiB":  # CO-9: the prove step's peak GPU memory, in GB as a GPU's size is said
+        return sig(v * 1048576 / 1e9), "GB"
     if unit == "token/gpu_s":  # CO-8: 4 digits, every whole digit, so served over proved as
         # printed gives the printed multiple (amended 2026-11-16)
         return (f"{v:,.0f}" if abs(v) >= 1000 else sig(v, 4)), "tokens/s per GPU"

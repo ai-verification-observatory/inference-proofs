@@ -188,9 +188,13 @@ def session(  # noqa: PLR0913 (one keyword per recorded field a test varies)
     generation: tuple[float, float] | None = None,
     manifest_edit: Callable[[dict[str, Any]], None] | None = None,
     commit_end: float | None = None,
+    prove_start: float | None = None,
+    run_edit: Callable[[dict[str, Any]], None] | None = None,
 ) -> Path:
     """One session's run directory; `groups` lists (release second, replies) per group,
-    requests numbered in release order, 1 ms apart inside a group."""
+    requests numbered in release order, 1 ms apart inside a group. `prove_start` adds the
+    `prove.start` event (RFC-0018 CO-9 times a further reply from it); `run_edit` edits run.json
+    before it is written (adapter phases, a reused setup)."""
     run_id = f"2026-12-{day:02d}-{system}-{workload}-prover-h200-hosted-{k}"
     path = tree.run_dir(system, run_id)
     path.mkdir(parents=True)
@@ -206,7 +210,9 @@ def session(  # noqa: PLR0913 (one keyword per recorded field a test varies)
            "status": "failed" if failure else "completed", "failure": failure,
            "events": [{"event": "commit.start", "mono_ns": int(commit_start * NS)},
                       *([] if commit_end is None else
-                        [{"event": "commit.end", "mono_ns": int(commit_end * NS)}])],
+                        [{"event": "commit.end", "mono_ns": int(commit_end * NS)}]),
+                      *([] if prove_start is None else
+                        [{"event": "prove.start", "mono_ns": int(prove_start * NS)}])],
            "proofs": [] if failure else proofs,
            "metrics": {"verify_seconds_per_request": metric}}  # fmt: skip
     if generation is not None:
@@ -231,6 +237,8 @@ def session(  # noqa: PLR0913 (one keyword per recorded field a test varies)
                           "upstream": {"repo": "example/prover", "commit": "a" * 40}}  # fmt: skip
     if manifest_edit is not None:
         manifest_edit(manifest)
+    if run_edit is not None:
+        run_edit(run)
     (path / "run.json").write_text(json.dumps(run))
     (path / "manifest.json").write_text(json.dumps(manifest))
     if control_doc is not None:

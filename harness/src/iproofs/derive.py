@@ -3,6 +3,7 @@
 INV-ARCH-5: every function here is pure: no clock, no file writes, no network.
 """
 
+import math
 import statistics
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -556,6 +557,25 @@ FORMULAS = {
     "baseline's GPU-seconds per reply at full load (CO-4)",
     "D-L1-MULTIPLE": "CO-5: row GPU-seconds per reply / baseline GPU-seconds per reply",
     "D-L1-USD": "GPU-seconds per reply * price per GPU-hour / 3600",
+    # RFC-0018 CO-9 (adopted 2026-11-26, Q55): the cost of a further reply and the one-time work
+    "D-L1-FURTHER": "CO-9: sum over counted sessions of (r_N - prove.start) * gpus / sum of "
+    "their N (pooled); range over each session's own value",
+    "D-L1-FURTHER-GENERATION": "CO-9: sum over counted sessions of the generation phase's "
+    "GPU-seconds (between the AD-4 marks) / sum of their N",
+    "D-L1-FURTHER-GENERATION-ADAPTER": "CO-9: sum over counted sessions of the adapter-reported "
+    "generation phase (adapter_phases.prove.<phase>, source adapter) * gpus / sum of their N; "
+    "only when each session's reported prove phases sum to its harness-timed prove call within "
+    "the tolerance",
+    "D-L1-FURTHER-PROVING": "CO-9: D-L1-FURTHER - D-L1-FURTHER-GENERATION, pooled the same way",
+    "D-L1-FURTHER-PROVING-ADAPTER": "CO-9: D-L1-FURTHER - D-L1-FURTHER-GENERATION-ADAPTER, "
+    "pooled the same way",
+    "D-L1-FURTHER-TOKENS": "CO-8 (amended 2026-11-26, Q55): the request's output_tokens / "
+    "D-L1-FURTHER; range output_tokens / the largest and / the smallest session value",
+    "D-L1-ONE-TIME": "CO-9: mean over counted sessions of (prove.start - commit.start) * gpus, "
+    "plus, for a session that reused a setup, the setup record's gpu_seconds and the restore's "
+    "seconds * gpus",
+    "D-L1-ONE-TIME-MARK": "CO-9: ceil(19 * D-L1-ONE-TIME / D-L1-FURTHER), the fewest replies "
+    "at which the one-time work is at most 5 % of the total",
 }
 
 
@@ -933,6 +953,88 @@ def reply_tokens_per_gpu_second(per_reply: Sequence[float], tokens: int) -> Repl
                            "per reply and a request with reply tokens")  # fmt: skip
     return ReplyTokenRate(tokens / statistics.mean(per_reply), tokens / max(per_reply),
                           tokens / min(per_reply), len(per_reply))  # fmt: skip
+
+
+@dataclass(frozen=True)
+class Pooled:
+    """A cost pooled over counted sessions (CO-9): the sessions' summed GPU-seconds over their
+    summed replies, with each session's own per-reply value for the range and n."""
+
+    value: float
+    low: float
+    high: float
+    median: float
+    n: int
+
+
+def pooled_per_reply(sessions: Sequence[tuple[float, int]]) -> Pooled:
+    """CO-9 (adopted 2026-11-26): `sessions` holds (GPU-seconds, replies) per counted session.
+    The figure sums the costs before dividing (a cost of the pool, never a mean of ratios); the
+    range and the median are over each session's own GPU-seconds over its replies."""
+    if not sessions or any(r < 1 or s < 0 for s, r in sessions):
+        raise IProofsError(ErrorKind.INTERNAL, "CO-9 pools sessions of at least one reply and "
+                           "no negative GPU time")  # fmt: skip
+    own = [s / r for s, r in sessions]
+    total = sum(s for s, _ in sessions) / sum(r for _, r in sessions)
+    return Pooled(total, min(own), max(own), statistics.median(own), len(sessions))
+
+
+def further_reply_gpu_seconds(prove_start_ns: int, times_ns: Sequence[int], gpus: int) -> float:
+    """CO-9: the GPU-seconds a session held from the start of `prove` to the release of its
+    last reply, the work every reply needs once the one-time work exists (generation included
+    wherever it happens). Not yet divided by the session's replies: `pooled_per_reply` does."""
+    if not times_ns or max(times_ns) < prove_start_ns:
+        raise IProofsError(ErrorKind.INTERNAL, "CO-9 over a session with no reply released "
+                           "after prove started")  # fmt: skip
+    return (max(times_ns) - prove_start_ns) / 1e9 * gpus
+
+
+def one_time_gpu_seconds(
+    commit_start_ns: int,
+    prove_start_ns: int,
+    gpus: int,
+    setup_gpu_seconds: float | None = None,
+    restore_seconds: float | None = None,
+) -> float:
+    """CO-9: the one-time work a session's replies reuse: the GPU-seconds from the start of
+    `commit` to the start of `prove` (the commit call, and the harness taking its files), plus,
+    for a session that reused a setup, the setup run's own GPU-seconds and the restore of its
+    state (`restore_seconds` x gpus)."""
+    if prove_start_ns < commit_start_ns:
+        raise IProofsError(ErrorKind.INTERNAL, "CO-9: prove started before commit")
+    spent = (prove_start_ns - commit_start_ns) / 1e9 * gpus
+    return spent + (setup_gpu_seconds or 0.0) + (restore_seconds or 0.0) * gpus
+
+
+# CO-9: the one-time work's mark is the fewest replies after which it is at most 5 % of the
+# total, F / (F + N c) <= 0.05, so N >= 19 F / c with 19 = (1 - 0.05) / 0.05 (an integer here,
+# never the float quotient)
+ONE_TIME_SHARE_PERCENT = 5
+ONE_TIME_MARK_FACTOR = (100 - ONE_TIME_SHARE_PERCENT) // ONE_TIME_SHARE_PERCENT
+
+
+def one_time_mark(one_time: float, further_reply: float) -> int:
+    """CO-9: ceil(19 x F / c), the replies after which the one-time work F is at most 5 % of
+    the total, with c the cost of a further reply."""
+    if one_time < 0 or further_reply <= 0:
+        raise IProofsError(ErrorKind.INTERNAL, "CO-9's mark needs a positive cost per reply")
+    return math.ceil(ONE_TIME_MARK_FACTOR * one_time / further_reply)
+
+
+# CO-9: a system with no AD-4 phase of its own splits its further reply by the phases its
+# adapter reports, only when the prove phases it reports sum to the harness-timed prove call
+# within this share of the call
+ADAPTER_PHASE_TOLERANCE = 0.01
+
+
+def phases_within(phases: Mapping[str, float], call_seconds: float,
+                  tolerance: float = ADAPTER_PHASE_TOLERANCE) -> bool:  # fmt: skip
+    """CO-9: whether an adapter's reported prove phases sum to the harness-timed prove call
+    within `tolerance` of the call, the condition under which the board splits a further
+    reply by them."""
+    if call_seconds <= 0 or not phases:
+        return False
+    return abs(sum(phases.values()) - call_seconds) <= tolerance * call_seconds
 
 
 def served_reply_tokens_per_gpu_second(tokens: int, gpu_seconds_per_reply: float) -> float:

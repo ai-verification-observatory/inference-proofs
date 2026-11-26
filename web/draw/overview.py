@@ -30,11 +30,13 @@ from . import state as S
 from .chrome import (
     OVERVIEW_PAGE,
     footer,
+    further,
     has,
     header,
     lead_figure,
     not_passed,
     page,
+    proving_figure,
 )
 from .hexagon import glyph_svg
 from .ladder import (
@@ -69,7 +71,8 @@ from .words import (
 
 # every figure a plot can draw, in the pickers' order: its stored unit and the end it is better
 # at; the pair drawn when the address names none
-DIMS = {"multiple": ("ratio", "low"), "check-time": ("s/request", "low"),
+DIMS = {"multiple": ("ratio", "low"), "proving": ("ratio", "low"),
+        "check-time": ("s/request", "low"),
         "proof-size": ("B/request", "low"), "fidelity": ("percent", "high"),
         "model": ("parameters", "high")}  # fmt: skip
 X0, Y0 = "multiple", "check-time"
@@ -124,6 +127,8 @@ def figure_of(row, dim):
     at the whole sessions' scope wherever the row has it: `lead_figure`)."""
     if dim == "multiple":
         return lead_figure(row)[1]
+    if dim == "proving":  # CO-9 (Q55): on a board built by the further-reply rule only
+        return proving_figure(row)
     return row["figures"]["verify_seconds_per_reply" if dim == "check-time"
                           else "proof_bytes_per_reply"]  # fmt: skip
 
@@ -153,7 +158,7 @@ def log_steps(dim):
     if dim == "check-time":
         return [(0.01, "0.01 s"), (0.1, "0.1 s"), (1, "1 s"), (10, "10 s"), (60, "1 min"),
                 (600, "10 min"), (3600, "1 h"), (36000, "10 h"), (360000, "100 h")]  # fmt: skip
-    if dim == "multiple":
+    if dim in ("multiple", "proving"):
         return [(1, f"1× {SCALE_SERVING.lower()}")] + [(10**k, f"{10**k:,}×") for k in range(1, 9)]
     if dim == "proof-size":
         return [(10**k, f"{10**k:,} MB" if k >= 0 else f"{10**k:.{-k}f} MB") for k in range(-3, 7)]
@@ -179,7 +184,7 @@ def axis_of(dim, vals):
         steps = log_steps(dim)
         low = [s for s in steps if s[0] <= min(vals) / PAD] or steps[:1]
         high = [s for s in steps if s[0] >= max(vals) * PAD] or steps[-1:]
-        lo, hi = (1 if dim == "multiple" else low[-1][0]), high[0][0]
+        lo, hi = (1 if dim in ("multiple", "proving") else low[-1][0]), high[0][0]
         if hi <= lo:
             hi = next(s for s, _ in steps if s > lo)
         span = [s for s in steps if lo <= s[0] <= hi]
@@ -249,7 +254,7 @@ def grid_svg(dim, axis, side):
     place, 1×, is drawn in the frame's ink: the end every cost is read against."""
     out = []
     for f, words in axis["ticks"]:
-        goal = ' class="goal"' if dim == "multiple" and words.startswith("1×") else ""
+        goal = ' class="goal"' if dim in ("multiple", "proving") and words.startswith("1×") else ""
         if side == "x":
             out.append(f'<line{goal} x1="{pc(100 * f)}" x2="{pc(100 * f)}" y1="0" y2="100%"/>')
         else:
@@ -426,5 +431,6 @@ def build_overview():
 def overview_words():
     """The overview page in a line (its description and its search line): its figures' names in
     lower case."""
-    ups = ", ".join(head_of(d).lower() for d in DIMS if d != X0)
+    # the proving multiple is a figure of a further-reply board only (CO-9, Q55)
+    ups = ", ".join(head_of(d).lower() for d in DIMS if d != X0 and (d != "proving" or further()))
     return f"{OVERVIEW_LEAD}: {FIGURE_HEAD[X0].lower()} against {ups}."

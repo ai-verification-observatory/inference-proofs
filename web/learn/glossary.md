@@ -68,7 +68,7 @@ A control is a deliberately modified input (a negative control) that a working v
 
 ### Cost vs serving
 
-Cost vs serving is the ratio between the GPU time required to generate and prove one reply and the GPU time required to serve the same reply without a proof at full load on the same GPU type. Both sides use GPU-seconds per reply, with the proving side measured over [[whole session]]s (commit, generation, and proving), so GPU hourly price cancels out. See [the cost rule](/checks#multiple) for details.
+Cost vs serving is the ratio between the GPU time required to generate and prove one reply and the GPU time required to serve the same reply without a proof at full load on the same GPU type. Both sides use GPU-seconds per reply, with the proving side measured over [[whole session]]s (commit, generation, and proving) in v1.0 and over a [[further reply]] in later releases, so GPU hourly price cancels out. See [the cost rule](/checks#multiple) for details.
 
 ### Evidence: our runs only, not rerun by anyone else
 
@@ -113,6 +113,10 @@ Formally verified is the [glyph petal](/checks#machine_checked) tracking how muc
 ### FRI
 
 FRI (Fast Reed-Solomon Interactive Oracle Proof of Proximity) is a protocol for proving that committed values lie close to evaluations of a low-degree polynomial. Its authors [designed it](https://eccc.weizmann.ac.il/report/2017/134/) for proof systems that "require only public randomness for their setup".
+
+### Further reply
+
+The GPU time one more proved reply takes once the [[one-time work]] is done: from the start of the `prove` call to the last reply's proof, generation included, summed over the counted [[session]]s and divided by their replies. Releases after v1.0 print Cost vs serving over it, split into generation and [[proving vs serving|proving]] under Cost on a system page ([the cost rule](/checks#multiple)).
 
 ### Generation
 
@@ -234,6 +238,10 @@ A petal grade meaning the publisher's documentation at the pinned commit says no
 
 Whether the proved copy of a model computes with integers, fixed-point numbers (integers with a fixed scaling factor), or floating-point numbers, along with its average bits per weight.
 
+### One-time work
+
+Work a system does once, whatever the request, that every later reply reuses: committing to the weights, and a setup run a session reuses. From the release after v1.0 it is printed apart in GPU-hours, never divided by the replies, with the number of replies after which it is at most 5 % of the total ([the cost rule](/checks#multiple)).
+
 ### Operator
 
 The organisation that serves a model and generates proofs for it, such as an AI lab or API provider. [RFC-0018](repo:rfcs/0018-level-1-ladder.md) also uses the term for the team running this benchmark.
@@ -281,6 +289,10 @@ A statement is proved when acceptance by a [[soundness|sound]] verifier establis
 ### Prover
 
 The software that generates a proof (and, by extension, the party running it). The prover holds the [[witness]].
+
+### Proving vs serving
+
+The proving part of a [[further reply]] (the further reply less its generation) divided by the [[serving baseline]]. It reads what proving costs once the reply's tokens exist, and depends on how many replies one proof covers, which the row states. Printed beside Cost vs serving from the release after v1.0 ([the cost rule](/checks#multiple)).
 
 ### Publisher
 

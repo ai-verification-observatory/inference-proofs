@@ -14,12 +14,15 @@ from . import state as S
 from .inks import GROUND
 from .mark import lockup_svg
 from .words import (
+    BATCH,
+    BATCH_MANY,
     CAUSE_WORD,
     CHECK_NAME,
     FIGURE_HEAD,
     FIGURE_NAME,
     HOW_MULTIPLE,
     HOW_ON,
+    NOT_SPLIT,
     PART_WORD,
     PETAL_NAME,
     SERVING_GPU,
@@ -417,17 +420,50 @@ SPLITS = {"multiple": (("proving", "proving_multiple"), ("generation", "generati
                                ("generation", "session_generation_multiple"))}  # fmt: skip
 
 
+def further():
+    """Whether the board was built by the further-reply rule (RFC-0018 CO-9, Q55: every release
+    after v1.0): its rows print a further reply's two multiples, the total and the proving part."""
+    return S.V.get("cost_rule") == "further-reply"
+
+
 def lead_figure(row):
     """A row's one figure (CO-5, amended 2026-11-15): the whole sessions' multiple, named so in
     its label, on every row that has one, so the rows of a rung print one scope; else the steady
     multiple (or its null). The order rule still reads the steady multiple (OR-3): this changes
-    what is printed, never a position. Returns (label, figure, its key in the row's figures)."""
+    what is printed, never a position. On a board built by the further-reply rule (CO-9, Q55), a
+    further reply's total multiple on every row, the proving one beside it (`proving_figure`).
+    Returns (label, figure, its key in the row's figures)."""
     figs = row["figures"]
+    if further():
+        return FIGURE_NAME["multiple"], figs["further_reply_multiple"], "further_reply_multiple"
     if has(figs["session_multiple"]):
         n = rung_of(row)["requests_per_session"]
         return (f"{FIGURE_NAME['multiple']}, {WHOLE_SESSIONS.format(n=n)}",
                 figs["session_multiple"], "session_multiple")  # fmt: skip
     return FIGURE_NAME["multiple"], figs["multiple"], "multiple"
+
+
+def proving_figure(row):
+    """CO-9: the row's proving multiple, printed beside its total on every surface; None on a
+    board built by the whole-session rule."""
+    return row["figures"].get("further_reply_proving_multiple") if further() else None
+
+
+def not_split(row):
+    """CO-9: why a row prints no proving multiple, in the board's words ("no split: slots 1, 2,
+    3: ..."), for the title of its "not measured"."""
+    f = proving_figure(row) or {}
+    split = row.get("further_split") or {}
+    return f.get("note") or split.get("cause") or NOT_SPLIT
+
+
+def batch_words(row):
+    """CO-9: the replies one proof batch holds, in words ("24 replies per proof"); None where
+    the board does not say."""
+    n = (row.get("proving_batch") or {}).get("replies")
+    if not isinstance(n, int):
+        return None
+    return BATCH.get(n) or BATCH_MANY.format(n=n)
 
 
 def gpu_name(row):
@@ -437,10 +473,11 @@ def gpu_name(row):
     return " or ".join(seen) if seen else SERVING_GPU
 
 
-def how_computed(row):
+def how_computed(row, key=None):
     """The headline in one plain sentence (B5): what is divided by what, at which scope, on
-    which GPUs, at one GPU price, by the figure the row prints (`lead_figure`)."""
-    _, _, key = lead_figure(row)
+    which GPUs, at one GPU price, by the figure the row prints (`lead_figure`), or by `key` (the
+    proving multiple beside it, CO-9)."""
+    key = key or lead_figure(row)[2]
     gpu = gpu_name(row)
     on = HOW_ON[gpu == SERVING_GPU].format(gpu=gpu, serving=SERVING_GPU)
     return HOW_MULTIPLE[key].format(on=on)
@@ -453,15 +490,22 @@ def parts_of(row, key):
     return parts if parts and all(has(f) for _, f in parts) else []
 
 
+# CO-8: the proved rate whose quotient with the served rate is the printed multiple, by the
+# multiple's key (amended 2026-11-26, Q55: a further reply's on a board built by its rule)
+PROVED_RATE = {"session_multiple": "session_reply_tokens_per_gpu_second",
+               "further_reply_multiple": "further_reply_tokens_per_gpu_second"}  # fmt: skip
+
+
 def rate_pair(row):
     """The two rates the headline is made of (CO-8, amended 2026-11-16): the row's reply tokens
     per GPU-second over whole sessions and its model's serving baseline's, as (proved, served,
     proved GPU, served GPU); None where the row's figure is not the whole sessions' multiple or
     either rate is missing, so served over proved is always the multiple printed above it."""
-    proved = row["figures"].get("session_reply_tokens_per_gpu_second")
+    key = lead_figure(row)[2]
+    proved = row["figures"].get(PROVED_RATE.get(key, ""))
     b = rung_of(row)["baseline"] or {}
     served = b.get("reply_tokens_per_gpu_second")
-    if lead_figure(row)[2] != "session_multiple" or not (has(proved) and has(served)):
+    if not (has(proved) and has(served)):
         return None
     return proved, served, gpu_name(row), serving_gpu(b)
 
@@ -494,7 +538,11 @@ def lead_words(row):
     """The row's one figure in words: "Cost vs serving: 1,317×". Its two parts are not said here
     (CO-7, amended 2026-11-17: not every system times them apart, so they are no surface figure)."""
     _, f, _ = lead_figure(row)
-    return f"{FIGURE_HEAD['multiple']}: {fig_words(f)}"
+    said = f"{FIGURE_HEAD['multiple']}: {fig_words(f)}"
+    if further():  # CO-9: the proving multiple beside it, or that it is not measured
+        p = proving_figure(row)
+        said += f"; {FIGURE_HEAD['proving']}: {fig_words(p) if has(p) else NOT_SPLIT}"
+    return said
 
 
 def not_passed(row):

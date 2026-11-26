@@ -31,15 +31,23 @@ from iproofs.checks import (
     started_at,
 )
 from iproofs.derive import (
+    ADAPTER_PHASE_TOLERANCE,
     Input,
+    Pooled,
     QuantityTree,
     derived,
+    further_reply_gpu_seconds,
     generation_seconds,
     nonzero,
+    one_time_gpu_seconds,
+    one_time_mark,
+    phases_within,
+    pooled_per_reply,
     release_groups,
     reply_tokens_per_gpu_second,
     served_reply_tokens_per_gpu_second,
     session_per_reply,
+    statistic,
     steady_per_reply,
 )
 from iproofs.errors import ErrorKind, IProofsError
@@ -56,12 +64,44 @@ from iproofs.glyph import (
 )
 from iproofs.model import card_path
 from iproofs.proof_build import record_path
+from iproofs.provenance import file_digest
 from iproofs.quantity import Grade, NullReason, Scope, SourceKind, Tier, Unit
 from iproofs.release import RunView
 from iproofs.serialize import load_yaml
+from iproofs.setups import SETUP_RECORD, SETUPS, record_problems
 
 NO_SECURITY_LEVEL = "publisher states no security level"  # OR-2
 NO_LEVEL_STATEMENT = "publisher states no Level 1 statement"  # SI-4a
+
+# ---------------------------------------------------------------- the cost rule (CO-5, CO-9)
+
+# RFC-0018 Q55 (2026-11-26): which cost a release prints. `whole-session` is CO-5 as Q29
+# amended it, the rule v1.0 was published under; `further-reply` is CO-9, the cost of a further
+# reply with the one-time work apart, for every later release. A board built by CO-9 records it
+# in `cost_rule`; a board without the field was built by the whole-session rule.
+WHOLE_SESSION = "whole-session"
+FURTHER_REPLY = "further-reply"
+COST_RULES = (WHOLE_SESSION, FURTHER_REPLY)
+WHOLE_SESSION_RELEASES = frozenset({"v1.0"})
+
+# CO-9: the prove phase an adapter reports as the generation of a reply's tokens, for a system
+# with no generation phase of its own (AD-4). SASH: `ids`, the greedy continuation its integer
+# model decodes before the witness (systems/sash/README.md, `prove`; entrypoint, `ids`)
+GENERATION_PHASES = {"sash": "ids"}
+GENERATION_MARKS = "generation_marks"
+ADAPTER_PHASES = "adapter_phases"
+
+
+def cost_rule(release: str, override: str | None = None) -> str:
+    """Q55: the cost rule a release's board is built by: `override` when given (a preview),
+    else whole-session for the releases published under it, else further-reply."""
+    if override is not None:
+        if override not in COST_RULES:
+            raise IProofsError(ErrorKind.CONFIG, f"unknown cost rule {override!r}; "
+                               f"one of {', '.join(COST_RULES)}")  # fmt: skip
+        return override
+    return WHOLE_SESSION if release in WHOLE_SESSION_RELEASES else FURTHER_REPLY
+
 
 # ---------------------------------------------------------------- order rule (OR-1 to OR-6)
 
@@ -310,9 +350,10 @@ class SessionFigures:
     per_reply: float | None  # CO-1
     generation: float | None = None  # CO-3: the generation phase's GPU-seconds over N
     commit: float | None = None  # CO-7: the `commit` call's GPU-seconds over N
+    further: "Further | None" = None  # CO-9
 
-    def tree(self) -> dict[str, object]:
-        return {
+    def tree(self, rule: str = WHOLE_SESSION) -> dict[str, object]:
+        out: dict[str, object] = {
             "slot": self.session.slot,
             "run_id": self.session.run_id,
             "gpus": self.gpus,
@@ -323,9 +364,144 @@ class SessionFigures:
             "steady": self.m is not None,
             "cause": self.cause,
         }
+        if rule == FURTHER_REPLY:  # CO-9: each session's own figures, per reply and once
+            f = self.further
+            out["further_reply"] = f.per_reply if f else None
+            out["further_reply_generation"] = f.generation_per_reply if f else None
+            out["one_time"] = f.one_time if f else None
+        return out
 
 
-def session_figures(s: Session, n: int, level: object) -> SessionFigures:
+@dataclass(frozen=True, slots=True)
+class Further:
+    """CO-9 for one session: the GPU-seconds from the start of `prove` to its last reply
+    (`gpu_seconds`, over `replies`), the generation inside them and where that figure comes from
+    (`split`: the AD-4 marks, or the adapter's reported phases once they sum to the prove call),
+    and the one-time work before `prove`. A None says the record cannot give the figure; `cause`
+    says why for the split, `one_time_cause` for the one-time work."""
+
+    gpu_seconds: float | None
+    replies: int
+    generation: float | None
+    split: str | None
+    cause: str | None
+    check: dict[str, object] | None  # the adapter phases' sum against the prove call
+    one_time: float | None
+    one_time_cause: str | None
+    setup: dict[str, object] | None  # the setup a session reused: its record and GPU-seconds
+
+    @property
+    def per_reply(self) -> float | None:
+        if self.gpu_seconds is None or self.replies < 1:
+            return None
+        return self.gpu_seconds / self.replies
+
+    @property
+    def generation_per_reply(self) -> float | None:
+        if self.generation is None or self.replies < 1:
+            return None
+        return self.generation / self.replies
+
+
+def _setup_of(run: RunView, root: Path | None) -> tuple[dict[str, object] | None, str | None]:
+    """CO-9: the setup a session reused (run.json `setup`), its record read from
+    `<results>/<release>/<system>/_setups/<setup id>/setup.json` beside the session and checked
+    against the digest the session recorded; (block, None), or (None, why) when the record is
+    not stored. A record whose digest is not the one the session names stops the board."""
+    ref = run.run.get("setup")
+    if not isinstance(ref, dict):
+        return None, None
+    path = run.path.parent / SETUPS / str(ref.get("setup_id")) / SETUP_RECORD
+    if not path.is_file():
+        return None, f"the setup record {ref.get('setup_id')} is not stored"
+    got = file_digest(path)
+    if got != ref.get("record_digest"):
+        raise IProofsError(ErrorKind.INTEGRITY, f"{path}: digest {got}; the session "
+                           f"{run.run_id} names {ref.get('record_digest')}")  # fmt: skip
+    doc = json.loads(path.read_text())
+    problems = record_problems(doc)
+    if problems:
+        raise IProofsError(ErrorKind.INTEGRITY, f"{path}: {problems[0]}")
+    spent = (doc.get("gpu_seconds") or {}).get("value")
+    if not isinstance(spent, int | float):
+        return None, f"the setup record {ref.get('setup_id')} holds no GPU-seconds"
+    restore = (ref.get("restore_seconds") or {}).get("value")
+    where = rel(root, path) if root is not None else path.as_posix()
+    return {"setup_id": str(ref.get("setup_id")), "record": where,
+            "gpu_seconds": float(spent),
+            "restore_seconds": float(restore) if isinstance(restore, int | float) else None,
+            }, None  # fmt: skip
+
+
+def _adapter_split(run: RunView, phase: str) -> tuple[float | None, str | None,
+                                                      dict[str, object] | None]:  # fmt: skip
+    """CO-9: the seconds the adapter reports for its generation phase `phase` of `prove`, once
+    the prove phases it reports sum to the harness-timed prove call within the tolerance:
+    (seconds, None, check); else (None, why, check or None)."""
+    found = run.get("run", "adapter_phases", "prove")
+    phases = {str(k): float(v["value"]) for k, v in found.items()
+              if isinstance(v, dict) and isinstance(v.get("value"), int | float)} \
+        if isinstance(found, dict) else {}  # fmt: skip
+    if phase not in phases:
+        return None, f"the adapter reports no {phase} phase of prove", None
+    call = run.get("run", "metrics", "prove_call_seconds", "value")
+    if not isinstance(call, int | float):
+        return None, "no harness-timed prove call", None
+    within = phases_within(phases, float(call))
+    check: dict[str, object] = {"run_id": run.run_id, "phases_seconds": sum(phases.values()),
+                                "prove_call_seconds": float(call), "within": within}  # fmt: skip
+    if not within:
+        return None, (f"the adapter's prove phases sum to {sum(phases.values()):.1f} s, the "
+                      f"prove call took {float(call):.1f} s"), check  # fmt: skip
+    return phases[phase], None, check
+
+
+def further_figures(s: Session, n: int, gpus: int | None, times: Sequence[int],
+                    phase_seconds: float | None, root: Path | None = None,
+                    mark_cause: str | None = None) -> Further:  # fmt: skip
+    """CO-9 for one session of a row of the rung's N = `n` replies released at `times`, on
+    `gpus` bound GPUs, whose AD-4 generation phase lasted `phase_seconds` (None without one)."""
+    prove = _event(s.run, "prove.start")
+    commit = _event(s.run, "commit.start")
+    spent = None if gpus is None or prove is None or not times \
+        else further_reply_gpu_seconds(prove, times, gpus)  # fmt: skip
+    generation: float | None = None
+    split: str | None = None
+    cause: str | None = None
+    check: dict[str, object] | None = None
+    phase = GENERATION_PHASES.get(str(s.run.run.get("system")))
+    if gpus is None:
+        cause = "no bound GPU recorded"
+    elif mark_cause is not None:
+        cause = mark_cause
+    elif phase_seconds is not None:
+        generation, split = phase_seconds * gpus, GENERATION_MARKS
+    elif phase is not None:
+        seconds, cause, check = _adapter_split(s.run, phase)
+        if seconds is not None:
+            generation, split = seconds * gpus, ADAPTER_PHASES
+    else:
+        cause = "no generation phase of its own and no generation phase its adapter reports"
+    setup, setup_cause = _setup_of(s.run, root)
+    reused = s.run.run.get("setup") is not None
+    one_time: float | None = None
+    one_cause: str | None = None
+    if gpus is None or prove is None or commit is None:
+        one_cause = "no commit or prove start recorded"
+    elif reused and setup is None:
+        one_cause = setup_cause
+    else:
+        made = setup.get("gpu_seconds") if setup else None
+        restore = setup.get("restore_seconds") if setup else None
+        one_time = one_time_gpu_seconds(
+            commit, prove, gpus,
+            float(made) if isinstance(made, int | float) else None,
+            float(restore) if isinstance(restore, int | float) else None,
+        )  # fmt: skip
+    return Further(spent, n, generation, split, cause, check, one_time, one_cause, setup)
+
+
+def session_figures(s: Session, n: int, level: object, root: Path | None = None) -> SessionFigures:
     times = reply_times(s.run)
     gpus = bound_gpus(s.run)
     gap = field_of(field_of(level, "steady"), "group_gap_s")
@@ -349,8 +525,9 @@ def session_figures(s: Session, n: int, level: object) -> SessionFigures:
     end = _event(s.run, "commit.end")
     spent = (None if gpus is None or commit is None or end is None or end < commit or n <= 0
              else (end - commit) / 1e9 * gpus / n)  # fmt: skip
+    further = further_figures(s, n, gpus, times, phase, root, missing)
     return SessionFigures(s, gpus, tuple(g.size for g in groups), m, cause, per_reply, generation,
-                          spent)  # fmt: skip
+                          spent, further)  # fmt: skip
 
 
 # ---------------------------------------------------------------- level inputs
@@ -568,17 +745,25 @@ class _Row:
     petals: dict[str, Petal]
     relation: dict[str, object]  # SI-4a, `level_statement`
 
-    def summary(self, has_baseline: bool) -> RowSummary:
+    def summary(self, has_baseline: bool, rule: str = WHOLE_SESSION) -> RowSummary:
+        """What OR-3 reads. Without a steady state it compares the session cost per reply
+        (CO-1); under CO-9 (Q55) the cost of a further reply, pooled, in its place."""
         ms = [f.m for f in self.figures]
         steady = bool(ms) and all(m is not None for m in ms)
         cost = [f.per_reply for f in self.figures]
         full = bool(cost) and all(c is not None for c in cost)
+        mean = statistics.mean(c for c in cost if c is not None) if full else None
+        if rule == FURTHER_REPLY:
+            pooled = _pooled_of([f.further for f in self.figures])
+            cost = [f.further.per_reply if f.further else None for f in self.figures]
+            full = pooled is not None and all(c is not None for c in cost)
+            mean = pooled.value if pooled is not None and full else None
         return RowSummary(
             self.system, self.passed, self.stated,
             multiple=statistics.mean(m for m in ms if m is not None)
             if steady and has_baseline else None,
             m=tuple(m for m in ms if m is not None) if steady else (),
-            session_mean=statistics.mean(c for c in cost if c is not None) if full else None,
+            session_mean=mean,
             session=tuple(c for c in cost if c is not None) if full else (),
             relation=self.relation["stated"] is True,
         )  # fmt: skip
@@ -639,6 +824,219 @@ def _metric_stat(figures: Sequence[SessionFigures], metric: str, unit: Unit,
         return _quantity(None, unit, scope, formula, refs, NullReason.MISSING_INPUT)
     return _stat([float(v) for v in found if isinstance(v, int | float)], unit, scope, formula,
                  refs, NullReason.MISSING_INPUT)  # fmt: skip
+
+
+# ---------------------------------------------------------------- CO-9 on a row
+
+
+def _pooled_of(further: Sequence["Further | None"], part: str = "all") -> Pooled | None:
+    """CO-9: the pooled cost of the sessions' `part` (all of a further reply, its generation,
+    or the proving: all less generation), None when a session lacks it."""
+    pairs: list[tuple[float, int]] = []
+    for f in further:
+        if f is None:
+            return None
+        value = {"all": f.gpu_seconds, "generation": f.generation,
+                 "proving": None if f.gpu_seconds is None or f.generation is None
+                 else f.gpu_seconds - f.generation}[part]  # fmt: skip
+        if value is None or f.replies < 1:
+            return None
+        pairs.append((value, f.replies))
+    return pooled_per_reply(pairs) if pairs else None
+
+
+def _pooled_quantity(further: Sequence["Further | None"], part: str, unit: Unit, formula: str,
+                     inputs: Sequence[str], reason: NullReason,
+                     note: str | None) -> QuantityTree:  # fmt: skip
+    """CO-9: a pooled cost as a labelled quantity: the value is the sessions' summed GPU-seconds
+    over their summed replies, its range and median each session's own, n the sessions."""
+    found = _pooled_of(further, part)
+    if found is None:
+        return _quantity(None, unit, Scope.PROVE_SESSION, formula, inputs, reason, note)
+    out = _quantity(found.value, unit, Scope.PROVE_SESSION, formula, inputs, note=note)
+    out["stats"] = {"n": found.n, "n_failed": 0, "mean": found.value, "stdev": None,
+                    "min": found.low, "max": found.high, "median": found.median}  # fmt: skip
+    return out
+
+
+def _over_baseline(name: str, q: QuantityTree, baseline: Input) -> QuantityTree:
+    """CO-9: a pooled cost over the baseline's GPU-seconds per reply (D-L1-MULTIPLE), with the
+    cost's own range and n over the same baseline (the baseline is one run: no range)."""
+    out = _ratio("D-L1-MULTIPLE", Unit.RATIO, Scope.PROVE_SESSION, (name, q), baseline)
+    stats, base = q.get("stats"), (baseline[1] or {}).get("value")
+    if out["value"] is not None and isinstance(stats, dict) and isinstance(base, int | float):
+        out["stats"] = {"n": stats["n"], "n_failed": 0, "mean": out["value"], "stdev": None,
+                        "min": stats["min"] / base, "max": stats["max"] / base,
+                        "median": stats["median"] / base}  # fmt: skip
+    if q.get("note"):
+        out["note"] = q["note"]
+    return out
+
+
+def _further_tokens(q: QuantityTree, tokens: int, inputs: Sequence[str]) -> QuantityTree:
+    """CO-8 (amended 2026-11-26, Q55): the request's reply tokens over the cost of a further
+    reply (CO-9), with its range (the tokens over the largest and the smallest session) and n.
+    Over it the serving baseline's rate is the further reply's multiple."""
+    v, stats = q.get("value"), q.get("stats")
+    if not isinstance(v, int | float) or v <= 0 or not tokens or not isinstance(stats, dict):
+        return _quantity(None, Unit.TOKEN_PER_GPU_S, Scope.PROVE_SESSION, "D-L1-FURTHER-TOKENS",
+                         inputs, NullReason.MISSING_INPUT)  # fmt: skip
+    out = _quantity(tokens / v, Unit.TOKEN_PER_GPU_S, Scope.PROVE_SESSION, "D-L1-FURTHER-TOKENS",
+                    inputs)  # fmt: skip
+    out["stats"] = {"n": stats["n"], "n_failed": 0, "mean": tokens / v, "stdev": None,
+                    "min": tokens / stats["max"], "max": tokens / stats["min"]}  # fmt: skip
+    return out
+
+
+def _diagnostic(figures: Sequence[SessionFigures], metric: str, unit: Unit) -> QuantityTree:
+    """CO-9 (Q55, point 4): a harness-sampled figure of the prove step, over the counted
+    sessions (D-STAT): a diagnostic one step down, never a ladder figure."""
+    inputs: list[Input] = []
+    for f in figures:
+        q = (f.session.run.run.get("metrics") or {}).get(metric)  # type: ignore[attr-defined]
+        inputs.append((f"{f.session.path}/run.json#/metrics/{metric}",
+                       q if isinstance(q, dict) else None))  # fmt: skip
+    if not any(q is not None for _, q in inputs):
+        return _quantity(None, unit, None, "D-STAT", [ref for ref, _ in inputs],
+                         NullReason.MISSING_INPUT)  # fmt: skip
+    return statistic(inputs, [], __version__)
+
+
+def _by_slot(causes: Sequence[tuple[int | None, str | None]]) -> list[str]:
+    """Each cause once, with the slots it holds for ("slots 1, 2: ...")."""
+    slots: dict[str, list[str]] = {}
+    for slot, cause in causes:
+        if cause:
+            slots.setdefault(cause, []).append(str(slot))
+    return [f"slot{'s' if len(k) > 1 else ''} {', '.join(k)}: {c}" for c, k in slots.items()]
+
+
+def _split_block(figures: Sequence[SessionFigures]) -> dict[str, object]:
+    """CO-9: where the generation part of a further reply comes from, the same for every counted
+    session or none: the AD-4 marks, or the adapter's reported phases once each session's sum
+    to its harness-timed prove call within the tolerance; with each session's check."""
+    further = [f.further for f in figures]
+    splits = {f.split if f else None for f in further}
+    source = splits.pop() if len(splits) == 1 else None
+    causes = _by_slot([(g.session.slot, g.further.cause if g.further else None)
+                       for g in figures])  # fmt: skip
+    if source is None and not causes and len(splits) > 1:
+        causes = ["the counted sessions split their replies from different sources"]
+    phase = GENERATION_PHASES.get(str(figures[0].session.run.run.get("system"))) \
+        if figures and source == ADAPTER_PHASES else None  # fmt: skip
+    return {
+        "source": source,
+        "phase": phase,
+        "tolerance": ADAPTER_PHASE_TOLERANCE
+        if source == ADAPTER_PHASES or any(f is not None and f.check is not None for f in further)
+        else None,
+        "sessions": [f.check for f in further if f is not None and f.check is not None],
+        "cause": "; ".join(causes) if source is None and causes else None,
+    }
+
+
+def _further_fields(row: _Row, index: str, baseline: Input, price: Input, tokens: int,
+                    batch: int | None, workload: str) -> dict[str, object]:  # fmt: skip
+    """CO-9 (adopted 2026-11-26, Q55): the cost of a further reply and its two parts, both
+    multiples, the one-time work apart with its 5 % mark, the proved rate over the further
+    reply (CO-8 as Q55 amends it), the proving batch, and the prove step's diagnostics."""
+    figures = row.figures
+    further = [f.further for f in figures]
+    events = [f"{f.session.path}/run.json#/events" for f in figures]
+    proofs = [f"{f.session.path}/run.json#/proofs" for f in figures]
+    split = _split_block(figures)
+    adapter = split["source"] == ADAPTER_PHASES
+    phase = split["phase"]
+    if split["source"] == GENERATION_MARKS:
+        split_in = [f"{f.session.path}/run.json#/marks" for f in figures]
+        split_note = None
+    elif adapter:
+        split_in = [x for f in figures for x in (
+            f"{f.session.path}/run.json#/adapter_phases/prove/{phase}",
+            f"{f.session.path}/run.json#/adapter_phases/prove",
+            f"{f.session.path}/run.json#/metrics/prove_call_seconds")]  # fmt: skip
+        split_note = (f"generation as the adapter reports it (adapter_phases.prove.{phase}, "
+                      "source adapter, tier reported), its prove phases summing to the "
+                      "harness-timed prove call within "
+                      f"{ADAPTER_PHASE_TOLERANCE:.0%} in every session")  # fmt: skip
+    else:
+        split_in = [*events, *proofs]
+        split_note = f"no split: {split['cause']}" if split["cause"] else "no split"
+    total = _pooled_quantity(further, "all", Unit.GPU_S_PER_REQUEST, "D-L1-FURTHER",
+                             [*events, *proofs], NullReason.MISSING_INPUT,
+                             f"pooled over {len(figures)} sessions: their GPU-seconds from "
+                             "the start of prove to the last reply, over their replies",
+                             )  # fmt: skip
+    suffix = "-ADAPTER" if adapter else ""
+    generation = _pooled_quantity(further, "generation", Unit.GPU_S_PER_REQUEST,
+                                  f"D-L1-FURTHER-GENERATION{suffix}", split_in,
+                                  NullReason.NOT_APPLICABLE, split_note)  # fmt: skip
+    proving = _pooled_quantity(further, "proving", Unit.GPU_S_PER_REQUEST,
+                               f"D-L1-FURTHER-PROVING{suffix}", [*events, *proofs, *split_in],
+                               NullReason.NOT_APPLICABLE, split_note)  # fmt: skip
+    if split["source"] is None:  # the parts are null together
+        generation = _quantity(None, Unit.GPU_S_PER_REQUEST, Scope.PROVE_SESSION,
+                               "D-L1-FURTHER-GENERATION", split_in, NullReason.NOT_APPLICABLE,
+                               split_note)  # fmt: skip
+        proving = _quantity(None, Unit.GPU_S_PER_REQUEST, Scope.PROVE_SESSION,
+                            "D-L1-FURTHER-PROVING", split_in, NullReason.NOT_APPLICABLE,
+                            split_note)  # fmt: skip
+    total_ref = f"{index}/further_reply_gpu_seconds"
+    proving_ref = f"{index}/further_reply_proving_gpu_seconds"
+    # the one-time work: each session's own, from commit start to prove start, and the setup
+    setups = [f.setup for f in further if f is not None and f.setup is not None]
+    one_in = [*events, *[f"{f.session.path}/run.json#/setup" for f in figures
+                         if f.further is not None and f.further.setup is not None],
+              *sorted({str(s["record"]) + "#/gpu_seconds" for s in setups})]  # fmt: skip
+    one_causes = _by_slot([(g.session.slot, g.further.one_time_cause if g.further else None)
+                           for g in figures])  # fmt: skip
+    one_note = ("the commit call and the harness taking its files, from commit start to prove "
+                "start" + (", with the setup run's GPU-seconds and the restore of its state"
+                           if setups else ""))  # fmt: skip
+    one_time = _stat([f.one_time if f else None for f in further], Unit.GPU_S, Scope.COMMIT,
+                     "D-L1-ONE-TIME", one_in, NullReason.MISSING_INPUT,
+                     "; ".join(one_causes) if one_causes else one_note)  # fmt: skip
+    one_ref = f"{index}/one_time_gpu_seconds"
+    f_value, c_value = one_time.get("value"), total.get("value")
+    mark = _quantity(
+        one_time_mark(float(f_value), float(c_value))
+        if isinstance(f_value, int | float) and isinstance(c_value, int | float) and c_value > 0
+        else None,
+        Unit.COUNT, None, "D-L1-ONE-TIME-MARK", [one_ref, total_ref], NullReason.MISSING_INPUT,
+        "replies after which the one-time work is at most 5 % of the total",
+    )  # fmt: skip
+    return {
+        "further_reply_gpu_seconds": total,
+        "further_reply_generation_gpu_seconds": generation,
+        "further_reply_proving_gpu_seconds": proving,
+        "further_reply_split": split,
+        "further_reply_multiple": _over_baseline(total_ref, total, baseline),
+        "further_reply_proving_multiple": _over_baseline(proving_ref, proving, baseline),
+        "further_reply_tokens_per_gpu_second": _further_tokens(
+            total, tokens, [total_ref, "levels/L1.yaml#/request/output_tokens"]
+        ),
+        "further_reply_usd_per_reply": _usd(Scope.PROVE_SESSION, (total_ref, total), price),
+        "one_time_gpu_seconds": one_time,
+        "one_time_usd": derived(
+            "D-L1-USD",
+            __version__,
+            Unit.USD,
+            Scope.COMMIT,
+            [(one_ref, one_time), price],
+            lambda x: x[0] * x[1] / 3600,
+        ),
+        "one_time_mark_replies": mark,
+        "one_time_setups": [
+            {"setup_id": s["setup_id"], "record": s["record"], "gpu_seconds": s["gpu_seconds"]}
+            for s in {str(s["setup_id"]): s for s in setups}.values()
+        ],
+        "proving_batch": {
+            "replies": batch,
+            "source": f"workloads/{workload}.yaml#/shape/batch_size",
+        },
+        "prove_gpu_util_mean": _diagnostic(figures, "prove_gpu_util_mean", Unit.PERCENT),
+        "prove_gpu_memory_peak": _diagnostic(figures, "prove_gpu_memory_peak", Unit.MIB),
+    }
 
 
 def _row_tree(
@@ -777,6 +1175,19 @@ def _row_tree(
     }
 
 
+def _by_rule(out: dict[str, object], row: _Row, index: str, rule: str, root: Path,
+             baseline: Input, price: Input, tokens: int) -> dict[str, object]:  # fmt: skip
+    """The row's tree under the release's cost rule: unchanged under the whole-session rule;
+    under CO-9 (Q55) each session also gives its own further reply and one-time work, and the
+    row its CO-9 figures."""
+    if rule != FURTHER_REPLY:
+        return out
+    out["sessions"] = [f.tree(rule) for f in row.figures]
+    return out | _further_fields(
+        row, index, baseline, price, tokens, _batch_size(root, row.workload), row.workload
+    )
+
+
 # ---------------------------------------------------------------- the board
 
 
@@ -797,9 +1208,13 @@ def _with_steps(
     return fidelity_with_steps(doc, specs, slots, randomness, slots_cause)
 
 
-def build_board(root: Path, release: str, level: object) -> dict[str, object]:
+def build_board(  # noqa: PLR0915 (one statement per block of the board)
+    root: Path, release: str, level: object, rule: str | None = None
+) -> dict[str, object]:
     """RFC-0018 §The board file: the `board/1` tree of `release` under `level` (a level model,
-    its tree, or its id)."""
+    its tree, or its id), by the release's cost rule (Q55: `cost_rule`; `rule` overrides it, for
+    a preview)."""
+    rule = cost_rule(release, rule)
     level = _load_level(root, level)
     digest = level_digest(root, level)
     price_block, price = price_of(root, level)
@@ -857,13 +1272,13 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
             )
             rows.append(_Row(
                 system, str(workload), sessions,
-                [session_figures(s, n, level) for s in sessions.counted_in_order()],
+                [session_figures(s, n, level, root) for s in sessions.counted_in_order()],
                 {name: states[name].tree() for name in CHECKS},
                 all(states[name].state == HELD for name in CHECKS), security, stated, petals,
                 level_statement(props, commit),
             ))  # fmt: skip
         has_baseline = baseline[1] is not None and baseline[1].get("value") is not None
-        ordered = order([r.summary(has_baseline) for r in rows], float(margin))
+        ordered = order([r.summary(has_baseline, rule) for r in rows], float(margin))
         by_system = {r.system: r for r in rows}
         summaries.append(RungSummary(rung_id, int_of(rung, "parameters_total", 0),
                                      tuple(ordered)))  # fmt: skip
@@ -877,8 +1292,10 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
             "systems_run": len(rows),
             "baseline": baseline_block,
             "fidelity": fidelity_block,
-            "rows": [_row_tree(by_system[s.system], f"{base}/rows/{j}", p, baseline, price,
-                               fidelity_rows, n, reply_tokens)
+            "rows": [_by_rule(_row_tree(by_system[s.system], f"{base}/rows/{j}", p, baseline,
+                                        price, fidelity_rows, n, reply_tokens),
+                              by_system[s.system], f"{base}/rows/{j}", rule, root, baseline,
+                              price, reply_tokens)
                      for j, (s, p) in enumerate(ordered)],
         })  # fmt: skip
         teacher_forced = _teacher_forced(  # FI-16: each row's proved replies, from its sessions
@@ -887,7 +1304,7 @@ def build_board(root: Path, release: str, level: object) -> dict[str, object]:
         if teacher_forced is not None:  # SI-9: printed figures only; absent while not scored
             rungs_out[-1]["teacher_forced"] = teacher_forced
     request = field_of(level, "request")
-    return {
+    return ({"cost_rule": rule} if rule == FURTHER_REPLY else {}) | {
         "schema": "board/1",
         "level": level_id(level),
         "level_digest": digest,

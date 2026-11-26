@@ -1733,6 +1733,30 @@
               },
               "steady": {
                 "type": "boolean"
+              },
+              "further_reply": {
+                "$comment": "CO-9: this session's GPU-seconds from the start of prove to its last reply, over its replies",
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "further_reply_generation": {
+                "$comment": "CO-9: this session's generation part per reply, from the AD-4 marks or the adapter's reported phase",
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "one_time": {
+                "$comment": "CO-9: this session's one-time work in GPU-seconds (commit start to prove start, plus a reused setup's own and its restore)",
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
               }
             },
             "required": [
@@ -1778,6 +1802,171 @@
         },
         "workload": {
           "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+        },
+        "further_reply_gpu_seconds": {
+          "$comment": "CO-9 (Q55): the cost of a further reply, GPU-seconds held (bound GPUs x wall time) from the start of prove to the last reply, summed over the counted sessions and divided by their summed replies (pooled), scope prove.session; stats hold each session's own value (min, max, median) and n",
+          "$ref": "#/$defs/value"
+        },
+        "further_reply_generation_gpu_seconds": {
+          "$comment": "CO-9: the further reply's generation part, pooled the same way: the AD-4 phase (D-L1-FURTHER-GENERATION) or, for a system with no phase of its own, the generation phase its adapter reports once each session's reported prove phases sum to its harness-timed prove call within the tolerance (D-L1-FURTHER-GENERATION-ADAPTER, labelled in its note); null (not_applicable) with no split",
+          "$ref": "#/$defs/value"
+        },
+        "further_reply_proving_gpu_seconds": {
+          "$comment": "CO-9: the further reply less its generation part, everything a reply costs once its tokens exist; null with the generation part",
+          "$ref": "#/$defs/value"
+        },
+        "further_reply_split": {
+          "$comment": "CO-9: where the generation part comes from, the same for every counted session or none (source null, with the cause); the adapter phases' sum against the prove call per session, and the tolerance",
+          "additionalProperties": false,
+          "properties": {
+            "source": {
+              "enum": [
+                null,
+                "generation_marks",
+                "adapter_phases"
+              ]
+            },
+            "phase": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tolerance": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0
+            },
+            "sessions": {
+              "type": "array",
+              "items": {
+                "additionalProperties": false,
+                "type": "object",
+                "properties": {
+                  "run_id": {
+                    "$ref": "../quantity/1.schema.json#/$defs/runId"
+                  },
+                  "phases_seconds": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "prove_call_seconds": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "within": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "run_id",
+                  "phases_seconds",
+                  "prove_call_seconds",
+                  "within"
+                ]
+              }
+            },
+            "cause": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "source",
+            "phase",
+            "tolerance",
+            "sessions",
+            "cause"
+          ],
+          "type": "object"
+        },
+        "further_reply_multiple": {
+          "$comment": "CO-9: the further reply over the baseline's GPU-seconds per reply (D-L1-MULTIPLE), the total multiple the ladder prints; stats hold each session's own over the same baseline",
+          "$ref": "#/$defs/value"
+        },
+        "further_reply_proving_multiple": {
+          "$comment": "CO-9: the further reply's proving part over the baseline's GPU-seconds per reply, the proving multiple the ladder prints; null with the split",
+          "$ref": "#/$defs/value"
+        },
+        "further_reply_tokens_per_gpu_second": {
+          "$comment": "CO-8 (amended 2026-11-26, Q55): the request's reply tokens over the further reply, scope prove.session; the baseline's served rate over it is further_reply_multiple",
+          "$ref": "#/$defs/value"
+        },
+        "further_reply_usd_per_reply": {
+          "$comment": "CO-9: the further reply at the release's price per GPU-hour (Cost only)",
+          "$ref": "#/$defs/value"
+        },
+        "one_time_gpu_seconds": {
+          "$comment": "CO-9: the one-time work, never divided by N: per session the GPU-seconds from the start of commit to the start of prove, plus, for a session that reused a setup, the setup record's gpu_seconds and the restore of its state; mean over the counted sessions with range and n, unit gpu_s",
+          "$ref": "#/$defs/value"
+        },
+        "one_time_usd": {
+          "$comment": "CO-9: the one-time work at the release's price per GPU-hour (Cost only)",
+          "$ref": "#/$defs/value"
+        },
+        "one_time_mark_replies": {
+          "$comment": "CO-9: ceil(19 x one_time_gpu_seconds / further_reply_gpu_seconds), the fewest replies at which the one-time work is at most 5 % of the total, unit count",
+          "$ref": "#/$defs/value"
+        },
+        "one_time_setups": {
+          "$comment": "CO-9: each setup the counted sessions reused, by its record, with its own GPU-seconds (setup/1 gpu_seconds)",
+          "type": "array",
+          "items": {
+            "additionalProperties": false,
+            "type": "object",
+            "properties": {
+              "setup_id": {
+                "$ref": "../quantity/1.schema.json#/$defs/runId"
+              },
+              "record": {
+                "type": "string",
+                "minLength": 1
+              },
+              "gpu_seconds": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "setup_id",
+              "record",
+              "gpu_seconds"
+            ]
+          }
+        },
+        "proving_batch": {
+          "$comment": "CO-9: the replies one proof batch holds (the workload's shape.batch_size), which the proving part depends on",
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "replies": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 1
+            },
+            "source": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "replies",
+            "source"
+          ]
+        },
+        "prove_gpu_util_mean": {
+          "$comment": "CO-9 (Q55, point 4): the prove step's sampled GPU utilisation (run.json metrics prove_gpu_util_mean, %), D-STAT over the counted sessions: a diagnostic under Cost, never a ladder figure",
+          "$ref": "#/$defs/value"
+        },
+        "prove_gpu_memory_peak": {
+          "$comment": "CO-9 (Q55, point 4): the prove step's peak GPU memory (run.json metrics prove_gpu_memory_peak, MiB), D-STAT over the counted sessions: a diagnostic under Cost",
+          "$ref": "#/$defs/value"
         }
       },
       "required": [
@@ -2635,6 +2824,12 @@
   "additionalProperties": false,
   "description": "releases/<release>/board.json, written by `iproofs release board` from stored records only (RFC-0018 \u00a7The board file). Rungs in the level file's order; rows in the order rule's order (OR-5).",
   "properties": {
+    "cost_rule": {
+      "$comment": "RFC-0018 Q55, CO-9: present on a board built by the cost of a further reply (every release after v1.0); absent on a board built by the whole-session rule (CO-5 as Q29 amended it, v1.0)",
+      "enum": [
+        "further-reply"
+      ]
+    },
     "date": {
       "$comment": "the newest run date among the records read; null when nothing has run",
       "anyOf": [
@@ -2768,5 +2963,57 @@
     "rungs"
   ],
   "title": "Level board (RFC-0018 \u00a7The board file)",
-  "type": "object"
+  "type": "object",
+  "allOf": [
+    {
+      "$comment": "RFC-0018 Q55, CO-9: a board built by the cost of a further reply gives every row its CO-9 figures and every counted session its own",
+      "if": {
+        "required": [
+          "cost_rule"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rungs": {
+            "items": {
+              "properties": {
+                "rows": {
+                  "items": {
+                    "required": [
+                      "further_reply_gpu_seconds",
+                      "further_reply_generation_gpu_seconds",
+                      "further_reply_proving_gpu_seconds",
+                      "further_reply_split",
+                      "further_reply_multiple",
+                      "further_reply_proving_multiple",
+                      "further_reply_tokens_per_gpu_second",
+                      "further_reply_usd_per_reply",
+                      "one_time_gpu_seconds",
+                      "one_time_usd",
+                      "one_time_mark_replies",
+                      "one_time_setups",
+                      "proving_batch",
+                      "prove_gpu_util_mean",
+                      "prove_gpu_memory_peak"
+                    ],
+                    "properties": {
+                      "sessions": {
+                        "items": {
+                          "required": [
+                            "further_reply",
+                            "further_reply_generation",
+                            "one_time"
+                          ]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

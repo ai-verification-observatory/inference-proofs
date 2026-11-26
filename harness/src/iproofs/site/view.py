@@ -57,6 +57,8 @@ def figure(q: Any, pointer: str, board: str | None) -> dict[str, Any] | None:
         "stats": stats,
         "formula": q["source"]["ref"],
         "source": f"{board}#{pointer}" if board else pointer,
+        # the board's own words on how it was taken or why it is none (CO-9: "no split: ...")
+        "note": q.get("note"),
     }
 
 
@@ -239,7 +241,15 @@ ROW_FIGURES = ("multiple", "session_multiple", "steady_gpu_seconds_per_reply",
                "session_gpu_seconds_per_reply", "steady_usd_per_reply", "session_usd_per_reply",
                "verify_seconds_per_reply", "proof_bytes_per_reply",
                # CO-8 (adopted 2026-11-16): printed once, under Cost
-               "session_reply_tokens_per_gpu_second")  # fmt: skip
+               "session_reply_tokens_per_gpu_second",
+               # CO-9 (adopted 2026-11-26, Q55): the cost of a further reply, its two parts and
+               # multiples, its proved rate, the one-time work and its mark, the prove step's
+               # diagnostics; on a board built by the further-reply rule only
+               "further_reply_gpu_seconds", "further_reply_generation_gpu_seconds",
+               "further_reply_proving_gpu_seconds", "further_reply_multiple",
+               "further_reply_proving_multiple", "further_reply_tokens_per_gpu_second",
+               "further_reply_usd_per_reply", "one_time_gpu_seconds", "one_time_mark_replies",
+               "one_time_usd", "prove_gpu_util_mean", "prove_gpu_memory_peak")  # fmt: skip
 
 
 def _row(raw: dict[str, Any], at: str, board: str | None, rung: dict[str, Any]) -> dict[str, Any]:
@@ -270,6 +280,12 @@ def _row(raw: dict[str, Any], at: str, board: str | None, rung: dict[str, Any]) 
             "kl": figure(fid.get("kl"), f"{at}/fidelity/kl", board)},
         "security": raw.get("security"),
         "level_statement": raw.get("level_statement"),  # SI-4a
+        # CO-9 (Q55): the replies one proof batch holds, where the generation part comes from
+        # (with each session's adapter check) and the setups the sessions reused; None, [] on a
+        # board built by the whole-session rule
+        "proving_batch": raw.get("proving_batch"),
+        "further_split": raw.get("further_reply_split"),
+        "one_time_setups": [dict(s) for s in raw.get("one_time_setups") or []],
         # completeness, the one property tested here (MC-6, amended 2026-11-15): the replies of
         # the counted sessions, every one released with an accepted proof (Terms, Session)
         "honest_accepted": sum(sum(s.get("groups") or ()) for s in raw["sessions"]),
@@ -500,6 +516,9 @@ def site_view(root: Path, board: Path | None = None) -> dict[str, Any]:
             "path": inputs.LEVEL,
             "digest": level_digest,
         },
+        # RFC-0018 Q55: the cost rule the board was built by (a board without the field was
+        # built by the whole-session rule, v1.0's)
+        "cost_rule": (doc or {}).get("cost_rule") or "whole-session",
         "release": None
         if doc is None
         else {
