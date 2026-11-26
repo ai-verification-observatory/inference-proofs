@@ -89,6 +89,7 @@
         "properties": {
           "binding_report": false,
           "commitment_id": false,
+          "kernels": false,
           "log_files": false,
           "logprobs_files": false,
           "mutated": false,
@@ -129,6 +130,7 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "kernels": false,
           "logprobs_files": false,
           "mutated": false,
           "optional_subcommands": false,
@@ -245,6 +247,7 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "kernels": false,
           "log_files": false,
           "logprobs_files": false,
           "mutated": false,
@@ -285,6 +288,7 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "kernels": false,
           "log_files": false,
           "mutated": false,
           "optional_subcommands": false,
@@ -326,6 +330,7 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "kernels": false,
           "log_files": false,
           "logprobs_files": false,
           "mutated": false,
@@ -367,6 +372,7 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "kernels": false,
           "log_files": false,
           "logprobs_files": false,
           "optional_subcommands": false,
@@ -408,6 +414,7 @@
           "commitment_id": false,
           "contract_versions": false,
           "image_inputs": false,
+          "kernels": false,
           "log_files": false,
           "logprobs_files": false,
           "mutated": false,
@@ -493,6 +500,59 @@
         "type": "object"
       },
       "type": "array"
+    },
+    "kernels": {
+      "$comment": "commit and prove: the device-kernel store an adapter that compiles kernels per shape keeps (SASH, systems/sash/README.md §Kernels): its counts, its build key (the content the binary is built from), its shape set (the shapes it holds, whatever their order), and for commit what its emission did; for prove the replies whose own emission added a kernel and so rebuilt the backend",
+      "additionalProperties": false,
+      "properties": {
+        "build_key": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "constraint_kernels": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "emitter_runs": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "flags": {
+          "items": {
+            "pattern": "^--[a-z0-9-]+$",
+            "type": "string"
+          },
+          "type": "array",
+          "uniqueItems": true
+        },
+        "generation_shapes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "refused": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "replies_built": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "shape_set": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "synthetic_segment": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "constraint_kernels",
+        "generation_shapes",
+        "build_key",
+        "shape_set"
+      ],
+      "type": "object"
     },
     "log_files": {
       "items": {

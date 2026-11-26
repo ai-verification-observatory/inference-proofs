@@ -6,6 +6,11 @@
 #
 #   hf-job.sh probe                          host probe, harness install, binding check, self-test
 #   hf-job.sh run SYSTEM STEP [STEP...]      the same, then each STEP in order
+#   hf-job.sh setup SYSTEM WORKLOAD[:level=ID]
+#                                            the same, then one setup run (iproofs run
+#                                            --make-setup): info, setup and commit with no
+#                                            prompt, the state commit left kept as state.tar
+#                                            beside its setup record, uploaded with its archive
 #   hf-job.sh seed SYSTEM RUN_PATH           the harness only, then the seed record of a stored
 #                                            run's split control suite, written once
 #   hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]
@@ -30,9 +35,14 @@
 # example `l1-l31-8b-p512-o512:1:level=L1:session=1:keep-io` or
 # `l1-l31-8b-p512-o512:1:level=L1:ladder`; `perturbed` first commits the level's changed weights
 # on this host for the Model check (C3, P1), so a full session with its controls is
-# `l1-maverick-p512-o512:1:level=L1:session=1:perturbed:controls`. `keep-io` is
+# `l1-maverick-p512-o512:1:level=L1:session=1:perturbed:controls`. `setup=PATH` reuses a setup
+# a `setup` job uploaded, PATH = runs/<folder>/dev-results/<release>/SYSTEM/_setups/<setup id>
+# in the mounted bucket: it is copied onto this disk before the step's weights, and the run
+# checks its archive, restores it and commits nothing again (iproofs run --setup), for example
+# `l1-l31-8b-p512-o512:1:level=L1:session=1:setup=runs/X/dev-results/v1.0/sash/_setups/S`.
+# `keep-io` is
 # refused for flashprove: its io/ holds a copy of the weights and its commitment store the
-# prover's secret key. Every run is a development run on IPROOFS_PROFILE
+# prover's secret key, and so is `setup`, whose archive is that io/state. Every run is a development run on IPROOFS_PROFILE
 # (--allow-nonconforming: the profile pins no driver, RFC-0006 Q5), written outside the checkout and
 # never copied into results/ (POL-4). An upload that copied everything ends with upload.done in
 # its bucket folder; `seed`, `controls` and `merge` refuse a stored run whose folder has none.
@@ -157,6 +167,14 @@ left() { echo $((START + BUDGET - RESERVE - $(date +%s))); }
 
 prune() {  # what a run stopped at the deadline leaves in its staging directory (runner._write)
   local dir part
+  for dir in "$DEV"/*/*/_setups/.staging-*; do  # a setup run stopped before its record
+    [ -d "$dir" ] || continue
+    for part in io prover-ro state.tar; do
+      [ -e "$dir/$part" ] || continue
+      log "prune: $(du -sh "$dir/$part" | cut -f1) $(basename "$dir")/$part (an unfinished setup's state)"
+      rm -rf "${dir:?}/$part"
+    done
+  done
   for dir in "$DEV"/*/*/.staging-*; do
     [ -d "$dir" ] || continue
     for part in io prover-ro verify controls-io commitment; do
@@ -416,6 +434,53 @@ if [ "$MODE" = run ] && [ $# -ge 1 ]; then
     RESERVE=3600
     KEEP_IO=1
     UPLOAD_FOLDER="runs/$(date -u +%Y%m%dT%H%M%SZ)-${IPROOFS_LABEL:-$MODE}"
+  done
+fi
+if [ "$MODE" = setup ]; then
+  if [ $# -ne 2 ]; then
+    log "usage: hf-job.sh setup SYSTEM WORKLOAD[:level=ID]"
+    exit 2
+  fi
+  if [ "$1" = flashprove ]; then
+    log "setup is refused for flashprove: its io/state holds a weights copy and the prover's key"
+    exit 2
+  fi
+  IFS=: read -r _ setup_opts <<< "$2"
+  IFS=: read -r -a setup_flags <<< "${setup_opts:-}"
+  for flag in ${setup_flags[@]+"${setup_flags[@]}"}; do
+    case "$flag" in
+      level=*) ;;
+      *) log "a setup takes level=ID only, not $flag: it draws no prompt and proves nothing"; exit 2 ;;
+    esac
+  done
+  # the archive is the setup: it goes up and is checked file by file with the record
+  export IPROOFS_UPLOAD_ARCHIVES=1
+fi
+if [ "$MODE" = run ] && [ $# -ge 2 ]; then  # setup=PATH: a stored setup, checked before any install
+  for step in "${@:2}"; do
+    IFS=: read -r _ _ opts <<< "$step"
+    IFS=: read -r -a step_flags <<< "${opts:-}"
+    for flag in ${step_flags[@]+"${step_flags[@]}"}; do
+      case "$flag" in setup=*) ;; *) continue ;; esac
+      SETUP_PATH=${flag#setup=}
+      SETUP_PATH=${SETUP_PATH%/}
+      case "$SETUP_PATH" in
+        runs/*/dev-results/*/"$1"/_setups/*) ;;
+        *) log "setup= must be runs/<folder>/dev-results/<release>/$1/_setups/<setup id>"; exit 2 ;;
+      esac
+      if [ -z "${IPROOFS_UPLOAD_DIR:-}" ]; then
+        log "setup= reads the setup from the mounted bucket: set IPROOFS_UPLOAD_DIR"
+        exit 2
+      fi
+      if [ ! -f "$IPROOFS_UPLOAD_DIR/${SETUP_PATH%%/dev-results/*}/upload.done" ]; then
+        log "the upload of ${SETUP_PATH%%/dev-results/*} did not finish (no upload.done): its setup may be partial"
+        exit 2
+      fi
+      if [ ! -f "$IPROOFS_UPLOAD_DIR/$SETUP_PATH/setup.json" ] || [ ! -f "$IPROOFS_UPLOAD_DIR/$SETUP_PATH/state.tar" ]; then
+        log "no setup at $SETUP_PATH (setup.json and state.tar)"
+        exit 2
+      fi
+    done
   done
 fi
 stored_checks() {  # SYSTEM RUN_PATH: a stored run that seed, controls and merge can use
@@ -714,7 +779,8 @@ EOF
     --results "$DEV" > "$OUT/selftest.json"
   SELFTEST=$?
   log "self-test exit $SELFTEST"
-  if [ "$MODE" = run ] && [ "$SELFTEST" -ne 0 ] && [ "${IPROOFS_REQUIRE_SELFTEST:-0}" = 1 ]; then
+  if { [ "$MODE" = run ] || [ "$MODE" = setup ]; } && [ "$SELFTEST" -ne 0 ] \
+    && [ "${IPROOFS_REQUIRE_SELFTEST:-0}" = 1 ]; then
     log "IPROOFS_REQUIRE_SELFTEST=1 and the self-test failed: stopping before any weights; start the job again for another host"
     exit 5
   fi
@@ -970,8 +1036,9 @@ print(next(r for r in load_level(Path.cwd()).rungs if r.id == sys.argv[1]).servi
   log "fidelity run exit $rc"
   exit "$rc"
 fi
-if [ "$MODE" != run ] || [ $# -lt 2 ]; then
-  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed][:control-run]..."
+if { [ "$MODE" != run ] && [ "$MODE" != setup ]; } || [ $# -lt 2 ]; then
+  log "usage: hf-job.sh probe | hf-job.sh run SYSTEM WORKLOAD:REPETITIONS[:controls][:keep-io][:high][:sizing=N][:from=DIR][:level=L1][:session=K][:ladder][:perturbed][:control-run][:setup=PATH]..."
+  log "       hf-job.sh setup SYSTEM WORKLOAD[:level=ID]"
   log "       hf-job.sh seed|merge SYSTEM RUN_PATH | hf-job.sh controls SYSTEM RUN_PATH ID[,ID...]"
   exit 2
 fi
@@ -1020,9 +1087,15 @@ fi
 failed=0
 FETCHED=" "   # serving records fetched and checked by an earlier step of this job
 for step in "$@"; do
-  IFS=: read -r workload reps opts <<< "$step"
+  if [ "$MODE" = setup ]; then  # WORKLOAD[:level=ID]: no repetitions, checked above
+    IFS=: read -r workload opts <<< "$step"
+    reps=1
+  else
+    IFS=: read -r workload reps opts <<< "$step"
+  fi
   extra=()
   level_step=0
+  setup_from=""
   IFS=: read -r -a flags <<< "${opts:-}"
   for flag in ${flags[@]+"${flags[@]}"}; do
     case "$flag" in
@@ -1036,6 +1109,7 @@ for step in "$@"; do
       ladder) extra+=(--load ladder) ;;
       perturbed) ;;  # handled below: the Model check's W' is committed before the run
       control-run) extra+=(--control-run) ;;  # RFC-0018 CH-1b: one batch, P1, never a session
+      setup=*) setup_from=${flag#setup=}; setup_from=${setup_from%/} ;;  # checked above
       *) log "unknown step field $flag in $step"; exit 2 ;;
     esac
   done
@@ -1044,6 +1118,24 @@ for step in "$@"; do
     log "$remaining s left before the reserve; $workload not started"
     failed=1
     break
+  fi
+  if [ -n "$setup_from" ]; then  # the stored setup onto this disk, before the weights
+    # keyed by the whole bucket path: two jobs' setups can share a setup id (n counts per job)
+    local_setup="$WORK/setups/${setup_from//\//__}"
+    if [ ! -f "$local_setup/setup.json" ]; then
+      mkdir -p "$WORK/setups"
+      log "copy setup $setup_from from the bucket ($(du -sh "$IPROOFS_UPLOAD_DIR/$setup_from" | cut -f1)), at most $(left) s"
+      copy_start=$(date +%s)
+      if ! timeout --kill-after=60 "$(left)" cp -R "$IPROOFS_UPLOAD_DIR/$setup_from" "$local_setup.part" \
+        || ! mv "$local_setup.part" "$local_setup"; then
+        log "the copy of setup $setup_from failed or reached the deadline; next step"
+        rm -rf "$local_setup.part"
+        failed=1
+        continue
+      fi
+      log "copied setup $(du -sb "$local_setup" | cut -f1) bytes in $(( $(date +%s) - copy_start )) s (the run checks state.tar's digest)"
+    fi
+    extra+=(--setup "$local_setup")
   fi
   # production serving runs the publisher's release its serving record pins (RFC-0015 SRV-6);
   # HF_TOKEN reaches that fetch only, for files the record takes from the publisher (Q7)
@@ -1100,6 +1192,22 @@ if reference_role(root, sys.argv[1]) == "serve":
     fi
   fi
   reps_args=(--repetitions "${reps:-1}")
+  if [ "$MODE" = setup ]; then  # one setup run: no prompt, no proof (iproofs run --make-setup)
+    log "setup $SYSTEM $workload ${extra[*]:-} ${image_args[*]:-}, at most $remaining s (no --keep-io)"
+    env -u HF_TOKEN timeout --kill-after=60 "$remaining" "$IP" run --system "$SYSTEM" \
+      --workload "$workload" --profile "$PROFILE" --hosted "${GPU_ARGS[@]}" --provider "$PROVIDER" \
+      --allow-nonconforming --results "$DEV" --make-setup ${extra[@]+"${extra[@]}"} \
+      ${image_args[@]+"${image_args[@]:0:2}"}
+    rc=$?
+    # 0 the setup is written; 4 it was recorded as failed (setup.json, no archive); 124 or 137
+    # stopped at the deadline: its staging directory goes up without its state (prune)
+    log "setup $SYSTEM $workload exit $rc"
+    for made in "$DEV"/*/"$SYSTEM"/_setups/*/setup.json; do
+      [ -f "$made" ] && log "setup: $(dirname "${made#"$DEV"/}") ($(du -sh "$(dirname "$made")" | cut -f1))"
+    done
+    [ "$rc" -eq 0 ] || failed=1
+    continue
+  fi
   if [ "$level_step" -eq 1 ]; then  # one run is one session of the level (RFC-0018 SE-1)
     [ "${reps:-1}" = 1 ] || { log "a level step runs one session: REPETITIONS must be 1 in $step"; exit 2; }
     reps_args=()

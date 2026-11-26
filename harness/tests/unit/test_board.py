@@ -479,3 +479,17 @@ def test_board_lists_an_ineligible_session_with_its_reason(tree: Tree) -> None:
     ]
     assert late.name not in [s["run_id"] for s in r["sessions"]]
     assert r["steady_gpu_seconds_per_reply"]["stats"]["n"] == 3
+
+
+def test_a_session_that_reused_a_setup_gives_no_session_figure(tree: Tree) -> None:
+    """CO-1 times a session from the start of its commit; a session that reused a setup only
+    checked the setup's state there, so the board gives no session cost for it."""
+    for path in three_sessions(tree):
+        doc = json.loads((path / "run.json").read_text())
+        doc["setup"] = {"setup_id": "2026-12-01-setup-x-1"}
+        (path / "run.json").write_text(json.dumps(doc))
+    fidelity(tree, {SYSTEM: fidelity_row()})
+    board = build_board(tree.root, RELEASE, tree.level)
+    (r,) = board["rungs"][1]["rows"]  # type: ignore[index]
+    assert r["session_gpu_seconds_per_reply"]["value"] is None
+    assert math.isclose(r["steady_gpu_seconds_per_reply"]["value"], 10.0)  # replies still count

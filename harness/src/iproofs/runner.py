@@ -148,6 +148,18 @@ from iproofs.serving import (
     record_for,
     serving_manifest,
 )
+from iproofs.setups import (
+    ARCHIVE,
+    ARCHIVE_ROOT,
+    GPU_SECONDS_REF,
+    SETUP_RECORD,
+    SETUP_SCHEMA,
+    SETUPS,
+    Setup,
+    archive_state,
+    gpu_seconds,
+    record_problems,
+)
 from iproofs.workloads import (
     BEACON_WINDOW,
     asserted_inputs,
@@ -487,6 +499,25 @@ def allocate_run_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, 
         n += 1
 
 
+def allocate_setup_id(results_root: Path, spec: JobSpec, date: str) -> tuple[str, Path]:
+    """A setup run's id, `<date>-setup-<system>-<workload>-<profile>-<n>` with the smallest
+    unused n, and its staging directory under <results>/<release>/<system>/_setups/."""
+    parent = results_root / spec.release / spec.system / SETUPS
+    parent.mkdir(parents=True, exist_ok=True)
+    n = 1
+    while True:
+        setup_id = f"{date}-setup-{spec.system}-{spec.workload}-{spec.profile}-{n}"
+        staging = parent / f".staging-{setup_id}"
+        if not (parent / setup_id).exists():
+            try:
+                staging.mkdir()
+            except FileExistsError:
+                pass
+            else:
+                return setup_id, staging
+        n += 1
+
+
 JOB_CONFIGURATION = "default"  # v0.1 jobs carry no configuration (JobSpec, system.yaml)
 
 
@@ -572,6 +603,9 @@ class Job:
     optional_subcommands: tuple[str, ...] = ()  # from info (RFC-0018 AD-2)
     ladder: dict[str, object] | None = None  # prove job.json of a ladder run (RFC-0018 CO-4)
     marks: list[tuple[str, int]] = field(default_factory=list)  # (name, mono_ns), AD-4
+    job_inputs: dict[str, dict[str, object]] = field(default_factory=dict)  # sub -> its job.json
+    setup_restore_seconds: float | None = None  # a session's restore of its setup (--setup)
+    setup_archive: tuple[str, int, float] | None = None  # a setup run's (digest, bytes, seconds)
 
 
 class Runner:
@@ -598,6 +632,7 @@ class Runner:
         sizing_batches: int | None = None,
         level: LevelRun | None = None,
         control_run: bool = False,
+        setup: Setup | None = None,
     ) -> None:
         self.containers = containers
         self.root = root
@@ -625,6 +660,7 @@ class Runner:
         self.readers: CgroupReader = NullCgroupReader()
         self.level = level  # RFC-0018: one run is one session of this slot
         self.control_run = control_run  # CH-1b: one request of the slot, never a session
+        self.setup = setup  # --setup: commit restores and checks this setup, makes nothing
 
     # ---------------------------------------------------------------- public
 
@@ -690,38 +726,7 @@ class Runner:
             for state in STATES[1:-1]:  # resolved .. controls
                 if self._skip(job, state, log):
                     continue
-                previous, job.state = job.state, state
-                log.log(Event.JOB_STATE, job=run_id, step=state, **{"from": previous, "to": state})
-                try:
-                    actions[state](job)
-                except IProofsError as e:
-                    job.failure = self.redact.failure(Failure.from_error(e, step=state))
-                except OSError as e:
-                    if e.errno != errno.ENOSPC:
-                        raise
-                    job.failure = Failure.build(ErrorKind.RESOURCE, state, "disk full (ENOSPC)")
-                except Exception:  # a harness bug is still recorded (INV-RUN-4)
-                    text = self.redact(traceback.format_exc())
-                    job.failure = Failure.build(
-                        ErrorKind.INTERNAL,
-                        state,
-                        text.splitlines()[-1],
-                        last_lines=text.splitlines(),
-                    )
-                if job.failure is not None:
-                    if job.failure.kind is ErrorKind.TIMEOUT:
-                        timeout = job.system.timeout(state) if job.system else None
-                        log.log(Event.STEP_TIMEOUT, job=run_id, step=state, timeout_s=timeout)
-                    elif job.failure.kind is ErrorKind.RESOURCE:
-                        log.log(Event.STEP_OOM, job=run_id, step=state)
-                    log.log(
-                        Event.JOB_FAILED,
-                        job=run_id,
-                        step=state,
-                        kind=str(job.failure.kind),
-                        message=job.failure.message,
-                        exit_code=job.failure.exit_code,
-                    )
+                if not self._attempt(job, state, actions[state], log):
                     break
             self._machine_drift(job, log)
             final = self._write(job, log)
@@ -736,6 +741,305 @@ class Runner:
         final.parent.joinpath(f".staging-{run_id}").rename(final)
         _fsync_dir(final.parent)  # the run directory exists only complete (INV-RUN-2)
         return final
+
+    def _attempt(
+        self, job: Job, state: str, action: Callable[[Job], object], log: JsonlLogger
+    ) -> bool:
+        """One state of a job: a failure is recorded on the job and logged (INV-RUN-4), and
+        the job goes no further. False once the job has failed."""
+        previous, job.state = job.state, state
+        log.log(Event.JOB_STATE, job=job.run_id, step=state, **{"from": previous, "to": state})
+        try:
+            action(job)
+        except IProofsError as e:
+            job.failure = self.redact.failure(Failure.from_error(e, step=state))
+        except OSError as e:
+            if e.errno != errno.ENOSPC:
+                raise
+            job.failure = Failure.build(ErrorKind.RESOURCE, state, "disk full (ENOSPC)")
+        except Exception:  # a harness bug is still recorded (INV-RUN-4)
+            text = self.redact(traceback.format_exc())
+            job.failure = Failure.build(
+                ErrorKind.INTERNAL,
+                state,
+                text.splitlines()[-1],
+                last_lines=text.splitlines(),
+            )
+        if job.failure is None:
+            return True
+        if job.failure.kind is ErrorKind.TIMEOUT:
+            timeout = job.system.timeout(state) if job.system else None
+            log.log(Event.STEP_TIMEOUT, job=job.run_id, step=state, timeout_s=timeout)
+        elif job.failure.kind is ErrorKind.RESOURCE:
+            log.log(Event.STEP_OOM, job=job.run_id, step=state)
+        log.log(
+            Event.JOB_FAILED,
+            job=job.run_id,
+            step=state,
+            kind=str(job.failure.kind),
+            message=job.failure.message,
+            exit_code=job.failure.exit_code,
+        )
+        return False
+
+    def make_setup(self, spec: JobSpec) -> Path:
+        """A setup run (`iproofs run --make-setup`): info, setup and commit with no prompt, then
+        the state commit left in /io/state archived beside its setup record (`setup/1`), under
+        <results>/<release>/<system>/_setups/<setup id>/. A failed setup is written with its
+        failure and no archive, and no session can reuse it. Returns the setup directory."""
+        assert self.setup is None, "a setup run reuses no setup"
+        started = self.clock()
+        started_at = _utc_now()
+        date = datetime.now(UTC).date().isoformat()
+        setup_id, staging = allocate_setup_id(Path(spec.results_root), spec, date)
+        job = Job(spec, setup_id, staging, events=EventLog(clock=self.clock))
+        if self.level is not None:
+            job.level = {"id": self.level.id, "digest": self.level.digest}
+        (staging / "logs").mkdir()
+        try:  # RFC-0006 §Profile conformance: recorded, never refused
+            self._conform(spec)
+        except IProofsError as e:
+            job.warnings.append(f"conformance: not checked ({e.message})")
+        job.warnings += [f"conformance: {f.line()}" for f in self.nonconforming]
+        actions: dict[str, Callable[[Job], object]] = {
+            "resolved": self._resolve_setup,
+            "image_ready": self._image,
+            "machine_recorded": self._machine,
+            "info": self._info,
+            "setup": self._setup,
+            "commit": self._commit,
+            "archive": self._archive_setup,
+        }
+        final = staging.parent / setup_id
+        with (staging / "logs/harness.jsonl").open("w") as stream:
+            progress = (
+                Progress(self.progress, 1, 1, self.redact) if self.progress is not None else None
+            )
+            log = JsonlLogger(stream, level=self.log_level, redactor=self.redact,
+                              mono=self.clock, on_record=progress)  # fmt: skip
+            log.log(Event.RUNNER_START, job=setup_id, harness_version=__version__)
+            for state, action in actions.items():
+                if not self._attempt(job, state, action, log):
+                    break
+            self._machine_drift(job, log)
+            total = (self.clock() - started) / 1e9
+            doc = self._setup_doc(job, started_at, total, self._pointer(final / SETUP_RECORD))
+            errors = self.registry.errors(SETUP_SCHEMA, doc) + record_problems(doc)
+            if errors:  # a harness bug: kept under logs/invalid, recorded as failed
+                kept = staging / "logs/invalid"
+                kept.mkdir(parents=True, exist_ok=True)
+                (kept / SETUP_RECORD).write_text(json.dumps(doc, indent=2, default=str))
+                message = f"{SETUP_RECORD} fails its schema: {errors[0]}"
+                job.failure = Failure.build(ErrorKind.INTERNAL, "written", message)
+                (staging / ARCHIVE).unlink(missing_ok=True)
+                job.setup_archive = None
+                doc = self._setup_doc(job, started_at, total, self._pointer(final / SETUP_RECORD),
+                                      bare=True)  # fmt: skip
+            write_json(staging / SETUP_RECORD, doc)
+            lines = [f"{ARCHIVE}\t{job.setup_archive[0]}\n"] if job.setup_archive else []
+            lines += [f"logs/{name}\t{c.digest}\n" for name, c in sorted(job.logs.items())
+                      if c.total]  # fmt: skip
+            write_text(staging / "digests.txt", "".join(sorted(lines)))
+            log.log(Event.JOB_WRITTEN, job=setup_id, step="written", run_dir=setup_id,
+                    outcome="failed" if job.failure else "completed")  # fmt: skip
+        for scratch in ("io", "prover-ro"):  # the state is in the archive; the commitment stays
+            shutil.rmtree(staging / scratch, ignore_errors=True)
+        staging.rename(final)
+        _fsync_dir(final.parent)
+        return final
+
+    def _resolve_setup(self, job: Job, log: JsonlLogger | None = None) -> None:
+        """A setup run's inputs: the system, the workload, its hash-checked weights and the
+        image. No prompt is drawn or written (a setup exists before any session)."""
+        self._resolve_inputs(job, log)
+        self._image(job)
+        if _reference(job) or _serve(job):
+            raise IProofsError(ErrorKind.CONFIG, f"{job.spec.system} makes no commitment "
+                               "(RFC-0015): it has no setup")  # fmt: skip
+        if self.level is not None:
+            self._level_shape(job)
+        (job.staging / "io").mkdir()
+
+    def _archive_setup(self, job: Job) -> None:
+        """The state commit left, as one archive with its digest (iproofs.setups)."""
+        io = job.staging / "io"
+        state = io / ARCHIVE_ROOT
+        if not state.is_dir() or state.is_symlink():
+            raise IProofsError(ErrorKind.ADAPTER, "commit left no /io/state to archive",
+                               step="archive")  # fmt: skip
+        for other in sorted(p.name for p in io.iterdir() if p.is_dir() and p.name != "state"):
+            job.warnings.append(f"setup: commit left io/{other}, which the archive leaves out")
+        started = self.clock()
+        archive_state(state, job.staging / ARCHIVE)
+        digest = file_digest(job.staging / ARCHIVE)
+        seconds = (self.clock() - started) / 1e9
+        job.setup_archive = (digest, (job.staging / ARCHIVE).stat().st_size, seconds)
+
+    def _setup_doc(
+        self, job: Job, started_at: str, total: float, ref: str, *, bare: bool = False
+    ) -> dict[str, object]:
+        """The setup record (`setup/1`). `bare`: what any failed setup can state, after a
+        record failed its schema (a harness bug)."""
+        spec, system, wl = job.spec, job.system, job.workload
+        harness_commit, harness_dirty = git_state(
+            self.root, ["harness", "pyproject.toml", "uv.lock"]
+        )
+        resolved = system is not None and wl is not None and not bare
+        commit = job.commit if not bare else None
+        kernels = commit.kernels if commit is not None else None
+        sub_seconds = {
+            sub: measured((r.ended_mono_ns - r.started_mono_ns) / 1e9, Unit.S,
+                          Scope.COMMIT if sub == "commit" else Scope.SETUP,
+                          f"{ref}#/steps/{sub}", None)
+            for sub, r in job.steps.items() if sub in ("info", "setup", "commit") and not bare
+        }  # fmt: skip
+        archive = job.setup_archive if not bare else None
+        count = self._gpu_count(job) if job.reference is not None else None
+        n = count["value"] if count is not None else None
+        count_tree = count or {
+            "value": None, "unit": str(Unit.COUNT), "scope": None,
+            "grade": str(Grade.ASSERTED), "tier": str(Tier.REPORTED),
+            "source": {"kind": str(SourceKind.REFERENCE_FILE),
+                       "ref": f"{job.reference_file or 'reference'}#/profiles/{spec.profile}"},
+            "null_reason": str(NullReason.NOT_APPLICABLE),
+        }  # fmt: skip
+        total_ok = job.failure is None
+        gpus = gpu_seconds(n if isinstance(n, int) else None, total) if total_ok else None
+        reason = None if gpus is not None else (
+            NullReason.NOT_APPLICABLE if total_ok else NullReason.STEP_FAILED)  # fmt: skip
+        phases = self._adapter_phases(job, ref, pointer="phases")
+        doc: dict[str, object] = {
+            "schema": SETUP_SCHEMA,
+            "setup_id": job.run_id,
+            "release": spec.release,
+            "status": "failed" if job.failure else "completed",
+            "failure": job.failure.to_json() if job.failure else None,
+            "started_at": started_at,
+            "ended_at": _utc_now(),
+            "harness": {
+                "version": __version__,
+                "git_commit": harness_commit,
+                "git_dirty": harness_dirty,
+                "lock_digest": file_digest(self.root / "uv.lock"),
+                "nonconforming": bool(self.nonconforming),
+            },
+            "runner": {
+                "handle": self.operator.handle,
+                "organisation": self.operator.organisation,
+                "affiliated_systems": list(self.operator.affiliated_systems),
+            },
+            "provider": self.provider,
+            "system": self._system_record(job) if resolved else None,
+            "workload": self._setup_workload(job) if resolved else None,
+            "profile": {
+                "prover": spec.profile,
+                "reference_file": job.reference_file,
+                "reference_digest": file_digest(self.root / job.reference_file),
+            } if resolved and job.reference_file else None,
+            "machine": job.machine or None,
+            "prompts_file": None,
+            "jobs": {k: v for k, v in job.job_inputs.items()
+                     if k in ("info", "setup", "commit")} if not bare else {},
+            "commands": job.commands if not bare else [],
+            "commitment": job.commitment_record if not bare else None,
+            "kernels": dict(kernels) if kernels else None,
+            "archive": {"name": ARCHIVE, "digest": archive[0], "bytes": archive[1],
+                        "root": "/io/state"} if archive else None,
+            "steps": sub_seconds,
+            "phases": {"commit": phases["commit"]} if "commit" in phases and not bare else {},
+            "archive_seconds": measured(archive[2] if archive else None, Unit.S,
+                                        Scope.PRIMITIVE, f"{ref}#/archive",
+                                        None if archive else NullReason.STEP_FAILED),
+            "total_seconds": measured(total if total_ok else None, Unit.S, Scope.WHOLE_WALL,
+                                      f"{ref}#/started_at",
+                                      None if total_ok else NullReason.STEP_FAILED),
+            "gpu_count": count_tree,
+            "gpu_seconds": {
+                "value": gpus, "unit": str(Unit.GPU_S), "scope": str(Scope.WHOLE_WALL),
+                "grade": str(Grade.DERIVED), "tier": str(Tier.REPORTED),
+                "source": {"kind": str(SourceKind.DERIVATION), "ref": GPU_SECONDS_REF,
+                           "inputs": [f"{ref}#/gpu_count", f"{ref}#/total_seconds"]},
+                "null_reason": None if reason is None else str(reason),
+            },
+            "logs": [{"name": f"logs/{name}", "digest": c.digest}
+                     for name, c in sorted(job.logs.items()) if c.total],
+            "warnings": list(job.warnings),
+        }  # fmt: skip
+        if job.level is not None and self.level is not None:
+            doc["level"] = {**job.level, "rung": self.level.rung}
+        return doc
+
+    def _setup_workload(self, job: Job) -> dict[str, object]:
+        assert job.workload is not None
+        wl, source = job.workload, job.workload.model.source
+        return {
+            "id": wl.id,
+            "version": wl.version,
+            "file_digest": workload_digest(self.root, wl.id),
+            "model": {"source": f"{source.hub}:{source.path or source.repo}",
+                      "revision": wl.model.revision, "digest": wl.model.digest},
+            "shape": _shape(job),
+        }  # fmt: skip
+
+    def _adapter_state(self, job: Job) -> tuple[str, bool]:
+        """The adapter's commit and dirty flag as a manifest records them: the image's own
+        record when it bakes one in (B6), else this checkout's."""
+        assert job.system is not None
+        harness_commit, _ = git_state(self.root, ["harness", "pyproject.toml", "uv.lock"])
+        _, adapter_dirty = git_state(self.root, [f"systems/{job.system.name}"])
+        built, built_dirty = job.adapter_build
+        commit = built if built is not None and re.fullmatch(r"[0-9a-f]{40}", built) else None
+        return commit or harness_commit, adapter_dirty if built_dirty is None else built_dirty
+
+    def _session_identity(self, job: Job) -> dict[str, object]:
+        """What a setup must share with this session (iproofs.setups.IDENTITY)."""
+        assert job.system is not None
+        assert job.workload is not None
+        commit, dirty = self._adapter_state(job)
+        return {
+            "system": job.system.name,
+            "upstream_commit": job.system.upstream.commit if job.system.upstream else None,
+            "image": job.image,
+            "adapter_commit": commit,
+            "adapter_dirty": dirty,
+            "model_digest": job.workload.model.digest,
+            "shape": _shape(job),
+        }
+
+    def _restore_setup(self, job: Job) -> dict[str, object]:
+        """--setup: the setup made for this session (its pin, image, adapter, model and shape),
+        its archive checked against the record's digest and restored under io/state, timed
+        apart. Returns commit's `setup_state`, whose values come from the record alone."""
+        setup = self.setup
+        assert setup is not None
+        wrong = setup.mismatches(self._session_identity(job))
+        if wrong:
+            raise IProofsError(ErrorKind.CONFIG, f"setup {setup.setup_id} was not made for this "
+                               f"session: {'; '.join(wrong)}", step="commit")  # fmt: skip
+        started = self.clock()
+        setup.restore(job.staging / "io")
+        job.setup_restore_seconds = (self.clock() - started) / 1e9
+        state: dict[str, object] = {"commitment_id": setup.commitment_id}
+        if setup.build_key is not None:
+            state["build_key"] = setup.build_key
+        return state
+
+    def _setup_ref(self, job: Job, run_json: str) -> dict[str, object] | None:
+        """run.json `setup`: the setup a session reused, by its record's digest, and the
+        restore's seconds, apart from the commit step's."""
+        setup = self.setup
+        if setup is None:
+            return None
+        seconds = job.setup_restore_seconds
+        return {
+            "setup_id": setup.setup_id,
+            "record_digest": setup.digest,
+            "archive_digest": setup.archive_digest,
+            "commitment_id": setup.commitment_id,
+            "build_key": setup.build_key,
+            "restore_seconds": measured(seconds, Unit.S, Scope.PRIMITIVE, f"{run_json}#/setup",
+                                        None if seconds is not None else NullReason.STEP_FAILED),
+        }  # fmt: skip
 
     def recover(self, results_root: Path) -> list[Path]:
         """Crash recovery (RFC-0010): an abandoned staging directory becomes a failed run.
@@ -1212,6 +1516,7 @@ class Runner:
         job_json = json.loads((io / "job.json").read_text())
         job_json.pop("_single", None)
         write_json(io / "job.json", job_json)
+        job.job_inputs[sub] = job_json  # the exact input, kept by a setup record (setup/1)
         cpuset, mems = self.env.cpus(role)
         started_at = datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
         bound = bound_gpus(self.env) if sub not in NO_GPU_CALLS else ()
@@ -1342,7 +1647,16 @@ class Runner:
         """RFC-0014 §The commitment record: copy the commit step's files into a store no
         later container mounts read-write, and record their digests. The output becomes
         `job.commit` only once its files are taken."""
-        out, _ = self._call(job, "commit", {"model_dir": "/models"}, control=control or False)
+        extra: dict[str, object] = {"model_dir": "/models"}
+        reuse = self.setup is not None and control is None  # a MODEL control commits W' anew
+        if reuse:
+            extra["setup_state"] = self._restore_setup(job)
+        out, _ = self._call(job, "commit", extra, control=control or False)
+        if reuse and self.setup is not None and out.commitment_id != self.setup.commitment_id:
+            raise IProofsError(ErrorKind.INTEGRITY, f"commit over the restored setup returned "
+                               f"commitment {out.commitment_id}; the setup record names "
+                               f"{self.setup.commitment_id}, the one a verifier checks "
+                               "(AGENTS.md hard rule 6)", step="commit")  # fmt: skip
         io = IoDirs(job.staging / "io")
         records: dict[str, object] = {"commitment_id": out.commitment_id}
         for kind, side in STORE_SIDES.items():
@@ -1361,6 +1675,9 @@ class Runner:
                 shutil.copyfile(src, dst)
                 copies.append(dst)
             records[kind] = file_records(copies)
+        if reuse and self.setup is not None and (wrong := self.setup.file_problems(records)):
+            raise IProofsError(ErrorKind.INTEGRITY, f"the restored setup's {'; '.join(wrong)}",
+                               step="commit")  # fmt: skip
         job.commit, job.commitment_record = out, records
         io_dir = job.staging / "io"
         state = io_dir / "state"
@@ -2215,7 +2532,8 @@ class Runner:
         manifest = self._manifest(job) if resolved else None
         # run.json names the card the manifest records (RFC-0016 OVR-5 reads it)
         claim = manifest.get("claim") if manifest is not None else None
-        doc = self._run_doc(job, metrics, claim, self._adapter_phases(job, run_json))
+        setup = self._setup_ref(job, run_json)
+        doc = self._run_doc(job, metrics, claim, self._adapter_phases(job, run_json), setup)
         if self.load == "ladder":  # the replies go beside run.json (iproofs.replies, SIZE-1)
             doc = split_replies(job.staging, doc)
         invalid = {"run.json": (doc, self.registry.errors("run/1", doc))}
@@ -2230,7 +2548,7 @@ class Runner:
             message = "; ".join(f"{n} fails its schema: {e[0]}" for n, e in sorted(bad.items()))
             job.failure = Failure.build(ErrorKind.INTERNAL, "written", message)
             manifest = None if "manifest.json" in bad else manifest
-            doc = self._run_doc(job, {}, claim if manifest is not None else None)  # no phases
+            doc = self._run_doc(job, {}, claim if manifest is not None else None, None, setup)
         write_json(job.staging / "run.json", doc)
         if manifest is not None:
             write_json(job.staging / "manifest.json", manifest)
@@ -2359,7 +2677,9 @@ class Runner:
             out["agreement"] = job.agreement[proof_id]
         return out
 
-    def _adapter_phases(self, job: Job, run_json: str) -> dict[str, dict[str, QuantityTree]]:
+    def _adapter_phases(
+        self, job: Job, run_json: str, pointer: str = "adapter_phases"
+    ) -> dict[str, dict[str, QuantityTree]]:
         """RFC-0004 `adapter_phases.<step>.<name>`: the seconds the accepted commit and prove
         outputs report for each phase, labelled adapter-reported (INV-GRADE-2: no formula reads
         them). Names come from the adapter, none is expected here. A name a step reports more
@@ -2383,7 +2703,7 @@ class Runner:
                         "tier": str(Tier.REPORTED),
                         "source": {
                             "kind": str(SourceKind.ADAPTER),
-                            "ref": f"{run_json}#/adapter_phases/{step}/{name}",
+                            "ref": f"{run_json}#/{pointer}/{step}/{name}",
                         },
                         "null_reason": None,
                     }
@@ -2397,6 +2717,7 @@ class Runner:
         metrics: dict[str, QuantityTree],
         claim: object = None,
         phases: Mapping[str, Mapping[str, QuantityTree]] | None = None,
+        setup: Mapping[str, object] | None = None,
     ) -> dict[str, object]:
         spec = job.spec
         tokens = self._tokens(job) if metrics else [(0, 0)] * len(job.releases)
@@ -2433,7 +2754,21 @@ class Runner:
             }
             | ({"inputs": self._run_inputs(job)} if metrics and job.workload else {})
             | ({"marks": [{"name": n, "mono_ns": ns} for n, ns in job.marks]} if job.marks else {})
+            | ({"setup": dict(setup)} if setup is not None else {})
+            | ({"kernels": kernels} if (kernels := self._kernels(job)) else {})
         )
+
+    def _kernels(self, job: Job) -> dict[str, object] | None:
+        """run.json `kernels`: the device-kernel store each accepted commit and prove output
+        reported (adapter-out/1 `kernels`, as the adapter wrote it), kept because io/ is removed
+        after the run; None when neither step reported one, and for a control run (POL-2)."""
+        if self.control_run:
+            return None
+        steps: dict[str, object] = {
+            step: dict(out.kernels) if out is not None and out.kernels else None
+            for step, out in (("commit", job.commit), ("prove", job.proofs))
+        }
+        return steps if any(v is not None for v in steps.values()) else None
 
     def _run_inputs(self, job: Job) -> dict[str, QuantityTree]:
         """run.json `inputs`: the workload's asserted inputs (RFC-0003 WB-4) and, for a profile
@@ -2465,7 +2800,6 @@ class Runner:
         harness_commit, harness_dirty = git_state(
             self.root, ["harness", "pyproject.toml", "uv.lock"]
         )
-        _, adapter_dirty = git_state(self.root, [f"systems/{system.name}"])
         found = job_card(self.root, self.registry, system.name)
         card, card_doc = found if found else (None, None)
         claim = (
@@ -2479,6 +2813,7 @@ class Runner:
         )
         source = wl.model.source
         verifier = self._verifier_profile(job)
+        system_record = self._system_record(job, card)
         return (
             {
                 "schema": "manifest/1",
@@ -2499,35 +2834,7 @@ class Runner:
                 },
                 "claim": claim,
                 "provider": self.provider,
-                "system": {
-                    "name": system.name,
-                    "system_manifest_digest": file_digest(
-                        self.root / "systems" / system.name / "system.yaml"
-                    ),
-                    "claim_digest": file_digest(card) if card else None,
-                    "upstream": (
-                        {"repo": system.upstream.repo, "commit": system.upstream.commit}
-                        if system.upstream
-                        else None
-                    ),
-                    # the image's own record when it bakes one in (B6), else this checkout's
-                    "adapter_commit": job.adapter_build[0]
-                    if re.fullmatch(r"[0-9a-f]{40}", job.adapter_build[0] or "")
-                    else harness_commit,
-                    "adapter_dirty": adapter_dirty
-                    if job.adapter_build[1] is None
-                    else job.adapter_build[1],
-                    "image": {
-                        "ref": job.image,
-                        "digest_kind": "config" if job.image.startswith("local/") else "manifest",
-                    },
-                    "image_inputs": job.image_inputs,
-                }
-                | (
-                    {"optional_subcommands": list(job.optional_subcommands)}
-                    if job.optional_subcommands
-                    else {}
-                ),
+                "system": system_record,
                 "workload": {
                     "id": wl.id,
                     "version": wl.version,
@@ -2562,6 +2869,39 @@ class Runner:
             }
             | self._serving_manifest(job)
             | self._level_manifest(job)
+        )
+
+    def _system_record(self, job: Job, card: Path | None = None) -> dict[str, object]:
+        """manifest `system` (and a setup record's): the system by digest, its pins, the
+        adapter commit and the image."""
+        assert job.system is not None
+        system = job.system
+        if card is None:
+            found = job_card(self.root, self.registry, system.name)
+            card = found[0] if found else None
+        adapter_commit, adapter_dirty = self._adapter_state(job)
+        return {
+            "name": system.name,
+            "system_manifest_digest": file_digest(
+                self.root / "systems" / system.name / "system.yaml"
+            ),
+            "claim_digest": file_digest(card) if card else None,
+            "upstream": (
+                {"repo": system.upstream.repo, "commit": system.upstream.commit}
+                if system.upstream
+                else None
+            ),
+            "adapter_commit": adapter_commit,
+            "adapter_dirty": adapter_dirty,
+            "image": {
+                "ref": job.image,
+                "digest_kind": "config" if job.image.startswith("local/") else "manifest",
+            },
+            "image_inputs": job.image_inputs,
+        } | (
+            {"optional_subcommands": list(job.optional_subcommands)}
+            if job.optional_subcommands
+            else {}
         )
 
     def _level_manifest(self, job: Job) -> dict[str, object]:
@@ -2647,6 +2987,24 @@ class Runner:
                 return served.proofs.tokens_covered
         return None
 
+    def _untimed_commit(
+        self, job: Job, run_json: str, m: Mapping[str, QuantityTree]
+    ) -> dict[str, QuantityTree]:
+        """The commit and whole-wall seconds a run gives no value for: a reference row has no
+        commit step (RFC-0015); a session that reused a setup only checked the setup's state in
+        commit (iproofs.setups), so a time from its start would leave the setup's own out under
+        the same labels. Empty for any other run."""
+        if _reference(job):
+            ref, reason = f"{run_json}#/events", NullReason.NOT_APPLICABLE
+        elif self.setup is not None:
+            ref, reason = f"{run_json}#/setup", NullReason.SETUP_REUSED
+        else:
+            return {}
+        out = {"commit_seconds": measured(None, Unit.S, Scope.COMMIT, ref, reason)}
+        if _reference(job) or "whole_wall_seconds" in m:
+            out["whole_wall_seconds"] = measured(None, Unit.S, Scope.WHOLE_WALL, ref, reason)
+        return out
+
     def _metrics(self, job: Job, run_json: str) -> dict[str, QuantityTree]:
         assert job.workload is not None
         assert job.reference is not None
@@ -2679,12 +3037,8 @@ class Runner:
         m["proofs_count"] = count(len(job.releases))
         m["verdicts_accept_count"] = count(sum(v == "accept" for v in job.verdicts.values()))
         bref = f"{run_json}#/proofs"
-        if _reference(job):  # RFC-0015: no commit step, so no commit time and no whole wall
-            eref = f"{run_json}#/events"
-            na = NullReason.NOT_APPLICABLE
-            m["commit_seconds"] = measured(None, Unit.S, Scope.COMMIT, eref, na)
-            m["whole_wall_seconds"] = measured(None, Unit.S, Scope.WHOLE_WALL, eref, na)
-        else:
+        m |= self._untimed_commit(job, run_json, m)
+        if not _reference(job):
             sizes = [float(job.proof_bytes[pid]) for pid, _ in job.releases]
             if sizes:
                 m["proof_bytes"] = _statistic(sizes, Unit.B, None, bref)
@@ -2776,6 +3130,23 @@ def _price_tree(path: Path, pointer: str) -> dict[str, object]:
         node = node[part]
     assert isinstance(node, dict)
     return node
+
+
+def _utc_now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def _shape(job: Job) -> dict[str, int]:
+    """The workload's shape as job.json carries it."""
+    assert job.workload is not None
+    shape = job.workload.shape
+    return {
+        "prompt_tokens": shape.prompt_tokens,
+        "output_tokens": shape.output_tokens,
+        "batch_size": shape.batch_size,
+        "batches_per_session": shape.batches_per_session,
+        "context_window": shape.context_window,
+    }
 
 
 def _boot_id() -> str:

@@ -177,6 +177,21 @@ def test_null_div() -> None:
         assert out[name]["null_reason"] == "not_applicable", name
 
 
+def test_a_reused_setup_nulls_the_commit_and_whole_wall_formulas() -> None:
+    """A session that reused a setup records commit and whole-wall seconds null `setup_reused`;
+    D-COMMIT-AMORT and the whole-wall rate carry that reason, the session scope keeps its value."""
+    metrics, _ = worked_example()
+    metrics["commit_seconds"] = measured(None, Unit.S, Scope.COMMIT, f"{RUN}#/setup",
+                                         NullReason.SETUP_REUSED)  # fmt: skip
+    metrics["whole_wall_seconds"] = measured(None, Unit.S, Scope.WHOLE_WALL, f"{RUN}#/setup",
+                                             NullReason.SETUP_REUSED)  # fmt: skip
+    out = derive(metrics)
+    for name in ("commit_seconds_per_token_h1", "commit_seconds_per_token_h1000",
+                 "rate_whole_wall"):  # fmt: skip
+        assert (out[name]["value"], out[name]["null_reason"]) == (None, "setup_reused"), name
+    assert out["rate_prove.session"]["value"] is not None
+
+
 @pytest.mark.parametrize(("params", "bits"), [(0.0, 8.0), (8e9, 0.0)])
 def test_null_div_active_weight_bits(params: float, bits: float) -> None:
     """TC-NULL-DIV for D-SPAB-S: zero parameters or zero weight bits (reachable through a G4

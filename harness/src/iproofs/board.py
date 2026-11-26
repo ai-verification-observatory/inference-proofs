@@ -337,7 +337,9 @@ def session_figures(s: Session, n: int, level: object) -> SessionFigures:
         m, cause = None, missing
     else:
         m, cause = steady_per_reply(groups, gpus, level, phase)
-    commit = _event(s.run, "commit.start")
+    # a session that reused a setup (run.json `setup`) timed only a check of the setup's state
+    # from its commit start; CO-1 counts the session from the start of commit, so no figure
+    commit = None if s.run.run.get("setup") is not None else _event(s.run, "commit.start")
     per_reply = (
         None if gpus is None or commit is None or not times
         else session_per_reply(commit, times, n, gpus)

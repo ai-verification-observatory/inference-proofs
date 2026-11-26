@@ -603,3 +603,141 @@ def test_keep_io_sends_each_released_proof_and_retries_a_failed_upload(tmp_path:
     assert "upload: proof r-1/req-0 sent" in log
     assert "upload: large files FAILED; next try in 1 s" in log  # the stub bucket lists nothing
     assert "upload: large files FAILED; no time left for another try" in log
+
+
+def test_a_setup_job_makes_one_setup_and_uploads_its_archive(tmp_path: Path) -> None:
+    """`hf-job.sh setup SYSTEM WORKLOAD[:level=ID]`: probe, install and binding check as a run,
+    then one `iproofs run --make-setup` (no repetitions, no prompts, the development image
+    without --keep-io), and the archive goes up with the record."""
+    repo, head, env = stubbed(tmp_path)
+    done = job(repo, "setup", "ref-serve", "l1-l31-8b-p512-o512:level=L1", IPROOFS_COMMIT=head,
+               IPROOFS_JOB_BUDGET_S="2000", IPROOFS_UPLOAD_BUCKET="ns/b", **env)  # fmt: skip
+    log = log_of(repo, "upload: FAILED or incomplete")  # the stub bucket lists nothing back
+    assert done.returncode == 0, log
+    seen = calls(tmp_path)
+    (made,) = [c for c in seen if c.startswith("iproofs run ")]
+    assert seen.index("iproofs fetch-model l1-l31-8b-p512-o512") < seen.index(made)
+    assert "--workload l1-l31-8b-p512-o512 " in made
+    assert "--make-setup --level L1" in made
+    assert made.endswith(f"--image {DEV_IMAGE}")  # never --keep-io
+    assert "--repetitions" not in made
+    assert "--session" not in made
+    syncs = [c for c in seen if " hf buckets sync " in c]
+    assert syncs
+    assert "--exclude *.tar" not in syncs[-1]
+
+
+@pytest.mark.parametrize(("args", "message"), [
+    (["sash"], "usage: hf-job.sh setup SYSTEM WORKLOAD"),
+    (["flashprove", "fp-maverick-w1024-b1"], "setup is refused for flashprove"),
+    (["sash", "l1-l31-8b-p512-o512:level=L1:session=1"], "a setup takes level=ID only"),
+    (["sash", "l1-l31-8b-p512-o512:keep-io"], "a setup takes level=ID only"),
+])  # fmt: skip
+def test_a_setup_job_refuses_before_the_probe(
+    tmp_path: Path, args: list[str], message: str
+) -> None:
+    repo, head = checkout(tmp_path)
+    done = job(repo, "setup", *args, IPROOFS_COMMIT=head)
+    assert done.returncode == 2
+    log = log_of(repo, "upload: skipped")
+    assert message in log
+    assert "probe exit" not in log
+
+
+SETUP_PATH = "runs/s/dev-results/v1.0/sash/_setups/2026-11-26-setup-sash-w-p-1"
+
+
+def stored_setup(
+    bucket: Path, *, done: bool = True, files: bool = True, path: str = SETUP_PATH
+) -> None:
+    folder = bucket / path
+    folder.mkdir(parents=True)
+    if files:
+        (folder / "setup.json").write_text("{}")
+        (folder / "state.tar").write_bytes(b"t")
+    if done:
+        (bucket / "runs/s/upload.done").write_text("dev-results bytes 1\n")
+
+
+@pytest.mark.parametrize(("path", "store", "mounted", "message"), [
+    (SETUP_PATH, {}, False, "set IPROOFS_UPLOAD_DIR"),
+    ("runs/s/dev-results/v1.0/sash/r-1", {}, True, "setup= must be runs/"),
+    (SETUP_PATH, {"done": False}, True, "did not finish (no upload.done)"),
+    (SETUP_PATH, {"files": False}, True, "no setup at"),
+])  # fmt: skip
+def test_a_run_step_naming_a_setup_refuses_before_the_probe(
+    tmp_path: Path, path: str, store: dict[str, bool], mounted: bool, message: str
+) -> None:
+    repo, head = checkout(tmp_path)
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    stored_setup(bucket, done=store.get("done", True), files=store.get("files", True))
+    env = {"IPROOFS_UPLOAD_DIR": str(bucket)} if mounted else {}
+    done = job(repo, "run", "sash", f"l1-l31-8b-p512-o512:1:level=L1:session=1:setup={path}",
+               IPROOFS_COMMIT=head, **env)  # fmt: skip
+    assert done.returncode == 2
+    log = log_of(repo, "upload:")
+    assert message in log
+    assert "probe exit" not in log
+
+
+def test_a_run_step_copies_its_setup_before_the_weights(tmp_path: Path) -> None:
+    repo, head, env = stubbed(tmp_path)
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    path = SETUP_PATH.replace("/sash/", "/ref-serve/")
+    stored_setup(bucket, path=path)
+    step = f"fp-maverick-w1024-b1:1:setup={path}"
+    done = job(repo, "run", "ref-serve", step, IPROOFS_COMMIT=head, IPROOFS_JOB_BUDGET_S="5000",
+               IPROOFS_UPLOAD_DIR=str(bucket), **env)  # fmt: skip
+    log = log_of(repo, "upload: ")
+    assert done.returncode == 0, log
+    seen = calls(tmp_path)
+    (run,) = [c for c in seen if c.startswith("iproofs run ")]
+    local = repo.parent / "setups" / path.replace("/", "__")
+    assert f"--setup {local} " in run
+    assert (local / "state.tar").read_bytes() == b"t"
+    assert "copy setup " in log
+    assert log.index("copy setup ") < log.index("fetch-model fp-maverick-w1024-b1")
+
+
+def test_two_setups_of_one_id_from_two_jobs_are_two_copies(tmp_path: Path) -> None:
+    repo, head, env = stubbed(tmp_path)
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    first = SETUP_PATH.replace("/sash/", "/ref-serve/")
+    second = first.replace("runs/s/", "runs/t/")
+    stored_setup(bucket, path=first)
+    (bucket / second).mkdir(parents=True)
+    (bucket / second / "setup.json").write_text("{}")
+    (bucket / second / "state.tar").write_bytes(b"u")
+    (bucket / "runs/t/upload.done").write_text("dev-results bytes 1\n")
+    steps = [f"fp-maverick-w1024-b1:1:setup={p}" for p in (first, second)]
+    done = job(repo, "run", "ref-serve", *steps, IPROOFS_COMMIT=head,
+               IPROOFS_JOB_BUDGET_S="5000", IPROOFS_UPLOAD_DIR=str(bucket), **env)  # fmt: skip
+    assert done.returncode == 0, log_of(repo, "upload: ")
+    runs = [c for c in calls(tmp_path) if c.startswith("iproofs run ")]
+    locals_ = [repo.parent / "setups" / p.replace("/", "__") for p in (first, second)]
+    assert [f"--setup {local} " in run for run, local in zip(runs, locals_, strict=True)] == [
+        True, True]  # fmt: skip
+    assert [(local / "state.tar").read_bytes() for local in locals_] == [b"t", b"u"]
+
+
+def test_upload_prunes_a_stopped_setup_run(tmp_path: Path) -> None:
+    repo, _ = checkout(tmp_path)
+    staging = repo.parent / "out/dev-results/v1.0/sash/_setups/.staging-s1"
+    (staging / "io/state").mkdir(parents=True)
+    (staging / "io/state/witness.bin").write_bytes(b"w" * 1024)
+    (staging / "state.tar").write_bytes(b"partial")
+    (staging / "logs").mkdir()
+    (staging / "logs/harness.jsonl").write_text("{}\n")
+    bucket = tmp_path / "bucket"
+    bucket.mkdir()
+    done = job(repo, "probe", IPROOFS_COMMIT="0" * 40, IPROOFS_UPLOAD_DIR=str(bucket))
+    assert done.returncode == 2
+    log_of(repo, "upload: done")
+    (folder,) = (bucket / "runs").iterdir()
+    copied = folder / "dev-results/v1.0/sash/_setups/.staging-s1"
+    assert (copied / "logs/harness.jsonl").is_file()
+    assert not (copied / "io").exists()
+    assert not (copied / "state.tar").exists()

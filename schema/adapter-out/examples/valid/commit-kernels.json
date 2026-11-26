@@ -1,0 +1,36 @@
+{
+  "commitment_id": "c1",
+  "contract": "adapter/1",
+  "kernels": {
+    "build_key": "sha256:cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd",
+    "constraint_kernels": 73,
+    "emitter_runs": 840,
+    "flags": [
+      "--ao-acc-lo-bits",
+      "--ao-rem-bits"
+    ],
+    "generation_shapes": 89,
+    "refused": 330,
+    "shape_set": "sha256:efefefefefefefefefefefefefefefefefefefefefefefefefefefefefefefef",
+    "synthetic_segment": "--s 32 --ctx 32"
+  },
+  "phases": [
+    {
+      "name": "setup_check",
+      "seconds": 4.5
+    }
+  ],
+  "prover_files": [
+    "/io/state/pk.bin"
+  ],
+  "schema": "adapter-out/1",
+  "sizes": {
+    "prover_bytes": 64,
+    "verifier_bytes": 32
+  },
+  "subcommand": "commit",
+  "verifier_files": [
+    "/io/state/vk.bin"
+  ],
+  "warnings": []
+}

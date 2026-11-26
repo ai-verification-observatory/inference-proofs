@@ -1,0 +1,32 @@
+{
+  "contract": "adapter/1",
+  "kernels": {
+    "build_key": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "constraint_kernels": 73,
+    "generation_shapes": 90,
+    "replies_built": 1,
+    "shape_set": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+  },
+  "phases": [
+    {
+      "name": "witness",
+      "seconds": 0.25
+    }
+  ],
+  "proofs": [
+    {
+      "claimed_output": [
+        4
+      ],
+      "parts": [
+        "body.bin",
+        "tag.bin"
+      ],
+      "proof_id": "req-0",
+      "request_index": 0
+    }
+  ],
+  "schema": "adapter-out/1",
+  "subcommand": "prove",
+  "warnings": []
+}

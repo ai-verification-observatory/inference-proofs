@@ -36,6 +36,10 @@ def load(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
     assert spec is not None
     module = importlib.util.module_from_spec(spec)
     loader.exec_module(module)
+    # a corner of the attention output's sweep box, so a commit runs a few dozen stub processes
+    # rather than five hundred; test_sash_kernels.py checks the full box as a pure function
+    module.AO_BOX = (range(20, 22), range(9, 11), range(18, 21))
+    module.AO_PROD_LO = range(15, 17)
     return module
 
 

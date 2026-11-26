@@ -63,6 +63,7 @@ All schemas use JSON Schema Draft 2020-12 and live at `schema/<name>/<major>.sch
 | `controls-seed` | `schema/controls-seed/1.schema.json` | generated JSON | `<run-dir>/controls-seed.json`, written once before the first part, never committed under `results/` | RFC-0008 §Split suites |
 | `perturbed-commitment` | `schema/perturbed-commitment/1.schema.json` | generated JSON | `results/<release>/<system>/_controls/<workload>/perturbed.json` | RFC-0008 |
 | `verifier-trial` | `schema/verifier-trial/1.schema.json` | generated JSON | `results/<release>/<system>/_trials/<trial id>/trial.json` | RFC-0008 §Verifier trials (amended 2026-11-15) |
+| `setup` | `schema/setup/1.schema.json` | generated JSON | `<results>/<release>/<system>/_setups/<setup id>/setup.json`, beside the `state.tar` it names (development runs) | this RFC, amendment of 2026-11-26 (setup records) |
 | `refusal` | `schema/refusal/1.schema.json` | authored JSON | `results/<release>/<system>/refusals/slot-<k>.json` | RFC-0018 SE-5 (amended 2026-11-15) |
 | `site-facts` | `schema/site-facts/1.schema.json` | authored JSON | `web/_data/facts.json` | RFC-0009 |
 | `criteria` | `schema/criteria/1.schema.json` | authored JSON | `web/_data/criteria.json` (deleted 2026-11-15 because it used RFC-0016's vocabulary, such as Formally verified "yes" from documents, which no page reads; the v0.1 version remains in git history at `b9dfa3e`) | RFC-0016 |
@@ -116,7 +117,7 @@ Defined under `$defs/quantity` in `schema/quantity/1.schema.json`, this object w
         "source": {"$ref": "#/$defs/source"},
         "null_reason": {"enum": [null, "not_externally_observable", "fewer_than_two_proofs",
                                  "not_applicable", "step_failed", "not_measurable_on_profile",
-                                 "missing_input"]},
+                                 "missing_input", "setup_reused"]},
         "upstream_scope": {"type": "string", "minLength": 1},
         "upstream_grade": {"type": "string", "minLength": 1},
         "mapping": {"enum": ["exact", "approximate", "none"]},
@@ -405,6 +406,13 @@ Amendment of 2026-11-17 (RFC-0018 Q44, GL-5, GL-11, SI-3). Additive, with the st
 - `properties/2`: adds optional `plain`, `named`, `described`, and `check` on individual facts, plus optional `bound.after` (verified offline against its quote) and `formal.limits`.
 
 Amendment of 2026-11-26 (RFC-0004 `adapter_phases.<step>.<name>`): `run/1` `adapter_phases` is keyed by step (`commit`, `prove`), then by the phase name the adapter reports, each an adapter-reported quantity in `s` at scope `primitive`. The runner had written the field empty since it was introduced, so every stored run holds `{}`, which stays valid; no stored record, board or page changes.
+
+Amendment of 2026-11-26 (setup records, `iproofs.setups`). Additive; no stored run, board or page changes:
+- `setup/1` (new): one setup run's record. The run calls info, setup and commit with no prompt (`prompts_file` is `null` and the kept adapter-job/1 inputs carry none), keeps the state commit left in `/io/state` as `state.tar` with its digest, and records the system pin, image, adapter commit, model digest, shape, commitment files, kernel store, each step's and phase's seconds, the whole wall and the GPU-seconds, each a labelled quantity.
+- `run/1`: adds optional `setup`. It names the setup a session reused by its record digest and archive digest, the commitment it names (the one verified, AGENTS.md hard rule 6), and the restore's seconds, timed apart from the commit step.
+- `adapter-job/1`: adds optional `setup_state` (`commitment_id`, optional `build_key`), on commit only: the values the setup record names, which the adapter checks the restored state against before it returns the same commitment. `adapter-out/1`: adds optional `kernels` on commit and prove (a device-kernel store's counts, build key and shape set; for prove, `replies_built`).
+- `quantity/1`: adds unit `gpu_s` (GPU-seconds) to the unit enum and INV-QTY-3, for a setup's `gpu_seconds` (bound GPUs times wall seconds, `iproofs.setups.gpu_seconds`), and null reason `setup_reused`. A session that reused a setup records `commit_seconds` and `whole_wall_seconds` null with `setup_reused` and source `run.json#/setup`: its commit step only checks the restored state, so a figure timed from it would leave the setup's commitment and build out under the same labels. Formulas over them (D-COMMIT-AMORT-H1, -H1000, rates at `whole_wall`) are null with that reason, and the Level 1 board reads no session figure from such a run (RFC-0018 CO-1 times a session from the start of its commit).
+- `run/1`: adds optional `kernels` (`commit`, `prove`: each step's adapter-out/1 `kernels` as the adapter reported it, or null), so a run without `--keep-io` still shows the store a session proved from and how many replies rebuilt it; `setup` adds optional `build_key`, the store build key the setup record names.
 
 ## Testing Strategy
 

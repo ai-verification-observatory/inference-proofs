@@ -298,6 +298,37 @@
       ],
       "type": "object"
     },
+    "kernels": {
+      "$comment": "the device-kernel store the accepted commit and prove outputs reported (adapter-out/1 `kernels`, as the adapter wrote it): its counts, build key and shape set, and for prove the replies whose own emission rebuilt the backend; absent when neither step reported one",
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../adapter-out/1.schema.json#/properties/kernels"
+            }
+          ]
+        },
+        "prove": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "../adapter-out/1.schema.json#/properties/kernels"
+            }
+          ]
+        }
+      },
+      "required": [
+        "commit",
+        "prove"
+      ],
+      "type": "object"
+    },
     "marks": {
       "$comment": "RFC-0018 AD-4: the generation marks the adapter renamed into /io/marks during prove, timed like proof releases; absent when it wrote none",
       "items": {
@@ -505,6 +536,67 @@
     "schema": {
       "const": "run/1"
     },
+    "setup": {
+      "$comment": "a session that reused a setup (iproofs run --setup, iproofs.setups): the setup by its record's digest and archive digest, the commitment it names (the one the verifier checks), and the restore's seconds, timed apart from the commit step",
+      "additionalProperties": false,
+      "properties": {
+        "archive_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "build_key": {
+          "$comment": "the kernel-store build key the setup record names; null for a setup whose system compiles no kernels",
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "minLength": 1,
+              "type": "string"
+            }
+          ]
+        },
+        "commitment_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "record_digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "restore_seconds": {
+          "allOf": [
+            {
+              "$ref": "#/$defs/reported"
+            }
+          ],
+          "properties": {
+            "grade": {
+              "const": "measured"
+            },
+            "source": {
+              "properties": {
+                "kind": {
+                  "const": "harness"
+                }
+              }
+            },
+            "unit": {
+              "const": "s"
+            }
+          }
+        },
+        "setup_id": {
+          "$ref": "../quantity/1.schema.json#/$defs/runId"
+        }
+      },
+      "required": [
+        "setup_id",
+        "record_digest",
+        "archive_digest",
+        "commitment_id",
+        "restore_seconds"
+      ],
+      "type": "object"
+    },
     "status": {
       "enum": [
         "completed",
@@ -565,6 +657,6 @@
     "proofs",
     "warnings"
   ],
-  "title": "One job's record: results/<release>/<system>/<run-id>/run.json (RFC-0009 §Storage, RFC-0004)",
+  "title": "One job's record: results/<release>/<system>/<run-id>/run.json (RFC-0009 \u00a7Storage, RFC-0004)",
   "type": "object"
 }

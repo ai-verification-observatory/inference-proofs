@@ -1,0 +1,484 @@
+{
+  "$comment": "A setup record (iproofs.setups): what one setup run made, once, before any session, and how. It calls info, setup and commit with no prompt; the state commit left in /io/state is kept as one archive beside this record, and a session that names the setup restores it and calls commit with `setup_state` (adapter-job/1). The record keeps the exact job inputs of each adapter call, so a reader sees that no prompt reached it and that no per-reply work was moved into it.",
+  "$defs": {
+    "fileDigest": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "stepSeconds": {
+      "$comment": "a step's wall seconds as the harness timed the adapter call",
+      "allOf": [
+        {
+          "$ref": "../run/1.schema.json#/$defs/reported"
+        }
+      ],
+      "properties": {
+        "grade": {
+          "const": "measured"
+        },
+        "source": {
+          "properties": {
+            "kind": {
+              "const": "harness"
+            }
+          }
+        },
+        "unit": {
+          "const": "s"
+        }
+      }
+    }
+  },
+  "$id": "https://inference-proofs.org/schema/setup/1.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "$comment": "failure is set exactly when status is failed",
+      "else": {
+        "properties": {
+          "failure": {
+            "type": "null"
+          }
+        }
+      },
+      "if": {
+        "properties": {
+          "status": {
+            "const": "failed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "failure": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    {
+      "$comment": "a completed setup names what made it, its commitment and its archive",
+      "if": {
+        "properties": {
+          "status": {
+            "const": "completed"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "archive": {
+            "type": "object"
+          },
+          "commitment": {
+            "type": "object"
+          },
+          "jobs": {
+            "required": [
+              "info",
+              "setup",
+              "commit"
+            ]
+          },
+          "machine": {
+            "type": "object"
+          },
+          "profile": {
+            "type": "object"
+          },
+          "system": {
+            "type": "object"
+          },
+          "workload": {
+            "type": "object"
+          }
+        }
+      }
+    }
+  ],
+  "properties": {
+    "archive": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "bytes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            },
+            "name": {
+              "const": "state.tar"
+            },
+            "root": {
+              "$comment": "the container path the archive's `state/` entry is restored to",
+              "const": "/io/state"
+            }
+          },
+          "required": [
+            "name",
+            "digest",
+            "bytes",
+            "root"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "archive_seconds": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepSeconds"
+        }
+      ]
+    },
+    "commands": {
+      "$ref": "../manifest/1.schema.json#/properties/commands"
+    },
+    "commitment": {
+      "$ref": "../manifest/1.schema.json#/properties/commitment"
+    },
+    "ended_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "failure": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../run/1.schema.json#/$defs/failure"
+        }
+      ]
+    },
+    "gpu_count": {
+      "$comment": "the profile's gpu.count (RFC-0004 INV-DERIVE-8); null with not_applicable on a CPU-only profile",
+      "allOf": [
+        {
+          "$ref": "../run/1.schema.json#/$defs/asserted"
+        }
+      ],
+      "properties": {
+        "unit": {
+          "const": "count"
+        }
+      }
+    },
+    "gpu_seconds": {
+      "$comment": "gpu_count times total_seconds (iproofs.setups.gpu_seconds): every bound GPU is held for the whole setup run",
+      "allOf": [
+        {
+          "$ref": "../run/1.schema.json#/$defs/reported"
+        }
+      ],
+      "properties": {
+        "grade": {
+          "const": "derived"
+        },
+        "scope": {
+          "const": "whole_wall"
+        },
+        "unit": {
+          "const": "gpu_s"
+        }
+      }
+    },
+    "harness": {
+      "$ref": "../manifest/1.schema.json#/properties/harness"
+    },
+    "jobs": {
+      "$comment": "the exact adapter-job/1 document of each adapter call; adapter-job/1 refuses a prompts file on info, setup and commit",
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../adapter-job/1.schema.json"
+        },
+        "info": {
+          "$ref": "../adapter-job/1.schema.json"
+        },
+        "setup": {
+          "$ref": "../adapter-job/1.schema.json"
+        }
+      },
+      "type": "object"
+    },
+    "kernels": {
+      "$comment": "the device-kernel store commit reported (adapter-out/1 `kernels`): its counts, build key, shape set and the flags its emission passed; null for a system that compiles none",
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../adapter-out/1.schema.json#/properties/kernels"
+        }
+      ]
+    },
+    "level": {
+      "additionalProperties": false,
+      "properties": {
+        "digest": {
+          "$ref": "../quantity/1.schema.json#/$defs/digest"
+        },
+        "id": {
+          "pattern": "^L[1-9][0-9]*$",
+          "type": "string"
+        },
+        "rung": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "digest",
+        "rung"
+      ],
+      "type": "object"
+    },
+    "logs": {
+      "$comment": "each step log's digest over the whole stream, before redaction and cuts (as a run's digests.txt)",
+      "items": {
+        "$ref": "#/$defs/fileDigest"
+      },
+      "type": "array"
+    },
+    "machine": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../manifest/1.schema.json#/$defs/machine"
+        }
+      ]
+    },
+    "phases": {
+      "$comment": "the seconds commit's output reports per phase (RFC-0004 adapter_phases)",
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "../run/1.schema.json#/$defs/adapterPhases"
+        }
+      },
+      "type": "object"
+    },
+    "profile": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "prover": {
+              "$ref": "../quantity/1.schema.json#/$defs/profileId"
+            },
+            "reference_digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            },
+            "reference_file": {
+              "pattern": "^reference/[a-z0-9.-]+\\.yaml$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "prover",
+            "reference_file",
+            "reference_digest"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "prompts_file": {
+      "$comment": "no prompt reaches a setup: the harness writes no prompts file and no adapter call names one",
+      "const": null
+    },
+    "provider": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "release": {
+      "$ref": "../quantity/1.schema.json#/$defs/releaseId"
+    },
+    "runner": {
+      "$ref": "../manifest/1.schema.json#/properties/runner"
+    },
+    "schema": {
+      "const": "setup/1"
+    },
+    "setup_id": {
+      "$ref": "../quantity/1.schema.json#/$defs/runId"
+    },
+    "started_at": {
+      "format": "date-time",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "completed",
+        "failed"
+      ]
+    },
+    "steps": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "$ref": "#/$defs/stepSeconds"
+        },
+        "info": {
+          "$ref": "#/$defs/stepSeconds"
+        },
+        "setup": {
+          "$ref": "#/$defs/stepSeconds"
+        }
+      },
+      "type": "object"
+    },
+    "system": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "../manifest/1.schema.json#/properties/system"
+        }
+      ]
+    },
+    "total_seconds": {
+      "$comment": "the setup run's wall seconds, from its first state to the archive written",
+      "allOf": [
+        {
+          "$ref": "#/$defs/stepSeconds"
+        }
+      ],
+      "properties": {
+        "scope": {
+          "const": "whole_wall"
+        }
+      }
+    },
+    "warnings": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "workload": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "file_digest": {
+              "$ref": "../quantity/1.schema.json#/$defs/digest"
+            },
+            "id": {
+              "$ref": "../quantity/1.schema.json#/$defs/workloadId"
+            },
+            "model": {
+              "$ref": "../manifest/1.schema.json#/properties/workload/properties/model"
+            },
+            "shape": {
+              "additionalProperties": false,
+              "properties": {
+                "batch_size": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "batches_per_session": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "context_window": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "output_tokens": {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "prompt_tokens": {
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "prompt_tokens",
+                "output_tokens",
+                "batch_size",
+                "batches_per_session",
+                "context_window"
+              ],
+              "type": "object"
+            },
+            "version": {
+              "$ref": "../quantity/1.schema.json#/$defs/workloadVersion"
+            }
+          },
+          "required": [
+            "id",
+            "version",
+            "file_digest",
+            "model",
+            "shape"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "setup_id",
+    "release",
+    "status",
+    "failure",
+    "started_at",
+    "ended_at",
+    "harness",
+    "runner",
+    "provider",
+    "system",
+    "workload",
+    "profile",
+    "machine",
+    "prompts_file",
+    "jobs",
+    "commands",
+    "commitment",
+    "kernels",
+    "archive",
+    "steps",
+    "phases",
+    "archive_seconds",
+    "total_seconds",
+    "gpu_count",
+    "gpu_seconds",
+    "logs",
+    "warnings"
+  ],
+  "type": "object"
+}

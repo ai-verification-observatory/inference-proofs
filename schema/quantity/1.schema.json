@@ -78,7 +78,8 @@
                   "USD/request",
                   "s/request",
                   "request/gpu_s",
-                  "token/gpu_s"
+                  "token/gpu_s",
+                  "gpu_s"
                 ]
               }
             }
@@ -271,7 +272,8 @@
             "not_applicable",
             "step_failed",
             "not_measurable_on_profile",
-            "missing_input"
+            "missing_input",
+            "setup_reused"
           ]
         },
         "pairs": {
@@ -371,7 +373,8 @@
             "s/request",
             "request/gpu_s",
             "nat/token",
-            "token/gpu_s"
+            "token/gpu_s",
+            "gpu_s"
           ]
         },
         "upstream_grade": {

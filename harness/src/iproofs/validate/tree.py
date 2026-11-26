@@ -54,6 +54,7 @@ G2_GLOBS = (
     "results/**/controls.json",
     "results/**/_controls/*/perturbed.json",
     "results/**/_trials/*/trial.json",
+    "results/**/_setups/*/setup.json",
     "web/_data/facts.json",
 )
 # Known-bad gate fixtures: checked by their own tests, never by the tree scan.

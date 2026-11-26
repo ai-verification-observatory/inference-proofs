@@ -5,8 +5,9 @@ The adapter runs `stub_upstream.py <argv...>` when IPROOFS_SASH_EXEC names this 
 the few files the adapter reads next, shaped as upstream's source says they are; nothing here
 is a captured upstream output. IPROOFS_SASH_STUB_GRID picks the `boundary-grid` outcome
 (`accept`, `reject_segment`, `reject_chain`, `panic`), IPROOFS_SASH_STUB_TOK the ids every
-layer-0 statement states. A head extraction over given ids (`--head --ids`) writes head dumps
-of a vocabulary of 8: `head_dump` says which token each row emits.
+layer-0 statement states, IPROOFS_SASH_STUB_CAP the compute capability `nvidia-smi` reports
+(`cuobjdump` always lists sm_90 code). A head extraction over given ids (`--head --ids`)
+writes head dumps of a vocabulary of 8: `head_dump` says which token each row emits.
 """
 
 import hashlib
@@ -220,16 +221,23 @@ def emit(argv: list[str]) -> int:
     again for another sequence adds nothing; IPROOFS_SASH_STUB_NEW names one more shape every
     emission asks for. A dump whose directory is gone is refused, as the prover refuses it.
     IPROOFS_SASH_STUB_EMIT_REFUSE lists, comma-separated, `cudaemit` or `genemit` (every run of
-    it refused) or `<flag>=<min>` (both refused where the pin they read is at least `min`)."""
+    it refused), `<flag>=<min>` (both refused where the pin they read is at least `min`) or
+    `<flag>@<text>` (both refused where the flag is passed and `text` is in the dump's path)."""
     if "--witness" in argv and not host(opt(argv, "--witness")).parent.is_dir():
         print(f"error: no dump at {opt(argv, '--witness')} (stub)", file=sys.stderr)
         return 1
     for rule in filter(None, os.environ.get("IPROOFS_SASH_STUB_EMIT_REFUSE", "").split(",")):
         flag, _, least = rule.partition("=")
+        named, _, where = rule.partition("@")
         at = [i for i, a in enumerate(argv[:-1]) if a == flag]
-        if rule == argv[1] or (least and at and int(argv[at[-1] + 1]) >= int(least)):
-            print(f"thread 'main' panicked: {rule}: the lowering is refused (stub)",
-                  file=sys.stderr)  # fmt: skip
+        dump = opt(argv, "--witness") if "--witness" in argv else ""
+        if (rule == argv[1] or (least and at and int(argv[at[-1] + 1]) >= int(least))
+                or (where and named in argv and where in dump)):  # fmt: skip
+            # a Rust panic's three lines: where, the message, the backtrace hint
+            print("thread 'main' panicked at prover/src/cli.rs:1297:5:", file=sys.stderr)
+            print(f"{rule}: the lowering is refused (stub)", file=sys.stderr)
+            hint = "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            print(hint, file=sys.stderr)
             return 1
     out, gen = host(opt(argv, "--out")), argv[1] == "genemit"
     out.mkdir(parents=True, exist_ok=True)
@@ -279,7 +287,7 @@ def cargo(argv: list[str]) -> int:
 
 
 TOOLS = {"uv": harness, "zk-prover-simd": prover, "zk-prover": prover, "cargo": cargo,
-         "nvidia-smi": lambda _: print("9.0") or 0,
+         "nvidia-smi": lambda _: print(os.environ.get("IPROOFS_SASH_STUB_CAP", "9.0")) or 0,
          "cuobjdump": lambda _: print("ELF file 1: libstwo_cuda.1.sm_90.cubin") or 0}  # fmt: skip
 
 

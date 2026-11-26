@@ -1,0 +1,17 @@
+{
+  "contract": "adapter/1",
+  "kernels": {
+    "build_key": "k",
+    "constraint_kernels": 1,
+    "generation_shapes": 1,
+    "shape_set": "s"
+  },
+  "phases": [],
+  "raw_exit_code": 1,
+  "raw_last_line": "tag mismatch",
+  "schema": "adapter-out/1",
+  "seconds": 0.01,
+  "subcommand": "verify",
+  "verdict": "reject",
+  "warnings": []
+}

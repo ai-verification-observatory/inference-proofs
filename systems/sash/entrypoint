@@ -12,9 +12,10 @@ each argument to its upstream source.
 - `commit` extracts a commitment sequence from upstream's own corpus, writes its plan and runs
   `zk-prover model-roots`: the per-layer model roots and the per-(layer, c) calibration a
   verifier derives shape roots from. It also keeps the attention calibration and the token
-  cache the prover reuses. From that sequence's witness it emits the device kernels into one
-  store, installs them into a copy of the source and builds the CUDA backend once (upstream's
-  documented way to a device build).
+  cache the prover reuses. From that sequence's witness, and over the bound of the two
+  data-dependent families, it emits the device kernels into one store, installs them into a
+  copy of the source and builds the CUDA backend once (upstream's documented way to a device
+  build). Given `setup_state`, it checks the state a setup run left instead and makes nothing.
 - `prove` decodes the prompt greedily (`gen_ids`), extracts the witnesses, writes the plan,
   emits the kernels for the plan's shapes into the same store, rebuilds only when that added a
   kernel, proves the grid with `compose-chunks` on that backend, and releases one directory per
@@ -72,6 +73,38 @@ GEN = BUILD + "/gen"  # the one kernel store every emission adds to (ZK_KERNEL_S
 # `q_bits + rem_bits <= 30` for the fold (U/prover/src/gadgets/dequant/mod.rs L203-L211). A
 # value the prover refuses is recorded as a refused lowering and adds nothing.
 AO_REM_CAP, FOLD_REM_CAP = 20, 19
+# The data-dependent kernels commit emits ahead of time (README.md §Kernels), through params_of's
+# override flags (U/prover/src/cli.rs L1274-L1381). The attention output's parameters are swept
+# over this box: accumulator widths 1..26 bits (|acc| <= 127 * 511 * 1024 < 2^26), high exponents
+# e_hi 4..30 (Plan::new refuses e_hi > 30, U/prover/src/compose.rs L1910; the int8 clamp keeps
+# the output exponent at least 4 below jv_max), divisor ranges 10..20 (z >= nmax = 511 needs 10;
+# 20 is AO_REM_CAP), with acc_bits <= rem + 6 (|acc| <= 127 z). The product form's low limb takes
+# 4..16 (MIN_LOG_ROWS to 16, cli.rs L1276-L1277).
+AO_BOX = (range(1, 27), range(4, 31), range(10, AO_REM_CAP + 1))
+AO_PROD_LO = range(4, 17)
+AO_Q_BITS = 11  # attn_out_bits - 1 (cli.rs L1315); the extraction's 12-bit attention output
+# The synthetic segment's own attention-output accumulator in the magnitude and product forms:
+# params_of refuses limbs that sum below it ("--ao-acc-*-bits 8+4 is below this witness's 16",
+# cli.rs L1297-L1298). Those forms' shape keys see the high limb only through which of the
+# remainder, the low limb and (product form) 30 - lo it equals, so a point whose own limbs sum
+# below 16 is emitted with the narrowest high limb at or above 16 - lo that equals the same of
+# them: the same shape, which the segment admits (synthetic_point).
+SYNTH_AO_ACC = 16
+# `genemit` with no `--witness` lowers a synthetic segment (cli.rs L1050-L1080), the way
+# upstream's synthetic-digests.sh emits kernels with no witness. The attention output and fold
+# shapes depend on their parameters, not on the model's dimensions: this segment has the
+# request's rounding and variants (SHARED) and its 12-bit attention output (`--synth-ao-bits`,
+# cli.rs L1059), and on the pinned commit built for CPU it reproduces every attention-output and
+# fold shape the 8B sessions' stores hold. Only `--families` is emitted from it, so no shape of
+# its other components enters the store (cudagen.rs L3518-L3520).
+SYNTH = ("--round even --variants intexp --numbits 9 --z-hi-bits 7 --table-bits 16 --s 32 "
+         "--ctx 32 --hd 32 --head-groups 2,1 --nout 64 --residual-stream-a 32 --kmax 16 "
+         "--synth-residual-stream --diagonal-block --layout zfold --synth-ao-bits 12")  # fmt: skip
+# the override flags commit's sweep passes beyond the pins sequence-job.sh passes (README.md
+# §Kernels); the commit output and the setup record list them
+OVERRIDE_FLAGS = ("--ao-acc-lo-bits", "--ao-acc-hi-bits", "--ao-acc-mag", "--ao-acc-prod",
+                  "--ao-rem-bits", "--ao-denp2", "--fold-rem-bits")  # fmt: skip
+KERNELS_RECORD = "/io/state/build/kernels.json"  # what commit's emission did, kept with the store
 ZK_OUT = STATE + "/zk-out"  # common.py ZK_OUT: tokens.npz and attn_ranges.json live here
 # headline-c4096.sh: the configuration of upstream's recorded runs, verbatim
 SPEC = "y-delay-vw12"
@@ -152,6 +185,13 @@ def base(sub: str) -> dict[str, object]:
 def last_line(text: str) -> str:
     lines = [ln for ln in text.splitlines() if ln.strip()]
     return lines[-1][-4096:] if lines else ""
+
+
+def refusal_line(text: str) -> str:
+    """An emitter's reason for a refusal: the last line that is not a `note:` line, since a
+    panic ends on Rust's backtrace hint and the message is the line before it."""
+    lines = [ln for ln in text.splitlines() if ln.strip() and not ln.startswith("note:")]
+    return lines[-1][-4096:] if lines else last_line(text)
 
 
 def mapped(arg: str) -> str:
@@ -282,11 +322,30 @@ def setup(job: dict) -> dict:
     return {**base("setup"), "ready": True, "log_files": []}
 
 
+VERIFIER = [STATE + "/model-roots.json", STATE + "/grid.json"]
+PROVER = [ZK_OUT + "/attn_ranges.json", ZK_OUT + "/tokens.npz"]
+
+
+def commit_out(phases: dict[str, float], kernels: dict | None) -> dict:
+    size = lambda fs: sum(host(f).stat().st_size for f in fs)  # noqa: E731
+    return {**base("commit"), "commitment_id": commitment_of(VERIFIER),
+            "verifier_files": VERIFIER, "prover_files": PROVER,
+            "sizes": {"verifier_bytes": size(VERIFIER), "prover_bytes": size(PROVER)},
+            "phases": [{"name": k, "seconds": v} for k, v in phases.items()]} | (
+                {"kernels": kernels} if kernels is not None else {})  # fmt: skip
+
+
 def commit(job: dict) -> dict:
     """model-commitment.sh step 1 over a commitment sequence: upstream's own corpus, extracted
     the way a sequence run extracts it (no `--ids`: the corpus's first tokens). Then the kernel
-    store from that sequence's witness and one CUDA build (README.md §Kernels); the commitment
-    covers the verifier files alone, as before."""
+    store from that sequence's witness and the sweep, and one CUDA build (README.md §Kernels);
+    the commitment covers the verifier files alone, as before. With `setup_state`, the state a
+    setup run's commit left is restored under /io/state and is checked, not made again. A MODEL
+    control's commit (W' at /models, RFC-0008 C3) makes the commitment only: no proof is ever
+    made from W' state (P1 proves from the session's own), so it emits and builds nothing."""
+    if "setup_state" in job:
+        return reuse(job)
+    control = isinstance(job.get("control"), dict)
     t0 = time.monotonic()
     g = geometry(job["shape"], model_layers())
     wit = STATE + "/commit-witness"
@@ -294,28 +353,69 @@ def commit(job: dict) -> dict:
         host(d).mkdir(parents=True, exist_ok=True)
     plan, emit_txt, pins = witness_and_plan(g, wit, [])
     t1 = time.monotonic()
-    prover = [ZK_OUT + "/attn_ranges.json", ZK_OUT + "/tokens.npz"]
-    if missing := [f for f in prover if not host(f).is_file()]:  # before model-roots and build
+    if missing := [f for f in PROVER if not host(f).is_file()]:  # before model-roots and build
         raise SystemExit(f"sash: the extraction wrote no {missing}")
-    roots, grid = STATE + "/model-roots.json", STATE + "/grid.json"
+    roots, grid = VERIFIER
     run([SIMD, "model-roots", "--plan", plan, "--pins", f"{SHARED} {pins}", "--out", roots],
         out=STATE + "/model-roots.out.json")  # fmt: skip
     write_json(grid, g)
     t2 = time.monotonic()
-    prepare_kernels(plan, emit_txt, pins)
+    if control:
+        shutil.rmtree(host(wit))
+        phases = {"witness": t1 - t0, "model_roots": time.monotonic() - t1}
+        log("commit: a MODEL control's commitment: no kernel emitted or built; seconds "
+            + ", ".join(f"{k} {v:.1f}" for k, v in phases.items()))  # fmt: skip
+        return commit_out(phases, None)
+    sweep = prepare_kernels(plan, emit_txt, pins)
     t3 = time.monotonic()
     shutil.rmtree(host(wit))  # tens of GB of activations; the plan and pins are in no file kept
     t4 = time.monotonic()  # the deletion counts in model_roots, as in v1.0
     _, build_seconds = ensure_built()
-    verifier = [roots, grid]
-    size = lambda fs: sum(host(f).stat().st_size for f in fs)  # noqa: E731
     phases = {"witness": t1 - t0, "model_roots": t2 - t1 + t4 - t3, "kernels_emit": t3 - t2,
               "kernels_build": build_seconds}  # fmt: skip
     log("commit: seconds " + ", ".join(f"{k} {v:.1f}" for k, v in phases.items()))
-    return {**base("commit"), "commitment_id": commitment_of(verifier),
-            "verifier_files": verifier, "prover_files": prover,
-            "sizes": {"verifier_bytes": size(verifier), "prover_bytes": size(prover)},
-            "phases": [{"name": k, "seconds": v} for k, v in phases.items()]}  # fmt: skip
+    kernels = {**store_facts(store()), **sweep}
+    write_json(KERNELS_RECORD, kernels)
+    return commit_out(phases, kernels)
+
+
+def reuse(job: dict) -> dict:
+    """commit over a restored setup (README.md §Setup): the state a setup run's commit left,
+    restored by the harness under /io/state. Nothing is extracted, derived, emitted or built.
+    The check: both verifier files and both prover files are there, the verifier files hash to
+    the setup's commitment id, the grid is this request's, the store's build key is the one the
+    setup names and the one the CUDA binary was built from (`kernels.done`), the binary is
+    there and its library carries this card's architecture. Any failure stops the run; it never
+    falls back to making the state again."""
+    t0 = time.monotonic()
+    want = job["setup_state"]
+    if isinstance(job.get("control"), dict):  # a MODEL control commits W', never the setup's W
+        raise SystemExit("sash: a control commit over a changed model is never a restored setup")
+    if missing := [f for f in [*VERIFIER, *PROVER, CUDA, BUILD + "/kernels.done"]
+                   if not host(f).is_file()]:  # fmt: skip
+        raise SystemExit(f"sash: the restored setup has no {missing}")
+    if (got := commitment_of(VERIFIER)) != want["commitment_id"]:
+        raise SystemExit(f"sash: the restored verifier files hash to {got}, not the setup's "
+                         f"{want['commitment_id']}")  # fmt: skip
+    grid = json.loads(host(VERIFIER[1]).read_text())
+    if grid != json.loads(json.dumps(geometry(job["shape"], model_layers()))):
+        raise SystemExit(f"sash: the restored grid {grid} is not this request's")
+    state, built = store(), host(BUILD + "/kernels.done").read_text()
+    if not state[0] or not state[1]:
+        raise SystemExit(f"sash: the restored kernel store is empty ({store_line(state)})")
+    if built != state[2] or want.get("build_key", state[2]) != state[2]:
+        raise SystemExit(f"sash: the restored store's build key is {state[2]}; the binary was "
+                         f"built from {built} and the setup names "
+                         f"{want.get('build_key')}")  # fmt: skip
+    check_arch()
+    kernels = store_facts(state)
+    if host(KERNELS_RECORD).is_file():  # the setup's own sweep record, kept with the store
+        kept = json.loads(host(KERNELS_RECORD).read_text())
+        kernels.update({k: v for k, v in kept.items() if k not in kernels})
+    phases = {"setup_check": time.monotonic() - t0}
+    log(f"commit: reused the setup {want['commitment_id']}; store {store_line(state)}; "
+        f"seconds setup_check {phases['setup_check']:.1f}")
+    return commit_out(phases, kernels)
 
 
 def log(message: str) -> None:
@@ -381,7 +481,7 @@ def emit(lines: list[tuple[str, ...]], pins: str, flags: list[str],
             if p.returncode != 0:
                 refused.append(f"{cmd} exited {p.returncode} on `{shlex.join(args)}`"
                                f"{f' at {sweep[0]} {sweep[1]}' if sweep else ''}: "
-                               f"{last_line(p.stderr)[:300]}")  # fmt: skip
+                               f"{refusal_line(p.stderr)[:300]}")  # fmt: skip
     return runs, refused
 
 
@@ -427,6 +527,11 @@ def store_line(state: tuple[int, int, str, str]) -> str:
             f"build key {state[2]}, shape set {state[3]}")  # fmt: skip
 
 
+def store_facts(state: tuple[int, int, str, str]) -> dict[str, object]:
+    return {"constraint_kernels": state[0], "generation_shapes": state[1], "build_key": state[2],
+            "shape_set": state[3]}  # fmt: skip
+
+
 def report(what: str, lines: int, runs: int, refused: list[str], quiet: bool = False) -> None:
     log(f"kernels: {what}: {lines} lines, {runs} emitter runs, {len(refused)} refused")
     for r in refused[: 5 if quiet else 50]:
@@ -435,25 +540,128 @@ def report(what: str, lines: int, runs: int, refused: list[str], quiet: bool = F
         log(f"  ... and {len(refused) - (5 if quiet else 50)} more refused")
 
 
-def prepare_kernels(plan: str, emit_txt: str, pins: str) -> None:
-    """commit's kernel store, emitted from the commitment sequence's witness before it is
-    deleted. (a) The kernels a reply's own emission would ask for (sequence-job.sh step 5 on
-    this plan). (b) Data-dependent variants, with only arguments upstream's drivers and planner
-    pass: every other line of the plan (plan.py keys a line by its prefix, table width, head,
-    flags and the attention output's form, not its limb widths, so a segment whose limbs differ
-    from its key's first line is emitted only here), then the two pins sequence-job.sh passes,
-    `--ao-rem-bits` and `--fold-rem-bits`, widened step by step above the pin each line is
-    emitted at up to the widest value the prover admits. README.md §Kernels says what is left
-    to a reply's own emission."""
+def split(need: int) -> tuple[int, int]:
+    """params_of's limbs for an accumulator that needs `need` bits: the low limb clamped to
+    MIN_LOG_ROWS..16, the high limb the rest and at least MIN_LOG_ROWS (cli.rs L1274-L1281)."""
+    lo = min(max(need, 4), 16)
+    return lo, max(need - lo, 4)
+
+
+def ao_points() -> list[tuple[str, int, int, int, bool]]:
+    """The attention output's (form, lo, hi, rem, denp2) that params_of chooses for each
+    (acc_bits, e_hi, rem) of AO_BOX: the offset form's limbs carry acc_bits + 1, the magnitude
+    form's acc_bits; the product form is taken when the magnitude window would pass 31 bits,
+    the magnitude form when the offset window would; denp2 when q_bits + rem > 30 (cli.rs
+    L1274-L1325). In first-seen order, each once."""
+    points: dict[tuple[str, int, int, int, bool], None] = {}
+    widths, highs, rems = AO_BOX
+    for a in widths:
+        for e_hi in highs:
+            for rem in rems:
+                if a > rem + 6:
+                    continue
+                (lo_off, hi_off), (lo_mag, hi_mag) = split(a + 1), split(a)
+                prod = 1 + lo_mag + hi_mag + e_hi > 31
+                mag = prod or 1 + lo_off + hi_off + e_hi > 31
+                lo, hi = (lo_mag, hi_mag) if mag else (lo_off, hi_off)
+                form = "product" if prod else "magnitude" if mag else "offset"
+                points[(form, lo, hi, rem, AO_Q_BITS + rem > 30)] = None
+    return list(points)
+
+
+def synthetic_point(point: tuple[str, int, int, int, bool]) -> tuple[str, int, int, int, bool]:
+    """`point` as the synthetic segment admits it (SYNTH_AO_ACC): unchanged when its limbs reach
+    the segment's accumulator or its form is the offset one, whose key holds the high limb
+    itself; else the narrowest high limb >= SYNTH_AO_ACC - lo with the same equalities. A point
+    no such limb keeps (its high limb equals its low one) stays as it is, and is refused."""
+    form, lo, hi, rem, denp2 = point
+    if form == "offset" or lo + hi >= SYNTH_AO_ACC:
+        return point
+
+    def equal(h: int) -> tuple[bool, ...]:
+        return (h == rem, h == lo, *((h == 30 - lo,) if form == "product" else ()))
+
+    wider = [h for h in range(max(SYNTH_AO_ACC - lo, 4), 32) if equal(h) == equal(hi)]
+    return (form, lo, wider[0], rem, denp2) if wider else point
+
+
+def ao_flags(point: tuple[str, int, int, int, bool]) -> list[str]:
+    form, lo, hi, rem, denp2 = point
+    return ["--ao-acc-lo-bits", str(lo), "--ao-acc-hi-bits", str(hi), "--ao-rem-bits", str(rem),
+            *(["--ao-acc-mag"] if form != "offset" else []),
+            *(["--ao-acc-prod"] if form == "product" else []),
+            *(["--ao-denp2"] if denp2 else [])]  # fmt: skip
+
+
+def is_head(args: tuple[str, ...]) -> bool:
+    """A head line reads a head dump (plan.py head_line: `<head>_B<b>`)."""
+    return "--witness" in args and Path(args[args.index("--witness") + 1]).name.startswith("head")
+
+
+def emit_forms(lines: list[tuple[str, ...]], pins: str) -> tuple[int, list[str]]:
+    """The attention output's constraint kernels in the forms the data may take (the constraint
+    shape sees the form and, in the product form, the low limb; air.rs L155, L189-L192): one
+    `cudaemit` per form, `--ao-acc-mag` and `--ao-acc-prod --ao-acc-lo-bits L` for each L of
+    AO_PROD_LO, on the first line of `lines` that admits it (params_of sizes the high limb to
+    the line's own accumulator, cli.rs L1278-L1281). Layer lines are tried before head lines."""
+    order = [a for a in lines if not is_head(a)] + [a for a in lines if is_head(a)]
+    forms = [["--ao-acc-mag"]] + [["--ao-acc-prod", "--ao-acc-lo-bits", str(lo)]
+                                  for lo in AO_PROD_LO]  # fmt: skip
+    runs, refused = 0, []
+    for form in forms:
+        last = ""
+        for args in order:
+            p = run([SIMD, "cudaemit", *SHARED.split(), *pins.split(), *form, *args, "--block",
+                     "256", "--min-blocks", "2", "--out", GEN], check=False)  # fmt: skip
+            runs += 1
+            if p.returncode == 0:
+                break
+            last = refusal_line(p.stderr)[:300]
+        else:
+            refused.append(f"cudaemit `{shlex.join(form)}` on every line: {last}")
+    return runs, refused
+
+
+def emit_synthetic(family: str, flag_sets: list[list[str]]) -> tuple[int, list[str]]:
+    """`genemit` on the synthetic segment (SYNTH) for one family, once per flag set; a refusal
+    (the segment's own pins are the floor every override must clear, cli.rs L1298-L1299,
+    L1317-L1320, L1376-L1379) is recorded and never fatal."""
+    refused = []
+    for flags in flag_sets:
+        p = run([SIMD, "genemit", *SYNTH.split(), *flags, "--families", family, "--out", GEN],
+                check=False)  # fmt: skip
+        if p.returncode != 0:
+            refused.append(f"genemit {family} `{shlex.join(flags)}`: "
+                           f"{refusal_line(p.stderr)[:300]}")  # fmt: skip
+    return len(flag_sets), refused
+
+
+def prepare_kernels(plan: str, emit_txt: str, pins: str) -> dict[str, object]:
+    """commit's kernel store (README.md §Kernels), emitted before the commitment sequence's
+    witness is deleted. From that witness: (a) the lines a reply's own emission runs
+    (sequence-job.sh step 5 on this plan); (b) every other line of the plan (plan.py keys a
+    line by its prefix, table width, head, flags and the attention output's form, not its limb
+    widths); (c) the lines of (a) with `--ao-rem-bits` and `--fold-rem-bits` widened step by
+    step above the pin each is emitted at, up to the widest the prover admits. Then the
+    data-dependent families over their bound, through params_of's override flags: (d) the
+    attention output's constraint kernels in the magnitude form and in the product form at
+    each low limb, on the commitment's own lines; (e) its generation shapes for every point of
+    AO_BOX and (f) the fold's for every `--fold-rem-bits` up to its cap, on the synthetic
+    segment. A refusal is recorded and never fatal. Returns what the sweep did."""
     host(GEN).mkdir(parents=True, exist_ok=True)
+    total, refusals = 0, 0
+
+    def done(what: str, lines: int, runs: int, refused: list[str], quiet: bool = False) -> None:
+        nonlocal total, refusals
+        total, refusals = total + runs, refusals + len(refused)
+        report(what, lines, runs, refused, quiet)
+
     reps = emit_lines(plan, emit_txt)
-    runs, refused = emit(reps, pins, [])
-    report("commitment plan, the lines a reply emits", len(reps), runs, refused)
+    done("(a) commitment plan, the lines a reply emits", len(reps), *emit(reps, pins, []))
     log(f"kernels: store after (a): {store_line(store())}")
     known = set(reps)
     rest = [a for a in plan_lines(plan) if a not in known]
-    runs, refused = emit(rest, pins, [])
-    report("commitment plan, every other line", len(rest), runs, refused)
+    done("(b) commitment plan, every other line", len(rest), *emit(rest, pins, []))
     for flag, cap in (("--ao-rem-bits", AO_REM_CAP), ("--fold-rem-bits", FOLD_REM_CAP)):
         owns = [v for a in reps if (v := pinned([*pins.split(), *a], flag)) is not None]
         start = min(owns, default=cap) + 1
@@ -462,13 +670,25 @@ def prepare_kernels(plan: str, emit_txt: str, pins: str) -> None:
             r, f = emit(reps, pins, [], sweep=(flag, value))
             runs, refused = runs + r, refused + f
         values = f"{start}..{cap}" if start <= cap else "none above the pins"
-        report(f"{flag} {values} on the lines a reply emits", len(reps), runs, refused,
-               quiet=True)  # fmt: skip
-    c, g, digest, shapes = store()
+        done(f"(c) {flag} {values} on the lines a reply emits", len(reps), runs, refused,
+             quiet=True)  # fmt: skip
+    c, g, _, _ = store()
     if not c or not g:
-        raise SystemExit(f"sash: the kernel store holds {c} constraint kernels and {g} "
+        raise SystemExit(f"sash: the commitment's lines left {c} constraint kernels and {g} "
                          "generation shapes; every emission was refused (see the lines above)")
-    log(f"kernels: store after commit: {store_line((c, g, digest, shapes))}")
+    lines = reps + rest
+    done("(d) attention-output forms, constraint kernels", len(lines), *emit_forms(lines, pins),
+         quiet=True)  # fmt: skip
+    points = list(dict.fromkeys(synthetic_point(p) for p in ao_points()))
+    done(f"(e) attention output over its bound, {len(points)} points, synthetic segment", 0,
+         *emit_synthetic("zk_attn_out_eval", [ao_flags(p) for p in points]), quiet=True)
+    folds = [["--fold-rem-bits", str(v)] for v in range(1, FOLD_REM_CAP + 1)]
+    done(f"(f) fold --fold-rem-bits 1..{FOLD_REM_CAP}, synthetic segment", 0,
+         *emit_synthetic("zk_dequant_eval", folds), quiet=True)
+    state = store()
+    log(f"kernels: store after commit: {store_line(state)}")
+    return {"emitter_runs": total, "refused": refusals, "flags": list(OVERRIDE_FLAGS),
+            "synthetic_segment": SYNTH}  # fmt: skip
 
 
 def ensure_built() -> tuple[bool, float]:
@@ -503,10 +723,7 @@ def build() -> None:
     run(["python3", f"{k}/install_witness_gen_kernels.py", "--fork", f"{src}/nitroo", "--gen",
          gen, "--src", k])  # fmt: skip
     run(["cp", f"{gen}/cudakernels.rs", f"{gen}/gencudakernels.rs", f"{src}/prover/src/"])
-    cap = run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"]).stdout
-    arch = cap.strip().splitlines()[0].replace(".", "") if cap.strip() else ""
-    if not arch.isdigit():
-        raise SystemExit(f"sash: nvidia-smi reported no compute capability ({cap!r})")
+    arch = card_arch()
     cargo = BUILD + "/cargo"  # writable CARGO_HOME over the image's fetched registry
     host(cargo).mkdir(parents=True, exist_ok=True)
     if not host(cargo + "/registry").is_symlink():
@@ -514,12 +731,29 @@ def build() -> None:
     run(["cargo", "build", "--release", "--locked", "--offline", "-p", "zk-prover", "--features",
          "cuda"], cwd=src, env={"CARGO_HOME": cargo, "CARGO_TARGET_DIR": BUILD + "/t-cuda",
                                 "CUDAARCHS": arch})  # fmt: skip
+    check_arch(arch)
+
+
+def card_arch() -> str:
+    """This card's architecture, as tools/gate/on-card.sh reads it (compute capability 9.0 is
+    90)."""
+    cap = run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"]).stdout
+    arch = cap.strip().splitlines()[0].replace(".", "") if cap.strip() else ""
+    if not arch.isdigit():
+        raise SystemExit(f"sash: nvidia-smi reported no compute capability ({cap!r})")
+    return arch
+
+
+def check_arch(arch: str | None = None) -> None:
+    """The built library carries this card's `sm_` code: the CMake fallback trap
+    (tools/gate/README.md), and a binary restored from a setup made on another card."""
+    arch = arch or card_arch()
     libs = sorted(host(BUILD + "/t-cuda/release/build").glob("stwo-*/out/libstwo_cuda.a"))
     if not libs:
         raise SystemExit("sash: the CUDA build left no libstwo_cuda.a")
     lib = "/io" + str(libs[0])[len(str(host("/io"))) :]
     elf = run(["cuobjdump", "--list-elf", lib]).stdout
-    if f"sm_{arch}" not in elf:  # the CMake fallback trap (tools/gate/README.md)
+    if f"sm_{arch}" not in elf:
         raise SystemExit(f"sash: {lib} carries no sm_{arch} code; refusing to prove")
 
 
@@ -545,10 +779,10 @@ def fold_binding(slices: list[dict]) -> dict:
 
 
 def reply_kernels(name: str, plan: str, emit_txt: str, pins: str,
-                  flags: list[str]) -> dict[str, float]:  # fmt: skip
+                  flags: list[str]) -> tuple[dict[str, float], str | None]:  # fmt: skip
     """sequence-job.sh step 5 for one reply into the session's store, and a rebuild only when
-    that changed the store. Returns the two phases' seconds; `kernels_build` is 0 when no build
-    ran."""
+    that changed the store. Returns the two phases' seconds (`kernels_build` is 0 when no build
+    ran) and, when the reply had to build, a warning that says what it added."""
     t = time.monotonic()
     before = store()
     lines = emit_lines(plan, emit_txt)
@@ -560,7 +794,10 @@ def reply_kernels(name: str, plan: str, emit_txt: str, pins: str,
         f"{after[1] - before[1]} generation shapes; store {store_line(after)}")
     built, build_seconds = ensure_built()
     log(f"kernels: {name}: build {'ran' if built else 'skipped'}")
-    return {"kernels_emit": seconds, "kernels_build": build_seconds}
+    warning = (f"{name}: the reply's emission added {after[0] - before[0]} constraint kernels "
+               f"and {after[1] - before[1]} generation shapes the store lacked, so the backend "
+               f"was rebuilt in {build_seconds:.1f} s") if built else None  # fmt: skip
+    return {"kernels_emit": seconds, "kernels_build": build_seconds}, warning
 
 
 def prove(job: dict) -> dict:
@@ -576,7 +813,7 @@ def prove(job: dict) -> dict:
     proofs_dir.mkdir(parents=True, exist_ok=True)
     host(out).mkdir(parents=True, exist_ok=True)
     phases: dict[str, float] = {}
-    proofs, slices = [], []
+    proofs, slices, warnings = [], [], []
     cpus = len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else 16
     for i in range(count):
         if len(json.loads(prompts[i])) != p:
@@ -597,7 +834,9 @@ def prove(job: dict) -> dict:
         extra = ["--ids", f"{wit}/ids.npy", "--attn-ranges", ZK_OUT + "/attn_ranges.json"]
         plan, emit_txt, pins = witness_and_plan(g, wit, extra)
         one["witness"] = time.monotonic() - t
-        one.update(reply_kernels(f"req-{i}", plan, emit_txt, pins, flags))
+        kernel_phases, warning = reply_kernels(f"req-{i}", plan, emit_txt, pins, flags)
+        one.update(kernel_phases)
+        warnings += [warning] if warning else []
         t = time.monotonic()
         proof_id = f"req-{i}"
         tmp = f"/io/proofs/.tmp-{proof_id}"
@@ -625,8 +864,10 @@ def prove(job: dict) -> dict:
                        "parts": parts})  # fmt: skip
         shutil.rmtree(host(wit))
     write_json("/io/binding.json", fold_binding(slices))
+    kernels = {**store_facts(store()), "replies_built": len(warnings)}
     return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json",
-            "phases": [{"name": k, "seconds": v} for k, v in phases.items()]}  # fmt: skip
+            "phases": [{"name": k, "seconds": v} for k, v in phases.items()],
+            "kernels": kernels, "warnings": warnings}  # fmt: skip
 
 
 def verdict_of(code: int, stdout: str, stderr: str) -> tuple[str, str]:

@@ -43,6 +43,8 @@ class Unit(StrEnum):
     # RFC-0018 CO-8 (adopted 2026-11-16): the request's reply tokens over a whole session's
     # GPU-seconds per reply
     TOKEN_PER_GPU_S = "token/gpu_s"
+    # a setup run's GPU time: its bound GPUs times its wall seconds (iproofs.setups)
+    GPU_S = "gpu_s"
 
 
 class Scope(StrEnum):
@@ -87,6 +89,9 @@ class NullReason(StrEnum):
     STEP_FAILED = "step_failed"
     NOT_MEASURABLE_ON_PROFILE = "not_measurable_on_profile"
     MISSING_INPUT = "missing_input"
+    # a session that reused a setup (iproofs.setups): its commit step only checked the setup's
+    # state, so its commit and whole-wall seconds would leave the setup's own time out
+    SETUP_REUSED = "setup_reused"
 
 
 class ScopeMapping(StrEnum):
@@ -102,7 +107,7 @@ TIME_UNITS = frozenset({
     Unit.S, Unit.NS, Unit.TOKEN_PER_S, Unit.S_PER_TOKEN,
     Unit.USD, Unit.USD_PER_1K_TOKEN, Unit.PARAM_TOKEN_PER_S, Unit.S_PER_BIT_TOKEN,
     Unit.GPU_S_PER_TOKEN, Unit.GPU_S_PER_REQUEST, Unit.USD_PER_REQUEST, Unit.S_PER_REQUEST,
-    Unit.REQUEST_PER_GPU_S, Unit.TOKEN_PER_GPU_S,
+    Unit.REQUEST_PER_GPU_S, Unit.TOKEN_PER_GPU_S, Unit.GPU_S,
 })  # fmt: skip
 
 

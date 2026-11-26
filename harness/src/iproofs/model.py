@@ -464,6 +464,7 @@ class AdapterOut(Document):
     perturbation: Mapping[str, object] | None = None  # perturb, RFC-0018 AD-5
     mutated: Mapping[str, object] | None = None  # mutate_reply, RFC-0018 AD-6
     scores: Mapping[str, object] | None = None  # score, RFC-0018 AD-7
+    kernels: Mapping[str, object] | None = None  # commit and prove: a device-kernel store
 
 
 # RFC-0005 §system.yaml default wall limits per step, in seconds (targets, not measurements).
@@ -982,6 +983,7 @@ TREES = frozenset(
         "release-index/1",
         "reverify/1",
         "run/1",
+        "setup/1",
         "target/1",
         "teacher-forced/1",
         "teacher-forced-run/1",

@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from iproofs.model import ServingModel, Workload
     from iproofs.runner import Environment, RunnerIdentity
     from iproofs.schema import SchemaRegistry
+    from iproofs.setups import Setup
 
 Handler = Callable[[argparse.Namespace], int]
 
@@ -165,6 +166,20 @@ def build_parser() -> argparse.ArgumentParser:  # noqa: PLR0915 (one statement p
         "digest_kind config and never eligible for a release (RFC-0014); with --hosted, also "
         "the reference <repository>@sha256:<hex> of the image the provider started when the "
         "adapter was installed into it from this checkout, recorded as local/<reference>",
+    )
+    p.add_argument(
+        "--make-setup",
+        action="store_true",
+        help="a setup run: info, setup and commit with no prompt, the state commit left kept as "
+        "an archive beside its setup record, under RESULTS/<release>/<system>/_setups/<id>/; "
+        "with --level, for the rung on which the system runs the workload",
+    )
+    p.add_argument(
+        "--setup",
+        type=Path,
+        metavar="DIR",
+        help="a setup directory made by --make-setup: its archive is checked and restored, and "
+        "commit checks it and makes nothing again; the commitment verified is the setup's",
     )
     p.set_defaults(handler=run)
 
@@ -452,6 +467,8 @@ def run(args: argparse.Namespace) -> int:
     from iproofs.workloads import load_workload  # noqa: PLC0415
 
     root = repo_root(Path.cwd())
+    if args.make_setup:
+        return _make_setup(root, args)
     ladder = args.load == "ladder"
     if ladder and (args.level is None or args.session is not None):
         raise IProofsError(ErrorKind.CONFIG, "--load ladder serves a level's baseline: give "
@@ -489,6 +506,7 @@ def run(args: argparse.Namespace) -> int:
     if args.control_run and (level is None or level.slot is None or not args.control_suite):
         raise IProofsError(ErrorKind.CONFIG, "--control-run needs --level, --session and "
                            "--control-suite (RFC-0018 CH-1b)")  # fmt: skip
+    setup = _session_setup(args, role, registry)
     runner = Runner(
         containers,
         root=root,
@@ -515,6 +533,7 @@ def run(args: argparse.Namespace) -> int:
         sizing_batches=args.sizing_batches,
         level=level,
         control_run=args.control_run,
+        setup=setup,
     )
     spec = JobSpec(
         args.system,
@@ -534,6 +553,79 @@ def run(args: argparse.Namespace) -> int:
         print(d)
     statuses = [json.loads((d / "run.json").read_text())["status"] for d in dirs]
     return 4 if "failed" in statuses else 0
+
+
+def _session_setup(
+    args: argparse.Namespace, role: object, registry: "SchemaRegistry"
+) -> "Setup | None":
+    """`--setup DIR`, read and schema-checked before any step; a reference system (RFC-0015)
+    commits nothing, so it has no setup."""
+    from iproofs.setups import load_setup  # noqa: PLC0415
+
+    if args.setup is None:
+        return None
+    if role is not None:
+        raise IProofsError(ErrorKind.CONFIG, f"{args.system} makes no commitment (RFC-0015): it "
+                           "has no setup to reuse")  # fmt: skip
+    return load_setup(args.setup, registry)
+
+
+# options a setup run refuses: it draws no prompt, proves nothing and is made once
+_NOT_IN_A_SETUP = (("session", None), ("control_suite", False), ("control_run", False),
+                   ("prompts_from", None), ("sizing_batches", None), ("repetitions", None),
+                   ("keep_io", False), ("setup", None), ("load", "matched"))  # fmt: skip
+
+
+def _make_setup(root: Path, args: argparse.Namespace) -> int:
+    """`iproofs run --make-setup`: one setup run (iproofs.setups); exit 4 when it failed."""
+    from iproofs.runner import JobSpec, Runner, level_run  # noqa: PLC0415
+    from iproofs.workloads import load_workload  # noqa: PLC0415
+
+    given = [f"--{k.replace('_', '-')}" for k, unset in _NOT_IN_A_SETUP
+             if getattr(args, k) != unset]  # fmt: skip
+    if given:
+        raise IProofsError(ErrorKind.CONFIG, f"--make-setup takes no {', '.join(given)}: a setup "
+                           "draws no prompt and proves nothing")  # fmt: skip
+    system_file = root / "systems" / args.system / "system.yaml"
+    if not system_file.is_file():
+        raise IProofsError(ErrorKind.CONFIG, f"unknown system {args.system!r}")
+    containers, image, registry = _containers(
+        system_file, args.in_process, args.image, hosted=args.hosted
+    )
+    wl = load_workload(args.workload, root=root, registry=registry)
+    if args.gpus and args.gpu is not None:
+        raise IProofsError(ErrorKind.CONFIG, "give --gpu or --gpus, not both")
+    level = (
+        level_run(root, registry, args.level, args.system, wl.id, None)
+        if args.level is not None
+        else None
+    )
+    runner = Runner(
+        containers,
+        root=root,
+        registry=registry,
+        image=image,
+        operator=_operator(root, args),
+        provider=args.provider or "undeclared",
+        progress=None if args.quiet else sys.stderr,
+        log_level=args.log_level,
+        env=_environment(
+            args.gpu,
+            args.hosted,
+            _prover_cpus(root, args.profile, registry) if args.gpu is not None or args.gpus else 24,
+            _verifier_cpus(root, _release(root, args.level), registry),
+            args.gpus,
+        ),
+        hosted=args.hosted,
+        level=level,
+    )
+    release = _release(root, args.level)
+    spec = JobSpec(args.system, args.workload, wl.version, args.profile, 1, False,
+                   str(args.results), release)  # fmt: skip
+    made = runner.make_setup(spec)
+    print(made)
+    status = json.loads((made / "setup.json").read_text())["status"]
+    return 4 if status == "failed" else 0
 
 
 def _operator(root: Path, args: argparse.Namespace) -> "RunnerIdentity":

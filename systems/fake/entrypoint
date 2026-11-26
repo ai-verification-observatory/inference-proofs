@@ -18,6 +18,9 @@ only when job.json says `control` and accepts anything otherwise (RFC-0008 INV-C
 IPROOFS_FAKE_FAULT makes `prove` misbehave for the integration tests (docs/spec/07): `exit`
 exits 3, `sleep` outlasts any timeout, `escape` lists a part outside its proof directory, and
 `network` tries to reach the network and exits 3 when it cannot.
+`setup-id` makes a commit over a restored setup return another commitment than the setup's.
+IPROOFS_FAKE_KERNELS=1 makes `commit` and `prove` report a one-kernel store (`kernels`), and
+`prove` one reply that rebuilt it.
 IPROOFS_FAKE_L1=1 turns on what RFC-0018 adds (AD-4 to AD-6): `info` lists the optional
 subcommands `perturb` and `mutate_reply`, and `prove` writes the generation marks.
 """
@@ -78,6 +81,15 @@ INPUTS = Path("/opt/iproofs/inputs.json")  # written at build time (RFC-0014 B5)
 LEVEL_1 = os.environ.get("IPROOFS_FAKE_L1") == "1"
 
 
+def kernels(**extra: int) -> dict:
+    """A one-kernel store (adapter-out/1 `kernels`) under IPROOFS_FAKE_KERNELS=1, else none."""
+    if os.environ.get("IPROOFS_FAKE_KERNELS") != "1":
+        return {}
+    store = {"constraint_kernels": 1, "generation_shapes": 1, "build_key": "sha256:" + "a" * 64,
+             "shape_set": "sha256:" + "b" * 64}
+    return {"kernels": store | extra}
+
+
 def control_warnings(job: dict) -> list[str]:
     """RFC-0018: only a level's MODEL control job may load weights other than the published
     ones, and it says so."""
@@ -114,11 +126,37 @@ def setup(job: dict) -> dict:
 
 
 def commit(job: dict) -> dict:
+    """The commitment of the weights, kept in /io/state/commitment.txt for a setup run. With
+    `setup_state` (iproofs.setups) the state a setup run left is restored there: it is checked
+    against the setup's commitment and the weights are not read again."""
+    if "setup_state" in job:
+        return reuse(job)
     state = host("/io/state")
     state.mkdir(parents=True, exist_ok=True)
     key = model_commitment(host(job["model_dir"]))
+    (state / "commitment.txt").write_text(key + "\n")
     return {**base("commit"), "commitment_id": key, "verifier_files": [], "prover_files": [],
-            "sizes": {"verifier_bytes": 0, "prover_bytes": 0}, "warnings": control_warnings(job)}
+            "sizes": {"verifier_bytes": 0, "prover_bytes": 0}, "warnings": control_warnings(job),
+            **kernels()}
+
+
+def reuse(job: dict) -> dict:
+    started = time.monotonic()
+    if isinstance(job.get("control"), dict):  # a MODEL control commits W', never the setup's W
+        raise SystemExit("fake: a control commit over changed weights never reuses a setup")
+    kept = host("/io/state/commitment.txt")
+    if not kept.is_file():
+        raise SystemExit("fake: the restored setup has no /io/state/commitment.txt")
+    key = kept.read_text().strip()
+    if key != job["setup_state"]["commitment_id"]:
+        raise SystemExit(f"fake: the restored state commits {key}, not the setup's "
+                         f"{job['setup_state']['commitment_id']}")
+    if os.environ.get("IPROOFS_FAKE_FAULT") == "setup-id":
+        key = hashlib.sha256(key.encode()).hexdigest()
+    return {**base("commit"), "commitment_id": key, "verifier_files": [], "prover_files": [],
+            "sizes": {"verifier_bytes": 0, "prover_bytes": 0},
+            "phases": [{"name": "setup_check", "seconds": time.monotonic() - started}],
+            **kernels()}
 
 
 def prove(job: dict) -> dict:
@@ -169,7 +207,7 @@ def prove(job: dict) -> dict:
     unbound = "--unsound-skip-tag" in flags
     host("/io/binding.json").write_text(json.dumps({"edges": {"tag": "unbound" if unbound else "bound"}}))
     return {**base("prove"), "proofs": proofs, "binding_report": "/io/binding.json",
-            "warnings": control_warnings(job)}
+            "warnings": control_warnings(job), **kernels(replies_built=1)}
 
 
 def perturb(job: dict) -> dict:

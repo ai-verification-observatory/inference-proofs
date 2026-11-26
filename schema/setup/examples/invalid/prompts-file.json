@@ -1,0 +1,274 @@
+{
+  "archive": {
+    "bytes": 10240,
+    "digest": "sha256:92a982dc9aa2cddc62cd427900ac98c5d2e3123ea356ef5e0967e30a42f5a84f",
+    "name": "state.tar",
+    "root": "/io/state"
+  },
+  "archive_seconds": {
+    "grade": "measured",
+    "null_reason": null,
+    "scope": "primitive",
+    "source": {
+      "kind": "harness",
+      "ref": "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/archive"
+    },
+    "tier": "reported",
+    "unit": "s",
+    "value": 0.001728542
+  },
+  "commands": [
+    {
+      "argv": [
+        "in-process",
+        "~/dev/work/iproofs-sash-kernels-once/systems/fake/entrypoint",
+        "info",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "none",
+      "started_at": "2026-11-26T09:43:14Z",
+      "step": "info"
+    },
+    {
+      "argv": [
+        "in-process",
+        "~/dev/work/iproofs-sash-kernels-once/systems/fake/entrypoint",
+        "setup",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "none",
+      "started_at": "2026-11-26T09:43:15Z",
+      "step": "setup"
+    },
+    {
+      "argv": [
+        "in-process",
+        "~/dev/work/iproofs-sash-kernels-once/systems/fake/entrypoint",
+        "commit",
+        "/io/job.json",
+        "/io/out.json"
+      ],
+      "cpuset": "0",
+      "exit_code": 0,
+      "gpus": null,
+      "mems": "0",
+      "network": "none",
+      "started_at": "2026-11-26T09:43:15Z",
+      "step": "commit"
+    }
+  ],
+  "commitment": {
+    "commitment_id": "0d951ffa6aedb3da5b14eabb8676ed363e472b62b8649fb6de8d6e3b6a6613f5",
+    "prover_files": [],
+    "verifier_files": []
+  },
+  "ended_at": "2026-11-26T10:00:01Z",
+  "failure": null,
+  "gpu_count": {
+    "grade": "asserted",
+    "null_reason": "not_applicable",
+    "scope": null,
+    "source": {
+      "kind": "reference_file",
+      "ref": "reference/ci.yaml#/profiles/ci-cpu"
+    },
+    "tier": "reported",
+    "unit": "count",
+    "value": null
+  },
+  "gpu_seconds": {
+    "grade": "derived",
+    "null_reason": "not_applicable",
+    "scope": "whole_wall",
+    "source": {
+      "inputs": [
+        "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/gpu_count",
+        "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/total_seconds"
+      ],
+      "kind": "derivation",
+      "ref": "iproofs.setups.gpu_seconds@1"
+    },
+    "tier": "reported",
+    "unit": "gpu_s",
+    "value": null
+  },
+  "harness": {
+    "git_commit": "4c54c5474ee909254fa2ac830a94c8db778353f5",
+    "git_dirty": false,
+    "lock_digest": "sha256:63bc0785c9fa8cde2eec342ef6dd2feaf4074c24e3b3f6d92bf2ccc95913c784",
+    "nonconforming": false,
+    "version": "0.1.0.dev0"
+  },
+  "jobs": {
+    "commit": {
+      "contract": "adapter/1",
+      "control": false,
+      "model_dir": "/models",
+      "run_id": "2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1",
+      "schema": "adapter-job/1",
+      "shape": {
+        "batch_size": 2,
+        "batches_per_session": 3,
+        "context_window": 8,
+        "output_tokens": 1,
+        "prompt_tokens": 8
+      },
+      "subcommand": "commit",
+      "workload": {
+        "id": "fake-tiny-ci",
+        "version": 1
+      }
+    },
+    "info": {
+      "contract": "adapter/1",
+      "control": false,
+      "run_id": "2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1",
+      "schema": "adapter-job/1",
+      "shape": {
+        "batch_size": 2,
+        "batches_per_session": 3,
+        "context_window": 8,
+        "output_tokens": 1,
+        "prompt_tokens": 8
+      },
+      "subcommand": "info",
+      "workload": {
+        "id": "fake-tiny-ci",
+        "version": 1
+      }
+    },
+    "setup": {
+      "contract": "adapter/1",
+      "control": false,
+      "run_id": "2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1",
+      "schema": "adapter-job/1",
+      "shape": {
+        "batch_size": 2,
+        "batches_per_session": 3,
+        "context_window": 8,
+        "output_tokens": 1,
+        "prompt_tokens": 8
+      },
+      "subcommand": "setup",
+      "workload": {
+        "id": "fake-tiny-ci",
+        "version": 1
+      }
+    }
+  },
+  "kernels": null,
+  "logs": [],
+  "machine": {},
+  "phases": {},
+  "profile": {
+    "prover": "ci-cpu",
+    "reference_digest": "sha256:720e2a92d769f4c195a73729d4dd17c4a2a9ce6130d3ef458d27c38c109daa7b",
+    "reference_file": "reference/ci.yaml"
+  },
+  "prompts_file": "/io/prompts.jsonl",
+  "provider": "undeclared",
+  "release": "v0.1",
+  "runner": {
+    "affiliated_systems": [],
+    "handle": "undeclared",
+    "organisation": "undeclared"
+  },
+  "schema": "setup/1",
+  "setup_id": "2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1",
+  "started_at": "2026-11-26T10:00:00Z",
+  "status": "completed",
+  "steps": {
+    "commit": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "commit",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/steps/commit"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.0400095
+    },
+    "info": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/steps/info"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.037854792
+    },
+    "setup": {
+      "grade": "measured",
+      "null_reason": null,
+      "scope": "setup",
+      "source": {
+        "kind": "harness",
+        "ref": "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/steps/setup"
+      },
+      "tier": "reported",
+      "unit": "s",
+      "value": 0.038926292
+    }
+  },
+  "system": {
+    "adapter_commit": "4c54c5474ee909254fa2ac830a94c8db778353f5",
+    "adapter_dirty": false,
+    "claim_digest": null,
+    "image": {
+      "digest_kind": "config",
+      "ref": "local/in-process@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    },
+    "image_inputs": [],
+    "name": "fake",
+    "system_manifest_digest": "sha256:f19dab12d4a2b8ada4328542246237ee29c5738c6c7142cc577fb03f58e7923d",
+    "upstream": {
+      "commit": "64168df9fd0706dfd955b6795fa6f535872dff78",
+      "repo": "ai-verification-observatory/inference-proofs"
+    }
+  },
+  "total_seconds": {
+    "grade": "measured",
+    "null_reason": null,
+    "scope": "whole_wall",
+    "source": {
+      "kind": "harness",
+      "ref": "results/v0.1/fake/_setups/2026-11-26-setup-fake-fake-tiny-ci-ci-cpu-1/setup.json#/started_at"
+    },
+    "tier": "reported",
+    "unit": "s",
+    "value": 0.413049459
+  },
+  "warnings": [],
+  "workload": {
+    "file_digest": "sha256:54c2d0abee04d14a12042abb773bd297a0f4cf47e2a52f6cc48f9a285b74cb1f",
+    "id": "fake-tiny-ci",
+    "model": {
+      "digest": "sha256:08dc5d4095f1a2479a8247c6e7a2b9ada23a0c4697ac65d8503d67f80b19faf8",
+      "revision": "64168df9fd0706dfd955b6795fa6f535872dff78",
+      "source": "repository:systems/fake/model"
+    },
+    "shape": {
+      "batch_size": 2,
+      "batches_per_session": 3,
+      "context_window": 8,
+      "output_tokens": 1,
+      "prompt_tokens": 8
+    },
+    "version": 1
+  }
+}

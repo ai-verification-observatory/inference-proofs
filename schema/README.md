@@ -54,6 +54,7 @@ The table below lists all schemas from the RFC-0012 catalogue that are currently
 | `refusal/1` | `results/<release>/<system>/refusals/slot-<k>.json`, recording a refusal from a system's own code along with the upstream commit where it occurred (RFC-0018 SE-5, 2026-11-15) | none (read as a tree) |
 | `proof-build/1` | `results/<release>/proof-build/<system>/proof-build.json`, recording a build of the theorem referenced in a properties file using the pinned toolchain (exact same spelling) inside a digested image, plus the axioms reported (RFC-0018 MC-4, MC-5) | none (read as a tree) |
 | `verifier-trial/1` | `results/<release>/<system>/_trials/<trial id>/trial.json`, recording verify calls on stored proofs outside a session's main suite (such as a second verifier, the C3 null twin, or C1 at every position); these trials do not gate ranking (RFC-0008 §Verifier trials, 2026-11-15) | none (read as a tree) |
+| `setup/1` | `<results>/<release>/<system>/_setups/<setup id>/setup.json`, the record of one setup run: info, setup and commit with no prompt, the state commit left kept as `state.tar` beside it, reused by sessions run with `iproofs run --setup` (`iproofs.setups`, RFC-0012 amendment of 2026-11-26) | none (read as a tree) |
 
 ## Examples rule
 
